@@ -3,8 +3,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, requests, requestAiAnalysis, comments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
+import { StageControls } from "@/components/requests/stage-controls";
+import { CommentBox } from "@/components/requests/comment-box";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -63,6 +65,13 @@ export default async function RequestDetailPage({
     .from(comments)
     .where(eq(comments.requestId, id))
     .orderBy(comments.createdAt);
+
+  // Build a profile lookup for comment authors
+  const authorIds = [...new Set(requestComments.map((c) => c.authorId).filter(Boolean))] as string[];
+  const authorProfiles = authorIds.length
+    ? await db.select().from(profiles).where(inArray(profiles.id, authorIds))
+    : [];
+  const authorMap = Object.fromEntries(authorProfiles.map((p) => [p.id, p]));
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -217,30 +226,39 @@ export default async function RequestDetailPage({
                 <p className="text-sm text-zinc-700">No comments yet</p>
               ) : (
                 <div className="space-y-3">
-                  {requestComments.map((c) => (
-                    <div key={c.id} className="border border-zinc-800 rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        {c.isSystem ? (
-                          <span className="text-[10px] text-zinc-600 bg-zinc-800 rounded px-1.5 py-0.5">AI</span>
-                        ) : null}
-                        <span className="text-xs text-zinc-600">{formatDate(c.createdAt)}</span>
+                  {requestComments.map((c) => {
+                    const author = c.authorId ? authorMap[c.authorId] : null;
+                    return (
+                      <div key={c.id} className="border border-zinc-800 rounded-lg px-4 py-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          {c.isSystem ? (
+                            <span className="text-[10px] text-zinc-600 bg-zinc-800 rounded px-1.5 py-0.5">AI</span>
+                          ) : (
+                            <span className="text-xs font-medium text-zinc-300">
+                              {author?.fullName ?? "Unknown"}
+                            </span>
+                          )}
+                          <span className="text-xs text-zinc-600">{formatDate(c.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-zinc-400 leading-relaxed">{c.body}</p>
                       </div>
-                      <p className="text-sm text-zinc-300">{c.body}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+              <CommentBox requestId={request.id} />
             </section>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-5">
+            <div className="border-b border-zinc-800/50 pb-4">
+              <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
+              <StageControls requestId={request.id} currentStage={request.stage} />
+            </div>
+
             <SidebarField label="Status">
               <span className="text-sm capitalize">{request.status.replace(/_/g, " ")}</span>
-            </SidebarField>
-
-            <SidebarField label="Stage">
-              <span className="text-sm capitalize">{request.stage}</span>
             </SidebarField>
 
             {request.priority && (
