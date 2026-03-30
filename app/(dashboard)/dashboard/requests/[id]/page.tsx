@@ -138,6 +138,27 @@ export default async function RequestDetailPage({
               </section>
             )}
 
+            {request.figmaUrl && (
+              <section>
+                <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Figma</h2>
+                <a
+                  href={request.figmaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 38 57" fill="currentColor">
+                    <path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/>
+                    <path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/>
+                    <path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/>
+                    <path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/>
+                    <path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/>
+                  </svg>
+                  Open in Figma
+                </a>
+              </section>
+            )}
+
             {/* AI Triage */}
             {triage ? (
               <section className="border border-zinc-800 rounded-xl overflow-hidden">
@@ -261,7 +282,7 @@ export default async function RequestDetailPage({
           <div className="space-y-5">
             <div className="border-b border-zinc-800/50 pb-4">
               <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
-              <StageControls requestId={request.id} currentStage={request.stage} />
+              <StageControls requestId={request.id} currentStage={request.stage} currentStatus={request.status} />
             </div>
 
             <SidebarField label="Status">

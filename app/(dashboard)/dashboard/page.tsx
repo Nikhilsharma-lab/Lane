@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests } from "@/db/schema";
+import { profiles, requests, assignments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
@@ -21,6 +21,13 @@ export default async function DashboardPage() {
     .from(requests)
     .where(eq(requests.orgId, profile.orgId))
     .orderBy(requests.createdAt);
+
+  const myAssignments = await db
+    .select({ requestId: assignments.requestId })
+    .from(assignments)
+    .where(eq(assignments.assigneeId, user.id));
+
+  const myRequestIds = new Set(myAssignments.map((a) => a.requestId));
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -60,7 +67,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-10">
-        <RequestList requests={allRequests} />
+        <RequestList requests={allRequests} myRequestIds={myRequestIds} />
       </main>
     </div>
   );

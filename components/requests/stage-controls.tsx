@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { advanceStage } from "@/app/actions/requests";
+import { advanceStage, toggleBlocked } from "@/app/actions/requests";
 
 const STAGES = [
   { id: "intake", label: "Intake" },
@@ -18,12 +18,15 @@ const STAGES = [
 export function StageControls({
   requestId,
   currentStage,
+  currentStatus,
 }: {
   requestId: string;
   currentStage: string;
+  currentStatus: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const isBlocked = currentStatus === "blocked";
 
   const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
   const isLast = currentIndex >= STAGES.length - 1;
@@ -33,6 +36,14 @@ export function StageControls({
     setError(null);
     startTransition(async () => {
       const result = await advanceStage(requestId);
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  function handleToggleBlocked() {
+    setError(null);
+    startTransition(async () => {
+      const result = await toggleBlocked(requestId, currentStatus);
       if (result?.error) setError(result.error);
     });
   }
@@ -49,7 +60,9 @@ export function StageControls({
               key={stage.id}
               className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
                 isCurrent
-                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                  ? isBlocked
+                    ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
                   : isCompleted
                   ? "text-zinc-600 line-through"
                   : "text-zinc-800"
@@ -61,8 +74,8 @@ export function StageControls({
         })}
       </div>
 
-      {/* Advance button */}
-      {nextStage && (
+      {/* Advance button — hidden when blocked */}
+      {nextStage && !isBlocked && (
         <button
           onClick={handleAdvance}
           disabled={isPending}
@@ -72,9 +85,22 @@ export function StageControls({
         </button>
       )}
 
-      {isLast && (
+      {isLast && !isBlocked && (
         <p className="text-xs text-zinc-700">Final stage reached</p>
       )}
+
+      {/* Blocked toggle */}
+      <button
+        onClick={handleToggleBlocked}
+        disabled={isPending}
+        className={`w-full text-left text-xs border rounded-lg px-3 py-2 transition-colors disabled:opacity-40 ${
+          isBlocked
+            ? "text-red-400 border-red-500/30 hover:border-red-400/50 bg-red-500/10"
+            : "text-zinc-600 border-zinc-800 hover:border-zinc-700 hover:text-zinc-400"
+        }`}
+      >
+        {isPending ? "Updating..." : isBlocked ? "⊘ Unblock" : "⊘ Mark as blocked"}
+      </button>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

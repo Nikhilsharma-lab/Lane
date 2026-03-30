@@ -63,6 +63,7 @@ export const requests = pgTable("requests", {
   priority: priorityEnum("priority"),        // set by AI triage
   complexity: integer("complexity"),          // 1-5, set by AI triage
   requestType: requestTypeEnum("request_type"), // set by AI triage
+  figmaUrl: text("figma_url"),
   deadlineAt: timestamp("deadline_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

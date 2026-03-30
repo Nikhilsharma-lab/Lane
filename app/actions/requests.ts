@@ -11,6 +11,7 @@ const STAGES = [
 ] as const;
 type Stage = typeof STAGES[number];
 
+export { STAGES };
 const STAGE_STATUS_MAP: Record<Stage, string> = {
   intake: "submitted",
   context: "triaged",
@@ -72,6 +73,29 @@ export async function advanceStage(requestId: string) {
       status: STAGE_STATUS_MAP[nextStage] as typeof requests.$inferSelect.status,
       updatedAt: new Date(),
     })
+    .where(eq(requests.id, requestId));
+
+  revalidatePath(`/dashboard/requests/${requestId}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function toggleBlocked(requestId: string, currentStatus: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
+  if (!request) return { error: "Request not found" };
+
+  const newStatus =
+    currentStatus === "blocked"
+      ? (STAGE_STATUS_MAP[request.stage as Stage] ?? "in_progress") // unblock
+      : "blocked";
+
+  await db
+    .update(requests)
+    .set({ status: newStatus as typeof requests.$inferSelect.status, updatedAt: new Date() })
     .where(eq(requests.id, requestId));
 
   revalidatePath(`/dashboard/requests/${requestId}`);

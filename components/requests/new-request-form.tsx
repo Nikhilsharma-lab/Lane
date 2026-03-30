@@ -23,6 +23,7 @@ export function NewRequestForm({ onClose }: Props) {
       description: form.get("description"),
       businessContext: form.get("businessContext") || null,
       successMetrics: form.get("successMetrics") || null,
+      figmaUrl: form.get("figmaUrl") || null,
       deadlineAt: form.get("deadlineAt") || null,
     };
 
@@ -123,6 +124,18 @@ export function NewRequestForm({ onClose }: Props) {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wide">
+              Figma link
+            </label>
+            <input
+              name="figmaUrl"
+              type="url"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+              placeholder="https://figma.com/file/..."
+            />
           </div>
 
           {error && (

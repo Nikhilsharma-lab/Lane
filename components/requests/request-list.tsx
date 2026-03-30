@@ -30,19 +30,44 @@ function formatDate(date: Date | string) {
 
 interface Props {
   requests: Request[];
+  myRequestIds?: Set<string>;
 }
 
-export function RequestList({ requests }: Props) {
+export function RequestList({ requests, myRequestIds }: Props) {
   const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<"all" | "mine">("all");
+
+  const hasMine = myRequestIds && myRequestIds.size > 0;
+  const visible = filter === "mine" && myRequestIds
+    ? requests.filter((r) => myRequestIds.has(r.id))
+    : requests;
 
   return (
     <>
       {showForm && <NewRequestForm onClose={() => setShowForm(false)} />}
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Requests</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">{requests.length} total</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Requests</h1>
+            <p className="text-zinc-500 text-sm mt-0.5">{visible.length} of {requests.length}</p>
+          </div>
+          {hasMine && (
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+              <button
+                onClick={() => setFilter("all")}
+                className={`text-xs px-2.5 py-1 rounded transition-colors ${filter === "all" ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter("mine")}
+                className={`text-xs px-2.5 py-1 rounded transition-colors ${filter === "mine" ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"}`}
+              >
+                Mine
+              </button>
+            </div>
+          )}
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -52,7 +77,7 @@ export function RequestList({ requests }: Props) {
         </button>
       </div>
 
-      {requests.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="border border-zinc-800 rounded-xl p-16 text-center">
           <p className="text-zinc-600 text-sm mb-1">No requests yet</p>
           <p className="text-zinc-700 text-xs mb-5">Submit one to see AI triage in action</p>
@@ -65,7 +90,7 @@ export function RequestList({ requests }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {requests.map((r) => (
+          {visible.map((r) => (
             <Link
               key={r.id}
               href={`/dashboard/requests/${r.id}`}
