@@ -90,6 +90,15 @@ export default async function RequestDetailPage({
     : [];
   const authorMap = Object.fromEntries(authorProfiles.map((p) => [p.id, p]));
 
+  // Serialize request for client components (Dates → ISO strings)
+  const clientRequest = {
+    ...request,
+    createdAt: request.createdAt.toISOString(),
+    updatedAt: request.updatedAt.toISOString(),
+    deadlineAt: request.deadlineAt?.toISOString() ?? null,
+    impactLoggedAt: request.impactLoggedAt?.toISOString() ?? null,
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
@@ -133,7 +142,7 @@ export default async function RequestDetailPage({
                 <h1 className="text-2xl font-semibold">{request.title}</h1>
                 {(profile.id === request.requesterId || profile.role === "lead" || profile.role === "admin") && (
                   <div className="shrink-0 mt-1">
-                    <EditRequestButton request={request} />
+                    <EditRequestButton request={clientRequest} />
                   </div>
                 )}
               </div>
@@ -190,7 +199,7 @@ export default async function RequestDetailPage({
               impactMetric={request.impactMetric}
               impactPrediction={request.impactPrediction}
               impactActual={request.impactActual}
-              impactLoggedAt={request.impactLoggedAt}
+              impactLoggedAt={clientRequest.impactLoggedAt}
               stage={request.stage}
             />
 
@@ -339,7 +348,7 @@ export default async function RequestDetailPage({
           <div className="space-y-5">
             <div className="border-b border-zinc-800/50 pb-4">
               <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
-              <StageControls requestId={request.id} currentStage={request.stage} currentStatus={request.status} updatedAt={request.updatedAt} />
+              <StageControls requestId={request.id} currentStage={request.stage} currentStatus={request.status} updatedAt={clientRequest.updatedAt} />
             </div>
 
             {stageHistory.length > 0 && (

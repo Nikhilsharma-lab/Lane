@@ -2,9 +2,22 @@
 
 import { useState } from "react";
 import { EditRequestModal } from "./edit-request-modal";
-import type { Request } from "@/db/schema";
 
-export function EditRequestButton({ request }: { request: Request }) {
+// Serialized version of Request (Dates as ISO strings for RSC transport)
+type SerializedRequest = {
+  id: string;
+  title: string;
+  description: string;
+  businessContext: string | null;
+  successMetrics: string | null;
+  figmaUrl: string | null;
+  impactMetric: string | null;
+  impactPrediction: string | null;
+  deadlineAt: string | null;
+  [key: string]: unknown;
+};
+
+export function EditRequestButton({ request }: { request: SerializedRequest }) {
   const [open, setOpen] = useState(false);
   return (
     <>

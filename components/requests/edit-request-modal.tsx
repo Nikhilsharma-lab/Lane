@@ -2,10 +2,22 @@
 
 import { useState, useTransition } from "react";
 import { updateRequest } from "@/app/actions/requests";
-import type { Request } from "@/db/schema";
+
+interface SerializedRequest {
+  id: string;
+  title: string;
+  description: string;
+  businessContext: string | null;
+  successMetrics: string | null;
+  figmaUrl: string | null;
+  impactMetric: string | null;
+  impactPrediction: string | null;
+  deadlineAt: string | null;
+  [key: string]: unknown;
+}
 
 interface Props {
-  request: Request;
+  request: SerializedRequest;
   onClose: () => void;
 }
 

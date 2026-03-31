@@ -26,7 +26,7 @@ export function StageControls({
   requestId: string;
   currentStage: string;
   currentStatus: string;
-  updatedAt: Date | string;
+  updatedAt: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
