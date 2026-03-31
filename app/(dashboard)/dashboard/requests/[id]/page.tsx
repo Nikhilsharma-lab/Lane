@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, requestAiAnalysis, comments } from "@/db/schema";
+import { profiles, requests, requestAiAnalysis, comments, requestStages } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { StageControls } from "@/components/requests/stage-controls";
@@ -63,6 +63,12 @@ export default async function RequestDetailPage({
 
   const [requester] = await db.select().from(profiles).where(eq(profiles.id, request.requesterId));
 
+  const stageHistory = await db
+    .select()
+    .from(requestStages)
+    .where(eq(requestStages.requestId, id))
+    .orderBy(requestStages.enteredAt);
+
   const requestComments = await db
     .select()
     .from(comments)
@@ -116,7 +122,10 @@ export default async function RequestDetailPage({
                 )}
               </div>
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h1 className="text-2xl font-semibold">{request.title}</h1>
+                <h1 className="text-2xl font-semibold">
+                  <span className="text-zinc-600 font-mono text-base mr-2">#{request.id.slice(-6)}</span>
+                  {request.title}
+                </h1>
                 {(profile.id === request.requesterId || profile.role === "lead" || profile.role === "admin") && (
                   <div className="shrink-0 mt-1">
                     <EditRequestButton request={request} />
@@ -325,8 +334,24 @@ export default async function RequestDetailPage({
           <div className="space-y-5">
             <div className="border-b border-zinc-800/50 pb-4">
               <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
-              <StageControls requestId={request.id} currentStage={request.stage} currentStatus={request.status} />
+              <StageControls requestId={request.id} currentStage={request.stage} currentStatus={request.status} updatedAt={request.updatedAt} />
             </div>
+
+            {stageHistory.length > 0 && (
+              <div className="border-b border-zinc-800/50 pb-4">
+                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">History</div>
+                <div className="space-y-1.5">
+                  {stageHistory.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-zinc-600 capitalize">{s.stage}</span>
+                      <span className="text-[10px] text-zinc-700">
+                        {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <SidebarField label="Status">
               <span className="text-sm capitalize">{request.status.replace(/_/g, " ")}</span>

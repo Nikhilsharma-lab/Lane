@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { advanceStage, toggleBlocked } from "@/app/actions/requests";
+import { advanceStage, toggleBlocked, nudgeRequest } from "@/app/actions/requests";
 
 const STAGES = [
   { id: "intake", label: "Intake" },
@@ -15,18 +15,26 @@ const STAGES = [
   { id: "impact", label: "Impact" },
 ] as const;
 
+const STALL_EXEMPT = new Set(["draft", "completed", "shipped", "blocked"]);
+
 export function StageControls({
   requestId,
   currentStage,
   currentStatus,
+  updatedAt,
 }: {
   requestId: string;
   currentStage: string;
   currentStatus: string;
+  updatedAt: Date | string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [nudged, setNudged] = useState(false);
   const isBlocked = currentStatus === "blocked";
+
+  const daysSinceUpdate = (Date.now() - new Date(updatedAt).getTime()) / 86_400_000;
+  const isStalled = !STALL_EXEMPT.has(currentStatus) && daysSinceUpdate >= 5;
 
   const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
   const isLast = currentIndex >= STAGES.length - 1;
@@ -37,6 +45,13 @@ export function StageControls({
     startTransition(async () => {
       const result = await advanceStage(requestId);
       if (result?.error) setError(result.error);
+    });
+  }
+
+  function handleNudge() {
+    startTransition(async () => {
+      await nudgeRequest(requestId);
+      setNudged(true);
     });
   }
 
@@ -101,6 +116,17 @@ export function StageControls({
       >
         {isPending ? "Updating..." : isBlocked ? "⊘ Unblock" : "⊘ Mark as blocked"}
       </button>
+
+      {/* Stall nudge */}
+      {isStalled && !isBlocked && (
+        <button
+          onClick={handleNudge}
+          disabled={isPending || nudged}
+          className="w-full text-left text-xs border border-yellow-500/20 bg-yellow-500/5 text-yellow-500/70 hover:text-yellow-400 hover:border-yellow-500/40 rounded-lg px-3 py-2 transition-colors disabled:opacity-40"
+        >
+          {nudged ? "✓ Nudge sent" : isPending ? "Sending…" : "🔔 Send nudge"}
+        </button>
+      )}
 
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

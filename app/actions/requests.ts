@@ -181,3 +181,26 @@ export async function toggleBlocked(requestId: string, currentStatus: string) {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function nudgeRequest(requestId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+  if (!profile) return { error: "Profile not found" };
+
+  await db.insert(comments).values({
+    requestId,
+    authorId: null,
+    body: `🔔 Nudge sent by ${profile.fullName} — this request needs attention`,
+    isSystem: true,
+  });
+
+  // Touch updatedAt so stall timer resets after nudge
+  await db.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, requestId));
+
+  revalidatePath(`/dashboard/requests/${requestId}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
