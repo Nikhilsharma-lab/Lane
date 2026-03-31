@@ -108,31 +108,36 @@ export async function advanceStage(requestId: string) {
 
   const nextStage = STAGES[currentIndex + 1];
 
-  // Log current stage as completed
-  await db.insert(requestStages).values({
-    requestId,
-    stage: request.stage as Stage,
-    completedAt: new Date(),
-    completedById: user.id,
-  });
+  try {
+    // Log current stage as completed
+    await db.insert(requestStages).values({
+      requestId,
+      stage: request.stage as Stage,
+      completedAt: new Date(),
+      completedById: user.id,
+    });
 
-  // Advance stage and sync status
-  await db
-    .update(requests)
-    .set({
-      stage: nextStage,
-      status: STAGE_STATUS_MAP[nextStage] as typeof requests.$inferSelect.status,
-      updatedAt: new Date(),
-    })
-    .where(eq(requests.id, requestId));
+    // Advance stage and sync status
+    await db
+      .update(requests)
+      .set({
+        stage: nextStage,
+        status: STAGE_STATUS_MAP[nextStage] as typeof requests.$inferSelect.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(requests.id, requestId));
 
-  // System comment to surface movement in activity feed
-  await db.insert(comments).values({
-    requestId,
-    authorId: null,
-    body: `⭢ Moved to ${nextStage.charAt(0).toUpperCase() + nextStage.slice(1)} stage`,
-    isSystem: true,
-  });
+    // System comment to surface movement in activity feed
+    await db.insert(comments).values({
+      requestId,
+      authorId: null,
+      body: `⭢ Moved to ${nextStage.charAt(0).toUpperCase() + nextStage.slice(1)} stage`,
+      isSystem: true,
+    });
+  } catch (err) {
+    console.error("[advanceStage] DB error:", err);
+    return { error: "Database error — check server logs" };
+  }
 
   revalidatePath(`/dashboard/requests/${requestId}`);
   revalidatePath("/dashboard");
@@ -190,15 +195,20 @@ export async function nudgeRequest(requestId: string) {
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return { error: "Profile not found" };
 
-  await db.insert(comments).values({
-    requestId,
-    authorId: null,
-    body: `🔔 Nudge sent by ${profile.fullName} — this request needs attention`,
-    isSystem: true,
-  });
+  try {
+    await db.insert(comments).values({
+      requestId,
+      authorId: null,
+      body: `🔔 Nudge sent by ${profile.fullName} — this request needs attention`,
+      isSystem: true,
+    });
 
-  // Touch updatedAt so stall timer resets after nudge
-  await db.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, requestId));
+    // Touch updatedAt so stall timer resets after nudge
+    await db.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, requestId));
+  } catch (err) {
+    console.error("[nudgeRequest] DB error:", err);
+    return { error: "Database error — check server logs" };
+  }
 
   revalidatePath(`/dashboard/requests/${requestId}`);
   revalidatePath("/dashboard");

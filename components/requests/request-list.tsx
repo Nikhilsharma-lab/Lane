@@ -240,10 +240,7 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-white font-medium truncate">
-                    <span className="text-zinc-700 font-mono text-xs mr-1.5">#{r.id.slice(-6)}</span>
-                    {r.title}
-                  </p>
+                    <p className="text-sm text-white font-medium truncate">{r.title}</p>
                     <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{r.description}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">

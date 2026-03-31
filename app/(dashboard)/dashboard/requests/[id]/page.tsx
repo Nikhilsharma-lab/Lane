@@ -122,10 +122,7 @@ export default async function RequestDetailPage({
                 )}
               </div>
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h1 className="text-2xl font-semibold">
-                  <span className="text-zinc-600 font-mono text-base mr-2">#{request.id.slice(-6)}</span>
-                  {request.title}
-                </h1>
+                <h1 className="text-2xl font-semibold">{request.title}</h1>
                 {(profile.id === request.requesterId || profile.role === "lead" || profile.role === "admin") && (
                   <div className="shrink-0 mt-1">
                     <EditRequestButton request={request} />
