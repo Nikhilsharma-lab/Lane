@@ -20,9 +20,9 @@ export const figmaUpdates = pgTable("figma_updates", {
   figmaVersionId: text("figma_version_id"),
 
   // Who made the change and when
-  updatedById: uuid("updated_by_id")
-    .notNull()
-    .references(() => profiles.id),
+  // Nullable: webhook events don't always map to an internal profile
+  updatedById: uuid("updated_by_id").references(() => profiles.id),
+  figmaUserHandle: text("figma_user_handle"),     // Figma user name/handle from webhook
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 
   // What changed

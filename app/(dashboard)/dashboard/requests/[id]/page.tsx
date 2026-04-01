@@ -15,6 +15,7 @@ import { PredesignPanel } from "@/components/requests/predesign-panel";
 import { DesignPhasePanel } from "@/components/requests/design-phase-panel";
 import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
 import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
+import { FigmaHistory } from "@/components/requests/figma-history";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -227,6 +228,11 @@ export default async function RequestDetailPage({
                   Open in Figma
                 </a>
               </section>
+            )}
+
+            {/* Figma update history — visible from design phase onwards */}
+            {request.figmaUrl && (request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
+              <FigmaHistory requestId={request.id} phase={request.phase as string} />
             )}
 
             <HandoffChecklist requestId={request.id} stage={request.stage} />
