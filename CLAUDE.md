@@ -444,18 +444,53 @@ By next quarter:
 
 ---
 
-## Part 4: FIGMA SYNC FEATURE (MVP)
+## Part 4: FIGMA SYNC FEATURE (Deferred — OAuth approach)
 
-### How It Works
+### Why Webhooks Were Dropped
 
-**Step 1: Figma Webhook Integration**
+Figma webhooks require each team to manually register a webhook URL in Figma's developer console. This doesn't scale for multi-tenant SaaS — every new DesignQ customer would need manual setup. **Decision: Replace with Figma OAuth.**
+
+### Planned Approach: Figma OAuth
+
 ```
-Designer updates Figma file
-  ↓ (Figma webhook fires)
-POST /api/figma/webhook
-  ├─ Verify signature (security)
-  ├─ Extract: file_id, timestamp, user_id
-  └─ Create figma_updates entry
+User clicks "Connect Figma" in DesignQ settings
+  ↓ (OAuth flow)
+DesignQ receives access_token scoped to that user's Figma workspace
+  ↓
+App polls Figma REST API (GET /v1/files/:key/versions) on a schedule
+  OR
+App fetches on demand when user opens request with a Figma URL
+  ↓
+Stores updates in figma_updates table (same schema, works unchanged)
+```
+
+**Why OAuth is better for SaaS:**
+- Zero setup per team — users click "Connect Figma" once
+- Works for every customer automatically
+- No webhook URL registration in Figma dev console
+- Figma access_token stored securely per org
+
+**When to build:** After email notifications and real-time sync. Not blocking anything.
+
+**What was already built (reusable):**
+- `figma_updates` DB table ✅ (works as-is)
+- `FigmaHistory` component ✅ (works as-is)
+- `GET /api/requests/[id]/figma-updates` ✅ (works as-is)
+- `POST .../[updateId]/review` ✅ (works as-is)
+- Webhook route `app/api/figma/webhook/route.ts` → will be replaced by a polling/OAuth flow
+
+### How It Works (OAuth version — future)
+
+**Step 1: Figma OAuth Connection**
+```
+User clicks "Connect Figma" in DesignQ settings
+  ↓
+Redirect to Figma OAuth: https://www.figma.com/oauth?...
+  ↓
+Callback: POST /api/figma/oauth/callback
+  ├─ Exchange code for access_token
+  ├─ Store token against org in DB
+  └─ Mark org as figma_connected = true
 ```
 
 **Step 2: Activity Feed Created**
@@ -746,13 +781,12 @@ Annual prepay: 8% discount
 - [x] Idea validation (AI validates upvoted ideas)
 
 ### **Week 5-8: DESIGN Phase + Figma Sync**
-- [ ] Exploration (designer creates multiple concepts)
-- [ ] Figma linking (where's the design file?)
-- [ ] **FIGMA SYNC** ← NEW (capture updates, activity feed)
-- [ ] **Post-handoff alerts** ← NEW (dev must review design changes)
-- [ ] Validation gate (3 sign-offs: Designer ✅, PM ✅, Design Head ✅)
-- [ ] Handoff to dev (Figma locked, notes attached)
-- [ ] Figma webhook live (real-time update tracking)
+- [x] Exploration (designer creates multiple concepts)
+- [x] Figma linking (where's the design file?)
+- [x] Validation gate (3 sign-offs: Designer ✅, PM ✅, Design Head ✅)
+- [x] Handoff to dev (Figma locked, notes attached)
+- [x] Figma history UI (FigmaHistory component, figma_updates table, post-handoff review)
+- [ ] **FIGMA OAUTH** ← replaces webhook approach (connect once, polls Figma REST API — no per-team setup required)
 
 ### **Week 9-12: DEV Phase + Track Phase**
 - [ ] Dev kanban board (To Do → In Progress → In Review → QA → Done)
@@ -863,8 +897,9 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 DATABASE_URL=
 ANTHROPIC_API_KEY=
-FIGMA_WEBHOOK_TOKEN=          ← NEW
-FIGMA_ACCESS_TOKEN=           ← NEW (if needed)
+FIGMA_CLIENT_ID=              ← OAuth (future — when Figma OAuth is built)
+FIGMA_CLIENT_SECRET=          ← OAuth (future)
+# FIGMA_WEBHOOK_TOKEN removed — webhook approach dropped in favour of OAuth
 ```
 
 ---
