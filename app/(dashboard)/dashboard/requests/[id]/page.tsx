@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, comments, requestStages } from "@/db/schema";
+import { profiles, requests, comments, requestStages, requestAiAnalysis } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { StageControls } from "@/components/requests/stage-controls";
@@ -115,6 +115,17 @@ export default async function RequestDetailPage({
     // comments query failed silently
   }
 
+  let aiAnalysis: (typeof requestAiAnalysis.$inferSelect) | null = null;
+  try {
+    const [row] = await db
+      .select()
+      .from(requestAiAnalysis)
+      .where(eq(requestAiAnalysis.requestId, id));
+    aiAnalysis = row ?? null;
+  } catch {
+    // ai analysis query failed silently
+  }
+
   /* ---- serialise for client components ---- */
   const sr = JSON.parse(JSON.stringify(request)) as {
     id: string;
@@ -225,11 +236,107 @@ export default async function RequestDetailPage({
             />
 
             {/* AI Triage */}
-            <div className="border border-zinc-800 rounded-xl p-8 text-center">
-              <p className="text-sm text-zinc-600">
-                AI triage pending — add ANTHROPIC_API_KEY to enable
-              </p>
-            </div>
+            {aiAnalysis ? (
+              <section className="border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">AI Triage</span>
+                  <span className="text-[10px] text-zinc-600 font-mono">{aiAnalysis.aiModel}</span>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {/* Summary */}
+                  <p className="text-sm text-zinc-300 leading-relaxed">{aiAnalysis.summary}</p>
+
+                  {/* Quality score */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-zinc-600 uppercase tracking-wide">Request quality</span>
+                      <span className={`text-xs font-mono ${
+                        aiAnalysis.qualityScore >= 70
+                          ? "text-green-400"
+                          : aiAnalysis.qualityScore >= 40
+                          ? "text-yellow-400"
+                          : "text-red-400"
+                      }`}>
+                        {aiAnalysis.qualityScore}/100
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          aiAnalysis.qualityScore >= 70
+                            ? "bg-green-500"
+                            : aiAnalysis.qualityScore >= 40
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                        }`}
+                        style={{ width: `${aiAnalysis.qualityScore}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quality flags */}
+                  {aiAnalysis.qualityFlags.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Issues</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {aiAnalysis.qualityFlags.map((flag, i) => (
+                          <span key={i} className="text-[11px] text-yellow-400/80 bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-0.5">
+                            {flag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reasoning */}
+                  <div>
+                    <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">Reasoning</div>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{aiAnalysis.reasoning}</p>
+                  </div>
+
+                  {/* Suggestions */}
+                  {aiAnalysis.suggestions.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Suggestions</div>
+                      <ul className="space-y-1.5">
+                        {aiAnalysis.suggestions.map((s, i) => (
+                          <li key={i} className="text-xs text-zinc-400 flex gap-2">
+                            <span className="text-indigo-400 shrink-0">-</span>
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Potential duplicates */}
+                  {aiAnalysis.potentialDuplicates.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Potential duplicates</div>
+                      <div className="space-y-1.5">
+                        {aiAnalysis.potentialDuplicates.map((dup, i) => (
+                          <Link
+                            key={i}
+                            href={`/dashboard/requests/${dup.id}`}
+                            className="block text-xs border border-zinc-800 rounded-lg px-3 py-2 hover:border-zinc-700 transition-colors"
+                          >
+                            <span className="text-zinc-300">{dup.title}</span>
+                            <span className="text-zinc-600 ml-2">{dup.reason}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <div className="border border-zinc-800 rounded-xl p-8 text-center">
+                <p className="text-sm text-zinc-600">
+                  AI triage not yet available for this request
+                </p>
+              </div>
+            )}
 
             {/* Comments */}
             <section>
