@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { requests, comments, profiles, assignments } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { sendEmail } from "@/lib/email";
+import { validationNeededEmail, handoffEmail } from "@/lib/email/templates";
 
 const PREDESIGN_STAGES = ["intake", "context", "shape", "bet"] as const;
 const DESIGN_STAGES = ["explore", "validate", "handoff"] as const;
@@ -120,6 +122,26 @@ export async function POST(
         requestId,
         "⭢ Design handed off — Figma locked, Dev kanban opened"
       );
+
+      // Notify all assignees about the handoff
+      const assignedRows = await db.select().from(assignments).where(eq(assignments.requestId, requestId));
+      const [designer] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+      for (const row of assignedRows) {
+        const [assignee] = await db.select().from(profiles).where(eq(profiles.id, row.assigneeId));
+        if (assignee?.email) {
+          sendEmail({
+            to: assignee.email,
+            subject: `Design handed off to dev: ${request.title}`,
+            html: handoffEmail({
+              recipientName: assignee.fullName ?? "there",
+              requestTitle: request.title,
+              requestId,
+              designerName: designer?.fullName ?? "Designer",
+              figmaUrl: request.figmaUrl,
+            }),
+          });
+        }
+      }
     } else {
       const next = DESIGN_STAGES[currentIdx + 1];
       await db
@@ -134,6 +156,39 @@ export async function POST(
         requestId,
         `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
       );
+
+      // When entering validate stage, notify all signers
+      if (next === "validate") {
+        const orgMembers = await db
+          .select()
+          .from(profiles)
+          .where(eq(profiles.orgId, request.orgId));
+
+        const [requester] = await db.select().from(profiles).where(eq(profiles.id, request.requesterId));
+
+        const SIGNER_ROLES: Record<string, string> = {
+          designer: "designer",
+          pm: "pm",
+          lead: "design_head",
+          admin: "design_head",
+        };
+
+        for (const member of orgMembers) {
+          const signerRole = SIGNER_ROLES[member.role ?? ""];
+          if (!signerRole || !member.email) continue;
+          sendEmail({
+            to: member.email,
+            subject: `Sign-off needed: ${request.title}`,
+            html: validationNeededEmail({
+              recipientName: member.fullName ?? "there",
+              signerRole,
+              requestTitle: request.title,
+              requestId,
+              requesterName: requester?.fullName ?? "Unknown",
+            }),
+          });
+        }
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { invites, profiles, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { sendEmail, APP_URL } from "@/lib/email";
+import { inviteEmail } from "@/lib/email/templates";
 
 export async function createInvite(formData: FormData) {
   const supabase = await createClient();
@@ -37,6 +39,21 @@ export async function createInvite(formData: FormData) {
   } catch (err) {
     return { error: "Failed to create invite" };
   }
+
+  // Look up org name for the email
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, profile.orgId));
+  const inviteUrl = `${APP_URL}/invite/${token}`;
+
+  sendEmail({
+    to: email,
+    subject: `You've been invited to ${org?.name ?? "DesignQ"}`,
+    html: inviteEmail({
+      invitedByName: profile.fullName ?? "Your team lead",
+      orgName: org?.name ?? "DesignQ",
+      role,
+      inviteUrl,
+    }),
+  });
 
   return { success: true, token };
 }

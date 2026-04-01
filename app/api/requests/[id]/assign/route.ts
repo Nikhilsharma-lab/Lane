@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, requests, assignments } from "@/db/schema";
 import { eq, and, count, inArray } from "drizzle-orm";
+import { sendEmail } from "@/lib/email";
+import { assignmentEmail } from "@/lib/email/templates";
 
 export async function GET(
   _req: NextRequest,
@@ -99,6 +101,20 @@ export async function POST(
     await db.update(requests)
       .set({ status: "assigned", updatedAt: new Date() })
       .where(eq(requests.id, id));
+  }
+
+  // Email the assignee (fire-and-forget)
+  if (assignee.email && assignee.id !== profile.id) {
+    sendEmail({
+      to: assignee.email,
+      subject: `You've been assigned: ${request.title}`,
+      html: assignmentEmail({
+        assigneeName: assignee.fullName ?? "there",
+        assignedByName: profile.fullName ?? "Someone",
+        requestTitle: request.title,
+        requestId: id,
+      }),
+    });
   }
 
   return NextResponse.json({ assignment }, { status: 201 });

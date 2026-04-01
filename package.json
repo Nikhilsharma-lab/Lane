@@ -28,6 +28,7 @@
     "postgres": "^3.4.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "resend": "^6.10.0",
     "tabler-icons-react": "^1.56.0",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.6",

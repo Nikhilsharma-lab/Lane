@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { requests, profiles, validationSignoffs, comments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendEmail } from "@/lib/email";
+import { signoffSubmittedEmail, allSignoffsEmail } from "@/lib/email/templates";
 
 // Map profile role → signer_role enum
 function signerRoleFromProfile(role: string): "designer" | "pm" | "design_head" | null {
@@ -151,6 +153,21 @@ export async function POST(
       body: "⭢ All 3 sign-offs received — advanced to Handoff",
       isSystem: true,
     });
+
+    // Notify requester that design was approved
+    const [requester] = await db.select().from(profiles).where(eq(profiles.id, request.requesterId));
+    if (requester?.email) {
+      sendEmail({
+        to: requester.email,
+        subject: `Design approved: ${request.title}`,
+        html: allSignoffsEmail({
+          requestTitle: request.title,
+          requestId,
+          requesterName: requester.fullName ?? "there",
+        }),
+      });
+    }
+
     return NextResponse.json({ success: true, autoAdvanced: true });
   }
 
@@ -161,6 +178,33 @@ export async function POST(
       authorId: null,
       body: `⭠ Validation rejected by ${roleLabel} — design sent back for revision`,
       isSystem: true,
+    });
+  }
+
+  // Notify org members about the sign-off update (except the person who just signed)
+  const orgMembers = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.orgId, profile.orgId));
+
+  const approvalCount = allSignoffs.filter((s) => s.decision !== "rejected").length;
+
+  const notifyEmails = orgMembers
+    .filter((m) => m.id !== user.id && m.email)
+    .map((m) => m.email);
+
+  if (notifyEmails.length) {
+    sendEmail({
+      to: notifyEmails,
+      subject: `Validation update: ${request.title}`,
+      html: signoffSubmittedEmail({
+        requestTitle: request.title,
+        requestId,
+        signerName: profile.fullName ?? "Someone",
+        signerRole: signerRole,
+        decision,
+        approvalsReceived: approvalCount,
+      }),
     });
   }
 
