@@ -10,6 +10,7 @@ import { CommentBox } from "@/components/requests/comment-box";
 import { ImpactPanel } from "@/components/requests/impact-panel";
 import { EditRequestButton } from "@/components/requests/edit-request-button";
 import { HandoffChecklist } from "@/components/requests/handoff-checklist";
+import { TriageButton } from "@/components/requests/triage-button";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -331,11 +332,7 @@ export default async function RequestDetailPage({
                 </div>
               </section>
             ) : (
-              <div className="border border-zinc-800 rounded-xl p-8 text-center">
-                <p className="text-sm text-zinc-600">
-                  AI triage not yet available for this request
-                </p>
-              </div>
+              <TriageButton requestId={request.id} />
             )}
 
             {/* Comments */}
