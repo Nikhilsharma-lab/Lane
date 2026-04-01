@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, requests, assignments } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { RequestList } from "@/components/requests/request-list";
@@ -39,6 +39,7 @@ export default async function DashboardPage() {
     ? await db
         .select({ requestId: assignments.requestId, assigneeId: assignments.assigneeId })
         .from(assignments)
+        .where(inArray(assignments.requestId, orgReqIds))
     : [];
 
   const orgMembers = await db
