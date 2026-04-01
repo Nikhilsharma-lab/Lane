@@ -11,6 +11,7 @@ import { ImpactPanel } from "@/components/requests/impact-panel";
 import { EditRequestButton } from "@/components/requests/edit-request-button";
 import { HandoffChecklist } from "@/components/requests/handoff-checklist";
 import { TriageButton } from "@/components/requests/triage-button";
+import { PredesignPanel } from "@/components/requests/predesign-panel";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -370,15 +371,28 @@ export default async function RequestDetailPage({
 
           {/* Sidebar */}
           <div className="space-y-5">
-            <div className="border-b border-zinc-800/50 pb-4">
-              <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
-              <StageControls
-                requestId={request.id}
-                currentStage={request.stage}
-                currentStatus={request.status}
-                updatedAt={request.updatedAt.toISOString()}
-              />
-            </div>
+            {request.phase === "predesign" ? (
+              <div className="mb-2">
+                <PredesignPanel
+                  requestId={request.id}
+                  currentStage={(request.predesignStage ?? request.stage) as "intake" | "context" | "shape" | "bet"}
+                  description={request.description}
+                  businessContext={request.businessContext}
+                  successMetrics={request.successMetrics}
+                  profileRole={profile.role ?? "member"}
+                />
+              </div>
+            ) : (
+              <div className="border-b border-zinc-800/50 pb-4">
+                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
+                <StageControls
+                  requestId={request.id}
+                  currentStage={request.stage}
+                  currentStatus={request.status}
+                  updatedAt={request.updatedAt.toISOString()}
+                />
+              </div>
+            )}
 
             {stageHistory.length > 0 && (
               <div className="border-b border-zinc-800/50 pb-4">

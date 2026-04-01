@@ -34,6 +34,7 @@ export const requestTypeEnum = pgEnum("request_type", [
   "other",
 ]);
 
+// Legacy flat stage enum — kept for backward compatibility with existing rows
 export const stageEnum = pgEnum("stage", [
   "intake",
   "context",
@@ -44,6 +45,40 @@ export const stageEnum = pgEnum("stage", [
   "handoff",
   "build",
   "impact",
+]);
+
+// 4-Phase model — new fields added alongside legacy stage
+export const phaseEnum = pgEnum("phase", [
+  "predesign",
+  "design",
+  "dev",
+  "track",
+]);
+
+export const predesignStageEnum = pgEnum("predesign_stage", [
+  "intake",
+  "context",
+  "shape",
+  "bet",
+]);
+
+export const designStageEnum = pgEnum("design_stage", [
+  "explore",
+  "validate",
+  "handoff",
+]);
+
+export const kanbanStateEnum = pgEnum("kanban_state", [
+  "todo",
+  "in_progress",
+  "in_review",
+  "qa",
+  "done",
+]);
+
+export const trackStageEnum = pgEnum("track_stage", [
+  "measuring",
+  "complete",
 ]);
 
 export const requests = pgTable("requests", {
@@ -70,6 +105,22 @@ export const requests = pgTable("requests", {
   impactActual: text("impact_actual"),        // logged after ship
   impactLoggedAt: timestamp("impact_logged_at", { withTimezone: true }),
   deadlineAt: timestamp("deadline_at", { withTimezone: true }),
+
+  // 4-Phase model — nullable for backward compat; new requests populate these
+  phase: phaseEnum("phase").default("predesign"),
+  predesignStage: predesignStageEnum("predesign_stage").default("intake"),
+  designStage: designStageEnum("design_stage"),
+  kanbanState: kanbanStateEnum("kanban_state"),
+  trackStage: trackStageEnum("track_stage"),
+
+  // Dev assignment + Figma lock (set at handoff)
+  devOwnerId: uuid("dev_owner_id").references(() => profiles.id),
+  figmaVersionId: text("figma_version_id"),
+  figmaLockedAt: timestamp("figma_locked_at", { withTimezone: true }),
+
+  // If request was created from an approved idea
+  linkedIdeaId: uuid("linked_idea_id"),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -115,3 +166,8 @@ export type RequestAiAnalysis = typeof requestAiAnalysis.$inferSelect;
 export type NewRequestAiAnalysis = typeof requestAiAnalysis.$inferInsert;
 export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
+export type Phase = "predesign" | "design" | "dev" | "track";
+export type PredesignStage = "intake" | "context" | "shape" | "bet";
+export type DesignStage = "explore" | "validate" | "handoff";
+export type KanbanState = "todo" | "in_progress" | "in_review" | "qa" | "done";
+export type TrackStage = "measuring" | "complete";
