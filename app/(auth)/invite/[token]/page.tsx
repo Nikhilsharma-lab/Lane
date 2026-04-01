@@ -28,7 +28,7 @@ export default async function InvitePage({
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <p className="text-xs text-zinc-600 uppercase tracking-wide mb-3">You're invited</p>
+          <p className="text-xs text-zinc-600 uppercase tracking-wide mb-3">You&apos;re invited</p>
           <h1 className="text-xl font-semibold text-white">{org.name}</h1>
           {inviter && (
             <p className="text-sm text-zinc-500 mt-1">

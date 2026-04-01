@@ -29,7 +29,7 @@ export function DigestPanel() {
     return (
       <div className="border border-zinc-800 rounded-xl p-8 text-center">
         <p className="text-sm text-zinc-400 mb-1">AI reads your pipeline and writes the digest</p>
-        <p className="text-xs text-zinc-600 mb-5">What shipped, what's stalled, what needs your attention</p>
+        <p className="text-xs text-zinc-600 mb-5">What shipped, what&apos;s stalled, what needs your attention</p>
         <button
           onClick={generate}
           className="bg-white text-zinc-900 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100 transition-colors"

@@ -28,7 +28,7 @@ export function TriageButton({ requestId }: { requestId: string }) {
 
   return (
     <div className="border border-zinc-800 rounded-xl p-6 text-center space-y-3">
-      <p className="text-sm text-zinc-500">This request hasn't been analyzed by AI yet</p>
+      <p className="text-sm text-zinc-500">This request hasn&apos;t been analyzed by AI yet</p>
       <button
         onClick={handleTriage}
         disabled={loading}
