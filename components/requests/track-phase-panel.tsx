@@ -28,10 +28,10 @@ export function TrackPhasePanel({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/requests/${requestId}/impact`, {
+      const res = await fetch(`/api/requests/${requestId}/impact-record`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ impactActual: actual.trim() }),
+        body: JSON.stringify({ actualValue: actual.trim() }),
       });
       const data = await res.json();
       if (!res.ok) setError(data.error ?? "Failed to save");

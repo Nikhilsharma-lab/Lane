@@ -7,6 +7,7 @@ import { eq, inArray, count } from "drizzle-orm";
 import { logout } from "@/app/actions/auth";
 import { DigestPanel } from "@/components/insights/digest-panel";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { PmCalibration } from "@/components/insights/pm-calibration";
 
 function formatDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -202,6 +203,12 @@ export default async function InsightsPage() {
             </div>
           </section>
         )}
+
+        {/* PM Calibration */}
+        <section>
+          <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-4">PM calibration</h2>
+          <PmCalibration />
+        </section>
 
         {/* Designer workload */}
         {workloadRows.length > 0 && (
