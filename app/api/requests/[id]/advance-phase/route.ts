@@ -139,6 +139,50 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
+  // ── Dev phase → Track ────────────────────────────────────────────────────
+
+  if (phase === "dev") {
+    if (request.kanbanState !== "done") {
+      return NextResponse.json(
+        { error: "Move all kanban items to Done before shipping to Track" },
+        { status: 422 }
+      );
+    }
+    await db
+      .update(requests)
+      .set({
+        phase: "track",
+        trackStage: "measuring",
+        stage: "impact",            // legacy
+        status: "completed",
+        updatedAt: new Date(),
+      })
+      .where(eq(requests.id, requestId));
+    await addSystemComment(requestId, "⭢ Dev complete — shipped to Track phase");
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Track phase → complete ────────────────────────────────────────────────
+
+  if (phase === "track") {
+    if (!request.impactActual) {
+      return NextResponse.json(
+        { error: "Log actual impact before marking complete" },
+        { status: 422 }
+      );
+    }
+    await db
+      .update(requests)
+      .set({
+        trackStage: "complete",
+        status: "shipped",
+        updatedAt: new Date(),
+      })
+      .where(eq(requests.id, requestId));
+    await addSystemComment(requestId, "✅ Impact recorded — request complete");
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "No advancement possible at this phase" }, { status: 422 });
 }
 

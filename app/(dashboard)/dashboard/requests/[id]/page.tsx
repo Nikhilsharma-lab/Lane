@@ -13,6 +13,8 @@ import { HandoffChecklist } from "@/components/requests/handoff-checklist";
 import { TriageButton } from "@/components/requests/triage-button";
 import { PredesignPanel } from "@/components/requests/predesign-panel";
 import { DesignPhasePanel } from "@/components/requests/design-phase-panel";
+import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
+import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -390,6 +392,25 @@ export default async function RequestDetailPage({
                   currentDesignStage={(request.designStage ?? "explore") as "explore" | "validate" | "handoff"}
                   figmaUrl={request.figmaUrl}
                   profileRole={profile.role ?? "member"}
+                />
+              </div>
+            ) : request.phase === "dev" ? (
+              <div className="mb-2">
+                <DevPhasePanel
+                  requestId={request.id}
+                  kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
+                  figmaUrl={request.figmaUrl}
+                  figmaLockedAt={toISO(request.figmaLockedAt)}
+                />
+              </div>
+            ) : request.phase === "track" ? (
+              <div className="mb-2">
+                <TrackPhasePanel
+                  requestId={request.id}
+                  trackStage={(request.trackStage ?? "measuring") as "measuring" | "complete"}
+                  impactMetric={request.impactMetric}
+                  impactPrediction={request.impactPrediction}
+                  impactActual={request.impactActual}
                 />
               </div>
             ) : (
