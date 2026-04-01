@@ -7,6 +7,7 @@ import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { RequestList } from "@/components/requests/request-list";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { RealtimeDashboard } from "@/components/realtime/realtime-dashboard";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -59,6 +60,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
+      <RealtimeDashboard orgId={profile.orgId} />
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <span className="text-sm font-semibold">DesignQ</span>

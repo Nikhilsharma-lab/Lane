@@ -16,6 +16,7 @@ import { DesignPhasePanel } from "@/components/requests/design-phase-panel";
 import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
 import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
 import { FigmaHistory } from "@/components/requests/figma-history";
+import { RealtimeRequest } from "@/components/realtime/realtime-request";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -153,6 +154,8 @@ export default async function RequestDetailPage({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Real-time subscription — invisible, triggers router.refresh() on any change */}
+      <RealtimeRequest requestId={request.id} />
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
