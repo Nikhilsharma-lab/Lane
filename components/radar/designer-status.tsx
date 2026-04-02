@@ -5,9 +5,11 @@ import type { RadarDesigner } from "@/lib/radar";
 
 function formatStaleness(ms: number | null): string {
   if (ms === null) return "";
+  const mins = Math.floor(ms / 60_000);
   const hours = Math.floor(ms / 3_600_000);
   const days = Math.floor(ms / 86_400_000);
-  if (hours < 1) return "just now";
+  if (mins < 5) return "just now";
+  if (hours < 1) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   return `${days}d ago`;
 }
@@ -35,21 +37,29 @@ function DesignerCard({
   async function handleNudge() {
     if (!designer.mostStalledRequestId || nudge !== "idle") return;
     setNudge("loading");
-    await fetch(`/api/requests/${designer.mostStalledRequestId}/nudge`, {
-      method: "POST",
-    });
-    setNudge("done");
+    try {
+      const res = await fetch(`/api/requests/${designer.mostStalledRequestId}/nudge`, {
+        method: "POST",
+      });
+      setNudge(res.ok ? "done" : "idle");
+    } catch {
+      setNudge("idle");
+    }
   }
 
   async function handleMarkAtRisk() {
     if (!designer.mostStalledRequestId || risk !== "idle") return;
     setRisk("loading");
-    await fetch(`/api/requests/${designer.mostStalledRequestId}/toggle-blocked`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentStatus: designer.mostStalledRequestStatus }),
-    });
-    setRisk("done");
+    try {
+      const res = await fetch(`/api/requests/${designer.mostStalledRequestId}/toggle-blocked`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStatus: designer.mostStalledRequestStatus }),
+      });
+      setRisk(res.ok ? "done" : "idle");
+    } catch {
+      setRisk("idle");
+    }
   }
 
   const alreadyBlocked = designer.mostStalledRequestStatus === "blocked";
