@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { NewRequestForm } from "./new-request-form";
 import type { Request } from "@/db/schema";
+import { useKeyboardNav } from "@/hooks/use-keyboard-nav";
 
 // ── Styling helpers ─────────────────────────────────────────────────────────
 
@@ -164,6 +166,9 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<PhaseKey>>(new Set());
 
+  const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
+
   const hasMine = myRequestIds && myRequestIds.size > 0;
   const availableTypes = [...new Set(requests.map((r) => r.requestType).filter(Boolean))] as string[];
 
@@ -190,6 +195,33 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
   for (const [, list] of grouped) {
     list.sort((a, b) => a.stageOrder - b.stageOrder || priorityOrder(a) - priorityOrder(b));
   }
+
+  // Flatten all visible requests for J/K indexing
+  const flatVisible = PHASES.flatMap((phase) => grouped.get(phase.key) ?? []);
+  const { focused, setFocused } = useKeyboardNav(flatVisible.length);
+
+  // Handle Enter (open) and / (focus search) at list level
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable;
+      if (isInput) return;
+
+      if (e.key === "Enter" && focused >= 0) {
+        e.preventDefault();
+        router.push(`/dashboard/requests/${flatVisible[focused].id}`);
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focused, flatVisible, router]);
 
   function toggleCollapse(key: PhaseKey) {
     setCollapsed((prev) => {
@@ -226,6 +258,7 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
       {/* Search + type filter */}
       <div className="space-y-2 mb-6">
         <input
+          ref={searchRef}
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -279,7 +312,14 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {list.map((r) => {
+                      {list.map((r, listIdx) => {
+                        const phaseStartIndex = PHASES.slice(0, PHASES.indexOf(phase)).reduce(
+                          (sum, p) => sum + (grouped.get(p.key)?.length ?? 0),
+                          0
+                        );
+                        const itemIndex = phaseStartIndex + listIdx;
+                        const isFocused = focused === itemIndex;
+
                         const deadline = deadlineStatus(r.deadlineAt);
                         const assignees = assigneesByRequest[r.id] ?? [];
                         const stageDef = PHASES.find((p) => p.key === phase.key);
@@ -289,7 +329,12 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
                           <Link
                             key={r.id}
                             href={`/dashboard/requests/${r.id}`}
-                            className="block border border-zinc-800 rounded-xl px-5 py-3.5 hover:border-zinc-700 transition-colors"
+                            onClick={() => setFocused(itemIndex)}
+                            className={`block border rounded-xl px-5 py-3.5 transition-colors ${
+                              isFocused
+                                ? "border-l-2 border-l-indigo-500 border-zinc-700 bg-zinc-900"
+                                : "border-zinc-800 hover:border-zinc-700"
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
@@ -336,6 +381,14 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {} }:
             </div>
           );
         })}
+      </div>
+
+      {/* Keyboard hint bar — desktop only */}
+      <div className="hidden md:flex items-center gap-4 pt-4 pb-2">
+        <span className="text-[10px] text-zinc-700">J/K navigate</span>
+        <span className="text-[10px] text-zinc-700">↵ open</span>
+        <span className="text-[10px] text-zinc-700">/ search</span>
+        <span className="text-[10px] text-zinc-700">? shortcuts</span>
       </div>
 
       {visible.length === 0 && (
