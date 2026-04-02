@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { revokeInvite } from "@/app/actions/settings";
 
 interface Invite { id: string; email: string; role: string; expiresAt: Date; acceptedAt: Date | null; }
@@ -13,16 +13,21 @@ function formatDate(date: Date) { return new Date(date).toLocaleDateString("en-U
 
 export function PendingInvites({ invites, isAdmin }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const active = invites.filter((i) => !i.acceptedAt && !isExpired(i.expiresAt));
   const expired = invites.filter((i) => !i.acceptedAt && isExpired(i.expiresAt));
   if (active.length === 0 && expired.length === 0) return null;
 
   function handleRevoke(inviteId: string) {
-    startTransition(async () => { await revokeInvite(inviteId); });
+    startTransition(async () => {
+      const result = await revokeInvite(inviteId);
+      if (result?.error) setError(result.error);
+    });
   }
 
   return (
     <div className="space-y-6">
+      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
       {active.length > 0 && (
         <div>
           <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Pending invites ({active.length})</h2>
