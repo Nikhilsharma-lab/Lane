@@ -20,12 +20,14 @@ export function TrackPhasePanel({
 }: Props) {
   const router = useRouter();
   const [actual, setActual] = useState(impactActual ?? "");
-  const [saving, setSaving] = useState(false);
+  const [optimisticActual, setOptimisticActual] = useState<string | null>(impactActual);
+  const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!actual.trim()) return;
-    setSaving(true);
+    const previousActual = optimisticActual;
+    setOptimisticActual(actual.trim());
     setError(null);
     try {
       const res = await fetch(`/api/requests/${requestId}/impact-record`, {
@@ -34,17 +36,20 @@ export function TrackPhasePanel({
         body: JSON.stringify({ actualValue: actual.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed to save");
-      else router.refresh();
+      if (!res.ok) {
+        setOptimisticActual(previousActual);
+        setError(data.error ?? "Failed to save");
+      } else {
+        router.refresh();
+      }
     } catch {
+      setOptimisticActual(previousActual);
       setError("Network error");
-    } finally {
-      setSaving(false);
     }
   }
 
   async function markComplete() {
-    setSaving(true);
+    setCompleting(true);
     setError(null);
     try {
       const res = await fetch(`/api/requests/${requestId}/advance-phase`, { method: "POST" });
@@ -54,7 +59,7 @@ export function TrackPhasePanel({
     } catch {
       setError("Network error");
     } finally {
-      setSaving(false);
+      setCompleting(false);
     }
   }
 
@@ -96,9 +101,12 @@ export function TrackPhasePanel({
         <div>
           <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">Actual result</p>
           {isComplete ? (
-            <p className="text-xs text-zinc-300">{impactActual ?? "—"}</p>
+            <p className="text-xs text-zinc-300">{optimisticActual ?? "—"}</p>
           ) : (
             <div className="space-y-2">
+              {optimisticActual && (
+                <p className="text-xs text-zinc-300">{optimisticActual}</p>
+              )}
               <input
                 type="text"
                 value={actual}
@@ -108,7 +116,7 @@ export function TrackPhasePanel({
               />
               <button
                 onClick={handleSave}
-                disabled={saving || !actual.trim()}
+                disabled={!actual.trim()}
                 className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
@@ -118,13 +126,13 @@ export function TrackPhasePanel({
         </div>
 
         {/* Mark complete */}
-        {!isComplete && impactActual && (
+        {!isComplete && optimisticActual && (
           <button
             onClick={markComplete}
-            disabled={saving}
+            disabled={completing}
             className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {saving && (
+            {completing && (
               <span className="w-3 h-3 border border-zinc-400 border-t-transparent rounded-full animate-spin" />
             )}
             Mark complete

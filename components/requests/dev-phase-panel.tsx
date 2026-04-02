@@ -22,16 +22,18 @@ interface Props {
 
 export function DevPhasePanel({ requestId, kanbanState, figmaUrl, figmaLockedAt }: Props) {
   const router = useRouter();
-  const [moving, setMoving] = useState(false);
+  const [optimisticKanban, setOptimisticKanban] = useState<KState>(kanbanState);
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currentIdx = STATES.findIndex((s) => s.key === kanbanState);
+  const optimisticIdx = STATES.findIndex((s) => s.key === optimisticKanban);
   const current = STATES[currentIdx];
-  const isDone = kanbanState === "done";
+  const isDone = optimisticKanban === "done";
 
   async function moveState(newState: KState) {
-    setMoving(true);
+    const previousState = optimisticKanban;
+    setOptimisticKanban(newState);
     setError(null);
     try {
       const res = await fetch(`/api/requests/${requestId}/kanban`, {
@@ -40,12 +42,15 @@ export function DevPhasePanel({ requestId, kanbanState, figmaUrl, figmaLockedAt 
         body: JSON.stringify({ state: newState }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed to move");
-      else router.refresh();
+      if (!res.ok) {
+        setOptimisticKanban(previousState);
+        setError(data.error ?? "Failed to move");
+      } else {
+        router.refresh();
+      }
     } catch {
+      setOptimisticKanban(previousState);
       setError("Network error");
-    } finally {
-      setMoving(false);
     }
   }
 
@@ -98,8 +103,8 @@ export function DevPhasePanel({ requestId, kanbanState, figmaUrl, figmaLockedAt 
       <div className="px-5 py-4 border-b border-zinc-800/50">
         <div className="flex items-start">
           {STATES.map((s, i) => {
-            const isPast = i < currentIdx;
-            const isCur = s.key === kanbanState;
+            const isPast = i < optimisticIdx;
+            const isCur = s.key === optimisticKanban;
             return (
               <div key={s.key} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
@@ -123,7 +128,7 @@ export function DevPhasePanel({ requestId, kanbanState, figmaUrl, figmaLockedAt 
                   </span>
                 </div>
                 {i < STATES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < currentIdx ? "bg-green-500/20" : "bg-zinc-800"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-zinc-800"}`} />
                 )}
               </div>
             );
@@ -143,24 +148,19 @@ export function DevPhasePanel({ requestId, kanbanState, figmaUrl, figmaLockedAt 
         {/* Move buttons */}
         {!isDone && (
           <div className="flex gap-2">
-            {currentIdx > 0 && (
+            {optimisticIdx > 0 && (
               <button
-                onClick={() => moveState(STATES[currentIdx - 1].key)}
-                disabled={moving}
-                className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => moveState(STATES[optimisticIdx - 1].key)}
+                className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
               >
-                ← {STATES[currentIdx - 1].label}
+                ← {STATES[optimisticIdx - 1].label}
               </button>
             )}
             <button
-              onClick={() => moveState(STATES[currentIdx + 1].key)}
-              disabled={moving}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              onClick={() => moveState(STATES[optimisticIdx + 1].key)}
+              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors"
             >
-              {moving && (
-                <span className="w-3 h-3 border border-zinc-400 border-t-transparent rounded-full animate-spin" />
-              )}
-              Move to {STATES[currentIdx + 1].label}
+              Move to {STATES[optimisticIdx + 1].label}
             </button>
           </div>
         )}

@@ -21,10 +21,11 @@ interface Props {
 
 export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, profileRole }: Props) {
   const router = useRouter();
-  const [advancing, setAdvancing] = useState(false);
+  const [optimisticStage, setOptimisticStage] = useState<DesignStage>(currentDesignStage);
   const [error, setError] = useState<string | null>(null);
 
   const currentIdx = STAGES.findIndex((s) => s.key === currentDesignStage);
+  const optimisticIdx = STAGES.findIndex((s) => s.key === optimisticStage);
   const current = STAGES[currentIdx];
   const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
   const isLastDesign = currentIdx >= STAGES.length - 1;
@@ -39,17 +40,22 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   }
 
   async function handleAdvance() {
-    setAdvancing(true);
+    if (!nextStage) return;
+    const previousStage = optimisticStage;
+    setOptimisticStage(nextStage.key);
     setError(null);
     try {
       const res = await fetch(`/api/requests/${requestId}/advance-phase`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed to advance");
-      else router.refresh();
+      if (!res.ok) {
+        setOptimisticStage(previousStage);
+        setError(data.error ?? "Failed to advance");
+      } else {
+        router.refresh();
+      }
     } catch {
+      setOptimisticStage(previousStage);
       setError("Network error");
-    } finally {
-      setAdvancing(false);
     }
   }
 
@@ -69,8 +75,8 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
       <div className="px-5 py-4 border-b border-zinc-800/50">
         <div className="flex items-start">
           {STAGES.map((s, i) => {
-            const isDone = i < currentIdx;
-            const isCurrent = s.key === currentDesignStage;
+            const isDone = i < optimisticIdx;
+            const isCurrent = s.key === optimisticStage;
             return (
               <div key={s.key} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
@@ -90,7 +96,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                   </span>
                 </div>
                 {i < STAGES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < currentIdx ? "bg-green-500/20" : "bg-zinc-800"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-zinc-800"}`} />
                 )}
               </div>
             );
@@ -138,10 +144,9 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
             <button
               onClick={handleAdvance}
-              disabled={!canAdvance || advancing}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={!canAdvance}
+              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {advancing && <span className="w-3 h-3 border border-zinc-400 border-t-transparent rounded-full animate-spin" />}
               {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage?.label}`}
             </button>
           </>

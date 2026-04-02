@@ -683,7 +683,31 @@ Avg cycle time: 3.8 days 📈
 | AI | Claude via Vercel AI SDK |
 | Styling | Tailwind CSS + shadcn/ui |
 | Hosting | Vercel |
-| **Figma Webhook** | Figma API + Vercel Functions |
+| Real-time | Supabase Realtime (Postgres Changes via WebSocket) |
+| Email | Resend (silent no-op if `RESEND_API_KEY` not set) |
+
+### Real-time Architecture
+
+All real-time updates use **Supabase Realtime + `router.refresh()`** — no client-side state management, no polling.
+
+How it works:
+1. Client subscribes to Postgres Changes on relevant tables (filtered by `requestId` or `orgId`)
+2. Supabase pushes a WebSocket event when a row changes
+3. Hook calls `router.refresh()` → Next.js re-runs server components → fresh data rendered
+
+**Components:**
+- `hooks/use-realtime-request.ts` — subscribes to `requests`, `comments`, `validation_signoffs`, `figma_updates` filtered by `requestId`
+- `hooks/use-realtime-dashboard.ts` — subscribes to `requests` filtered by `org_id`
+- `components/realtime/realtime-request.tsx` + `realtime-dashboard.tsx` — invisible client wrappers (`return null`) that mount the hooks
+
+**⚠️ If real-time stops working between tabs:**
+Go to Supabase dashboard → Database → Replication and verify these tables are toggled ON in the `supabase_realtime` publication:
+- `requests`
+- `comments`
+- `validation_signoffs`
+- `figma_updates`
+
+This is on by default for new Supabase projects but can get switched off.
 
 ---
 

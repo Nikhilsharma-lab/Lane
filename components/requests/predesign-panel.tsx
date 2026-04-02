@@ -30,10 +30,11 @@ export function PredesignPanel({
   profileRole,
 }: Props) {
   const router = useRouter();
-  const [advancing, setAdvancing] = useState(false);
+  const [optimisticStage, setOptimisticStage] = useState<PredesignStage>(currentStage);
   const [error, setError] = useState<string | null>(null);
 
   const currentIdx = STAGES.findIndex((s) => s.key === currentStage);
+  const optimisticIdx = STAGES.findIndex((s) => s.key === optimisticStage);
   const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
 
   function getGateStatus(): { canAdvance: boolean; missing: string[] } {
@@ -59,7 +60,9 @@ export function PredesignPanel({
   }
 
   async function handleAdvance() {
-    setAdvancing(true);
+    if (!nextStage) return;
+    const previousStage = optimisticStage;
+    setOptimisticStage(nextStage.key);
     setError(null);
     try {
       const res = await fetch(`/api/requests/${requestId}/advance-phase`, {
@@ -67,14 +70,14 @@ export function PredesignPanel({
       });
       const data = await res.json();
       if (!res.ok) {
+        setOptimisticStage(previousStage);
         setError(data.error ?? "Failed to advance");
       } else {
         router.refresh();
       }
     } catch {
+      setOptimisticStage(previousStage);
       setError("Network error");
-    } finally {
-      setAdvancing(false);
     }
   }
 
@@ -96,9 +99,8 @@ export function PredesignPanel({
       <div className="px-5 py-4 border-b border-zinc-800/50">
         <div className="flex items-start">
           {STAGES.map((s, i) => {
-            const isDone = i < currentIdx;
-            const isCurrent = s.key === currentStage;
-            const isUpcoming = i > currentIdx;
+            const isDone = i < optimisticIdx;
+            const isCurrent = s.key === optimisticStage;
             return (
               <div key={s.key} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
@@ -128,7 +130,7 @@ export function PredesignPanel({
                 {i < STAGES.length - 1 && (
                   <div
                     className={`h-px w-full mb-5 mx-0.5 ${
-                      i < currentIdx ? "bg-green-500/20" : "bg-zinc-800"
+                      i < optimisticIdx ? "bg-green-500/20" : "bg-zinc-800"
                     }`}
                   />
                 )}
@@ -174,12 +176,9 @@ export function PredesignPanel({
         {/* Advance button — always shown, label changes at final betting stage */}
         <button
           onClick={handleAdvance}
-          disabled={!canAdvance || advancing}
-          className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+          disabled={!canAdvance}
+          className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {advancing && (
-            <span className="w-3 h-3 border border-zinc-400 border-t-transparent rounded-full animate-spin" />
-          )}
           {isFinal ? "Approve Bet — Start Design Phase" : `Advance to ${nextStage?.label}`}
         </button>
 
