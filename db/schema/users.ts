@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum, AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer", "lead", "admin"]);
