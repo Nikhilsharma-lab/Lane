@@ -23,7 +23,7 @@ const FEATURES: Feature[] = [
   { label: "SLA", free: false, pro: false, enterprise: true },
 ];
 
-export function PlanDisplay({ plan, seatCount = 0 }: Props) {
+export function PlanDisplay({ plan, seatCount }: Props) {
   return (
     <div className="space-y-8">
       <div className="border border-zinc-800 rounded-xl px-6 py-5">
