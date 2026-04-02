@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer", "lead", "admin"]);
@@ -20,6 +20,7 @@ export const profiles = pgTable("profiles", {
   role: roleEnum("role").notNull().default("designer"),
   avatarUrl: text("avatar_url"),
   timezone: text("timezone").default("UTC"),
+  managerId: uuid("manager_id").references((): AnyPgColumn => profiles.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
