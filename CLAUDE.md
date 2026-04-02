@@ -830,6 +830,37 @@ Annual prepay: 8% discount
 
 ## Part 14: WHAT WE'RE NOT BUILDING (MVP)
 
+### **GENUINELY NOT BUILT YET (Priority order):**
+
+```
+🔴 Figma OAuth
+   └─ Replaces webhook approach
+   └─ Needed before onboarding customers (manual webhook setup doesn't scale)
+   └─ User clicks "Connect Figma" once → DesignQ registers webhook automatically
+   └─ Sub-project: spec + plan exist, not yet implemented
+
+🔴 Billing & Subscription (Sub-project 2)
+   └─ Stripe integration
+   └─ Plan management (Starter $99 / Pro $299 / Enterprise custom)
+   └─ Invoice history, upgrade/downgrade flow
+   └─ Build after first 3 paying customers ask for it
+
+🟡 Projects concept (Sub-project 3)
+   └─ An org can have multiple product lines (e.g. rider app, driver app, B2B portal)
+   └─ Requests scoped to a project within an org
+   └─ Brainstorm + spec needed before building
+```
+
+### **OPERATIONAL TODO (no code needed):**
+
+```
+⚙️  Activate email notifications in production
+   └─ Add RESEND_API_KEY to Vercel (get from resend.com, free tier = 3k emails/month)
+   └─ Add EMAIL_FROM = "DesignQ <notifications@yourdomain.com>"
+   └─ Add NEXT_PUBLIC_APP_URL = your Vercel deployment URL
+   └─ Redeploy → test by sending an invite
+```
+
 ### **DEFER to Phase 2+ (After Month 3):**
 
 ```
@@ -840,6 +871,18 @@ Annual prepay: 8% discount
 ❌ Email digest
    └─ Activity feed in-app is sufficient for MVP
    └─ Add weekly email later
+
+❌ Linear integration (native)
+   └─ Plan for Month 3
+   └─ Not needed for MVP
+
+❌ Designer performance dashboard
+   └─ AI weekly digest covers this for MVP
+   └─ Build dedicated view after PMF
+
+❌ Duplicate detection
+   └─ Embeddings-based, complex to build
+   └─ Defer until request volume justifies it
 
 ❌ Auto-comment in Figma
    └─ Nice but low ROI
@@ -856,10 +899,6 @@ Annual prepay: 8% discount
 ❌ Advanced config options
    └─ Start with sensible defaults
    └─ Add toggles later if asked
-
-❌ Linear integration (native)
-   └─ Plan for Month 3
-   └─ Not needed for MVP
 
 ❌ Figma plugin
    └─ Defer 6+ months
