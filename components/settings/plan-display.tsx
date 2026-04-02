@@ -133,7 +133,7 @@ export function PlanDisplay({ plan, seatCount }: Props) {
         <div className="border border-zinc-800 rounded-xl px-6 py-5">
           <p className="text-sm font-medium text-white mb-1">Need more?</p>
           <p className="text-xs text-zinc-500 mb-4">Enterprise &mdash; custom seats, Linear integration, dedicated SLA.</p>
-          <a href="mailto:hello@designq.io?subject=Enterprise%20inquiry"
+          <a href="mailto:yash@designq.io?subject=Enterprise%20inquiry"
             className="inline-flex items-center text-sm text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-2 transition-colors">
             Contact us &rarr;
           </a>
