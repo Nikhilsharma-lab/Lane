@@ -173,7 +173,7 @@ export function getPhaseHeatMap(allRequests: Request[]): PhaseHeatMap {
  */
 export function getRiskItems(
   allRequests: Request[],
-  driftUpdates: Array<{ requestId: string }>,
+  driftUpdates: Array<{ requestId: string; postHandoff: boolean; devReviewed: boolean }>,
   designerByRequest: Record<string, string>
 ): { stalled: RiskRow[]; signOffOverdue: RiskRow[]; figmaDrift: FigmaDriftRow[] } {
   const now = Date.now();
@@ -193,6 +193,7 @@ export function getRiskItems(
   const signOffOverdue: RiskRow[] = allRequests
     .filter(
       (r) =>
+        isActive(r) &&
         r.designStage === "validate" &&
         now - new Date(r.updatedAt).getTime() >= 3 * 86_400_000
     )
@@ -206,9 +207,10 @@ export function getRiskItems(
     }))
     .sort((a, b) => b.staleDays - a.staleDays);
 
-  // Group drift updates by request
+  // Group post-handoff unreviewed drift updates by request
   const driftCount = new Map<string, number>();
   for (const fu of driftUpdates) {
+    if (!fu.postHandoff || fu.devReviewed) continue;
     driftCount.set(fu.requestId, (driftCount.get(fu.requestId) ?? 0) + 1);
   }
 
