@@ -77,8 +77,9 @@ export function classifyDesignerStatus(activeRequests: Request[]): DesignerStatu
   if (activeRequests.some((r) => r.status === "blocked")) return "blocked";
 
   const now = Date.now();
-  const mostRecentMs = Math.max(
-    ...activeRequests.map((r) => new Date(r.updatedAt).getTime())
+  const mostRecentMs = activeRequests.reduce(
+    (max, r) => Math.max(max, new Date(r.updatedAt).getTime()),
+    0
   );
   const staleMs = now - mostRecentMs;
 
@@ -161,8 +162,8 @@ export function getPhaseHeatMap(allRequests: Request[]): PhaseHeatMap {
   const counts: PhaseHeatMap = { predesign: 0, design: 0, dev: 0, track: 0 };
   for (const r of allRequests) {
     if (r.status === "draft" || r.status === "completed" || r.status === "shipped") continue;
-    const p = (r.phase ?? "predesign") as keyof PhaseHeatMap;
-    if (p in counts) counts[p]++;
+    const raw = r.phase ?? "predesign";
+    if (raw in counts) counts[raw as keyof PhaseHeatMap]++;
   }
   return counts;
 }
@@ -201,7 +202,7 @@ export function getRiskItems(
       requestId: r.id,
       title: r.title,
       priority: r.priority ?? null,
-      phase: "design",
+      phase: r.phase ?? "design",
       designerName: designerByRequest[r.id] ?? "Unassigned",
       staleDays: Math.floor((now - new Date(r.updatedAt).getTime()) / 86_400_000),
     }))
@@ -225,6 +226,8 @@ export function getRiskItems(
       unreviewedCount: count,
     });
   }
+
+  figmaDrift.sort((a, b) => b.unreviewedCount - a.unreviewedCount);
 
   return { stalled, signOffOverdue, figmaDrift };
 }
