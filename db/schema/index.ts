@@ -6,3 +6,4 @@ export * from "./validation";
 export * from "./ideas";
 export * from "./figma_updates";
 export * from "./impact_records";
+export * from "./projects";
