@@ -41,7 +41,6 @@ export function AssignPanel({ requestId }: Props) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [loadingRec, setLoadingRec] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [assigning, setAssigning] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"lead" | "reviewer" | "contributor">("lead");
 
@@ -69,28 +68,49 @@ export function AssignPanel({ requestId }: Props) {
   }, [showPicker, requestId, recommendation]);
 
   async function assign(memberId: string) {
-    setAssigning(memberId);
-    await fetch(`/api/requests/${requestId}/assign`, {
+    const member = members.find((m) => m.id === memberId);
+    if (!member) return;
+
+    // Optimistic: immediately show as assigned
+    const tempAssignment = { id: `temp-${memberId}`, assigneeId: memberId, role: selectedRole };
+    setCurrentAssignments((prev) => [...prev, tempAssignment]);
+    setShowPicker(false);
+
+    const res = await fetch(`/api/requests/${requestId}/assign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ assigneeId: memberId, role: selectedRole }),
     });
-    setRecommendation(null); // reset so it refetches next open
+
+    if (!res.ok) {
+      // Rollback
+      setCurrentAssignments((prev) => prev.filter((a) => a.id !== `temp-${memberId}`));
+      return;
+    }
+
+    setRecommendation(null);
     await load();
-    setAssigning(null);
-    setShowPicker(false);
     router.refresh();
   }
 
   async function unassign(memberId: string) {
-    setAssigning(memberId);
-    await fetch(`/api/requests/${requestId}/assign`, {
+    // Optimistic: immediately remove
+    const previous = currentAssignments;
+    setCurrentAssignments((prev) => prev.filter((a) => a.assigneeId !== memberId));
+
+    const res = await fetch(`/api/requests/${requestId}/assign`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ assigneeId: memberId }),
     });
+
+    if (!res.ok) {
+      // Rollback
+      setCurrentAssignments(previous);
+      return;
+    }
+
     await load();
-    setAssigning(null);
     router.refresh();
   }
 
@@ -122,7 +142,6 @@ export function AssignPanel({ requestId }: Props) {
                   </span>
                   <button
                     onClick={() => unassign(m.id)}
-                    disabled={assigning === m.id}
                     className="text-zinc-700 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-all"
                   >
                     ✕
@@ -193,7 +212,6 @@ export function AssignPanel({ requestId }: Props) {
                   <button
                     key={m.id}
                     onClick={() => assign(m.id)}
-                    disabled={assigning === m.id}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-zinc-800/60 transition-colors text-left ${
                       isRecommended ? "bg-indigo-500/5" : ""
                     }`}
@@ -210,9 +228,6 @@ export function AssignPanel({ requestId }: Props) {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-[10px] text-zinc-600">{load_} active</p>
-                      {assigning === m.id && (
-                        <span className="w-3 h-3 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin inline-block mt-0.5" />
-                      )}
                     </div>
                   </button>
                 );
