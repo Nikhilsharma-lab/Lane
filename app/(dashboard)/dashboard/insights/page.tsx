@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, requests, requestAiAnalysis, assignments } from "@/db/schema";
 import { eq, inArray, count } from "drizzle-orm";
-import { logout } from "@/app/actions/auth";
 import { DigestPanel } from "@/components/insights/digest-panel";
+import { UserMenu } from "@/components/settings/user-menu";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import { PmCalibration } from "@/components/insights/pm-calibration";
 
@@ -108,12 +108,7 @@ export default async function InsightsPage() {
         </div>
         <div className="flex items-center gap-3">
           <NotificationsBell />
-          <span className="text-sm text-zinc-400">{profile.fullName}</span>
-          <form action={logout}>
-            <button type="submit" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-              Sign out
-            </button>
-          </form>
+          <UserMenu fullName={profile.fullName} />
         </div>
       </header>
 

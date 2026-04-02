@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, ideas, ideaVotes } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { logout } from "@/app/actions/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { UserMenu } from "@/components/settings/user-menu";
 import { IdeaBoard } from "@/components/ideas/idea-board";
 
 export default async function IdeasPage() {
@@ -75,15 +75,10 @@ export default async function IdeasPage() {
         </div>
         <div className="flex items-center gap-3">
           <NotificationsBell />
-          <span className="text-sm text-zinc-400">{profile.fullName}</span>
           <span className="text-xs text-zinc-600 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 capitalize">
             {profile.role}
           </span>
-          <form action={logout}>
-            <button type="submit" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-              Sign out
-            </button>
-          </form>
+          <UserMenu fullName={profile.fullName} />
         </div>
       </header>
 
