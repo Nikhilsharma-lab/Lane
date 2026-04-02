@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { profiles, invites, requests, requestAiAnalysis, assignments } from "@/db/schema";
 import { eq, avg, count, inArray } from "drizzle-orm";
 import { InviteForm } from "@/components/team/invite-form";
+import { ReportsToSelect } from "@/components/team/reports-to-select";
 import { UserMenu } from "@/components/settings/user-menu";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import { HeaderSearch } from "@/components/ui/header-search";
@@ -116,6 +117,12 @@ export default async function TeamPage() {
             >
               Ideas
             </Link>
+            <Link
+              href="/dashboard/radar"
+              className="text-sm text-zinc-500 hover:text-zinc-300 px-2 py-1 rounded transition-colors"
+            >
+              Radar
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -179,6 +186,17 @@ export default async function TeamPage() {
                       <p className="text-xs text-zinc-400">{designerLoad[m.id]}</p>
                       <p className="text-[10px] text-zinc-600">assigned</p>
                     </div>
+                  )}
+                  {profile.role === "admin" && (
+                    <ReportsToSelect
+                      memberId={m.id}
+                      currentManagerId={m.managerId ?? null}
+                      managers={members.filter(
+                        (p) =>
+                          (p.role === "lead" || p.role === "admin") &&
+                          p.id !== m.id
+                      )}
+                    />
                   )}
                   <span className="text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 capitalize">
                     {roleLabels[m.role] ?? m.role}
