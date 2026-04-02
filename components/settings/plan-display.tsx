@@ -139,6 +139,31 @@ export function PlanDisplay({ plan, seatCount }: Props) {
           </a>
         </div>
       )}
+      {/* Billing History */}
+      <div>
+        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Billing history</h2>
+        <div className="border border-zinc-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Invoice</th>
+                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Date</th>
+                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Amount</th>
+                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Status</th>
+                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Download</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center">
+                  <p className="text-sm text-zinc-500">No invoices yet.</p>
+                  <p className="text-xs text-zinc-600 mt-1">Billing history will appear here once you&apos;re on a paid plan.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
       {/* Upgrade / Downgrade Modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModal(null)}>
