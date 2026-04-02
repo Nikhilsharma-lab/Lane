@@ -34,6 +34,35 @@ export function PlanDisplay({ plan, seatCount = 0 }: Props) {
         </div>
         <p className="text-xs text-zinc-600 ml-5">Annual prepay</p>
       </div>
+      {/* Seat Usage */}
+      {plan === "enterprise" ? (
+        <p className="text-sm text-zinc-400">Unlimited seats</p>
+      ) : (
+        <div className="border border-zinc-800 rounded-xl px-6 py-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-300">Seats</span>
+            <span className="text-sm text-zinc-500">
+              {seatCount} of {PLAN_LIMITS[plan]} used &nbsp;&middot;&nbsp;{" "}
+              {Math.max(0, PLAN_LIMITS[plan] - seatCount)} available
+            </span>
+          </div>
+          <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+            <div
+              className={`h-2 rounded-full transition-all ${
+                seatCount / PLAN_LIMITS[plan] >= 1
+                  ? "bg-red-500"
+                  : seatCount / PLAN_LIMITS[plan] >= 0.8
+                  ? "bg-amber-400"
+                  : "bg-green-400"
+              }`}
+              style={{ width: `${Math.min(100, (seatCount / PLAN_LIMITS[plan]) * 100)}%` }}
+            />
+          </div>
+          {seatCount >= PLAN_LIMITS[plan] && (
+            <p className="text-xs text-red-400">Seat limit reached. Remove a member or upgrade your plan.</p>
+          )}
+        </div>
+      )}
       <div>
         <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Features included</h2>
         <div className="space-y-0">
