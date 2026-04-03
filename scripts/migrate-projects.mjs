@@ -1,5 +1,12 @@
-import "dotenv/config";
 import postgres from "postgres";
+import { readFileSync } from "fs";
+
+// Load .env.local
+const env = readFileSync(".env.local", "utf8");
+for (const line of env.split("\n")) {
+  const [key, ...rest] = line.split("=");
+  if (key && rest.length) process.env[key.trim()] = rest.join("=").trim();
+}
 
 const client = postgres(process.env.DATABASE_URL, { prepare: false });
 
