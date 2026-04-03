@@ -12,6 +12,9 @@ import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
 import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { CommentBox } from "@/components/requests/comment-box";
+import { HandoffChecklist } from "@/components/requests/handoff-checklist";
+import { ImpactPanel } from "@/components/requests/impact-panel";
+import { FigmaHistory } from "@/components/requests/figma-history";
 import type {
   RequestAiAnalysis,
   Comment,
@@ -28,11 +31,10 @@ interface EnrichedData {
   requesterName: string;
 }
 
+const DOCK_WIDTH = 520;
+
 const PHASE_LABELS: Record<string, string> = {
-  predesign: "Predesign",
-  design: "Design",
-  dev: "Dev",
-  track: "Track",
+  predesign: "Predesign", design: "Design", dev: "Dev", track: "Track",
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -71,6 +73,11 @@ function formatDateTime(d: Date | string | null): string {
   });
 }
 
+function toISOorNull(d: Date | string | null | undefined): string | null {
+  if (!d) return null;
+  return d instanceof Date ? d.toISOString() : String(d);
+}
+
 const labelStyle: React.CSSProperties = {
   fontFamily: "'Geist Mono', monospace",
   fontSize: 9,
@@ -87,7 +94,7 @@ const metaValueStyle: React.CSSProperties = {
   fontWeight: 500,
 };
 
-const sectionDivider: React.CSSProperties = {
+const divider: React.CSSProperties = {
   borderTop: "1px solid var(--border)",
   paddingTop: 16,
   marginTop: 4,
@@ -105,11 +112,10 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
   const [enriched, setEnriched] = useState<EnrichedData | null>(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
 
+
+  // ── Enriched data fetch ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!dockId) {
-      setEnriched(null);
-      return;
-    }
+    if (!dockId) { setEnriched(null); return; }
     setEnriched(null);
     setEnrichedLoading(true);
     fetch(`/api/requests/${dockId}/enriched`)
@@ -131,9 +137,9 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
   const phaseLabel = PHASE_LABELS[request.phase ?? "predesign"] ?? request.phase;
   const stageKey =
     request.phase === "predesign" ? (request.predesignStage ?? "intake") :
-    request.phase === "design" ? (request.designStage ?? "explore") :
-    request.phase === "dev" ? (request.kanbanState ?? "todo") :
-    (request.trackStage ?? "measuring");
+    request.phase === "design"    ? (request.designStage ?? "explore") :
+    request.phase === "dev"       ? (request.kanbanState ?? "todo") :
+                                    (request.trackStage ?? "measuring");
   const stageLabel = STAGE_LABELS[stageKey] ?? stageKey;
   const statusStyle = STATUS_COLORS[request.status] ?? { bg: "#F0EDE6", color: "#78716C" };
 
@@ -141,7 +147,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
     <aside
       className="flex flex-col shrink-0 overflow-y-auto"
       style={{
-        width: "var(--dock-width)",
+        width: DOCK_WIDTH,
         background: "var(--bg-surface)",
         borderLeft: "1px solid var(--border)",
         height: "100vh",
@@ -156,67 +162,27 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <div className="flex flex-col gap-1.5 min-w-0">
-          <p
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              color: "var(--text-tertiary)",
-              letterSpacing: "0.04em",
-            }}
-          >
+          <p style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)", letterSpacing: "0.04em" }}>
             #{request.id.slice(0, 6).toUpperCase()}
           </p>
-          <h2
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              lineHeight: 1.3,
-            }}
-          >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>
             {request.title}
           </h2>
           <div className="flex items-center gap-2 flex-wrap mt-1">
-            <span
-              className="rounded"
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "2px 6px",
-                background: statusStyle.bg,
-                color: statusStyle.color,
-              }}
-            >
+            <span className="rounded" style={{
+              fontFamily: "'Geist Mono', monospace", fontSize: 9, fontWeight: 600,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              padding: "2px 6px", background: statusStyle.bg, color: statusStyle.color,
+            }}>
               {request.status.replace(/_/g, " ")}
             </span>
-            <span
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                color: "var(--text-tertiary)",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
+            <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {phaseLabel} · {stageLabel}
             </span>
           </div>
         </div>
-        <button
-          onClick={close}
-          className="shrink-0 rounded flex items-center justify-center transition-colors"
-          style={{
-            width: 28,
-            height: 28,
-            color: "var(--text-tertiary)",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
+        <button onClick={close} className="shrink-0 rounded flex items-center justify-center transition-colors"
+          style={{ width: 28, height: 28, color: "var(--text-tertiary)", background: "transparent", border: "none", cursor: "pointer" }}>
           <X size={14} />
         </button>
       </div>
@@ -224,9 +190,9 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
       {/* Body */}
       <div className="flex flex-col gap-5 px-5 py-5">
 
-        {/* ── Phase Panel (stage advancement actions) ── */}
+        {/* ── Phase panel ── */}
         {request.phase === "predesign" && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <PredesignPanel
               requestId={request.id}
               currentStage={(request.predesignStage ?? request.stage) as "intake" | "context" | "shape" | "bet"}
@@ -238,7 +204,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
           </div>
         )}
         {request.phase === "design" && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <DesignPhasePanel
               requestId={request.id}
               currentDesignStage={(request.designStage ?? "explore") as "explore" | "validate" | "handoff"}
@@ -248,17 +214,17 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
           </div>
         )}
         {request.phase === "dev" && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <DevPhasePanel
               requestId={request.id}
               kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
               figmaUrl={request.figmaUrl}
-              figmaLockedAt={request.figmaLockedAt ? new Date(request.figmaLockedAt).toISOString() : null}
+              figmaLockedAt={toISOorNull(request.figmaLockedAt)}
             />
           </div>
         )}
         {request.phase === "track" && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <TrackPhasePanel
               requestId={request.id}
               trackStage={(request.trackStage ?? "measuring") as "measuring" | "complete"}
@@ -269,16 +235,20 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
           </div>
         )}
 
+        {/* ── Handoff checklist ── */}
+        <div style={divider}>
+          <HandoffChecklist requestId={request.id} stage={request.stage} />
+        </div>
+
         {/* ── Description / Context ── */}
         {request.description && (
-          <div>
+          <div style={divider}>
             <p style={labelStyle}>Problem</p>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
               {request.description}
             </p>
           </div>
         )}
-
         {request.businessContext && (
           <div>
             <p style={labelStyle}>Business context</p>
@@ -287,7 +257,6 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
             </p>
           </div>
         )}
-
         {request.successMetrics && (
           <div>
             <p style={labelStyle}>Success metrics</p>
@@ -297,9 +266,25 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
           </div>
         )}
 
+        {/* ── Figma link + history ── */}
+        {request.figmaUrl && (
+          <div style={divider}>
+            <p style={labelStyle}>Figma</p>
+            <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, textDecoration: "none" }}>
+              Open in Figma ↗
+            </a>
+          </div>
+        )}
+        {request.figmaUrl && (request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
+          <div style={divider}>
+            <FigmaHistory requestId={request.id} phase={request.phase as string} />
+          </div>
+        )}
+
         {/* ── AI Context Brief (design phase) ── */}
         {request.phase === "design" && enriched && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <p style={{ ...labelStyle, marginBottom: 10 }}>AI Context Brief</p>
             {enriched.existingBrief ? (
               <div className="flex flex-col gap-3">
@@ -313,9 +298,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
                     <p style={{ ...labelStyle, marginBottom: 6 }}>Key constraints</p>
                     <ul className="space-y-1">
                       {enriched.existingBrief.keyConstraints.map((c, i) => (
-                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                          · {c}
-                        </li>
+                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>· {c}</li>
                       ))}
                     </ul>
                   </div>
@@ -325,9 +308,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
                     <p style={{ ...labelStyle, marginBottom: 6 }}>Questions to ask</p>
                     <ul className="space-y-1">
                       {enriched.existingBrief.questionsToAsk.map((q, i) => (
-                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                          · {q}
-                        </li>
+                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>· {q}</li>
                       ))}
                     </ul>
                   </div>
@@ -337,9 +318,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
                     <p style={{ ...labelStyle, marginBottom: 6 }}>Exploration directions</p>
                     <ul className="space-y-1">
                       {enriched.existingBrief.explorationDirections.map((d, i) => (
-                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                          · {d}
-                        </li>
+                        <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>· {d}</li>
                       ))}
                     </ul>
                   </div>
@@ -347,7 +326,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
               </div>
             ) : (
               <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
-                Open full page to generate a brief for this request.
+                Open full page to generate brief.
               </p>
             )}
           </div>
@@ -355,7 +334,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
 
         {/* ── AI Triage ── */}
         {enriched?.aiAnalysis && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <div className="flex items-center justify-between mb-3">
               <p style={labelStyle}>AI Triage</p>
               <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)" }}>
@@ -363,115 +342,61 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
               </span>
             </div>
             <div className="flex flex-col gap-3">
-              {/* Summary */}
               <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
                 {enriched.aiAnalysis.summary}
               </p>
-
-              {/* Quality score */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <p style={labelStyle}>Request quality</p>
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color:
-                        enriched.aiAnalysis.qualityScore >= 70 ? "#166534" :
-                        enriched.aiAnalysis.qualityScore >= 40 ? "#B45309" : "#DC2626",
-                    }}
-                  >
+                  <span style={{
+                    fontFamily: "'Geist Mono', monospace", fontSize: 11, fontWeight: 600,
+                    color: enriched.aiAnalysis.qualityScore >= 70 ? "#166534" : enriched.aiAnalysis.qualityScore >= 40 ? "#B45309" : "#DC2626",
+                  }}>
                     {enriched.aiAnalysis.qualityScore}/100
                   </span>
                 </div>
-                <div
-                  style={{
-                    width: "100%",
-                    height: 4,
-                    background: "var(--bg-hover)",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${enriched.aiAnalysis.qualityScore}%`,
-                      borderRadius: 2,
-                      background:
-                        enriched.aiAnalysis.qualityScore >= 70 ? "#86A87A" :
-                        enriched.aiAnalysis.qualityScore >= 40 ? "#D4A84B" : "#E07070",
-                    }}
-                  />
+                <div style={{ width: "100%", height: 4, background: "var(--bg-hover)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", width: `${enriched.aiAnalysis.qualityScore}%`, borderRadius: 2,
+                    background: enriched.aiAnalysis.qualityScore >= 70 ? "#86A87A" : enriched.aiAnalysis.qualityScore >= 40 ? "#D4A84B" : "#E07070",
+                  }} />
                 </div>
               </div>
-
-              {/* Quality flags */}
               {enriched.aiAnalysis.qualityFlags.length > 0 && (
                 <div>
                   <p style={{ ...labelStyle, marginBottom: 6 }}>Issues</p>
                   <div className="flex flex-wrap gap-1">
                     {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          fontSize: 11,
-                          color: "#B45309",
-                          background: "#FEF3C7",
-                          border: "1px solid #FDE68A",
-                          borderRadius: "var(--radius-sm)",
-                          padding: "2px 6px",
-                        }}
-                      >
+                      <span key={i} style={{ fontSize: 11, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: "var(--radius-sm)", padding: "2px 6px" }}>
                         {flag}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Reasoning */}
               <div>
                 <p style={{ ...labelStyle, marginBottom: 4 }}>Reasoning</p>
                 <p style={{ fontSize: 11, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
                   {enriched.aiAnalysis.reasoning}
                 </p>
               </div>
-
-              {/* Suggestions */}
               {enriched.aiAnalysis.suggestions.length > 0 && (
                 <div>
                   <p style={{ ...labelStyle, marginBottom: 6 }}>Suggestions</p>
                   <ul className="space-y-1">
                     {enriched.aiAnalysis.suggestions.map((s, i) => (
-                      <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                        · {s}
-                      </li>
+                      <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>· {s}</li>
                     ))}
                   </ul>
                 </div>
               )}
-
-              {/* Potential duplicates */}
               {enriched.aiAnalysis.potentialDuplicates.length > 0 && (
                 <div>
                   <p style={{ ...labelStyle, marginBottom: 6 }}>Potential duplicates</p>
                   <div className="space-y-1.5">
                     {enriched.aiAnalysis.potentialDuplicates.map((dup, i) => (
-                      <Link
-                        key={i}
-                        href={`/dashboard/requests/${dup.id}`}
-                        style={{
-                          display: "block",
-                          fontSize: 12,
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-md)",
-                          padding: "6px 10px",
-                          color: "var(--text-secondary)",
-                          textDecoration: "none",
-                        }}
-                      >
+                      <Link key={i} href={`/dashboard/requests/${dup.id}`}
+                        style={{ display: "block", fontSize: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "6px 10px", color: "var(--text-secondary)", textDecoration: "none" }}>
                         <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{dup.title}</span>
                         <span style={{ color: "var(--text-tertiary)", marginLeft: 6 }}>{dup.reason}</span>
                       </Link>
@@ -482,31 +407,39 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
             </div>
           </div>
         )}
-
-        {/* Show triage hint if no analysis yet */}
         {enriched && !enriched.aiAnalysis && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <p style={labelStyle}>AI Triage</p>
             <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 4 }}>
-              No triage yet — open full page to run AI triage.
+              No triage yet — open full page to run.
             </p>
           </div>
         )}
 
+        {/* ── Impact panel ── */}
+        <div style={divider}>
+          <ImpactPanel
+            requestId={request.id}
+            impactMetric={request.impactMetric}
+            impactPrediction={request.impactPrediction}
+            impactActual={request.impactActual}
+            impactLoggedAt={toISOorNull(request.impactLoggedAt)}
+            stage={request.stage}
+          />
+        </div>
+
         {/* ── Assignees ── */}
-        <div style={sectionDivider}>
+        <div style={divider}>
           <p style={{ ...labelStyle, marginBottom: 10 }}>Assignees</p>
           <AssignPanel requestId={request.id} />
         </div>
 
         {/* ── Meta grid ── */}
-        <div style={sectionDivider}>
+        <div style={divider}>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p style={labelStyle}>Priority</p>
-              <p style={metaValueStyle}>
-                {request.priority ? PRIORITY_LABELS[request.priority] : "—"}
-              </p>
+              <p style={metaValueStyle}>{request.priority ? PRIORITY_LABELS[request.priority] : "—"}</p>
             </div>
             <div>
               <p style={labelStyle}>Type</p>
@@ -543,25 +476,14 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
 
         {/* ── Stage history ── */}
         {enriched && enriched.stageHistory.length > 0 && (
-          <div style={sectionDivider}>
+          <div style={divider}>
             <p style={{ ...labelStyle, marginBottom: 8 }}>History</p>
             <div className="space-y-1.5">
               {enriched.stageHistory.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2">
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>
-                    {s.stage}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 10,
-                      color: "var(--text-tertiary)",
-                    }}
-                  >
-                    {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>{s.stage}</span>
+                  <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)" }}>
+                    {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>
               ))}
@@ -569,80 +491,26 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
           </div>
         )}
 
-        {/* ── Figma link ── */}
-        {request.figmaUrl && (
-          <div style={sectionDivider}>
-            <p style={labelStyle}>Figma</p>
-            <a
-              href={request.figmaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: 12,
-                color: "var(--accent)",
-                fontWeight: 500,
-                wordBreak: "break-all",
-                textDecoration: "none",
-              }}
-            >
-              Open in Figma ↗
-            </a>
-          </div>
-        )}
-
-        {/* ── Actual impact (if logged) ── */}
-        {request.impactActual && (
-          <div>
-            <p style={labelStyle}>Actual impact</p>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-              {request.impactActual}
-            </p>
-          </div>
-        )}
-
-        {/* ── Comments / Activity ── */}
-        <div style={sectionDivider}>
+        {/* ── Activity / Comments ── */}
+        <div style={divider}>
           <p style={{ ...labelStyle, marginBottom: enrichedLoading ? 8 : 10 }}>
             Activity{enriched ? ` (${enriched.comments.length})` : ""}
           </p>
-
           {enrichedLoading && (
             <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Loading…</p>
           )}
-
           {enriched && enriched.comments.length === 0 && (
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12 }}>
-              No comments yet
-            </p>
+            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12 }}>No comments yet</p>
           )}
-
           {enriched && enriched.comments.length > 0 && (
             <div className="space-y-3 mb-4">
               {enriched.comments.map((c) => {
                 const author = c.authorId ? enriched.authorMap[c.authorId] : null;
                 return (
-                  <div
-                    key={c.id}
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "10px 12px",
-                    }}
-                  >
+                  <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                     <div className="flex items-center gap-2 mb-1">
                       {c.isSystem ? (
-                        <span
-                          style={{
-                            fontFamily: "'Geist Mono', monospace",
-                            fontSize: 9,
-                            color: "var(--text-tertiary)",
-                            background: "var(--bg-subtle)",
-                            borderRadius: "var(--radius-sm)",
-                            padding: "1px 5px",
-                            letterSpacing: "0.04em",
-                            textTransform: "uppercase",
-                          }}
-                        >
+                        <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)", background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", padding: "1px 5px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                           system
                         </span>
                       ) : (
@@ -650,38 +518,22 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
                           {author?.fullName ?? "Unknown"}
                         </span>
                       )}
-                      <span
-                        style={{
-                          fontFamily: "'Geist Mono', monospace",
-                          fontSize: 10,
-                          color: "var(--text-tertiary)",
-                        }}
-                      >
+                      <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)" }}>
                         {c.createdAt ? formatDateTime(new Date(c.createdAt).toISOString()) : ""}
                       </span>
                     </div>
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                      {c.body}
-                    </p>
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{c.body}</p>
                   </div>
                 );
               })}
             </div>
           )}
-
           <CommentBox requestId={request.id} />
         </div>
 
-        {/* ── Open full page link ── */}
+        {/* ── Open full page ── */}
         <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, textAlign: "center" }}>
-          <Link
-            href={`/dashboard/requests/${request.id}`}
-            style={{
-              fontSize: 12,
-              color: "var(--text-tertiary)",
-              textDecoration: "none",
-            }}
-          >
+          <Link href={`/dashboard/requests/${request.id}`} style={{ fontSize: 12, color: "var(--text-tertiary)", textDecoration: "none" }}>
             Open full page →
           </Link>
         </div>
