@@ -1,10 +1,10 @@
 // components/shell/detail-dock.tsx
 "use client";
 
-import Link from "next/link";
+import React from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useRequests } from "@/context/requests-context";
-import { X, ExternalLink } from "lucide-react";
+import { X } from "lucide-react";
 
 const PHASE_LABELS: Record<string, string> = {
   predesign: "Predesign",
@@ -40,6 +40,22 @@ function formatDate(d: Date | string | null): string {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: "'Geist Mono', monospace",
+  fontSize: 9,
+  fontWeight: 500,
+  letterSpacing: "0.07em",
+  textTransform: "uppercase",
+  color: "var(--text-tertiary)",
+  marginBottom: 4,
+};
+
+const metaValueStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "var(--text-secondary)",
+  fontWeight: 500,
+};
 
 export function DetailDock() {
   const searchParams = useSearchParams();
@@ -156,24 +172,32 @@ export function DetailDock() {
       {/* Body */}
       <div className="flex flex-col gap-5 px-5 py-5">
 
-        {/* Description */}
+        {/* Problem statement */}
         {request.description && (
           <div>
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--text-tertiary)",
-                marginBottom: 6,
-              }}
-            >
-              Problem
-            </p>
+            <p style={labelStyle}>Problem</p>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
               {request.description}
+            </p>
+          </div>
+        )}
+
+        {/* Business context */}
+        {request.businessContext && (
+          <div>
+            <p style={labelStyle}>Business context</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              {request.businessContext}
+            </p>
+          </div>
+        )}
+
+        {/* Success metrics */}
+        {request.successMetrics && (
+          <div>
+            <p style={labelStyle}>Success metrics</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              {request.successMetrics}
             </p>
           </div>
         )}
@@ -181,94 +205,67 @@ export function DetailDock() {
         {/* Meta grid */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--text-tertiary)",
-                marginBottom: 3,
-              }}
-            >
-              Priority
-            </p>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
+            <p style={labelStyle}>Priority</p>
+            <p style={metaValueStyle}>
               {request.priority ? PRIORITY_LABELS[request.priority] : "—"}
             </p>
           </div>
           <div>
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--text-tertiary)",
-                marginBottom: 3,
-              }}
-            >
-              Due
-            </p>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
-              {formatDate(request.deadlineAt ?? null)}
-            </p>
+            <p style={labelStyle}>Type</p>
+            <p style={metaValueStyle}>{request.requestType ?? "—"}</p>
           </div>
           <div>
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--text-tertiary)",
-                marginBottom: 3,
-              }}
-            >
-              Created
-            </p>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
-              {formatDate(request.createdAt)}
-            </p>
+            <p style={labelStyle}>Due</p>
+            <p style={metaValueStyle}>{formatDate(request.deadlineAt ?? null)}</p>
           </div>
           <div>
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--text-tertiary)",
-                marginBottom: 3,
-              }}
-            >
-              Type
-            </p>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
-              {request.requestType ?? "—"}
-            </p>
+            <p style={labelStyle}>Created</p>
+            <p style={metaValueStyle}>{formatDate(request.createdAt)}</p>
           </div>
+          {request.complexity && (
+            <div>
+              <p style={labelStyle}>Complexity</p>
+              <p style={metaValueStyle}>{request.complexity} / 5</p>
+            </div>
+          )}
+          {request.impactPrediction && (
+            <div>
+              <p style={labelStyle}>Predicted impact</p>
+              <p style={metaValueStyle}>{request.impactPrediction}</p>
+            </div>
+          )}
         </div>
 
-        {/* Full detail link */}
-        <Link
-          href={`/dashboard/requests/${request.id}`}
-          className="flex items-center gap-2 rounded-lg px-4 py-2.5 transition-colors"
-          style={{
-            background: "var(--accent)",
-            color: "white",
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          <ExternalLink size={13} />
-          Open full detail
-        </Link>
+        {/* Figma link */}
+        {request.figmaUrl && (
+          <div>
+            <p style={labelStyle}>Figma</p>
+            <a
+              href={request.figmaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 12,
+                color: "var(--accent)",
+                fontWeight: 500,
+                wordBreak: "break-all",
+                textDecoration: "none",
+              }}
+            >
+              {request.figmaUrl}
+            </a>
+          </div>
+        )}
+
+        {/* Actual impact (if logged) */}
+        {request.impactActual && (
+          <div>
+            <p style={labelStyle}>Actual impact</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              {request.impactActual}
+            </p>
+          </div>
+        )}
       </div>
     </aside>
   );
