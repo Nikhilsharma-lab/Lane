@@ -58,7 +58,10 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
     setOptimisticSignoffs(signoffs);
   }, [signoffs]);
 
+  const isAdmin = myProfileRole === "admin";
+
   // Per-role action state
+  const [activeRole, setActiveRole] = useState<SignerRole | null>(null);
   const [activeDecision, setActiveDecision] = useState<Decision | null>(null);
   const [conditions, setConditions] = useState("");
   const [commentText, setCommentText] = useState("");
@@ -76,22 +79,24 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
   useEffect(() => { fetchSignoffs(); }, [fetchSignoffs]);
 
   async function handleSubmit() {
-    if (!activeDecision || !mySignerRole) return;
+    const submittingRole = activeRole ?? mySignerRole;
+    if (!activeDecision || !submittingRole) return;
     setError(null);
 
     // Optimistic: immediately show this role as signed
     const tempSignoff: Signoff = {
-      id: `temp-${mySignerRole}`,
-      signerRole: mySignerRole,
+      id: `temp-${submittingRole}`,
+      signerRole: submittingRole,
       decision: activeDecision,
       conditions: activeDecision === "approved_with_conditions" ? conditions || null : null,
       comments: activeDecision === "rejected" ? commentText || null : null,
       signedAt: new Date().toISOString(),
     };
     setOptimisticSignoffs((prev) => {
-      const without = prev.filter((s) => s.signerRole !== mySignerRole);
+      const without = prev.filter((s) => s.signerRole !== submittingRole);
       return [...without, tempSignoff];
     });
+    setActiveRole(null);
     setActiveDecision(null);
     setConditions("");
     setCommentText("");
@@ -99,7 +104,12 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
     const res = await fetch(`/api/requests/${requestId}/validate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decision: activeDecision, conditions, comments: commentText }),
+      body: JSON.stringify({
+        decision: activeDecision,
+        conditions,
+        comments: commentText,
+        ...(isAdmin && { signerRole: submittingRole }),
+      }),
     });
 
     if (!res.ok) {
@@ -151,6 +161,9 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
             {ROLES.map((role) => {
               const signoff = optimisticSignoffs.find((s) => s.signerRole === role.key);
               const isMyRole = mySignerRole === role.key;
+              // Admins can act for any role
+              const canAct = isMyRole || isAdmin;
+              const isActiveRow = activeRole === role.key || (!activeRole && isMyRole && !isAdmin);
 
               return (
                 <div key={role.key} className="px-4 py-3">
@@ -180,17 +193,20 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                     </div>
                   </div>
 
-                  {/* Action buttons for current user's role */}
-                  {isMyRole && !allSigned && (
+                  {/* Action buttons — shown for current user's role, or all roles if admin */}
+                  {canAct && !allSigned && (
                     <div className="mt-3 space-y-2">
                       {/* Decision buttons */}
                       <div className="flex gap-1.5 flex-wrap">
                         {(["approved", "approved_with_conditions", "rejected"] as Decision[]).map((d) => (
                           <button
                             key={d}
-                            onClick={() => setActiveDecision(activeDecision === d ? null : d)}
+                            onClick={() => {
+                              setActiveRole(role.key);
+                              setActiveDecision(activeDecision === d && isActiveRow ? null : d);
+                            }}
                             className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
-                              activeDecision === d
+                              activeDecision === d && isActiveRow
                                 ? d === "approved"
                                   ? "bg-green-500/15 border-green-500/30 text-green-400"
                                   : d === "approved_with_conditions"
@@ -205,7 +221,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                       </div>
 
                       {/* Conditions input */}
-                      {activeDecision === "approved_with_conditions" && (
+                      {activeDecision === "approved_with_conditions" && isActiveRow && (
                         <input
                           type="text"
                           value={conditions}
@@ -216,7 +232,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                       )}
 
                       {/* Rejection reason */}
-                      {activeDecision === "rejected" && (
+                      {activeDecision === "rejected" && isActiveRow && (
                         <input
                           type="text"
                           value={commentText}
@@ -227,7 +243,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                       )}
 
                       {/* Submit */}
-                      {activeDecision && (
+                      {activeDecision && isActiveRow && (
                         <button
                           onClick={handleSubmit}
                           disabled={activeDecision === "approved_with_conditions" && !conditions.trim()}

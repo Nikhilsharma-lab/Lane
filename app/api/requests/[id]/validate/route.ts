@@ -61,11 +61,6 @@ export async function POST(
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
-  const signerRole = signerRoleFromProfile(profile.role ?? "");
-  if (!signerRole) {
-    return NextResponse.json({ error: "Your role cannot sign off on validations" }, { status: 403 });
-  }
-
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request || request.orgId !== profile.orgId) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -75,8 +70,18 @@ export async function POST(
     return NextResponse.json({ error: "Request is not in the validate stage" }, { status: 422 });
   }
 
-  const body = await req.json();
-  const { decision, conditions, comments: commentText } = body;
+  const body = await req.json().catch(() => ({}));
+  const { decision, conditions, comments: commentText, signerRole: roleOverride } = body;
+
+  // Admins can sign off on behalf of any role (solo-founder / testing convenience)
+  let signerRole = signerRoleFromProfile(profile.role ?? "");
+  if (profile.role === "admin" && roleOverride && ["designer", "pm", "design_head"].includes(roleOverride)) {
+    signerRole = roleOverride as "designer" | "pm" | "design_head";
+  }
+
+  if (!signerRole) {
+    return NextResponse.json({ error: "Your role cannot sign off on validations" }, { status: 403 });
+  }
 
   if (!["approved", "approved_with_conditions", "rejected"].includes(decision)) {
     return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
