@@ -8,6 +8,7 @@ import {
   assignments,
   figmaUpdates,
   requestStages,
+  comments,
 } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import {
@@ -16,6 +17,7 @@ import {
   getRiskItems,
   getShippedThisWeek,
   makeCanAction,
+  computeAvgDevQuestions,
 } from "@/lib/radar";
 import { RealtimeRadar } from "@/components/realtime/realtime-radar";
 import { DesignerStatus } from "@/components/radar/designer-status";
@@ -47,8 +49,8 @@ export default async function RadarPage() {
 
   const orgReqIds = allRequests.map((r) => r.id);
 
-  // Batch 2: assignments, Figma drift, stage history
-  const [allAssignments, driftUpdates, allStages] = orgReqIds.length
+  // Batch 2: assignments, Figma drift, stage history, dev questions
+  const [allAssignments, driftUpdates, allStages, devQuestions] = orgReqIds.length
     ? await Promise.all([
         db
           .select({
@@ -79,11 +81,21 @@ export default async function RadarPage() {
           })
           .from(requestStages)
           .where(inArray(requestStages.requestId, orgReqIds)),
+        db
+          .select({ requestId: comments.requestId })
+          .from(comments)
+          .where(
+            and(
+              inArray(comments.requestId, orgReqIds),
+              eq(comments.isDevQuestion, true)
+            )
+          ),
       ])
-    : [[], [], []] as [
+    : [[], [], [], []] as [
         Array<{ requestId: string; assigneeId: string }>,
         Array<{ requestId: string; postHandoff: boolean; devReviewed: boolean }>,
-        Array<{ requestId: string; stage: string; enteredAt: Date }>
+        Array<{ requestId: string; stage: string; enteredAt: Date }>,
+        Array<{ requestId: string }>
       ];
 
   // Build lookup: requestId → primary designer name
@@ -95,6 +107,12 @@ export default async function RadarPage() {
 
   // Compute all radar data server-side
   const radarDesigners = buildDesignerRows(allProfiles, allRequests, allAssignments);
+  const avgDevQuestionsMap = computeAvgDevQuestions(
+    radarDesigners,
+    allRequests,
+    allAssignments,
+    devQuestions,
+  );
   const heatMap = getPhaseHeatMap(allRequests);
   const risk = getRiskItems(allRequests, driftUpdates, designerByRequest);
   const shipped = getShippedThisWeek(allRequests, allStages, designerByRequest);
@@ -163,7 +181,7 @@ export default async function RadarPage() {
           <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-4">
             Designer Status
           </h2>
-          <DesignerStatus designers={radarDesigners} canActionMap={canActionMap} />
+          <DesignerStatus designers={radarDesigners} canActionMap={canActionMap} avgDevQuestionsMap={avgDevQuestionsMap} />
         </section>
 
         <section>
