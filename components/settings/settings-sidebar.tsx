@@ -11,6 +11,7 @@ const BASE_NAV = [
   { href: "/settings/account", label: "Account" },
   { href: "/settings/workspace", label: "Workspace" },
   { href: "/settings/members", label: "Members" },
+  { href: "/settings/projects", label: "Projects" },
 ];
 
 export function SettingsSidebar({ isAdmin }: Props) {
