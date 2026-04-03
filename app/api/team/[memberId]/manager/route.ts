@@ -9,7 +9,16 @@ export async function PATCH(
   { params }: { params: Promise<{ memberId: string }> }
 ) {
   const { memberId } = await params;
-  const { managerId } = await req.json() as { managerId: string | null };
+
+  // Runtime body validation
+  const body = await req.json().catch(() => null);
+  if (!body || !("managerId" in body)) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+  const managerId: string | null = body.managerId ?? null;
+  if (managerId !== null && typeof managerId !== "string") {
+    return NextResponse.json({ error: "Invalid managerId" }, { status: 400 });
+  }
 
   const supabase = await createClient();
   const {
@@ -25,8 +34,18 @@ export async function PATCH(
     return NextResponse.json({ error: "Admin only" }, { status: 403 });
   }
 
+  // Self-reporting guard
   if (managerId === memberId) {
     return NextResponse.json({ error: "Cannot report to yourself" }, { status: 400 });
+  }
+
+  // Cross-org guard: verify memberId belongs to viewer's org
+  const [target] = await db
+    .select({ id: profiles.id, orgId: profiles.orgId })
+    .from(profiles)
+    .where(eq(profiles.id, memberId));
+  if (!target || target.orgId !== viewer.orgId) {
+    return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
   await db
