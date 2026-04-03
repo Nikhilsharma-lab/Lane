@@ -34,7 +34,7 @@ export default async function IntegrationsPage({
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-1">Integrations</h1>
+      <h1 className="text-lg font-semibold text-white mb-1">Integrations</h1>
       <p className="text-sm text-zinc-500 mb-8">Connect your tools to DesignQ</p>
 
       {connected === "true" && (
