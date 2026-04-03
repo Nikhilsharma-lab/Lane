@@ -45,10 +45,12 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
     async (cardId: string, fromState: KanbanState, toState: KanbanState) => {
       if (fromState === toState) return;
 
-      // Optimistic update
+      // Capture the card before optimistic update for safe revert
+      let capturedCard: CardData | undefined;
       setColumns((prev) => {
         const card = prev[fromState].find((c) => c.id === cardId);
         if (!card) return prev;
+        capturedCard = card;
         return {
           ...prev,
           [fromState]: prev[fromState].filter((c) => c.id !== cardId),
@@ -56,6 +58,16 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
         };
       });
       setError(null);
+
+      function revert() {
+        if (!capturedCard) return;
+        const cardToRestore = { ...capturedCard, kanbanState: fromState };
+        setColumns((prev) => ({
+          ...prev,
+          [toState]: prev[toState].filter((c) => c.id !== cardId),
+          [fromState]: [...prev[fromState], cardToRestore],
+        }));
+      }
 
       try {
         const res = await fetch(`/api/requests/${cardId}/kanban`, {
@@ -65,31 +77,13 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
         });
         if (!res.ok) {
           const data = await res.json();
-          // Revert
-          setColumns((prev) => {
-            const card = prev[toState].find((c) => c.id === cardId);
-            if (!card) return prev;
-            return {
-              ...prev,
-              [toState]: prev[toState].filter((c) => c.id !== cardId),
-              [fromState]: [...prev[fromState], { ...card, kanbanState: fromState }],
-            };
-          });
+          revert();
           setError(data.error ?? "Failed to move card");
         } else {
           router.refresh();
         }
       } catch {
-        // Revert on network error
-        setColumns((prev) => {
-          const card = prev[toState].find((c) => c.id === cardId);
-          if (!card) return prev;
-          return {
-            ...prev,
-            [toState]: prev[toState].filter((c) => c.id !== cardId),
-            [fromState]: [...prev[fromState], { ...card, kanbanState: fromState }],
-          };
-        });
+        revert();
         setError("Network error");
       }
     },
@@ -144,7 +138,20 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
     if (!over) return;
 
     const cardId = active.id as string;
-    const toState = over.id as KanbanState;
+
+    // over.id may be a column state OR a card id (when dropped onto a card)
+    let toState = over.id as KanbanState;
+    if (!KANBAN_STATES.includes(toState)) {
+      // over.id is a card — find which column owns it
+      for (const state of KANBAN_STATES) {
+        if (columns[state].find((c) => c.id === (over.id as string))) {
+          toState = state;
+          break;
+        }
+      }
+    }
+
+    if (!KANBAN_STATES.includes(toState)) return; // still not found, bail
 
     let fromState: KanbanState | null = null;
     for (const state of KANBAN_STATES) {
@@ -192,7 +199,7 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
 
       {/* Error toast */}
       {error && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-2 rounded-lg">
+        <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-2 rounded-lg">
           {error}
         </div>
       )}
