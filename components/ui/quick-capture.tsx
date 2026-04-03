@@ -59,14 +59,14 @@ export function QuickCapture({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[22vh]"
+      className="fixed inset-0 z-50 bg-[var(--text-primary)]/40 backdrop-blur-sm flex items-start justify-center pt-[22vh]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md mx-4 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-5"
+        className="w-full max-w-md mx-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-4">
+        <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-4">
           Quick capture
         </p>
 
@@ -76,7 +76,7 @@ export function QuickCapture({ onClose }: { onClose: () => void }) {
           onChange={(e) => { setTitle(e.target.value); setError(null); }}
           onKeyDown={onInputKeyDown}
           placeholder="What needs to be designed?"
-          className="w-full bg-transparent text-white text-sm placeholder-zinc-700 outline-none pb-3 mb-3 border-b border-zinc-800 focus:border-zinc-600 transition-colors"
+          className="w-full bg-transparent text-[var(--text-primary)] text-sm placeholder-[var(--text-tertiary)] outline-none pb-3 mb-3 border-b border-[var(--border)] focus:border-[var(--border-strong)] transition-colors"
         />
 
         <input
@@ -84,7 +84,7 @@ export function QuickCapture({ onClose }: { onClose: () => void }) {
           onChange={(e) => setBusinessGoal(e.target.value)}
           onKeyDown={onInputKeyDown}
           placeholder="Business goal (optional)"
-          className="w-full bg-transparent text-zinc-400 text-sm placeholder-zinc-700 outline-none pb-3 mb-4 border-b border-zinc-800 focus:border-zinc-600 transition-colors"
+          className="w-full bg-transparent text-[var(--text-secondary)] text-sm placeholder-[var(--text-tertiary)] outline-none pb-3 mb-4 border-b border-[var(--border)] focus:border-[var(--border-strong)] transition-colors"
         />
 
         {error && (
@@ -100,8 +100,8 @@ export function QuickCapture({ onClose }: { onClose: () => void }) {
                 onClick={() => setPriority(p)}
                 className={`text-[10px] px-2 py-0.5 rounded border font-mono transition-colors ${
                   priority === p
-                    ? "bg-zinc-700 border-zinc-600 text-white"
-                    : "border-zinc-800 text-zinc-600 hover:text-zinc-400"
+                    ? "bg-[var(--bg-hover)] border-[var(--border-strong)] text-[var(--text-primary)]"
+                    : "border-[var(--border)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                 }`}
               >
                 {PRIORITY_LABELS[p]}
@@ -113,14 +113,14 @@ export function QuickCapture({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+              className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={!title.trim() || saving}
-              className="bg-white text-zinc-900 text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-40 transition-opacity"
+              className="bg-[var(--accent)] text-[var(--accent-text)] text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-40 transition-opacity"
             >
               {saving ? "Saving…" : "Capture ↵"}
             </button>

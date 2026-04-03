@@ -25,8 +25,8 @@ export default async function ProjectsPage() {
   return (
     <div className="max-w-lg space-y-10">
       <div>
-        <h1 className="text-lg font-semibold text-white mb-1">Projects</h1>
-        <p className="text-sm text-zinc-500">Organise requests into product lines or initiatives.</p>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Projects</h1>
+        <p className="text-sm text-[var(--text-secondary)]">Organise requests into product lines or initiatives.</p>
       </div>
       <ProjectList activeProjects={activeProjects} archivedProjects={archivedProjects} />
     </div>

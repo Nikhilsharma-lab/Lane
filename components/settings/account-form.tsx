@@ -36,27 +36,27 @@ export function AccountForm({ profile }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="block text-xs text-zinc-500 mb-1.5">Full name</label>
+        <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Full name</label>
         <input name="fullName" type="text" required defaultValue={profile.fullName}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors" />
+          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors" />
       </div>
       <div>
-        <label className="block text-xs text-zinc-500 mb-1.5">Email</label>
+        <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Email</label>
         <input type="email" value={profile.email} disabled
-          className="w-full bg-zinc-900/40 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-600 cursor-not-allowed" />
-        <p className="text-xs text-zinc-700 mt-1">Email cannot be changed here.</p>
+          className="w-full bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-tertiary)] cursor-not-allowed" />
+        <p className="text-xs text-[var(--text-tertiary)] mt-1">Email cannot be changed here.</p>
       </div>
       <div>
-        <label className="block text-xs text-zinc-500 mb-1.5">Timezone</label>
+        <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Timezone</label>
         <select name="timezone" defaultValue={profile.timezone}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600 transition-colors">
+          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors">
           {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
         </select>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       {success && <p className="text-sm text-green-400">Saved.</p>}
       <button type="submit" disabled={isPending}
-        className="bg-white text-zinc-900 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100 transition-colors disabled:opacity-40">
+        className="bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40">
         {isPending ? "Saving…" : "Save changes"}
       </button>
     </form>

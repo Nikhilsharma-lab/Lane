@@ -26,26 +26,26 @@ export function UserMenu({ fullName }: UserMenuProps) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+        className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
       >
         {fullName}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
-          <p className="px-3 py-2 text-xs text-zinc-500 border-b border-zinc-800 truncate">
+        <div className="absolute right-0 top-full mt-1.5 w-48 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+          <p className="px-3 py-2 text-xs text-[var(--text-secondary)] border-b border-[var(--border)] truncate">
             {fullName}
           </p>
           <Link
             href="/settings/account"
             onClick={() => setOpen(false)}
-            className="flex items-center px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="flex items-center px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           >
             Settings
           </Link>
           <form action={logout}>
             <button
               type="submit"
-              className="w-full text-left flex items-center px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="w-full text-left flex items-center px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
             >
               Sign out
             </button>

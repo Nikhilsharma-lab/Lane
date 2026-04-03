@@ -30,17 +30,17 @@ export function PendingInvites({ invites, isAdmin }: Props) {
       {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
       {active.length > 0 && (
         <div>
-          <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Pending invites ({active.length})</h2>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Pending invites ({active.length})</h2>
           <div className="space-y-2">
             {active.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between border border-zinc-800 rounded-xl px-5 py-3">
+              <div key={inv.id} className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3">
                 <div>
-                  <p className="text-sm text-zinc-300">{inv.email}</p>
-                  <p className="text-xs text-zinc-600">{ROLE_LABELS[inv.role] ?? inv.role} &middot; Expires {formatDate(inv.expiresAt)}</p>
+                  <p className="text-sm text-[var(--text-primary)]">{inv.email}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">{ROLE_LABELS[inv.role] ?? inv.role} &middot; Expires {formatDate(inv.expiresAt)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-yellow-500/70">Pending</span>
-                  {isAdmin && <button onClick={() => handleRevoke(inv.id)} disabled={isPending} className="text-xs text-zinc-600 hover:text-red-400 transition-colors disabled:opacity-40">Revoke</button>}
+                  {isAdmin && <button onClick={() => handleRevoke(inv.id)} disabled={isPending} className="text-xs text-[var(--text-tertiary)] hover:text-red-400 transition-colors disabled:opacity-40">Revoke</button>}
                 </div>
               </div>
             ))}
@@ -49,15 +49,15 @@ export function PendingInvites({ invites, isAdmin }: Props) {
       )}
       {expired.length > 0 && (
         <div>
-          <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Expired invites ({expired.length})</h2>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Expired invites ({expired.length})</h2>
           <div className="space-y-2 opacity-50">
             {expired.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between border border-zinc-800/50 rounded-xl px-5 py-3">
+              <div key={inv.id} className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3">
                 <div>
-                  <p className="text-sm text-zinc-400">{inv.email}</p>
-                  <p className="text-xs text-zinc-600">{ROLE_LABELS[inv.role] ?? inv.role} &middot; Expired {formatDate(inv.expiresAt)}</p>
+                  <p className="text-sm text-[var(--text-secondary)]">{inv.email}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">{ROLE_LABELS[inv.role] ?? inv.role} &middot; Expired {formatDate(inv.expiresAt)}</p>
                 </div>
-                <span className="text-xs text-zinc-600">Expired</span>
+                <span className="text-xs text-[var(--text-tertiary)]">Expired</span>
               </div>
             ))}
           </div>

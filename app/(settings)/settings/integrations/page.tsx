@@ -34,8 +34,8 @@ export default async function IntegrationsPage({
 
   return (
     <div>
-      <h1 className="text-lg font-semibold text-white mb-1">Integrations</h1>
-      <p className="text-sm text-zinc-500 mb-8">Connect your tools to DesignQ</p>
+      <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Integrations</h1>
+      <p className="text-sm text-[var(--text-secondary)] mb-8">Connect your tools to DesignQ</p>
 
       {connected === "true" && (
         <div className="mb-6 bg-green-500/5 border border-green-500/20 rounded-lg px-4 py-3">
@@ -50,15 +50,15 @@ export default async function IntegrationsPage({
 
       <div className="space-y-3">
         {/* Figma — functional */}
-        <div className="border border-zinc-800 rounded-xl p-5">
+        <div className="border border-[var(--border)] rounded-xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-medium mb-0.5">Figma</h2>
-              <p className="text-xs text-zinc-500 mb-1.5">
+              <h2 className="text-sm font-medium text-[var(--text-primary)] mb-0.5">Figma</h2>
+              <p className="text-xs text-[var(--text-secondary)] mb-1.5">
                 Track design file updates and post-handoff changes
               </p>
               {connection && (
-                <p className="text-xs text-zinc-600">
+                <p className="text-xs text-[var(--text-tertiary)]">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 align-middle" />
                   Connected{connectorName ? ` by ${connectorName}` : ""}{" · "}
                   {new Date(connection.createdAt).toLocaleDateString("en-US", {
@@ -72,7 +72,7 @@ export default async function IntegrationsPage({
               <form action="/api/figma/oauth/disconnect" method="POST">
                 <button
                   type="submit"
-                  className="text-xs text-zinc-500 hover:text-red-400 border border-zinc-800 hover:border-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs text-[var(--text-secondary)] hover:text-red-400 border border-[var(--border)] hover:border-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Disconnect
                 </button>
@@ -80,7 +80,7 @@ export default async function IntegrationsPage({
             ) : (
               <a
                 href="/api/figma/oauth/connect"
-                className="text-xs bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs bg-[var(--accent-subtle)] hover:bg-[var(--accent)]/20 border border-[var(--accent)]/20 text-[var(--accent)] px-3 py-1.5 rounded-lg transition-colors"
               >
                 Connect Figma
               </a>
@@ -89,16 +89,16 @@ export default async function IntegrationsPage({
         </div>
 
         {/* Slack — coming soon */}
-        <div className="border border-zinc-800/50 rounded-xl p-5 opacity-50">
+        <div className="border border-[var(--border)] rounded-xl p-5 opacity-50">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-sm font-medium">Slack</h2>
-                <span className="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">
+                <h2 className="text-sm font-medium text-[var(--text-primary)]">Slack</h2>
+                <span className="text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded">
                   Coming soon
                 </span>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[var(--text-secondary)]">
                 Get notifications in Slack for sign-offs, handoffs, and alerts
               </p>
             </div>
@@ -106,16 +106,16 @@ export default async function IntegrationsPage({
         </div>
 
         {/* Linear — coming soon */}
-        <div className="border border-zinc-800/50 rounded-xl p-5 opacity-50">
+        <div className="border border-[var(--border)] rounded-xl p-5 opacity-50">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-sm font-medium">Linear</h2>
-                <span className="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">
+                <h2 className="text-sm font-medium text-[var(--text-primary)]">Linear</h2>
+                <span className="text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded">
                   Coming soon
                 </span>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[var(--text-secondary)]">
                 Auto-create Linear issues on handoff and sync status back
               </p>
             </div>

@@ -17,8 +17,8 @@ export default async function WorkspacePage() {
   return (
     <div className="max-w-lg space-y-10">
       <div>
-        <h1 className="text-lg font-semibold text-white mb-1">Workspace</h1>
-        <p className="text-sm text-zinc-500">Your organization name, slug, and plan.</p>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Workspace</h1>
+        <p className="text-sm text-[var(--text-secondary)]">Your organization name, slug, and plan.</p>
       </div>
       <WorkspaceForm org={{ name: org.name, slug: org.slug, plan: org.plan }} isAdmin={profile.role === "admin"} />
     </div>

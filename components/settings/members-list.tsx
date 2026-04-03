@@ -34,43 +34,43 @@ export function MembersList({ members, currentUserId, isAdmin }: Props) {
     <div className="space-y-8">
       {isAdmin && (
         <div>
-          <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Invite member</h2>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Invite member</h2>
           <InviteForm />
         </div>
       )}
       <div>
-        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Team ({members.length})</h2>
+        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Team ({members.length})</h2>
         {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
         <div className="space-y-2">
           {members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between border border-zinc-800 rounded-xl px-5 py-3">
+            <div key={m.id} className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3">
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400 shrink-0">
+                <div className="w-7 h-7 rounded-full bg-[var(--bg-hover)] flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0">
                   {m.fullName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm text-white">{m.fullName}{m.id === currentUserId && <span className="text-xs text-zinc-600 ml-1.5">(you)</span>}</p>
-                  <p className="text-xs text-zinc-600">{m.email}</p>
+                  <p className="text-sm text-[var(--text-primary)]">{m.fullName}{m.id === currentUserId && <span className="text-xs text-[var(--text-tertiary)] ml-1.5">(you)</span>}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">{m.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {isAdmin && m.id !== currentUserId ? (
                   <select value={m.role} onChange={(e) => handleRoleChange(m.id, e.target.value)} disabled={isPending}
-                    className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-40">
+                    className="bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-2 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors disabled:opacity-40">
                     {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                 ) : (
-                  <span className="text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5">{ROLE_LABELS[m.role] ?? m.role}</span>
+                  <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-1.5 py-0.5">{ROLE_LABELS[m.role] ?? m.role}</span>
                 )}
                 {isAdmin && m.id !== currentUserId && (
                   confirmRemoveId === m.id ? (
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-zinc-400">Remove?</span>
+                      <span className="text-xs text-[var(--text-secondary)]">Remove?</span>
                       <button onClick={() => handleRemove(m.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40">Yes</button>
-                      <button onClick={() => setConfirmRemoveId(null)} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">No</button>
+                      <button onClick={() => setConfirmRemoveId(null)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">No</button>
                     </div>
                   ) : (
-                    <button onClick={() => setConfirmRemoveId(m.id)} className="text-xs text-zinc-600 hover:text-red-400 transition-colors">Remove</button>
+                    <button onClick={() => setConfirmRemoveId(m.id)} className="text-xs text-[var(--text-tertiary)] hover:text-red-400 transition-colors">Remove</button>
                   )
                 )}
               </div>

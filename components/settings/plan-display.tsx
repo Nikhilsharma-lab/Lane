@@ -31,27 +31,27 @@ export function PlanDisplay({ plan, seatCount }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="border border-zinc-800 rounded-xl px-6 py-5">
+      <div className="border border-[var(--border)] rounded-xl px-6 py-5">
         <div className="flex items-center gap-3 mb-1">
           <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-          <span className="text-lg font-semibold text-white">{PLAN_LABELS[plan]}</span>
-          <span className="text-sm text-zinc-500">{PLAN_PRICE[plan]}</span>
+          <span className="text-lg font-semibold text-[var(--text-primary)]">{PLAN_LABELS[plan]}</span>
+          <span className="text-sm text-[var(--text-secondary)]">{PLAN_PRICE[plan]}</span>
         </div>
-        <p className="text-xs text-zinc-600 ml-5">Annual prepay</p>
+        <p className="text-xs text-[var(--text-tertiary)] ml-5">Annual prepay</p>
       </div>
       {/* Seat Usage */}
       {plan === "enterprise" ? (
-        <p className="text-sm text-zinc-400">Unlimited seats</p>
+        <p className="text-sm text-[var(--text-secondary)]">Unlimited seats</p>
       ) : (
-        <div className="border border-zinc-800 rounded-xl px-6 py-5 space-y-3">
+        <div className="border border-[var(--border)] rounded-xl px-6 py-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-300">Seats</span>
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm font-medium text-[var(--text-primary)]">Seats</span>
+            <span className="text-sm text-[var(--text-secondary)]">
               {seatCount} of {PLAN_LIMITS[plan]} used &nbsp;&middot;&nbsp;{" "}
               {Math.max(0, PLAN_LIMITS[plan] - seatCount)} available
             </span>
           </div>
-          <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-[var(--bg-hover)] rounded-full h-2 overflow-hidden">
             <div
               className={`h-2 rounded-full transition-all ${
                 seatCount / PLAN_LIMITS[plan] >= 1
@@ -69,18 +69,18 @@ export function PlanDisplay({ plan, seatCount }: Props) {
         </div>
       )}
       <div>
-        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Features included</h2>
+        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Features included</h2>
         <div className="space-y-0">
-          <div className="flex items-center justify-between py-2.5 border-b border-zinc-900">
-            <span className="text-sm text-zinc-400">Team members</span>
-            <span className="text-sm text-zinc-300">{MEMBER_LIMITS[plan]}</span>
+          <div className="flex items-center justify-between py-2.5 border-b border-[var(--border)]">
+            <span className="text-sm text-[var(--text-secondary)]">Team members</span>
+            <span className="text-sm text-[var(--text-primary)]">{MEMBER_LIMITS[plan]}</span>
           </div>
           {FEATURES.map((f) => {
             const included = plan === "free" ? f.free : plan === "pro" ? f.pro : f.enterprise;
             return (
-              <div key={f.label} className="flex items-center justify-between py-2.5 border-b border-zinc-900">
-                <span className={`text-sm ${included ? "text-zinc-400" : "text-zinc-700"}`}>{f.label}</span>
-                {included ? <span className="text-green-400 text-sm">&#10003;</span> : <span className="text-zinc-700 text-sm">&#8212;</span>}
+              <div key={f.label} className="flex items-center justify-between py-2.5 border-b border-[var(--border)]">
+                <span className={`text-sm ${included ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)]"}`}>{f.label}</span>
+                {included ? <span className="text-green-400 text-sm">&#10003;</span> : <span className="text-[var(--text-tertiary)] text-sm">&#8212;</span>}
               </div>
             );
           })}
@@ -88,7 +88,7 @@ export function PlanDisplay({ plan, seatCount }: Props) {
       </div>
       {/* Plan Cards */}
       <div>
-        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">All plans</h2>
+        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">All plans</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(["free", "pro", "enterprise"] as const).map((p) => {
             const isCurrent = plan === p;
@@ -97,29 +97,29 @@ export function PlanDisplay({ plan, seatCount }: Props) {
               <div
                 key={p}
                 className={`border rounded-xl px-5 py-4 flex flex-col gap-3 ${
-                  isCurrent ? "border-white/20 bg-zinc-900" : "border-zinc-800"
+                  isCurrent ? "border-[var(--accent)]/30 bg-[var(--bg-subtle)]" : "border-[var(--border)]"
                 }`}
               >
                 <div>
-                  <p className="text-sm font-semibold text-white">{PLAN_LABELS[p]}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{PLAN_PRICE[p]}</p>
-                  <p className="text-xs text-zinc-600 mt-1">{MEMBER_LIMITS[p]}</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{PLAN_LABELS[p]}</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">{PLAN_PRICE[p]}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">{MEMBER_LIMITS[p]}</p>
                 </div>
                 {isCurrent ? (
-                  <span className="text-xs text-zinc-500 border border-zinc-700 rounded px-2 py-1 w-fit">
+                  <span className="text-xs text-[var(--text-secondary)] border border-[var(--border)] rounded px-2 py-1 w-fit">
                     Current plan
                   </span>
                 ) : p === "enterprise" ? (
                   <a
                     href="mailto:yash@designq.io?subject=Enterprise%20inquiry"
-                    className="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-3 py-1.5 transition-colors w-fit"
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded px-3 py-1.5 transition-colors w-fit"
                   >
                     Contact us &rarr;
                   </a>
                 ) : (
                   <button
                     onClick={() => setModal({ targetPlan: p, stage: "confirm" })}
-                    className="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-3 py-1.5 transition-colors w-fit"
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded px-3 py-1.5 transition-colors w-fit"
                   >
                     {isUpgrade ? "Upgrade" : "Downgrade"} to {PLAN_LABELS[p]}
                   </button>
@@ -130,34 +130,34 @@ export function PlanDisplay({ plan, seatCount }: Props) {
         </div>
       </div>
       {plan !== "enterprise" && (
-        <div className="border border-zinc-800 rounded-xl px-6 py-5">
-          <p className="text-sm font-medium text-white mb-1">Need more?</p>
-          <p className="text-xs text-zinc-500 mb-4">Enterprise &mdash; custom seats, Linear integration, dedicated SLA.</p>
+        <div className="border border-[var(--border)] rounded-xl px-6 py-5">
+          <p className="text-sm font-medium text-[var(--text-primary)] mb-1">Need more?</p>
+          <p className="text-xs text-[var(--text-secondary)] mb-4">Enterprise &mdash; custom seats, Linear integration, dedicated SLA.</p>
           <a href="mailto:yash@designq.io?subject=Enterprise%20inquiry"
-            className="inline-flex items-center text-sm text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-2 transition-colors">
+            className="inline-flex items-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-4 py-2 transition-colors">
             Contact us &rarr;
           </a>
         </div>
       )}
       {/* Billing History */}
       <div>
-        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Billing history</h2>
-        <div className="border border-zinc-800 rounded-xl overflow-hidden">
+        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Billing history</h2>
+        <div className="border border-[var(--border)] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Invoice</th>
-                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Date</th>
-                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Amount</th>
-                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Status</th>
-                <th className="text-left text-xs font-medium text-zinc-500 px-4 py-3">Download</th>
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left text-xs font-medium text-[var(--text-secondary)] px-4 py-3">Invoice</th>
+                <th className="text-left text-xs font-medium text-[var(--text-secondary)] px-4 py-3">Date</th>
+                <th className="text-left text-xs font-medium text-[var(--text-secondary)] px-4 py-3">Amount</th>
+                <th className="text-left text-xs font-medium text-[var(--text-secondary)] px-4 py-3">Status</th>
+                <th className="text-left text-xs font-medium text-[var(--text-secondary)] px-4 py-3">Download</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center">
-                  <p className="text-sm text-zinc-500">No invoices yet.</p>
-                  <p className="text-xs text-zinc-600 mt-1">Billing history will appear here once you&apos;re on a paid plan.</p>
+                  <p className="text-sm text-[var(--text-secondary)]">No invoices yet.</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">Billing history will appear here once you&apos;re on a paid plan.</p>
                 </td>
               </tr>
             </tbody>
@@ -166,16 +166,16 @@ export function PlanDisplay({ plan, seatCount }: Props) {
       </div>
       {/* Upgrade / Downgrade Modal */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModal(null)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--text-primary)]/40 backdrop-blur-sm" onClick={() => setModal(null)}>
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
             {modal.stage === "confirm" ? (
               <>
-                <h3 className="text-base font-semibold text-white">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">
                   {modal.targetPlan === "free" ? "Downgrade" : "Upgrade"} to {PLAN_LABELS[modal.targetPlan]}
                 </h3>
-                <p className="text-sm text-zinc-400">
-                  You&apos;re switching from <span className="text-white">{PLAN_LABELS[plan]}</span> →{" "}
-                  <span className="text-white">{PLAN_LABELS[modal.targetPlan]}</span> ({PLAN_PRICE[modal.targetPlan]}, annual prepay).
+                <p className="text-sm text-[var(--text-secondary)]">
+                  You&apos;re switching from <span className="text-[var(--text-primary)]">{PLAN_LABELS[plan]}</span> →{" "}
+                  <span className="text-[var(--text-primary)]">{PLAN_LABELS[modal.targetPlan]}</span> ({PLAN_PRICE[modal.targetPlan]}, annual prepay).
                 </p>
                 {modal.targetPlan === "free" && (
                   <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
@@ -186,13 +186,13 @@ export function PlanDisplay({ plan, seatCount }: Props) {
                 <div className="flex gap-3 pt-1">
                   <button
                     onClick={() => setModal(null)}
-                    className="flex-1 text-sm text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-2 transition-colors"
+                    className="flex-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-4 py-2 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => setModal({ ...modal, stage: "comingsoon" })}
-                    className="flex-1 text-sm text-white bg-zinc-700 hover:bg-zinc-600 rounded-lg px-4 py-2 transition-colors"
+                    className="flex-1 text-sm bg-[var(--accent)] text-[var(--accent-text)] hover:opacity-90 rounded-lg px-4 py-2 transition-opacity"
                   >
                     Proceed to checkout &rarr;
                   </button>
@@ -200,17 +200,17 @@ export function PlanDisplay({ plan, seatCount }: Props) {
               </>
             ) : (
               <>
-                <h3 className="text-base font-semibold text-white">Coming soon</h3>
-                <p className="text-sm text-zinc-400">
+                <h3 className="text-base font-semibold text-[var(--text-primary)]">Coming soon</h3>
+                <p className="text-sm text-[var(--text-secondary)]">
                   Online checkout isn&apos;t available yet.{" "}
-                  <a href="mailto:yash@designq.io?subject=Plan%20upgrade" className="text-white underline underline-offset-2 hover:text-zinc-300">
+                  <a href="mailto:yash@designq.io?subject=Plan%20upgrade" className="text-[var(--accent)] underline underline-offset-2 hover:opacity-80">
                     Email yash@designq.io
                   </a>{" "}
                   to upgrade — we&apos;ll get you sorted within 24 hours.
                 </p>
                 <button
                   onClick={() => setModal(null)}
-                  className="w-full text-sm text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-2 transition-colors"
+                  className="w-full text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-4 py-2 transition-colors"
                 >
                   Close
                 </button>

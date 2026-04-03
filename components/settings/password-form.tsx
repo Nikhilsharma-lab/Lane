@@ -28,19 +28,19 @@ export function PasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="block text-xs text-zinc-500 mb-1.5">New password</label>
+        <label className="block text-xs text-[var(--text-secondary)] mb-1.5">New password</label>
         <input name="newPassword" type="password" required minLength={8}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors" />
+          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors" />
       </div>
       <div>
-        <label className="block text-xs text-zinc-500 mb-1.5">Confirm new password</label>
+        <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Confirm new password</label>
         <input name="confirmPassword" type="password" required
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors" />
+          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors" />
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       {success && <p className="text-sm text-green-400">Password updated.</p>}
       <button type="submit" disabled={isPending}
-        className="bg-white text-zinc-900 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100 transition-colors disabled:opacity-40">
+        className="bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40">
         {isPending ? "Updating…" : "Update password"}
       </button>
     </form>

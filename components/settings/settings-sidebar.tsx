@@ -22,17 +22,17 @@ export function SettingsSidebar({ isAdmin }: Props) {
     const active = pathname === href;
     if (danger) {
       return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-        active ? "bg-zinc-800 text-red-400" : "text-zinc-500 hover:text-red-400 hover:bg-zinc-900"
+        active ? "bg-[var(--bg-hover)] text-red-400" : "text-[var(--text-secondary)] hover:text-red-400 hover:bg-[var(--bg-subtle)]"
       }`;
     }
     return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+      active ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
     }`;
   }
 
   return (
     <aside className="w-[200px] shrink-0">
-      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-4 px-3">
+      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-4 px-3">
         Settings
       </p>
       <nav className="space-y-0.5">
@@ -46,7 +46,7 @@ export function SettingsSidebar({ isAdmin }: Props) {
             Plan
           </Link>
         )}
-        <div className="my-3 border-t border-zinc-800/60" />
+        <div className="my-3 border-t border-[var(--border)]" />
         <Link href="/settings/danger" className={linkClass("/settings/danger", true)}>
           Danger Zone
         </Link>
