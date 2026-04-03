@@ -60,13 +60,13 @@ const PHASES = [
     label: "Track & Impact",
     number: "4",
     desc: "PM measures results",
-    color: "text-green-400",
-    borderColor: "border-green-500/20",
-    bgColor: "bg-green-500/5",
-    dotColor: "bg-green-400",
+    color: "text-[#86A87A]",
+    borderColor: "border-[#86A87A]/20",
+    bgColor: "bg-[#86A87A]/5",
+    dotColor: "bg-[#86A87A]",
     stages: ["measuring", "complete"],
     stageLabels: { measuring: "Measuring", complete: "Complete" },
-    stageBadge: "bg-green-500/10 text-green-400 border-green-500/20",
+    stageBadge: "bg-[#86A87A]/10 text-[#86A87A] border-[#86A87A]/20",
   },
 ] as const;
 
