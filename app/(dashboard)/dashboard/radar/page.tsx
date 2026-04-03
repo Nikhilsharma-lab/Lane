@@ -56,7 +56,7 @@ export default async function RadarPage() {
             assigneeId: assignments.assigneeId,
           })
           .from(assignments)
-          .where(inArray(assignments.requestId, orgReqIds)),
+          .where(and(inArray(assignments.requestId, orgReqIds), eq(assignments.role, "lead"))),
         db
           .select({
             requestId: figmaUpdates.requestId,
