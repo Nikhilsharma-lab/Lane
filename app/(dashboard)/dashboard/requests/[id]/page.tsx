@@ -228,7 +228,7 @@ export default async function RequestDetailPage({
     profile.role === "lead" ||
     profile.role === "admin";
 
-  const isTestUser = profile.email === "kaushalyash00@gmail.com";
+  const isTestUser = profile.email === "hi.nikhilsharma@gmail.com";
 
   return (
     <>

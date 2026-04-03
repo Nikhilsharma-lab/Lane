@@ -33,7 +33,7 @@ export default async function DashboardLayout({
 
       if (profile) {
         profileRole = profile.role ?? "member";
-        isTestUser = profile.email === "kaushalyash00@gmail.com";
+        isTestUser = profile.email === "hi.nikhilsharma@gmail.com";
         orgRequests = await db
           .select()
           .from(requests)

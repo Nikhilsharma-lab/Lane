@@ -74,7 +74,7 @@ export async function POST(
   const { decision, conditions, comments: commentText, signerRole: roleOverride } = body;
 
   // Test account can sign off on behalf of any role
-  const TEST_EMAIL = "kaushalyash00@gmail.com";
+  const TEST_EMAIL = "hi.nikhilsharma@gmail.com";
   let signerRole = signerRoleFromProfile(profile.role ?? "");
   if (profile.email === TEST_EMAIL && roleOverride && ["designer", "pm", "design_head"].includes(roleOverride)) {
     signerRole = roleOverride as "designer" | "pm" | "design_head";
