@@ -8,3 +8,5 @@ export * from "./figma_updates";
 export * from "./impact_records";
 export * from "./projects";
 export * from "./context_briefs";
+export * from "./handoff_briefs";
+export * from "./figma_connections";
