@@ -67,12 +67,12 @@ function DesignerCard({
   const alreadyBlocked = designer.mostStalledRequestStatus === "blocked";
 
   return (
-    <div className="flex items-start justify-between border border-zinc-800 rounded-xl px-5 py-3">
+    <div className="flex items-start justify-between border border-[var(--border)] rounded-xl px-5 py-3">
       <div>
-        <p className="text-sm text-white">
+        <p className="text-sm text-[var(--text-primary)]">
           {STATUS_DOT[designer.status] ?? "⚪"} {designer.fullName}
         </p>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <p className="text-xs text-[var(--text-secondary)] mt-0.5">
           {designer.activeCount} active
           {designer.lastMovedMs !== null &&
             ` · last moved ${formatStaleness(designer.lastMovedMs)}`}
