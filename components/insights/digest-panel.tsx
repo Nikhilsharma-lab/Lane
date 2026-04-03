@@ -63,7 +63,7 @@ export function DigestPanel() {
 
         {/* Team health */}
         <div className="px-5 py-4">
-          <p className="text-[10px] text-blue-400 uppercase tracking-wide font-medium mb-2">🧠 Team health</p>
+          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide font-medium mb-2">🧠 Team health</p>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.teamHealth}</p>
         </div>
 

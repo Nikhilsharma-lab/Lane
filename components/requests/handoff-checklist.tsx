@@ -10,8 +10,8 @@ interface ChecklistItem {
 }
 
 const categoryColors: Record<string, string> = {
-  spec: "text-blue-400",
-  accessibility: "text-purple-400",
+  spec: "text-[#7DA5C4]",
+  accessibility: "text-[#A394C7]",
   responsive: "text-cyan-400",
   edge_case: "text-yellow-400",
   assets: "text-orange-400",

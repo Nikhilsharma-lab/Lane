@@ -31,7 +31,7 @@ function LoginForm() {
         </div>
 
         {message && (
-          <div className="mb-4 text-sm text-blue-400 bg-blue-950/40 border border-blue-900/50 rounded-lg px-3 py-2">
+          <div className="mb-4 text-sm text-[var(--accent)] bg-[var(--accent-subtle)] border border-[var(--accent)]/20 rounded-lg px-3 py-2">
             {message}
           </div>
         )}

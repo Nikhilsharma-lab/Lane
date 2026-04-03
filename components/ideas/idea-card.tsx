@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categoryColors: Record<string, string> = {
-  design: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  feature: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  design: "bg-[#A394C7]/10 text-[#A394C7] border-[#A394C7]/20",
+  feature: "bg-[#7DA5C4]/10 text-[#7DA5C4] border-[#7DA5C4]/20",
   workflow: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   performance: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   ux: "bg-pink-500/10 text-pink-400 border-pink-500/20",
