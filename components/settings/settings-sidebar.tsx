@@ -22,11 +22,11 @@ export function SettingsSidebar({ isAdmin }: Props) {
     const active = pathname === href;
     if (danger) {
       return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-        active ? "bg-[var(--bg-hover)] text-red-400" : "text-[var(--text-secondary)] hover:text-red-400 hover:bg-[var(--bg-subtle)]"
+        active ? "bg-red-500/10 text-red-500" : "text-[var(--text-secondary)] hover:text-red-400 hover:bg-[var(--bg-subtle)]"
       }`;
     }
     return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+      active ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-medium" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
     }`;
   }
 

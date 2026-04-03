@@ -29,7 +29,7 @@ export function DangerZone({ isAdmin, orgSlug }: Props) {
 
   return (
     <div className="space-y-8">
-      {error && <p className="text-sm text-red-400 bg-red-950/30 border border-red-900/30 rounded-lg px-4 py-3">{error}</p>}
+      {error && <p className="text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">{error}</p>}
       <div className="border border-[var(--border)] rounded-xl px-6 py-5">
         <h3 className="text-sm font-medium text-[var(--text-primary)] mb-1">Leave workspace</h3>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
@@ -52,14 +52,14 @@ export function DangerZone({ isAdmin, orgSlug }: Props) {
           </div>
         ) : (
           <button onClick={() => { setError(null); setShowLeaveConfirm(true); }}
-            className="text-sm text-red-400 hover:text-red-300 border border-red-900/40 hover:border-red-700/50 rounded-lg px-4 py-2 transition-colors">
+            className="text-sm text-red-500 hover:text-red-600 border border-red-500/30 hover:border-red-500/50 rounded-lg px-4 py-2 transition-colors">
             Leave workspace
           </button>
         )}
       </div>
       {isAdmin && (
-        <div className="border border-red-900/30 rounded-xl px-6 py-5">
-          <h3 className="text-sm font-medium text-red-400 mb-1">Delete workspace</h3>
+        <div className="border border-red-500/20 rounded-xl px-6 py-5">
+          <h3 className="text-sm font-medium text-red-500 mb-1">Delete workspace</h3>
           <p className="text-xs text-[var(--text-secondary)] mb-4">Permanently deletes the org, all members, all requests, and all data. This cannot be undone.</p>
           {showDeleteConfirm ? (
             <div className="space-y-3">
@@ -79,7 +79,7 @@ export function DangerZone({ isAdmin, orgSlug }: Props) {
             </div>
           ) : (
             <button onClick={() => { setError(null); setShowDeleteConfirm(true); }}
-              className="text-sm text-red-400 hover:text-red-300 border border-red-900/40 hover:border-red-700/50 rounded-lg px-4 py-2 transition-colors">
+              className="text-sm text-red-500 hover:text-red-600 border border-red-500/30 hover:border-red-500/50 rounded-lg px-4 py-2 transition-colors">
               Delete workspace
             </button>
           )}
