@@ -14,8 +14,8 @@ export function useRealtimeRadar(orgId: string) {
   useEffect(() => {
     const supabase = createClient();
 
-    const channel = supabase
-      .channel(`radar:${orgId}`)
+    const requestsChannel = supabase
+      .channel(`radar-requests:${orgId}`)
       .on(
         "postgres_changes",
         {
@@ -28,8 +28,22 @@ export function useRealtimeRadar(orgId: string) {
       )
       .subscribe();
 
+    const figmaChannel = supabase
+      .channel(`radar-figma:${orgId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "figma_updates",
+        },
+        () => router.refresh()
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(requestsChannel);
+      supabase.removeChannel(figmaChannel);
     };
   }, [orgId, router]);
 }
