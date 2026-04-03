@@ -278,7 +278,7 @@ export function getShippedThisWeek(
 ): ShippedCard[] {
   const now = Date.now();
   return allRequests
-    .filter((r) => r.phase === "track" && now - new Date(r.updatedAt).getTime() <= 7 * 86_400_000)
+    .filter((r) => r.phase === "track" && r.status !== "draft" && now - new Date(r.updatedAt).getTime() <= 7 * 86_400_000)
     .map((r) => {
       const stages = allStages.filter((s) => s.requestId === r.id);
       const { fullDays, designDays, devDays } = computeCycleTimes(r, stages);
