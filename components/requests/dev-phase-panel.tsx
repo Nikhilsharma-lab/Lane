@@ -83,6 +83,7 @@ export function DevPhasePanel({
   async function submitQuestion() {
     if (!askBody.trim()) return;
     setAskSubmitting(true);
+    setError(null);
     try {
       await fetch(`/api/requests/${requestId}/comment`, {
         method: "POST",
@@ -93,7 +94,7 @@ export function DevPhasePanel({
       setAskOpen(false);
       router.refresh();
     } catch {
-      // silent fail
+      setError("Failed to send question. Please try again.");
     } finally {
       setAskSubmitting(false);
     }
