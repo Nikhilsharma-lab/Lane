@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { requests, profiles, requestContextBriefs } from "@/db/schema";
-import { eq, ne, and } from "drizzle-orm";
+import { eq, ne, and, desc } from "drizzle-orm";
 import { generateContextBrief } from "@/lib/ai/context-brief";
 
 export async function POST(
@@ -42,7 +42,7 @@ export async function POST(
       .select({ id: requests.id, title: requests.title, description: requests.description })
       .from(requests)
       .where(and(eq(requests.orgId, profile.orgId), ne(requests.id, requestId)))
-      .orderBy(requests.createdAt)
+      .orderBy(desc(requests.createdAt))
       .limit(20);
 
     const result = await generateContextBrief({
@@ -55,7 +55,7 @@ export async function POST(
       pastRequests,
     });
 
-    const [saved] = await db
+    const inserted = await db
       .insert(requestContextBriefs)
       .values({
         requestId,
@@ -66,9 +66,19 @@ export async function POST(
         explorationDirections: result.explorationDirections,
         aiModel: "claude-3-5-haiku-20241022",
       })
+      .onConflictDoNothing()
       .returning();
 
-    return NextResponse.json({ brief: saved });
+    // If conflict occurred (concurrent request already inserted), fetch the existing row
+    if (inserted.length === 0) {
+      const [existing] = await db
+        .select()
+        .from(requestContextBriefs)
+        .where(eq(requestContextBriefs.requestId, requestId));
+      return NextResponse.json({ brief: existing });
+    }
+
+    return NextResponse.json({ brief: inserted[0] });
   } catch (err) {
     console.error("[context-brief] AI error:", err);
     return NextResponse.json({ error: "Brief generation failed" }, { status: 500 });
