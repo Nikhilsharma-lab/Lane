@@ -19,13 +19,23 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function handleArchive(projectId: string) {
-    await archiveProject(projectId);
+    setLoadingId(projectId);
+    setArchiveError(null);
+    const result = await archiveProject(projectId);
+    setLoadingId(null);
+    if (result?.error) setArchiveError(result.error);
   }
 
   async function handleUnarchive(projectId: string) {
-    await unarchiveProject(projectId);
+    setLoadingId(projectId);
+    setArchiveError(null);
+    const result = await unarchiveProject(projectId);
+    setLoadingId(null);
+    if (result?.error) setArchiveError(result.error);
   }
 
   async function handleDeleteConfirm() {
@@ -89,9 +99,10 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                       </button>
                       <button
                         onClick={() => handleArchive(p.id)}
-                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        disabled={loadingId === p.id}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
                       >
-                        Archive
+                        {loadingId === p.id ? "…" : "Archive"}
                       </button>
                     </div>
                   </div>
@@ -101,6 +112,8 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
           </div>
         </div>
       )}
+
+      {archiveError && <p className="text-xs text-red-400">{archiveError}</p>}
 
       {/* Archived projects toggle */}
       {archivedProjects.length > 0 && (
@@ -123,9 +136,10 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleUnarchive(p.id)}
-                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        disabled={loadingId === p.id}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
                       >
-                        Unarchive
+                        {loadingId === p.id ? "…" : "Unarchive"}
                       </button>
                       <button
                         onClick={() => { setDeleteTarget(p); setDeleteAction(null); setDeleteError(null); }}

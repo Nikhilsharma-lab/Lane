@@ -90,6 +90,7 @@ export async function unarchiveProject(projectId: string) {
     .where(eq(projects.id, projectId));
 
   revalidatePath("/settings/projects");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
