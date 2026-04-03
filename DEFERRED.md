@@ -31,27 +31,35 @@ Last updated: April 1, 2026
 ## Priority 1 — Build Next (Month 1–2)
 
 ### Figma OAuth
-**Why deferred:** Figma webhooks require per-team manual setup in Figma's dev console — doesn't scale for multi-tenant SaaS. OAuth is the right approach but takes more build time.
+**Status: IN PROGRESS** — spec written at `docs/superpowers/specs/2026-04-03-figma-oauth-design.md`
 
-**What to build:**
-- `app/api/figma/oauth/route.ts` — initiate OAuth flow, redirect to Figma
-- `app/api/figma/oauth/callback/route.ts` — exchange code for access_token, store against org in DB
-- `app/api/figma/poll/route.ts` — poll `GET /v1/files/:key/versions` for connected orgs, insert into `figma_updates` table
-- Cron: poll on a schedule (every 15–30 min), or on-demand when user opens a request with a Figma URL
-- Settings page: "Connect Figma" button + disconnect option
+MVP ships on-demand sync (fetch on request detail load). The following are deferred:
 
-**Env vars needed:**
-```
-FIGMA_CLIENT_ID=
-FIGMA_CLIENT_SECRET=
-```
+#### Figma OAuth — Scheduled Polling
+**Why deferred:** On-demand sync is sufficient for MVP. Cron adds infra overhead (job runner, failure handling, rate-limit management) with no clear customer ask yet.
 
-**What already works (don't rebuild):**
-- `figma_updates` DB table ✅
-- `FigmaHistory` component (`components/requests/figma-history.tsx`) ✅
-- `GET /api/requests/[id]/figma-updates` ✅
-- `POST .../[updateId]/review` ✅
-- `app/api/figma/webhook/route.ts` — will be replaced by OAuth polling flow
+**What to build when ready:**
+- Cron job (via `vercel.json`) that runs every 15–30 min
+- Iterates all orgs with a `figma_connections` row
+- For each org: fetches versions for all requests with a `figmaUrl` in dev/design phase
+- Inserts new versions into `figma_updates` (same dedup logic as on-demand)
+- Secured via `CRON_SECRET` header
+
+#### Figma OAuth — Token Encryption at Rest
+**Why deferred:** Plaintext token is acceptable for pre-launch. Add before onboarding paying customers.
+
+**What to build when ready:**
+- Add `ENCRYPTION_KEY` env var (32-byte AES key)
+- Encrypt `access_token` + `refresh_token` in `figma_connections` on write
+- Decrypt on read before passing to Figma API calls
+- One-time migration to encrypt existing rows
+
+#### /settings/integrations — Full Hub (Slack, Linear live)
+**Why deferred:** UI shell ships now (Figma functional + Slack/Linear as placeholders). Live integrations are Month 2–3.
+
+**What to build when ready:**
+- Slack: webhook URL per org, wire into assign/sign-off/handoff/shipped events
+- Linear: OAuth, auto-create issue on handoff, sync status back
 
 ---
 
@@ -171,6 +179,6 @@ Steps:
 
 ## Notes
 
-- **Figma webhook route** (`app/api/figma/webhook/route.ts`) was built but will be replaced by the OAuth polling flow. Don't delete it yet — keep as reference for the payload shape.
+- **Figma webhook route** (`app/api/figma/webhook/route.ts`) is deleted as part of the OAuth build — replaced by on-demand sync.
 - **`FIGMA_WEBHOOK_TOKEN`** env var was removed from the plan. Don't add it.
 - Everything in this file has corresponding code stubs or downstream components already built — nothing starts from zero.
