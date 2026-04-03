@@ -2,8 +2,24 @@
 
 **Status:** Pre-launch, live GTM (LinkedIn strong)  
 **Current Sprint:** Weeks 1-4 MVP build (Predesign Phase)  
-**Last Updated:** April 1, 2026  
+**Last Updated:** April 3, 2026  
 **Next Review:** April 15 (Week 2 checkpoint)
+
+---
+
+## Design System
+
+Always read `DESIGN.md` before making any visual or UI decisions.
+All font choices, colors, spacing, layout zones, and aesthetic direction are defined there.
+Do not deviate without explicit user approval.
+
+**Quick reference:**
+- Background: `#F8F6F1` warm ivory — NOT white, NOT dark
+- Accent: `#2E5339` deep forest green
+- UI font: **Satoshi** (all human-authored text)
+- Data font: **Geist Mono** (IDs, timestamps, phase tags, version numbers)
+- Layout: 4-zone shell — 48px rail + 256px global pane + flex main + 400px right dock
+- Full spec: `docs/superpowers/specs/2026-04-03-ui-redesign-design.md`
 
 ---
 
