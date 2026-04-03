@@ -250,6 +250,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
               kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
               figmaUrl={request.figmaUrl}
               figmaLockedAt={toISOorNull(request.figmaLockedAt)}
+              devQuestionCount={enriched?.comments.filter((c) => c.isDevQuestion).length ?? 0}
             />
           </div>
         )}

@@ -73,17 +73,17 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   }, [canAdvance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Phase 2 — Design
         </span>
-        <span className="text-xs text-zinc-600">Designer leads</span>
+        <span className="text-xs text-[var(--text-tertiary)]">Designer leads</span>
       </div>
 
       {/* Stage stepper */}
-      <div className="px-5 py-4 border-b border-zinc-800/50">
+      <div className="px-5 py-4 border-b border-[var(--border)]">
         <div className="flex items-start">
           {STAGES.map((s, i) => {
             const isDone = i < optimisticIdx;
@@ -95,19 +95,19 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                     isDone
                       ? "bg-green-500/15 border-green-500/30 text-green-400"
                       : isCurrent
-                      ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400"
-                      : "bg-zinc-800/40 border-zinc-700/40 text-zinc-600"
+                      ? "bg-[#D4A84B]/10 border-[#D4A84B]/20 text-[#D4A84B]"
+                      : "bg-[var(--bg-hover)] border-[var(--border)] text-[var(--text-tertiary)]"
                   }`}>
                     {isDone ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
-                    isCurrent ? "text-indigo-400" : isDone ? "text-green-500/80" : "text-zinc-600"
+                    isCurrent ? "text-[#D4A84B]" : isDone ? "text-green-500/80" : "text-[var(--text-tertiary)]"
                   }`}>
                     {s.label}
                   </span>
                 </div>
                 {i < STAGES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-zinc-800"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-[var(--bg-hover)]"}`} />
                 )}
               </div>
             );
@@ -119,8 +119,8 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
       <div className="px-5 py-4 space-y-4">
         {current && (
           <div>
-            <p className="text-xs font-semibold text-zinc-200 mb-0.5">{current.label}</p>
-            <p className="text-xs text-zinc-500">{current.desc}</p>
+            <p className="text-xs font-semibold text-[var(--text-primary)] mb-0.5">{current.label}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{current.desc}</p>
           </div>
         )}
 
@@ -133,7 +133,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <div>
               {missing.length > 0 ? (
                 <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-[var(--text-secondary)]">
                     {isLastDesign ? "To hand off to dev:" : `To advance to ${nextStage?.label}:`}
                   </p>
                   {missing.map((m, i) => (
@@ -156,10 +156,10 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <button
               onClick={handleAdvance}
               disabled={!canAdvance}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage?.label}`}
-              <kbd className="hidden md:inline ml-2 text-[10px] border border-zinc-600 rounded px-1 py-0.5 font-mono opacity-60">
+              <kbd className="hidden md:inline ml-2 text-[10px] border border-[var(--border-strong)] rounded px-1 py-0.5 font-mono opacity-60">
                 ⌘↵
               </kbd>
             </button>

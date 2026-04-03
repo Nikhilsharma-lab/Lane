@@ -91,10 +91,10 @@ export function StageControls({
                 isCurrent
                   ? isBlocked
                     ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                    : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                    : "bg-[#D4A84B]/10 text-[#D4A84B] border border-[#D4A84B]/20"
                   : isCompleted
-                  ? "text-zinc-600 line-through"
-                  : "text-zinc-800"
+                  ? "text-[var(--text-tertiary)] line-through"
+                  : "text-[var(--border-strong)]"
               }`}
             >
               {stage.label}
@@ -108,14 +108,14 @@ export function StageControls({
         <button
           onClick={handleAdvance}
           disabled={isPending}
-          className="w-full text-left text-xs text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-600 rounded-lg px-3 py-2 transition-colors disabled:opacity-40"
+          className="w-full text-left text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-2 transition-colors disabled:opacity-40"
         >
           {isPending ? "Moving..." : `→ Move to ${nextStage.label}`}
         </button>
       )}
 
       {isLast && !isBlocked && (
-        <p className="text-xs text-zinc-700">Final stage reached</p>
+        <p className="text-xs text-[var(--text-tertiary)]">Final stage reached</p>
       )}
 
       {/* Blocked toggle */}
@@ -125,7 +125,7 @@ export function StageControls({
         className={`w-full text-left text-xs border rounded-lg px-3 py-2 transition-colors disabled:opacity-40 ${
           isBlocked
             ? "text-red-400 border-red-500/30 hover:border-red-400/50 bg-red-500/10"
-            : "text-zinc-600 border-zinc-800 hover:border-zinc-700 hover:text-zinc-400"
+            : "text-[var(--text-tertiary)] border-[var(--border)] hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)]"
         }`}
       >
         {isPending ? "Updating..." : isBlocked ? "⊘ Unblock" : "⊘ Mark as blocked"}

@@ -22,9 +22,9 @@ interface Recommendation {
 }
 
 const roleColors: Record<string, string> = {
-  lead: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  reviewer: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-  contributor: "text-zinc-400 bg-zinc-700/30 border-zinc-700",
+  lead: "text-[#7DA5C4] bg-[#7DA5C4]/10 border-[#7DA5C4]/20",
+  reviewer: "text-[#A394C7] bg-[#A394C7]/10 border-[#A394C7]/20",
+  contributor: "text-[var(--text-tertiary)] bg-[var(--bg-hover)] border-[var(--border)]",
 };
 
 const assignmentRoles = ["lead", "reviewer", "contributor"] as const;
@@ -118,7 +118,7 @@ export function AssignPanel({ requestId }: Props) {
   const assignedMembers = members.filter((m) => assignedIds.has(m.id));
   const unassignedMembers = members.filter((m) => !assignedIds.has(m.id));
 
-  if (loading) return <div className="text-xs text-zinc-600 py-2">Loading…</div>;
+  if (loading) return <div className="text-xs text-[var(--text-tertiary)] py-2">Loading…</div>;
 
   return (
     <div>
@@ -132,8 +132,8 @@ export function AssignPanel({ requestId }: Props) {
                 <div className="flex items-center gap-2 min-w-0">
                   <Avatar name={m.fullName} />
                   <div className="min-w-0">
-                    <p className="text-sm text-zinc-300 truncate">{m.fullName}</p>
-                    <p className="text-[10px] text-zinc-600 capitalize">{m.role}</p>
+                    <p className="text-sm text-[var(--text-primary)] truncate">{m.fullName}</p>
+                    <p className="text-[10px] text-[var(--text-tertiary)] capitalize">{m.role}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -142,7 +142,7 @@ export function AssignPanel({ requestId }: Props) {
                   </span>
                   <button
                     onClick={() => unassign(m.id)}
-                    className="text-zinc-700 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-all"
+                    className="text-[var(--text-tertiary)] hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-all"
                   >
                     ✕
                   </button>
@@ -152,31 +152,31 @@ export function AssignPanel({ requestId }: Props) {
           })}
         </div>
       ) : (
-        <p className="text-sm text-zinc-600 mb-3">No one assigned yet</p>
+        <p className="text-sm text-[var(--text-tertiary)] mb-3">No one assigned yet</p>
       )}
 
       {/* Assign button / picker */}
       {!showPicker ? (
         <button
           onClick={() => setShowPicker(true)}
-          className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 rounded-lg px-3 py-1.5 transition-colors w-full"
+          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors w-full"
         >
           + Assign someone
         </button>
       ) : (
-        <div className="border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="border border-[var(--border)] rounded-xl overflow-hidden">
           {/* AI recommendation */}
           {loadingRec ? (
-            <div className="px-3 py-2.5 border-b border-zinc-800 bg-zinc-900/40 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 border-2 border-zinc-700 border-t-indigo-400 rounded-full animate-spin" />
-              <span className="text-[10px] text-zinc-600">Getting AI recommendation…</span>
+            <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center gap-2">
+              <span className="w-2.5 h-2.5 border-2 border-[var(--border-strong)] border-t-[#D4A84B] rounded-full animate-spin" />
+              <span className="text-[10px] text-[var(--text-tertiary)]">Getting AI recommendation…</span>
             </div>
           ) : recommendation?.recommendedId ? (
-            <div className="px-3 py-2.5 border-b border-zinc-800 bg-indigo-500/5">
+            <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--accent-subtle)]">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[10px] text-indigo-400 font-medium uppercase tracking-wide">✦ AI pick</span>
+                <span className="text-[10px] text-[var(--accent)] font-medium uppercase tracking-wide">✦ AI pick</span>
               </div>
-              <p className="text-xs text-zinc-300">
+              <p className="text-xs text-[var(--text-primary)]">
                 <span className="font-medium">
                   {members.find((m) => m.id === recommendation.recommendedId)?.fullName ?? "—"}
                 </span>
@@ -186,13 +186,13 @@ export function AssignPanel({ requestId }: Props) {
           ) : null}
 
           {/* Role picker */}
-          <div className="flex border-b border-zinc-800">
+          <div className="flex border-b border-[var(--border)]">
             {assignmentRoles.map((r) => (
               <button
                 key={r}
                 onClick={() => setSelectedRole(r)}
                 className={`flex-1 text-[10px] py-2 capitalize transition-colors ${
-                  selectedRole === r ? "bg-zinc-800 text-zinc-300" : "text-zinc-600 hover:text-zinc-400"
+                  selectedRole === r ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                 }`}
               >
                 {r}
@@ -203,7 +203,7 @@ export function AssignPanel({ requestId }: Props) {
           {/* Member list with workload */}
           <div className="max-h-52 overflow-y-auto">
             {unassignedMembers.length === 0 ? (
-              <p className="text-xs text-zinc-600 px-3 py-3 text-center">Everyone is assigned</p>
+              <p className="text-xs text-[var(--text-tertiary)] px-3 py-3 text-center">Everyone is assigned</p>
             ) : (
               unassignedMembers.map((m) => {
                 const load_ = workloads[m.id] ?? 0;
@@ -212,22 +212,22 @@ export function AssignPanel({ requestId }: Props) {
                   <button
                     key={m.id}
                     onClick={() => assign(m.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-zinc-800/60 transition-colors text-left ${
-                      isRecommended ? "bg-indigo-500/5" : ""
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors text-left ${
+                      isRecommended ? "bg-[var(--accent-subtle)]" : ""
                     }`}
                   >
                     <Avatar name={m.fullName} highlighted={isRecommended} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm text-zinc-300 truncate">{m.fullName}</p>
+                        <p className="text-sm text-[var(--text-primary)] truncate">{m.fullName}</p>
                         {isRecommended && (
-                          <span className="text-[9px] text-indigo-400 bg-indigo-500/10 px-1 py-0.5 rounded">AI pick</span>
+                          <span className="text-[9px] text-[var(--accent)] bg-[var(--accent-subtle)] px-1 py-0.5 rounded">AI pick</span>
                         )}
                       </div>
-                      <p className="text-[10px] text-zinc-600 capitalize">{m.role}</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)] capitalize">{m.role}</p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-[10px] text-zinc-600">{load_} active</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">{load_} active</p>
                     </div>
                   </button>
                 );
@@ -235,10 +235,10 @@ export function AssignPanel({ requestId }: Props) {
             )}
           </div>
 
-          <div className="border-t border-zinc-800 px-3 py-2">
+          <div className="border-t border-[var(--border)] px-3 py-2">
             <button
               onClick={() => setShowPicker(false)}
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+              className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
             >
               Cancel
             </button>
@@ -254,8 +254,8 @@ function Avatar({ name, highlighted }: { name: string; highlighted?: boolean }) 
   return (
     <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-[9px] font-medium shrink-0 ${
       highlighted
-        ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400"
-        : "bg-zinc-800 border-zinc-700 text-zinc-400"
+        ? "bg-[var(--accent-subtle)] border-[var(--accent)]/30 text-[var(--accent)]"
+        : "bg-[var(--bg-hover)] border-[var(--border)] text-[var(--text-secondary)]"
     }`}>
       {initials}
     </div>

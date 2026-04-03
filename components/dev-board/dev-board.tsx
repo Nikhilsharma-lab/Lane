@@ -190,10 +190,10 @@ export function DevBoard({ columns: initialColumns, orgId }: Props) {
 
       {/* Keyboard hint */}
       {focusedCardId && !drawerCard && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-800 text-zinc-500 text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-3">
-          <span><kbd className="font-mono text-zinc-400">[</kbd> / <kbd className="font-mono text-zinc-400">]</kbd> move</span>
-          <span><kbd className="font-mono text-zinc-400">Enter</kbd> open</span>
-          <span><kbd className="font-mono text-zinc-400">Esc</kbd> deselect</span>
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[var(--bg-subtle)] border border-[var(--border)] text-[var(--text-secondary)] text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-3">
+          <span><kbd className="font-mono text-[var(--text-primary)]">[</kbd> / <kbd className="font-mono text-[var(--text-primary)]">]</kbd> move</span>
+          <span><kbd className="font-mono text-[var(--text-primary)]">Enter</kbd> open</span>
+          <span><kbd className="font-mono text-[var(--text-primary)]">Esc</kbd> deselect</span>
         </div>
       )}
 

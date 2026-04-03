@@ -37,14 +37,14 @@ export function CommentBox({ requestId }: { requestId: string }) {
         ref={ref}
         rows={3}
         placeholder="Add a comment or check-in update..."
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 resize-none"
+        className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] resize-none"
       />
       <div className="flex items-center justify-between">
         {error ? <p className="text-xs text-red-400">{error}</p> : <span />}
         <button
           type="submit"
           disabled={isPending}
-          className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+          className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
         >
           {isPending ? "Posting..." : "Post"}
         </button>

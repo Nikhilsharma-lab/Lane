@@ -21,10 +21,10 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-zinc-500">{label}</span>
+        <span className="text-[11px] text-[var(--text-secondary)]">{label}</span>
         <span className={`text-[11px] font-mono font-semibold ${color}`}>{value}/10</span>
       </div>
-      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${value >= 7 ? "bg-green-500" : value >= 4 ? "bg-yellow-500" : "bg-red-500"}`}
           style={{ width: `${value * 10}%` }}
@@ -102,17 +102,17 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--text-primary)]/40 backdrop-blur-sm px-4">
+      <div className="w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-zinc-950">
+        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between sticky top-0 bg-[var(--bg-surface)]">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-200">Validate idea</h2>
-            <p className="text-xs text-zinc-600 mt-0.5 truncate max-w-xs">{ideaTitle}</p>
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Validate idea</h2>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 truncate max-w-xs">{ideaTitle}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-600 hover:text-zinc-300 transition-colors text-lg leading-none"
+            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -121,29 +121,29 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
         <div className="px-6 py-5 space-y-5">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="w-5 h-5 border border-zinc-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-zinc-500 ml-3">Running AI analysis...</span>
+              <div className="w-5 h-5 border border-[var(--border-strong)] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-[var(--text-secondary)] ml-3">Running AI analysis...</span>
             </div>
           ) : error && !aiScores ? (
             <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
           ) : aiScores ? (
             <>
               {/* AI Scores */}
-              <div className="border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="border border-[var(--border)] rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">AI Analysis</span>
-                  <span className="text-[10px] text-zinc-700">· claude-3-5-haiku</span>
+                  <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">AI Analysis</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">· claude-3-5-haiku</span>
                 </div>
                 <ScoreBar label="Impact" value={aiScores.impactScore} color={aiScores.impactScore >= 7 ? "text-green-400" : aiScores.impactScore >= 4 ? "text-yellow-400" : "text-red-400"} />
                 <ScoreBar label="Effort" value={aiScores.effortEstimate} color={aiScores.effortEstimate <= 4 ? "text-green-400" : aiScores.effortEstimate <= 7 ? "text-yellow-400" : "text-red-400"} />
                 <ScoreBar label="Feasibility" value={aiScores.feasibilityScore} color={aiScores.feasibilityScore >= 7 ? "text-green-400" : aiScores.feasibilityScore >= 4 ? "text-yellow-400" : "text-red-400"} />
                 <ScoreBar label="ROI" value={aiScores.roiScore} color={aiScores.roiScore >= 7 ? "text-green-400" : aiScores.roiScore >= 4 ? "text-yellow-400" : "text-red-400"} />
-                <p className="text-[11px] text-zinc-500 leading-relaxed pt-1">{aiScores.reasoning}</p>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed pt-1">{aiScores.reasoning}</p>
               </div>
 
               {/* Score overrides */}
               <div>
-                <p className="text-xs text-zinc-500 mb-2">Override scores (optional)</p>
+                <p className="text-xs text-[var(--text-secondary)] mb-2">Override scores (optional)</p>
                 <div className="grid grid-cols-4 gap-2">
                   {(["impactScore", "effortEstimate", "feasibilityScore", "roiScore"] as const).map((key) => {
                     const labels: Record<string, string> = {
@@ -154,7 +154,7 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
                     };
                     return (
                       <div key={key}>
-                        <label className="text-[10px] text-zinc-600 block mb-1">{labels[key]}</label>
+                        <label className="text-[10px] text-[var(--text-tertiary)] block mb-1">{labels[key]}</label>
                         <input
                           type="number"
                           min={1}
@@ -162,7 +162,7 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
                           value={overrides[key]}
                           onChange={(e) => setOverrides((o) => ({ ...o, [key]: e.target.value }))}
                           placeholder={String(aiScores[key])}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-2 py-1 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
                         />
                       </div>
                     );
@@ -172,18 +172,18 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
 
               {/* Notes */}
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Notes</label>
+                <label className="text-xs text-[var(--text-secondary)] block mb-1">Notes</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-600 transition-colors resize-none"
+                  className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors resize-none"
                 />
               </div>
 
               {/* Decision */}
               <div>
-                <p className="text-xs text-zinc-500 mb-2">Decision</p>
+                <p className="text-xs text-[var(--text-secondary)] mb-2">Decision</p>
                 <div className="flex gap-2">
                   {(["approved", "approved_with_conditions", "rejected"] as const).map((d) => {
                     const labels = {
@@ -192,9 +192,9 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
                       rejected: "Reject",
                     };
                     const styles = {
-                      approved: decision === d ? "bg-green-500/15 border-green-500/30 text-green-400" : "border-zinc-800 text-zinc-500 hover:text-zinc-300",
-                      approved_with_conditions: decision === d ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "border-zinc-800 text-zinc-500 hover:text-zinc-300",
-                      rejected: decision === d ? "bg-red-500/15 border-red-500/30 text-red-400" : "border-zinc-800 text-zinc-500 hover:text-zinc-300",
+                      approved: decision === d ? "bg-green-500/15 border-green-500/30 text-green-400" : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                      approved_with_conditions: decision === d ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                      rejected: decision === d ? "bg-red-500/15 border-red-500/30 text-red-400" : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                     };
                     return (
                       <button
@@ -224,7 +224,7 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   onClick={onClose}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 px-4 py-2 transition-colors"
+                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-4 py-2 transition-colors"
                 >
                   Cancel
                 </button>
@@ -234,7 +234,7 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
                   className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                     decision === "rejected"
                       ? "bg-red-600 hover:bg-red-500 text-white"
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                      : "bg-[var(--accent)] text-[var(--accent-text)]"
                   }`}
                 >
                   {submitting ? "Submitting..." : decision === "rejected" ? "Reject idea" : "Approve idea"}

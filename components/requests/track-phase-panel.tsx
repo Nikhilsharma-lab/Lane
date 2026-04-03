@@ -66,10 +66,10 @@ export function TrackPhasePanel({
   const isComplete = trackStage === "complete";
 
   return (
-    <div className="border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Phase 4 — Track
         </span>
         <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
@@ -85,39 +85,39 @@ export function TrackPhasePanel({
         {/* Predicted impact */}
         {impactMetric && (
           <div>
-            <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Metric</p>
-            <p className="text-xs text-zinc-300">{impactMetric}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Metric</p>
+            <p className="text-xs text-[var(--text-primary)]">{impactMetric}</p>
           </div>
         )}
 
         {impactPrediction && (
           <div>
-            <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Predicted</p>
-            <p className="text-xs text-zinc-400">{impactPrediction}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Predicted</p>
+            <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
           </div>
         )}
 
         {/* Actual impact */}
         <div>
-          <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">Actual result</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Actual result</p>
           {isComplete ? (
-            <p className="text-xs text-zinc-300">{optimisticActual ?? "—"}</p>
+            <p className="text-xs text-[var(--text-primary)]">{optimisticActual ?? "—"}</p>
           ) : (
             <div className="space-y-2">
               {optimisticActual && (
-                <p className="text-xs text-zinc-300">{optimisticActual}</p>
+                <p className="text-xs text-[var(--text-primary)]">{optimisticActual}</p>
               )}
               <input
                 type="text"
                 value={actual}
                 onChange={(e) => setActual(e.target.value)}
                 placeholder="e.g. +4.2% retention"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
               />
               <button
                 onClick={handleSave}
                 disabled={!actual.trim()}
-                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>
@@ -130,10 +130,10 @@ export function TrackPhasePanel({
           <button
             onClick={markComplete}
             disabled={completing}
-            className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {completing && (
-              <span className="w-3 h-3 border border-zinc-400 border-t-transparent rounded-full animate-spin" />
+              <span className="w-3 h-3 border border-[var(--text-secondary)] border-t-transparent rounded-full animate-spin" />
             )}
             Mark complete
           </button>

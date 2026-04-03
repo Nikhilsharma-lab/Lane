@@ -82,13 +82,13 @@ export function IdeaBoard({ initialIdeas, profileRole }: IdeaBoardProps) {
                 onClick={() => setActiveStatus(tab.key)}
                 className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
                   isActive
-                    ? "bg-zinc-800 text-zinc-200"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    ? "bg-[var(--bg-hover)] text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {tab.label}
                 {count > 0 && (
-                  <span className={`ml-1.5 text-[10px] font-mono ${isActive ? "text-zinc-400" : "text-zinc-700"}`}>
+                  <span className={`ml-1.5 text-[10px] font-mono ${isActive ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)]"}`}>
                     {count}
                   </span>
                 )}
@@ -102,7 +102,7 @@ export function IdeaBoard({ initialIdeas, profileRole }: IdeaBoardProps) {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="text-xs bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-400 focus:outline-none"
+            className="text-xs bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text-secondary)] focus:outline-none"
           >
             {SORT_OPTIONS.map((s) => (
               <option key={s.key} value={s.key}>{s.label}</option>
@@ -112,7 +112,7 @@ export function IdeaBoard({ initialIdeas, profileRole }: IdeaBoardProps) {
           {/* Submit button */}
           <button
             onClick={() => setShowForm(true)}
-            className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors"
+            className="text-xs bg-[var(--accent)] text-[var(--accent-text)] px-3 py-1.5 rounded-lg transition-colors"
           >
             + Submit idea
           </button>
@@ -121,8 +121,8 @@ export function IdeaBoard({ initialIdeas, profileRole }: IdeaBoardProps) {
 
       {/* Empty state */}
       {filtered.length === 0 && (
-        <div className="border border-zinc-800 rounded-xl px-6 py-12 text-center">
-          <p className="text-sm text-zinc-600">
+        <div className="border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <p className="text-sm text-[var(--text-tertiary)]">
             {activeStatus ? `No ideas in "${activeStatus}" status` : "No ideas yet — be the first to submit one!"}
           </p>
         </div>

@@ -20,12 +20,12 @@ export function DigestPanel() {
 
   if (!digest && !loading) {
     return (
-      <div className="border border-zinc-800 rounded-xl p-8 text-center">
-        <p className="text-sm text-zinc-400 mb-1">AI reads your pipeline and writes the digest</p>
-        <p className="text-xs text-zinc-600 mb-5">Shipped this week, cycle times, standout performers, coaching recommendations</p>
+      <div className="border border-[var(--border)] rounded-xl p-8 text-center">
+        <p className="text-sm text-[var(--text-secondary)] mb-1">AI reads your pipeline and writes the digest</p>
+        <p className="text-xs text-[var(--text-tertiary)] mb-5">Shipped this week, cycle times, standout performers, coaching recommendations</p>
         <button
           onClick={generate}
-          className="bg-white text-zinc-900 rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100 transition-colors"
+          className="bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           ✦ Generate digest
         </button>
@@ -35,10 +35,10 @@ export function DigestPanel() {
 
   if (loading) {
     return (
-      <div className="border border-zinc-800 rounded-xl p-8">
+      <div className="border border-[var(--border)] rounded-xl p-8">
         <div className="flex items-center gap-3">
-          <span className="w-4 h-4 border-2 border-zinc-700 border-t-indigo-400 rounded-full animate-spin" />
-          <span className="text-sm text-zinc-500">Reading the pipeline…</span>
+          <span className="w-4 h-4 border-2 border-[var(--border-strong)] border-t-[var(--accent)] rounded-full animate-spin" />
+          <span className="text-sm text-[var(--text-secondary)]">Reading the pipeline…</span>
         </div>
       </div>
     );
@@ -47,30 +47,30 @@ export function DigestPanel() {
   if (!digest) return null;
 
   return (
-    <div className="border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
       {/* Headline */}
-      <div className="px-5 py-4 bg-indigo-500/5 border-b border-indigo-500/15">
-        <p className="text-[10px] text-indigo-400 uppercase tracking-wide font-medium mb-1">✦ Weekly design digest</p>
-        <p className="text-sm text-zinc-200 font-medium leading-snug">{digest.headline}</p>
+      <div className="px-5 py-4 bg-[var(--accent-subtle)] border-b border-[var(--accent)]/15">
+        <p className="text-[10px] text-[var(--accent)] uppercase tracking-wide font-medium mb-1">✦ Weekly design digest</p>
+        <p className="text-sm text-[var(--text-primary)] font-medium leading-snug">{digest.headline}</p>
       </div>
 
-      <div className="divide-y divide-zinc-800/60">
+      <div className="divide-y divide-[var(--border)]">
         {/* Shipped */}
         <div className="px-5 py-4">
           <p className="text-[10px] text-green-400 uppercase tracking-wide font-medium mb-2">🚢 Shipped this week</p>
-          <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">{digest.shippedThisWeek}</p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">{digest.shippedThisWeek}</p>
         </div>
 
         {/* Team health */}
         <div className="px-5 py-4">
           <p className="text-[10px] text-blue-400 uppercase tracking-wide font-medium mb-2">🧠 Team health</p>
-          <p className="text-sm text-zinc-400 leading-relaxed">{digest.teamHealth}</p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.teamHealth}</p>
         </div>
 
         {/* Standout */}
         <div className="px-5 py-4">
           <p className="text-[10px] text-yellow-400 uppercase tracking-wide font-medium mb-2">⭐ Standout</p>
-          <p className="text-sm text-zinc-400 leading-relaxed">{digest.standout}</p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.standout}</p>
         </div>
 
         {/* Recommendations */}
@@ -78,7 +78,7 @@ export function DigestPanel() {
           <p className="text-[10px] text-orange-400 uppercase tracking-wide font-medium mb-2">💡 Recommendations</p>
           <ul className="space-y-1.5">
             {digest.recommendations.map((rec, i) => (
-              <li key={i} className="text-sm text-zinc-400 leading-relaxed flex gap-2">
+              <li key={i} className="text-sm text-[var(--text-secondary)] leading-relaxed flex gap-2">
                 <span className="text-orange-500/60 shrink-0">{i + 1}.</span>
                 <span>{rec}</span>
               </li>
@@ -87,13 +87,13 @@ export function DigestPanel() {
         </div>
       </div>
 
-      <div className="border-t border-zinc-800 px-5 py-3 flex items-center justify-between">
-        <span className="text-[10px] text-zinc-600">
+      <div className="border-t border-[var(--border)] px-5 py-3 flex items-center justify-between">
+        <span className="text-[10px] text-[var(--text-tertiary)]">
           Generated by Claude · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
         </span>
         <button
           onClick={generate}
-          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
           Regenerate
         </button>

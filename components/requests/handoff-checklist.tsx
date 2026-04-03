@@ -65,13 +65,13 @@ export function HandoffChecklist({ requestId, stage }: Props) {
   const allDone = total > 0 && missing === 0;
 
   return (
-    <section className="border border-zinc-800 rounded-xl overflow-hidden">
+    <section className="border border-[var(--border)] rounded-xl overflow-hidden">
       <button
         onClick={() => (open ? setOpen(false) : load())}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-zinc-900/40 transition-colors text-left"
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+          <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
             ✦ AI Handoff Checklist
           </span>
           {items && !loading && (
@@ -80,35 +80,35 @@ export function HandoffChecklist({ requestId, stage }: Props) {
                 ? "text-green-400 bg-green-500/10 border-green-500/20"
                 : missing > 0
                 ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20"
-                : "text-zinc-500 border-zinc-700"
+                : "text-[var(--text-secondary)] border-[var(--border)]"
             }`}>
               {allDone ? "Ready" : `${missing} missing`}
             </span>
           )}
         </div>
-        <span className="text-zinc-600 text-xs">{open ? "↑" : "↓"}</span>
+        <span className="text-[var(--text-tertiary)] text-xs">{open ? "↑" : "↓"}</span>
       </button>
 
       {open && (
-        <div className="border-t border-zinc-800">
+        <div className="border-t border-[var(--border)]">
           {loading ? (
             <div className="flex items-center gap-2.5 px-5 py-6">
-              <span className="w-3 h-3 border-2 border-zinc-700 border-t-indigo-400 rounded-full animate-spin" />
-              <span className="text-sm text-zinc-500">Checking handoff readiness…</span>
+              <span className="w-3 h-3 border-2 border-[var(--border-strong)] border-t-[#D4A84B] rounded-full animate-spin" />
+              <span className="text-sm text-[var(--text-secondary)]">Checking handoff readiness…</span>
             </div>
           ) : items ? (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-[var(--border)]">
               {items.map((item, i) => (
                 <label
                   key={i}
-                  className="flex items-start gap-3 px-5 py-3 cursor-pointer hover:bg-zinc-900/30 transition-colors group"
+                  className="flex items-start gap-3 px-5 py-3 cursor-pointer hover:bg-[var(--bg-subtle)] transition-colors group"
                 >
                   <div className="mt-0.5 shrink-0">
                     <input
                       type="checkbox"
                       checked={!!checked[i]}
                       onChange={(e) => setChecked((prev) => ({ ...prev, [i]: e.target.checked }))}
-                      className="accent-indigo-500 w-3.5 h-3.5"
+                      className="accent-[var(--accent)] w-3.5 h-3.5"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -116,12 +116,12 @@ export function HandoffChecklist({ requestId, stage }: Props) {
                       <span className={`text-[9px] uppercase tracking-wide font-medium ${categoryColors[item.category]}`}>
                         {categoryLabels[item.category]}
                       </span>
-                      <span className={`text-sm ${checked[i] ? "line-through text-zinc-600" : "text-zinc-300"}`}>
+                      <span className={`text-sm ${checked[i] ? "line-through text-[var(--text-tertiary)]" : "text-[var(--text-primary)]"}`}>
                         {item.label}
                       </span>
                     </div>
                     {item.note && !checked[i] && (
-                      <p className="text-xs text-zinc-500 mt-0.5">{item.note}</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">{item.note}</p>
                     )}
                   </div>
                   {!item.present && !checked[i] && (

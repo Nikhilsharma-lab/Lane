@@ -55,9 +55,9 @@ export function ImpactPanel({
   }
 
   return (
-    <section className="border border-zinc-800 rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-900/50">
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Impact</span>
+    <section className="border border-[var(--border)] rounded-xl overflow-hidden">
+      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)]">
+        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">Impact</span>
       </div>
 
       <div className="p-5 space-y-4">
@@ -65,14 +65,14 @@ export function ImpactPanel({
           <div className="grid grid-cols-2 gap-4">
             {impactMetric && (
               <div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Metric</div>
-                <div className="text-sm text-zinc-300">{impactMetric}</div>
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Metric</div>
+                <div className="text-sm text-[var(--text-primary)]">{impactMetric}</div>
               </div>
             )}
             {impactPrediction && (
               <div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Predicted</div>
-                <div className="text-sm text-zinc-300">{impactPrediction}</div>
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Predicted</div>
+                <div className="text-sm text-[var(--text-primary)]">{impactPrediction}</div>
               </div>
             )}
           </div>
@@ -87,18 +87,18 @@ export function ImpactPanel({
           </div>
         ) : canLog ? (
           <div className="space-y-2">
-            <div className="text-[10px] text-zinc-600 uppercase tracking-wide">Log actual result</div>
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Log actual result</div>
             <div className="flex gap-2">
               <input
                 value={actual}
                 onChange={(e) => setActual(e.target.value)}
                 placeholder="e.g. +7.2% improvement in conversion"
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+                className="flex-1 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
               />
               <button
                 onClick={handleLog}
                 disabled={isPending || !actual.trim()}
-                className="px-4 py-2 text-sm bg-white text-zinc-900 rounded-lg font-medium hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--accent-text)] rounded-lg font-medium hover:bg-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isPending ? "…" : "Log"}
               </button>
@@ -106,7 +106,7 @@ export function ImpactPanel({
             {error && <p className="text-xs text-red-400">{error}</p>}
           </div>
         ) : (
-          <p className="text-xs text-zinc-700">Actual result can be logged once the request reaches the Impact stage</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Actual result can be logged once the request reaches the Impact stage</p>
         )}
       </div>
     </section>

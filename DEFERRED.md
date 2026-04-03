@@ -45,6 +45,18 @@ MVP ships on-demand sync (fetch on request detail load). The following are defer
 - Inserts new versions into `figma_updates` (same dedup logic as on-demand)
 - Secured via `CRON_SECRET` header
 
+#### Figma OAuth — App Registration (Activation Blocker)
+**Why deferred:** Requires manual setup in Figma's developer console — doing when ready to onboard customers.
+
+**What to do (not a code task):**
+1. Go to figma.com/developers → Create a new app named "DesignQ"
+2. Add redirect URIs: `http://localhost:3000/api/figma/oauth/callback` (dev) + `https://your-vercel-url/api/figma/oauth/callback` (prod)
+3. Copy Client ID + Client Secret
+4. Add to `.env.local`: `FIGMA_CLIENT_ID=` and `FIGMA_CLIENT_SECRET=`
+5. Add same vars to Vercel environment variables → redeploy
+
+This is a one-time setup. One OAuth app for all customers — each customer authorises through DesignQ's app, their token is stored per-org in `figma_connections`.
+
 #### Figma OAuth — Token Encryption at Rest
 **Why deferred:** Plaintext token is acceptable for pre-launch. Add before onboarding paying customers.
 
@@ -60,6 +72,17 @@ MVP ships on-demand sync (fetch on request detail load). The following are defer
 **What to build when ready:**
 - Slack: webhook URL per org, wire into assign/sign-off/handoff/shipped events
 - Linear: OAuth, auto-create issue on handoff, sync status back
+
+#### figma_updates — Scale Optimisation (100+ customers)
+**Why deferred:** At current scale (10–50 orgs) the table is negligible. Revisit when you have 100+ active orgs each syncing frequently.
+
+**What to do when ready:**
+- Add a DB index on `(request_id, figma_version_id)` — speeds up the dedup SELECT in `lib/figma/sync.ts`
+- Add a retention policy: archive or delete `figma_updates` rows older than 90 days for requests in `track` or `done` phase (they're no longer actionable)
+- Consider a `figma_updates_archive` table for audit trail if legal/compliance requires it
+- If row count exceeds ~1M: partition `figma_updates` by `created_at` month (Postgres native partitioning)
+
+**Trigger:** Check when Supabase dashboard shows `figma_updates` approaching 500k rows.
 
 ---
 

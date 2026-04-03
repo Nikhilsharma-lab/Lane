@@ -9,7 +9,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   p0: "bg-red-500/15 text-red-400 border-red-500/20",
   p1: "bg-orange-500/15 text-orange-400 border-orange-500/20",
   p2: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
-  p3: "bg-zinc-700/50 text-zinc-400 border-zinc-700",
+  p3: "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]",
 };
 
 interface Props {
@@ -30,20 +30,20 @@ export function CardDrawer({ card, onClose }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-[var(--text-primary)]/40 z-40"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-[420px] bg-zinc-950 border-l border-zinc-800 z-50 overflow-y-auto">
+      <div className="fixed right-0 top-0 h-full w-[420px] bg-[var(--bg-surface)] border-l border-[var(--border)] z-50 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-950">
-          <span className="text-sm font-semibold text-zinc-200 truncate pr-4">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-surface)]">
+          <span className="text-sm font-semibold text-[var(--text-primary)] truncate pr-4">
             {card.title}
           </span>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors shrink-0 text-xl leading-none"
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 text-xl leading-none"
           >
             ×
           </button>
@@ -56,24 +56,25 @@ export function CardDrawer({ card, onClose }: Props) {
             kanbanState={card.kanbanState}
             figmaUrl={card.figmaUrl}
             figmaLockedAt={card.figmaLockedAt}
+            devQuestionCount={0}
           />
 
           {/* Description */}
           <section>
-            <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">
               Description
             </div>
-            <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
               {card.description}
             </p>
           </section>
 
           {card.businessContext && (
             <section>
-              <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">
+              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">
                 Business Context
               </div>
-              <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
                 {card.businessContext}
               </p>
             </section>
@@ -83,16 +84,16 @@ export function CardDrawer({ card, onClose }: Props) {
           <section className="space-y-3">
             {card.assignees.length > 0 && (
               <div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">
                   Assignees
                 </div>
-                <p className="text-xs text-zinc-400">{card.assignees.join(", ")}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{card.assignees.join(", ")}</p>
               </div>
             )}
 
             {card.priority && (
               <div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">
                   Priority
                 </div>
                 <span
@@ -107,10 +108,10 @@ export function CardDrawer({ card, onClose }: Props) {
 
             {card.deadlineAt && (
               <div>
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">
                   Deadline
                 </div>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {new Date(card.deadlineAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -124,7 +125,7 @@ export function CardDrawer({ card, onClose }: Props) {
           {/* Link to full request detail */}
           <Link
             href={`/dashboard/requests/${card.id}`}
-            className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:text-[var(--accent)] transition-colors"
           >
             View full details →
           </Link>

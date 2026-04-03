@@ -141,13 +141,13 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
 
       {loading ? (
         <div className="flex items-center gap-2 py-2">
-          <div className="w-3 h-3 border border-zinc-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-zinc-600">Loading sign-offs...</span>
+          <div className="w-3 h-3 border border-[var(--border-strong)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-[var(--text-tertiary)]">Loading sign-offs...</span>
         </div>
       ) : (
         <>
           {/* 3-row sign-off table */}
-          <div className="border border-zinc-800 rounded-xl overflow-hidden divide-y divide-zinc-800/60">
+          <div className="border border-[var(--border)] rounded-xl overflow-hidden divide-y divide-[var(--border)]">
             {ROLES.map((role) => {
               const signoff = optimisticSignoffs.find((s) => s.signerRole === role.key);
               const isMyRole = mySignerRole === role.key;
@@ -157,12 +157,12 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-zinc-300">{role.label}</span>
+                        <span className="text-xs font-medium text-[var(--text-primary)]">{role.label}</span>
                         {isMyRole && (
-                          <span className="text-[10px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5">you</span>
+                          <span className="text-[10px] text-[#D4A84B] bg-[#D4A84B]/10 border border-[#D4A84B]/20 rounded px-1.5 py-0.5">you</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-zinc-600 mt-0.5">{role.desc}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{role.desc}</p>
                       {signoff?.conditions && (
                         <p className="text-[11px] text-amber-400/80 mt-1 italic">Conditions: {signoff.conditions}</p>
                       )}
@@ -175,7 +175,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                           {decisionLabels[signoff.decision]}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-zinc-700 bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5">Pending</span>
+                        <span className="text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-2 py-0.5">Pending</span>
                       )}
                     </div>
                   </div>
@@ -196,7 +196,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                                   : d === "approved_with_conditions"
                                   ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
                                   : "bg-red-500/15 border-red-500/30 text-red-400"
-                                : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                                : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
                             }`}
                           >
                             {d === "approved" ? "Approve" : d === "approved_with_conditions" ? "Approve with conditions" : "Reject"}
@@ -211,7 +211,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                           value={conditions}
                           onChange={(e) => setConditions(e.target.value)}
                           placeholder="Describe the conditions..."
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
                         />
                       )}
 
@@ -222,7 +222,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
                           placeholder="Reason for rejection..."
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
                         />
                       )}
 
@@ -234,7 +234,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                           className={`text-[11px] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                             activeDecision === "rejected"
                               ? "bg-red-600 hover:bg-red-500 text-white"
-                              : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                              : "bg-[var(--accent)] hover:opacity-90 text-[var(--accent-text)]"
                           }`}
                         >
                           Confirm
@@ -248,7 +248,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
           </div>
 
           {/* Progress summary */}
-          <p className="text-[10px] text-zinc-700 text-center">
+          <p className="text-[10px] text-[var(--text-tertiary)] text-center">
             {signoffs.filter((s) => s.decision !== "rejected").length} / 3 approvals received
           </p>
         </>

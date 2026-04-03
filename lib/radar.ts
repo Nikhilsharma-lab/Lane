@@ -316,3 +316,52 @@ export function makeCanAction(
 
   return () => false;
 }
+
+/**
+ * Compute avg dev questions per handoff for each designer over the last 30 days.
+ * devQuestions: flat list of { requestId } entries from comments where isDevQuestion=true.
+ * allAssignments: lead assignments (requestId + assigneeId).
+ * Returns designerId → avg (rounded to 1 decimal).
+ */
+export function computeAvgDevQuestions(
+  designers: RadarDesigner[],
+  allRequests: Request[],
+  allAssignments: Array<{ requestId: string; assigneeId: string }>,
+  devQuestions: Array<{ requestId: string }>
+): Record<string, number> {
+  const now = Date.now();
+  const thirtyDaysMs = 30 * 86_400_000;
+
+  const designerByRequest = new Map<string, string>();
+  for (const a of allAssignments) {
+    designerByRequest.set(a.requestId, a.assigneeId);
+  }
+
+  const questionsByRequest = new Map<string, number>();
+  for (const q of devQuestions) {
+    questionsByRequest.set(q.requestId, (questionsByRequest.get(q.requestId) ?? 0) + 1);
+  }
+
+  const result: Record<string, number> = {};
+  for (const designer of designers) {
+    const devReqs = allRequests.filter(
+      (r) =>
+        (r.phase === "dev" || r.phase === "track") &&
+        designerByRequest.get(r.id) === designer.id &&
+        now - new Date(r.updatedAt).getTime() <= thirtyDaysMs
+    );
+
+    if (devReqs.length === 0) {
+      result[designer.id] = 0;
+      continue;
+    }
+
+    const totalQuestions = devReqs.reduce(
+      (sum, r) => sum + (questionsByRequest.get(r.id) ?? 0),
+      0
+    );
+    result[designer.id] = Math.round((totalQuestions / devReqs.length) * 10) / 10;
+  }
+
+  return result;
+}

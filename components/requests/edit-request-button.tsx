@@ -24,7 +24,7 @@ export function EditRequestButton({ request }: { request: SerializedRequest }) {
       {open && <EditRequestModal request={request} onClose={() => setOpen(false)} />}
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 rounded-lg px-3 py-1.5 transition-colors"
+        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-3 py-1.5 transition-colors"
       >
         Edit
       </button>

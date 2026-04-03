@@ -27,12 +27,12 @@ export function TriageButton({ requestId }: { requestId: string }) {
   }
 
   return (
-    <div className="border border-zinc-800 rounded-xl p-6 text-center space-y-3">
-      <p className="text-sm text-zinc-500">This request hasn&apos;t been analyzed by AI yet</p>
+    <div className="border border-[var(--border)] rounded-xl p-6 text-center space-y-3">
+      <p className="text-sm text-[var(--text-secondary)]">This request hasn&apos;t been analyzed by AI yet</p>
       <button
         onClick={handleTriage}
         disabled={loading}
-        className="text-sm bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 hover:bg-indigo-500/25 hover:border-indigo-500/40 rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+        className="text-sm bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/25 hover:bg-[var(--accent-subtle)] hover:border-[var(--accent)]/40 rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
       >
         {loading ? "Analyzing..." : "Run AI Triage"}
       </button>

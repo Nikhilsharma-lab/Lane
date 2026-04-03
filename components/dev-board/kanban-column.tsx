@@ -28,10 +28,10 @@ export function KanbanColumn({
     <div className="flex flex-col w-64 shrink-0">
       {/* Column header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           {label}
         </span>
-        <span className="text-xs text-zinc-600 font-mono bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5">
+        <span className="text-xs text-[var(--text-tertiary)] font-mono bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-1.5 py-0.5">
           {cards.length}
         </span>
       </div>
@@ -41,8 +41,8 @@ export function KanbanColumn({
         ref={setNodeRef}
         className={`flex-1 min-h-24 rounded-xl transition-colors space-y-2 p-2 ${
           isOver
-            ? "bg-zinc-800/40 ring-1 ring-zinc-700/50"
-            : "bg-zinc-900/30"
+            ? "bg-[var(--bg-hover)] ring-1 ring-[var(--border-strong)]"
+            : "bg-[var(--bg-subtle)]"
         }`}
       >
         <SortableContext
@@ -62,7 +62,7 @@ export function KanbanColumn({
 
         {cards.length === 0 && (
           <div className="h-16 flex items-center justify-center">
-            <span className="text-[10px] text-zinc-700">Drop here</span>
+            <span className="text-[10px] text-[var(--text-tertiary)]">Drop here</span>
           </div>
         )}
       </div>

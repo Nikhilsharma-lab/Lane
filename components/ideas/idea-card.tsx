@@ -12,12 +12,12 @@ const categoryColors: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  pending_votes: "bg-zinc-800 text-zinc-400 border-zinc-700",
+  pending_votes: "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]",
   validation: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   approved: "bg-green-500/10 text-green-400 border-green-500/20",
   approved_with_conditions: "bg-green-500/10 text-green-400 border-green-500/20",
   rejected: "bg-red-500/10 text-red-400 border-red-500/20",
-  archived: "bg-zinc-800/50 text-zinc-600 border-zinc-800",
+  archived: "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border)]",
 };
 
 const statusLabels: Record<string, string> = {
@@ -113,35 +113,35 @@ export function IdeaCard({
   const canValidate = (profileRole === "lead" || profileRole === "admin") && status === "pending_votes";
 
   return (
-    <div className="border border-zinc-800 rounded-xl p-4 bg-zinc-900/30 space-y-3 hover:border-zinc-700 transition-colors">
+    <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--bg-surface)] space-y-3 hover:border-[var(--border-strong)] transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${categoryColors[category] ?? "bg-zinc-800 text-zinc-500 border-zinc-700"}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${categoryColors[category] ?? "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]"}`}>
               {category}
             </span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${statusColors[status] ?? "bg-zinc-800 text-zinc-500 border-zinc-700"}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${statusColors[status] ?? "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]"}`}>
               {statusLabels[status] ?? status}
             </span>
             {effortEstimateWeeks && (
-              <span className="text-[10px] text-zinc-600">{effortEstimateWeeks}w est.</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">{effortEstimateWeeks}w est.</span>
             )}
           </div>
-          <h3 className="text-sm font-medium text-zinc-200 leading-snug">{title}</h3>
+          <h3 className="text-sm font-medium text-[var(--text-primary)] leading-snug">{title}</h3>
         </div>
 
         {/* Net score */}
         <div className="shrink-0 flex flex-col items-center">
-          <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-green-400" : localNetScore < 0 ? "text-red-400" : "text-zinc-500"}`}>
+          <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-green-400" : localNetScore < 0 ? "text-red-400" : "text-[var(--text-secondary)]"}`}>
             {localNetScore > 0 ? "+" : ""}{localNetScore}
           </span>
-          <span className="text-[9px] text-zinc-700">score</span>
+          <span className="text-[9px] text-[var(--text-tertiary)]">score</span>
         </div>
       </div>
 
       {/* Problem snippet */}
-      <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">{problem}</p>
+      <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">{problem}</p>
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2">
@@ -152,7 +152,7 @@ export function IdeaCard({
             className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
               optimisticVotes.myVote === "upvote"
                 ? "bg-green-500/15 border-green-500/30 text-green-400"
-                : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
             }`}
           >
             <span>▲</span>
@@ -163,7 +163,7 @@ export function IdeaCard({
             className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
               optimisticVotes.myVote === "downvote"
                 ? "bg-red-500/15 border-red-500/30 text-red-400"
-                : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                : "border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
             }`}
           >
             <span>▼</span>
@@ -173,20 +173,20 @@ export function IdeaCard({
 
         <div className="flex items-center gap-3">
           {/* Author */}
-          <span className="text-[11px] text-zinc-600">
+          <span className="text-[11px] text-[var(--text-tertiary)]">
             {isAnonymous ? "Anonymous" : author}
           </span>
 
           {/* Time remaining */}
           {status === "pending_votes" && (
-            <span className="text-[11px] text-zinc-700">{timeRemaining(votingEndsAt)}</span>
+            <span className="text-[11px] text-[var(--text-tertiary)]">{timeRemaining(votingEndsAt)}</span>
           )}
 
           {/* Validate button for leads */}
           {canValidate && onValidate && (
             <button
               onClick={onValidate}
-              className="text-[11px] text-indigo-400 border border-indigo-500/20 rounded px-2 py-0.5 hover:border-indigo-500/40 hover:text-indigo-300 transition-colors"
+              className="text-[11px] text-[var(--accent)] border border-[var(--accent)]/20 rounded px-2 py-0.5 hover:border-[var(--accent)]/40 hover:text-[var(--accent)] transition-colors"
             >
               Validate
             </button>

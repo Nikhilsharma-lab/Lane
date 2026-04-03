@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, comments, requestStages, requestAiAnalysis, requestContextBriefs, projects } from "@/db/schema";
+import { profiles, requests, comments, requestStages, requestAiAnalysis, requestContextBriefs, projects, figmaConnections } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { StageControls } from "@/components/requests/stage-controls";
@@ -19,12 +19,15 @@ import { FigmaHistory } from "@/components/requests/figma-history";
 import { RealtimeRequest } from "@/components/realtime/realtime-request";
 import { ProjectBadge } from "@/components/projects/project-badge";
 import { ContextBriefPanel } from "@/components/requests/context-brief-panel";
+import { HandoffBriefPanel } from "@/components/requests/handoff-brief-panel";
+import { requestHandoffBriefs } from "@/db/schema";
+import { syncFigmaVersions } from "@/lib/figma/sync";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
   p1: { label: "P1", color: "bg-orange-500/15 text-orange-400 border-orange-500/20", desc: "High — this week" },
   p2: { label: "P2", color: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20", desc: "Medium — this sprint" },
-  p3: { label: "P3", color: "bg-zinc-700/50 text-zinc-400 border-zinc-700", desc: "Low — backlog" },
+  p3: { label: "P3", color: "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border)]", desc: "Low — backlog" },
 };
 
 const statusLabels: Record<string, string> = {
@@ -71,6 +74,51 @@ export default async function RequestDetailPage({
 
   const [request] = await db.select().from(requests).where(eq(requests.id, id));
   if (!request || request.orgId !== profile.orgId) notFound();
+
+  // Figma connection check
+  let isConnected = false;
+  let figmaAccessToken: string | null = null;
+  try {
+    const [conn] = await db
+      .select()
+      .from(figmaConnections)
+      .where(eq(figmaConnections.orgId, profile.orgId));
+    if (conn) {
+      isConnected = true;
+      figmaAccessToken = conn.accessToken;
+    }
+  } catch {
+    // silent
+  }
+
+  // On-demand Figma sync
+  if (
+    isConnected &&
+    figmaAccessToken &&
+    request.figmaUrl &&
+    (request.phase === "design" || request.phase === "dev" || request.phase === "track")
+  ) {
+    const requestPhase =
+      request.phase === "design" ? "design"
+      : request.phase === "dev" ? "dev"
+      : null;
+    const postHandoff =
+      request.phase === "dev" ||
+      request.phase === "track" ||
+      !!request.figmaLockedAt;
+
+    try {
+      await syncFigmaVersions({
+        requestId: request.id,
+        figmaUrl: request.figmaUrl,
+        accessToken: figmaAccessToken,
+        requestPhase: requestPhase as "design" | "dev" | null,
+        postHandoff,
+      });
+    } catch {
+      // silent — page always loads
+    }
+  }
 
   const project = request.projectId
     ? await db.select().from(projects).where(eq(projects.id, request.projectId)).then(([p]) => p ?? null)
@@ -150,6 +198,17 @@ export default async function RequestDetailPage({
     // brief query failed silently
   }
 
+  let existingHandoffBrief: (typeof requestHandoffBriefs.$inferSelect) | null = null;
+  try {
+    const [handoffBriefRow] = await db
+      .select()
+      .from(requestHandoffBriefs)
+      .where(eq(requestHandoffBriefs.requestId, id));
+    existingHandoffBrief = handoffBriefRow ?? null;
+  } catch {
+    // handoff brief query failed silently
+  }
+
   /* ---- serialise for client components ---- */
   const sr = JSON.parse(JSON.stringify(request)) as {
     id: string;
@@ -170,28 +229,10 @@ export default async function RequestDetailPage({
     profile.role === "admin";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <>
       {/* Real-time subscription — invisible, triggers router.refresh() on any change */}
       <RealtimeRequest requestId={request.id} />
-      {/* Header */}
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">DesignQ</span>
-            <span className="text-zinc-700">·</span>
-            <Link href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
-              Requests
-            </Link>
-            <span className="text-zinc-700">/</span>
-            <span className="text-sm text-zinc-300 truncate max-w-xs">{request.title}</span>
-          </div>
-          <Link href="/dashboard/team" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
-            Team
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-8">
@@ -203,9 +244,9 @@ export default async function RequestDetailPage({
                     {request.priority.toUpperCase()}
                   </span>
                 )}
-                <span className="text-xs text-zinc-500">{statusLabels[request.status] ?? request.status}</span>
+                <span className="text-xs text-[var(--text-secondary)]">{statusLabels[request.status] ?? request.status}</span>
                 {request.requestType && (
-                  <span className="text-xs text-zinc-600 capitalize">· {request.requestType}</span>
+                  <span className="text-xs text-[var(--text-tertiary)] capitalize">· {request.requestType}</span>
                 )}
               </div>
               <div className="flex items-start justify-between gap-3 mb-2">
@@ -216,7 +257,7 @@ export default async function RequestDetailPage({
                   </div>
                 )}
               </div>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Submitted by {requesterName} · {formatDate(toISO(request.createdAt)!)}
               </p>
               {project && (
@@ -226,21 +267,21 @@ export default async function RequestDetailPage({
 
             {/* Description */}
             <section>
-              <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Description</h2>
-              <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{request.description}</p>
+              <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">Description</h2>
+              <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{request.description}</p>
             </section>
 
             {request.businessContext && (
               <section>
-                <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Business Context</h2>
-                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{request.businessContext}</p>
+                <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">Business Context</h2>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{request.businessContext}</p>
               </section>
             )}
 
             {request.successMetrics && (
               <section>
-                <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Success Metrics</h2>
-                <p className="text-sm text-zinc-300 leading-relaxed">{request.successMetrics}</p>
+                <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">Success Metrics</h2>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">{request.successMetrics}</p>
               </section>
             )}
 
@@ -252,18 +293,27 @@ export default async function RequestDetailPage({
               />
             )}
 
+            {/* AI Handoff Brief — shown at Handoff stage and throughout dev phase */}
+            {((request.phase === "design" && request.designStage === "handoff") ||
+              request.phase === "dev") && (
+              <HandoffBriefPanel
+                requestId={request.id}
+                existingBrief={existingHandoffBrief}
+              />
+            )}
+
             {request.figmaUrl && (
               <section>
-                <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Figma</h2>
-                <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-2">Figma</h2>
+                <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-[var(--accent)] hover:text-[var(--accent)] transition-colors">
                   Open in Figma
                 </a>
               </section>
             )}
 
             {/* Figma update history — visible from design phase onwards */}
-            {request.figmaUrl && (request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
-              <FigmaHistory requestId={request.id} phase={request.phase as string} />
+            {(request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
+              <FigmaHistory requestId={request.id} phase={request.phase as string} isConnected={isConnected} figmaUrl={request.figmaUrl} />
             )}
 
             <HandoffChecklist requestId={request.id} stage={request.stage} />
@@ -279,20 +329,20 @@ export default async function RequestDetailPage({
 
             {/* AI Triage */}
             {aiAnalysis ? (
-              <section className="border border-zinc-800 rounded-xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">AI Triage</span>
-                  <span className="text-[10px] text-zinc-600 font-mono">{aiAnalysis.aiModel}</span>
+              <section className="border border-[var(--border)] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
+                  <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">AI Triage</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-mono">{aiAnalysis.aiModel}</span>
                 </div>
 
                 <div className="p-5 space-y-5">
                   {/* Summary */}
-                  <p className="text-sm text-zinc-300 leading-relaxed">{aiAnalysis.summary}</p>
+                  <p className="text-sm text-[var(--text-primary)] leading-relaxed">{aiAnalysis.summary}</p>
 
                   {/* Quality score */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] text-zinc-600 uppercase tracking-wide">Request quality</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Request quality</span>
                       <span className={`text-xs font-mono ${
                         aiAnalysis.qualityScore >= 70
                           ? "text-green-400"
@@ -303,7 +353,7 @@ export default async function RequestDetailPage({
                         {aiAnalysis.qualityScore}/100
                       </span>
                     </div>
-                    <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
                           aiAnalysis.qualityScore >= 70
@@ -320,7 +370,7 @@ export default async function RequestDetailPage({
                   {/* Quality flags */}
                   {aiAnalysis.qualityFlags.length > 0 && (
                     <div>
-                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Issues</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Issues</div>
                       <div className="flex flex-wrap gap-1.5">
                         {aiAnalysis.qualityFlags.map((flag, i) => (
                           <span key={i} className="text-[11px] text-yellow-400/80 bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-0.5">
@@ -333,18 +383,18 @@ export default async function RequestDetailPage({
 
                   {/* Reasoning */}
                   <div>
-                    <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">Reasoning</div>
-                    <p className="text-xs text-zinc-500 leading-relaxed">{aiAnalysis.reasoning}</p>
+                    <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Reasoning</div>
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{aiAnalysis.reasoning}</p>
                   </div>
 
                   {/* Suggestions */}
                   {aiAnalysis.suggestions.length > 0 && (
                     <div>
-                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Suggestions</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Suggestions</div>
                       <ul className="space-y-1.5">
                         {aiAnalysis.suggestions.map((s, i) => (
-                          <li key={i} className="text-xs text-zinc-400 flex gap-2">
-                            <span className="text-indigo-400 shrink-0">-</span>
+                          <li key={i} className="text-xs text-[var(--text-secondary)] flex gap-2">
+                            <span className="text-[var(--accent)] shrink-0">-</span>
                             {s}
                           </li>
                         ))}
@@ -355,16 +405,16 @@ export default async function RequestDetailPage({
                   {/* Potential duplicates */}
                   {aiAnalysis.potentialDuplicates.length > 0 && (
                     <div>
-                      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Potential duplicates</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Potential duplicates</div>
                       <div className="space-y-1.5">
                         {aiAnalysis.potentialDuplicates.map((dup, i) => (
                           <Link
                             key={i}
                             href={`/dashboard/requests/${dup.id}`}
-                            className="block text-xs border border-zinc-800 rounded-lg px-3 py-2 hover:border-zinc-700 transition-colors"
+                            className="block text-xs border border-[var(--border)] rounded-lg px-3 py-2 hover:border-[var(--border-strong)] transition-colors"
                           >
-                            <span className="text-zinc-300">{dup.title}</span>
-                            <span className="text-zinc-600 ml-2">{dup.reason}</span>
+                            <span className="text-[var(--text-primary)]">{dup.title}</span>
+                            <span className="text-[var(--text-tertiary)] ml-2">{dup.reason}</span>
                           </Link>
                         ))}
                       </div>
@@ -378,28 +428,28 @@ export default async function RequestDetailPage({
 
             {/* Comments */}
             <section>
-              <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">
+              <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                 Activity ({requestComments.length})
               </h2>
               {requestComments.length === 0 ? (
-                <p className="text-sm text-zinc-700">No comments yet</p>
+                <p className="text-sm text-[var(--text-tertiary)]">No comments yet</p>
               ) : (
                 <div className="space-y-3">
                   {requestComments.map((c) => {
                     const author = c.authorId ? authorMap[c.authorId] : null;
                     return (
-                      <div key={c.id} className="border border-zinc-800 rounded-lg px-4 py-3">
+                      <div key={c.id} className="border border-[var(--border)] rounded-lg px-4 py-3">
                         <div className="flex items-center gap-2 mb-1.5">
                           {c.isSystem ? (
-                            <span className="text-[10px] text-zinc-600 bg-zinc-800 rounded px-1.5 py-0.5">system</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-hover)] rounded px-1.5 py-0.5">system</span>
                           ) : (
-                            <span className="text-xs font-medium text-zinc-300">{author?.fullName ?? "Unknown"}</span>
+                            <span className="text-xs font-medium text-[var(--text-primary)]">{author?.fullName ?? "Unknown"}</span>
                           )}
-                          <span className="text-xs text-zinc-600">
+                          <span className="text-xs text-[var(--text-tertiary)]">
                             {c.createdAt ? formatDate(new Date(c.createdAt).toISOString()) : ""}
                           </span>
                         </div>
-                        <p className="text-sm text-zinc-400 leading-relaxed">{c.body}</p>
+                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{c.body}</p>
                       </div>
                     );
                   })}
@@ -438,6 +488,7 @@ export default async function RequestDetailPage({
                   kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
                   figmaUrl={request.figmaUrl}
                   figmaLockedAt={toISO(request.figmaLockedAt)}
+                  devQuestionCount={requestComments.filter((c) => c.isDevQuestion).length}
                 />
               </div>
             ) : request.phase === "track" ? (
@@ -451,8 +502,8 @@ export default async function RequestDetailPage({
                 />
               </div>
             ) : (
-              <div className="border-b border-zinc-800/50 pb-4">
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Stage</div>
+              <div className="border-b border-[var(--border)] pb-4">
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Stage</div>
                 <StageControls
                   requestId={request.id}
                   currentStage={request.stage}
@@ -463,13 +514,13 @@ export default async function RequestDetailPage({
             )}
 
             {stageHistory.length > 0 && (
-              <div className="border-b border-zinc-800/50 pb-4">
-                <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">History</div>
+              <div className="border-b border-[var(--border)] pb-4">
+                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">History</div>
                 <div className="space-y-1.5">
                   {stageHistory.map((s) => (
                     <div key={s.id} className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-zinc-600 capitalize">{s.stage}</span>
-                      <span className="text-[10px] text-zinc-700">
+                      <span className="text-xs text-[var(--text-tertiary)] capitalize">{s.stage}</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">
                         {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -490,7 +541,7 @@ export default async function RequestDetailPage({
                 <span className={`text-xs px-1.5 py-0.5 rounded border font-mono ${priorityConfig[request.priority]?.color}`}>
                   {request.priority.toUpperCase()}
                 </span>
-                <span className="text-xs text-zinc-600 ml-1.5">{priorityConfig[request.priority]?.desc}</span>
+                <span className="text-xs text-[var(--text-tertiary)] ml-1.5">{priorityConfig[request.priority]?.desc}</span>
               </SidebarField>
             )}
 
@@ -499,7 +550,7 @@ export default async function RequestDetailPage({
                 <span className="text-sm font-mono">
                   {"▪".repeat(request.complexity)}
                   {"▫".repeat(5 - request.complexity)}
-                  <span className="text-zinc-500 ml-1">{request.complexity}/5</span>
+                  <span className="text-[var(--text-secondary)] ml-1">{request.complexity}/5</span>
                 </span>
               </SidebarField>
             )}
@@ -510,23 +561,23 @@ export default async function RequestDetailPage({
               </SidebarField>
             )}
 
-            <div className="border-b border-zinc-800/50 pb-4">
-              <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-2">Assignees</div>
+            <div className="border-b border-[var(--border)] pb-4">
+              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Assignees</div>
               <AssignPanel requestId={request.id} />
             </div>
 
             <SidebarField label="Requester">
               <span className="text-sm">{requesterName}</span>
-              <span className="text-xs text-zinc-600 capitalize ml-1">({requesterRole})</span>
+              <span className="text-xs text-[var(--text-tertiary)] capitalize ml-1">({requesterRole})</span>
             </SidebarField>
 
             <SidebarField label="Created">
-              <span className="text-sm text-zinc-400">{formatDate(toISO(request.createdAt)!)}</span>
+              <span className="text-sm text-[var(--text-secondary)]">{formatDate(toISO(request.createdAt)!)}</span>
             </SidebarField>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -538,9 +589,9 @@ function SidebarField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-zinc-800/50 pb-4">
-      <div className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">{label}</div>
-      <div className="text-zinc-300">{children}</div>
+    <div className="border-b border-[var(--border)] pb-4">
+      <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">{label}</div>
+      <div className="text-[var(--text-primary)]">{children}</div>
     </div>
   );
 }
