@@ -214,3 +214,27 @@ export function allSignoffsEmail({
     ${button("View request", `${APP_URL}/dashboard/requests/${requestId}`)}
   `);
 }
+
+export function figmaDriftEmail({
+  requestTitle,
+  requestUrl,
+  designerName,
+}: {
+  requestTitle: string;
+  requestUrl: string;
+  designerName: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `Figma updated on ${requestTitle}`,
+    html: layout(`
+    <p style="margin:0 0 20px 0;font-size:20px;font-weight:600;color:#ffffff;">Figma updated post-handoff</p>
+    <p style="margin:0 0 24px 0;font-size:14px;color:#a1a1aa;line-height:1.6;">
+      <strong style="color:#e4e4e7;">${designerName}</strong> updated the Figma file post-handoff.
+      This request may need your attention before continuing dev work.
+    </p>
+    ${label("Request")}
+    ${value(requestTitle)}
+    ${button("Review update", requestUrl)}
+  `),
+  };
+}
