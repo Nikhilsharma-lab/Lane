@@ -2,10 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700&display=swap');
+
 html {
   scroll-behavior: smooth;
 }
 
+:root {
+  /* Backgrounds */
+  --bg-base: #F8F6F1;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F0EDE6;
+  --bg-hover: #EAE6DE;
+
+  /* Text */
+  --text-primary: #1C1917;
+  --text-secondary: #78716C;
+  --text-tertiary: #A8A29E;
+
+  /* Borders */
+  --border: #E7E2DA;
+  --border-strong: #D4CFC7;
+
+  /* Accent */
+  --accent: #2E5339;
+  --accent-subtle: #EAF2EC;
+  --accent-text: #FFFFFF;
+
+  /* Status */
+  --status-requested: #A8A29E;
+  --status-in-progress: #7DA5C4;
+  --status-in-review: #D4A84B;
+  --status-approved: #86A87A;
+  --status-handed-off: #A394C7;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Layout */
+  --rail-width: 48px;
+  --pane-width: 256px;
+  --dock-width: 400px;
+}
+
 body {
-  @apply bg-white text-gray-900;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Satoshi', sans-serif;
 }
