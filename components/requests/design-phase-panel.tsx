@@ -17,9 +17,10 @@ interface Props {
   currentDesignStage: DesignStage;
   figmaUrl: string | null;
   profileRole: string;
+  isTestUser?: boolean;
 }
 
-export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, profileRole }: Props) {
+export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, profileRole, isTestUser = false }: Props) {
   const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useState<DesignStage>(currentDesignStage);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +127,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
         {/* Validate stage: show ValidationGate instead of advance button */}
         {isValidateStage ? (
-          <ValidationGate requestId={requestId} myProfileRole={profileRole} />
+          <ValidationGate requestId={requestId} myProfileRole={profileRole} isTestUser={isTestUser} />
         ) : (
           <>
             {/* Gate status for explore + handoff */}

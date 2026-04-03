@@ -107,7 +107,7 @@ const divider: React.CSSProperties = {
   marginTop: 4,
 };
 
-export function DetailDock({ profileRole = "member" }: { profileRole?: string }) {
+export function DetailDock({ profileRole = "member", isTestUser = false }: { profileRole?: string; isTestUser?: boolean }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -240,6 +240,7 @@ export function DetailDock({ profileRole = "member" }: { profileRole?: string })
               currentDesignStage={(request.designStage ?? "explore") as "explore" | "validate" | "handoff"}
               figmaUrl={request.figmaUrl}
               profileRole={profileRole}
+              isTestUser={isTestUser}
             />
           </div>
         )}

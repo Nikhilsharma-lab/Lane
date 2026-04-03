@@ -18,6 +18,7 @@ interface Signoff {
 interface ValidationGateProps {
   requestId: string;
   myProfileRole: string; // raw profile role (designer/pm/lead/admin)
+  isTestUser?: boolean;  // test account — can sign for any role
 }
 
 const ROLES: { key: SignerRole; label: string; desc: string }[] = [
@@ -45,7 +46,7 @@ const decisionLabels: Record<Decision, string> = {
   rejected: "Rejected",
 };
 
-export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps) {
+export function ValidationGate({ requestId, myProfileRole, isTestUser = false }: ValidationGateProps) {
   const router = useRouter();
   const mySignerRole = signerRoleFromProfile(myProfileRole);
 
@@ -57,8 +58,6 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
   useEffect(() => {
     setOptimisticSignoffs(signoffs);
   }, [signoffs]);
-
-  const isAdmin = myProfileRole === "admin";
 
   // Per-role action state
   const [activeRole, setActiveRole] = useState<SignerRole | null>(null);
@@ -108,7 +107,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
         decision: activeDecision,
         conditions,
         comments: commentText,
-        ...(isAdmin && { signerRole: submittingRole }),
+        ...(isTestUser && { signerRole: submittingRole }),
       }),
     });
 
@@ -162,8 +161,8 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
               const signoff = optimisticSignoffs.find((s) => s.signerRole === role.key);
               const isMyRole = mySignerRole === role.key;
               // Admins can act for any role
-              const canAct = isMyRole || isAdmin;
-              const isActiveRow = activeRole === role.key || (!activeRole && isMyRole && !isAdmin);
+              const canAct = isMyRole || isTestUser;
+              const isActiveRow = activeRole === role.key || (!activeRole && isMyRole && !isTestUser);
 
               return (
                 <div key={role.key} className="px-4 py-3">

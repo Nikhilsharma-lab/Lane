@@ -73,9 +73,10 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const { decision, conditions, comments: commentText, signerRole: roleOverride } = body;
 
-  // Admins can sign off on behalf of any role (solo-founder / testing convenience)
+  // Test account can sign off on behalf of any role
+  const TEST_EMAIL = "kaushalyash00@gmail.com";
   let signerRole = signerRoleFromProfile(profile.role ?? "");
-  if (profile.role === "admin" && roleOverride && ["designer", "pm", "design_head"].includes(roleOverride)) {
+  if (profile.email === TEST_EMAIL && roleOverride && ["designer", "pm", "design_head"].includes(roleOverride)) {
     signerRole = roleOverride as "designer" | "pm" | "design_head";
   }
 

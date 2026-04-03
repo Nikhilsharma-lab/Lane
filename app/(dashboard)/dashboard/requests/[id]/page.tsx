@@ -228,6 +228,8 @@ export default async function RequestDetailPage({
     profile.role === "lead" ||
     profile.role === "admin";
 
+  const isTestUser = profile.email === "kaushalyash00@gmail.com";
+
   return (
     <>
       {/* Real-time subscription — invisible, triggers router.refresh() on any change */}
@@ -479,6 +481,7 @@ export default async function RequestDetailPage({
                   currentDesignStage={(request.designStage ?? "explore") as "explore" | "validate" | "handoff"}
                   figmaUrl={request.figmaUrl}
                   profileRole={profile.role ?? "member"}
+                  isTestUser={isTestUser}
                 />
               </div>
             ) : request.phase === "dev" ? (
