@@ -21,7 +21,7 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
       .then((data) => {
         if (data.brief) setBrief(data.brief);
       })
-      .catch(() => {})
+      .catch(() => { /* silent fail — brief is non-blocking */ })
       .finally(() => setLoading(false));
   }, [requestId, existingBrief]);
 
@@ -110,7 +110,7 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
             <ul className="space-y-1.5">
               {brief.edgeCases.map((e, i) => (
                 <li key={i} className="text-xs text-[var(--text-secondary)] flex gap-2">
-                  <span className="text-[var(--accent)] shrink-0">→</span>
+                  <span className="text-indigo-400 shrink-0">→</span>
                   {e}
                 </li>
               ))}
