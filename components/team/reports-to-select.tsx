@@ -18,14 +18,23 @@ export function ReportsToSelect({
 
   async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newManagerId = e.target.value || null;
+    const previousValue = value;
     setValue(e.target.value);
     setSaving(true);
-    await fetch(`/api/team/${memberId}/manager`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ managerId: newManagerId }),
-    });
-    setSaving(false);
+    try {
+      const res = await fetch(`/api/team/${memberId}/manager`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ managerId: newManagerId }),
+      });
+      if (!res.ok) {
+        setValue(previousValue);
+      }
+    } catch {
+      setValue(previousValue);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
