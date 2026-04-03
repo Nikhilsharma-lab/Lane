@@ -108,7 +108,7 @@ export function HandoffChecklist({ requestId, stage }: Props) {
                       type="checkbox"
                       checked={!!checked[i]}
                       onChange={(e) => setChecked((prev) => ({ ...prev, [i]: e.target.checked }))}
-                      className="accent-indigo-500 w-3.5 h-3.5"
+                      className="accent-[var(--accent)] w-3.5 h-3.5"
                     />
                   </div>
                   <div className="flex-1 min-w-0">

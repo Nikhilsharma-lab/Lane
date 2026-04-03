@@ -234,7 +234,7 @@ export function ValidationGate({ requestId, myProfileRole }: ValidationGateProps
                           className={`text-[11px] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                             activeDecision === "rejected"
                               ? "bg-red-600 hover:bg-red-500 text-white"
-                              : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                              : "bg-[var(--accent)] hover:opacity-90 text-[var(--accent-text)]"
                           }`}
                         >
                           Confirm
