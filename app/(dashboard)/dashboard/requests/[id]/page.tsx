@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, comments, requestStages, requestAiAnalysis } from "@/db/schema";
+import { profiles, requests, comments, requestStages, requestAiAnalysis, projects } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { StageControls } from "@/components/requests/stage-controls";
@@ -17,6 +17,7 @@ import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
 import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
 import { FigmaHistory } from "@/components/requests/figma-history";
 import { RealtimeRequest } from "@/components/realtime/realtime-request";
+import { ProjectBadge } from "@/components/projects/project-badge";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -69,6 +70,10 @@ export default async function RequestDetailPage({
 
   const [request] = await db.select().from(requests).where(eq(requests.id, id));
   if (!request || request.orgId !== profile.orgId) notFound();
+
+  const project = request.projectId
+    ? await db.select().from(projects).where(eq(projects.id, request.projectId)).then(([p]) => p ?? null)
+    : null;
 
   /* ---- secondary queries (each wrapped) ---- */
   let requesterName = "Unknown";
@@ -202,6 +207,9 @@ export default async function RequestDetailPage({
               <p className="text-sm text-zinc-500">
                 Submitted by {requesterName} · {formatDate(toISO(request.createdAt)!)}
               </p>
+              {project && (
+                <ProjectBadge name={project.name} color={project.color} className="mt-2" />
+              )}
             </div>
 
             {/* Description */}
