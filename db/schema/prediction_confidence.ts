@@ -13,7 +13,7 @@ export const predictionConfidence = pgTable("prediction_confidence", {
   rationale: text("rationale").notNull(),
   redFlags: jsonb("red_flags").$type<string[]>().notNull().default([]),
   suggestion: text("suggestion"),
-  aiModel: text("ai_model"),
+  aiModel: text("ai_model").notNull(),
   tokensUsed: integer("tokens_used"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
