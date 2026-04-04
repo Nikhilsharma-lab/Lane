@@ -20,7 +20,7 @@ import { RealtimeRequest } from "@/components/realtime/realtime-request";
 import { ProjectBadge } from "@/components/projects/project-badge";
 import { ContextBriefPanel } from "@/components/requests/context-brief-panel";
 import { HandoffBriefPanel } from "@/components/requests/handoff-brief-panel";
-import { requestHandoffBriefs } from "@/db/schema";
+import { requestHandoffBriefs, predictionConfidence as predictionConfidenceTable } from "@/db/schema";
 import { syncFigmaVersions } from "@/lib/figma/sync";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
@@ -207,6 +207,17 @@ export default async function RequestDetailPage({
     existingHandoffBrief = handoffBriefRow ?? null;
   } catch {
     // handoff brief query failed silently
+  }
+
+  let existingConfidence: (typeof predictionConfidenceTable.$inferSelect) | null = null;
+  try {
+    const [confRow] = await db
+      .select()
+      .from(predictionConfidenceTable)
+      .where(eq(predictionConfidenceTable.requestId, id));
+    existingConfidence = confRow ?? null;
+  } catch {
+    // confidence query failed silently
   }
 
   /* ---- serialise for client components ---- */
@@ -472,6 +483,9 @@ export default async function RequestDetailPage({
                   businessContext={request.businessContext}
                   successMetrics={request.successMetrics}
                   profileRole={profile.role ?? "member"}
+                  impactMetric={request.impactMetric}
+                  impactPrediction={request.impactPrediction}
+                  existingConfidence={existingConfidence}
                 />
               </div>
             ) : request.phase === "design" ? (
