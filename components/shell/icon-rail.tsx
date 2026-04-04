@@ -10,7 +10,9 @@ import {
   Users,
   Activity,
   Settings,
+  LogOut,
 } from "lucide-react";
+import { logout } from "@/app/actions/auth";
 
 const NAV = [
   { href: "/dashboard", icon: FileText, label: "Requests" },
@@ -33,6 +35,7 @@ export function IconRail() {
         height: "100vh",
         position: "sticky",
         top: 0,
+        zIndex: 20,
       }}
     >
       {/* Logo mark */}
@@ -87,6 +90,25 @@ export function IconRail() {
       >
         <Settings size={16} />
       </Link>
+
+      {/* Sign out */}
+      <form action={logout}>
+        <button
+          type="submit"
+          title="Sign out"
+          className="flex items-center justify-center rounded-md transition-colors hover:bg-red-500/10"
+          style={{
+            width: 32,
+            height: 32,
+            color: "var(--text-tertiary)",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <LogOut size={16} />
+        </button>
+      </form>
     </aside>
   );
 }
