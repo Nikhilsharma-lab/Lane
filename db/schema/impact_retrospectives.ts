@@ -13,7 +13,7 @@ export const impactRetrospectives = pgTable("impact_retrospectives", {
   likelyReasons: jsonb("likely_reasons").$type<string[]>().notNull().default([]),
   nextTimeSuggestion: text("next_time_suggestion").notNull(),
   celebrate: text("celebrate"),
-  aiModel: text("ai_model"),
+  aiModel: text("ai_model").notNull(),
   tokensUsed: integer("tokens_used"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
