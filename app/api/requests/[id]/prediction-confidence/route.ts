@@ -6,31 +6,6 @@ import { requests, profiles, predictionConfidence } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generatePredictionConfidence } from "@/lib/ai/prediction-confidence";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: requestId } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-
-  const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
-  if (!request || request.orgId !== profile.orgId) {
-    return NextResponse.json({ error: "Request not found" }, { status: 404 });
-  }
-
-  const [record] = await db
-    .select()
-    .from(predictionConfidence)
-    .where(eq(predictionConfidence.requestId, requestId));
-
-  return NextResponse.json({ confidence: record ?? null });
-}
-
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
