@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImpactRetrospectivePanel } from "@/components/requests/impact-retrospective-panel";
 
 interface Props {
   requestId: string;
@@ -9,6 +10,9 @@ interface Props {
   impactMetric: string | null;
   impactPrediction: string | null;
   impactActual: string | null;
+  predictionScore: number | null;
+  predictionLabel: string | null;
+  existingRetrospective: import("@/db/schema").ImpactRetrospective | null;
 }
 
 export function TrackPhasePanel({
@@ -17,6 +21,9 @@ export function TrackPhasePanel({
   impactMetric,
   impactPrediction,
   impactActual,
+  predictionScore,
+  predictionLabel,
+  existingRetrospective,
 }: Props) {
   const router = useRouter();
   const [actual, setActual] = useState(impactActual ?? "");
@@ -93,7 +100,20 @@ export function TrackPhasePanel({
         {impactPrediction && (
           <div>
             <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Predicted</p>
-            <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
+              {predictionScore !== null && predictionLabel && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                  predictionScore >= 70
+                    ? "text-green-400 bg-green-500/10 border-green-500/20"
+                    : predictionScore >= 40
+                    ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                    : "text-red-400 bg-red-500/10 border-red-500/20"
+                }`}>
+                  {predictionScore}/100 confidence
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -140,10 +160,16 @@ export function TrackPhasePanel({
         )}
 
         {isComplete && (
-          <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
-            <span className="text-green-400 text-xs">✓</span>
-            <p className="text-[11px] text-green-400/80">Impact recorded — request complete</p>
-          </div>
+          <>
+            <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
+              <span className="text-green-400 text-xs">✓</span>
+              <p className="text-[11px] text-green-400/80">Impact recorded — request complete</p>
+            </div>
+            <ImpactRetrospectivePanel
+              requestId={requestId}
+              existingRetrospective={existingRetrospective}
+            />
+          </>
         )}
 
         {error && (
