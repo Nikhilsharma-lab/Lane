@@ -55,6 +55,7 @@ export function DesignRoi() {
     fetch("/api/insights/design-roi")
       .then((r) => r.json())
       .then((d) => setRoi(d.roi ?? []))
+      .catch(() => { /* silent fail */ })
       .finally(() => setLoading(false));
   }, []);
 
