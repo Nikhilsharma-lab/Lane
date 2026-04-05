@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js Dev",
+      "runtimeExecutable": "/Users/yashkaushal/.nvm/versions/node/v22.22.1/bin/node",
+      "runtimeArgs": ["node_modules/.bin/next", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Drizzle Studio",
+      "runtimeExecutable": "/Users/yashkaushal/.nvm/versions/node/v22.22.1/bin/node",
+      "runtimeArgs": ["node_modules/.bin/drizzle-kit", "studio"],
+      "port": 4983
+    },
+    {
+      "name": "Next.js Prod",
+      "runtimeExecutable": "/Users/yashkaushal/.nvm/versions/node/v22.22.1/bin/node",
+      "runtimeArgs": ["node_modules/.bin/next", "start"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}
