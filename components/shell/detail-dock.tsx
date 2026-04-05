@@ -230,6 +230,9 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               businessContext={request.businessContext}
               successMetrics={request.successMetrics}
               profileRole={profileRole}
+              impactMetric={request.impactMetric}
+              impactPrediction={request.impactPrediction}
+              existingConfidence={null}
             />
           </div>
         )}
@@ -263,6 +266,9 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               impactMetric={request.impactMetric}
               impactPrediction={request.impactPrediction}
               impactActual={request.impactActual}
+              predictionScore={null}
+              predictionLabel={null}
+              existingRetrospective={null}
             />
           </div>
         )}

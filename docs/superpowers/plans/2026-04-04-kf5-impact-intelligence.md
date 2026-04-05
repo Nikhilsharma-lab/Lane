@@ -113,7 +113,7 @@ export * from "./impact_retrospectives";
 - [ ] **Step 4: Push schema to database**
 
 ```bash
-cd ~/DesignQ2 && npx drizzle-kit push
+cd ~/Lane && npx drizzle-kit push
 ```
 
 Expected: two new tables created — `prediction_confidence` and `impact_retrospectives`. No errors.

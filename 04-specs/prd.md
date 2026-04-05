@@ -1,4 +1,4 @@
-# DesignQ — Product Requirements Document
+# Lane — Product Requirements Document
 
 **Version:** 1.0 (MVP)
 **Date:** 2026-03-29
@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-DesignQ is an AI-native design operations platform. It replaces the spreadsheets, Slack threads, and manual triaging that design teams use to manage work.
+Lane is an AI-native design operations platform. It replaces the spreadsheets, Slack threads, and manual triaging that design teams use to manage work.
 
 **The core loop:**
 PMs and stakeholders submit design requests → Claude analyzes and triages them → Design leaders assign and prioritize → Designers execute → Work is tracked through 9 stages to impact.
@@ -35,7 +35,7 @@ Design teams — especially at high-growth companies — operate with chronic in
 ## 3. Goals & Success Metrics
 
 ### Business Goals (V1 / MVP)
-- First 10 paying teams using DesignQ within 90 days of launch
+- First 10 paying teams using Lane within 90 days of launch
 - Retention: 80%+ of teams active after 30 days
 - Primary metric: Weekly Active Teams (teams with ≥1 request submitted/moved that week)
 
@@ -45,7 +45,7 @@ Design teams — especially at high-growth companies — operate with chronic in
 | Reduce triage time | Time from request submitted → assigned | < 5 minutes (from ~2 hours) |
 | Improve brief quality | AI quality score on submitted requests | 70+ average |
 | Improve visibility | Requests with up-to-date status | 90%+ |
-| Reduce lost requests | Requests submitted through DesignQ vs. Slack | 80%+ for active teams |
+| Reduce lost requests | Requests submitted through Lane vs. Slack | 80%+ for active teams |
 
 ---
 
@@ -56,7 +56,7 @@ Design teams — especially at high-growth companies — operate with chronic in
 **Context:** 8-person design team (reference: Nikhil at Airtel Payments Bank), managing 20-40 concurrent requests across multiple products
 **Core job:** Triage incoming requests, manage capacity, protect team from bad work, report on impact
 **Pain:** Spends more time on ops (assigning, chasing, reporting) than on actual design leadership
-**Success:** Opens DesignQ, sees 3 things needing attention, approves/redirects in 5 minutes. Rest is AI-handled.
+**Success:** Opens Lane, sees 3 things needing attention, approves/redirects in 5 minutes. Rest is AI-handled.
 
 ### Secondary Persona: The PM / Stakeholder (Requester)
 **Who:** Product managers, business stakeholders, or other designers submitting requests

@@ -67,7 +67,7 @@ Three cards displayed in a horizontal row (stacks to vertical on mobile):
 | [Downgrade] | **CURRENT** (highlighted border, no button) | [Contact us] |
 
 - Current plan card: `ring-2 ring-white` border, badge "Current plan", no action button
-- "Contact us" on Enterprise → `mailto:yash@designq.io?subject=Enterprise inquiry` (same as existing CTA)
+- "Contact us" on Enterprise → `mailto:yash@lane.io?subject=Enterprise inquiry` (same as existing CTA)
 - "Downgrade to Free" / "Upgrade to Pro" → opens confirmation modal
 
 **Upgrade/Downgrade Confirmation Modal:**
@@ -85,7 +85,7 @@ Clicking "Proceed to checkout":
 ```
 Online checkout is coming soon.
 
-Email yash@designq.io to upgrade — we'll get you sorted within 24 hours.
+Email yash@lane.io to upgrade — we'll get you sorted within 24 hours.
 
 [Close]
 ```

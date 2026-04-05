@@ -5,6 +5,7 @@ import { profiles, requests, requestAiAnalysis, assignments, projects } from "@/
 import { eq, inArray, count, and, isNull } from "drizzle-orm";
 import { DigestPanel } from "@/components/insights/digest-panel";
 import { PmCalibration } from "@/components/insights/pm-calibration";
+import { DesignRoi } from "@/components/insights/design-roi";
 
 const STALL_EXEMPT = new Set(["draft", "completed", "shipped", "blocked"]);
 
@@ -176,6 +177,12 @@ export default async function InsightsPage() {
         <PmCalibration />
       </section>
 
+
+      {/* Design ROI */}
+      <section>
+        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">Design ROI by request type</h2>
+        <DesignRoi />
+      </section>
       {/* Designer workload */}
       {workloadRows.length > 0 && (
         <section>

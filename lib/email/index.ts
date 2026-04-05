@@ -3,8 +3,8 @@ import { figmaDriftEmail } from "./templates";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-const FROM = process.env.EMAIL_FROM ?? "DesignQ <notifications@designq.app>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://designq.app";
+const FROM = process.env.EMAIL_FROM ?? "Lane <notifications@lane.app>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://lane.app";
 
 export { APP_URL };
 

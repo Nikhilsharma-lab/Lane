@@ -112,7 +112,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'DesignQ',
+  title: 'Lane',
   description: 'Multi-persona DesignOps platform',
 }
 
@@ -135,7 +135,7 @@ export default function RootLayout({
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2
+cd /Users/yashkaushal/Lane
 npx tsc --noEmit
 ```
 

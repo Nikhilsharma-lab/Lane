@@ -1476,7 +1476,7 @@ export function PlanDisplay({ plan }: Props) {
             Enterprise — custom seats, Linear integration, dedicated SLA.
           </p>
           <a
-            href="mailto:hello@designq.io?subject=Enterprise%20inquiry"
+            href="mailto:hello@lane.io?subject=Enterprise%20inquiry"
             className="inline-flex items-center text-sm text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded-lg px-4 py-2 transition-colors"
           >
             Contact us →

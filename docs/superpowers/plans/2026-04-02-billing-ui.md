@@ -186,7 +186,7 @@ In `plan-display.tsx`, find `{plan !== "enterprise" && (` — the existing Enter
                   </span>
                 ) : p === "enterprise" ? (
                   <a
-                    href="mailto:yash@designq.io?subject=Enterprise%20inquiry"
+                    href="mailto:yash@lane.io?subject=Enterprise%20inquiry"
                     className="text-xs text-zinc-300 hover:text-white border border-zinc-700 hover:border-zinc-500 rounded px-3 py-1.5 transition-colors w-fit"
                   >
                     Contact us &rarr;
@@ -250,8 +250,8 @@ At the very end of the `return (...)` block, just before the outermost closing `
                 <h3 className="text-base font-semibold text-white">Coming soon</h3>
                 <p className="text-sm text-zinc-400">
                   Online checkout isn&apos;t available yet.{" "}
-                  <a href="mailto:yash@designq.io?subject=Plan%20upgrade" className="text-white underline underline-offset-2 hover:text-zinc-300">
-                    Email yash@designq.io
+                  <a href="mailto:yash@lane.io?subject=Plan%20upgrade" className="text-white underline underline-offset-2 hover:text-zinc-300">
+                    Email yash@lane.io
                   </a>{" "}
                   to upgrade — we&apos;ll get you sorted within 24 hours.
                 </p>
