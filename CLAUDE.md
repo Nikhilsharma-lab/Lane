@@ -1,376 +1,333 @@
-# DesignQ — Complete Product & Development Reference (Updated)
+# DesignQ — Complete Product & Development Reference
+## Version 2.0 | April 2026
 
-**Status:** Pre-launch, live GTM (LinkedIn strong)  
-**Current Sprint:** Weeks 1-4 MVP build (Predesign Phase)  
-**Last Updated:** April 3, 2026  
-**Next Review:** April 15 (Week 2 checkpoint)
-
----
-
-## Design System
-
-Always read `DESIGN.md` before making any visual or UI decisions.
-All font choices, colors, spacing, layout zones, and aesthetic direction are defined there.
-Do not deviate without explicit user approval.
-
-**Quick reference:**
-- Background: `#F8F6F1` warm ivory — NOT white, NOT dark
-- Accent: `#2E5339` deep forest green
-- UI font: **Satoshi** (all human-authored text)
-- Data font: **Geist Mono** (IDs, timestamps, phase tags, version numbers)
-- Layout: 4-zone shell — 48px rail + 256px global pane + flex main + 400px right dock
-- Full spec: `docs/superpowers/specs/2026-04-03-ui-redesign-design.md`
+**Status:** Pre-launch, live GTM (LinkedIn strong)
+**Current Sprint:** Weeks 1-4 MVP build (Foundation + AI Brain)
+**Last Updated:** April 3, 2026
+**Next Review:** April 17 (Week 2 checkpoint)
 
 ---
 
 ## TLDR
 
-DesignQ is an **AI-native design operations command center** organized into **4 phases** based on who's working and what they're doing.
+DesignQ is an **AI-native design operations platform** organized into 4 phases.
 
-**What it does:** PM creates request → Org votes on ideas → Designer designs → Dev builds → PM measures impact
+**What it does:** PM identifies a problem → AI gates solution-specific requests → Org shapes and bets → Designer explores through 5 scientific stages → Dev builds via kanban → PM measures impact
 
-**Who it's for:** Design leaders at startups with 5-15 person teams  
-**Business model:** $99 Starter, $299 Professional, Custom Enterprise (flat-rate, annual prepay)  
-**GTM:** Content-driven (LinkedIn, Twitter/X, Reddit), lead magnet (Chaos Calculator)  
+**Who it's for:** Design leaders at startups with 5-15 person teams
+**Business model:** $99 Starter, $299 Professional, Custom Enterprise
+**GTM:** Content-driven (LinkedIn, Twitter/X, Reddit), lead magnet (Chaos Calculator)
 **Timeline:** 10-15 paying customers by end of 12-week sprint
+
+**Core philosophy:** Support, not surveillance. Designers should feel the tool is on their side.
+
+---
+
+## CRITICAL BUILD RULES
+
+### NEVER Build These (Anti-Surveillance Principles)
+
+These are hard constraints. No exceptions, no "admin toggle," no "optional feature."
+
+```
+❌ NEVER: Individual utilization percentages visible to leads
+❌ NEVER: "Last active" or "last seen" timestamps anywhere
+❌ NEVER: Individual activity feeds visible to anyone except the individual
+❌ NEVER: Per-designer speed comparisons or velocity rankings
+❌ NEVER: Time-per-task tracking or timers
+❌ NEVER: Mouse/click/Figma activity frequency tracking
+❌ NEVER: Automatic escalation of designer silence to leads
+❌ NEVER: "Overdue" labels on design work
+❌ NEVER: Leaderboards ranking individual designers
+❌ NEVER: Notifications to leads when a designer hasn't posted a reflection
+```
+
+### ALWAYS Build These
+
+```
+✅ ALWAYS: AI nudges go to the designer PRIVATELY first
+✅ ALWAYS: Leads see TEAM health signals, not individual surveillance
+✅ ALWAYS: Designers set their own capacity preferences
+✅ ALWAYS: Reflections are the designer's own words, not forced status updates
+✅ ALWAYS: Every AI recommendation includes reasoning (no black boxes)
+✅ ALWAYS: Every AI suggestion is override-able by humans
+✅ ALWAYS: The intake gate blocks solution-specific requests
+✅ ALWAYS: Impact is measured at the PM level, not the designer level
+```
 
 ---
 
 ## Part 1: THE 4-PHASE MODEL
 
-Clear division by **WHO works** and **WHAT they do**:
-
 ```
-PHASE 1: PREDESIGN      (PM + Org)       ← Decide WHAT to build
-PHASE 2: DESIGN         (Designers)      ← Design the solution
-PHASE 3: DEV            (Developers)     ← Build and ship
-PHASE 4: TRACK & IMPACT (PMs)            ← Measure what happened
+PHASE 1: PREDESIGN      (PM + Org)       → Decide WHAT to work on
+PHASE 2: DESIGN         (Designers)      → Explore and solve the problem
+PHASE 3: BUILD          (Developers)     → Build and ship
+PHASE 4: IMPACT         (PMs)            → Measure what happened
 ```
 
----
-
-## PHASE 1: PREDESIGN (PM + Org decides what to build)
-
-**Who:** PMs create requests, Org votes on ideas, Design Head bets  
-**What:** Intake → Context → Shape → Bet  
-**Output:** Clear request + assigned designer ready for design phase
-
-### **Stage 1a: INTAKE**
-PM submits request with clarity:
-- Problem statement (what's the actual problem?)
-- Business goal (why does it matter?)
-- User impact (who's affected?)
-
-System checks: All fields present?  
-If incomplete: Block, show what's missing  
-If complete: Move to CONTEXT
-
----
-
-### **Stage 1b: CONTEXT**
-PM attaches supporting information:
-- User data (surveys, interviews, support tickets)
-- Research (competitive analysis, market trends)
-- Past decisions (why was this tried before?)
-- Metrics (current KPIs, targets)
-
-System checks: Sufficient context for designer to start?  
-If incomplete: Can't move to shaping  
-If complete: Move to SHAPING
-
----
-
-### **Stage 1c: SHAPE**
-PM + Design Head define solution direction (NOT final UI):
-- Rough solution sketch
-- Constraints (budget, technical limits, timeline)
-- Risks (what could go wrong?)
-- Appetite (time budget: 1 week? 2 weeks? 1 month?)
-
-System checks: Direction clear? Constraints listed?  
-If incomplete: Block betting  
-If complete: Concept is "bet-ready"
-
----
-
-### **Stage 1d: BETTING**
-Design Head decides: Build, Kill, or Delay?
-- If approved: Budget allocated, designer assigned
-- If rejected: Archived (can revisit later)
-- If delayed: Moved to backlog
-
-Output: "Ready for design" with assigned designer
-
----
-
-### **IDEA BOARD (Parallel to Predesign)**
-
-**Anyone in org can submit ideas and vote (anonymous):**
+### Detailed Stage Flow
 
 ```
-IDEA BOARD
-├─ Anyone submits idea (title, problem, solution, impact, effort)
-├─ Org votes (anonymous upvotes/downvotes)
-├─ 1-week voting period
-├─ Top-voted idea moves to VALIDATION
-└─ AI + Design Head validate:
-   ├─ Impact score (realistic?)
-   ├─ Effort estimate (correct?)
-   ├─ Feasibility score (doable?)
-   └─ Decision: APPROVE → Auto-create request in PREDESIGN
-```
-
-**Why this matters:**
-- Democratizes idea generation (not just PMs)
-- Org priority votes (not PM politics)
-- Removes roadmap bottleneck
-- Ideas come with real team support
-
----
-
-## PHASE 2: DESIGN (Designers design the solution)
-
-**Who:** Designers (PM, Design Head, team provide feedback)  
-**What:** Explore → Validate → Handoff  
-**Output:** Approved design, ready for dev
-
-### **Stage 2a: EXPLORE**
-Designer creates multiple concepts:
-- v1, v2, v3 designed in parallel
-- Figma files linked to request
-- Team can comment and feedback
-- Designer iterates based on feedback
-
-System checks: At least one concept created?  
-If incomplete: Designer continues exploring (no gate)  
-If ready: Move to VALIDATE
-
----
-
-### **Stage 2b: VALIDATE (3-Sign-Off Gate)**
-
-**All three must approve before moving to dev:**
-
-**Sign-off 1: Designer ✅**
-- Design is complete
-- No open questions
-- Ready for handoff
-
-**Sign-off 2: PM ✅**
-- Design solves original problem
-- Business goal achievable
-- Impact thesis still valid
-
-**Sign-off 3: Design Head ✅**
-- Quality standards met
-- Approach is sound
-- No technical/design debt
-
-If any reject: Sent back to designer with comments  
-If all approve: Move to HANDOFF
-
----
-
-### **Stage 2c: HANDOFF**
-Designer hands off to dev:
-- Figma version locked (baseline for tracking changes)
-- Designer notes attached (specifications, decisions, questions)
-- Dev owner assigned
-- Activity feed initialized
-
-**Critical:** Figma webhook activated to track post-handoff changes
-
-Output: Design locked, ready for dev phase
-
----
-
-## PHASE 3: DEV (Developers build and ship)
-
-**Who:** Developers (Designer stays as observer/supporter)  
-**What:** Dev Kanban board (To Do → Done)  
-**Output:** Feature shipped to production
-
-### **Dev Kanban States**
-
-```
-To Do
-  ↓ Dev starts
-In Progress
-  ↓ Dev submits for review
-In Review
-  ↓ Issues resolved
-QA (optional testing)
-  ↓
-Done (shipped to production)
-```
-
-**Designer's role in dev phase:**
-- Observer in kanban board
-- Comments on design questions
-- Flags if changes needed
-- Reviews post-handoff design updates
-- Unblocks issues if design-related
-
----
-
-### **FIGMA SYNC DURING DEV PHASE (MVP Feature)**
-
-**When designer updates Figma, everyone knows immediately:**
-
-```
-DESIGNER UPDATES FIGMA
-  ↓ (Webhook fires)
-DESIGNQ CAPTURES:
-  ├─ Who: Ananya
-  ├─ When: Mar 28, 2:45 PM
-  ├─ What: Color tokens updated
-  ├─ File: Dark Mode v3
-  └─ Link: [Figma URL]
-
-ACTIVITY FEED UPDATED:
-  🎨 Ananya updated Figma — Mar 28, 2:45 PM
-     Dark Mode v3
-     Changes: Color tokens, font sizes
-     [Link to Figma]
-
-IF POST-HANDOFF:
-  ⚠️ ALERT: Design updated post-handoff
-     Dev review required
-     [View update] [Dev confirm]
-
-NOTIFICATION SENT:
-  ├─ Dev: URGENT (must review)
-  ├─ PM: FYI
-  └─ Design Head: FYI
-```
-
-**Why this matters:**
-- Dev doesn't code against stale Figma
-- Post-handoff changes are explicit (not hidden)
-- Audit trail (who changed what when)
-- Single source of truth (not scattered in Slack)
-
----
-
-## PHASE 4: TRACK & IMPACT (PMs measure results)
-
-**Who:** PMs measure and record  
-**What:** PM enters actual impact, system calculates variance  
-**Output:** Impact recorded, PM calibration updated
-
-### **Stage 4a: MEASURE**
-PM enters actual result:
-```
-Feature: Dark mode for mobile
-Launched: Mar 15
-Predicted impact: +5% retention
-Actual measured impact: +4.2%
-```
-
-System calculates:
-```
-Variance: (4.2 - 5) / 5 = -16%
-PM Score: "This prediction was 16% off (over-optimistic)"
+INTAKE GATE → CONTEXT → SHAPE → BET → [SENSE → FRAME → DIVERGE → CONVERGE → PROVE] → HANDOFF → BUILD → IMPACT
+                                        └───────── Design Phase (non-linear) ─────────┘
 ```
 
 ---
 
-### **Stage 4b: PM CALIBRATION TRACKING**
+## Part 2: PHASE 1 — PREDESIGN (PM + Org)
 
-System tracks PM accuracy over time:
-```
-By end of quarter:
-  PM created 10 ideas
-  Average variance: -12% (consistently over-optimistic)
-  Recommendation: "Calibrate expectations lower"
+### Stage 1: INTAKE GATE
 
-By next quarter:
-  PM created 10 new ideas
-  Average variance: +2% (much better)
-  Status: "Well-calibrated, predictions accurate"
+**The single most important feature:** Requests MUST be problem-framed. Solution-specific requests are blocked.
+
+**AI Classification Logic:**
+
 ```
+INPUT: PM's request text
+
+CLASSIFY AS:
+  "problem_framed"     → passes gate, proceeds to triage
+  "solution_specific"  → BLOCKED, PM sees reframe prompt
+  "hybrid"             → AI extracts problem, flags solution, PM reframes
+
+SIGNALS FOR "solution_specific":
+  - Contains UI element names without problem context ("add a button", "change the color")
+  - Describes implementation ("make it like Stripe", "add a sidebar")
+  - No user problem or business metric mentioned
+  - Starts with "Can we..." + UI change
+
+SIGNALS FOR "problem_framed":
+  - Describes user behavior or business gap
+  - References data, metrics, or research
+  - Asks "why" something is happening
+  - Identifies a pain point without prescribing a solution
+
+SIGNALS FOR "hybrid":
+  - Contains both a problem AND a proposed solution
+  - AI extracts the problem portion, flags the solution portion
+```
+
+**When blocked, show:**
+```
+"This looks like a solution, not a problem. DesignQ works best when
+designers understand the WHY before the WHAT."
+
+Problem detected: [AI's extraction]
+Your proposed solution: [what they wrote]
+
+[Accept AI rewrite] [Edit myself] [Submit anyway with justification]
+```
+
+**After passing gate, AI generates:**
+- Priority (P0-P3) with reasoning
+- Complexity (S/M/L/XL) with reasoning
+- Type (New feature / Iteration / Bug fix / Research needed)
+- Duplicate check (semantic search)
+- Assignment recommendation (capacity + skills + context-switching)
+- Request quality score
+
+### Stage 2: CONTEXT
+
+Living document attached to request:
+- User research, analytics, past decisions (AI auto-links)
+- Competitor data, technical constraints, stakeholder requirements
+- AI generates structured design brief
+
+### Stage 3: SHAPE
+
+Define direction without final UI:
+- Solution direction (rough), constraints, risks, appetite, open questions
+- Non-linear — can loop back to Context
+- AI calibrates appetite against historical data
+
+### Stage 4: BET
+
+Design Head decides per cycle:
+- **Bet** → moves to Design Phase
+- **Kill** → archived with reason
+- **Defer** → auto-resurfaced by AI after N cycles
+
+### IDEA BOARD (Parallel)
+
+- Anyone submits ideas, org votes anonymously
+- 1-week voting period
+- Top ideas → AI + Design Head validate → auto-create request if approved
 
 ---
 
-## Part 2: CORE OBJECTS & DATA MODEL
+## Part 3: PHASE 2 — DESIGN (5 Scientific Stages)
 
-### **Request** (Root object)
-- Problem statement, Business goal, User impact
-- Created by: PM
-- Assigned to: Designer
-- Phase: predesign | design | dev | track
-- Predesign stage: intake | context | shape | bet
-- Design stage: explore | validate | handoff
-- Dev kanban state: todo | in_progress | in_review | qa | done
-- Track stage: measuring | complete
+**These stages are non-linear. Designers move between them freely.**
+**No due dates. Appetites (time budgets) apply to the entire phase, not individual stages.**
+**Progress is captured through reflections, not status updates.**
 
-### **Idea** (Crowd-sourced)
-- Title, Problem, Proposed Solution
-- Author, Category (design | feature | workflow | performance)
-- Upvotes/Downvotes (anonymous)
-- Status: pending_votes | validation | approved | rejected | archived
-- If approved: Links to auto-created request
+### Stage 2a: SENSE
 
-### **Validation Record** (Design phase gate)
-- Designer ✅, PM ✅, Design Head ✅ (all required)
-- Can be approved or rejected with conditions
+**Purpose:** Deep understanding before proposing anything.
 
-### **Figma Update** (NEW - Design phase tracking)
-- Request ID, Figma file URL, file version
-- Who changed, When changed, What changed
-- Phase at update, Stage at update
-- Post-handoff flag (critical in dev phase)
-- Activity entry created automatically
+**Designer produces:** Sensing Summary — insights, reframes, questions
+**Exit signal:** Designer feels ready to frame the problem
+**AI behavior:** Surfaces related research, past decisions. Does NOT rush.
 
-### **Dev Handoff** (Design → Dev transition)
-- Figma version locked
-- Designer notes attached
-- Dev owner assigned
-- Figma webhook activated
+**Build spec:**
+- Read-only view of all context, research, and past related work
+- "Sensing Summary" text field (rich text, supports images)
+- AI sidebar: "Related research", "Past decisions on this area", "Suggested areas to investigate"
+- No time warnings. No "days in stage" counters visible to leads.
 
-### **Impact Record** (Track phase)
-- Request ID, Predicted impact, Actual impact
-- Variance calculated, PM calibration score updated
+### Stage 2b: FRAME
+
+**Purpose:** Define what problem is actually being solved.
+
+**Designer produces:** Design Frame — problem articulation, success criteria, constraints
+**Exit signal:** Clear problem frame exists
+**AI behavior:** Compares designer's frame with PM's original — flags divergence as conversation starter, not error
+
+**Build spec:**
+- "Design Frame" structured form: Problem (designer's words), Success criteria, Constraints, Divergence from PM brief (optional)
+- AI comparison widget: PM's original problem ↔ Designer's frame, with highlighted differences
+- This becomes the north star — referenced in all subsequent stages
+
+### Stage 2c: DIVERGE
+
+**Purpose:** Generate multiple solution directions. Breadth over depth.
+
+**Designer produces:** 2-5+ iterations (Figma links, sketches, descriptions)
+**Exit signal:** Multiple directions exist, designer has formed opinions
+**AI behavior:** Summarizes iterations for stakeholders. Does NOT rank or rate designs.
+
+**Build spec:**
+- Iteration cards: each has Figma link, description, rationale
+- "Add Direction" button — creates new iteration
+- Reflection field: designer's thinking on each direction
+- Comment threads per iteration (PM, eng, other designers)
+- Version control: every Figma update = new version entry
+- AI: "Iteration Summary" button generates stakeholder-friendly overview
+
+### Stage 2d: CONVERGE
+
+**Purpose:** Narrow to refined solution through critique and iteration.
+
+**Designer produces:** Refined design, decision log, edge cases addressed
+**Exit signal:** Designer believes ready for Prove
+**AI behavior:** Auto-generates missing edge cases, flags accessibility gaps, completeness scoring
+
+**Build spec:**
+- "Decision Log" entries: what chosen, what killed, why
+- AI edge case generator: "What happens if...?" suggestions
+- Completeness meter: % of identified states covered (informational, not a gate)
+- Feedback threads continue from Diverge
+
+### Stage 2e: PROVE (Quality Gate)
+
+**Purpose:** 3-sign-off validation before dev.
+
+**Build spec:**
+- 3 sign-off cards: Designer ✅, PM ✅, Design Head ✅
+- Each: Approve / Approve with comments / Request changes
+- If rejected: loops back with structured feedback (logged)
+- Engineering feasibility review (non-blocking, async)
+- AI: auto-generates handoff checklist, conflict detection
+- Request cannot move to Handoff until all 3 sign-offs received
 
 ---
 
-## Part 3: DATABASE SCHEMA (UPDATED)
+## Part 4: PHASE 3 — BUILD
 
-### **requests** (core)
-```javascript
+### Handoff
+
+- Figma version LOCKED (version at Prove completion)
+- Auto-generated handoff doc: specs, edge cases, accessibility, engineering notes
+- Figma webhook activated for post-handoff change detection
+
+### Dev Kanban
+
+```
+To Do → In Progress → In Review → Design QA → Done
+```
+
+- Design QA is REQUIRED — dev cannot ship without designer confirmation
+- Post-handoff Figma changes trigger alerts: dev (urgent), PM (FYI), Design Head (FYI)
+- Change requests go through mini Shape → Prove loop
+
+---
+
+## Part 5: PHASE 4 — IMPACT
+
+### Measure
+
+- AI prompts PM after configured period: "Time to log actual impact"
+- PM enters actual result, system calculates accuracy
+- AI generates impact narrative
+
+### PM Calibration
+
+- Rolling accuracy score per PM
+- Framed as "calibration" not "scoring"
+- Visible to PM + their leads only
+
+---
+
+## Part 6: CORE DATA MODEL
+
+### requests
+```typescript
 {
   id: string,
   
   // Workflow
-  phase: 'predesign' | 'design' | 'dev' | 'track',
+  phase: 'predesign' | 'design' | 'build' | 'impact',
   predesign_stage: 'intake' | 'context' | 'shape' | 'bet',
-  design_stage: 'explore' | 'validate' | 'handoff',
-  kanban_state: 'todo' | 'in_progress' | 'in_review' | 'qa' | 'done',
-  track_stage: 'measuring' | 'complete',
+  design_stage: 'sense' | 'frame' | 'diverge' | 'converge' | 'prove',
+  kanban_state: 'todo' | 'in_progress' | 'in_review' | 'design_qa' | 'done',
+  impact_stage: 'measuring' | 'complete',
+  
+  // Intake gate
+  intake_classification: 'problem_framed' | 'solution_specific' | 'hybrid',
+  intake_ai_rewrite: string | null,
+  intake_original_text: string,
   
   // Assignment
   created_by_pm: string,
-  assigned_to_designer: string,
-  assigned_to_dev: string,
+  assigned_to_designer: string | null,
+  assigned_to_dev: string | null,
   
   // Content
   title: string,
-  problem_statement: string,
+  problem_statement: string,    // Must be problem-framed
   business_goal: string,
-  user_impact: string,
+  user_segment: string,
+  evidence: string,
+  
+  // AI triage
+  ai_priority: 'P0' | 'P1' | 'P2' | 'P3',
+  ai_priority_reasoning: string,
+  ai_complexity: 'S' | 'M' | 'L' | 'XL',
+  ai_complexity_reasoning: string,
+  ai_type: 'new_feature' | 'iteration' | 'bug_fix' | 'research',
+  ai_quality_score: number,     // 0-100
+  
+  // Shape
+  solution_direction: string | null,
+  constraints: string | null,
+  risks: string | null,
+  appetite_days: number | null,
   
   // Figma
-  figma_file_url: string,
-  figma_version_id: string, // Locked at handoff
-  figma_version_locked_at: timestamp,
+  figma_file_url: string | null,
+  figma_version_locked: string | null,
+  figma_locked_at: timestamp | null,
   
-  // From idea board (if applicable)
+  // Idea board link
   linked_idea_id: string | null,
   
   // Impact
-  predicted_impact: string,
-  actual_impact: string,
-  impact_measured_at: timestamp,
+  predicted_impact_metric: string | null,
+  predicted_impact_value: string | null,
+  actual_impact_value: string | null,
+  impact_accuracy: number | null,
+  impact_measured_at: timestamp | null,
   
   // Timestamps
   created_at: timestamp,
@@ -378,598 +335,414 @@ By next quarter:
 }
 ```
 
-### **figma_updates** (NEW)
-```javascript
+### design_frames
+```typescript
+{
+  id: string,
+  request_id: string,
+  designer_problem_articulation: string,
+  success_criteria: string,
+  discovered_constraints: string,
+  divergence_from_pm: string | null,
+  created_at: timestamp,
+  updated_at: timestamp,
+}
+```
+
+### iterations
+```typescript
+{
+  id: string,
+  request_id: string,
+  version_number: number,
+  figma_url: string | null,
+  description: string,
+  rationale: string,
+  reflection: string | null,      // Designer's thinking
+  changelog: string | null,
+  design_stage: string,           // Stage when created
+  created_by: string,
+  created_at: timestamp,
+}
+```
+
+### reflections
+```typescript
+{
+  id: string,
+  request_id: string,
+  author_id: string,
+  content: string,                // Designer's own words
+  stage_at_creation: string,
+  attachments: string[],          // Screenshot URLs
+  created_at: timestamp,
+}
+```
+
+### validations (Prove gate)
+```typescript
 {
   id: string,
   request_id: string,
   
-  // Figma metadata
+  designer_approved: boolean | null,
+  designer_notes: string | null,
+  designer_approved_at: timestamp | null,
+  
+  pm_approved: boolean | null,
+  pm_notes: string | null,
+  pm_approved_at: timestamp | null,
+  
+  design_head_approved: boolean | null,
+  design_head_notes: string | null,
+  design_head_approved_at: timestamp | null,
+  
+  // All 3 must be true to proceed
+  all_approved: boolean,
+  
+  created_at: timestamp,
+  updated_at: timestamp,
+}
+```
+
+### figma_updates
+```typescript
+{
+  id: string,
+  request_id: string,
   figma_file_id: string,
   figma_file_name: string,
   figma_file_url: string,
   figma_version_id: string,
-  
-  // Update details
-  updated_by: string, // Designer who made change
+  updated_by: string,
   updated_at: timestamp,
-  change_description: string, // "Updated color tokens"
-  change_summary: string, // "2 files, 15 components"
-  
-  // Context
-  request_phase: 'design' | 'dev',
-  request_stage: string,
-  
-  // Post-handoff flag
-  post_handoff: boolean, // Critical for dev phase
+  change_description: string,
+  request_phase: 'design' | 'build',
+  post_handoff: boolean,
   dev_reviewed: boolean,
   dev_reviewed_by: string | null,
   dev_review_notes: string | null,
-  
-  // Tracking
-  notification_sent_at: timestamp,
-  activity_feed_entry_created: boolean,
 }
 ```
 
-### **ideas** (Idea Board)
-```javascript
+### ideas
+```typescript
 {
   id: string,
-  
-  // Content
   title: string,
   problem: string,
   proposed_solution: string,
   category: 'design' | 'feature' | 'workflow' | 'performance',
-  
-  // Author
-  author: string,
-  author_display: string | 'anonymous',
-  created_at: timestamp,
-  
-  // Voting
+  author_id: string,
+  anonymous: boolean,
   upvotes: number,
   downvotes: number,
   net_score: number,
   voting_end_date: timestamp,
-  
-  // Estimation
-  user_impact_estimate: string,
-  user_effort_estimate_weeks: number,
-  target_users: string,
-  
-  // Validation
   status: 'pending_votes' | 'validation' | 'approved' | 'rejected' | 'archived',
-  
-  // If approved
   linked_request_id: string | null,
-  
-  validation: {
-    impact_score: number, // 1-10
-    effort_estimate: number,
-    feasibility_score: number,
-    impact_to_effort_ratio: number,
-    decision: 'approved' | 'approved_with_conditions' | 'rejected',
-    validated_by: string,
-    validated_at: timestamp,
-    notes: string,
-  }
+  validation_impact_score: number | null,
+  validation_effort_score: number | null,
+  validation_feasibility_score: number | null,
+  validated_by: string | null,
+  validated_at: timestamp | null,
+  validation_notes: string | null,
+  created_at: timestamp,
+}
+```
+
+### impact_records
+```typescript
+{
+  id: string,
+  request_id: string,
+  pm_id: string,
+  predicted_metric: string,
+  predicted_value: string,
+  actual_value: string,
+  accuracy_percentage: number,
+  narrative: string | null,        // AI-generated
+  measured_at: timestamp,
+  created_at: timestamp,
 }
 ```
 
 ---
 
-## Part 4: FIGMA SYNC FEATURE (Deferred — OAuth approach)
+## Part 7: ROLE-BASED VISIBILITY TABLE
 
-### Why Webhooks Were Dropped
+**This is the bible for what each role sees. Reference before building ANY dashboard or view.**
 
-Figma webhooks require each team to manually register a webhook URL in Figma's developer console. This doesn't scale for multi-tenant SaaS — every new DesignQ customer would need manual setup. **Decision: Replace with Figma OAuth.**
-
-### Planned Approach: Figma OAuth
-
-```
-User clicks "Connect Figma" in DesignQ settings
-  ↓ (OAuth flow)
-DesignQ receives access_token scoped to that user's Figma workspace
-  ↓
-App polls Figma REST API (GET /v1/files/:key/versions) on a schedule
-  OR
-App fetches on demand when user opens request with a Figma URL
-  ↓
-Stores updates in figma_updates table (same schema, works unchanged)
-```
-
-**Why OAuth is better for SaaS:**
-- Zero setup per team — users click "Connect Figma" once
-- Works for every customer automatically
-- No webhook URL registration in Figma dev console
-- Figma access_token stored securely per org
-
-**When to build:** After email notifications and real-time sync. Not blocking anything.
-
-**What was already built (reusable):**
-- `figma_updates` DB table ✅ (works as-is)
-- `FigmaHistory` component ✅ (works as-is)
-- `GET /api/requests/[id]/figma-updates` ✅ (works as-is)
-- `POST .../[updateId]/review` ✅ (works as-is)
-- Webhook route `app/api/figma/webhook/route.ts` → will be replaced by a polling/OAuth flow
-
-### How It Works (OAuth version — future)
-
-**Step 1: Figma OAuth Connection**
-```
-User clicks "Connect Figma" in DesignQ settings
-  ↓
-Redirect to Figma OAuth: https://www.figma.com/oauth?...
-  ↓
-Callback: POST /api/figma/oauth/callback
-  ├─ Exchange code for access_token
-  ├─ Store token against org in DB
-  └─ Mark org as figma_connected = true
-```
-
-**Step 2: Activity Feed Created**
-```
-Automatically creates activity entry:
-  🎨 Ananya updated Figma — Mar 28, 2:45 PM
-     Dark Mode v3
-     Changes: Color tokens, font sizes
-     [Link to Figma]
-```
-
-**Step 3: Post-Handoff Alert** (CRITICAL in dev phase)
-```
-If (request.phase === 'dev' && figma_updated) {
-  ⚠️ Alert: "Design updated post-handoff"
-  Flag: dev_reviewed = false
-  Notify: Dev (URGENT), PM, Design Head
-  Action: Dev must review before continuing
-}
-```
-
-**Step 4: Version History**
-```
-REQUEST: Dark Mode
-├─ Design Versions
-│  ├─ v3 (Mar 28, 2:45 PM) — CURRENT
-│  │  └─ Color tokens, font sizes
-│  │  └─ [Link to Figma]
-│  ├─ v2 (Mar 27, 10:15 AM)
-│  │  └─ Dark background, contrast
-│  │  └─ [Link to Figma]
-│  └─ v1 (Mar 25, 4:30 PM)
-│     └─ Initial design
-│     └─ [Link to Figma]
-```
+| Data Point | Designer (self) | Designer (peer) | PM | Lead | Admin |
+|---|---|---|---|---|---|
+| Own work portfolio | ✅ | ❌ | Status only | ✅ (org tree) | ✅ |
+| Own reflections | ✅ | ❌ | ❌ | ❌ (unless shared) | ❌ |
+| Own capacity preference | ✅ | ❌ | ❌ | ✅ (org tree) | ✅ |
+| Team health signals | ❌ | ❌ | ❌ | ✅ (org tree) | ✅ |
+| Individual utilization % | ❌ | ❌ | ❌ | ❌ (NEVER) | ❌ (NEVER) |
+| "Last active" timestamp | ❌ | ❌ | ❌ | ❌ (NEVER) | ❌ (NEVER) |
+| Per-designer speed ranking | ❌ | ❌ | ❌ | ❌ (NEVER) | ❌ (NEVER) |
+| Request status (their requests) | N/A | N/A | ✅ | ✅ | ✅ |
+| PM accuracy score | N/A | N/A | ✅ (own) | ✅ (org tree) | ✅ |
+| PM request quality score | N/A | N/A | ✅ (own) | ✅ (org tree) | ✅ |
+| Dev kanban | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Impact records | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Idea Board | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Betting Board | View only | View only | View only | ✅ (decide) | ✅ |
+| AI morning briefing | ✅ (own) | ❌ | ✅ (own) | ✅ (team) | ✅ |
 
 ---
 
-## Part 5: UI/UX VIEWS
+## Part 8: UI LANGUAGE GUIDE
 
-### **Request Detail Page**
-```
-REQUEST: Dark Mode for Mobile
-├─ Phase: DESIGN | Designer: Ananya | Status: Validating
-│
-├─ FIGMA FILES (NEW)
-│  ├─ 📄 Dark Mode v3 (CURRENT)
-│  │  └─ Updated: Mar 28, 2:45 PM by Ananya
-│  │  └─ Changes: Color tokens, font sizes
-│  │  └─ [🔗 Open in Figma]
-│  │
-│  └─ 📄 Dark Mode v2
-│     └─ Updated: Mar 27, 10:15 AM
-│     └─ [🔗 Open in Figma]
-│
-├─ VALIDATION GATE (Design phase)
-│  ├─ Designer: ✅ Approved
-│  ├─ PM: ⏳ Pending
-│  └─ Design Head: ⏳ Pending
-│
-└─ ACTIVITY FEED
-   ├─ 🎨 Ananya updated Figma — Mar 28, 2:45 PM
-   │  └─ [Link to Figma]
-   │
-   ├─ 💬 Raj commented — Mar 27, 11:20 AM
-   │  └─ "Looks good"
-   │
-   └─ 🎨 Ananya created design — Mar 25, 4:30 PM
-```
+**Use these terms in all UI copy, labels, buttons, and empty states.**
 
-### **Dev Phase View** (With Post-Handoff Alerts)
-```
-REQUEST: Dark Mode for Mobile
-├─ Phase: DEV | Dev: John | Kanban: In Review
-│
-├─ ⚠️ ALERT: Design updated post-handoff
-│  └─ Ananya updated Figma on Mar 28
-│  └─ Dev review required
-│  └─ [View Update] [Dev Confirm Reviewed]
-│
-├─ FIGMA CHANGES (Post-Handoff)
-│  └─ Color tokens v3 (Mar 28, 2:45 PM)
-│  └─ Status: ⏳ Dev reviewing
-│  └─ [Link to Figma]
-│
-└─ DEV KANBAN
-   ├─ To Do (2 items)
-   ├─ In Progress (3 items)
-   ├─ In Review (1 item) ← We are here
-   ├─ QA (0 items)
-   └─ Done (2 items)
-```
+| Instead of... | We say... | Why |
+|---|---|---|
+| Ticket | Request | Requests come from people with problems |
+| Task | Work item | Design isn't a task to check off |
+| Overdue | Appetite exceeded | Budgets, not deadlines |
+| Due date | Appetite | Design has budgets, not deadlines |
+| Status update | Reflection | Designers share thinking |
+| Sprint | Cycle | Less pressure, same cadence |
+| Velocity | Throughput | Output, not speed |
+| Assign | Recommend + Approve | AI recommends, humans approve |
+| Utilization | Capacity | People have capacity |
+| Performance | Health | Teams have health signals |
+| Productivity | Impact | Outcomes, not output |
+| Activity log | Timeline | Story of the work |
+| Backlog | Deferred | Nothing rots |
+| Blocked | Needs input | Agency, not helplessness |
+
+**Empty state copy examples:**
+- Designer with no work: "You're clear. Time to think, learn, or help a teammate."
+- No reflections yet: "When you're ready, share what you're thinking. No rush."
+- PM with no active requests: "All clear. Good time to review your impact data."
+
+**AI nudge tone:**
+- ✅ "Hey — it's been a while since the checkout flow got some attention. Everything okay? [I'm blocked] [Still thinking] [Forgot to update]"
+- ❌ "You haven't updated the checkout flow in 5 days. Please update your status."
+- ✅ "The lending flow is approaching its appetite. Want to adjust, or is it wrapping up?"
+- ❌ "OVERDUE: Lending flow has exceeded its deadline by 2 days."
 
 ---
 
-## Part 6: CHECKPOINTS & GATES
+## Part 9: AI CAPABILITIES
 
-### **Phase 1: Predesign**
-- ✅ Intake gate: Problem clear?
-- ✅ Context gate: Context sufficient?
-- ✅ Shaping gate: Direction sound?
-- ✅ Betting gate: Design Head approves?
-- ✅ Idea validation gate: Upvoted idea validated?
+### 1. Intake Gate Classification
+Classifies requests as problem_framed / solution_specific / hybrid.
+Blocks solution-specific. Suggests reframes. Extracts problems from hybrids.
 
-### **Phase 2: Design**
-- ✅ Exploration gate: Concepts explored?
-- ✅ Validation gate: All 3 sign-offs received?
-- ✅ Handoff gate: Figma locked, notes complete?
+### 2. Auto-Triage
+Priority, complexity, type — all with reasoning. Not dropdowns.
 
-### **Phase 3: Dev**
-- ✅ Dev execution gate: Kanban moving?
-- ✅ Post-handoff alert: Designer changed Figma? Flag it!
-- ✅ Dev review gate: Dev confirms design update reviewed?
+### 3. Duplicate Detection
+Semantic search (pgvector embeddings) across all requests.
 
-### **Phase 4: Track**
-- ✅ Impact gate: Impact measured?
+### 4. Smart Assignment
+Capacity + skills + context-switching cost + growth opportunity.
+Presents options with reasoning. Lead approves.
 
----
+### 5. Request Quality Scoring
+Completeness, evidence strength, clarity. Builds PM accountability.
 
-## Part 7: AI CAPABILITIES
+### 6. Private Designer Nudges
+Contextual, friendly, private. Never escalated to leads automatically.
 
-### **1. Problem Rewriting**
-Turns: "Button not working"  
-Into: "Users drop off at payment step (32% failure rate)"
-
-### **2. Idea Validation** (Idea Board)
-- Impact score: Is prediction realistic?
-- Effort estimate: Is timeline reasonable?
-- Feasibility: Can we build this?
-
-### **3. Figma Change Detection** (NEW)
-- Monitors Figma updates
-- Flags post-handoff changes
-- Alerts relevant people
-
-### **4. Weekly Designer Report** (KILLER FEATURE)
-Auto-generated every Friday:
+### 7. Weekly Digest (KILLER FEATURE — BIGGEST MOAT)
+Auto-generated every Friday. Narrative format:
 ```
 📊 WEEKLY DESIGN TEAM DIGEST
 
 🚢 SHIPPED THIS WEEK
-• Dark Mode (Ananya) — 5 days, ₹2.3Cr impact
-• Holi banners (Sneha) — 2 days, ₹800Cr impact
+• Dark Mode (Ananya) — impact: ₹2.3Cr estimated
+• Holi banners (Sneha) — impact: ₹800Cr estimated
 
 🧠 TEAM HEALTH
 Throughput: 4 items/week ✅
-Avg cycle time: 3.8 days 📈
-
-⭐ STANDOUT
-✅ Sneha: Fastest output
-✅ Ananya: Highest impact
+Capacity: 2 designers stretched, 1 available
 
 💡 RECOMMENDATIONS
-1. Reassign Payments work to Ananya
-2. Riya ready for mid-level growth
-3. Deepak needs estimation coaching
+1. Reassign Payments work — Ananya approaching appetite limit
+2. Checkout redesign entering Converge — PM review needed soon
+3. 2 requests deferred 3+ cycles — decision needed
 ```
 
-### **5. PM Calibration Tracking**
-- Predicted vs. actual impact
-- Variance calculation
-- PM accuracy score
-- Recommendations for improvement
+### 8. Morning Briefing
+Daily 30-second brief, role-specific. Pushed, not pulled.
+
+### 9. Impact Comparison
+Predicted vs. actual, narrative generation, PM calibration.
+
+### 10. Edge Case Generator
+"What happens if...?" suggestions during Converge stage.
+
+### 11. Handoff Checklist
+Auto-generated from design file analysis. Missing states, accessibility gaps.
+
+### 12. Idea Validation
+Scores ideas on impact, effort, feasibility. Recommends approve/reject.
 
 ---
 
-## Part 8: COMPETITIVE DIFFERENTIATION
+## Part 10: FIGMA SYNC (Build Phase)
 
-| Aspect | Jira/Linear | DesignQ |
-|--------|---|---|
-| **Optimizes for** | Task speed | Decision quality |
-| **Core unit** | Task | Request (9-phase thinking) |
-| **Workflow** | Kanban only | 4 phases (Predesign → Design → Dev → Track) |
-| **Design focus** | No | Yes (3 checkpoints in design phase) |
-| **Figma integration** | None | Real-time sync + activity feed |
-| **Post-handoff tracking** | None | Designer + Figma sync + dev alerts |
-| **PM accountability** | None | Calibration tracking |
-| **Idea sourcing** | PM only | Org-wide voting (Idea Board) |
-| **Impact measurement** | None | Built-in impact tracking |
+### How It Works
+
+```
+Designer updates Figma
+  → Figma webhook fires → POST /api/figma/webhook
+  → Verify signature, extract metadata
+  → Create figma_updates entry
+  → If post-handoff: set alert flag, notify dev (urgent)
+  → Create activity timeline entry
+```
+
+### Post-Handoff Alert Logic
+```typescript
+if (request.phase === 'build' && figma_updated) {
+  // Alert: "Design updated post-handoff"
+  // dev_reviewed = false
+  // Notify: dev (URGENT), PM (FYI), design head (FYI)
+  // Dev must confirm review before continuing
+}
+```
 
 ---
 
-## Part 9: TECHNICAL STACK
+## Part 11: TECHNICAL STACK
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14 (App Router) |
-| Database | Supabase (PostgreSQL via Drizzle ORM) |
-| Auth | Supabase Auth + `@supabase/ssr` |
-| AI | Claude via Vercel AI SDK |
+| Framework | Next.js 14 (App Router) + TypeScript |
+| Database | Supabase (PostgreSQL) |
+| ORM | Drizzle ORM + pgvector (duplicate detection) |
+| Auth | Supabase Auth + @supabase/ssr |
+| AI | Claude API via Vercel AI SDK |
 | Styling | Tailwind CSS + shadcn/ui |
 | Hosting | Vercel |
-| Real-time | Supabase Realtime (Postgres Changes via WebSocket) |
-| Email | Resend (silent no-op if `RESEND_API_KEY` not set) |
-
-### Real-time Architecture
-
-All real-time updates use **Supabase Realtime + `router.refresh()`** — no client-side state management, no polling.
-
-How it works:
-1. Client subscribes to Postgres Changes on relevant tables (filtered by `requestId` or `orgId`)
-2. Supabase pushes a WebSocket event when a row changes
-3. Hook calls `router.refresh()` → Next.js re-runs server components → fresh data rendered
-
-**Components:**
-- `hooks/use-realtime-request.ts` — subscribes to `requests`, `comments`, `validation_signoffs`, `figma_updates` filtered by `requestId`
-- `hooks/use-realtime-dashboard.ts` — subscribes to `requests` filtered by `org_id`
-- `components/realtime/realtime-request.tsx` + `realtime-dashboard.tsx` — invisible client wrappers (`return null`) that mount the hooks
-
-**⚠️ If real-time stops working between tabs:**
-Go to Supabase dashboard → Database → Replication and verify these tables are toggled ON in the `supabase_realtime` publication:
-- `requests`
-- `comments`
-- `validation_signoffs`
-- `figma_updates`
-
-This is on by default for new Supabase projects but can get switched off.
+| Cache | Upstash Redis |
+| Email | Resend |
+| Payments | Stripe (post-beta) |
+| Figma | Figma API + Vercel Functions (webhook) |
 
 ---
 
-## Part 10: PROJECT STRUCTURE
+## Part 12: PROJECT STRUCTURE
 
 ```
 app/
   (auth)/login/
   (auth)/signup/
-  (dashboard)/dashboard/
-  (dashboard)/requests/[id]/    ← Shows 4-phase progress
-  (dashboard)/idea-board/
+  (dashboard)/
+    dashboard/                  ← My Work (role-specific home)
+    requests/[id]/              ← Request detail (full timeline)
+    requests/new/               ← Create request (intake gate)
+    idea-board/
+    betting-board/
+    capacity/
+    impact/
   actions/auth.ts
   api/
     requests/route.ts
     ideas/route.ts
-    figma/webhook.ts            ← NEW (Figma sync)
+    figma/webhook.ts
+    ai/triage/route.ts
+    ai/classify/route.ts       ← Intake gate classification
+    ai/digest/route.ts
   layout.tsx
 
 components/
   requests/
+  design-phase/
+    sense/
+    frame/
+    diverge/
+    converge/
+    prove/
   ideas/
-  figma/                         ← NEW (activity feed, alerts)
+  figma/
+  kanban/
+  ai/
   ui/
 
 db/
   schema/
     users.ts
     requests.ts
+    design-frames.ts
+    iterations.ts
+    reflections.ts
+    validations.ts
+    figma-updates.ts
     ideas.ts
-    figma_updates.ts            ← NEW
+    impact-records.ts
 
 lib/
   ai/
+    classify-intake.ts          ← Problem vs. solution classification
     triage.ts
+    duplicate-detect.ts
+    assignment.ts
+    quality-score.ts
+    nudge.ts
+    digest.ts
+    briefing.ts
+    edge-cases.ts
+    handoff-checklist.ts
     idea-validator.ts
-    designer-report.ts
-  figma/                         ← NEW
+  figma/
     webhook-handler.ts
     sync.ts
   supabase/
+    client.ts
+    server.ts
 ```
 
 ---
 
-## Part 11: DEVELOPMENT PHILOSOPHY
+## Part 13: DEVELOPMENT PHILOSOPHY
 
 ### Founder-Built, AI-Assisted
 
 - **Simplicity > cleverness:** Monolith beats microservices
-- **Third-party > custom:** Lean on Supabase, Figma API
+- **Third-party > custom:** Lean on Supabase, Vercel, Figma API
 - **Ship 70%:** Iterate on customer feedback
 - **Specs matter:** AI builds to spec; vague specs = vague code
+- **Warm cream design system** — `#F8F6F1` base, `#2E5339` forest green accent, Satoshi + Geist Mono fonts. See DESIGN.md for full token system.
+- **Type safety:** Let TypeScript catch errors
+- **Server components by default**, client only for interactivity
+- **Secrets in .env.local** (gitignored)
 
 ### Code Conventions
 
-- Server components by default
-- Client components only for interactivity
-- Dark theme everywhere
-- Type safety: Let TypeScript catch errors
-- Secrets in `.env.local` (gitignored)
+- Use Drizzle ORM for all DB operations
+- Use shadcn/ui for all UI components
+- Use Tailwind CSS utilities (no custom CSS unless necessary)
+- Server actions for mutations, API routes for webhooks
+- All AI calls go through lib/ai/ functions
+- Git: push to main → auto-deploy to Vercel
 
 ---
 
-## Part 12: BUSINESS MODEL
+## Part 14: BUSINESS MODEL
 
 ### Pricing (Flat-Rate)
 - **Starter:** $99/month (1-3 person design team)
 - **Professional:** $299/month (4-10 person team)
-- **Enterprise:** Custom (10+ seats, Linear integration, SLA)
+- **Enterprise:** Custom (10+ seats, SLA)
 
 Annual prepay: 8% discount
 
 ### GTM
 - **Lead funnel:** Content → DM → Chaos Calculator → Email → Trial → Paid
-- **Growth:** Content-driven, referrals, partnerships
+- **Channels:** LinkedIn (primary), Twitter/X, Reddit
+- **CTA:** "DM me CHAOS"
 - **Not doing:** Paid ads, enterprise sales
 
-### Revenue Model (Lifestyle)
-- Phase 1 (0-5K MRR): MVP → PMF
-- Phase 2 (5-10K MRR): Reduce churn, integrations
-- Phase 3 (10-20K MRR): Mature, reliable automation
-
 ---
 
-## Part 13: FEATURE ROADMAP (UPDATED)
-
-### **Week 1-4: PREDESIGN Phase (MVP Table-Stakes)**
-- [x] Request intake (PM creates request)
-- [x] AI triage (priority, complexity, type)
-- [x] Context attachment (research, data)
-- [x] Shaping (PM + Design Head define direction)
-- [x] Betting (Design Head assigns designer)
-- [x] Idea Board (org votes on ideas)
-- [x] Idea validation (AI validates upvoted ideas)
-
-### **Week 5-8: DESIGN Phase + Figma Sync**
-- [x] Exploration (designer creates multiple concepts)
-- [x] Figma linking (where's the design file?)
-- [x] Validation gate (3 sign-offs: Designer ✅, PM ✅, Design Head ✅)
-- [x] Handoff to dev (Figma locked, notes attached)
-- [x] Figma history UI (FigmaHistory component, figma_updates table, post-handoff review)
-- [ ] **FIGMA OAUTH** ← replaces webhook approach (connect once, polls Figma REST API — no per-team setup required)
-
-### **Week 9-12: DEV Phase + Track Phase**
-- [ ] Dev kanban board (To Do → In Progress → In Review → QA → Done)
-- [ ] Designer post-handoff support
-- [ ] Impact tracking (PM measures actual impact)
-- [ ] PM calibration (variance calculated, accuracy tracked)
-- [ ] AI weekly report (designers shipped, team health, recommendations)
-
-### **Month 4+: Enhancements (DEFER)**
-- [ ] Slack notifications (use Zapier initially)
-- [ ] Email digests (not MVP priority)
-- [ ] Linear integration (Phase 3, Month 3)
-- [ ] Designer performance dashboard
-- [ ] Duplicate detection (embeddings-based)
-
----
-
-## Part 14: WHAT WE'RE NOT BUILDING (MVP)
-
-### **GENUINELY NOT BUILT YET (Priority order):**
-
-```
-🔴 Figma OAuth
-   └─ Replaces webhook approach
-   └─ Needed before onboarding customers (manual webhook setup doesn't scale)
-   └─ User clicks "Connect Figma" once → DesignQ registers webhook automatically
-   └─ Sub-project: spec + plan exist, not yet implemented
-
-🔴 Billing & Subscription (Sub-project 2)
-   └─ Stripe integration
-   └─ Plan management (Starter $99 / Pro $299 / Enterprise custom)
-   └─ Invoice history, upgrade/downgrade flow
-   └─ Build after first 3 paying customers ask for it
-
-🟡 Projects concept (Sub-project 3)
-   └─ An org can have multiple product lines (e.g. rider app, driver app, B2B portal)
-   └─ Requests scoped to a project within an org
-   └─ Brainstorm + spec needed before building
-```
-
-### **OPERATIONAL TODO (no code needed):**
-
-```
-⚙️  Activate email notifications in production
-   └─ Add RESEND_API_KEY to Vercel (get from resend.com, free tier = 3k emails/month)
-   └─ Add EMAIL_FROM = "DesignQ <notifications@yourdomain.com>"
-   └─ Add NEXT_PUBLIC_APP_URL = your Vercel deployment URL
-   └─ Redeploy → test by sending an invite
-```
-
-### **DEFER to Phase 2+ (After Month 3):**
-
-```
-❌ Slack notifications
-   └─ Can use Zapier temporarily
-   └─ Build native only if high customer demand
-
-❌ Email digest
-   └─ Activity feed in-app is sufficient for MVP
-   └─ Add weekly email later
-
-❌ Linear integration (native)
-   └─ Plan for Month 3
-   └─ Not needed for MVP
-
-❌ Designer performance dashboard
-   └─ AI weekly digest covers this for MVP
-   └─ Build dedicated view after PMF
-
-❌ Duplicate detection
-   └─ Embeddings-based, complex to build
-   └─ Defer until request volume justifies it
-
-❌ Auto-comment in Figma
-   └─ Nice but low ROI
-   └─ Figma notifications already exist
-
-❌ Detailed change diffs
-   └─ Too complex for MVP
-   └─ Link to Figma is enough
-
-❌ Version comparison tool
-   └─ Too nice-to-have
-   └─ Can defer 6+ months
-
-❌ Advanced config options
-   └─ Start with sensible defaults
-   └─ Add toggles later if asked
-
-❌ Figma plugin
-   └─ Defer 6+ months
-   └─ Link from web app is enough
-```
-
----
-
-## Part 15: FIGMA SYNC IMPLEMENTATION (Week 5-8)
-
-### **What Actually Gets Built:**
-
-**Week 5-6: Figma Webhook**
-```javascript
-// 1. Receive Figma webhook
-POST /api/figma/webhook
-  ├─ Verify Figma signature
-  ├─ Extract: file_id, timestamp, user_id
-  ├─ Create figma_updates DB entry
-  ├─ Set post_handoff flag if request.phase === 'dev'
-  └─ Return 200 OK
-
-// 2. Store in DB
-INSERT figma_updates {
-  request_id,
-  figma_file_url,
-  updated_by,
-  updated_at,
-  change_description,
-  post_handoff,
-}
-
-// 3. Create activity feed entry
-Automatic activity feed display:
-  "🎨 Ananya updated Figma"
-```
-
-**Week 7: Post-Handoff Alert Logic**
-```javascript
-// When figma update received
-if (request.phase === 'dev') {
-  ⚠️ Alert: "Design updated post-handoff"
-  flag: dev_reviewed = false
-  notify: dev (urgent), pm, design head
-}
-```
-
-**Week 8: Test + Ship**
-- Test Figma webhook in staging
-- Test post-handoff alert logic
-- Ship to production
-
----
-
-## Part 16: ENVIRONMENT VARIABLES
+## Part 15: ENVIRONMENT VARIABLES
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
@@ -995,17 +768,9 @@ FIGMA_CLIENT_SECRET=
 # FIGMA_WEBHOOK_TOKEN removed — webhook approach dropped in favour of OAuth
 ```
 
-### Email activation checklist (TODO)
-- [ ] Sign up at resend.com → copy API key → add as `RESEND_API_KEY` in Vercel
-- [ ] Verify sending domain in Resend dashboard (or use `onboarding@resend.dev` to test first)
-- [ ] Set `EMAIL_FROM` to `DesignQ <notifications@yourdomain.com>`
-- [ ] Set `NEXT_PUBLIC_APP_URL` to the live Vercel URL
-- [ ] Redeploy on Vercel to pick up new env vars
-- [ ] Test by creating an invite — should receive email at the invited address
-
 ---
 
-## Part 17: COMMON COMMANDS
+## Part 16: COMMON COMMANDS
 
 ```bash
 npm run dev
@@ -1019,38 +784,87 @@ npm run start
 
 ---
 
-## Part 18: WHAT'S BUILT (As of Session 2)
+## Part 17: WHAT'S BUILT (As of Session 2)
 
 - [x] Next.js 14 scaffolded, Vercel deployed
 - [x] Supabase auth
-- [x] Drizzle ORM schema
-- [x] Request intake + AI triage
-- [x] Dashboard
+- [x] Drizzle ORM schema (needs update for v2 stages)
+- [x] Request intake + AI triage (needs intake gate update)
+- [x] Dashboard (needs role-specific "My Work" update)
 - [x] Auth middleware
 
 ---
 
-## Part 19: WHAT'S NEXT (Weeks 1-12)
+## Part 18: WHAT'S NEXT (Build Sequence)
 
-- [ ] Context attachment
-- [ ] Shaping stage
-- [ ] Betting stage
-- [ ] Idea Board (submit, vote, validate)
-- [ ] Design phase (explore, validate, handoff)
-- [ ] **Figma Sync** (activity feed, post-handoff alerts)
-- [ ] Dev kanban board
-- [ ] Impact tracking
+### Week 1-2: Foundation
+- [ ] Update schema for v2 (design stages, design_frames, reflections, validations)
+- [ ] Intake gate (problem vs. solution classification)
+- [ ] Request creation with gate logic
+- [ ] Role-specific "My Work" home
+- [ ] Org tree + visibility cascade
+
+### Week 3-4: AI Brain
+- [ ] AI intake classification (classify-intake.ts)
+- [ ] AI auto-triage (priority, complexity, type)
+- [ ] Duplicate detection (pgvector)
+- [ ] Assignment recommendation
+- [ ] Request quality scoring
+
+### Week 5-6: Design Phase
+- [ ] 5-stage design flow (Sense → Frame → Diverge → Converge → Prove)
+- [ ] Design Frame creation
+- [ ] Iteration management
+- [ ] Reflection system
+- [ ] Feedback threads
+- [ ] Figma link management
+- [ ] 3-sign-off Prove gate
+
+### Week 7-8: Build + Impact
+- [ ] Dev kanban (To Do → Design QA → Done)
+- [ ] Handoff doc generation
+- [ ] Figma webhook + post-handoff alerts
+- [ ] Impact logging
 - [ ] PM calibration
-- [ ] AI weekly report
+
+### Week 9-10: The Voice
+- [ ] Weekly AI digest
+- [ ] Private designer nudges
+- [ ] Capacity dashboard
+- [ ] Idea Board
+
+### Week 11-12: Polish + Beta
+- [ ] Morning briefing
+- [ ] Betting board view
+- [ ] Journey view
+- [ ] Bug fixes, performance
+
+---
+
+## Part 19: WHAT WE'RE NOT BUILDING (MVP)
+
+```
+❌ Slack notifications → use Zapier temporarily
+❌ Email digest → activity feed in-app is enough
+❌ Auto-comment in Figma → low ROI
+❌ Detailed Figma change diffs → link to Figma is enough
+❌ Version comparison tool → defer 6+ months
+❌ Linear integration → Month 3
+❌ Figma plugin → defer 6+ months
+❌ Mobile app → responsive web only
+❌ Individual utilization % → NEVER (anti-surveillance)
+❌ Activity frequency tracking → NEVER (anti-surveillance)
+❌ Designer speed rankings → NEVER (anti-surveillance)
+```
 
 ---
 
 ## Part 20: FOUNDER CONTEXT
 
 - **Role:** Head of Product Design at Airtel Payments Bank (full-time)
-- **Building:** DesignQ as side project (50% time post-MVP)
+- **Building:** DesignQ as side project
 - **Stage:** Live GTM, leads flowing in
-- **Team:** Solo, non-technical, vibe-coding with Cursor + Claude Code
+- **Team:** Solo, vibe-coding with Cursor + Claude Code
 - **Timeline:** 12-week plan; MVP by Week 4; 10-15 customers by Week 12
 - **Goal:** $5-20K MRR lifestyle business
 
@@ -1058,60 +872,22 @@ npm run start
 
 ## Part 21: UPDATE SCHEDULE
 
-**Weekly (Monday):**
-- Update "What's built" (add shipped features)
-- Update metrics (signups, churn)
-- Time: 15 min
-
-**Bi-weekly:**
-- Update roadmap (move completed items)
-- Update business metrics
-- Time: 30 min
-
-**Monthly:**
-- Update founder context (learnings, pivots)
-- Reprioritize roadmap
-- Time: 1 hour
-
-**Quarterly:**
-- Full vision review
-- Pricing review
-- Timeline review
-- Time: 2 hours
+**Weekly (Monday):** Update "What's built", metrics. 15 min.
+**Bi-weekly:** Update roadmap, business metrics. 30 min.
+**Monthly:** Update founder context, reprioritize. 1 hour.
+**Quarterly:** Full vision, pricing, timeline review. 2 hours.
 
 ---
 
-## SUMMARY: The 4-Phase Model
+## SUMMARY
 
-**PHASE 1: PREDESIGN**
-- PM creates request (problem → goal → user impact)
-- Org votes on ideas (Idea Board)
-- Design Head shapes + bets
-- Output: "Ready for design" request + designer assigned
+**The one thing to remember:**
 
-**PHASE 2: DESIGN**
-- Designer explores multiple concepts
-- Team provides feedback
-- Validation gate (3 sign-offs)
-- Figma files linked, updates tracked
-- Output: Approved design + Figma locked
+DesignQ is a tool where PMs bring problems (not solutions), designers explore scientifically (not execute tickets), and leads see team health (not individual surveillance). The AI runs operations. Humans steer.
 
-**PHASE 3: DEV**
-- Dev uses kanban board (To Do → Done)
-- Designer stays involved (observer, supporter)
-- **Figma Sync:** If design changes post-handoff → Alert dev
-- Output: Feature shipped to production
-
-**PHASE 4: TRACK & IMPACT**
-- PM measures actual impact
-- System calculates variance
-- PM calibration score updated
-- AI weekly report generated
-- Output: Impact recorded, accountability tracked
+*Surveillance produces performance. Support produces truth. DesignQ optimizes for truth.*
 
 ---
 
-**Last Updated:** April 1, 2026  
-**Status:** Ready for Phase 1 (Predesign build, Weeks 1-4)  
-**Next Checkpoint:** April 15 (Week 2)  
-**Version:** 4.0 (4-Phase Model + Figma Sync MVP)
+**Version 2.0 | April 2026**
+**Previous: v1.1 (March 2026)**
