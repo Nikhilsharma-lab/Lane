@@ -73,8 +73,8 @@ export async function POST(
           enteredAt: new Date(),
           completedById: user.id,
         });
+        await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Bet approved — Design Phase started (Exploration)", isSystem: true });
       });
-      await addSystemComment(requestId, "⭢ Bet approved — Design Phase started (Exploration)");
     } else {
       const next = PREDESIGN_STAGES[currentIdx + 1];
       await db.transaction(async (tx) => {
@@ -92,11 +92,8 @@ export async function POST(
           enteredAt: new Date(),
           completedById: user.id,
         });
+        await tx.insert(comments).values({ requestId, authorId: null, body: `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`, isSystem: true });
       });
-      await addSystemComment(
-        requestId,
-        `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
-      );
     }
 
     return NextResponse.json({ success: true });
@@ -142,11 +139,8 @@ export async function POST(
           enteredAt: new Date(),
           completedById: user.id,
         });
+        await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Design handed off — Figma locked, Dev kanban opened", isSystem: true });
       });
-      await addSystemComment(
-        requestId,
-        "⭢ Design handed off — Figma locked, Dev kanban opened"
-      );
 
       // Notify all assignees about the handoff
       const assignedRows = await db.select().from(assignments).where(eq(assignments.requestId, requestId));
@@ -184,11 +178,8 @@ export async function POST(
           enteredAt: new Date(),
           completedById: user.id,
         });
+        await tx.insert(comments).values({ requestId, authorId: null, body: `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`, isSystem: true });
       });
-      await addSystemComment(
-        requestId,
-        `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
-      );
 
       // When entering validate stage, notify all signers
       if (next === "validate") {
@@ -253,8 +244,8 @@ export async function POST(
         enteredAt: new Date(),
         completedById: user.id,
       });
+      await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Dev complete — shipped to Track phase", isSystem: true });
     });
-    await addSystemComment(requestId, "⭢ Dev complete — shipped to Track phase");
     return NextResponse.json({ success: true });
   }
 
@@ -267,15 +258,17 @@ export async function POST(
         { status: 422 }
       );
     }
-    await db
-      .update(requests)
-      .set({
-        trackStage: "complete",
-        status: "shipped",
-        updatedAt: new Date(),
-      })
-      .where(eq(requests.id, requestId));
-    await addSystemComment(requestId, "✅ Impact recorded — request complete");
+    await db.transaction(async (tx) => {
+      await tx
+        .update(requests)
+        .set({
+          trackStage: "complete",
+          status: "shipped",
+          updatedAt: new Date(),
+        })
+        .where(eq(requests.id, requestId));
+      await tx.insert(comments).values({ requestId, authorId: null, body: "✅ Impact recorded — request complete", isSystem: true });
+    });
     return NextResponse.json({ success: true });
   }
 
@@ -312,8 +305,4 @@ function checkPredesignGate(
       break;
   }
   return null;
-}
-
-async function addSystemComment(requestId: string, body: string) {
-  await db.insert(comments).values({ requestId, authorId: null, body, isSystem: true });
 }
