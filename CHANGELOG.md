@@ -7,6 +7,26 @@ All notable changes are documented here. Update this file with every PR before m
 
 ---
 
+## 2026-04-05 — Security fixes, token encryption, repo cleanup
+
+### Security
+- Block leads from issuing `lead` or `admin` invites — vertical privilege escalation where a lead could grant themselves or others admin-level roles (PR #9)
+- Hard-disable multi-role testing override in production via `NODE_ENV !== "production"` guard — env var alone was insufficient as it could be set on Vercel (PR #10)
+- Wrap all phase transitions in `db.transaction()` — request state update + stage history insert are now atomic; partial writes can no longer leave requests in inconsistent state (PR #11)
+- Move system comment inserts inside transactions — comments are now written atomically with the state change they describe (PR #11)
+- Encrypt Figma OAuth tokens at rest using AES-256-GCM (`lib/encrypt.ts`) — tokens were previously stored as plaintext in `figma_connections.access_token` (PR #12)
+
+### Migration note (PR #12)
+Any orgs with existing plaintext Figma tokens must reconnect Figma after deploy. Set `FIGMA_TOKEN_ENCRYPTION_KEY` (64 hex chars) in Vercel env vars before deploying.
+
+### Docs
+- Full README rewrite — reflects current 4-phase product model, anti-surveillance philosophy, accurate setup instructions, and correct env vars
+- Incorporate brand story ("Engineering teams have Linear...") into README
+- Remove internal documents from public repo (CLAUDE.md, PRD, plans, specs) — gitignored, files retained locally
+- Remove stale git worktree (`claude/musing-wing`) pointing to old DesignQ2 path
+
+---
+
 ## 2026-04-05 — Pre-customer security hardening + brand
 
 ### Security (must-fix before first paying customer)
