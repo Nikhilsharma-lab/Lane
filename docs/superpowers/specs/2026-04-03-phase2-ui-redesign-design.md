@@ -70,7 +70,7 @@ The request detail page currently wraps itself in a standalone shell with its ow
 
 **What to remove:**
 - The outer `<div className="min-h-screen bg-zinc-950 text-white">` wrapper
-- The entire `<header>` block (breadcrumb nav with "DesignQ · Requests / title")
+- The entire `<header>` block (breadcrumb nav with "Lane · Requests / title")
 
 **What replaces it:**
 - The page content becomes the direct body of the main canvas — no wrapper, just the `<main>` content

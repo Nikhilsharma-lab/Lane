@@ -35,7 +35,7 @@ export default async function IntegrationsPage({
   return (
     <div>
       <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Integrations</h1>
-      <p className="text-sm text-[var(--text-secondary)] mb-8">Connect your tools to DesignQ</p>
+      <p className="text-sm text-[var(--text-secondary)] mb-8">Connect your tools to Lane</p>
 
       {connected === "true" && (
         <div className="mb-6 bg-green-500/5 border border-green-500/20 rounded-lg px-4 py-3">

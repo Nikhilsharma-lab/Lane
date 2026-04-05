@@ -191,7 +191,7 @@ Hidden from sidebar for non-admins. Redirect to `/settings/account` if non-admin
 ```
 Need more?
 Enterprise — custom seats, Linear integration, dedicated SLA
-[Contact us →]    ← mailto: link (e.g. mailto:yash@designq.io?subject=Enterprise inquiry)
+[Contact us →]    ← mailto: link (e.g. mailto:yash@lane.io?subject=Enterprise inquiry)
 ```
 No Stripe integration in this spec — that is Sub-project 2.
 

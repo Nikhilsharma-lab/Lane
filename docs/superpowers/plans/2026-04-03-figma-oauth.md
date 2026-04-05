@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the manual-webhook Figma sync with OAuth so any DesignQ customer can connect Figma in one click, with version history fetched on-demand when a request is opened.
+**Goal:** Replace the manual-webhook Figma sync with OAuth so any Lane customer can connect Figma in one click, with version history fetched on-demand when a request is opened.
 
 **Architecture:** A `figma_connections` table (one row per org) stores the OAuth access token. Three new API routes handle connect / callback / disconnect. On the request detail page (server component), if a connection exists and the request has a Figma URL, we call `lib/figma/sync.ts` to fetch new Figma file versions and insert them into the existing `figma_updates` table — which FigmaHistory already renders.
 
@@ -649,7 +649,7 @@ export default async function IntegrationsPage({
   return (
     <div>
       <h1 className="text-xl font-semibold mb-1">Integrations</h1>
-      <p className="text-sm text-zinc-500 mb-8">Connect your tools to DesignQ</p>
+      <p className="text-sm text-zinc-500 mb-8">Connect your tools to Lane</p>
 
       {connected === "true" && (
         <div className="mb-6 bg-green-500/5 border border-green-500/20 rounded-lg px-4 py-3">

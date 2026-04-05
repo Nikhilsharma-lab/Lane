@@ -60,10 +60,10 @@ export async function createInvite(formData: FormData) {
 
   sendEmail({
     to: email,
-    subject: `You've been invited to ${org?.name ?? "DesignQ"}`,
+    subject: `You've been invited to ${org?.name ?? "Lane"}`,
     html: inviteEmail({
       invitedByName: profile.fullName ?? "Your team lead",
-      orgName: org?.name ?? "DesignQ",
+      orgName: org?.name ?? "Lane",
       role,
       inviteUrl,
     }),

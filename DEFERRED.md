@@ -1,4 +1,4 @@
-# DesignQ2 — Deferred Features & Future Build Log
+# Lane — Deferred Features & Future Build Log
 
 ---
 
@@ -49,13 +49,13 @@ MVP ships on-demand sync (fetch on request detail load). The following are defer
 **Why deferred:** Requires manual setup in Figma's developer console — doing when ready to onboard customers.
 
 **What to do (not a code task):**
-1. Go to figma.com/developers → Create a new app named "DesignQ"
+1. Go to figma.com/developers → Create a new app named "Lane"
 2. Add redirect URIs: `http://localhost:3000/api/figma/oauth/callback` (dev) + `https://your-vercel-url/api/figma/oauth/callback` (prod)
 3. Copy Client ID + Client Secret
 4. Add to `.env.local`: `FIGMA_CLIENT_ID=` and `FIGMA_CLIENT_SECRET=`
 5. Add same vars to Vercel environment variables → redeploy
 
-This is a one-time setup. One OAuth app for all customers — each customer authorises through DesignQ's app, their token is stored per-org in `figma_connections`.
+This is a one-time setup. One OAuth app for all customers — each customer authorises through Lane's app, their token is stored per-org in `figma_connections`.
 
 #### Figma OAuth — Token Encryption at Rest
 **Why deferred:** Plaintext token is acceptable for pre-launch. Add before onboarding paying customers.
@@ -114,9 +114,9 @@ Code is fully built. Just needs 3 Vercel env vars:
 
 ```
 RESEND_API_KEY=        ← sign up at resend.com (free, 3k/month)
-EMAIL_FROM=            ← "DesignQ <notifications@yourdomain.com>" (domain verified in Resend)
+EMAIL_FROM=            ← "Lane <notifications@yourdomain.com>" (domain verified in Resend)
                           OR use "onboarding@resend.dev" for testing without domain verification
-NEXT_PUBLIC_APP_URL=   ← live Vercel URL e.g. https://designq2.vercel.app
+NEXT_PUBLIC_APP_URL=   ← live Vercel URL e.g. https://lane.vercel.app
 ```
 
 Steps:
@@ -157,7 +157,7 @@ Steps:
 **What to build:**
 - OAuth with Linear API
 - On handoff: auto-create Linear issue with title, description, Figma link, assignee
-- Sync status back: when Linear issue closes → mark DesignQ request as shipped
+- Sync status back: when Linear issue closes → mark Lane request as shipped
 - `LINEAR_CLIENT_ID` + `LINEAR_CLIENT_SECRET` env vars
 
 ---

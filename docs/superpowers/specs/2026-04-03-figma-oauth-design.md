@@ -8,7 +8,7 @@
 
 ## What We're Building
 
-Replace the manual-webhook Figma sync (which requires per-team setup in Figma's dev console and doesn't scale) with an OAuth-based integration. A user clicks "Connect Figma" once, grants DesignQ access, and the app fetches Figma version history on-demand whenever a request with a Figma URL is opened.
+Replace the manual-webhook Figma sync (which requires per-team setup in Figma's dev console and doesn't scale) with an OAuth-based integration. A user clicks "Connect Figma" once, grants Lane access, and the app fetches Figma version history on-demand whenever a request with a Figma URL is opened.
 
 ---
 

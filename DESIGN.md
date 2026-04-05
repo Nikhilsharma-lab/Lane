@@ -1,4 +1,4 @@
-# Design System — DesignQ
+# Design System — Lane
 
 **Last Updated:** 2026-04-03
 **Status:** Approved — ready for implementation

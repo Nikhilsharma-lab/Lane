@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Activate the already-built Figma webhook end-to-end in production so live Figma file updates flow into DesignQ's activity feed.
+**Goal:** Activate the already-built Figma webhook end-to-end in production so live Figma file updates flow into Lane's activity feed.
 
 **Architecture:** The webhook receiver (`/api/figma/webhook`) is fully built. This plan covers: generating the token, syncing the DB schema, wiring env vars in Vercel, and registering the webhook in Figma.
 
@@ -12,7 +12,7 @@
 
 ## Task 1: Generate a Secure Webhook Token
 
-The token is the shared secret Figma uses to sign every webhook request. DesignQ verifies it on every incoming event.
+The token is the shared secret Figma uses to sign every webhook request. Lane verifies it on every incoming event.
 
 **Files:** None — this is terminal-only
 
@@ -82,7 +82,7 @@ The `figma_updates` table needs two columns that may not exist in production yet
 - [ ] **Step 1: Open Vercel dashboard**
 
   Go to: `https://vercel.com/dashboard`
-  Click your DesignQ project.
+  Click your Lane project.
 
 - [ ] **Step 2: Navigate to Environment Variables**
 
@@ -141,7 +141,7 @@ The `figma_updates` table needs two columns that may not exist in production yet
 
 ## Task 6: End-to-End Smoke Test
 
-- [ ] **Step 1: Open any request in DesignQ** that has a Figma URL attached.
+- [ ] **Step 1: Open any request in Lane** that has a Figma URL attached.
 
   The Figma URL must contain the `file_key` of a Figma file you control.
 
@@ -149,7 +149,7 @@ The `figma_updates` table needs two columns that may not exist in production yet
 
   Open the linked Figma file. Move any element slightly and press `Ctrl+S` (or `Cmd+S` on Mac). This triggers `FILE_UPDATE`.
 
-- [ ] **Step 3: Check the activity feed in DesignQ**
+- [ ] **Step 3: Check the activity feed in Lane**
 
   Reload the request detail page.
   Expected: A new activity entry like:

@@ -1,4 +1,4 @@
-# DesignQ UI Redesign — Design Spec
+# Lane UI Redesign — Design Spec
 
 **Date:** 2026-04-03
 **Status:** Approved — ready for implementation planning
@@ -8,7 +8,7 @@
 
 ## Problem
 
-The current DesignQ UI is built on a dark theme with bright emerald green accents. It has a traditional sidebar-nav-plus-modal structure. As a DesignOps tool targeting design leaders — people who care deeply about craft and aesthetics — the current design doesn't signal "built by designers, for designers." It looks like every other SaaS tool.
+The current Lane UI is built on a dark theme with bright emerald green accents. It has a traditional sidebar-nav-plus-modal structure. As a DesignOps tool targeting design leaders — people who care deeply about craft and aesthetics — the current design doesn't signal "built by designers, for designers." It looks like every other SaaS tool.
 
 Additionally, the current modal-based request detail creates a jarring context switch. The layout has no persistent global awareness panel.
 

@@ -82,7 +82,7 @@ export * from "./context_briefs";
 - [ ] **Step 3: Type-check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: no errors.
@@ -198,7 +198,7 @@ Produce a context brief that helps the designer start with confidence, not confu
 - [ ] **Step 2: Type-check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: no errors.
@@ -220,7 +220,7 @@ git commit -m "feat: add generateContextBrief AI function"
 - [ ] **Step 1: Create the route directory and file**
 
 ```bash
-mkdir -p /Users/yashkaushal/DesignQ2/app/api/requests/\[id\]/context-brief
+mkdir -p /Users/yashkaushal/Lane/app/api/requests/\[id\]/context-brief
 ```
 
 - [ ] **Step 2: Write the POST handler**
@@ -307,7 +307,7 @@ export async function POST(
 - [ ] **Step 3: Type-check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: no errors.
@@ -477,7 +477,7 @@ export function ContextBriefPanel({ requestId, existingBrief }: Props) {
 - [ ] **Step 2: Type-check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: no errors.
@@ -544,7 +544,7 @@ In the main content column, find the `{request.successMetrics && ...}` block (ar
 - [ ] **Step 4: Type-check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: no errors.
