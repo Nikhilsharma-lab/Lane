@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add Linear-speed keyboard-first UX to DesignQ — command palette (Cmd+K), J/K navigation, quick capture (Cmd+N), and optimistic UI on all mutations.
+**Goal:** Add Linear-speed keyboard-first UX to Lane — command palette (Cmd+K), J/K navigation, quick capture (Cmd+N), and optimistic UI on all mutations.
 
 **Architecture:** A `RequestsContext` fetches org requests at layout level so the command palette can search them from any page without extra API calls. A `GlobalShortcutsProvider` (client component) manages keyboard listeners and renders modals at the root. Optimistic UI uses manual `useState` + rollback pattern (React 18 — no `useOptimistic`).
 
@@ -40,7 +40,7 @@
 - [ ] **Step 1: Install cmdk**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2
+cd /Users/yashkaushal/Lane
 npm install cmdk
 ```
 
@@ -483,7 +483,7 @@ Floating modal. Title required, business goal optional, priority selector. Submi
 - [ ] **Step 1: Check the existing POST /api/requests route accepts these fields**
 
 ```bash
-head -40 /Users/yashkaushal/DesignQ2/app/api/requests/route.ts
+head -40 /Users/yashkaushal/Lane/app/api/requests/route.ts
 ```
 
 Confirm it accepts `{ title, description, priority }` in the body. If the field names differ, adjust the `body` in the component below accordingly.
@@ -1069,7 +1069,7 @@ On sign-off submit: show the sign-off immediately as "approved/rejected" in the 
 - [ ] **Step 1: Read the full submit function**
 
 ```bash
-grep -n "submit\|setSubmitting\|submitting" /Users/yashkaushal/DesignQ2/components/requests/validation-gate.tsx
+grep -n "submit\|setSubmitting\|submitting" /Users/yashkaushal/Lane/components/requests/validation-gate.tsx
 ```
 
 - [ ] **Step 2: Add optimistic signoff state**
@@ -1294,7 +1294,7 @@ Voting on ideas should feel instant. Optimistically update the vote count and se
 - [ ] **Step 1: Read the current vote handler**
 
 ```bash
-grep -n "vote\|fetch\|optimistic" /Users/yashkaushal/DesignQ2/components/ideas/idea-card.tsx | head -20
+grep -n "vote\|fetch\|optimistic" /Users/yashkaushal/Lane/components/ideas/idea-card.tsx | head -20
 ```
 
 - [ ] **Step 2: Add optimistic vote state**

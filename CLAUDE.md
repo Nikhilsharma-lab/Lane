@@ -1,4 +1,4 @@
-# DesignQ — Complete Product & Development Reference
+# Lane — Complete Product & Development Reference
 ## Version 2.0 | April 2026
 
 **Status:** Pre-launch, live GTM (LinkedIn strong)
@@ -10,7 +10,7 @@
 
 ## TLDR
 
-DesignQ is an **AI-native design operations platform** organized into 4 phases.
+Lane is an **AI-native design operations platform** organized into 4 phases.
 
 **What it does:** PM identifies a problem → AI gates solution-specific requests → Org shapes and bets → Designer explores through 5 scientific stages → Dev builds via kanban → PM measures impact
 
@@ -110,7 +110,7 @@ SIGNALS FOR "hybrid":
 
 **When blocked, show:**
 ```
-"This looks like a solution, not a problem. DesignQ works best when
+"This looks like a solution, not a problem. Lane works best when
 designers understand the WHY before the WHAT."
 
 Problem detected: [AI's extraction]
@@ -756,10 +756,10 @@ ENABLE_MULTI_ROLE_TESTING=true
 
 # Email (Resend) — add these in Vercel dashboard to activate email notifications
 RESEND_API_KEY=               ← get from resend.com (free tier, 3k emails/month)
-EMAIL_FROM=                   ← e.g. "DesignQ <notifications@yourdomain.com>"
+EMAIL_FROM=                   ← e.g. "Lane <notifications@yourdomain.com>"
                                   domain must be verified in Resend dashboard
                                   OR use "onboarding@resend.dev" to test without domain
-NEXT_PUBLIC_APP_URL=          ← your Vercel deployment URL (e.g. https://designq2.vercel.app)
+NEXT_PUBLIC_APP_URL=          ← your Vercel deployment URL (e.g. https://lane.vercel.app)
                                   used in email links — without this, links in emails won't work
 
 # Figma OAuth (future — not yet built)
@@ -862,7 +862,7 @@ npm run start
 ## Part 20: FOUNDER CONTEXT
 
 - **Role:** Head of Product Design at Airtel Payments Bank (full-time)
-- **Building:** DesignQ as side project
+- **Building:** Lane as side project
 - **Stage:** Live GTM, leads flowing in
 - **Team:** Solo, vibe-coding with Cursor + Claude Code
 - **Timeline:** 12-week plan; MVP by Week 4; 10-15 customers by Week 12
@@ -883,9 +883,9 @@ npm run start
 
 **The one thing to remember:**
 
-DesignQ is a tool where PMs bring problems (not solutions), designers explore scientifically (not execute tickets), and leads see team health (not individual surveillance). The AI runs operations. Humans steer.
+Lane is a tool where PMs bring problems (not solutions), designers explore scientifically (not execute tickets), and leads see team health (not individual surveillance). The AI runs operations. Humans steer.
 
-*Surveillance produces performance. Support produces truth. DesignQ optimizes for truth.*
+*Surveillance produces performance. Support produces truth. Lane optimizes for truth.*
 
 ---
 

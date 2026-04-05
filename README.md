@@ -1,9 +1,9 @@
-# DesignQ2
+# Lane
 <p align="center">
-  <img src="assets/designq-logo.png" alt="DesignQ Logo" width="80" height="80" />
+  <img src="assets/lane-logo.png" alt="Lane Logo" width="80" height="80" />
 </p>
 
-<h1 align="center">DesignQ</h1>
+<h1 align="center">Lane</h1>
 
 <p align="center">
   <strong>The chief of staff your design team never had.</strong>
@@ -40,7 +40,7 @@ Design teams at growing companies are drowning in operational chaos. The data is
 
 Existing tools (Jira, Asana, Linear, Notion) are horizontal project management platforms. None of them understand design workflows — intake phases, exploration phases, review loops, stakeholder feedback cycles, or design-specific handoff requirements. Design leaders are forced to build fragile ops systems on top of tools built for engineering.
 
-**DesignQ fixes this.** It's not a project management tool with AI sprinkled on top. It's an AI operations manager purpose-built for design teams. The AI doesn't assist — it *runs* the operations layer, and the design leader oversees.
+**Lane fixes this.** It's not a project management tool with AI sprinkled on top. It's an AI operations manager purpose-built for design teams. The AI doesn't assist — it *runs* the operations layer, and the design leader oversees.
 
 ---
 
@@ -98,7 +98,7 @@ The feature that sells the product. Leadership doesn't care about tickets closed
 
 ### 👥 Multi-Persona Seats
 
-DesignQ isn't just for designers. It creates value for every role in the product development cycle.
+Lane isn't just for designers. It creates value for every role in the product development cycle.
 
 | Seat | For | Key Value |
 |------|-----|-----------|
@@ -112,7 +112,7 @@ DesignQ isn't just for designers. It creates value for every role in the product
 
 ## 🏗️ Architecture
 
-DesignQ is **AI-native** — the AI doesn't enhance a CRUD app, it *is* the operational brain. The dashboard is secondary. The primary interface is Slack messages, morning briefings, and alerts.
+Lane is **AI-native** — the AI doesn't enhance a CRUD app, it *is* the operational brain. The dashboard is secondary. The primary interface is Slack messages, morning briefings, and alerts.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -218,8 +218,8 @@ organizations
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/DesignQ2.git
-cd DesignQ2
+git clone https://github.com/yourusername/Lane.git
+cd Lane
 ```
 
 ### 2. Install Dependencies
@@ -277,7 +277,7 @@ npx supabase db reset
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you should see the DesignQ dashboard.
+Open [http://localhost:3000](http://localhost:3000) — you should see the Lane dashboard.
 
 ### 6. (Optional) Connect Slack
 
@@ -309,7 +309,7 @@ npm run type-check
 ## 📁 Project Structure
 
 ```
-designq/
+lane/
 ├── app/                      # Next.js App Router
 │   ├── (auth)/               # Authentication pages
 │   ├── (dashboard)/          # Main app pages
@@ -352,7 +352,7 @@ designq/
 
 ## 🗺️ Roadmap
 
-DesignQ is being built in public. Here's where we are and where we're headed:
+Lane is being built in public. Here's where we are and where we're headed:
 
 ### Phase 1: Request Intake + Queue ✅ (Weeks 1–3)
 - [x] Public intake form with structured fields
@@ -390,7 +390,7 @@ DesignQ is being built in public. Here's where we are and where we're headed:
 - [ ] MCP server for AI ecosystem interoperability
 
 ### Future Considerations
-- Linear integration (additive positioning — DesignQ feeds into Linear)
+- Linear integration (additive positioning — Lane feeds into Linear)
 - Jira integration (AI spec → Jira ticket on "Ready for Dev")
 - Enterprise features (SSO, SAML, API access)
 - Figma plugin for bi-directional design status sync
@@ -399,7 +399,7 @@ DesignQ is being built in public. Here's where we are and where we're headed:
 
 ## 🤝 Contributing
 
-We welcome contributions from designers, developers, and design ops practitioners! DesignQ is built in public and community input makes it better.
+We welcome contributions from designers, developers, and design ops practitioners! Lane is built in public and community input makes it better.
 
 ### Getting Started
 
@@ -501,13 +501,13 @@ Found a bug or have a feature idea? [Open an issue](../../issues/new/choose) wit
 
 ## 🧠 Key Concepts
 
-A few terms and concepts that are central to how DesignQ works:
+A few terms and concepts that are central to how Lane works:
 
-**Coordination Tax** — The hidden cost of design team operations. Approximately 45% of design team time goes to non-design work: triaging requests, attending status meetings, writing reports, chasing stakeholders. DesignQ exists to eliminate this tax.
+**Coordination Tax** — The hidden cost of design team operations. Approximately 45% of design team time goes to non-design work: triaging requests, attending status meetings, writing reports, chasing stakeholders. Lane exists to eliminate this tax.
 
-**Behavior-Based Design Pods** — A proprietary framework for organizing design teams around behavioral outcomes rather than feature areas. This influences how DesignQ models team structure and workload distribution.
+**Behavior-Based Design Pods** — A proprietary framework for organizing design teams around behavioral outcomes rather than feature areas. This influences how Lane models team structure and workload distribution.
 
-**AI-Native vs. AI-Sprinkled** — DesignQ passes the "Remove the AI" test. If you remove the AI, most features stop working entirely — triage doesn't happen, specs don't get generated, digests don't get written. The AI isn't a feature; it's the foundation.
+**AI-Native vs. AI-Sprinkled** — Lane passes the "Remove the AI" test. If you remove the AI, most features stop working entirely — triage doesn't happen, specs don't get generated, digests don't get written. The AI isn't a feature; it's the foundation.
 
 **The Dashboard is Secondary** — In an AI-native product, the primary interface is Slack messages, morning briefings, and automated alerts. The design leader barely needs to open the app — the app comes to *them*.
 
@@ -515,16 +515,16 @@ A few terms and concepts that are central to how DesignQ works:
 
 ## 📊 Competitive Positioning
 
-DesignQ is **not** a horizontal project management tool. Here's how it relates to tools design teams currently misuse:
+Lane is **not** a horizontal project management tool. Here's how it relates to tools design teams currently misuse:
 
-| Tool | Their Strength | Where They Fail for Design | DesignQ's Position |
+| Tool | Their Strength | Where They Fail for Design | Lane's Position |
 |------|---------------|---------------------------|-------------------|
-| **Jira** | Engineering sprint tracking | No design capacity model, no visual context, handoff is a Figma link in a comment | DesignQ manages upstream design workflow; feeds completed specs *into* Jira |
-| **Asana** | Clean work management | No AI triage, no design-specific states, no impact reporting for design leaders | DesignQ replaces the fragile design ops system teams build on top of Asana |
-| **Linear** | Fast, opinionated engineering tracker | Built around engineering sprint cycles, no public intake, no cross-functional handoff | DesignQ is additive to Linear — same philosophy, different workflow |
-| **Notion** | Flexible documentation | Too flexible — every team reinvents the wheel, no automation, no AI agents | DesignQ is opinionated where Notion is blank-canvas |
+| **Jira** | Engineering sprint tracking | No design capacity model, no visual context, handoff is a Figma link in a comment | Lane manages upstream design workflow; feeds completed specs *into* Jira |
+| **Asana** | Clean work management | No AI triage, no design-specific states, no impact reporting for design leaders | Lane replaces the fragile design ops system teams build on top of Asana |
+| **Linear** | Fast, opinionated engineering tracker | Built around engineering sprint cycles, no public intake, no cross-functional handoff | Lane is additive to Linear — same philosophy, different workflow |
+| **Notion** | Flexible documentation | Too flexible — every team reinvents the wheel, no automation, no AI agents | Lane is opinionated where Notion is blank-canvas |
 
-**Integration philosophy**: DesignQ doesn't replace your engineering tools. It feeds *into* them. When a design hits "Ready for Dev," the AI-generated spec automatically creates a ticket in Jira or Linear.
+**Integration philosophy**: Lane doesn't replace your engineering tools. It feeds *into* them. When a design hits "Ready for Dev," the AI-generated spec automatically creates a ticket in Jira or Linear.
 
 ---
 
@@ -536,9 +536,9 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 🔗 Links
 
-- **Website**: [designq.app](https://designq.app) *(coming soon)*
-- **Documentation**: [docs.designq.app](https://docs.designq.app) *(coming soon)*
-- **Twitter/X**: [@designq_app](https://twitter.com/designq_app)
+- **Website**: [lane.app](https://lane.app) *(coming soon)*
+- **Documentation**: [docs.lane.app](https://docs.lane.app) *(coming soon)*
+- **Twitter/X**: [@lane_app](https://twitter.com/lane_app)
 - **LinkedIn**: Follow the build-in-public journey
 
 ---
@@ -547,7 +547,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 - **Issues**: [GitHub Issues](../../issues) for bugs and feature requests
 - **Discussions**: [GitHub Discussions](../../discussions) for questions and ideas
-- **Email**: nikhil@designq.app
+- **Email**: nikhil@lane.app
 
 ---
 
@@ -556,5 +556,5 @@ This project is licensed under the [MIT License](LICENSE).
   <br />
   Head of Product Design @ Airtel Payments Bank
   <br />
-  <em>Building DesignQ nights & weekends because design teams deserve better ops.</em>
+  <em>Building Lane nights & weekends because design teams deserve better ops.</em>
 </p>

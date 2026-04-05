@@ -99,7 +99,7 @@ The page currently wraps itself in a standalone shell. Remove the outer wrapper 
   <header className="border-b border-zinc-800 px-6 py-4">
     <div className="max-w-5xl mx-auto flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold">DesignQ</span>
+        <span className="text-sm font-semibold">Lane</span>
         <span className="text-zinc-700">·</span>
         <Link href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
           Requests
@@ -309,7 +309,7 @@ Expected: no output. If any lines appear, fix them before continuing.
 
 Also check TypeScript compiles:
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit 2>&1 | head -30
+cd /Users/yashkaushal/Lane && npx tsc --noEmit 2>&1 | head -30
 ```
 Expected: no errors (or same errors as before this task — don't introduce new ones).
 
@@ -499,7 +499,7 @@ grep -rn "bg-zinc\|text-zinc\|border-zinc\|placeholder-zinc" \
 Expected: no output.
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit 2>&1 | head -30
+cd /Users/yashkaushal/Lane && npx tsc --noEmit 2>&1 | head -30
 ```
 Expected: no new errors.
 
@@ -541,8 +541,8 @@ Full before/after for the critical classes:
 // After:  <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center p-4">
 
 // App name
-// Before: <h1 className="text-xl font-semibold text-white">DesignQ</h1>
-// After:  <h1 className="text-xl font-semibold text-[var(--text-primary)]">DesignQ</h1>
+// Before: <h1 className="text-xl font-semibold text-white">Lane</h1>
+// After:  <h1 className="text-xl font-semibold text-[var(--text-primary)]">Lane</h1>
 
 // Subtitle
 // Before: <p className="text-zinc-400 text-sm mt-1">Sign in to your workspace</p>
@@ -600,7 +600,7 @@ grep -rn "bg-zinc\|text-zinc\|border-zinc\|placeholder-zinc" app/\(auth\)/
 Expected: no output.
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit 2>&1 | head -30
+cd /Users/yashkaushal/Lane && npx tsc --noEmit 2>&1 | head -30
 ```
 
 - [ ] **Step 3.5: Commit**
@@ -748,7 +748,7 @@ grep -rn "bg-zinc\|text-zinc\|border-zinc\|placeholder-zinc" \
 Expected: no output.
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit 2>&1 | head -30
+cd /Users/yashkaushal/Lane && npx tsc --noEmit 2>&1 | head -30
 ```
 
 - [ ] **Step 4.8: Commit**
@@ -777,7 +777,7 @@ Expected: zero results. If any appear, fix them.
 - [ ] **Step 5.2: TypeScript check**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npx tsc --noEmit
+cd /Users/yashkaushal/Lane && npx tsc --noEmit
 ```
 
 Expected: clean compile (no new errors introduced).

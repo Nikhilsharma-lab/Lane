@@ -104,7 +104,7 @@ export * from "./handoff_briefs";
 - [ ] **Step 4: Push schema to Supabase**
 
 ```bash
-cd ~/DesignQ2 && npm run db:push
+cd ~/Lane && npm run db:push
 ```
 
 Expected: No errors. Table `request_handoff_briefs` created. Column `is_dev_question` added to `comments`.
@@ -112,7 +112,7 @@ Expected: No errors. Table `request_handoff_briefs` created. Column `is_dev_ques
 - [ ] **Step 5: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -120,7 +120,7 @@ Expected: No errors.
 - [ ] **Step 6: Commit schema**
 
 ```bash
-cd ~/DesignQ2 && git add db/schema/handoff_briefs.ts db/schema/requests.ts db/schema/index.ts
+cd ~/Lane && git add db/schema/handoff_briefs.ts db/schema/requests.ts db/schema/index.ts
 git commit -m "feat: add request_handoff_briefs table and isDevQuestion column to comments"
 ```
 
@@ -222,7 +222,7 @@ Write a handoff brief that surfaces decisions already made, flags unresolved det
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -230,7 +230,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add lib/ai/handoff-brief.ts
+cd ~/Lane && git add lib/ai/handoff-brief.ts
 git commit -m "feat: add generateHandoffBrief AI function"
 ```
 
@@ -350,7 +350,7 @@ export async function POST(
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -358,7 +358,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add app/api/requests/[id]/handoff-brief/route.ts
+cd ~/Lane && git add app/api/requests/[id]/handoff-brief/route.ts
 git commit -m "feat: add handoff-brief API route"
 ```
 
@@ -512,7 +512,7 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -520,7 +520,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add components/requests/handoff-brief-panel.tsx
+cd ~/Lane && git add components/requests/handoff-brief-panel.tsx
 git commit -m "feat: add HandoffBriefPanel component"
 ```
 
@@ -602,7 +602,7 @@ Add the following block directly after it:
 - [ ] **Step 4: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -610,7 +610,7 @@ Expected: No errors.
 - [ ] **Step 5: Smoke test**
 
 ```bash
-cd ~/DesignQ2 && npm run dev
+cd ~/Lane && npm run dev
 ```
 
 Navigate to a request in `designStage === "handoff"` (e.g. log in as `alex@acme-demo.io`, find a request at handoff stage). The brief should appear below the success metrics section with a skeleton loader, then 5 sections after generation. Repeat visit should be instant (cached).
@@ -618,7 +618,7 @@ Navigate to a request in `designStage === "handoff"` (e.g. log in as `alex@acme-
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
+cd ~/Lane && git add app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
 git commit -m "feat: integrate HandoffBriefPanel into request detail page"
 ```
 
@@ -676,7 +676,7 @@ export async function POST(
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -684,7 +684,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add app/api/requests/\[id\]/comment/route.ts
+cd ~/Lane && git add app/api/requests/\[id\]/comment/route.ts
 git commit -m "feat: comment route accepts isDevQuestion flag"
 ```
 
@@ -1006,7 +1006,7 @@ Replace with:
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1014,7 +1014,7 @@ Expected: No errors.
 - [ ] **Step 4: Smoke test**
 
 ```bash
-cd ~/DesignQ2 && npm run dev
+cd ~/Lane && npm run dev
 ```
 
 Navigate to a request in dev phase. The sidebar should show "Ask designer a question" button at the bottom of the Dev panel. Click it, type a question, submit. Check the Activity section — question comment should appear. The dev questions badge should appear in the panel header (requires page refresh since it's server-rendered).
@@ -1022,7 +1022,7 @@ Navigate to a request in dev phase. The sidebar should show "Ask designer a ques
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add components/requests/dev-phase-panel.tsx app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
+cd ~/Lane && git add components/requests/dev-phase-panel.tsx app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
 git commit -m "feat: add Ask Designer button and dev question count to dev phase panel"
 ```
 
@@ -1094,7 +1094,7 @@ export function computeAvgDevQuestions(
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1102,7 +1102,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add lib/radar.ts
+cd ~/Lane && git add lib/radar.ts
 git commit -m "feat: add computeAvgDevQuestions to radar lib"
 ```
 
@@ -1287,7 +1287,7 @@ Then find where `<DesignerStatus` is rendered in the JSX and add the new prop:
 - [ ] **Step 5: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: TS errors about `avgDevQuestionsMap` prop not existing on DesignerStatus — these will be fixed in Task B5. If there are other errors, fix them now.
@@ -1295,7 +1295,7 @@ Expected: TS errors about `avgDevQuestionsMap` prop not existing on DesignerStat
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add app/\(dashboard\)/dashboard/radar/page.tsx
+cd ~/Lane && git add app/\(dashboard\)/dashboard/radar/page.tsx
 git commit -m "feat: fetch dev questions in radar page and compute avg per designer"
 ```
 
@@ -1469,7 +1469,7 @@ export function DesignerStatus({
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1477,7 +1477,7 @@ Expected: No errors.
 - [ ] **Step 3: Smoke test**
 
 ```bash
-cd ~/DesignQ2 && npm run dev
+cd ~/Lane && npm run dev
 ```
 
 Navigate to `/dashboard/radar`. Each designer card should still render. If any designer has dev questions (seeded data should have some), their card shows the avg in green/yellow/red below the active count line.
@@ -1485,7 +1485,7 @@ Navigate to `/dashboard/radar`. Each designer card should still render. If any d
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add components/radar/designer-status.tsx
+cd ~/Lane && git add components/radar/designer-status.tsx
 git commit -m "feat: show avg dev questions per handoff on Radar designer cards"
 ```
 
@@ -1533,7 +1533,7 @@ export function figmaDriftEmail({
     <div style="background:#1c1c1f;border:1px solid #f59e0b22;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
       <p style="margin:0;font-size:12px;color:#f59e0b;">⚠️ Review the Figma changes before continuing dev work</p>
     </div>
-    ${button("Review in DesignQ", `${APP_URL}/dashboard/requests/${requestId}`)}
+    ${button("Review in Lane", `${APP_URL}/dashboard/requests/${requestId}`)}
   `);
 }
 ```
@@ -1541,7 +1541,7 @@ export function figmaDriftEmail({
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1549,7 +1549,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add lib/email/templates.ts
+cd ~/Lane && git add lib/email/templates.ts
 git commit -m "feat: add figmaDriftEmail template"
 ```
 
@@ -1592,7 +1592,7 @@ export async function sendFigmaDriftEmail({
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1600,7 +1600,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add lib/email/index.ts
+cd ~/Lane && git add lib/email/index.ts
 git commit -m "feat: add sendFigmaDriftEmail helper"
 ```
 
@@ -1705,7 +1705,7 @@ These should already be present from the GET handler. If the POST needs addition
 
 Run:
 ```bash
-cd ~/DesignQ2 && grep -n "email" db/schema/users.ts | head -5
+cd ~/Lane && grep -n "email" db/schema/users.ts | head -5
 ```
 
 Expected: a line like `email: text("email").notNull()`. If the field is named differently (e.g. `emailAddress`), update the POST handler to match.
@@ -1713,7 +1713,7 @@ Expected: a line like `email: text("email").notNull()`. If the field is named di
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors. If there are schema field errors (e.g. `requestPhase` not valid), check the `figma_updates` schema definition in `db/schema/figma_updates.ts` and adjust the field names to match exactly.
@@ -1721,7 +1721,7 @@ Expected: No errors. If there are schema field errors (e.g. `requestPhase` not v
 - [ ] **Step 4: Smoke test**
 
 ```bash
-cd ~/DesignQ2 && npm run dev
+cd ~/Lane && npm run dev
 ```
 
 Use curl or a REST client to test the POST:
@@ -1741,7 +1741,7 @@ Navigate to the request in dev phase — the Figma History section should show t
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add app/api/requests/\[id\]/figma-updates/route.ts
+cd ~/Lane && git add app/api/requests/\[id\]/figma-updates/route.ts
 git commit -m "feat: add POST handler to figma-updates route with drift email notification"
 ```
 
@@ -1865,7 +1865,7 @@ async function submitUpdate() {
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd ~/DesignQ2 && npx tsc --noEmit
+cd ~/Lane && npx tsc --noEmit
 ```
 
 Expected: No errors.
@@ -1873,7 +1873,7 @@ Expected: No errors.
 - [ ] **Step 4: Smoke test**
 
 ```bash
-cd ~/DesignQ2 && npm run dev
+cd ~/Lane && npm run dev
 ```
 
 Log in as a designer (`alex@acme-demo.io`). Navigate to a request in dev phase. The Figma section should show a "+ Log Figma update" button. Click it, enter a description, submit. The update should appear in the list immediately with the amber post-handoff badge.
@@ -1881,7 +1881,7 @@ Log in as a designer (`alex@acme-demo.io`). Navigate to a request in dev phase. 
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/DesignQ2 && git add components/requests/figma-history.tsx app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
+cd ~/Lane && git add components/requests/figma-history.tsx app/\(dashboard\)/dashboard/requests/\[id\]/page.tsx
 git commit -m "feat: add Log Figma Update UI with post-handoff email trigger"
 ```
 

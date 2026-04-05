@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add a "Projects" concept to DesignQ — orgs can have multiple product lines or initiatives (e.g. Rider App, Driver App, Q2 Redesign). Every request belongs to a project. Dashboard filters to one project or shows all.
+**Goal:** Add a "Projects" concept to Lane — orgs can have multiple product lines or initiatives (e.g. Rider App, Driver App, Q2 Redesign). Every request belongs to a project. Dashboard filters to one project or shows all.
 
 **Architecture:** New `projects` DB table + `projectId` FK on `requests`. New settings page `/settings/projects` for CRUD. Project switcher dropdown added to all dashboard headers. Request creation requires a project. Migration script auto-creates a "General" project per org and assigns all existing requests to it.
 
@@ -209,7 +209,7 @@ All four dashboard pages (`/dashboard`, `/dashboard/team`, `/dashboard/insights`
 
 **Position:** Between the nav links and the right-side icons:
 ```
-DesignQ · [Requests] [Team] [Insights] [Ideas]    [All projects ▾]    🔔 admin  [Yash]
+Lane · [Requests] [Team] [Insights] [Ideas]    [All projects ▾]    🔔 admin  [Yash]
 ```
 
 **Component:** `components/projects/project-switcher.tsx` — client component.

@@ -36,7 +36,7 @@
 - [ ] **Step 1: Install packages**
 
 ```bash
-cd /Users/yashkaushal/DesignQ2 && npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+cd /Users/yashkaushal/Lane && npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
 ```
 
 Expected: packages added to `node_modules` and `package.json` dependencies, no errors.
@@ -877,7 +877,7 @@ export default async function DevBoardPage({
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold">DesignQ</span>
+          <span className="text-sm font-semibold">Lane</span>
           <span className="text-zinc-700">·</span>
           <nav className="flex items-center gap-1">
             <Link

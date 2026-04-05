@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PredictionConfidencePanel } from "@/components/requests/prediction-confidence-panel";
 
 const STAGES = [
   { key: "intake",  label: "Intake",  desc: "Define the problem clearly" },
@@ -19,6 +20,9 @@ interface Props {
   businessContext: string | null;
   successMetrics: string | null;
   profileRole: string;
+  impactMetric: string | null;
+  impactPrediction: string | null;
+  existingConfidence: import("@/db/schema").PredictionConfidence | null;
 }
 
 export function PredesignPanel({
@@ -28,6 +32,9 @@ export function PredesignPanel({
   businessContext,
   successMetrics,
   profileRole,
+  impactMetric,
+  impactPrediction,
+  existingConfidence,
 }: Props) {
   const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useState<PredesignStage>(currentStage);
@@ -158,6 +165,16 @@ export function PredesignPanel({
             <p className="text-xs text-[var(--text-secondary)]">{current.desc}</p>
           </div>
         )}
+
+        {/* Prediction Confidence — shown at shape and bet stages when prediction is set */}
+        {(optimisticStage === "shape" || optimisticStage === "bet") &&
+          impactMetric &&
+          impactPrediction && (
+            <PredictionConfidencePanel
+              requestId={requestId}
+              existingConfidence={existingConfidence}
+            />
+          )}
 
         {/* Gate status */}
         <div>

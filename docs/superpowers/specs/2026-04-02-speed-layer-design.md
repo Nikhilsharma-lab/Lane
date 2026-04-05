@@ -9,7 +9,7 @@
 
 ## Goal
 
-Make DesignQ feel as fast as Linear and Notion. Speed is not a feature — it is the product feel that makes every other feature land. A slow tool with great features feels broken. A fast tool with good features feels magical.
+Make Lane feel as fast as Linear and Notion. Speed is not a feature — it is the product feel that makes every other feature land. A slow tool with great features feels broken. A fast tool with good features feels magical.
 
 Every interaction must be keyboard-accessible. Every mutation must be instant. No loading spinners on actions — ever.
 

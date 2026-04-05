@@ -1119,7 +1119,7 @@ export default async function RadarPage() {
       <RealtimeRadar orgId={viewer.orgId} />
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold">DesignQ</span>
+          <span className="text-sm font-semibold">Lane</span>
           <span className="text-zinc-700">·</span>
           <nav className="flex items-center gap-1">
             <Link
