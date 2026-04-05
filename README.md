@@ -281,9 +281,7 @@ lib/
 
 ## 🔗 Links
 
-- **Website**: [uselane.io](https://uselane.io) *(coming soon)*
 - **Issues**: [GitHub Issues](../../issues)
-- **Email**: nikhil@uselane.io
 
 ---
 
