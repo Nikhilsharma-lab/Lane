@@ -8,6 +8,9 @@ export const figmaConnections = pgTable("figma_connections", {
     .notNull()
     .unique()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  // TODO(security): encrypt these tokens at rest before onboarding paying customers.
+  // Use AES-256-GCM with a secret key stored in env (e.g. FIGMA_TOKEN_ENCRYPTION_KEY).
+  // Tokens are currently stored as plaintext.
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
   scopes: text("scopes"),
