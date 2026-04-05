@@ -7,3 +7,11 @@ dist/
 .worktrees/
 TODO.md
 .claude/launch.json
+
+# Internal working documents — not for public repo
+CLAUDE.md
+Lane-PRD-v1.1.md
+04-specs/
+docs/superpowers/
+DEFERRED.md
+STORY.md
