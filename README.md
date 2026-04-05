@@ -5,9 +5,18 @@
 <h1 align="center">Lane</h1>
 
 <p align="center">
-  <strong>The operating system for design teams.</strong>
-  <br />
-  Lane moves design work through a structured 4-phase model — from problem framing to measurable impact — so design leaders spend time leading, not managing spreadsheets.
+  <strong>Own your lane.</strong>
+  <br /><br />
+  Engineering teams have Linear.<br />
+  Marketing teams have HubSpot.<br />
+  Design teams have been borrowing tools ever since.
+  <br /><br />
+  Not because the tools are bad. Because design work is different.<br />
+  Design is iterative, non-linear, and deeply human. It doesn't move in sprints. It doesn't close tickets. It explores, backtracks, versions, and validates — and then it ships something that either moves a metric or it doesn't.
+  <br /><br />
+  No existing tool was built for that reality. <strong>Lane is.</strong>
+  <br /><br />
+  An AI-native operating system built specifically for design teams — from the moment a PM has an idea to the moment you measure whether it actually worked. The AI handles the coordination. You handle the design.
 </p>
 
 <p align="center">
