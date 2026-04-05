@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { requests, comments, profiles, assignments } from "@/db/schema";
+import { requests, comments, profiles, assignments, requestStages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
 import { validationNeededEmail, handoffEmail } from "@/lib/email/templates";
@@ -66,6 +66,7 @@ export async function POST(
           updatedAt: new Date(),
         })
         .where(eq(requests.id, requestId));
+      await recordStageEntry(requestId, "explore", user.id);
       await addSystemComment(requestId, "⭢ Bet approved — Design Phase started (Exploration)");
     } else {
       const next = PREDESIGN_STAGES[currentIdx + 1];
@@ -77,6 +78,7 @@ export async function POST(
           updatedAt: new Date(),
         })
         .where(eq(requests.id, requestId));
+      await recordStageEntry(requestId, next, user.id);
       await addSystemComment(
         requestId,
         `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
@@ -119,6 +121,7 @@ export async function POST(
           updatedAt: new Date(),
         })
         .where(eq(requests.id, requestId));
+      await recordStageEntry(requestId, "build", user.id);
       await addSystemComment(
         requestId,
         "⭢ Design handed off — Figma locked, Dev kanban opened"
@@ -153,6 +156,7 @@ export async function POST(
           updatedAt: new Date(),
         })
         .where(eq(requests.id, requestId));
+      await recordStageEntry(requestId, next, user.id);
       await addSystemComment(
         requestId,
         `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
@@ -214,6 +218,7 @@ export async function POST(
         updatedAt: new Date(),
       })
       .where(eq(requests.id, requestId));
+    await recordStageEntry(requestId, "impact", user.id);
     await addSystemComment(requestId, "⭢ Dev complete — shipped to Track phase");
     return NextResponse.json({ success: true });
   }
@@ -276,4 +281,17 @@ function checkPredesignGate(
 
 async function addSystemComment(requestId: string, body: string) {
   await db.insert(comments).values({ requestId, authorId: null, body, isSystem: true });
+}
+
+async function recordStageEntry(requestId: string, stage: string, userId: string) {
+  try {
+    await db.insert(requestStages).values({
+      requestId,
+      stage: stage as typeof requestStages.$inferInsert["stage"],
+      enteredAt: new Date(),
+      completedById: userId,
+    });
+  } catch {
+    // Non-critical — analytics degrade gracefully if this fails
+  }
 }
