@@ -977,6 +977,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 DATABASE_URL=
 ANTHROPIC_API_KEY=
 
+# Dev/test only — allows solo multi-role validation sign-off (designer + PM + design head)
+# Add this to .env.local for local development. NEVER add to Vercel production env vars.
+ENABLE_MULTI_ROLE_TESTING=true
+
 # Email (Resend) — add these in Vercel dashboard to activate email notifications
 RESEND_API_KEY=               ← get from resend.com (free tier, 3k emails/month)
 EMAIL_FROM=                   ← e.g. "DesignQ <notifications@yourdomain.com>"
