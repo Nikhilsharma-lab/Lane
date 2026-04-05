@@ -75,8 +75,14 @@ export async function POST(
 
   // In dev/test environments, allow multi-role sign-off for solo testing.
   // Set ENABLE_MULTI_ROLE_TESTING=true in .env.local — never in production.
+  // NODE_ENV is set to "production" by Next.js/Vercel at build time and cannot be overridden at runtime.
   let signerRole = signerRoleFromProfile(profile.role ?? "");
-  if (process.env.ENABLE_MULTI_ROLE_TESTING === "true" && roleOverride && ["designer", "pm", "design_head"].includes(roleOverride)) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_MULTI_ROLE_TESTING === "true" &&
+    roleOverride &&
+    ["designer", "pm", "design_head"].includes(roleOverride)
+  ) {
     signerRole = roleOverride as "designer" | "pm" | "design_head";
   }
 
