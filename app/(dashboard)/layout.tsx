@@ -66,6 +66,12 @@ export default async function DashboardLayout({
               profile={userProfile}
               org={userOrg}
               activeRequestCount={activeCount}
+              banner={{
+                title: "AI Context Briefs are live",
+                description: "Designers now get auto-generated briefs when they open a request — fewer Slack threads, faster starts.",
+                ctaLabel: "Learn more",
+                ctaHref: "/dashboard/insights",
+              }}
             />
           )}
           <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>

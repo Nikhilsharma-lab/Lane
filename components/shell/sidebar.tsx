@@ -26,6 +26,13 @@ import type { Profile, Organization } from "@/db/schema";
 
 /* ── Types ───────────────────────────────────────────────── */
 
+interface SidebarBanner {
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
 interface SidebarProps {
   profile: Profile;
   org: Organization;
@@ -38,6 +45,8 @@ interface SidebarProps {
     toTriage: number;
     hasWarning: boolean;
   };
+  /** Optional promo/update banner shown above user profile */
+  banner?: SidebarBanner;
 }
 
 /* ── Chevron icon (reusable) ─────────────────────────────── */
@@ -403,9 +412,11 @@ export function Sidebar({
   inboxCount = 0,
   bettingBoardCount = 0,
   briefing,
+  banner,
 }: SidebarProps) {
   const pathname = usePathname();
   const isLeadOrAdmin = profile.role === "lead" || profile.role === "admin";
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const initials = profile.fullName
     .split(" ")
     .map((n) => n[0])
@@ -741,6 +752,78 @@ export function Sidebar({
           <Plus size={14} />
           New Request
         </Link>
+
+        {/* Promo / update banner */}
+        {banner && !bannerDismissed && (
+          <div
+            style={{
+              margin: "10px 10px 0",
+              padding: "12px",
+              borderRadius: 8,
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 580,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.3,
+                }}
+              >
+                {banner.title}
+              </div>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="shrink-0 flex items-center justify-center rounded transition-colors hover:bg-[var(--bg-hover)]"
+                style={{
+                  width: 20,
+                  height: 20,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  marginTop: -2,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 400,
+                color: "var(--text-secondary)",
+                lineHeight: 1.45,
+                marginTop: 4,
+              }}
+            >
+              {banner.description}
+            </div>
+            <Link
+              href={banner.ctaHref}
+              className="flex items-center justify-center transition-colors"
+              style={{
+                marginTop: 10,
+                padding: "6px 0",
+                borderRadius: 6,
+                background: "var(--text-primary)",
+                color: "var(--bg-surface)",
+                fontSize: 12,
+                fontWeight: 560,
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              {banner.ctaLabel}
+            </Link>
+          </div>
+        )}
 
         {/* User profile */}
         <div className="flex items-center gap-[9px]" style={{ padding: "10px 14px 16px" }}>
