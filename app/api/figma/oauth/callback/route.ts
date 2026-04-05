@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, figmaConnections } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { encryptToken } from "@/lib/encrypt";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -70,8 +71,8 @@ export async function GET(req: NextRequest) {
     .insert(figmaConnections)
     .values({
       orgId: profile.orgId,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token ?? null,
+      accessToken: encryptToken(tokenData.access_token),
+      refreshToken: tokenData.refresh_token ? encryptToken(tokenData.refresh_token) : null,
       scopes: tokenData.scope ?? "file_read",
       connectedById: user.id,
       expiresAt,
@@ -79,8 +80,8 @@ export async function GET(req: NextRequest) {
     .onConflictDoUpdate({
       target: figmaConnections.orgId,
       set: {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token ?? null,
+        accessToken: encryptToken(tokenData.access_token),
+        refreshToken: tokenData.refresh_token ? encryptToken(tokenData.refresh_token) : null,
         scopes: tokenData.scope ?? "file_read",
         connectedById: user.id,
         expiresAt,

@@ -22,6 +22,7 @@ import { ContextBriefPanel } from "@/components/requests/context-brief-panel";
 import { HandoffBriefPanel } from "@/components/requests/handoff-brief-panel";
 import { requestHandoffBriefs } from "@/db/schema";
 import { syncFigmaVersions } from "@/lib/figma/sync";
+import { decryptToken } from "@/lib/encrypt";
 
 const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
   p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
@@ -85,7 +86,7 @@ export default async function RequestDetailPage({
       .where(eq(figmaConnections.orgId, profile.orgId));
     if (conn) {
       isConnected = true;
-      figmaAccessToken = conn.accessToken;
+      figmaAccessToken = decryptToken(conn.accessToken);
     }
   } catch {
     // silent

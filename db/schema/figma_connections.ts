@@ -8,9 +8,9 @@ export const figmaConnections = pgTable("figma_connections", {
     .notNull()
     .unique()
     .references(() => organizations.id, { onDelete: "cascade" }),
-  // TODO(security): encrypt these tokens at rest before onboarding paying customers.
-  // Use AES-256-GCM with a secret key stored in env (e.g. FIGMA_TOKEN_ENCRYPTION_KEY).
-  // Tokens are currently stored as plaintext.
+  // Tokens are encrypted at rest using AES-256-GCM via lib/encrypt.ts.
+  // Stored format: <iv_hex>:<authTag_hex>:<ciphertext_hex>
+  // Requires FIGMA_TOKEN_ENCRYPTION_KEY env var (64 hex chars / 32 bytes).
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
   scopes: text("scopes"),

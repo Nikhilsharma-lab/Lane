@@ -989,9 +989,12 @@ EMAIL_FROM=                   ← e.g. "DesignQ <notifications@yourdomain.com>"
 NEXT_PUBLIC_APP_URL=          ← your Vercel deployment URL (e.g. https://designq2.vercel.app)
                                   used in email links — without this, links in emails won't work
 
-# Figma OAuth (future — not yet built)
+# Figma OAuth
 FIGMA_CLIENT_ID=
 FIGMA_CLIENT_SECRET=
+FIGMA_TOKEN_ENCRYPTION_KEY=   ← 64 hex chars (32 bytes). Generate with:
+                                  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+                                  Required for Figma OAuth to work — tokens are encrypted at rest (AES-256-GCM).
 # FIGMA_WEBHOOK_TOKEN removed — webhook approach dropped in favour of OAuth
 ```
 
