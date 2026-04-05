@@ -9,6 +9,8 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
   claude:
@@ -35,3 +37,32 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  claude-pr-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Automatic PR Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review this pull request for the Lane design ops platform (Next.js 14, Supabase, Drizzle ORM, Claude API).
+
+            Focus on:
+            1. **Security** — auth checks, org scoping, input validation, exposed secrets
+            2. **Bugs** — broken logic, missing error handling, edge cases
+            3. **Architecture** — does this fit the existing patterns in the codebase?
+            4. **Code quality** — TypeScript strictness, naming, unnecessary complexity
+
+            Be direct and specific. Reference exact file paths and line numbers.
+            If everything looks good, say so clearly.
+            End with a one-line summary: APPROVE, REQUEST CHANGES, or NEEDS DISCUSSION.
