@@ -56,29 +56,43 @@ export async function POST(
           { status: 422 }
         );
       }
-      await db
-        .update(requests)
-        .set({
-          phase: "design",
-          designStage: "explore",
-          stage: "explore",         // keep legacy stage in sync
-          status: "in_progress",
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, "explore", user.id);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            phase: "design",
+            designStage: "explore",
+            stage: "explore",         // keep legacy stage in sync
+            status: "in_progress",
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: "explore",
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+      });
       await addSystemComment(requestId, "⭢ Bet approved — Design Phase started (Exploration)");
     } else {
       const next = PREDESIGN_STAGES[currentIdx + 1];
-      await db
-        .update(requests)
-        .set({
-          predesignStage: next,
-          stage: next,               // keep legacy stage in sync
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, next, user.id);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            predesignStage: next,
+            stage: next,               // keep legacy stage in sync
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: next as typeof requestStages.$inferInsert["stage"],
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+      });
       await addSystemComment(
         requestId,
         `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
@@ -109,19 +123,26 @@ export async function POST(
           { status: 422 }
         );
       }
-      await db
-        .update(requests)
-        .set({
-          phase: "dev",
-          kanbanState: "todo",
-          stage: "build",            // legacy
-          status: "assigned",
-          figmaVersionId: request.figmaUrl,
-          figmaLockedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, "build", user.id);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            phase: "dev",
+            kanbanState: "todo",
+            stage: "build",            // legacy
+            status: "assigned",
+            figmaVersionId: request.figmaUrl,
+            figmaLockedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: "build",
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+      });
       await addSystemComment(
         requestId,
         "⭢ Design handed off — Figma locked, Dev kanban opened"
@@ -148,15 +169,22 @@ export async function POST(
       }
     } else {
       const next = DESIGN_STAGES[currentIdx + 1];
-      await db
-        .update(requests)
-        .set({
-          designStage: next,
-          stage: next,               // legacy
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, next, user.id);
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            designStage: next,
+            stage: next,               // legacy
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: next as typeof requestStages.$inferInsert["stage"],
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+      });
       await addSystemComment(
         requestId,
         `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
@@ -208,17 +236,24 @@ export async function POST(
         { status: 422 }
       );
     }
-    await db
-      .update(requests)
-      .set({
-        phase: "track",
-        trackStage: "measuring",
-        stage: "impact",            // legacy
-        status: "completed",
-        updatedAt: new Date(),
-      })
-      .where(eq(requests.id, requestId));
-    await recordStageEntry(requestId, "impact", user.id);
+    await db.transaction(async (tx) => {
+      await tx
+        .update(requests)
+        .set({
+          phase: "track",
+          trackStage: "measuring",
+          stage: "impact",            // legacy
+          status: "completed",
+          updatedAt: new Date(),
+        })
+        .where(eq(requests.id, requestId));
+      await tx.insert(requestStages).values({
+        requestId,
+        stage: "impact",
+        enteredAt: new Date(),
+        completedById: user.id,
+      });
+    });
     await addSystemComment(requestId, "⭢ Dev complete — shipped to Track phase");
     return NextResponse.json({ success: true });
   }
@@ -281,17 +316,4 @@ function checkPredesignGate(
 
 async function addSystemComment(requestId: string, body: string) {
   await db.insert(comments).values({ requestId, authorId: null, body, isSystem: true });
-}
-
-async function recordStageEntry(requestId: string, stage: string, userId: string) {
-  try {
-    await db.insert(requestStages).values({
-      requestId,
-      stage: stage as typeof requestStages.$inferInsert["stage"],
-      enteredAt: new Date(),
-      completedById: userId,
-    });
-  } catch {
-    // Non-critical — analytics degrade gracefully if this fails
-  }
 }
