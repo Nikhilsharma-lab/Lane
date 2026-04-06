@@ -174,7 +174,7 @@ export async function POST(
           .where(eq(requests.id, requestId));
         await tx.insert(requestStages).values({
           requestId,
-          stage: next as typeof requestStages.$inferInsert["stage"],
+          stage: "explore",   // legacy enum — all design sub-stages map to "explore"
           enteredAt: new Date(),
           completedById: user.id,
         });
