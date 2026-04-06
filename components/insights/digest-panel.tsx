@@ -1,18 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { WeeklyDigest } from "@/app/api/digest/route";
+import type { WeeklyDigest, PmCoachingNote } from "@/lib/digest";
 
-export function DigestPanel() {
-  const [digest, setDigest] = useState<WeeklyDigest | null>(null);
+interface Props {
+  initialDigest?: WeeklyDigest | null;
+  onCoachingGenerated?: (notes: PmCoachingNote[]) => void;
+}
+
+export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
+  const [digest, setDigest] = useState<WeeklyDigest | null>(initialDigest ?? null);
   const [loading, setLoading] = useState(false);
 
   async function generate() {
     setLoading(true);
     try {
       const res = await fetch("/api/digest");
-      const data = await res.json();
-      setDigest(data);
+      const data: { digest: WeeklyDigest; pmCoaching: PmCoachingNote[] } = await res.json();
+      setDigest(data.digest);
+      onCoachingGenerated?.(data.pmCoaching);
     } finally {
       setLoading(false);
     }
@@ -21,8 +27,12 @@ export function DigestPanel() {
   if (!digest && !loading) {
     return (
       <div className="border border-[var(--border)] rounded-xl p-8 text-center">
-        <p className="text-sm text-[var(--text-secondary)] mb-1">AI reads your pipeline and writes the digest</p>
-        <p className="text-xs text-[var(--text-tertiary)] mb-5">Shipped this week, cycle times, standout performers, coaching recommendations</p>
+        <p className="text-sm text-[var(--text-secondary)] mb-1">
+          AI reads your pipeline and writes the digest
+        </p>
+        <p className="text-xs text-[var(--text-tertiary)] mb-5">
+          Shipped this week, cycle times, standout performers, coaching recommendations
+        </p>
         <button
           onClick={generate}
           className="bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
@@ -50,36 +60,49 @@ export function DigestPanel() {
     <div className="border border-[var(--border)] rounded-xl overflow-hidden">
       {/* Headline */}
       <div className="px-5 py-4 bg-[var(--accent-subtle)] border-b border-[var(--accent)]/15">
-        <p className="text-[10px] text-[var(--accent)] uppercase tracking-wide font-medium mb-1">✦ Weekly design digest</p>
-        <p className="text-sm text-[var(--text-primary)] font-medium leading-snug">{digest.headline}</p>
+        <p className="text-[10px] text-[var(--accent)] uppercase tracking-wide font-medium mb-1">
+          ✦ Weekly design digest
+        </p>
+        <p className="text-sm text-[var(--text-primary)] font-medium leading-snug">
+          {digest.headline}
+        </p>
       </div>
 
       <div className="divide-y divide-[var(--border)]">
-        {/* Shipped */}
         <div className="px-5 py-4">
-          <p className="text-[10px] text-green-400 uppercase tracking-wide font-medium mb-2">🚢 Shipped this week</p>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">{digest.shippedThisWeek}</p>
+          <p className="text-[10px] text-[#2E5339] uppercase tracking-wide font-medium mb-2">
+            🚢 Shipped this week
+          </p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+            {digest.shippedThisWeek}
+          </p>
         </div>
 
-        {/* Team health */}
         <div className="px-5 py-4">
-          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide font-medium mb-2">🧠 Team health</p>
+          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide font-medium mb-2">
+            🧠 Team health
+          </p>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.teamHealth}</p>
         </div>
 
-        {/* Standout */}
         <div className="px-5 py-4">
-          <p className="text-[10px] text-yellow-400 uppercase tracking-wide font-medium mb-2">⭐ Standout</p>
+          <p className="text-[10px] text-[#D4A84B] uppercase tracking-wide font-medium mb-2">
+            ⭐ Standout
+          </p>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.standout}</p>
         </div>
 
-        {/* Recommendations */}
         <div className="px-5 py-4">
-          <p className="text-[10px] text-orange-400 uppercase tracking-wide font-medium mb-2">💡 Recommendations</p>
+          <p className="text-[10px] text-amber-600 uppercase tracking-wide font-medium mb-2">
+            💡 Recommendations
+          </p>
           <ul className="space-y-1.5">
             {digest.recommendations.map((rec, i) => (
-              <li key={i} className="text-sm text-[var(--text-secondary)] leading-relaxed flex gap-2">
-                <span className="text-orange-500/60 shrink-0">{i + 1}.</span>
+              <li
+                key={i}
+                className="text-sm text-[var(--text-secondary)] leading-relaxed flex gap-2"
+              >
+                <span className="text-amber-500/60 shrink-0">{i + 1}.</span>
                 <span>{rec}</span>
               </li>
             ))}
@@ -89,7 +112,12 @@ export function DigestPanel() {
 
       <div className="border-t border-[var(--border)] px-5 py-3 flex items-center justify-between">
         <span className="text-[10px] text-[var(--text-tertiary)]">
-          Generated by Claude · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+          Generated by Claude ·{" "}
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          })}
         </span>
         <button
           onClick={generate}
