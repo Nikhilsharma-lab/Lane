@@ -1,8 +1,8 @@
+// components/requests/track-phase-panel.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImpactRetrospectivePanel } from "@/components/requests/impact-retrospective-panel";
 
 interface Props {
   requestId: string;
@@ -10,9 +10,25 @@ interface Props {
   impactMetric: string | null;
   impactPrediction: string | null;
   impactActual: string | null;
-  predictionScore: number | null;
-  predictionLabel: string | null;
-  existingRetrospective: import("@/db/schema").ImpactRetrospective | null;
+  initialVariancePercent: number | null;
+}
+
+function varianceConfig(v: number): { label: string; style: string } {
+  const abs = Math.abs(v);
+  if (abs <= 10)
+    return {
+      label: "Well-calibrated",
+      style: "text-[#2E5339] bg-[#2E5339]/10 border-[#2E5339]/20",
+    };
+  if (v < -10)
+    return {
+      label: "Over-optimistic",
+      style: "text-red-600 bg-red-500/10 border-red-500/20",
+    };
+  return {
+    label: "Under-optimistic",
+    style: "text-amber-600 bg-amber-500/10 border-amber-500/20",
+  };
 }
 
 export function TrackPhasePanel({
@@ -21,19 +37,19 @@ export function TrackPhasePanel({
   impactMetric,
   impactPrediction,
   impactActual,
-  predictionScore,
-  predictionLabel,
-  existingRetrospective,
+  initialVariancePercent,
 }: Props) {
   const router = useRouter();
   const [actual, setActual] = useState(impactActual ?? "");
   const [optimisticActual, setOptimisticActual] = useState<string | null>(impactActual);
+  const [variancePercent, setVariancePercent] = useState<number | null>(initialVariancePercent);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!actual.trim()) return;
     const previousActual = optimisticActual;
+    const previousVariance = variancePercent;
     setOptimisticActual(actual.trim());
     setError(null);
     try {
@@ -45,12 +61,17 @@ export function TrackPhasePanel({
       const data = await res.json();
       if (!res.ok) {
         setOptimisticActual(previousActual);
+        setVariancePercent(previousVariance);
         setError(data.error ?? "Failed to save");
       } else {
+        if (typeof data.variancePercent === "number") {
+          setVariancePercent(data.variancePercent);
+        }
         router.refresh();
       }
     } catch {
       setOptimisticActual(previousActual);
+      setVariancePercent(previousVariance);
       setError("Network error");
     }
   }
@@ -71,6 +92,7 @@ export function TrackPhasePanel({
   }
 
   const isComplete = trackStage === "complete";
+  const vcfg = variancePercent !== null ? varianceConfig(variancePercent) : null;
 
   return (
     <div className="border border-[var(--border)] rounded-xl overflow-hidden">
@@ -79,17 +101,19 @@ export function TrackPhasePanel({
         <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Phase 4 — Track
         </span>
-        <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
-          isComplete
-            ? "text-green-400 bg-green-500/10 border-green-500/20"
-            : "text-amber-400 bg-amber-500/10 border-amber-500/20"
-        }`}>
+        <span
+          className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+            isComplete
+              ? "text-[#2E5339] bg-[#2E5339]/10 border-[#2E5339]/20"
+              : "text-amber-600 bg-amber-500/10 border-amber-500/20"
+          }`}
+        >
           {isComplete ? "Complete" : "Measuring"}
         </span>
       </div>
 
       <div className="px-5 py-4 space-y-4">
-        {/* Predicted impact */}
+        {/* Metric */}
         {impactMetric && (
           <div>
             <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Metric</p>
@@ -97,27 +121,15 @@ export function TrackPhasePanel({
           </div>
         )}
 
+        {/* Predicted */}
         {impactPrediction && (
           <div>
             <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Predicted</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
-              {predictionScore !== null && predictionLabel && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
-                  predictionScore >= 70
-                    ? "text-green-400 bg-green-500/10 border-green-500/20"
-                    : predictionScore >= 40
-                    ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                    : "text-red-400 bg-red-500/10 border-red-500/20"
-                }`}>
-                  {predictionScore}/100 confidence
-                </span>
-              )}
-            </div>
+            <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
           </div>
         )}
 
-        {/* Actual impact */}
+        {/* Actual result */}
         <div>
           <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Actual result</p>
           {isComplete ? (
@@ -145,6 +157,29 @@ export function TrackPhasePanel({
           )}
         </div>
 
+        {/* Accuracy block — shown when variance is known */}
+        {vcfg && optimisticActual && (
+          <div className="border border-[var(--border)] rounded-lg px-4 py-3 space-y-2.5 bg-[var(--bg-subtle)]">
+            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Accuracy</p>
+            {impactPrediction && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[var(--text-tertiary)]">Predicted</span>
+                <span className="font-mono text-[var(--text-secondary)]">{impactPrediction}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[var(--text-tertiary)]">Variance</span>
+              <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${vcfg.style}`}>
+                {variancePercent! > 0 ? "+" : ""}
+                {variancePercent!.toFixed(1)}%
+              </span>
+            </div>
+            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded border font-medium ${vcfg.style}`}>
+              {vcfg.label}
+            </span>
+          </div>
+        )}
+
         {/* Mark complete */}
         {!isComplete && optimisticActual && (
           <button
@@ -160,20 +195,14 @@ export function TrackPhasePanel({
         )}
 
         {isComplete && (
-          <>
-            <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
-              <span className="text-green-400 text-xs">✓</span>
-              <p className="text-[11px] text-green-400/80">Impact recorded — request complete</p>
-            </div>
-            <ImpactRetrospectivePanel
-              requestId={requestId}
-              existingRetrospective={existingRetrospective}
-            />
-          </>
+          <div className="bg-[#2E5339]/5 border border-[#2E5339]/15 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-[#2E5339] text-xs">✓</span>
+            <p className="text-[11px] text-[#2E5339]/80">Impact recorded — request complete</p>
+          </div>
         )}
 
         {error && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
