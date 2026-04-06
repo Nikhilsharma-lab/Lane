@@ -13,7 +13,6 @@ import { TrackPhasePanel } from "@/components/requests/track-phase-panel";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { CommentBox } from "@/components/requests/comment-box";
 import { HandoffChecklist } from "@/components/requests/handoff-checklist";
-import { ImpactPanel } from "@/components/requests/impact-panel";
 import { FigmaHistory } from "@/components/requests/figma-history";
 import { TriageButton } from "@/components/requests/triage-button";
 import { EditRequestButton } from "@/components/requests/edit-request-button";
@@ -408,18 +407,6 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
             <TriageButton requestId={request.id} />
           </div>
         )}
-
-        {/* ── Impact panel ── */}
-        <div style={divider}>
-          <ImpactPanel
-            requestId={request.id}
-            impactMetric={request.impactMetric}
-            impactPrediction={request.impactPrediction}
-            impactActual={request.impactActual}
-            impactLoggedAt={toISOorNull(request.impactLoggedAt)}
-            stage={request.stage}
-          />
-        </div>
 
         {/* ── Assignees ── */}
         <div style={divider}>

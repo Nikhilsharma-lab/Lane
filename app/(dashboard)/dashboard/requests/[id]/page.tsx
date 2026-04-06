@@ -7,7 +7,6 @@ import { eq, inArray } from "drizzle-orm";
 import { AssignPanel } from "@/components/requests/assign-panel";
 import { StageControls } from "@/components/requests/stage-controls";
 import { CommentBox } from "@/components/requests/comment-box";
-import { ImpactPanel } from "@/components/requests/impact-panel";
 import { EditRequestButton } from "@/components/requests/edit-request-button";
 import { HandoffChecklist } from "@/components/requests/handoff-checklist";
 import { TriageButton } from "@/components/requests/triage-button";
@@ -350,15 +349,6 @@ export default async function RequestDetailPage({
             )}
 
             <HandoffChecklist requestId={request.id} stage={request.stage} />
-
-            <ImpactPanel
-              requestId={request.id}
-              impactMetric={request.impactMetric}
-              impactPrediction={request.impactPrediction}
-              impactActual={request.impactActual}
-              impactLoggedAt={toISO(request.impactLoggedAt)}
-              stage={request.stage}
-            />
 
             {/* AI Triage */}
             {aiAnalysis ? (
