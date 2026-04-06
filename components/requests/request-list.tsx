@@ -21,52 +21,32 @@ const PHASES = [
     label: "Predesign",
     number: "1",
     desc: "PM + Org decides what to build",
-    color: "text-[#D4A84B]",
-    borderColor: "border-[#D4A84B]/20",
-    bgColor: "bg-[#D4A84B]/5",
-    dotColor: "bg-[#D4A84B]",
     stages: ["intake", "context", "shape", "bet"],
     stageLabels: { intake: "Intake", context: "Context", shape: "Shape", bet: "Betting" },
-    stageBadge: "bg-[#D4A84B]/10 text-[#D4A84B] border-[#D4A84B]/20",
   },
   {
     key: "design",
     label: "Design",
     number: "2",
     desc: "Designer builds the solution",
-    color: "text-[#A394C7]",
-    borderColor: "border-[#A394C7]/20",
-    bgColor: "bg-[#A394C7]/5",
-    dotColor: "bg-[#A394C7]",
     stages: ["explore", "validate", "handoff"],
     stageLabels: { explore: "Explore", validate: "Validate", handoff: "Handoff" },
-    stageBadge: "bg-[#A394C7]/10 text-[#A394C7] border-[#A394C7]/20",
   },
   {
     key: "dev",
     label: "Dev",
     number: "3",
     desc: "Developers build and ship",
-    color: "text-[#7DA5C4]",
-    borderColor: "border-[#7DA5C4]/20",
-    bgColor: "bg-[#7DA5C4]/5",
-    dotColor: "bg-[#7DA5C4]",
     stages: ["todo", "in_progress", "in_review", "qa", "done"],
     stageLabels: { todo: "To Do", in_progress: "In Progress", in_review: "In Review", qa: "QA", done: "Done" },
-    stageBadge: "bg-[#7DA5C4]/10 text-[#7DA5C4] border-[#7DA5C4]/20",
   },
   {
     key: "track",
     label: "Track & Impact",
     number: "4",
     desc: "PM measures results",
-    color: "text-[#86A87A]",
-    borderColor: "border-[#86A87A]/20",
-    bgColor: "bg-[#86A87A]/5",
-    dotColor: "bg-[#86A87A]",
     stages: ["measuring", "complete"],
     stageLabels: { measuring: "Measuring", complete: "Complete" },
-    stageBadge: "bg-[#86A87A]/10 text-[#86A87A] border-[#86A87A]/20",
   },
 ] as const;
 
@@ -378,7 +358,7 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {}, p
                 onClick={() => toggleCollapse(phase.key)}
                 className="w-full flex items-center gap-3 mb-3 group"
               >
-                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--accent)" }} />
+                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: `var(--phase-${phase.key})` }} />
                 <span
                   className="text-xs font-semibold uppercase tracking-wider"
                   style={{ color: "var(--text-secondary)" }}
@@ -437,7 +417,8 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {}, p
                             className="cursor-pointer rounded-lg px-4 py-3 transition-colors"
                             style={{
                               background: "var(--bg-surface)",
-                              border: `1px solid ${isFocused ? "var(--accent)" : "var(--border)"}`,
+                              boxShadow: isFocused ? "0 0 0 1.5px var(--accent)" : "var(--shadow-border)",
+                              border: "none",
                               marginBottom: 6,
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
@@ -477,8 +458,8 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {}, p
                                     fontSize: 10,
                                     fontWeight: 600,
                                     padding: "2px 6px",
-                                    background: r.priority === "p0" ? "#FEE2E2" : r.priority === "p1" ? "#FFEDD5" : r.priority === "p2" ? "#FEF9C3" : "var(--bg-hover)",
-                                    color: r.priority === "p0" ? "#DC2626" : r.priority === "p1" ? "#C2410C" : r.priority === "p2" ? "#A16207" : "var(--text-secondary)",
+                                    background: r.priority === "p0" ? "var(--priority-p0-bg)" : r.priority === "p1" ? "var(--priority-p1-bg)" : r.priority === "p2" ? "var(--priority-p2-bg)" : "var(--priority-p3-bg)",
+                                    color: r.priority === "p0" ? "var(--priority-p0-text)" : r.priority === "p1" ? "var(--priority-p1-text)" : r.priority === "p2" ? "var(--priority-p2-text)" : "var(--priority-p3-text)",
                                   }}
                                 >
                                   {r.priority.toUpperCase()}
@@ -507,15 +488,15 @@ export function RequestList({ requests, myRequestIds, assigneesByRequest = {}, p
                                       fontSize: 10,
                                       fontWeight: 500,
                                       padding: "1px 5px",
-                                      background: "#FEF3C7",
-                                      color: "#B45309",
+                                      background: "var(--priority-p2-bg)",
+                                      color: "var(--priority-p2-text)",
                                     }}
                                   >
                                     {deadline.label}
                                   </span>
                                 )}
                                 {isStalled(r) && (
-                                  <span style={{ fontSize: 10, color: "#B45309" }}>stalled</span>
+                                  <span style={{ fontSize: 10, color: "var(--priority-p1-text)" }}>stalled</span>
                                 )}
                                 {r.requestType && (
                                   <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{TYPE_LABELS[r.requestType] ?? r.requestType}</span>
