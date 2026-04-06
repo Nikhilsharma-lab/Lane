@@ -284,7 +284,7 @@ export function Sidebar({ user, orgName, orgPlan, activeCount, banner }: Props) 
           <NavItemLink href="/dashboard/journey" icon={ArrowRight} label="Journey View" />
           <NavItemLink href="/dashboard/betting" icon={LayoutGrid} label="Betting Board" />
           <NavItemLink href="/dashboard/dev" icon={Kanban} label="Dev Board" />
-          <NavItemLink href="/dashboard/requests" icon={List} label="All Requests" />
+          <NavItemLink href="/dashboard" icon={List} label="All Requests" />
           <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Idea Board" />
         </Section>
 
