@@ -31,6 +31,12 @@ export async function createInvite(formData: FormData) {
     return { error: "Only leads and admins can invite team members" };
   }
 
+  // Leads can only invite non-privileged roles — prevents privilege escalation
+  const privilegedRoles = ["lead", "admin"];
+  if (profile.role === "lead" && privilegedRoles.includes(role)) {
+    return { error: "Leads can only invite designers, PMs, and developers. Contact an admin to invite leads or admins." };
+  }
+
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
@@ -54,10 +60,10 @@ export async function createInvite(formData: FormData) {
 
   sendEmail({
     to: email,
-    subject: `You've been invited to ${org?.name ?? "DesignQ"}`,
+    subject: `You've been invited to ${org?.name ?? "Lane"}`,
     html: inviteEmail({
       invitedByName: profile.fullName ?? "Your team lead",
-      orgName: org?.name ?? "DesignQ",
+      orgName: org?.name ?? "Lane",
       role,
       inviteUrl,
     }),

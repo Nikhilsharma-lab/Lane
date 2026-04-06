@@ -1,0 +1,101 @@
+name: Auto-update Changelog
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  changelog:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG.md
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const pr = context.payload.pull_request;
+            const title = pr.title;
+            const number = pr.number;
+            const labels = pr.labels.map(l => l.name.toLowerCase());
+            const mergedAt = new Date(pr.merged_at);
+            const dateStr = mergedAt.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            // Determine section from conventional commit prefix or labels
+            function getSection(title, labels) {
+              if (labels.includes('security')) return 'Security';
+              const prefix = title.match(/^(\w+)(\(.+\))?!?:/)?.[1]?.toLowerCase();
+              const map = {
+                feat:     'Added',
+                fix:      'Fixed',
+                docs:     'Docs',
+                refactor: 'Changed',
+                chore:    'Changed',
+                perf:     'Changed',
+                test:     'Changed',
+                style:    'Changed',
+                ci:       'Changed',
+              };
+              return map[prefix] ?? 'Changed';
+            }
+
+            // Strip conventional commit prefix from title for the changelog entry
+            function cleanTitle(title) {
+              return title.replace(/^\w+(\(.+\))?!?:\s*/, '');
+            }
+
+            const section = getSection(title, labels);
+            const entry = `- ${cleanTitle(title)} (PR #${number})`;
+
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+
+            // Find or create a date header for today
+            const dateHeader = `## ${dateStr}`;
+            const sectionHeader = `### ${section}`;
+
+            let updated;
+
+            if (changelog.includes(dateHeader)) {
+              // Date block exists — find the right section inside it
+              if (changelog.includes(`${dateHeader}\n`) && changelog.includes(sectionHeader)) {
+                // Both exist — append entry under the section
+                updated = changelog.replace(
+                  new RegExp(`(${sectionHeader}\\n(?:- .+\\n)*)`),
+                  `$1${entry}\n`
+                );
+              } else {
+                // Date exists but section doesn't — add section after date header
+                updated = changelog.replace(
+                  `${dateHeader}\n`,
+                  `${dateHeader}\n\n${sectionHeader}\n${entry}\n`
+                );
+              }
+            } else {
+              // No date block yet — insert after the first ---
+              updated = changelog.replace(
+                /^---$/m,
+                `---\n\n${dateHeader}\n\n${sectionHeader}\n${entry}\n`
+              );
+            }
+
+            fs.writeFileSync('CHANGELOG.md', updated);
+            console.log(`Added to CHANGELOG.md under [${dateStr}] → ${section}: ${entry}`);
+
+      - name: Commit changelog update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --staged --quiet || git commit -m "chore: update changelog for PR #${{ github.event.pull_request.number }}"
+          git push

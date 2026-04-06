@@ -26,7 +26,7 @@ function LoginForm() {
     <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">DesignQ</h1>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">Lane</h1>
           <p className="text-[var(--text-secondary)] text-sm mt-1">Sign in to your workspace</p>
         </div>
 

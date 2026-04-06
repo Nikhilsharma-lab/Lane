@@ -56,33 +56,44 @@ export async function POST(
           { status: 422 }
         );
       }
-      await db
-        .update(requests)
-        .set({
-          phase: "design",
-          designStage: "explore",
-          stage: "explore",         // keep legacy stage in sync
-          status: "in_progress",
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, "explore", user.id);
-      await addSystemComment(requestId, "⭢ Bet approved — Design Phase started (Exploration)");
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            phase: "design",
+            designStage: "explore",
+            stage: "explore",         // keep legacy stage in sync
+            status: "in_progress",
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: "explore",
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+        await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Bet approved — Design Phase started (Exploration)", isSystem: true });
+      });
     } else {
       const next = PREDESIGN_STAGES[currentIdx + 1];
-      await db
-        .update(requests)
-        .set({
-          predesignStage: next,
-          stage: next,               // keep legacy stage in sync
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, next, user.id);
-      await addSystemComment(
-        requestId,
-        `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
-      );
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            predesignStage: next,
+            stage: next,               // keep legacy stage in sync
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: next as typeof requestStages.$inferInsert["stage"],
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+        await tx.insert(comments).values({ requestId, authorId: null, body: `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`, isSystem: true });
+      });
     }
 
     return NextResponse.json({ success: true });
@@ -109,23 +120,27 @@ export async function POST(
           { status: 422 }
         );
       }
-      await db
-        .update(requests)
-        .set({
-          phase: "dev",
-          kanbanState: "todo",
-          stage: "build",            // legacy
-          status: "assigned",
-          figmaVersionId: request.figmaUrl,
-          figmaLockedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, "build", user.id);
-      await addSystemComment(
-        requestId,
-        "⭢ Design handed off — Figma locked, Dev kanban opened"
-      );
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            phase: "dev",
+            kanbanState: "todo",
+            stage: "build",            // legacy
+            status: "assigned",
+            figmaVersionId: request.figmaUrl,
+            figmaLockedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: "build",
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+        await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Design handed off — Figma locked, Dev kanban opened", isSystem: true });
+      });
 
       // Notify all assignees about the handoff
       const assignedRows = await db.select().from(assignments).where(eq(assignments.requestId, requestId));
@@ -148,19 +163,23 @@ export async function POST(
       }
     } else {
       const next = DESIGN_STAGES[currentIdx + 1];
-      await db
-        .update(requests)
-        .set({
-          designStage: next,
-          stage: next,               // legacy
-          updatedAt: new Date(),
-        })
-        .where(eq(requests.id, requestId));
-      await recordStageEntry(requestId, next, user.id);
-      await addSystemComment(
-        requestId,
-        `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`
-      );
+      await db.transaction(async (tx) => {
+        await tx
+          .update(requests)
+          .set({
+            designStage: next,
+            stage: next,               // legacy
+            updatedAt: new Date(),
+          })
+          .where(eq(requests.id, requestId));
+        await tx.insert(requestStages).values({
+          requestId,
+          stage: next as typeof requestStages.$inferInsert["stage"],
+          enteredAt: new Date(),
+          completedById: user.id,
+        });
+        await tx.insert(comments).values({ requestId, authorId: null, body: `⭢ Moved to ${next.charAt(0).toUpperCase() + next.slice(1)} stage`, isSystem: true });
+      });
 
       // When entering validate stage, notify all signers
       if (next === "validate") {
@@ -208,18 +227,25 @@ export async function POST(
         { status: 422 }
       );
     }
-    await db
-      .update(requests)
-      .set({
-        phase: "track",
-        trackStage: "measuring",
-        stage: "impact",            // legacy
-        status: "completed",
-        updatedAt: new Date(),
-      })
-      .where(eq(requests.id, requestId));
-    await recordStageEntry(requestId, "impact", user.id);
-    await addSystemComment(requestId, "⭢ Dev complete — shipped to Track phase");
+    await db.transaction(async (tx) => {
+      await tx
+        .update(requests)
+        .set({
+          phase: "track",
+          trackStage: "measuring",
+          stage: "impact",            // legacy
+          status: "completed",
+          updatedAt: new Date(),
+        })
+        .where(eq(requests.id, requestId));
+      await tx.insert(requestStages).values({
+        requestId,
+        stage: "impact",
+        enteredAt: new Date(),
+        completedById: user.id,
+      });
+      await tx.insert(comments).values({ requestId, authorId: null, body: "⭢ Dev complete — shipped to Track phase", isSystem: true });
+    });
     return NextResponse.json({ success: true });
   }
 
@@ -232,15 +258,17 @@ export async function POST(
         { status: 422 }
       );
     }
-    await db
-      .update(requests)
-      .set({
-        trackStage: "complete",
-        status: "shipped",
-        updatedAt: new Date(),
-      })
-      .where(eq(requests.id, requestId));
-    await addSystemComment(requestId, "✅ Impact recorded — request complete");
+    await db.transaction(async (tx) => {
+      await tx
+        .update(requests)
+        .set({
+          trackStage: "complete",
+          status: "shipped",
+          updatedAt: new Date(),
+        })
+        .where(eq(requests.id, requestId));
+      await tx.insert(comments).values({ requestId, authorId: null, body: "✅ Impact recorded — request complete", isSystem: true });
+    });
     return NextResponse.json({ success: true });
   }
 
@@ -277,21 +305,4 @@ function checkPredesignGate(
       break;
   }
   return null;
-}
-
-async function addSystemComment(requestId: string, body: string) {
-  await db.insert(comments).values({ requestId, authorId: null, body, isSystem: true });
-}
-
-async function recordStageEntry(requestId: string, stage: string, userId: string) {
-  try {
-    await db.insert(requestStages).values({
-      requestId,
-      stage: stage as typeof requestStages.$inferInsert["stage"],
-      enteredAt: new Date(),
-      completedById: userId,
-    });
-  } catch {
-    // Non-critical — analytics degrade gracefully if this fails
-  }
 }

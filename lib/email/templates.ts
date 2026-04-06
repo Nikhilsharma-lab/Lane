@@ -7,7 +7,7 @@ function layout(content: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DesignQ</title>
+  <title>Lane</title>
 </head>
 <body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;padding:40px 20px;">
@@ -15,7 +15,7 @@ function layout(content: string): string {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
         <!-- Logo -->
         <tr><td style="padding-bottom:28px;">
-          <span style="font-size:14px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;">DesignQ</span>
+          <span style="font-size:14px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;">Lane</span>
         </td></tr>
         <!-- Card -->
         <tr><td style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:32px;">
@@ -24,7 +24,7 @@ function layout(content: string): string {
         <!-- Footer -->
         <tr><td style="padding-top:24px;text-align:center;">
           <p style="margin:0;font-size:11px;color:#52525b;">
-            You're receiving this because you're part of a DesignQ workspace.
+            You're receiving this because you're part of a Lane workspace.
           </p>
         </td></tr>
       </table>
@@ -167,7 +167,7 @@ export function handoffEmail({
     ${label("Request")}
     ${value(requestTitle)}
     ${figmaUrl ? `${label("Figma")}${value(`<a href="${figmaUrl}" style="color:#818cf8;">${figmaUrl}</a>`)}` : ""}
-    ${button("Open in DesignQ", `${APP_URL}/dashboard/requests/${requestId}`)}
+    ${button("Open in Lane", `${APP_URL}/dashboard/requests/${requestId}`)}
   `);
 }
 
@@ -183,7 +183,7 @@ export function inviteEmail({
   inviteUrl: string;
 }): string {
   return layout(`
-    <p style="margin:0 0 20px 0;font-size:20px;font-weight:600;color:#ffffff;">You've been invited to DesignQ</p>
+    <p style="margin:0 0 20px 0;font-size:20px;font-weight:600;color:#ffffff;">You've been invited to Lane</p>
     <p style="margin:0 0 24px 0;font-size:14px;color:#a1a1aa;line-height:1.6;">
       <strong style="color:#e4e4e7;">${invitedByName}</strong> invited you to join
       <strong style="color:#e4e4e7;">${orgName}</strong> as a <strong style="color:#e4e4e7;">${role}</strong>.

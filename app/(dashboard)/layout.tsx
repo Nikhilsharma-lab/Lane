@@ -1,14 +1,13 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests } from "@/db/schema";
+import { profiles, requests, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { RequestsProvider } from "@/context/requests-context";
 import { GlobalShortcutsProvider } from "@/components/ui/global-shortcuts-provider";
-import { IconRail } from "@/components/shell/icon-rail";
-import { GlobalPane } from "@/components/shell/global-pane";
+import { Sidebar } from "@/components/shell/sidebar";
 import { DetailDock } from "@/components/shell/detail-dock";
-import type { Request } from "@/db/schema";
+import type { Request, Profile, Organization } from "@/db/schema";
 
 export default async function DashboardLayout({
   children,
@@ -19,6 +18,8 @@ export default async function DashboardLayout({
   let userId = "";
   let profileRole = "member";
   let isTestUser = false;
+  let userProfile: Profile | null = null;
+  let userOrg: Organization | null = null;
 
   try {
     const supabase = await createClient();
@@ -32,8 +33,16 @@ export default async function DashboardLayout({
         .where(eq(profiles.id, user.id));
 
       if (profile) {
+        userProfile = profile;
         profileRole = profile.role ?? "member";
         isTestUser = profile.email === "hi.nikhilsharma@gmail.com";
+
+        const [org] = await db
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, profile.orgId));
+        userOrg = org ?? null;
+
         orgRequests = await db
           .select()
           .from(requests)
@@ -44,12 +53,27 @@ export default async function DashboardLayout({
     // Pages handle auth redirects themselves
   }
 
+  const activeCount = orgRequests.filter(
+    (r) => !["completed", "shipped"].includes(r.status)
+  ).length;
+
   return (
     <RequestsProvider requests={orgRequests}>
       <GlobalShortcutsProvider>
         <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
-          <IconRail />
-          <GlobalPane userId={userId} />
+          {userProfile && userOrg && (
+            <Sidebar
+              profile={userProfile}
+              org={userOrg}
+              activeRequestCount={activeCount}
+              banner={{
+                title: "AI Context Briefs are live",
+                description: "Designers now get auto-generated briefs when they open a request — fewer Slack threads, faster starts.",
+                ctaLabel: "Learn more",
+                ctaHref: "/dashboard/insights",
+              }}
+            />
+          )}
           <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
             {children}
           </main>
