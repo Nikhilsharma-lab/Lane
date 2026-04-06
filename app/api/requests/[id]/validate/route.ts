@@ -162,6 +162,7 @@ export async function POST(
         kanbanState: "todo",
         stage: "build",       // legacy
         status: "assigned",
+        figmaVersionId: request.figmaUrl,
         figmaLockedAt: new Date(),
         updatedAt: new Date(),
       })
