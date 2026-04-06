@@ -43,13 +43,21 @@ export type DigestResponse = {
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
+function safeVariance(raw: unknown): number | null {
+  const n = parseFloat(raw as string);
+  return Number.isFinite(n) ? n : null;
+}
+
 const STALL_EXEMPT = new Set(["draft", "completed", "shipped", "blocked"]);
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
 function cycleDays(r: { createdAt: Date; updatedAt: Date }): number {
-  return Math.round(
-    (new Date(r.updatedAt).getTime() - new Date(r.createdAt).getTime()) / 86_400_000
+  return Math.max(
+    0,
+    Math.round(
+      (new Date(r.updatedAt).getTime() - new Date(r.createdAt).getTime()) / 86_400_000
+    )
   );
 }
 
@@ -73,17 +81,19 @@ function buildPmCalibration(
 } | null {
   if (!measured.length) return null;
 
-  const variances = measured.map((r) => parseFloat(r.variancePercent as string));
+  const validMeasured = measured.filter((r) => safeVariance(r.variancePercent) !== null);
+  if (!validMeasured.length) return null;
+  const variances = validMeasured.map((r) => safeVariance(r.variancePercent) as number);
   const avgVariance = variances.reduce((s, v) => s + v, 0) / variances.length;
 
   let trend: "improving" | "worsening" | "stable" = "stable";
-  if (measured.length >= 4) {
-    const mid = Math.floor(measured.length / 2);
+  if (validMeasured.length >= 4) {
+    const mid = Math.floor(validMeasured.length / 2);
     const firstHalf =
-      measured.slice(0, mid).reduce((s, r) => s + Math.abs(parseFloat(r.variancePercent as string)), 0) / mid;
+      validMeasured.slice(0, mid).reduce((s, r) => s + Math.abs(safeVariance(r.variancePercent) as number), 0) / mid;
     const secondHalf =
-      measured.slice(mid).reduce((s, r) => s + Math.abs(parseFloat(r.variancePercent as string)), 0) /
-      (measured.length - mid);
+      validMeasured.slice(mid).reduce((s, r) => s + Math.abs(safeVariance(r.variancePercent) as number), 0) /
+      (validMeasured.length - mid);
     if (secondHalf < firstHalf - 5) trend = "improving";
     else if (secondHalf > firstHalf + 5) trend = "worsening";
   }
@@ -95,7 +105,7 @@ function buildPmCalibration(
       ? "over_optimistic"
       : "under_optimistic";
 
-  const recent: RecentPrediction[] = measured
+  const recent: RecentPrediction[] = validMeasured
     .slice(-5)
     .reverse()
     .map((r) => {
@@ -105,7 +115,7 @@ function buildPmCalibration(
         requestTitle: req?.title ?? "Unknown request",
         predictedValue: r.predictedValue,
         actualValue: r.actualValue,
-        variancePercent: parseFloat(r.variancePercent as string),
+        variancePercent: safeVariance(r.variancePercent) ?? 0,
         measuredAt: r.measuredAt ? new Date(r.measuredAt).toISOString() : null,
       };
     });
@@ -115,7 +125,7 @@ function buildPmCalibration(
     trend,
     label,
     recent,
-    predictionCount: measured.length,
+    predictionCount: validMeasured.length,
   };
 }
 
@@ -186,9 +196,15 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
   );
 
   // Lead designer per request
-  const leadByRequest: Record<string, string> = {};
+  // Maps requestId → lead assignee ID (for ID-based matching)
+  const leadAssigneeByRequest: Record<string, string> = {};
+  // Maps requestId → lead display name (for prompt strings)
+  const leadNameByRequest: Record<string, string> = {};
   for (const a of allAssignments) {
-    if (a.role === "lead") leadByRequest[a.requestId] = memberMap[a.assigneeId] ?? "Unknown";
+    if (a.role === "lead") {
+      leadAssigneeByRequest[a.requestId] = a.assigneeId;
+      leadNameByRequest[a.requestId] = memberMap[a.assigneeId] ?? "Unknown";
+    }
   }
 
   const now = Date.now();
@@ -220,12 +236,12 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
 
   // Shipped items with actual impact for prompt
   const shippedItems = shippedThisWeek.map((r) => {
-    const designer = leadByRequest[r.id] ?? "Unassigned";
+    const designer = leadNameByRequest[r.id] ?? "Unassigned";
     const days = cycleDays(r);
     const impact = impactMap[r.id];
     let impactStr = "";
     if (impact) {
-      const v = impact.variancePercent ? parseFloat(impact.variancePercent as string) : null;
+      const v = safeVariance(impact.variancePercent);
       impactStr = ` → Actual: ${impact.actualValue}${v !== null ? ` (${v > 0 ? "+" : ""}${v.toFixed(1)}% vs prediction)` : ""}`;
     } else if (r.impactPrediction) {
       impactStr = ` → Predicted: ${r.impactPrediction} (not yet measured)`;
@@ -238,14 +254,14 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
     .map((m) => {
       const active = activeByDesigner[m.id] ?? 0;
       const shipped = shippedThisWeek.filter(
-        (r) => leadByRequest[r.id] === m.fullName
+        (r) => leadAssigneeByRequest[r.id] === m.id
       ).length;
       return `${m.fullName} (${m.role}): ${active} active, ${shipped} shipped this week`;
     });
 
   const stalledList = stalledRequests.map((r) => {
     const days = Math.floor((now - new Date(r.updatedAt).getTime()) / 86_400_000);
-    return `• "${r.title}" — ${leadByRequest[r.id] ?? "Unassigned"}, stuck ${days}d`;
+    return `• "${r.title}" — ${leadNameByRequest[r.id] ?? "Unassigned"}, stuck ${days}d`;
   });
 
   const shippedThisWeekAvgCycle = avgCycle(shippedThisWeek);
@@ -265,8 +281,7 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
   const byPm: Record<string, ImpactRow[]> = {};
   for (const rec of allImpactRecords) {
     if (!rec.actualValue || rec.variancePercent === null) continue;
-    const req = orgRequests.find((r) => r.id === rec.requestId);
-    const pmId = rec.pmId ?? req?.requesterId;
+    const pmId = rec.pmId;
     if (!pmId) continue;
     if (!byPm[pmId]) byPm[pmId] = [];
     byPm[pmId].push(rec);
@@ -283,7 +298,7 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
     const member = members.find((m) => m.id === pmId);
     if (!member) continue;
     const cal = buildPmCalibration(records, orgRequests);
-    if (cal) pmCalibrationData.push({ pmId, fullName: member.fullName, calibration: cal });
+    if (cal) pmCalibrationData.push({ pmId, fullName: member.fullName ?? "Unknown PM", calibration: cal });
   }
 
   // Build prompt lines for PM coaching
