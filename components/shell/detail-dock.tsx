@@ -268,9 +268,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               impactMetric={request.impactMetric}
               impactPrediction={request.impactPrediction}
               impactActual={request.impactActual}
-              predictionScore={null}
-              predictionLabel={null}
-              existingRetrospective={null}
+              initialVariancePercent={null}
             />
           </div>
         )}

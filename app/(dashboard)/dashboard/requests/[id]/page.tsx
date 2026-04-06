@@ -20,7 +20,7 @@ import { RealtimeRequest } from "@/components/realtime/realtime-request";
 import { ProjectBadge } from "@/components/projects/project-badge";
 import { ContextBriefPanel } from "@/components/requests/context-brief-panel";
 import { HandoffBriefPanel } from "@/components/requests/handoff-brief-panel";
-import { requestHandoffBriefs, predictionConfidence as predictionConfidenceTable, impactRetrospectives } from "@/db/schema";
+import { requestHandoffBriefs, predictionConfidence as predictionConfidenceTable, impactRetrospectives, impactRecords } from "@/db/schema";
 import { syncFigmaVersions } from "@/lib/figma/sync";
 import { decryptToken } from "@/lib/encrypt";
 
@@ -75,6 +75,14 @@ export default async function RequestDetailPage({
 
   const [request] = await db.select().from(requests).where(eq(requests.id, id));
   if (!request || request.orgId !== profile.orgId) notFound();
+
+  // Fetch impact record for variance display in track phase
+  const [impactRecord] = request.phase === "track"
+    ? await db.select().from(impactRecords).where(eq(impactRecords.requestId, id))
+    : [undefined];
+  const initialVariancePercent = impactRecord?.variancePercent
+    ? parseFloat(impactRecord.variancePercent as string)
+    : null;
 
   // Figma connection check
   let isConnected = false;
@@ -527,9 +535,7 @@ export default async function RequestDetailPage({
                   impactMetric={request.impactMetric}
                   impactPrediction={request.impactPrediction}
                   impactActual={request.impactActual}
-                  predictionScore={existingConfidence?.score ?? null}
-                  predictionLabel={existingConfidence?.label ?? null}
-                  existingRetrospective={existingRetrospective}
+                  initialVariancePercent={initialVariancePercent}
                 />
               </div>
             ) : (
