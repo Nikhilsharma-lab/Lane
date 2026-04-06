@@ -7,13 +7,7 @@ All notable changes are documented here. Update this file with every PR before m
 
 ---
 
-## 2026-04-06
-
-### Added
-- update design stage enum to 5-stage model and add designerOwnerId (PR #13)
-
-
-## 2026-04-07 — Design stage rename (v2), schema fixes, CLAUDE.md public split
+## 2026-04-07 — Design stage rename, schema fixes, CLAUDE.md public split
 
 ### Changed
 - Rename design sub-stages from v1 (`explore → validate → handoff`) to v2 (`sense → frame → diverge → converge → prove`) — aligns code with CLAUDE.md product spec (PR #13)
