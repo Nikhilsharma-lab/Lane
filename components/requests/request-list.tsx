@@ -103,9 +103,9 @@ function priorityOrder(r: Request) {
 function deadlineStatus(deadlineAt: Date | string | null) {
   if (!deadlineAt) return null;
   const days = (new Date(deadlineAt).getTime() - Date.now()) / 86_400_000;
-  if (days < 0) return { label: "overdue", color: "text-red-400 bg-red-500/10 border-red-500/20" };
-  if (days <= 3) return { label: `${Math.ceil(days)}d left`, color: "text-orange-400 bg-orange-500/10 border-orange-500/20" };
-  if (days <= 7) return { label: `${Math.ceil(days)}d left`, color: "text-yellow-500/80 bg-yellow-500/10 border-yellow-500/20" };
+  if (days < 0) return { label: "overdue" };
+  if (days <= 3) return { label: `${Math.ceil(days)}d left` };
+  if (days <= 7) return { label: `${Math.ceil(days)}d left` };
   return null;
 }
 
