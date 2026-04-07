@@ -116,8 +116,7 @@ export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]
     .where(
       and(
         eq(requests.orgId, orgId),
-        eq(requests.phase, "design"),
-        eq(requests.designStage, "explore")
+        eq(requests.phase, "design")
       )
     );
 
@@ -257,7 +256,7 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
       and(
         eq(requests.orgId, orgId),
         eq(requests.phase, "design"),
-        eq(requests.designStage, "validate")
+        eq(requests.designStage, "prove")
       )
     );
 
