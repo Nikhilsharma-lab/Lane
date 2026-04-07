@@ -15,15 +15,24 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await db
-    .update(proactiveAlerts)
-    .set({ dismissed: true, dismissedAt: new Date() })
-    .where(
-      and(
-        eq(proactiveAlerts.id, id),
-        eq(proactiveAlerts.recipientId, user.id) // can only dismiss own alerts
+  try {
+    const result = await db
+      .update(proactiveAlerts)
+      .set({ dismissed: true, dismissedAt: new Date() })
+      .where(
+        and(
+          eq(proactiveAlerts.id, id),
+          eq(proactiveAlerts.recipientId, user.id) // can only dismiss own alerts
+        )
       )
-    );
+      .returning({ id: proactiveAlerts.id });
 
-  return NextResponse.json({ ok: true });
+    if (result.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[alerts/dismiss] DB error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
