@@ -12,6 +12,13 @@ import {
 } from "@/db/schema";
 import { eq, and, lt, not, inArray, desc, gt, or } from "drizzle-orm";
 
+// ── Named thresholds ───────────────────────────────────────────────────────
+
+const STALL_NUDGE_THRESHOLD_DAYS = 5;
+const ESCALATION_THRESHOLD_DAYS = 2;
+const SIGNOFF_OVERDUE_THRESHOLD_DAYS = 3;
+const FIGMA_DRIFT_THRESHOLD_HOURS = 24;
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 // Returns ISO year+week string e.g. "2026-w15" — used in dedup rule keys
@@ -38,24 +45,20 @@ function hoursAgo(n: number): Date {
 // Returns the most recent activity timestamp for a request
 // Activity = any non-system comment OR any request_stages entry
 async function getLastActivityAt(requestId: string): Promise<Date | null> {
-  const [lastComment] = await db
-    .select({ createdAt: comments.createdAt })
-    .from(comments)
-    .where(
-      and(
-        eq(comments.requestId, requestId),
-        eq(comments.isSystem, false)
-      )
-    )
-    .orderBy(desc(comments.createdAt))
-    .limit(1);
-
-  const [lastStage] = await db
-    .select({ enteredAt: requestStages.enteredAt })
-    .from(requestStages)
-    .where(eq(requestStages.requestId, requestId))
-    .orderBy(desc(requestStages.enteredAt))
-    .limit(1);
+  const [[lastComment], [lastStage]] = await Promise.all([
+    db
+      .select({ createdAt: comments.createdAt })
+      .from(comments)
+      .where(and(eq(comments.requestId, requestId), eq(comments.isSystem, false)))
+      .orderBy(desc(comments.createdAt))
+      .limit(1),
+    db
+      .select({ enteredAt: requestStages.enteredAt })
+      .from(requestStages)
+      .where(eq(requestStages.requestId, requestId))
+      .orderBy(desc(requestStages.enteredAt))
+      .limit(1),
+  ]);
 
   const commentTs = lastComment?.createdAt ?? null;
   const stageTs = lastStage?.enteredAt ?? null;
@@ -123,7 +126,7 @@ export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]
     if (await ruleKeyExists(ruleKey)) continue;
 
     const lastActivity = await getLastActivityAt(req.id);
-    if (lastActivity && lastActivity > daysAgo(5)) continue;
+    if (lastActivity && lastActivity > daysAgo(STALL_NUDGE_THRESHOLD_DAYS)) continue;
 
     const [assignment] = await db
       .select({ assigneeId: assignments.assigneeId })
@@ -183,7 +186,7 @@ export async function detectStallEscalations(orgId: string): Promise<AlertCandid
         eq(proactiveAlerts.orgId, orgId),
         eq(proactiveAlerts.type, "stall_nudge"),
         eq(proactiveAlerts.dismissed, false),
-        lt(proactiveAlerts.generatedAt, daysAgo(2))
+        lt(proactiveAlerts.generatedAt, daysAgo(ESCALATION_THRESHOLD_DAYS))
       )
     );
 
@@ -258,6 +261,16 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
       )
     );
 
+  const orgMembers = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.orgId, orgId));
+
+  const roleToProfileRole: Record<string, string[]> = {
+    pm: ["pm"],
+    design_head: ["lead", "admin"],
+  };
+
   for (const req of validateRequests) {
     const [validateStage] = await db
       .select({ enteredAt: requestStages.enteredAt })
@@ -272,7 +285,7 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
       .limit(1);
 
     if (!validateStage) continue;
-    if (validateStage.enteredAt > daysAgo(3)) continue;
+    if (validateStage.enteredAt > daysAgo(SIGNOFF_OVERDUE_THRESHOLD_DAYS)) continue;
 
     const daysSince = Math.floor(
       (Date.now() - validateStage.enteredAt.getTime()) / 86400000
@@ -289,23 +302,28 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
 
     if (pendingRoles.length === 0) continue;
 
-    const orgMembers = await db
-      .select({ id: profiles.id, role: profiles.role })
-      .from(profiles)
-      .where(eq(profiles.orgId, orgId));
-
-    const roleToProfileRole: Record<string, string[]> = {
-      designer: ["designer"],
-      pm: ["pm"],
-      design_head: ["lead", "admin"],
-    };
-
     for (const pendingRole of pendingRoles) {
-      const allowedRoles = roleToProfileRole[pendingRole];
-      const recipient = orgMembers.find((m) =>
-        allowedRoles.includes(m.role ?? "")
-      );
-      if (!recipient) continue;
+      let recipientId: string | undefined;
+
+      if (pendingRole === "designer") {
+        const [assignment] = await db
+          .select({ assigneeId: assignments.assigneeId })
+          .from(assignments)
+          .where(
+            and(
+              eq(assignments.requestId, req.id),
+              eq(assignments.role, "lead")
+            )
+          )
+          .limit(1);
+        recipientId = assignment?.assigneeId;
+      } else {
+        const allowedRoles = roleToProfileRole[pendingRole];
+        const match = orgMembers.find((m) => allowedRoles.includes(m.role ?? ""));
+        recipientId = match?.id;
+      }
+
+      if (!recipientId) continue;
 
       const today = new Date().toISOString().slice(0, 10);
       const ruleKey = `signoff_overdue_${req.id}_${pendingRole}_${today}`;
@@ -315,10 +333,10 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
         type: "signoff_overdue",
         requestId: req.id,
         requestTitle: req.title,
-        recipientId: recipient.id,
+        recipientId,
         ruleKey,
         ctaUrl: `/dashboard/requests/${req.id}`,
-        pendingSignoffRoles: pendingRoles as unknown as string[],
+        pendingSignoffRoles: [...pendingRoles],
         daysSinceValidationRequested: daysSince,
       });
     }
@@ -354,7 +372,7 @@ export async function detectFigmaDrift(orgId: string): Promise<AlertCandidate[]>
         inArray(figmaUpdates.requestId, devRequestIds),
         eq(figmaUpdates.postHandoff, true),
         eq(figmaUpdates.devReviewed, false),
-        lt(figmaUpdates.createdAt, hoursAgo(24))
+        lt(figmaUpdates.createdAt, hoursAgo(FIGMA_DRIFT_THRESHOLD_HOURS))
       )
     );
 
