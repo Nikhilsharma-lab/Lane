@@ -62,7 +62,6 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
   const [alertItems, setAlertItems] = useState<AlertItem[]>([]);
   const [alertCount, setAlertCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [_seenNotifs, setSeenNotifs] = useState<Set<string>>(new Set());
 
   const ref = useRef<HTMLDivElement>(null);
 
@@ -100,15 +99,16 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
         const fetchedAlerts: AlertItem[] = alertData.alerts ?? [];
         const fetchedNotifs: NotificationItem[] = notifData.items ?? [];
         setAlertItems(fetchedAlerts);
-        setAlertCount(fetchedAlerts.length);
+        setAlertCount(alertData.unreadCount ?? fetchedAlerts.length);
         setNotifItems(fetchedNotifs);
-        setSeenNotifs(new Set(fetchedNotifs.map((i) => i.id)));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }
 
   async function handleDismiss(alertId: string) {
+    // Snapshot for rollback
+    const snapshot = alertItems;
     // Optimistic update
     setAlertItems((prev) => prev.filter((a) => a.id !== alertId));
     setAlertCount((prev) => Math.max(0, prev - 1));
@@ -116,7 +116,9 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
     try {
       await fetch(`/api/alerts/${alertId}/dismiss`, { method: "POST" });
     } catch {
-      // silent fail — alert will reappear on next load if dismiss failed
+      // Roll back optimistic update if dismiss failed
+      setAlertItems(snapshot);
+      setAlertCount((prev) => prev + 1);
     }
   }
 
