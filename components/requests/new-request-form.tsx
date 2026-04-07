@@ -116,7 +116,12 @@ export function NewRequestForm({ onClose, projects }: Props) {
         </div>
 
         {/* Form */}
-        <form ref={formRef} onSubmit={handleSubmit} className="px-6 py-5">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          onChange={() => { if (preflight || preflightError) { setPreflight(null); setPreflightError(null); } }}
+          className="px-6 py-5"
+        >
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             {/* Left column */}
             <div className="space-y-4">
