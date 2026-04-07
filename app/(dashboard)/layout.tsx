@@ -74,6 +74,7 @@ export default async function DashboardLayout({
         <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
           <Sidebar
             user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
+            userRole={profileRole}
             orgName={orgName}
             orgPlan={orgPlan}
             activeCount={activeCount}

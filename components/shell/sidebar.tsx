@@ -25,6 +25,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ interface SidebarBanner {
 
 interface Props {
   user: { initials: string; name: string; role: string };
+  userRole?: string;
   orgName: string;
   orgPlan: string;
   activeCount: number;
@@ -180,7 +182,7 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ user, orgName, orgPlan, activeCount, banner }: Props) {
+export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner }: Props) {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   return (
@@ -385,7 +387,8 @@ export function Sidebar({ user, orgName, orgPlan, activeCount, banner }: Props) 
               {user.role}
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 items-center">
+            <NotificationsBell userRole={userRole} />
             <Link
               href="/settings"
               className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-[var(--bg-hover)] transition-all"
