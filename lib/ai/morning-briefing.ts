@@ -33,7 +33,7 @@ const briefSchema = z.object({
 
 async function gatherDesignerContext(userId: string, orgId: string) {
   const midnight = new Date();
-  midnight.setHours(0, 0, 0, 0);
+  midnight.setUTCHours(0, 0, 0, 0);
 
   const activeRequests = await db
     .select({
@@ -180,7 +180,7 @@ async function gatherLeadContext(orgId: string) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const startOfThisWeek = new Date(now);
   startOfThisWeek.setDate(now.getDate() - now.getDay());
-  startOfThisWeek.setHours(0, 0, 0, 0);
+  startOfThisWeek.setUTCHours(0, 0, 0, 0);
   const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const allOrgRequests = await db
@@ -251,7 +251,7 @@ export async function generateMorningBriefing(input: {
 
   let contextBlock = "";
 
-  if (role === "designer" || role === "developer" || role === "member") {
+  if (role === "designer" || role === "developer") {
     const ctx = await gatherDesignerContext(userId, orgId);
     contextBlock = `
 ACTIVE REQUESTS (${ctx.activeRequests.length} total):
