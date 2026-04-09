@@ -7,6 +7,12 @@ All notable changes are documented here. Update this file with every PR before m
 
 ---
 
+## 2026-04-09
+
+### Changed
+- harden workflow permissions and integrations (PR #14)
+
+
 ## 2026-04-07 — Design stage rename, schema fixes, CLAUDE.md public split
 
 ### Changed
