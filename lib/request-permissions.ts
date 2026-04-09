@@ -1,5 +1,5 @@
-type OrgRole = "pm" | "designer" | "developer" | "lead" | "admin" | string | null | undefined;
-type RequestPhase = "predesign" | "design" | "dev" | "track" | null | undefined;
+type OrgRole = "pm" | "designer" | "developer" | "lead" | "admin" | null | undefined;
+type RequestPhase = "predesign" | "design" | "dev" | "track";
 
 interface AssignmentActor {
   assigneeId: string;

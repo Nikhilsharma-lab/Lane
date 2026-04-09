@@ -37,16 +37,8 @@ export async function GET(
   if (!request || request.orgId !== profile.orgId) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
-  if (
-    !canRecordImpact({
-      userId: user.id,
-      profileRole: profile.role,
-      requesterId: request.requesterId,
-    })
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
+  // All org members can read impact records (CLAUDE.md visibility table: ✅ for every role)
   const [record] = await db
     .select()
     .from(impactRecords)

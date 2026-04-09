@@ -142,6 +142,7 @@ export async function DELETE(
   }
 
   const { assigneeId } = await req.json();
+  if (!assigneeId) return NextResponse.json({ error: "assigneeId required" }, { status: 400 });
 
   const [request] = await db.select().from(requests).where(
     and(eq(requests.id, id), eq(requests.orgId, profile.orgId))

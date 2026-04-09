@@ -109,6 +109,14 @@ export async function advanceStage(requestId: string) {
   if (!request) return { error: "Request not found" };
   if (request.orgId !== profile.orgId) return { error: "Request not found" };
 
+  const role = profile.role as "pm" | "designer" | "developer" | "lead" | "admin" | null;
+  const canAdvance =
+    request.requesterId === user.id ||
+    role === "pm" ||
+    role === "lead" ||
+    role === "admin";
+  if (!canAdvance) return { error: "Only the requester, a PM, lead, or admin can advance stages" };
+
   const currentIndex = STAGES.indexOf(request.stage as Stage);
   if (currentIndex === -1 || currentIndex >= STAGES.length - 1) {
     return { error: "Already at final stage" };
@@ -179,6 +187,11 @@ export async function toggleBlocked(requestId: string, currentStatus: string) {
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request) return { error: "Request not found" };
   if (request.orgId !== profile.orgId) return { error: "Request not found" };
+
+  const role = profile.role as "pm" | "designer" | "developer" | "lead" | "admin" | null;
+  if (role !== "lead" && role !== "admin") {
+    return { error: "Only leads and admins can toggle blocked status" };
+  }
 
   const newStatus =
     currentStatus === "blocked"

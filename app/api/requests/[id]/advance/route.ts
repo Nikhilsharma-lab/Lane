@@ -39,6 +39,19 @@ export async function POST(
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
 
+  const role = profile.role as "pm" | "designer" | "developer" | "lead" | "admin" | null;
+  const canAdvance =
+    request.requesterId === user.id ||
+    role === "pm" ||
+    role === "lead" ||
+    role === "admin";
+  if (!canAdvance) {
+    return NextResponse.json(
+      { error: "Only the requester, a PM, lead, or admin can advance stages" },
+      { status: 403 }
+    );
+  }
+
   const currentIndex = STAGES.indexOf(request.stage as Stage);
   if (currentIndex === -1 || currentIndex >= STAGES.length - 1) {
     return NextResponse.json({ error: "Already at final stage" });
