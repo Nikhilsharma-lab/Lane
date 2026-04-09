@@ -5,6 +5,7 @@ import { requests, comments, profiles, assignments, requestStages } from "@/db/s
 import { eq } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
 import { validationNeededEmail, handoffEmail } from "@/lib/email/templates";
+import { canAdvanceRequestPhase } from "@/lib/request-permissions";
 
 const PREDESIGN_STAGES = ["intake", "context", "shape", "bet"] as const;
 const DESIGN_STAGES = ["sense", "frame", "diverge", "converge", "prove"] as const;
@@ -30,9 +31,31 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
+  const requestAssignments = await db
+    .select({
+      assigneeId: assignments.assigneeId,
+      profileRole: profiles.role,
+    })
+    .from(assignments)
+    .leftJoin(profiles, eq(profiles.id, assignments.assigneeId))
+    .where(eq(assignments.requestId, requestId));
+
   const phase = request.phase ?? "predesign";
   const predesignStage = request.predesignStage ?? "intake";
   const designStage = request.designStage;
+
+  if (
+    !canAdvanceRequestPhase(phase, {
+      userId: user.id,
+      profileRole: profile.role,
+      requesterId: request.requesterId,
+      designerOwnerId: request.designerOwnerId,
+      devOwnerId: request.devOwnerId,
+      assignments: requestAssignments,
+    })
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // ── Predesign phase ───────────────────────────────────────────────────────
 

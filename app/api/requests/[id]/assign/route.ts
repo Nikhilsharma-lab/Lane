@@ -17,6 +17,9 @@ export async function GET(
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (profile.role !== "lead" && profile.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // Verify request belongs to org
   const [request] = await db.select().from(requests).where(
@@ -69,6 +72,9 @@ export async function POST(
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (profile.role !== "lead" && profile.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const [request] = await db.select().from(requests).where(
     and(eq(requests.id, id), eq(requests.orgId, profile.orgId))
@@ -131,8 +137,22 @@ export async function DELETE(
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (profile.role !== "lead" && profile.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { assigneeId } = await req.json();
+  if (!assigneeId) return NextResponse.json({ error: "assigneeId required" }, { status: 400 });
+
+  const [request] = await db.select().from(requests).where(
+    and(eq(requests.id, id), eq(requests.orgId, profile.orgId))
+  );
+  if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const [assignee] = await db.select({ id: profiles.id }).from(profiles).where(
+    and(eq(profiles.id, assigneeId), eq(profiles.orgId, profile.orgId))
+  );
+  if (!assignee) return NextResponse.json({ error: "Assignee not found" }, { status: 404 });
 
   await db.delete(assignments).where(
     and(eq(assignments.requestId, id), eq(assignments.assigneeId, assigneeId))

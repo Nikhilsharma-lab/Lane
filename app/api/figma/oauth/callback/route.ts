@@ -29,6 +29,11 @@ export async function GET(req: NextRequest) {
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return clearState(NextResponse.redirect(new URL("/login", req.url)));
+  if (profile.role !== "admin" && profile.role !== "lead") {
+    return clearState(
+      NextResponse.redirect(new URL("/settings/integrations?error=forbidden", req.url))
+    );
+  }
 
   const tokenRes = await fetch("https://api.figma.com/v1/oauth/token", {
     method: "POST",

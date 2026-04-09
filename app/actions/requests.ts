@@ -24,6 +24,15 @@ const STAGE_STATUS_MAP: Record<Stage, string> = {
   impact: "shipped",
 };
 
+async function getAuthedProfile() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { user: null, profile: null } as const;
+
+  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+  return { user, profile: profile ?? null } as const;
+}
+
 export async function updateRequest(
   requestId: string,
   data: {
@@ -41,18 +50,17 @@ export async function updateRequest(
     return { error: "Title and description are required" };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
 
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request) return { error: "Request not found" };
+  if (request.orgId !== profile.orgId) return { error: "Request not found" };
 
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   const canEdit =
     request.requesterId === user.id ||
-    profile?.role === "lead" ||
-    profile?.role === "admin";
+    profile.role === "lead" ||
+    profile.role === "admin";
   if (!canEdit) return { error: "Only the requester or a lead can edit this request" };
 
   await db
@@ -77,9 +85,11 @@ export async function updateRequest(
 export async function addComment(requestId: string, body: string) {
   if (!body.trim()) return { error: "Comment cannot be empty" };
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
+
+  const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
+  if (!request || request.orgId !== profile.orgId) return { error: "Request not found" };
 
   await db.insert(comments).values({
     requestId,
@@ -92,12 +102,20 @@ export async function addComment(requestId: string, body: string) {
 }
 
 export async function advanceStage(requestId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
 
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request) return { error: "Request not found" };
+  if (request.orgId !== profile.orgId) return { error: "Request not found" };
+
+  const role = profile.role as "pm" | "designer" | "developer" | "lead" | "admin" | null;
+  const canAdvance =
+    request.requesterId === user.id ||
+    role === "pm" ||
+    role === "lead" ||
+    role === "admin";
+  if (!canAdvance) return { error: "Only the requester, a PM, lead, or admin can advance stages" };
 
   const currentIndex = STAGES.indexOf(request.stage as Stage);
   if (currentIndex === -1 || currentIndex >= STAGES.length - 1) {
@@ -144,9 +162,11 @@ export async function advanceStage(requestId: string) {
 export async function logImpact(requestId: string, impactActual: string) {
   if (!impactActual.trim()) return { error: "Actual impact cannot be empty" };
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
+
+  const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
+  if (!request || request.orgId !== profile.orgId) return { error: "Request not found" };
 
   await db
     .update(requests)
@@ -161,12 +181,17 @@ export async function logImpact(requestId: string, impactActual: string) {
 }
 
 export async function toggleBlocked(requestId: string, currentStatus: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
 
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request) return { error: "Request not found" };
+  if (request.orgId !== profile.orgId) return { error: "Request not found" };
+
+  const role = profile.role as "pm" | "designer" | "developer" | "lead" | "admin" | null;
+  if (role !== "lead" && role !== "admin") {
+    return { error: "Only leads and admins can toggle blocked status" };
+  }
 
   const newStatus =
     currentStatus === "blocked"
@@ -183,12 +208,14 @@ export async function toggleBlocked(requestId: string, currentStatus: string) {
 }
 
 export async function nudgeRequest(requestId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const { user, profile } = await getAuthedProfile();
+  if (!user || !profile) return { error: "Not authenticated" };
 
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!profile) return { error: "Profile not found" };
+  const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
+  if (!request || request.orgId !== profile.orgId) return { error: "Request not found" };
+  if (profile.role !== "lead" && profile.role !== "admin") {
+    return { error: "Only leads and admins can send nudges" };
+  }
 
   try {
     await db.insert(comments).values({

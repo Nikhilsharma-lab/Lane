@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { requests, comments, profiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export async function POST(
   _req: Request,
@@ -16,6 +16,14 @@ export async function POST(
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (profile.role !== "lead" && profile.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const [request] = await db.select().from(requests).where(
+    and(eq(requests.id, requestId), eq(requests.orgId, profile.orgId))
+  );
+  if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
   try {
     await db.insert(comments).values({

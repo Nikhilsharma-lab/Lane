@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { requests, comments, profiles } from "@/db/schema";
+import { requests, comments, profiles, assignments } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { canManageKanban } from "@/lib/request-permissions";
 
 const KANBAN_STATES = ["todo", "in_progress", "in_review", "qa", "done"] as const;
 type KanbanState = (typeof KANBAN_STATES)[number];
@@ -28,6 +29,27 @@ export async function PATCH(
 
   if (request.phase !== "dev") {
     return NextResponse.json({ error: "Request is not in the dev phase" }, { status: 422 });
+  }
+
+  const requestAssignments = await db
+    .select({
+      assigneeId: assignments.assigneeId,
+      profileRole: profiles.role,
+    })
+    .from(assignments)
+    .leftJoin(profiles, eq(profiles.id, assignments.assigneeId))
+    .where(eq(assignments.requestId, requestId));
+
+  if (
+    !canManageKanban({
+      userId: user.id,
+      profileRole: profile.role,
+      requesterId: request.requesterId,
+      devOwnerId: request.devOwnerId,
+      assignments: requestAssignments,
+    })
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();

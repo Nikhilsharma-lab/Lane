@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { requests, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { canToggleRequestRisk } from "@/lib/request-permissions";
 
 const STAGES = [
   "intake", "context", "shape", "bet", "explore", "validate", "handoff", "build", "impact",
@@ -34,6 +35,9 @@ export async function POST(
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!canToggleRequestRisk(profile.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const [request] = await db.select().from(requests).where(eq(requests.id, requestId));
   if (!request || request.orgId !== profile.orgId) {
