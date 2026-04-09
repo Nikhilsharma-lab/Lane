@@ -11,6 +11,7 @@ All notable changes are documented here. Update this file with every PR before m
 
 ### Changed
 - harden workflow permissions and integrations (PR #14)
+- rework RLS rollout runtime model (PR #17)
 
 
 ## 2026-04-07 — Design stage rename, schema fixes, CLAUDE.md public split
