@@ -65,7 +65,7 @@ export function canManageKanban(ctx: RequestActorContext): boolean {
   return isPrivileged(ctx.profileRole) || isAssignedDeveloper(ctx);
 }
 
-export function canToggleRequestRisk(profileRole: OrgRole): boolean {
+export function canToggleBlocked(profileRole: OrgRole): boolean {
   return isPrivileged(profileRole);
 }
 

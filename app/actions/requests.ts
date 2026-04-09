@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { comments, profiles, requests, requestStages } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { assignments, comments, proactiveAlerts, profiles, requests, requestStages } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 const STAGES = [
   "intake", "context", "shape", "bet", "explore", "validate", "handoff", "build", "impact",
@@ -25,12 +25,17 @@ const STAGE_STATUS_MAP: Record<Stage, string> = {
 };
 
 async function getAuthedProfile() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { user: null, profile: null } as const;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { user: null, profile: null } as const;
 
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  return { user, profile: profile ?? null } as const;
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    return { user, profile: profile ?? null } as const;
+  } catch (err) {
+    console.error("[getAuthedProfile] Failed to fetch profile:", err);
+    return { user: null, profile: null } as const;
+  }
 }
 
 export async function updateRequest(
@@ -217,15 +222,38 @@ export async function nudgeRequest(requestId: string) {
     return { error: "Only leads and admins can send nudges" };
   }
 
-  try {
-    await db.insert(comments).values({
-      requestId,
-      authorId: null,
-      body: `🔔 Nudge sent by ${profile.fullName} — this request needs attention`,
-      isSystem: true,
-    });
+  // Find the assigned designer — nudge goes to them privately, not the whole org
+  const designerAssignment = await db
+    .select({ assigneeId: assignments.assigneeId })
+    .from(assignments)
+    .leftJoin(profiles, eq(profiles.id, assignments.assigneeId))
+    .where(and(eq(assignments.requestId, requestId), eq(profiles.role, "designer")))
+    .limit(1);
 
-    // Touch updatedAt so stall timer resets after nudge
+  const recipientId = designerAssignment[0]?.assigneeId ?? request.designerOwnerId;
+  if (!recipientId) return { error: "No designer assigned — assign a designer first" };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const ruleKey = `stall_nudge:${requestId}:${today}`;
+
+  try {
+    await db
+      .insert(proactiveAlerts)
+      .values({
+        orgId: request.orgId,
+        requestId,
+        recipientId,
+        type: "stall_nudge",
+        urgency: "medium",
+        title: "This request needs your attention",
+        body: `Hey — it's been a while since "${request.title}" got some attention. Everything okay?`,
+        ctaLabel: "View request",
+        ctaUrl: `/requests/${requestId}`,
+        ruleKey,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+      .onConflictDoNothing({ target: proactiveAlerts.ruleKey });
+
     await db.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, requestId));
   } catch (err) {
     console.error("[nudgeRequest] DB error:", err);
