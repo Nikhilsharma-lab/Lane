@@ -66,6 +66,7 @@ Any orgs with existing plaintext Figma tokens must reconnect Figma after deploy.
 ### Fixed
 - Record `request_stages` rows on every `advance-phase` transition — cycle-time analytics (`radar.ts`) were always returning null because no history was being written (PR #8)
 - Flag plaintext Figma OAuth token storage in schema — marked for AES-256-GCM encryption before customer onboarding (PR #8)
+- nudge privacy, canToggleBlocked rename, error handling (PR #16)
 
 ### Docs
 - Add `STORY.md` — Lane brand story, tagline "Own your lane.", positioning, and voice rules
