@@ -43,8 +43,51 @@ export function AlertsSection({ alerts: initial }: Props) {
     }
   }
 
+  async function handleDismissAll() {
+    const ids = alerts.map((a) => a.id);
+    setAlerts([]);
+    try {
+      await Promise.all(
+        ids.map((id) => fetch(`/api/alerts/${id}/dismiss`, { method: "POST" }))
+      );
+    } catch {
+      // silent fail
+    }
+  }
+
   return (
     <div className="mb-5 flex flex-col gap-2">
+      {alerts.length >= 2 && (
+        <div className="flex items-center justify-between mb-1">
+          <span
+            style={{
+              fontFamily: "'Geist Mono', monospace",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "var(--text-tertiary)",
+            }}
+          >
+            Alerts
+          </span>
+          <button
+            onClick={handleDismissAll}
+            className="hover:opacity-70 transition-opacity"
+            style={{
+              fontFamily: "'Geist Mono', monospace",
+              fontSize: 10,
+              color: "var(--text-tertiary)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            Dismiss all
+          </button>
+        </div>
+      )}
       {visible.map((alert) => (
         <div
           key={alert.id}

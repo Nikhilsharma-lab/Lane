@@ -107,9 +107,7 @@ export default async function DashboardPage({
   );
 
   return (
-    <div style={{ padding: "var(--space-6)" }}>
-      <MorningBriefingCard brief={briefForCard} />
-      <AlertsSection alerts={inlineAlerts} />
+    <>
       <RealtimeDashboard orgId={profile.orgId} />
       <RequestList
         requests={allRequests}
@@ -117,7 +115,22 @@ export default async function DashboardPage({
         assigneesByRequest={assigneesByRequest}
         projects={activeProjects}
         projectMap={projectMap}
+        headerContent={
+          <>
+            <h1 style={{
+              fontSize: 18,
+              fontWeight: 620,
+              color: "var(--text-primary)",
+              letterSpacing: "-0.02em",
+              marginBottom: 8,
+            }}>
+              Welcome back, {profile.fullName?.split(" ")[0] ?? "there"}
+            </h1>
+            <MorningBriefingCard brief={briefForCard} alertCount={inlineAlerts.length} />
+            <AlertsSection alerts={inlineAlerts} />
+          </>
+        }
       />
-    </div>
+    </>
   );
 }

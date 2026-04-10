@@ -8,6 +8,7 @@ import { GlobalShortcutsProvider } from "@/components/ui/global-shortcuts-provid
 import { HotkeysProvider } from "@/components/shell/hotkeys-provider";
 import { Sidebar } from "@/components/shell/sidebar";
 import { DetailDock } from "@/components/shell/detail-dock";
+import { StickyPad } from "@/components/stickies/sticky-pad";
 import type { Request } from "@/db/schema";
 
 export default async function DashboardLayout({
@@ -93,6 +94,7 @@ export default async function DashboardLayout({
           <Suspense>
             <DetailDock profileRole={profileRole} isTestUser={isTestUser} />
           </Suspense>
+          <StickyPad />
         </div>
         </HotkeysProvider>
       </GlobalShortcutsProvider>

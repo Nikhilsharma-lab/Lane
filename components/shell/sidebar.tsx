@@ -23,6 +23,9 @@ import {
   Search,
   ChevronRight,
   ChevronDown,
+  StickyNote,
+  Clock,
+  Layers,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
@@ -279,15 +282,19 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
           <NavItemLink href="/dashboard" icon={Home} label="My Work" />
           <NavItemLink href="/dashboard/inbox" icon={Inbox} label="Inbox" badge={3} badgeStyle="accent" />
           <NavItemLink href="/dashboard/drafts" icon={FileText} label="Drafts" />
+          <NavItemLink href="/dashboard/stickies" icon={StickyNote} label="Stickies" />
         </Section>
 
         {/* Workspace */}
         <Section label="Workspace">
+          <NavItemLink href="/dashboard/intake" icon={Inbox} label="Intake" />
           <NavItemLink href="/dashboard/journey" icon={ArrowRight} label="Journey View" />
           <NavItemLink href="/dashboard/betting" icon={LayoutGrid} label="Betting Board" />
           <NavItemLink href="/dashboard/dev" icon={Kanban} label="Dev Board" />
           <NavItemLink href="/dashboard" icon={List} label="All Requests" />
           <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Idea Board" />
+          <NavItemLink href="/dashboard/cycles" icon={Clock} label="Cycles" />
+          <NavItemLink href="/dashboard/initiatives" icon={Layers} label="Initiatives" />
         </Section>
 
         {/* Insights */}
