@@ -43,6 +43,13 @@
       "when": 1775730600000,
       "tag": "0005_brisk_canary",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775817000000,
+      "tag": "0006_alert_rls_tighten",
+      "breakpoints": true
     }
   ]
 }
