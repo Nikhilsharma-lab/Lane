@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, date } from "drizzle-orm/pg-core";
 import { profiles, organizations } from "./users";
 
 export const projects = pgTable("projects", {
@@ -9,6 +9,10 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   color: text("color").notNull().default("#71717a"),
+  icon: text("icon"),
+  leadId: uuid("lead_id").references(() => profiles.id),
+  targetDate: date("target_date"),
+  status: text("status").notNull().default("active"),
   createdBy: uuid("created_by")
     .notNull()
     .references(() => profiles.id),

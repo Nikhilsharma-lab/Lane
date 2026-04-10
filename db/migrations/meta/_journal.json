@@ -50,6 +50,13 @@
       "when": 1775817000000,
       "tag": "0006_alert_rls_tighten",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775819705403,
+      "tag": "0007_fancy_wild_pack",
+      "breakpoints": true
     }
   ]
 }
