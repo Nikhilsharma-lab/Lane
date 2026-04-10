@@ -5,7 +5,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useRequests } from "@/context/requests-context";
-import { X } from "lucide-react";
+import { X, Activity } from "lucide-react";
+import { ActivityTimeline } from "@/components/timeline/activity-timeline";
 import { PredesignPanel } from "@/components/requests/predesign-panel";
 import { DesignPhasePanel } from "@/components/requests/design-phase-panel";
 import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
@@ -119,6 +120,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
   const [enriched, setEnriched] = useState<EnrichedData | null>(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"details" | "timeline">("details");
 
 
   // ── Enriched data fetch ──────────────────────────────────────────────────
@@ -215,6 +217,39 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
       {/* Body */}
       <div className="flex flex-col gap-5 px-5 py-5">
+
+        {/* ── Tab switcher ── */}
+        <div className="flex gap-0" style={{ borderBottom: "1px solid var(--border)", marginBottom: -4 }}>
+          {(["details", "timeline"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: activeTab === tab ? "var(--text-primary)" : "var(--text-tertiary)",
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
+                padding: "6px 12px 8px",
+                cursor: "pointer",
+                textTransform: "capitalize",
+                transition: "color 150ms, border-color 150ms",
+              }}
+            >
+              {tab === "timeline" && <Activity size={11} style={{ display: "inline", marginRight: 4, verticalAlign: "-1px" }} />}
+              {tab === "details" ? "Details" : "Timeline"}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Timeline tab content ── */}
+        {activeTab === "timeline" && request && (
+          <ActivityTimeline requestId={request.id} />
+        )}
+
+        {/* ── Details tab content ── */}
+        {activeTab === "details" && <>
 
         {/* ── Project badge ── */}
         {enriched?.project && (
@@ -512,6 +547,8 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
           )}
           <CommentBox requestId={request.id} />
         </div>
+
+        </>}
 
         {/* ── Open full page ── */}
         <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, textAlign: "center" }}>

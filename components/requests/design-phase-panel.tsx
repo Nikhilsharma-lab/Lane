@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ValidationGate } from "./validation-gate";
+import { IterationCard } from "@/components/iterations/iteration-card";
+import { createIteration, getIterationsForRequest } from "@/app/actions/iterations";
+import { Plus } from "lucide-react";
+import type { Iteration } from "@/db/schema";
 
 const STAGES = [
   { key: "sense",    label: "Sense",    desc: "Understand the problem deeply before proposing anything" },
@@ -26,6 +30,44 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useState<DesignStage>(currentDesignStage);
   const [error, setError] = useState<string | null>(null);
+
+  // Iterations state
+  const [iterationsList, setIterationsList] = useState<Iteration[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newFigmaUrl, setNewFigmaUrl] = useState("");
+  const [addingIteration, setAddingIteration] = useState(false);
+  const showIterations = currentDesignStage === "diverge" || currentDesignStage === "converge";
+
+  const fetchIterations = useCallback(async () => {
+    if (!showIterations) return;
+    try {
+      const data = await getIterationsForRequest(requestId);
+      setIterationsList(data);
+    } catch { /* silently fail */ }
+  }, [requestId, showIterations]);
+
+  useEffect(() => { fetchIterations(); }, [fetchIterations]);
+
+  async function handleAddIteration(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim() || addingIteration) return;
+    setAddingIteration(true);
+    await createIteration({
+      requestId,
+      title: newTitle.trim(),
+      description: newDesc.trim() || undefined,
+      figmaUrl: newFigmaUrl.trim() || undefined,
+      stage: currentDesignStage,
+    });
+    setNewTitle("");
+    setNewDesc("");
+    setNewFigmaUrl("");
+    setShowAddForm(false);
+    setAddingIteration(false);
+    fetchIterations();
+  }
 
   const currentIdx = STAGES.findIndex((s) => s.key === currentDesignStage);
   const optimisticIdx = STAGES.findIndex((s) => s.key === optimisticStage);
@@ -172,6 +214,96 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
           <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
       </div>
+
+      {/* Iterations section — shown during diverge & converge */}
+      {showIterations && (
+        <div className="px-5 py-4 border-t border-[var(--border)] space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-[var(--text-primary)]">
+              Iterations{iterationsList.length > 0 ? ` (${iterationsList.length})` : ""}
+            </p>
+            <button
+              onClick={() => setShowAddForm((v) => !v)}
+              className="flex items-center gap-1 text-[11px] font-medium transition-colors"
+              style={{
+                color: "var(--accent)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <Plus size={12} />
+              Add Direction
+            </button>
+          </div>
+
+          {/* Add form */}
+          {showAddForm && (
+            <form onSubmit={handleAddIteration} className="space-y-2 p-3 rounded-lg" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Direction title"
+                className="w-full rounded-md px-2.5 py-1.5"
+                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+              />
+              <textarea
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full rounded-md px-2.5 py-1.5 resize-none"
+                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+              />
+              <input
+                type="url"
+                value={newFigmaUrl}
+                onChange={(e) => setNewFigmaUrl(e.target.value)}
+                placeholder="Figma URL (optional)"
+                className="w-full rounded-md px-2.5 py-1.5"
+                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="text-[11px] px-2.5 py-1 rounded-md transition-colors"
+                  style={{ color: "var(--text-secondary)", background: "none", border: "1px solid var(--border)", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingIteration || !newTitle.trim()}
+                  className="text-[11px] px-2.5 py-1 rounded-md transition-opacity disabled:opacity-40"
+                  style={{ fontWeight: 500, color: "#fff", background: "var(--accent)", border: "none", cursor: "pointer" }}
+                >
+                  {addingIteration ? "Adding..." : "Add"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Iteration list */}
+          {iterationsList.length === 0 && !showAddForm && (
+            <p className="text-[11px] text-[var(--text-tertiary)] py-2">
+              {currentDesignStage === "diverge"
+                ? "Start exploring directions. There's no wrong answer yet."
+                : "Narrow down your directions. Log what you chose and why."}
+            </p>
+          )}
+
+          {iterationsList.length > 0 && (
+            <div className="space-y-2">
+              {iterationsList.map((iter) => (
+                <IterationCard key={iter.id} iteration={iter} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
