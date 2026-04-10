@@ -1,0 +1,345 @@
+<h2>Lane Navigation Redesign — Full Proposal</h2>
+<p class="subtitle">Object-first (Linear-style) with smart Home, contextual views, and minimal sidebar</p>
+
+<!-- SECTION 1: NEW SIDEBAR -->
+<div class="section">
+  <h3>1. New Sidebar Structure</h3>
+  <p class="subtitle">From 14 links → 8. Customizable, draggable, collapsible "More" section.</p>
+
+  <div class="split">
+    <!-- BEFORE -->
+    <div class="mockup">
+      <div class="mockup-header">❌ Current Sidebar (14 links, 3 arbitrary groups)</div>
+      <div class="mockup-body" style="background:#111;padding:0;">
+        <div style="font-family:system-ui;font-size:12px;padding:14px;">
+          <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Personal</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">My Work</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Inbox</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Drafts</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:6px;">Stickies</div>
+
+          <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Workspace</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Intake</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Journey View</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Betting Board</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Dev Board</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">All Requests</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Idea Board</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Cycles</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:6px;">Initiatives</div>
+
+          <div style="color:#666;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Insights</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Capacity</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Impact</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Team Health</div>
+          <div style="color:#ccc;padding:4px 8px;margin-bottom:1px;">Team</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="mockup">
+      <div class="mockup-header">✅ New Sidebar (8 links, clear hierarchy)</div>
+      <div class="mockup-body" style="background:#111;padding:0;">
+        <div style="font-family:system-ui;font-size:12px;padding:14px;">
+          <!-- Org header -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:4px 4px;">
+            <div style="width:22px;height:22px;background:#2E5339;border-radius:5px;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700;">L</div>
+            <div style="color:#fff;font-size:13px;font-weight:600;">Lane</div>
+            <div style="color:#555;font-size:10px;margin-left:auto;">⌘K</div>
+          </div>
+
+          <!-- Core nav -->
+          <div style="color:#fff;padding:6px 10px;background:#1e2d22;border-radius:6px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">⌂</span> Home
+          </div>
+          <div style="color:#aaa;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;justify-content:space-between;">
+            <span><span style="font-size:13px;">📥</span> Inbox</span>
+            <span style="background:#2a2a2a;padding:1px 7px;border-radius:10px;font-size:10px;color:#888;">3</span>
+          </div>
+
+          <div style="height:1px;background:#222;margin:10px 0;"></div>
+
+          <!-- Workspace -->
+          <div style="color:#fff;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">⚡</span> Requests
+          </div>
+          <div style="color:#aaa;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">💡</span> Ideas
+          </div>
+          <div style="color:#aaa;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">🎯</span> Cycles
+          </div>
+
+          <div style="height:1px;background:#222;margin:10px 0;"></div>
+
+          <!-- Insights -->
+          <div style="color:#aaa;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">📊</span> Insights
+          </div>
+          <div style="color:#aaa;padding:6px 10px;margin-bottom:2px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;">👥</span> Team
+          </div>
+
+          <div style="height:1px;background:#222;margin:10px 0;"></div>
+
+          <!-- Pinned views -->
+          <div style="color:#555;font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-left:10px;">Pinned Views</div>
+          <div style="color:#888;padding:5px 10px;margin-bottom:1px;font-size:11px;">↳ Design phase work</div>
+          <div style="color:#888;padding:5px 10px;margin-bottom:1px;font-size:11px;">↳ My requests pipeline</div>
+          <div style="color:#888;padding:5px 10px;margin-bottom:1px;font-size:11px;">↳ Needs sign-off</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: HOME PAGE -->
+<div class="section">
+  <h3>2. Home — Smart Focus Ordering (same for all roles, data personalizes)</h3>
+  <p class="subtitle">No role-specific UI. The query does the personalizing — your assignments, your requests, your sign-offs.</p>
+
+  <div class="mockup">
+    <div class="mockup-header">Home — Designer's view (same layout, different data for PMs/Leads)</div>
+    <div class="mockup-body" style="background:#141414;padding:16px;font-family:system-ui;font-size:12px;">
+      <!-- Morning briefing -->
+      <div style="background:#1a2420;border:1px solid #2E5339;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:#2E5339;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">☀ Morning Briefing · Thu Apr 10</div>
+            <div style="color:#ccc;font-size:13px;">You have 2 active requests in Design and 1 sign-off waiting. Search results exploration is entering day 3 — looking good.</div>
+          </div>
+          <div style="color:#555;cursor:pointer;font-size:16px;">×</div>
+        </div>
+      </div>
+
+      <!-- Focus sections -->
+      <div style="margin-bottom:14px;">
+        <div style="color:#EF4444;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;background:#EF4444;border-radius:50%;display:inline-block;"></span>
+          Needs Your Attention
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:10px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:#eee;font-size:13px;">Mobile nav refactor</div>
+            <div style="color:#666;font-size:11px;margin-top:2px;">Sign-off requested · Prove gate</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="background:#7C3AED;color:white;padding:2px 8px;border-radius:4px;font-size:10px;">P0</span>
+            <span style="color:#555;font-size:10px;">Dev · QA</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="color:#2E5339;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;background:#2E5339;border-radius:50%;display:inline-block;"></span>
+          Active Work
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:10px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:#eee;font-size:13px;">Search results relevance</div>
+            <div style="color:#666;font-size:11px;margin-top:2px;">Design · Diverge — 3 directions explored</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="background:#2563EB;color:white;padding:2px 8px;border-radius:4px;font-size:10px;">P1</span>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:10px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:#eee;font-size:13px;">Dashboard data density</div>
+            <div style="color:#666;font-size:11px;margin-top:2px;">Design · Sense — sensing summary in progress</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="background:#059669;color:white;padding:2px 8px;border-radius:4px;font-size:10px;">P2</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="color:#666;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;background:#444;border-radius:50%;display:inline-block;"></span>
+          Recently Updated
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:10px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:#999;font-size:13px;">Onboarding flow redesign</div>
+            <div style="color:#555;font-size:11px;margin-top:2px;">Predesign · Shape — PM updated constraints</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="background:#2563EB;color:white;padding:2px 8px;border-radius:4px;font-size:10px;">P1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: REQUESTS PAGE WITH CONTEXTUAL VIEWS -->
+<div class="section">
+  <h3>3. Requests — One page, contextual view modes</h3>
+  <p class="subtitle">Filter to Dev phase → kanban toggle appears. Filter to Design → board groups by stage. Everything else → list.</p>
+
+  <div class="mockup">
+    <div class="mockup-header">Requests → Filtered to Dev phase → Kanban toggle unlocked</div>
+    <div class="mockup-body" style="background:#141414;padding:16px;font-family:system-ui;font-size:12px;">
+      <!-- Header bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="color:#fff;font-size:16px;font-weight:600;">Requests</div>
+        <div style="display:flex;gap:6px;">
+          <div style="color:#888;background:#1e1e1e;padding:4px 12px;border-radius:6px;font-size:11px;border:1px solid #2a2a2a;">+ New Request</div>
+        </div>
+      </div>
+
+      <!-- Filters bar -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="display:flex;gap:2px;background:#1e1e1e;border-radius:6px;overflow:hidden;border:1px solid #2a2a2a;">
+          <div style="padding:5px 12px;color:#888;font-size:11px;cursor:pointer;">All</div>
+          <div style="padding:5px 12px;color:#888;font-size:11px;cursor:pointer;">Predesign</div>
+          <div style="padding:5px 12px;color:#888;font-size:11px;cursor:pointer;">Design</div>
+          <div style="padding:5px 12px;color:#fff;font-size:11px;background:#2E5339;cursor:pointer;">Dev</div>
+          <div style="padding:5px 12px;color:#888;font-size:11px;cursor:pointer;">Impact</div>
+        </div>
+        <div style="color:#555;font-size:11px;">·</div>
+        <div style="color:#888;background:#1e1e1e;padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid #2a2a2a;">Group: Stage ▾</div>
+        <div style="color:#888;background:#1e1e1e;padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid #2a2a2a;">Filter ▾</div>
+        <div style="margin-left:auto;display:flex;gap:2px;background:#1e1e1e;border-radius:6px;overflow:hidden;border:1px solid #2a2a2a;">
+          <div style="padding:5px 10px;color:#888;font-size:11px;cursor:pointer;">≡</div>
+          <div style="padding:5px 10px;color:#fff;font-size:11px;background:#2E5339;cursor:pointer;">⊞</div>
+        </div>
+        <div style="color:#2E5339;font-size:11px;cursor:pointer;">☆ Save View</div>
+      </div>
+
+      <!-- Kanban columns -->
+      <div style="display:flex;gap:10px;overflow-x:auto;">
+        <div style="min-width:160px;flex:1;">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>To Do</span><span style="color:#555;">2</span>
+          </div>
+          <div style="background:#1a1a1a;border:1px solid #252525;border-radius:6px;padding:10px;margin-bottom:6px;">
+            <div style="color:#ddd;font-size:12px;margin-bottom:4px;">Pricing page v2</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#2563EB;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P1</span>
+              <span style="color:#555;font-size:10px;">Alex</span>
+            </div>
+          </div>
+          <div style="background:#1a1a1a;border:1px solid #252525;border-radius:6px;padding:10px;margin-bottom:6px;">
+            <div style="color:#ddd;font-size:12px;margin-bottom:4px;">Email templates</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#059669;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P2</span>
+              <span style="color:#555;font-size:10px;">Jordan</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-width:160px;flex:1;">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>In Progress</span><span style="color:#555;">1</span>
+          </div>
+          <div style="background:#1a1a1a;border:1px solid #252525;border-radius:6px;padding:10px;margin-bottom:6px;">
+            <div style="color:#ddd;font-size:12px;margin-bottom:4px;">Mobile nav refactor</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#7C3AED;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P0</span>
+              <span style="color:#555;font-size:10px;">Sam</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-width:160px;flex:1;">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>In Review</span><span style="color:#555;">1</span>
+          </div>
+          <div style="background:#1a1a1a;border:1px solid #252525;border-radius:6px;padding:10px;margin-bottom:6px;">
+            <div style="color:#ddd;font-size:12px;margin-bottom:4px;">Checkout flow fix</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#7C3AED;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P0</span>
+              <span style="color:#555;font-size:10px;">Taylor</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="min-width:160px;flex:1;">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>Design QA</span><span style="color:#555;">0</span>
+          </div>
+          <div style="border:1px dashed #252525;border-radius:6px;padding:20px;text-align:center;">
+            <div style="color:#444;font-size:11px;">No requests in QA</div>
+          </div>
+        </div>
+
+        <div style="min-width:160px;flex:1;">
+          <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>Done</span><span style="color:#555;">3</span>
+          </div>
+          <div style="background:#1a1a1a;border:1px solid #252525;border-radius:6px;padding:10px;margin-bottom:6px;opacity:0.6;">
+            <div style="color:#ddd;font-size:12px;margin-bottom:4px;">Settings redesign</div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="color:#555;font-size:10px;">Shipped ✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 4: WHAT GETS REMOVED/FOLDED -->
+<div class="section">
+  <h3>4. What Goes Where</h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="background:#1a2420;border:1px solid #2E5339;border-radius:8px;padding:16px;">
+      <h4 style="color:#2E5339;margin-bottom:8px;">✅ Stays (sidebar)</h4>
+      <ul style="color:#ccc;font-size:13px;line-height:1.8;margin:0;padding-left:18px;">
+        <li><strong>Home</strong> — smart focus ordering</li>
+        <li><strong>Inbox</strong> — notifications</li>
+        <li><strong>Requests</strong> — the ONE work view</li>
+        <li><strong>Ideas</strong> — idea board + voting</li>
+        <li><strong>Cycles</strong> — time-boxed planning</li>
+        <li><strong>Insights</strong> — capacity, impact, pipeline</li>
+        <li><strong>Team</strong> — members, health, radar</li>
+      </ul>
+    </div>
+    <div style="background:#2a1a1a;border:1px solid #5c2a2a;border-radius:8px;padding:16px;">
+      <h4 style="color:#EF4444;margin-bottom:8px;">🗑 Removed / Folded</h4>
+      <ul style="color:#ccc;font-size:13px;line-height:1.8;margin:0;padding-left:18px;">
+        <li><s>Drafts</s> → tab/filter in Home</li>
+        <li><s>Stickies</s> → floating widget (already exists)</li>
+        <li><s>Intake</s> → Requests filtered to predesign</li>
+        <li><s>Journey View</s> → replaced by grouping in Requests</li>
+        <li><s>Betting Board</s> → Requests filtered to bet stage (or Cycles)</li>
+        <li><s>Dev Board</s> → Requests filtered to dev + kanban toggle</li>
+        <li><s>All Requests</s> → redundant, IS Requests now</li>
+        <li><s>Initiatives</s> → fold into Cycles or Projects filter</li>
+        <li><s>Capacity</s> → merged into Insights</li>
+        <li><s>Impact</s> → merged into Insights</li>
+        <li><s>Team Health / Radar</s> → merged into Team</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 5: PINNED VIEWS -->
+<div class="section">
+  <h3>5. Pinned Views — The Power User Feature</h3>
+  <p class="subtitle">Any filtered view can be saved and pinned to the sidebar. This replaces dedicated pages for specific workflows.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+    <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:14px;">
+      <div style="color:#F59E0B;font-size:10px;font-weight:600;margin-bottom:6px;">FOR DESIGNERS</div>
+      <div style="color:#ccc;font-size:13px;font-weight:500;margin-bottom:4px;">My Design Work</div>
+      <div style="color:#666;font-size:11px;">phase:design + assigned:me</div>
+    </div>
+    <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:14px;">
+      <div style="color:#3B82F6;font-size:10px;font-weight:600;margin-bottom:6px;">FOR PMs</div>
+      <div style="color:#ccc;font-size:13px;font-weight:500;margin-bottom:4px;">My Requests Pipeline</div>
+      <div style="color:#666;font-size:11px;">created:me + group:phase</div>
+    </div>
+    <div style="background:#1a1a1a;border:1px solid #252525;border-radius:8px;padding:14px;">
+      <div style="color:#A855F7;font-size:10px;font-weight:600;margin-bottom:6px;">FOR LEADS</div>
+      <div style="color:#ccc;font-size:13px;font-weight:500;margin-bottom:4px;">Needs Sign-off</div>
+      <div style="color:#666;font-size:11px;">stage:prove + pending sign-offs</div>
+    </div>
+  </div>
+  <p style="color:#888;font-size:12px;margin-top:10px;text-align:center;">Users create their own views. Lane can ship default pinned views per role as starter templates.</p>
+</div>

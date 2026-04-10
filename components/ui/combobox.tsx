@@ -11,7 +11,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowDown01Icon, Cancel01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 
 const Combobox = ComboboxPrimitive.Root
 
@@ -31,7 +32,7 @@ function ComboboxTrigger({
       {...props}
     >
       {children}
-      <ChevronDownIcon className="pointer-events-none size-3.5 text-muted-foreground" />
+      <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="pointer-events-none size-3.5 text-muted-foreground" />
     </ComboboxPrimitive.Trigger>
   )
 }
@@ -44,7 +45,7 @@ function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
       className={cn(className)}
       {...props}
     >
-      <XIcon className="pointer-events-none" />
+      <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="pointer-events-none" />
     </ComboboxPrimitive.Clear>
   )
 }
@@ -71,13 +72,11 @@ function ComboboxInput({
           <InputGroupButton
             size="icon-xs"
             variant="ghost"
-            asChild
+            render={<ComboboxTrigger />}
             data-slot="input-group-button"
             className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent"
             disabled={disabled}
-          >
-            <ComboboxTrigger />
-          </InputGroupButton>
+          />
         )}
         {showClear && <ComboboxClear disabled={disabled} />}
       </InputGroupAddon>
@@ -153,7 +152,7 @@ function ComboboxItem({
           <span className="pointer-events-none absolute right-2 flex items-center justify-center" />
         }
       >
-        <CheckIcon className="pointer-events-none" />
+        <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="pointer-events-none" />
       </ComboboxPrimitive.ItemIndicator>
     </ComboboxPrimitive.Item>
   )
@@ -255,7 +254,7 @@ function ComboboxChip({
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
         >
-          <XIcon className="pointer-events-none" />
+          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="pointer-events-none" />
         </ComboboxPrimitive.ChipRemove>
       )}
     </ComboboxPrimitive.Chip>
