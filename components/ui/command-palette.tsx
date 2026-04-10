@@ -4,13 +4,43 @@ import { useEffect, useRef } from "react";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
 import { useRequests } from "@/context/requests-context";
+import {
+  LayoutDashboard,
+  Inbox,
+  Hammer,
+  Target,
+  Lightbulb,
+  RefreshCw,
+  Layers,
+  BarChart3,
+  Users,
+  Settings,
+  Plus,
+  StickyNote,
+} from "lucide-react";
 
-const PAGES = [
-  { label: "Requests", href: "/dashboard" },
-  { label: "Insights", href: "/dashboard/insights" },
-  { label: "Ideas", href: "/dashboard/ideas" },
-  { label: "Team", href: "/dashboard/team" },
+// ── Navigation items ────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { label: "Requests",     href: "/dashboard",              icon: LayoutDashboard, keys: ["G", "R"] },
+  { label: "Intake",       href: "/dashboard/intake",       icon: Inbox,           keys: ["G", "I"] },
+  { label: "Dev Board",    href: "/dashboard/dev",          icon: Hammer,          keys: ["G", "D"] },
+  { label: "Betting Board",href: "/dashboard/betting",      icon: Target,          keys: ["G", "B"] },
+  { label: "Ideas",        href: "/dashboard/ideas",        icon: Lightbulb,       keys: ["G", "A"] },
+  { label: "Cycles",       href: "/dashboard/cycles",       icon: RefreshCw,       keys: ["G", "C"] },
+  { label: "Initiatives",  href: "/dashboard/initiatives",  icon: Layers,          keys: ["G", "L"] },
+  { label: "Insights",     href: "/dashboard/insights",     icon: BarChart3,       keys: ["G", "N"] },
+  { label: "Team",         href: "/dashboard/team",         icon: Users,           keys: ["G", "T"] },
+  { label: "Settings",     href: "/settings",               icon: Settings,        keys: ["G", "S"] },
 ];
+
+const CREATE_ITEMS = [
+  { label: "New Request",  href: "/dashboard?new=1",             icon: Plus,       keys: ["N", "R"] },
+  { label: "New Idea",     href: "/dashboard/ideas?new=1",       icon: Lightbulb,  keys: ["N", "I"] },
+  { label: "New Sticky",   href: "/dashboard/stickies?new=1",    icon: StickyNote, keys: ["N", "S"] },
+];
+
+// ── Phase labels ────────────────────────────────────────────────────────────
 
 const PHASE_LABELS: Record<string, string> = {
   predesign: "Predesign",
@@ -18,6 +48,35 @@ const PHASE_LABELS: Record<string, string> = {
   dev: "Dev",
   track: "Track",
 };
+
+// ── Kbd badge ───────────────────────────────────────────────────────────────
+
+function Kbd({ children }: { children: string }) {
+  return (
+    <kbd
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 18,
+        height: 18,
+        padding: "0 4px",
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: "'Geist Mono', monospace",
+        fontWeight: 500,
+        background: "var(--bg-subtle)",
+        border: "1px solid var(--border)",
+        color: "var(--text-tertiary)",
+        lineHeight: 1,
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   const requests = useRequests();
@@ -32,6 +91,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     router.push(href);
     onClose();
   }
+
+  const limitedRequests = requests.slice(0, 10);
 
   return (
     // Backdrop
@@ -50,7 +111,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         >
           <Command.Input
             ref={inputRef}
-            placeholder="Search requests, pages…"
+            placeholder="Search requests, pages..."
             className="w-full bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none border-b border-[var(--border)]"
           />
 
@@ -59,31 +120,65 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               No results
             </Command.Empty>
 
-            {/* Pages */}
+            {/* Navigation */}
             <Command.Group>
               <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-2 pb-1">
-                Pages
+                Navigation
               </div>
-              {PAGES.map((p) => (
-                <Command.Item
-                  key={p.href}
-                  value={`page ${p.label}`}
-                  onSelect={() => navigate(p.href)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
-                >
-                  <span className="text-[var(--text-tertiary)] text-xs">⇒</span>
-                  {p.label}
-                </Command.Item>
-              ))}
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Command.Item
+                    key={item.href}
+                    value={`go to ${item.label}`}
+                    onSelect={() => navigate(item.href)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
+                  >
+                    <Icon size={14} className="text-[var(--text-tertiary)] shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <Kbd>{item.keys[0]}</Kbd>
+                      <span className="text-[var(--text-tertiary)] text-[9px]">then</span>
+                      <Kbd>{item.keys[1]}</Kbd>
+                    </span>
+                  </Command.Item>
+                );
+              })}
+            </Command.Group>
+
+            {/* Creation */}
+            <Command.Group>
+              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-3 pb-1">
+                Create
+              </div>
+              {CREATE_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Command.Item
+                    key={item.href}
+                    value={`create ${item.label}`}
+                    onSelect={() => navigate(item.href)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
+                  >
+                    <Icon size={14} className="text-[var(--text-tertiary)] shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <Kbd>{item.keys[0]}</Kbd>
+                      <span className="text-[var(--text-tertiary)] text-[9px]">then</span>
+                      <Kbd>{item.keys[1]}</Kbd>
+                    </span>
+                  </Command.Item>
+                );
+              })}
             </Command.Group>
 
             {/* Requests */}
-            {requests.length > 0 && (
+            {limitedRequests.length > 0 && (
               <Command.Group>
                 <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-3 pb-1">
                   Requests
                 </div>
-                {requests.map((r) => (
+                {limitedRequests.map((r) => (
                   <Command.Item
                     key={r.id}
                     value={r.title}
@@ -100,33 +195,18 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 ))}
               </Command.Group>
             )}
-
-            {/* Create */}
-            <Command.Group>
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-3 pb-1">
-                Create
-              </div>
-              <Command.Item
-                value="create new request"
-                onSelect={() => navigate("/dashboard")}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
-              >
-                + New request
-              </Command.Item>
-              <Command.Item
-                value="create new idea"
-                onSelect={() => navigate("/dashboard/ideas")}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
-              >
-                + New idea
-              </Command.Item>
-            </Command.Group>
           </Command.List>
 
           <div className="border-t border-[var(--border)] px-4 py-2 flex items-center gap-3">
             <span className="text-[10px] text-[var(--text-tertiary)]">↑↓ navigate</span>
             <span className="text-[10px] text-[var(--text-tertiary)]">↵ open</span>
             <span className="text-[10px] text-[var(--text-tertiary)]">Esc close</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] ml-auto">
+              <Kbd>G</Kbd> <span className="mx-0.5">+</span> <Kbd>key</Kbd> go to
+            </span>
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              <Kbd>N</Kbd> <span className="mx-0.5">+</span> <Kbd>key</Kbd> create
+            </span>
           </div>
         </Command>
       </div>
