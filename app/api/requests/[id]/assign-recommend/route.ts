@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, requests, assignments, requestAiAnalysis } from "@/db/schema";
 import { eq, and, count, inArray } from "drizzle-orm";
+import { checkAiRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   _req: NextRequest,
@@ -15,6 +16,9 @@ export async function GET(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rateLimited = await checkAiRateLimit(user.id);
+  if (rateLimited) return rateLimited;
 
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
