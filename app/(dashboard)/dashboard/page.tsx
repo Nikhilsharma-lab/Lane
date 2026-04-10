@@ -120,10 +120,9 @@ export default async function DashboardPage({
             <h1 style={{
               fontSize: 18,
               fontWeight: 620,
-              color: "var(--text-primary)",
               letterSpacing: "-0.02em",
               marginBottom: 8,
-            }}>
+            }} className="text-foreground">
               Welcome back, {profile.fullName?.split(" ")[0] ?? "there"}
             </h1>
             <MorningBriefingCard brief={briefForCard} alertCount={inlineAlerts.length} />
