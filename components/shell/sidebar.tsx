@@ -8,27 +8,21 @@ import { X } from "lucide-react";
 import {
   Home,
   Inbox,
-  FileText,
-  ArrowRight,
-  LayoutGrid,
-  Kanban,
-  List,
   Lightbulb,
   BarChart3,
-  Target,
-  Activity,
   Settings,
   LogOut,
   Plus,
   Search,
-  ChevronRight,
   ChevronDown,
-  StickyNote,
   Clock,
-  Layers,
+  Zap,
+  FolderOpen,
+  Users,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { PinnedViews } from "@/components/shell/pinned-views";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,19 +35,20 @@ interface NavItem {
   trailing?: string;
 }
 
-interface SectionProps {
-  label: string;
-  count?: number;
-  showAdd?: boolean;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
-
 interface SidebarBanner {
   title: string;
   description: string;
   ctaLabel: string;
   ctaHref: string;
+}
+
+interface PinnedView {
+  id: string;
+  name: string;
+  viewType: string;
+  filters: Record<string, unknown>;
+  groupBy: string | null;
+  viewMode: string;
 }
 
 interface Props {
@@ -63,63 +58,18 @@ interface Props {
   orgPlan: string;
   activeCount: number;
   banner?: SidebarBanner;
-}
-
-// ── Section (collapsible) ────────────────────────────────────────────────────
-
-function Section({ label, count, showAdd, children, defaultOpen = true }: SectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className="mt-2.5">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 w-full px-2.5 py-1 group"
-      >
-        <ChevronRight
-          size={10}
-          className="transition-transform text-muted-foreground/60"
-          style={{ transform: open ? "rotate(90deg)" : undefined, opacity: 0.5 }}
-        />
-        <span
-          className="flex-1 text-left transition-colors text-muted-foreground/60 group-hover:text-muted-foreground"
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          {label}
-        </span>
-        {count !== undefined && (
-          <span
-            className="text-muted-foreground/60"
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-            }}
-          >
-            {count}
-          </span>
-        )}
-        {showAdd && (
-          <span className="hidden group-hover:flex opacity-50">
-            <Plus size={12} />
-          </span>
-        )}
-      </button>
-      {open && <div className="py-0.5 px-1">{children}</div>}
-    </div>
-  );
+  pinnedViews?: PinnedView[];
 }
 
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 
 function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: NavItem) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  // Home only matches exact "/dashboard"; all others use startsWith
+  const isActive =
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href);
 
   return (
     <Link
@@ -179,10 +129,40 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
   );
 }
 
+// ── Divider ───────────────────────────────────────────────────────────────────
+
+function NavDivider() {
+  return <div className="my-1 mx-2.5 border-t" />;
+}
+
+// ── Section Label ─────────────────────────────────────────────────────────────
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div className="px-2.5 pt-2 pb-1">
+      <span
+        style={{
+          fontFamily: "'Geist Mono', monospace",
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase" as const,
+          color: "var(--text-tertiary)",
+          opacity: 0.6,
+        }}
+        className="text-muted-foreground/60"
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner }: Props) {
+export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner, pinnedViews }: Props) {
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const hasPinnedViews = pinnedViews && pinnedViews.length > 0;
 
   return (
     <aside
@@ -257,35 +237,40 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
         </div>
       </div>
 
-      {/* ── Scrollable ──────────────────────────────────────────── */}
+      {/* ── Scrollable Nav ──────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sidebar-scroll">
-        {/* Personal */}
-        <Section label="Personal">
-          <NavItemLink href="/dashboard" icon={Home} label="My Work" />
+        {/* Group 1: Personal */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard" icon={Home} label="Home" />
           <NavItemLink href="/dashboard/inbox" icon={Inbox} label="Inbox" badge={3} badgeStyle="accent" />
-          <NavItemLink href="/dashboard/drafts" icon={FileText} label="Drafts" />
-          <NavItemLink href="/dashboard/stickies" icon={StickyNote} label="Stickies" />
-        </Section>
+        </div>
 
-        {/* Workspace */}
-        <Section label="Workspace">
-          <NavItemLink href="/dashboard/intake" icon={Inbox} label="Intake" />
-          <NavItemLink href="/dashboard/journey" icon={ArrowRight} label="Journey View" />
-          <NavItemLink href="/dashboard/betting" icon={LayoutGrid} label="Betting Board" />
-          <NavItemLink href="/dashboard/dev" icon={Kanban} label="Dev Board" />
-          <NavItemLink href="/dashboard" icon={List} label="All Requests" />
-          <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Idea Board" />
+        <NavDivider />
+
+        {/* Group 2: Workspace */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard/requests" icon={Zap} label="Requests" />
+          <NavItemLink href="/dashboard/projects" icon={FolderOpen} label="Projects" />
+          <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Ideas" />
           <NavItemLink href="/dashboard/cycles" icon={Clock} label="Cycles" />
-          <NavItemLink href="/dashboard/initiatives" icon={Layers} label="Initiatives" />
-        </Section>
+        </div>
 
-        {/* Insights */}
-        <Section label="Insights">
-          <NavItemLink href="/dashboard/insights" icon={BarChart3} label="Capacity" />
-          <NavItemLink href="/dashboard/insights/impact" icon={Target} label="Impact" />
-          <NavItemLink href="/dashboard/radar" icon={Activity} label="Team Health" />
-          <NavItemLink href="/dashboard/team" icon={Activity} label="Team" />
-        </Section>
+        <NavDivider />
+
+        {/* Group 3: Insights + Team */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard/insights" icon={BarChart3} label="Insights" />
+          <NavItemLink href="/dashboard/team" icon={Users} label="Team" />
+        </div>
+
+        {/* Pinned Views (only shown if views exist) */}
+        {hasPinnedViews && (
+          <>
+            <NavDivider />
+            <SectionLabel label="Pinned Views" />
+            <PinnedViews views={pinnedViews!} />
+          </>
+        )}
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
@@ -385,7 +370,6 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
           </div>
         </div>
       </div>
-
     </aside>
   );
 }
