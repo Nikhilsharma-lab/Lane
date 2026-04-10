@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { StickyNote, X } from "lucide-react";
+import { StickyNote, X, Link2 } from "lucide-react";
 import { createSticky } from "@/app/actions/stickies";
+import { useRequests } from "@/context/requests-context";
 
 const COLORS = [
   { key: "cream", hex: "#F8F6F1" },
@@ -16,8 +17,10 @@ export function StickyPad() {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [color, setColor] = useState("cream");
+  const [linkedRequestId, setLinkedRequestId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const requests = useRequests();
 
   useEffect(() => {
     if (isOpen && textareaRef.current) {
@@ -58,6 +61,7 @@ export function StickyPad() {
   function handleDiscard() {
     setContent("");
     setColor("cream");
+    setLinkedRequestId(null);
     setIsOpen(false);
   }
 
@@ -66,10 +70,11 @@ export function StickyPad() {
     if (!trimmed) return;
 
     setIsSaving(true);
-    await createSticky({ content: trimmed, color });
+    await createSticky({ content: trimmed, color, requestId: linkedRequestId });
     setIsSaving(false);
     setContent("");
     setColor("cream");
+    setLinkedRequestId(null);
     setIsOpen(false);
   }
 
@@ -208,6 +213,33 @@ export function StickyPad() {
                 }}
               />
             ))}
+          </div>
+
+          {/* Link to request */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Link2 size={12} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+            <select
+              value={linkedRequestId ?? ""}
+              onChange={(e) => setLinkedRequestId(e.target.value || null)}
+              style={{
+                flex: 1,
+                fontSize: 12,
+                color: linkedRequestId ? "var(--text-primary)" : "var(--text-tertiary)",
+                background: "var(--bg-subtle)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "4px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            >
+              <option value="">Link to request (optional)</option>
+              {requests.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title.length > 35 ? r.title.slice(0, 35) + "…" : r.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Actions */}
