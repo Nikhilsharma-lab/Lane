@@ -8,13 +8,27 @@ import {
   requestAiAnalysis,
   assignments,
   weeklyDigests,
+  cycles,
+  cycleRequests,
+  projects,
 } from "@/db/schema";
-import { eq, inArray, count } from "drizzle-orm";
+import { eq, inArray, count, and, sql } from "drizzle-orm";
 import { InsightsShell } from "@/components/insights/insights-shell";
+import { PipelineChart } from "@/components/analytics/pipeline-chart";
+import { FlowRateChart } from "@/components/analytics/flow-rate-chart";
+import { CycleThroughputChart } from "@/components/analytics/cycle-throughput-chart";
 import type { DigestResponse } from "@/lib/digest";
 
 const STALL_EXEMPT = new Set(["draft", "completed", "shipped", "blocked"]);
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function getISOWeek(date: Date): string {
+  const year = date.getFullYear();
+  const oneJan = new Date(year, 0, 1);
+  const days = Math.floor((date.getTime() - oneJan.getTime()) / 86400000);
+  const week = Math.ceil((days + oneJan.getDay() + 1) / 7);
+  return `W${String(week).padStart(2, "0")}`;
+}
 
 export default async function InsightsPage() {
   const supabase = await createClient();
@@ -93,6 +107,77 @@ export default async function InsightsPage() {
   const activeCount = orgRequests.filter(
     (r) => !STALL_EXEMPT.has(r.status) && r.status !== "submitted"
   ).length;
+
+  // Pipeline data by phase
+  const phaseCounts: Record<string, number> = {};
+  for (const r of orgRequests) {
+    const phase = r.phase ?? "predesign";
+    phaseCounts[phase] = (phaseCounts[phase] ?? 0) + 1;
+  }
+  const pipelineData = ["predesign", "design", "dev", "track"]
+    .map((phase) => ({ phase, count: phaseCounts[phase] ?? 0 }))
+    .filter((d) => d.count > 0);
+
+  // Flow rate data: requests entering and completing design phase per week
+  const flowRateMap: Record<string, { entered: number; completed: number }> = {};
+  for (const r of orgRequests) {
+    const weekKey = new Date(r.createdAt).toISOString().slice(0, 10).replace(/-..$/, "");
+    const yearWeek = getISOWeek(new Date(r.createdAt));
+    if (!flowRateMap[yearWeek]) flowRateMap[yearWeek] = { entered: 0, completed: 0 };
+    if (r.phase === "design" || r.phase === "dev" || r.phase === "track") {
+      flowRateMap[yearWeek].entered += 1;
+    }
+    if (r.phase === "track" || (r.phase === "dev" && r.kanbanState === "done")) {
+      flowRateMap[yearWeek].completed += 1;
+    }
+  }
+  const flowRateData = Object.entries(flowRateMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12) // last 12 weeks
+    .map(([week, d]) => ({ week, entered: d.entered, completed: d.completed }));
+
+  // Cycle throughput data
+  const orgCycles = await db
+    .select({
+      id: cycles.id,
+      name: cycles.name,
+      status: cycles.status,
+    })
+    .from(cycles)
+    .where(eq(cycles.orgId, profile.orgId));
+
+  const cycleThroughputData: { cycleName: string; completed: number; total: number }[] = [];
+  if (orgCycles.length > 0) {
+    const cycleIds = orgCycles.map((c) => c.id);
+    const crCountRows = await db
+      .select({ cycleId: cycleRequests.cycleId, total: count() })
+      .from(cycleRequests)
+      .where(sql`${cycleRequests.cycleId} IN (${sql.join(cycleIds.map((id) => sql`${id}`), sql`, `)})`)
+      .groupBy(cycleRequests.cycleId);
+
+    const crCompletedRows = await db
+      .select({ cycleId: cycleRequests.cycleId, completed: count() })
+      .from(cycleRequests)
+      .innerJoin(requests, eq(cycleRequests.requestId, requests.id))
+      .where(
+        and(
+          sql`${cycleRequests.cycleId} IN (${sql.join(cycleIds.map((id) => sql`${id}`), sql`, `)})`,
+          sql`(${requests.phase} = 'track' OR (${requests.phase} = 'dev' AND ${requests.kanbanState} = 'done'))`
+        )
+      )
+      .groupBy(cycleRequests.cycleId);
+
+    const totalMap = Object.fromEntries(crCountRows.map((r) => [r.cycleId, Number(r.total)]));
+    const completedMap = Object.fromEntries(crCompletedRows.map((r) => [r.cycleId, Number(r.completed)]));
+
+    for (const c of orgCycles) {
+      cycleThroughputData.push({
+        cycleName: c.name,
+        completed: completedMap[c.id] ?? 0,
+        total: totalMap[c.id] ?? 0,
+      });
+    }
+  }
 
   const STATUS_ORDER = [
     "submitted",
@@ -283,6 +368,42 @@ export default async function InsightsPage() {
                   </div>
                 );
               })}
+          </div>
+        </section>
+      )}
+
+      {/* Pipeline view */}
+      {pipelineData.length > 0 && (
+        <section>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+            Pipeline view
+          </h2>
+          <div className="border border-[var(--border)] rounded-xl p-5">
+            <PipelineChart data={pipelineData} />
+          </div>
+        </section>
+      )}
+
+      {/* Flow rate */}
+      {flowRateData.length > 0 && (
+        <section>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+            Flow rate
+          </h2>
+          <div className="border border-[var(--border)] rounded-xl p-5">
+            <FlowRateChart data={flowRateData} />
+          </div>
+        </section>
+      )}
+
+      {/* Cycle throughput */}
+      {cycleThroughputData.length > 0 && (
+        <section>
+          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+            Cycle throughput
+          </h2>
+          <div className="border border-[var(--border)] rounded-xl p-5">
+            <CycleThroughputChart data={cycleThroughputData} />
           </div>
         </section>
       )}
