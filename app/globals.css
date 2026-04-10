@@ -10,121 +10,81 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── Lane compatibility shim ────────────────────────────────────────────
+   Maps old Lane CSS var names to new shadcn preset tokens.
+   Remove each entry when the referencing component is migrated.
+   ────────────────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-base: #F8F6F1;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #F0EDE6;
-  --bg-hover: #EAE6DE;
+  --bg-base:     var(--background);
+  --bg-surface:  var(--card);
+  --bg-subtle:   var(--muted);
+  --bg-hover:    var(--accent);
+  --bg-section:  var(--muted);
+  --bg-elevated: var(--card);
+  --bg-sidebar:  var(--sidebar);
+  --bg-input:    var(--input);
+  --bg-active:   var(--accent);
 
   /* Text */
-  --text-primary: #1C1917;
-  --text-secondary: #6B6460;   /* was #78716C — now 4.95:1 on bg-base ✅ */
-  --text-tertiary: #706A65;    /* was #A8A29E — now 4.6:1 on bg-base ✅ */
+  --text-primary:   var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-tertiary:  color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  --text-muted:     var(--muted-foreground);
+  --text-dim:       color-mix(in oklch, var(--muted-foreground) 50%, transparent);
 
   /* Borders */
-  --border: #E7E2DA;
-  --border-strong: #D4CFC7;
+  --border-strong:  var(--border);
+  --border-subtle:  var(--border);
+  --border-input:   var(--input);
 
-  /* Accent */
-  --accent: #2E5339;
-  --accent-subtle: #EAF2EC;
-  --accent-text: #FFFFFF;
+  /* Accent aliases (Lane's green → primary; do NOT alias --accent, it's shadcn's hover bg) */
+  --accent-subtle:      var(--primary);
+  --accent-text:        var(--primary-foreground);
+  --accent-soft:        var(--accent);
+  --accent-med:         var(--accent);
+  --accent-bright:      var(--primary);
+  --accent-hover:       var(--primary);
+  --focus-ring-color:   var(--ring);
 
-  /* Status */
-  --status-requested: #A8A29E;
-  --status-in-progress: #7DA5C4;
-  --status-in-review: #D4A84B;
-  --status-approved: #86A87A;
-  --status-handed-off: #A394C7;
-
-  /* Spacing */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
-  --space-16: 64px;
-
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-
-  /* Sidebar */
-  --bg-sidebar: #F0EDE6;
-  --bg-input: #EAE7DF;
-  --bg-active: #DDD9D0;
-  --accent-soft: rgba(46,83,57,0.08);
-  --accent-med: rgba(46,83,57,0.15);
-  --accent-bright: #3D6B4A;
-  --text-muted: #8C8578;
-  --text-dim: #B0A99E;
-  --border-subtle: #E8E5DD;
-  --green: #34d399;
-  --amber: #d4a84b;
-  --blue: #5B8FC9;
-
-  /* Layout */
-  --sidebar-width: 256px;
-  --dock-width: 400px;
-
-  /* Accent hover */
-  --accent-hover: #264830;
-
-  /* Shadows (Vercel shadow-as-border technique — warm-tinted rgba) */
-  --shadow-border:       0 0 0 1px rgba(28, 25, 23, 0.08);
-  --shadow-border-hover: 0 0 0 1px rgba(28, 25, 23, 0.14);
-  --shadow-card:         0 0 0 1px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
-
-  /* Surfaces (Notion + Linear techniques) */
-  --bg-section: #F2EFE9;
-  --bg-elevated: #FDFCFA;
-
-  /* Input border — meets WCAG 3:1 on bg-surface (#FFF). Do not use on bg-base directly. */
-  --border-input: #97918A;
-
-  /* Focus ring */
-  --focus-ring-color: var(--accent);
-
-  /* Priority badge tokens */
-  --priority-p0-bg:   #FEE2E2;
-  --priority-p0-text: #B91C1C;
-  --priority-p1-bg:   #FFEDD5;
-  --priority-p1-text: #C2410C;
-  --priority-p2-bg:   #FEF9C3;
-  --priority-p2-text: #A16207;
-  --priority-p3-bg:   var(--bg-hover);
-  --priority-p3-text: var(--text-secondary);
-
-  /* Phase color tokens */
+  /* Phase color tokens — keep as-is until phase UI is migrated */
   --phase-predesign:        #D4A84B;
   --phase-predesign-bg:     rgba(212, 168, 75, 0.05);
   --phase-predesign-border: rgba(212, 168, 75, 0.20);
   --phase-predesign-badge:  rgba(212, 168, 75, 0.10);
-
   --phase-design:           #A394C7;
   --phase-design-bg:        rgba(163, 148, 199, 0.05);
   --phase-design-border:    rgba(163, 148, 199, 0.20);
   --phase-design-badge:     rgba(163, 148, 199, 0.10);
-
   --phase-dev:              #7DA5C4;
   --phase-dev-bg:           rgba(125, 165, 196, 0.05);
   --phase-dev-border:       rgba(125, 165, 196, 0.20);
   --phase-dev-badge:        rgba(125, 165, 196, 0.10);
-
   --phase-track:            #86A87A;
   --phase-track-bg:         rgba(134, 168, 122, 0.05);
   --phase-track-border:     rgba(134, 168, 122, 0.20);
   --phase-track-badge:      rgba(134, 168, 122, 0.10);
+
+  /* Status colors — keep until status badges are migrated */
+  --status-requested:  #A8A29E;
+  --status-in-progress:#7DA5C4;
+  --status-in-review:  #D4A84B;
+  --status-approved:   #86A87A;
+  --status-handed-off: #A394C7;
+
+  /* Layout constants */
+  --sidebar-width: 256px;
+  --dock-width:    400px;
+
+  /* Shadows */
+  --shadow-border:       0 0 0 1px rgba(28, 25, 23, 0.08);
+  --shadow-border-hover: 0 0 0 1px rgba(28, 25, 23, 0.14);
+  --shadow-card:         0 0 0 1px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
 }
 
 body {
-  background-color: var(--bg-base);
-  color: var(--text-primary);
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: 'Satoshi', sans-serif;
 }
 
