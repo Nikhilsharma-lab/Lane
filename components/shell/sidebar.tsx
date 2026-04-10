@@ -78,28 +78,27 @@ function Section({ label, count, showAdd, children, defaultOpen = true }: Sectio
       >
         <ChevronRight
           size={10}
-          className="transition-transform text-[var(--text-tertiary)]"
+          className="transition-transform text-muted-foreground/60"
           style={{ transform: open ? "rotate(90deg)" : undefined, opacity: 0.5 }}
         />
         <span
-          className="flex-1 text-left transition-colors group-hover:text-[var(--text-secondary)]"
+          className="flex-1 text-left transition-colors text-muted-foreground/60 group-hover:text-muted-foreground"
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: "var(--text-tertiary)",
           }}
         >
           {label}
         </span>
         {count !== undefined && (
           <span
+            className="text-muted-foreground/60"
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
             }}
           >
             {count}
@@ -125,24 +124,20 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-[7px] relative transition-colors"
-      style={{
-        background: isActive ? "var(--bg-hover)" : undefined,
-      }}
+      className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-[7px] relative transition-colors${isActive ? " bg-accent" : ""}`}
     >
       {isActive && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r"
-          style={{ width: 2.5, height: 14, background: "var(--accent)" }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r bg-primary"
+          style={{ width: 2.5, height: 14 }}
         />
       )}
       <Icon size={15} />
       <span
-        className="flex-1 truncate"
+        className={`flex-1 truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}
         style={{
           fontSize: 13,
           fontWeight: isActive ? 560 : 460,
-          color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
           letterSpacing: "-0.01em",
         }}
       >
@@ -159,10 +154,10 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
             minWidth: 16,
             lineHeight: "16px",
             ...(badgeStyle === "accent"
-              ? { background: "var(--accent)", color: "#fff" }
+              ? { background: "var(--primary)", color: "#fff" }
               : badgeStyle === "warn"
               ? { background: "rgba(212,168,75,0.12)", color: "#D4A84B" }
-              : { background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border)" }),
+              : { background: "var(--accent)", color: "var(--accent-foreground)", border: "1px solid var(--border)" }),
           }}
         >
           {badge}
@@ -170,10 +165,10 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
       )}
       {trailing && (
         <span
+          className="text-muted-foreground/60"
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
           }}
         >
           {trailing}
@@ -190,44 +185,38 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
 
   return (
     <aside
-      className="flex flex-col shrink-0 select-none"
+      className="flex flex-col shrink-0 select-none bg-muted border-r sticky top-0 z-20"
       style={{
         width: 256,
         minWidth: 256,
         height: "100vh",
-        background: "var(--bg-subtle)",
-        borderRight: "1px solid var(--border)",
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
       }}
     >
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="px-3.5 pt-4 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-2.5 px-1.5 py-1 rounded-lg cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
+      <div className="px-3.5 pt-4 pb-3 border-b">
+        <div className="flex items-center gap-2.5 px-1.5 py-1 rounded-lg cursor-pointer hover:bg-accent transition-colors">
           <div
-            className="flex items-center justify-center rounded-[7px] shrink-0"
+            className="flex items-center justify-center rounded-[7px] shrink-0 bg-primary"
             style={{
               width: 28,
               height: 28,
-              background: "var(--accent)",
               boxShadow: "0 1px 4px rgba(46,83,57,0.15)",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>L</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 13.5, fontWeight: 620, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+            <div className="text-foreground" style={{ fontSize: 13.5, fontWeight: 620, letterSpacing: "-0.02em" }}>
               {orgName}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
+                className="text-primary"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 9,
                   fontWeight: 600,
                   letterSpacing: "0.04em",
-                  color: "var(--accent)",
                   background: "rgba(46,83,57,0.08)",
                   padding: "1px 5px",
                   borderRadius: 3,
@@ -236,36 +225,28 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
                 {orgPlan}
               </span>
               <span
+                className="text-muted-foreground/60"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 10,
-                  color: "var(--text-tertiary)",
                 }}
               >
                 {activeCount} active
               </span>
             </div>
           </div>
-          <ChevronDown size={14} className="shrink-0 opacity-40" style={{ color: "var(--text-tertiary)" }} />
+          <ChevronDown size={14} className="shrink-0 opacity-40 text-muted-foreground/60" />
         </div>
 
         {/* Search */}
-        <div
-          className="flex items-center gap-2 mt-2.5 px-2.5 py-[7px] rounded-[7px] cursor-text"
-          style={{
-            background: "var(--bg-hover)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <Search size={13} style={{ color: "var(--text-tertiary)" }} />
-          <span style={{ fontSize: 12.5, color: "var(--text-tertiary)", flex: 1 }}>Search...</span>
+        <div className="flex items-center gap-2 mt-2.5 px-2.5 py-[7px] rounded-[7px] cursor-text bg-accent border">
+          <Search size={13} className="text-muted-foreground/60" />
+          <span className="text-muted-foreground/60 flex-1" style={{ fontSize: 12.5 }}>Search...</span>
           <kbd
+            className="text-muted-foreground/60 bg-muted border"
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 9.5,
-              color: "var(--text-tertiary)",
-              background: "var(--bg-subtle)",
-              border: "1px solid var(--border)",
               padding: "1px 5px",
               borderRadius: 3,
             }}
@@ -307,13 +288,11 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="shrink-0 border-t">
         {/* New Request button */}
         <button
-          className="flex items-center justify-center gap-1.5 mx-3 mt-3 py-2 w-[calc(100%-24px)] rounded-[7px] transition-colors"
+          className="flex items-center justify-center gap-1.5 mx-3 mt-3 py-2 w-[calc(100%-24px)] rounded-[7px] transition-colors bg-primary text-primary-foreground"
           style={{
-            background: "var(--accent)",
-            color: "#fff",
             fontFamily: "'Satoshi', sans-serif",
             fontSize: 12.5,
             fontWeight: 560,
@@ -328,34 +307,26 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
 
         {/* Promo / update banner */}
         {banner && !bannerDismissed && (
-          <div
-            className="mx-2.5 mt-2.5 p-3 rounded-lg"
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-            }}
-          >
+          <div className="mx-2.5 mt-2.5 p-3 rounded-lg bg-card border">
             <div className="flex items-start justify-between gap-2">
-              <span style={{ fontSize: 13, fontWeight: 580, color: "var(--text-primary)", lineHeight: 1.3 }}>
+              <span className="text-foreground" style={{ fontSize: 13, fontWeight: 580, lineHeight: 1.3 }}>
                 {banner.title}
               </span>
               <button
                 onClick={() => setBannerDismissed(true)}
-                className="shrink-0 flex items-center justify-center rounded hover:bg-[var(--bg-hover)] transition-colors"
-                style={{ width: 20, height: 20, background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", marginTop: -2 }}
+                className="shrink-0 flex items-center justify-center rounded hover:bg-accent transition-colors text-muted-foreground/60"
+                style={{ width: 20, height: 20, background: "none", border: "none", cursor: "pointer", marginTop: -2 }}
               >
                 <X size={10} />
               </button>
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
+            <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
               {banner.description}
             </p>
             <Link
               href={banner.ctaHref}
-              className="flex items-center justify-center mt-2.5 py-1.5 rounded-md transition-opacity hover:opacity-85"
+              className="flex items-center justify-center mt-2.5 py-1.5 rounded-md transition-opacity hover:opacity-85 bg-foreground text-background"
               style={{
-                background: "var(--text-primary)",
-                color: "var(--bg-surface)",
                 fontSize: 12,
                 fontWeight: 560,
                 textDecoration: "none",
@@ -369,25 +340,24 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
         {/* User */}
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 pb-4">
           <div
-            className="flex items-center justify-center rounded-full shrink-0 cursor-pointer"
+            className="flex items-center justify-center rounded-full shrink-0 cursor-pointer text-foreground"
             style={{
               width: 28,
               height: 28,
               background: "linear-gradient(135deg, rgba(46,83,57,0.30), rgba(194,123,158,0.30))",
               fontSize: 10.5,
               fontWeight: 650,
-              color: "var(--text-primary)",
             }}
           >
             {user.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 530, color: "var(--text-primary)" }}>{user.name}</div>
+            <div className="text-foreground" style={{ fontSize: 12.5, fontWeight: 530 }}>{user.name}</div>
             <div
+              className="text-muted-foreground/60"
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 10,
-                color: "var(--text-tertiary)",
                 marginTop: 1,
               }}
             >
@@ -398,7 +368,7 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
             <NotificationsBell userRole={userRole} />
             <Link
               href="/settings"
-              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-[var(--bg-hover)] transition-all"
+              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-accent transition-all"
             >
               <Settings size={14} />
             </Link>

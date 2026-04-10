@@ -74,7 +74,7 @@ export default async function DashboardLayout({
     <RequestsProvider requests={orgRequests}>
       <GlobalShortcutsProvider>
         <HotkeysProvider>
-        <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
+        <div className="flex min-h-screen bg-background">
           <Sidebar
             user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
             userRole={profileRole}
@@ -88,7 +88,7 @@ export default async function DashboardLayout({
               ctaHref: "/dashboard/ideas",
             }}
           />
-          <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+          <main className="flex-1 min-w-0 overflow-y-auto">
             {children}
           </main>
           <Suspense>
