@@ -200,7 +200,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <button
               onClick={handleAdvance}
               disabled={!canAdvance}
-              className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage?.label}`}
               <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">

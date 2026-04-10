@@ -94,7 +94,7 @@ export function StageControls({
                     : "bg-[#D4A84B]/10 text-[#D4A84B] border border-[#D4A84B]/20"
                   : isCompleted
                   ? "text-muted-foreground/60 line-through"
-                  : "text-border"
+                  : "text-muted-foreground/40"
               }`}
             >
               {stage.label}
