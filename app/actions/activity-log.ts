@@ -1,9 +1,12 @@
 "use server";
 
-import { db } from "@/db";
+import { systemDb } from "@/db/system";
 import { activityLog, profiles } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
+// logActivity is an internal utility called from within authenticated contexts.
+// It uses the system DB (privileged) intentionally — authorization is enforced
+// by the callers, not at this layer.
 export async function logActivity(data: {
   requestId: string;
   actorId: string | null;
@@ -13,7 +16,7 @@ export async function logActivity(data: {
   newValue?: string;
   metadata?: Record<string, unknown>;
 }) {
-  await db.insert(activityLog).values({
+  await systemDb.insert(activityLog).values({
     requestId: data.requestId,
     actorId: data.actorId,
     action: data.action,
@@ -25,7 +28,7 @@ export async function logActivity(data: {
 }
 
 export async function getActivityLog(requestId: string) {
-  const entries = await db
+  const entries = await systemDb
     .select({
       id: activityLog.id,
       requestId: activityLog.requestId,

@@ -2,22 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
+import { withUserDb } from "@/db/user";
 import { projects, profiles, requests } from "@/db/schema";
 import { eq, and, ne, isNull } from "drizzle-orm";
 import { PROJECT_COLORS } from "@/lib/projects";
 
-async function getAuthProfile() {
+async function getAuthedUserId() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  return profile ?? null;
+  return user?.id ?? null;
 }
 
 export async function createProject(formData: FormData) {
-  const profile = await getAuthProfile();
-  if (!profile) return { error: "Not authenticated" };
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
 
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
@@ -26,72 +24,94 @@ export async function createProject(formData: FormData) {
   if (!name) return { error: "Project name is required" };
   if (!(PROJECT_COLORS as readonly string[]).includes(color)) return { error: "Invalid color" };
 
-  await db.insert(projects).values({
-    orgId: profile.orgId,
-    name,
-    description,
-    color,
-    createdBy: profile.id,
-  });
+  return withUserDb(userId, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+    if (!profile) return { error: "Not authenticated" };
 
-  revalidatePath("/settings/projects");
-  revalidatePath("/dashboard");
-  return { success: true };
+    await db.insert(projects).values({
+      orgId: profile.orgId,
+      name,
+      description,
+      color,
+      createdBy: profile.id,
+    });
+
+    revalidatePath("/settings/projects");
+    revalidatePath("/dashboard");
+    return { success: true };
+  });
 }
 
 export async function updateProject(projectId: string, formData: FormData) {
-  const profile = await getAuthProfile();
-  if (!profile) return { error: "Not authenticated" };
-
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
 
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
-  const color = (formData.get("color") as string) || project.color;
+  const color = formData.get("color") as string;
 
   if (!name) return { error: "Project name is required" };
-  if (!(PROJECT_COLORS as readonly string[]).includes(color)) return { error: "Invalid color" };
 
-  await db.update(projects)
-    .set({ name, description, color, updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
+  return withUserDb(userId, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+    if (!profile) return { error: "Not authenticated" };
 
-  revalidatePath("/settings/projects");
-  revalidatePath("/dashboard");
-  return { success: true };
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
+
+    const finalColor = color || project.color;
+    if (!(PROJECT_COLORS as readonly string[]).includes(finalColor)) return { error: "Invalid color" };
+
+    await db.update(projects)
+      .set({ name, description, color: finalColor, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    revalidatePath("/settings/projects");
+    revalidatePath("/dashboard");
+    return { success: true };
+  });
 }
 
 export async function archiveProject(projectId: string) {
-  const profile = await getAuthProfile();
-  if (!profile) return { error: "Not authenticated" };
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
 
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
+  return withUserDb(userId, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+    if (!profile) return { error: "Not authenticated" };
 
-  await db.update(projects)
-    .set({ archivedAt: new Date(), updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
 
-  revalidatePath("/settings/projects");
-  revalidatePath("/dashboard");
-  return { success: true };
+    await db.update(projects)
+      .set({ archivedAt: new Date(), updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    revalidatePath("/settings/projects");
+    revalidatePath("/dashboard");
+    return { success: true };
+  });
 }
 
 export async function unarchiveProject(projectId: string) {
-  const profile = await getAuthProfile();
-  if (!profile) return { error: "Not authenticated" };
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
 
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
+  return withUserDb(userId, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+    if (!profile) return { error: "Not authenticated" };
 
-  await db.update(projects)
-    .set({ archivedAt: null, updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
 
-  revalidatePath("/settings/projects");
-  revalidatePath("/dashboard");
-  return { success: true };
+    await db.update(projects)
+      .set({ archivedAt: null, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    revalidatePath("/settings/projects");
+    revalidatePath("/dashboard");
+    return { success: true };
+  });
 }
 
 export async function deleteProject(
@@ -99,34 +119,37 @@ export async function deleteProject(
   action: "move" | "delete",
   moveToProjectId?: string
 ) {
-  const profile = await getAuthProfile();
-  if (!profile) return { error: "Not authenticated" };
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
 
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
+  return withUserDb(userId, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
+    if (!profile) return { error: "Not authenticated" };
 
-  // Guard: must have at least one other active (non-archived) project in the org
-  const [otherProject] = await db.select({ id: projects.id }).from(projects)
-    .where(and(eq(projects.orgId, profile.orgId), ne(projects.id, projectId), isNull(projects.archivedAt)))
-    .limit(1);
-  if (!otherProject) return { error: "You can't delete your last project. Create another project first." };
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project || project.orgId !== profile.orgId) return { error: "Project not found" };
 
-  if (action === "move") {
-    if (!moveToProjectId) return { error: "Target project is required" };
-    const [target] = await db.select().from(projects).where(eq(projects.id, moveToProjectId));
-    if (!target || target.orgId !== profile.orgId || target.archivedAt) return { error: "Target project not found" };
+    const [otherProject] = await db.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.orgId, profile.orgId), ne(projects.id, projectId), isNull(projects.archivedAt)))
+      .limit(1);
+    if (!otherProject) return { error: "You can't delete your last project. Create another project first." };
 
-    await db.update(requests)
-      .set({ projectId: moveToProjectId })
-      .where(eq(requests.projectId, projectId));
-  } else {
-    // Delete all requests in this project (cascades to comments, assignments, etc.)
-    await db.delete(requests).where(eq(requests.projectId, projectId));
-  }
+    if (action === "move") {
+      if (!moveToProjectId) return { error: "Target project is required" };
+      const [target] = await db.select().from(projects).where(eq(projects.id, moveToProjectId));
+      if (!target || target.orgId !== profile.orgId || target.archivedAt) return { error: "Target project not found" };
 
-  await db.delete(projects).where(eq(projects.id, projectId));
+      await db.update(requests)
+        .set({ projectId: moveToProjectId })
+        .where(eq(requests.projectId, projectId));
+    } else {
+      await db.delete(requests).where(eq(requests.projectId, projectId));
+    }
 
-  revalidatePath("/settings/projects");
-  revalidatePath("/dashboard");
-  return { success: true };
+    await db.delete(projects).where(eq(projects.id, projectId));
+
+    revalidatePath("/settings/projects");
+    revalidatePath("/dashboard");
+    return { success: true };
+  });
 }

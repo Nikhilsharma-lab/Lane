@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
+import { withUserDb } from "@/db/user";
 import { profiles, organizations, invites } from "@/db/schema";
 import { eq, and, ne, count } from "drizzle-orm";
 
@@ -19,13 +19,15 @@ export async function updateProfile(formData: FormData) {
 
   if (!fullName) return { error: "Name is required" };
 
-  await db
-    .update(profiles)
-    .set({ fullName, timezone, updatedAt: new Date() })
-    .where(eq(profiles.id, user.id));
+  return withUserDb(user.id, async (db) => {
+    await db
+      .update(profiles)
+      .set({ fullName, timezone, updatedAt: new Date() })
+      .where(eq(profiles.id, user.id));
 
-  revalidatePath("/settings/account");
-  return { success: true };
+    revalidatePath("/settings/account");
+    return { success: true };
+  });
 }
 
 // ─── Organization ────────────────────────────────────────────────────────────
@@ -34,9 +36,6 @@ export async function updateOrganization(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
-
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!profile || profile.role !== "admin") return { error: "Admin only" };
 
   const name = (formData.get("name") as string)?.trim();
   const slug = (formData.get("slug") as string)?.trim().toLowerCase();
@@ -47,20 +46,24 @@ export async function updateOrganization(formData: FormData) {
     return { error: "Slug must be lowercase letters, numbers, and hyphens only" };
   }
 
-  // Uniqueness check — exclude current org
-  const [existing] = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .where(and(eq(organizations.slug, slug), ne(organizations.id, profile.orgId)));
-  if (existing) return { error: "That slug is already taken" };
+  return withUserDb(user.id, async (db) => {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!profile || profile.role !== "admin") return { error: "Admin only" };
 
-  await db
-    .update(organizations)
-    .set({ name, slug, updatedAt: new Date() })
-    .where(eq(organizations.id, profile.orgId));
+    const [existing] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(and(eq(organizations.slug, slug), ne(organizations.id, profile.orgId)));
+    if (existing) return { error: "That slug is already taken" };
 
-  revalidatePath("/settings/workspace");
-  return { success: true };
+    await db
+      .update(organizations)
+      .set({ name, slug, updatedAt: new Date() })
+      .where(eq(organizations.id, profile.orgId));
+
+    revalidatePath("/settings/workspace");
+    return { success: true };
+  });
 }
 
 // ─── Members ─────────────────────────────────────────────────────────────────
@@ -69,38 +72,42 @@ export async function updateMemberRole(profileId: string, role: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
-
-  const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!me || me.role !== "admin") return { error: "Admin only" };
   if (profileId === user.id) return { error: "Cannot change your own role" };
 
   const valid = ["pm", "designer", "developer", "lead", "admin"];
   if (!valid.includes(role)) return { error: "Invalid role" };
 
-  await db
-    .update(profiles)
-    .set({ role: role as "pm" | "designer" | "developer" | "lead" | "admin", updatedAt: new Date() })
-    .where(and(eq(profiles.id, profileId), eq(profiles.orgId, me.orgId)));
+  return withUserDb(user.id, async (db) => {
+    const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!me || me.role !== "admin") return { error: "Admin only" };
 
-  revalidatePath("/settings/members");
-  return { success: true };
+    await db
+      .update(profiles)
+      .set({ role: role as "pm" | "designer" | "developer" | "lead" | "admin", updatedAt: new Date() })
+      .where(and(eq(profiles.id, profileId), eq(profiles.orgId, me.orgId)));
+
+    revalidatePath("/settings/members");
+    return { success: true };
+  });
 }
 
 export async function removeMember(profileId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
-
-  const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!me || me.role !== "admin") return { error: "Admin only" };
   if (profileId === user.id) return { error: "Cannot remove yourself" };
 
-  await db
-    .delete(profiles)
-    .where(and(eq(profiles.id, profileId), eq(profiles.orgId, me.orgId)));
+  return withUserDb(user.id, async (db) => {
+    const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!me || me.role !== "admin") return { error: "Admin only" };
 
-  revalidatePath("/settings/members");
-  return { success: true };
+    await db
+      .delete(profiles)
+      .where(and(eq(profiles.id, profileId), eq(profiles.orgId, me.orgId)));
+
+    revalidatePath("/settings/members");
+    return { success: true };
+  });
 }
 
 export async function revokeInvite(inviteId: string) {
@@ -108,15 +115,17 @@ export async function revokeInvite(inviteId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!me || me.role !== "admin") return { error: "Admin only" };
+  return withUserDb(user.id, async (db) => {
+    const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!me || me.role !== "admin") return { error: "Admin only" };
 
-  await db
-    .delete(invites)
-    .where(and(eq(invites.id, inviteId), eq(invites.orgId, me.orgId)));
+    await db
+      .delete(invites)
+      .where(and(eq(invites.id, inviteId), eq(invites.orgId, me.orgId)));
 
-  revalidatePath("/settings/members");
-  return { success: true };
+    revalidatePath("/settings/members");
+    return { success: true };
+  });
 }
 
 // ─── Danger Zone ─────────────────────────────────────────────────────────────
@@ -126,20 +135,32 @@ export async function leaveOrg() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!me) return { error: "Profile not found" };
+  // Read profile first to check admin constraint before entering withUserDb
+  let isLastAdmin = false;
+  let orgId: string | null = null;
 
-  if (me.role === "admin") {
-    const [row] = await db
-      .select({ count: count() })
-      .from(profiles)
-      .where(and(eq(profiles.orgId, me.orgId), eq(profiles.role, "admin")));
-    if (Number(row.count) <= 1) {
-      return { error: "You're the only admin. Assign another admin before leaving." };
+  await withUserDb(user.id, async (db) => {
+    const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!me) return;
+    orgId = me.orgId;
+
+    if (me.role === "admin") {
+      const [row] = await db
+        .select({ count: count() })
+        .from(profiles)
+        .where(and(eq(profiles.orgId, me.orgId), eq(profiles.role, "admin")));
+      isLastAdmin = Number(row.count) <= 1;
     }
+  });
+
+  if (isLastAdmin) {
+    return { error: "You're the only admin. Assign another admin before leaving." };
   }
 
-  await db.delete(profiles).where(eq(profiles.id, user.id));
+  await withUserDb(user.id, async (db) => {
+    await db.delete(profiles).where(eq(profiles.id, user.id));
+  });
+
   await supabase.auth.signOut();
   redirect("/login");
 }
@@ -149,17 +170,28 @@ export async function deleteOrg(confirmedSlug: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!me || me.role !== "admin") return { error: "Admin only" };
+  let orgSlug: string | null = null;
+  let orgId: string | null = null;
+  let isAdmin = false;
 
-  const [org] = await db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.id, me.orgId));
-  if (!org) return { error: "Organization not found" };
-  if (confirmedSlug !== org.slug) return { error: "Slug does not match. Try again." };
+  await withUserDb(user.id, async (db) => {
+    const [me] = await db.select().from(profiles).where(eq(profiles.id, user.id));
+    if (!me) return;
+    isAdmin = me.role === "admin";
+    orgId = me.orgId;
 
-  await db.delete(organizations).where(eq(organizations.id, me.orgId));
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, me.orgId));
+    if (org) orgSlug = org.slug;
+  });
+
+  if (!isAdmin) return { error: "Admin only" };
+  if (!orgSlug) return { error: "Organization not found" };
+  if (confirmedSlug !== orgSlug) return { error: "Slug does not match. Try again." };
+
+  await withUserDb(user.id, async (db) => {
+    await db.delete(organizations).where(eq(organizations.id, orgId!));
+  });
+
   await supabase.auth.signOut();
   redirect("/login");
 }

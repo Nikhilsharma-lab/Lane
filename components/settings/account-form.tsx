@@ -28,7 +28,7 @@ export function AccountForm({ profile }: Props) {
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       const result = await updateProfile(formData);
-      if (result?.error) setError(result.error);
+      if (result && "error" in result) setError(result.error);
       else setSuccess(true);
     });
   }
