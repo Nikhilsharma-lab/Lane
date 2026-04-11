@@ -361,10 +361,9 @@ export function RequestsClient({
           gap: 8,
           height: 52,
           padding: "0 20px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--bg-surface)",
           flexShrink: 0,
         }}
+        className="border-b bg-card"
       >
         {/* Page title */}
         <span
@@ -372,11 +371,11 @@ export function RequestsClient({
             fontFamily: "'Satoshi', sans-serif",
             fontSize: 13,
             fontWeight: 600,
-            color: "var(--text-primary)",
             letterSpacing: "-0.01em",
             marginRight: 12,
             flexShrink: 0,
           }}
+          className="text-foreground"
         >
           Requests
         </span>
@@ -402,11 +401,11 @@ export function RequestsClient({
                   fontWeight: isActive ? 600 : 400,
                   cursor: "pointer",
                   transition: "background 0.1s, color 0.1s",
-                  background: isActive ? "var(--accent)" : "transparent",
-                  color: isActive ? "#fff" : "var(--text-secondary)",
+                  background: isActive ? "hsl(var(--primary))" : "transparent",
+                  color: isActive ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
                   whiteSpace: "nowrap",
                 }}
-                className={isActive ? "" : "hover:bg-[var(--bg-hover)]"}
+                className={isActive ? "" : "hover:bg-accent"}
               >
                 {tab.label}
                 <span
@@ -433,12 +432,12 @@ export function RequestsClient({
               gap: 6,
               height: 28,
               padding: "0 8px",
-              border: "1px solid var(--border)",
+              border: "1px solid hsl(var(--border))",
               borderRadius: 6,
-              background: "var(--bg-subtle)",
+              background: "hsl(var(--muted))",
             }}
           >
-            <Search size={11} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+            <Search size={11} className="text-muted-foreground/60" style={{ flexShrink: 0 }} />
             <input
               type="text"
               value={searchQuery}
@@ -451,8 +450,8 @@ export function RequestsClient({
                 background: "transparent",
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 11,
-                color: "var(--text-primary)",
               }}
+              className="text-foreground"
             />
           </div>
 
@@ -483,8 +482,8 @@ export function RequestsClient({
               padding: "0 10px",
               border: "none",
               borderRadius: 6,
-              background: "var(--accent)",
-              color: "#fff",
+              background: "hsl(var(--primary))",
+              color: "hsl(var(--primary-foreground))",
               fontFamily: "'Geist Mono', monospace",
               fontSize: 11,
               fontWeight: 600,
@@ -503,10 +502,9 @@ export function RequestsClient({
         <div
           style={{
             padding: "0 20px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-surface)",
             flexShrink: 0,
           }}
+          className="border-b bg-card"
         >
           <FilterChips
             chips={filterChips}
@@ -618,7 +616,7 @@ export function RequestsClient({
         >
           <div
             style={{
-              background: "var(--bg-surface)",
+              background: "hsl(var(--card))",
               borderRadius: 12,
               width: "100%",
               maxWidth: 600,
@@ -815,9 +813,8 @@ function ListView({
               alignItems: "center",
               gap: 8,
               padding: "10px 20px 6px",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--bg-subtle)",
             }}
+            className="border-b bg-muted"
           >
             <span
               style={{
@@ -826,8 +823,8 @@ function ListView({
                 fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                color: "var(--text-secondary)",
               }}
+              className="text-muted-foreground"
             >
               {group.label}
             </span>
@@ -835,8 +832,8 @@ function ListView({
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 10,
-                color: "var(--text-tertiary)",
               }}
+              className="text-muted-foreground/60"
             >
               {group.requests.length}
             </span>
@@ -865,9 +862,8 @@ function ListHeader() {
         gridTemplateColumns: "80px 1fr 120px 140px 70px",
         gap: 12,
         padding: "6px 20px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg-subtle)",
-      }}
+        }}
+        className="border-b bg-muted"
     >
       {["ID", "REQUEST", "STAGE", "ASSIGNEE", "PRIORITY"].map((col) => (
         <span
@@ -877,9 +873,9 @@ function ListHeader() {
             fontSize: 9,
             fontWeight: 600,
             letterSpacing: "0.08em",
-            color: "var(--text-tertiary)",
             textTransform: "uppercase",
           }}
+          className="text-muted-foreground/60"
         >
           {col}
         </span>
@@ -911,24 +907,23 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
         width: "100%",
         textAlign: "left",
         border: "none",
-        borderBottom: "1px solid var(--border-subtle, var(--border))",
         background: "transparent",
         cursor: "pointer",
         transition: "background 0.1s",
         alignItems: "center",
       }}
-      className="hover:bg-[var(--bg-subtle)]"
+      className="border-b hover:bg-muted"
     >
       {/* ID */}
       <span
         style={{
           fontFamily: "'Geist Mono', monospace",
           fontSize: 10,
-          color: "var(--text-tertiary)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
+        className="text-muted-foreground/60"
       >
         {r.id.slice(0, 8)}
       </span>
@@ -940,11 +935,11 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
             fontFamily: "'Satoshi', sans-serif",
             fontSize: 13,
             fontWeight: 500,
-            color: "var(--text-primary)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
+          className="text-foreground"
         >
           {r.title}
         </div>
@@ -953,12 +948,12 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               marginTop: 2,
             }}
+            className="text-muted-foreground/60"
           >
             {proj.name}
           </div>
@@ -970,11 +965,11 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
         style={{
           fontFamily: "'Geist Mono', monospace",
           fontSize: 10,
-          color: "var(--text-secondary)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
+        className="text-muted-foreground"
       >
         {stageLabel}
       </span>
@@ -984,11 +979,11 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
         style={{
           fontFamily: "'Geist Mono', monospace",
           fontSize: 10,
-          color: "var(--text-secondary)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
+        className="text-muted-foreground"
       >
         {assignees[0] ?? "—"}
       </span>

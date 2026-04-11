@@ -65,10 +65,9 @@ function RequestCard({
         gap: 12,
         padding: "9px 20px",
         textDecoration: "none",
-        borderBottom: "1px solid var(--border-subtle)",
         transition: "background 0.1s",
       }}
-      className="hover:bg-[var(--bg-subtle)]"
+      className="border-b hover:bg-muted"
     >
       {/* Title */}
       <span
@@ -77,11 +76,11 @@ function RequestCard({
           fontFamily: "'Satoshi', sans-serif",
           fontSize: 13,
           fontWeight: 500,
-          color: "var(--text-primary)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
+        className="text-foreground"
       >
         {request.title}
       </span>
@@ -92,10 +91,10 @@ function RequestCard({
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
             whiteSpace: "nowrap",
             flexShrink: 0,
           }}
+          className="text-muted-foreground/60"
         >
           {phaseLabel} · {stageLabel}
         </span>
@@ -110,10 +109,10 @@ function RequestCard({
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
             whiteSpace: "nowrap",
             flexShrink: 0,
           }}
+          className="text-muted-foreground/60"
         >
           {firstAssigneeName}
         </span>
@@ -146,8 +145,8 @@ function FocusSectionBlock({
           alignItems: "center",
           gap: 8,
           padding: "6px 20px",
-          borderBottom: "1px solid var(--border)",
         }}
+        className="border-b"
       >
         <span
           aria-hidden
@@ -166,8 +165,8 @@ function FocusSectionBlock({
             fontWeight: 600,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
-            color: "var(--text-secondary)",
           }}
+          className="text-muted-foreground"
         >
           {label}
         </span>
@@ -175,8 +174,8 @@ function FocusSectionBlock({
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
           }}
+          className="text-muted-foreground/60"
         >
           {sectionRequests.length}
         </span>
@@ -340,10 +339,9 @@ export default async function DashboardPage() {
           alignItems: "center",
           height: 40,
           padding: "0 20px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--bg-surface)",
           flexShrink: 0,
         }}
+        className="border-b bg-card"
       >
         <span
           style={{
@@ -351,8 +349,8 @@ export default async function DashboardPage() {
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: "-0.01em",
-            color: "var(--text-primary)",
           }}
+          className="text-foreground"
         >
           Home
         </span>
@@ -381,11 +379,11 @@ export default async function DashboardPage() {
               style={{
                 fontFamily: "'Satoshi', sans-serif",
                 fontSize: 14,
-                color: "var(--text-tertiary)",
                 textAlign: "center",
                 maxWidth: 320,
                 lineHeight: 1.6,
               }}
+              className="text-muted-foreground/60"
             >
               You&apos;re clear. Time to think, learn, or help a teammate.
             </p>

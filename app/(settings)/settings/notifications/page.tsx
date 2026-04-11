@@ -18,19 +18,19 @@ export default async function NotificationsSettingsPage() {
         style={{
           fontSize: 18,
           fontWeight: 620,
-          color: "var(--text-primary)",
           letterSpacing: "-0.02em",
           marginBottom: 4,
         }}
+        className="text-foreground"
       >
         Notification Preferences
       </h1>
       <p
         style={{
           fontSize: 13,
-          color: "var(--text-secondary)",
           marginBottom: 24,
         }}
+        className="text-muted-foreground"
       >
         Control how and when Lane reaches out to you.
       </p>

@@ -23,7 +23,7 @@ export default async function SettingsLayout({
   if (!profile) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-6 py-10 flex gap-12">
         <SettingsSidebar isAdmin={profile.role === "admin"} />
         <main className="flex-1 min-w-0">{children}</main>

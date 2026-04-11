@@ -27,10 +27,10 @@ export default async function InitiativesPage() {
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h1 className="text-lg font-semibold text-foreground">
             Initiatives
           </h1>
-          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+          <p className="text-xs text-muted-foreground/60 mt-1">
             Group related requests across projects
           </p>
         </div>

@@ -17,8 +17,8 @@ export default async function DangerPage() {
   return (
     <div className="max-w-lg space-y-10">
       <div>
-        <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Danger Zone</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Irreversible actions. Take care.</p>
+        <h1 className="text-lg font-semibold text-foreground mb-1">Danger Zone</h1>
+        <p className="text-sm text-muted-foreground">Irreversible actions. Take care.</p>
       </div>
       <DangerZone isAdmin={profile.role === "admin"} orgSlug={org.slug} />
     </div>
