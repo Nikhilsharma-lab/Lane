@@ -22,18 +22,22 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [generateFailed, setGenerateFailed] = useState(false);
 
   async function handleGenerate() {
     if (refreshing) return;
     setRefreshing(true);
+    setGenerateFailed(false);
     try {
       const res = await fetch("/api/morning-briefing", { method: "POST" });
       if (res.ok) {
         window.location.reload();
       } else {
+        setGenerateFailed(true);
         setRefreshing(false);
       }
     } catch {
+      setGenerateFailed(true);
       setRefreshing(false);
     }
   }
@@ -73,6 +77,17 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
         >
           Morning Briefing
         </span>
+        {generateFailed ? (
+          <span
+            style={{
+              fontFamily: "'Geist Mono', monospace",
+              fontSize: 10,
+              color: "hsl(var(--muted-foreground) / 0.6)",
+            }}
+          >
+            Unavailable, try again later
+          </span>
+        ) : (
         <button
           type="button"
           onClick={handleGenerate}
@@ -93,6 +108,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
         >
           {refreshing ? "Generating…" : "Generate"}
         </button>
+        )}
       </div>
     );
   }
