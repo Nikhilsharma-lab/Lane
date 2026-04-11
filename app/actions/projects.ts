@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { withUserDb } from "@/db/user";
-import { projects, profiles, requests } from "@/db/schema";
+import { projects, profiles, requests, projectMembers } from "@/db/schema";
 import { eq, and, ne, isNull } from "drizzle-orm";
 import { PROJECT_COLORS } from "@/lib/projects";
 
@@ -20,6 +20,7 @@ export async function createProject(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const color = (formData.get("color") as string) || "#71717a";
+  const targetDate = (formData.get("targetDate") as string) || null;
 
   if (!name) return { error: "Project name is required" };
   if (!(PROJECT_COLORS as readonly string[]).includes(color)) return { error: "Invalid color" };
@@ -28,17 +29,27 @@ export async function createProject(formData: FormData) {
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId));
     if (!profile) return { error: "Not authenticated" };
 
-    await db.insert(projects).values({
+    const [project] = await db.insert(projects).values({
       orgId: profile.orgId,
       name,
       description,
       color,
+      targetDate,
+      leadId: userId,
       createdBy: profile.id,
+    }).returning();
+
+    // Add creator as lead member
+    await db.insert(projectMembers).values({
+      projectId: project.id,
+      userId,
+      role: "lead",
     });
 
     revalidatePath("/settings/projects");
+    revalidatePath("/dashboard/projects");
     revalidatePath("/dashboard");
-    return { success: true };
+    return { success: true, project };
   });
 }
 
