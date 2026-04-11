@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppetiteBar } from "@/components/ui/appetite-bar";
 
 const statusStyles: Record<string, string> = {
-  draft: "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]",
+  draft: "bg-accent text-muted-foreground border",
   active: "bg-green-500/10 text-green-600 border-green-500/20",
   completed: "bg-[#7DA5C4]/10 text-[#7DA5C4] border-[#7DA5C4]/20",
   cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
@@ -44,7 +44,7 @@ export function CycleCard({
   return (
     <Link
       href={`/dashboard/cycles/${id}`}
-      className="block border border-[var(--border)] rounded-xl p-4 bg-[var(--bg-surface)] space-y-3 hover:border-[var(--border-strong)] transition-colors"
+      className="block border border rounded-xl p-4 bg-card space-y-3 hover:border-border/80 transition-colors"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
@@ -56,7 +56,7 @@ export function CycleCard({
               {status}
             </span>
             {projectName && (
-              <span className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
                 <span
                   className="inline-block w-2 h-2 rounded-full shrink-0"
                   style={{ background: projectColor ?? "#71717a" }}
@@ -65,17 +65,17 @@ export function CycleCard({
               </span>
             )}
           </div>
-          <h3 className="text-sm font-medium text-[var(--text-primary)] leading-snug">
+          <h3 className="text-sm font-medium text-foreground leading-snug">
             {name}
           </h3>
         </div>
 
         {/* Appetite + date range */}
         <div className="shrink-0 text-right">
-          <span className="text-xs font-mono text-[var(--text-secondary)]">
+          <span className="text-xs font-mono text-muted-foreground">
             {appetiteWeeks}w
           </span>
-          <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
             {formatDate(startsAt)} – {formatDate(endsAt)}
           </p>
         </div>
@@ -94,11 +94,11 @@ export function CycleCard({
 
       {/* Request count footer */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-[var(--text-tertiary)]">
+        <span className="text-[11px] text-muted-foreground/60">
           {requestCount} request{requestCount !== 1 ? "s" : ""}
         </span>
         {requestCount > 0 && (
-          <span className="text-[11px] text-[var(--text-tertiary)]">
+          <span className="text-[11px] text-muted-foreground/60">
             {completedCount}/{requestCount} completed
           </span>
         )}

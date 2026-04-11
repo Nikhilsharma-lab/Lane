@@ -38,19 +38,19 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 500,
   textTransform: "uppercase",
   letterSpacing: "0.06em",
-  color: "var(--text-tertiary)",
+  color: "hsl(var(--muted-foreground) / 0.6)",
   marginBottom: 4,
 };
 
 const sectionStyle: React.CSSProperties = {
   padding: "12px 0",
-  borderBottom: "1px solid var(--border)",
+  borderBottom: "1px solid hsl(var(--border))",
 };
 
 function QualityBar({ score }: { score: number }) {
   const clampedScore = Math.max(0, Math.min(100, score));
   const color =
-    clampedScore >= 70 ? "var(--accent)" : clampedScore >= 40 ? "#dd6b20" : "#c53030";
+    clampedScore >= 70 ? "hsl(var(--primary))" : clampedScore >= 40 ? "#dd6b20" : "#c53030";
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -59,7 +59,7 @@ function QualityBar({ score }: { score: number }) {
           flex: 1,
           height: 4,
           borderRadius: 2,
-          background: "var(--bg-hover)",
+          background: "hsl(var(--accent))",
           overflow: "hidden",
         }}
       >
@@ -108,7 +108,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
             fontFamily: "'Geist', sans-serif",
             fontSize: 18,
             fontWeight: 600,
-            color: "var(--text-primary)",
+            color: "hsl(var(--foreground))",
             margin: 0,
             flex: 1,
             lineHeight: 1.3,
@@ -121,9 +121,9 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
             fontWeight: 500,
-            color: "var(--text-tertiary)",
-            background: "var(--bg-subtle)",
-            border: "1px solid var(--border)",
+            color: "hsl(var(--muted-foreground) / 0.6)",
+            background: "hsl(var(--muted))",
+            border: "1px solid hsl(var(--border))",
             borderRadius: 4,
             padding: "2px 6px",
             flexShrink: 0,
@@ -139,7 +139,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 11,
-            color: "var(--text-secondary)",
+            color: "hsl(var(--muted-foreground))",
           }}
         >
           {request.requesterName}
@@ -148,7 +148,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
+            color: "hsl(var(--muted-foreground) / 0.6)",
           }}
         >
           {relativeTime}
@@ -178,7 +178,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
             fontFamily: "'Geist', sans-serif",
             fontSize: 13,
             lineHeight: 1.6,
-            color: "var(--text-primary)",
+            color: "hsl(var(--foreground))",
             margin: 0,
             whiteSpace: "pre-wrap",
           }}
@@ -196,7 +196,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
               fontFamily: "'Geist', sans-serif",
               fontSize: 13,
               lineHeight: 1.6,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
               margin: 0,
               whiteSpace: "pre-wrap",
             }}
@@ -215,7 +215,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
               fontFamily: "'Geist', sans-serif",
               fontSize: 13,
               lineHeight: 1.6,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
               margin: 0,
               whiteSpace: "pre-wrap",
             }}
@@ -232,12 +232,12 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
             marginTop: 16,
             padding: 16,
             borderRadius: 8,
-            background: "var(--bg-subtle)",
-            border: "1px solid var(--border)",
+            background: "hsl(var(--muted))",
+            border: "1px solid hsl(var(--border))",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-            <Sparkles size={13} style={{ color: "var(--accent)" }} />
+            <Sparkles size={13} style={{ color: "hsl(var(--primary))" }} />
             <span
               style={{
                 fontFamily: "'Geist Mono', monospace",
@@ -245,7 +245,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                 fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                color: "var(--accent)",
+                color: "hsl(var(--primary))",
               }}
             >
               AI TRIAGE
@@ -258,7 +258,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
               fontFamily: "'Geist', sans-serif",
               fontSize: 13,
               lineHeight: 1.5,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
               margin: "0 0 12px",
             }}
           >
@@ -280,7 +280,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "var(--text-primary)",
+                  color: "hsl(var(--foreground))",
                 }}
               >
                 {aiAnalysis.priority.toUpperCase()}
@@ -293,7 +293,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "var(--text-primary)",
+                  color: "hsl(var(--foreground))",
                 }}
               >
                 {aiAnalysis.complexity}/5
@@ -306,7 +306,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 12,
                   fontWeight: 500,
-                  color: "var(--text-primary)",
+                  color: "hsl(var(--foreground))",
                   textTransform: "capitalize",
                 }}
               >
@@ -323,7 +323,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                 fontFamily: "'Geist', sans-serif",
                 fontSize: 12,
                 lineHeight: 1.5,
-                color: "var(--text-secondary)",
+                color: "hsl(var(--muted-foreground))",
                 margin: 0,
                 whiteSpace: "pre-wrap",
               }}
@@ -350,7 +350,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                       fontFamily: "'Geist', sans-serif",
                       fontSize: 12,
                       lineHeight: 1.5,
-                      color: "var(--text-secondary)",
+                      color: "hsl(var(--muted-foreground))",
                       marginBottom: 2,
                     }}
                   >
@@ -374,8 +374,8 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                   style={{
                     padding: "6px 8px",
                     borderRadius: 4,
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border)",
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
                     marginBottom: 4,
                   }}
                 >
@@ -384,7 +384,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                       fontFamily: "'Geist', sans-serif",
                       fontSize: 12,
                       fontWeight: 500,
-                      color: "var(--text-primary)",
+                      color: "hsl(var(--foreground))",
                     }}
                   >
                     {dup.title}
@@ -393,7 +393,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                     style={{
                       fontFamily: "'Geist Mono', monospace",
                       fontSize: 10,
-                      color: "var(--text-tertiary)",
+                      color: "hsl(var(--muted-foreground) / 0.6)",
                       marginLeft: 6,
                     }}
                   >
@@ -403,7 +403,7 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
                     style={{
                       fontFamily: "'Geist', sans-serif",
                       fontSize: 11,
-                      color: "var(--text-tertiary)",
+                      color: "hsl(var(--muted-foreground) / 0.6)",
                       margin: "2px 0 0",
                     }}
                   >

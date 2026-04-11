@@ -6,7 +6,7 @@ import { AppetiteBar } from "@/components/ui/appetite-bar";
 import { updateCycleStatus, addRequestToCycle, removeRequestFromCycle } from "@/app/actions/cycles";
 
 const statusStyles: Record<string, string> = {
-  draft: "bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border)]",
+  draft: "bg-accent text-muted-foreground border",
   active: "bg-green-500/10 text-green-600 border-green-500/20",
   completed: "bg-[#7DA5C4]/10 text-[#7DA5C4] border-[#7DA5C4]/20",
   cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
@@ -115,11 +115,11 @@ export function CycleDetail({
               className="inline-block w-3 h-3 rounded-full shrink-0"
               style={{ background: projectColor }}
             />
-            <span className="text-xs text-[var(--text-tertiary)]">
+            <span className="text-xs text-muted-foreground/60">
               {projectName}
             </span>
           </div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+          <h1 className="text-xl font-semibold text-foreground">
             {cycle.name}
           </h1>
           <div className="flex items-center gap-2 mt-2">
@@ -128,7 +128,7 @@ export function CycleDetail({
             >
               {cycle.status}
             </span>
-            <span className="text-xs text-[var(--text-tertiary)]">
+            <span className="text-xs text-muted-foreground/60">
               {cycle.appetiteWeeks} week appetite
             </span>
           </div>
@@ -168,7 +168,7 @@ export function CycleDetail({
 
       {/* Appetite bar */}
       {cycle.startsAt && cycle.endsAt && (
-        <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--bg-surface)]">
+        <div className="border border rounded-xl p-4 bg-card">
           <AppetiteBar
             appetiteWeeks={cycle.appetiteWeeks}
             startsAt={cycle.startsAt}
@@ -181,11 +181,11 @@ export function CycleDetail({
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="border border-[var(--border)] rounded-xl px-4 py-3">
-          <p className="text-[10px] text-[var(--text-tertiary)] mb-0.5">
+        <div className="border border rounded-xl px-4 py-3">
+          <p className="text-[10px] text-muted-foreground/60 mb-0.5">
             Total
           </p>
-          <p className="text-lg font-semibold text-[var(--text-primary)]">
+          <p className="text-lg font-semibold text-foreground">
             {cycleRequests.length}
           </p>
         </div>
@@ -195,12 +195,12 @@ export function CycleDetail({
           return (
             <div
               key={phase}
-              className="border border-[var(--border)] rounded-xl px-4 py-3"
+              className="border border rounded-xl px-4 py-3"
             >
-              <p className="text-[10px] text-[var(--text-tertiary)] mb-0.5 capitalize">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5 capitalize">
                 {phase}
               </p>
-              <p className="text-lg font-semibold text-[var(--text-primary)]">
+              <p className="text-lg font-semibold text-foreground">
                 {cnt}
               </p>
             </div>
@@ -209,14 +209,14 @@ export function CycleDetail({
       </div>
 
       {/* Request list */}
-      <div className="border border-[var(--border)] rounded-xl bg-[var(--bg-surface)] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+      <div className="border border rounded-xl bg-card overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Requests
           </h2>
           <button
             onClick={() => setShowAddRequest(!showAddRequest)}
-            className="text-[11px] text-[var(--accent)] hover:underline"
+            className="text-[11px] text-primary hover:underline"
           >
             {showAddRequest ? "Cancel" : "+ Add request"}
           </button>
@@ -224,13 +224,13 @@ export function CycleDetail({
 
         {/* Add request search */}
         {showAddRequest && (
-          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)]">
+          <div className="px-4 py-3 border-b border bg-muted">
             <input
               type="text"
               placeholder="Search requests by title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)]"
+              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
             {searchTerm && filteredOrgRequests.length > 0 && (
               <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
@@ -238,7 +238,7 @@ export function CycleDetail({
                   <button
                     key={r.id}
                     onClick={() => handleAddRequest(r.id)}
-                    className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
+                    className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-accent text-foreground transition-colors"
                   >
                     {r.title}
                   </button>
@@ -246,7 +246,7 @@ export function CycleDetail({
               </div>
             )}
             {searchTerm && filteredOrgRequests.length === 0 && (
-              <p className="mt-2 text-xs text-[var(--text-tertiary)]">
+              <p className="mt-2 text-xs text-muted-foreground/60">
                 No matching requests found
               </p>
             )}
@@ -256,22 +256,22 @@ export function CycleDetail({
         {/* Request table */}
         {cycleRequests.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-muted-foreground">
               No requests in this cycle yet.
             </p>
-            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+            <p className="text-xs text-muted-foreground/60 mt-1">
               Add requests to start tracking appetite.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[var(--border)]">
+          <div className="divide-y divide-border">
             {cycleRequests.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[var(--text-primary)] truncate">
+                  <p className="text-sm text-foreground truncate">
                     {r.title}
                   </p>
                 </div>
@@ -284,13 +284,13 @@ export function CycleDetail({
                     </span>
                   )}
                   {r.priority && (
-                    <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                    <span className="text-[10px] font-mono text-muted-foreground/60">
                       {priorityLabels[r.priority] ?? r.priority}
                     </span>
                   )}
                   <button
                     onClick={() => handleRemoveRequest(r.id)}
-                    className="text-[10px] text-[var(--text-tertiary)] hover:text-red-500 transition-colors ml-1"
+                    className="text-[10px] text-muted-foreground/60 hover:text-red-500 transition-colors ml-1"
                     title="Remove from cycle"
                   >
                     ×

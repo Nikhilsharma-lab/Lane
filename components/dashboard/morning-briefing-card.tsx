@@ -66,8 +66,8 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
   return (
     <div
       style={{
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg-surface)",
+        borderBottom: "1px solid hsl(var(--border))",
+        background: "hsl(var(--card))",
       }}
     >
       {/* ── Collapsed bar ─────────────────────────────────────────────── */}
@@ -100,7 +100,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "var(--accent)",
+              background: "hsl(var(--primary))",
               flexShrink: 0,
             }}
           />
@@ -109,7 +109,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               fontFamily: "'Geist', sans-serif",
               fontSize: 12,
               fontWeight: 600,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
             }}
           >
             Morning Briefing
@@ -127,7 +127,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               borderRadius: 4,
               border: "none",
               background: "transparent",
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
               cursor: refreshing ? "not-allowed" : "pointer",
               padding: 0,
             }}
@@ -145,7 +145,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
             }}
           >
             · {today}
@@ -155,7 +155,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 10,
-                color: "var(--text-tertiary)",
+                color: "hsl(var(--muted-foreground) / 0.6)",
               }}
             >
               · Generated at {generatedTime}
@@ -173,9 +173,9 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                 fontWeight: 600,
                 padding: "2px 6px",
                 borderRadius: 4,
-                background: "var(--bg-subtle)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
+                background: "hsl(var(--muted))",
+                border: "1px solid hsl(var(--border))",
+                color: "hsl(var(--muted-foreground))",
               }}
             >
               {alertCount} alert{alertCount === 1 ? "" : "s"}
@@ -187,7 +187,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               display: "inline-block",
               fontSize: 9,
               lineHeight: 1,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
               transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
               transition: "transform 0.15s",
             }}
@@ -207,7 +207,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               borderRadius: 4,
               border: "none",
               background: "transparent",
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
               fontSize: 13,
               cursor: "pointer",
             }}
@@ -222,7 +222,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
       {expanded && (
         <div
           style={{
-            borderTop: "1px solid var(--border-subtle)",
+            borderTop: "1px solid hsl(var(--border))",
             padding: "12px 20px 14px",
           }}
         >
@@ -236,7 +236,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                   gap: 8,
                   fontFamily: "'Geist', sans-serif",
                   fontSize: 12,
-                  color: "var(--text-secondary)",
+                  color: "hsl(var(--muted-foreground))",
                 }}
               >
                 <span style={{ flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
@@ -244,7 +244,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                   <Link
                     href={item.href}
                     className="hover:underline underline-offset-2"
-                    style={{ color: "var(--text-secondary)" }}
+                    style={{ color: "hsl(var(--muted-foreground))" }}
                   >
                     {item.text}
                   </Link>
@@ -260,7 +260,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
               style={{
                 marginTop: 12,
                 paddingTop: 10,
-                borderTop: "1px solid var(--border-subtle)",
+                borderTop: "1px solid hsl(var(--border))",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -272,7 +272,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                   fontFamily: "'Geist', sans-serif",
                   fontSize: 11,
                   fontWeight: 500,
-                  color: "var(--accent)",
+                  color: "hsl(var(--primary))",
                   margin: 0,
                 }}
               >
@@ -289,7 +289,7 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                     fontWeight: 600,
                     padding: "4px 10px",
                     borderRadius: 4,
-                    background: "var(--accent)",
+                    background: "hsl(var(--primary))",
                     color: "#fff",
                   }}
                 >

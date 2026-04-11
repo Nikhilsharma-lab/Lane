@@ -3,7 +3,7 @@ import Link from "next/link";
 const statusStyles: Record<string, string> = {
   active: "bg-green-500/10 text-green-600 border-green-500/20",
   completed: "bg-[#7DA5C4]/10 text-[#7DA5C4] border-[#7DA5C4]/20",
-  archived: "bg-[var(--bg-hover)] text-[var(--text-tertiary)] border-[var(--border)]",
+  archived: "bg-accent text-muted-foreground/60 border",
 };
 
 interface InitiativeCardProps {
@@ -26,7 +26,7 @@ export function InitiativeCard({
   return (
     <Link
       href={`/dashboard/initiatives/${id}`}
-      className="block border border-[var(--border)] rounded-xl p-4 bg-[var(--bg-surface)] space-y-3 hover:border-[var(--border-strong)] transition-colors"
+      className="block border border rounded-xl p-4 bg-card space-y-3 hover:border-border/80 transition-colors"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
@@ -35,7 +35,7 @@ export function InitiativeCard({
             className="inline-block w-3 h-3 rounded-full shrink-0"
             style={{ background: color }}
           />
-          <h3 className="text-sm font-medium text-[var(--text-primary)] leading-snug">
+          <h3 className="text-sm font-medium text-foreground leading-snug">
             {name}
           </h3>
         </div>
@@ -48,14 +48,14 @@ export function InitiativeCard({
 
       {/* Description */}
       {description && (
-        <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
           {description}
         </p>
       )}
 
       {/* Footer */}
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-[var(--text-tertiary)]">
+        <span className="text-[11px] text-muted-foreground/60">
           {requestCount} request{requestCount !== 1 ? "s" : ""}
         </span>
       </div>

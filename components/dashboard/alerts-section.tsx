@@ -20,7 +20,7 @@ interface Props {
 const urgencyBorder: Record<string, string> = {
   high: "#ef4444",
   medium: "#f59e0b",
-  low: "var(--border-strong)",
+  low: "hsl(var(--border) / 0.8)",
 };
 
 const INLINE_LIMIT = 3;
@@ -66,7 +66,7 @@ export function AlertsSection({ alerts: initial }: Props) {
               fontWeight: 600,
               letterSpacing: "0.04em",
               textTransform: "uppercase",
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
             }}
           >
             Alerts
@@ -77,7 +77,7 @@ export function AlertsSection({ alerts: initial }: Props) {
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -93,8 +93,8 @@ export function AlertsSection({ alerts: initial }: Props) {
           key={alert.id}
           className="rounded-xl overflow-hidden flex"
           style={{
-            border: "1px solid var(--border)",
-            background: "var(--bg-subtle)",
+            border: "1px solid hsl(var(--border))",
+            background: "hsl(var(--muted))",
           }}
         >
           {/* Urgency bar */}
@@ -105,20 +105,20 @@ export function AlertsSection({ alerts: initial }: Props) {
 
           <div className="flex-1 px-4 py-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-medium leading-snug" style={{ color: "var(--text-primary)" }}>
+              <p className="text-sm font-medium leading-snug" style={{ color: "hsl(var(--foreground))" }}>
                 {alert.title}
               </p>
               <button
                 onClick={() => handleDismiss(alert.id)}
                 className="shrink-0 text-xs leading-none hover:opacity-70 transition-opacity mt-0.5"
-                style={{ color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer" }}
+                style={{ color: "hsl(var(--muted-foreground) / 0.6)", background: "none", border: "none", cursor: "pointer" }}
                 aria-label="Dismiss alert"
               >
                 ×
               </button>
             </div>
 
-            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
               {alert.body}
             </p>
 
@@ -126,7 +126,7 @@ export function AlertsSection({ alerts: initial }: Props) {
               <Link
                 href={alert.ctaUrl}
                 className="text-xs font-medium hover:opacity-80 transition-opacity"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "hsl(var(--primary))" }}
               >
                 {alert.ctaLabel} →
               </Link>
@@ -139,7 +139,7 @@ export function AlertsSection({ alerts: initial }: Props) {
         <button
           onClick={() => setPanelOpen(true)}
           className="text-xs text-left hover:opacity-70 transition-opacity"
-          style={{ color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          style={{ color: "hsl(var(--muted-foreground) / 0.6)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
           View all {alerts.length} alerts →
         </button>

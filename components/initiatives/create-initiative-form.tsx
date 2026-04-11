@@ -48,7 +48,7 @@ export function CreateInitiativeForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs px-3 py-1.5 rounded-lg border border-[var(--accent)]/20 text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors"
+        className="text-xs px-3 py-1.5 rounded-lg border border-primary/20 text-primary hover:border-primary/40 transition-colors"
       >
         + Create Initiative
       </button>
@@ -57,14 +57,14 @@ export function CreateInitiativeForm() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+      <div className="bg-card border border rounded-xl p-6 w-full max-w-md shadow-xl">
+        <h2 className="text-sm font-semibold text-foreground mb-4">
           Create Initiative
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">
+            <label className="text-xs text-muted-foreground block mb-1">
               Name
             </label>
             <input
@@ -72,12 +72,12 @@ export function CreateInitiativeForm() {
               type="text"
               required
               placeholder="e.g. Checkout Redesign"
-              className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)]"
+              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">
+            <label className="text-xs text-muted-foreground block mb-1">
               Description
             </label>
             <textarea
@@ -89,7 +89,7 @@ export function CreateInitiativeForm() {
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">
+            <label className="text-xs text-muted-foreground block mb-1">
               Color
             </label>
             <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export function CreateInitiativeForm() {
                   style={{
                     background: c,
                     borderColor:
-                      selectedColor === c ? "var(--text-primary)" : "transparent",
+                      selectedColor === c ? "hsl(var(--foreground))" : "transparent",
                     transform: selectedColor === c ? "scale(1.15)" : "scale(1)",
                   }}
                 />
@@ -119,14 +119,14 @@ export function CreateInitiativeForm() {
                 setOpen(false);
                 setError(null);
               }}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg border border text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create"}
             </button>

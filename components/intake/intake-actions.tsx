@@ -44,7 +44,7 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
         flexDirection: "column",
         gap: 8,
         padding: "16px 0 0",
-        borderTop: "1px solid var(--border)",
+        borderTop: "1px solid hsl(var(--border))",
       }}
     >
       {/* Primary action row */}
@@ -63,7 +63,7 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
             fontSize: 12,
             fontFamily: "'Geist Mono', monospace",
             fontWeight: 600,
-            background: "var(--accent)",
+            background: "hsl(var(--primary))",
             color: "#fff",
             border: "none",
             cursor: isPendingAccept ? "wait" : "pointer",
@@ -89,9 +89,9 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
             fontSize: 12,
             fontFamily: "'Geist Mono', monospace",
             fontWeight: 500,
-            background: "var(--bg-subtle)",
-            color: "var(--text-secondary)",
-            border: "1px solid var(--border)",
+            background: "hsl(var(--muted))",
+            color: "hsl(var(--muted-foreground))",
+            border: "1px solid hsl(var(--border))",
             cursor: isPendingDecline ? "wait" : "pointer",
             opacity: isPendingDecline ? 0.6 : 1,
           }}
@@ -116,9 +116,9 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
             fontSize: 12,
             fontFamily: "'Geist Mono', monospace",
             fontWeight: 500,
-            background: "var(--bg-subtle)",
-            color: "var(--text-tertiary)",
-            border: "1px solid var(--border)",
+            background: "hsl(var(--muted))",
+            color: "hsl(var(--muted-foreground) / 0.6)",
+            border: "1px solid hsl(var(--border))",
             cursor: "default",
             opacity: 0.5,
           }}
@@ -149,11 +149,11 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
               height: 30,
               padding: "0 8px",
               borderRadius: 5,
-              border: "1px solid var(--border)",
-              background: "var(--bg-subtle)",
+              border: "1px solid hsl(var(--border))",
+              background: "hsl(var(--muted))",
               fontSize: 12,
               fontFamily: "'Geist', sans-serif",
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
               outline: "none",
             }}
           />
@@ -167,8 +167,8 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
               fontSize: 11,
               fontFamily: "'Geist Mono', monospace",
               fontWeight: 600,
-              background: declineReason.trim() ? "#c53030" : "var(--bg-hover)",
-              color: declineReason.trim() ? "#fff" : "var(--text-tertiary)",
+              background: declineReason.trim() ? "#c53030" : "hsl(var(--accent))",
+              color: declineReason.trim() ? "#fff" : "hsl(var(--muted-foreground) / 0.6)",
               border: "none",
               cursor: declineReason.trim() ? "pointer" : "default",
             }}

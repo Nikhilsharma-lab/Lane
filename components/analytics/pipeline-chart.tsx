@@ -37,7 +37,7 @@ interface PipelineChartProps {
 export function PipelineChart({ data }: PipelineChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-xs text-[var(--text-tertiary)]">
+      <div className="flex items-center justify-center h-48 text-xs text-muted-foreground/60">
         No pipeline data yet
       </div>
     );
@@ -55,7 +55,7 @@ export function PipelineChart({ data }: PipelineChartProps) {
           type="category"
           dataKey="phase"
           width={72}
-          tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           tickFormatter={(v: string) =>
             v.charAt(0).toUpperCase() + v.slice(1)
           }

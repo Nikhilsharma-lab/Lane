@@ -64,7 +64,7 @@ export function CardDrawer({ card, onClose }: Props) {
             <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
               Description
             </div>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {card.description}
             </p>
           </section>

@@ -69,22 +69,22 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
       <div
         className="rounded-xl shadow-lg w-full max-w-md mx-4"
         style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--border))",
         }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid var(--border)" }}
+          style={{ borderBottom: "1px solid hsl(var(--border))" }}
         >
           <div className="flex items-center gap-2">
-            <Link2 size={14} style={{ color: "var(--accent)" }} />
+            <Link2 size={14} style={{ color: "hsl(var(--primary))" }} />
             <h3
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "var(--text-primary)",
+                color: "hsl(var(--foreground))",
               }}
             >
               Publish View
@@ -96,7 +96,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
             style={{
               width: 28,
               height: 28,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
               background: "transparent",
               border: "none",
               cursor: "pointer",
@@ -119,7 +119,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                     fontWeight: 500,
                     letterSpacing: "0.07em",
                     textTransform: "uppercase",
-                    color: "var(--text-tertiary)",
+                    color: "hsl(var(--muted-foreground) / 0.6)",
                     display: "block",
                     marginBottom: 6,
                   }}
@@ -134,9 +134,9 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                   className="w-full rounded-lg px-3 py-2"
                   style={{
                     fontSize: 13,
-                    background: "var(--bg-subtle)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-primary)",
+                    background: "hsl(var(--muted))",
+                    border: "1px solid hsl(var(--border))",
+                    color: "hsl(var(--foreground))",
                     outline: "none",
                   }}
                 />
@@ -151,7 +151,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                     fontWeight: 500,
                     letterSpacing: "0.07em",
                     textTransform: "uppercase",
-                    color: "var(--text-tertiary)",
+                    color: "hsl(var(--muted-foreground) / 0.6)",
                     display: "block",
                     marginBottom: 6,
                   }}
@@ -167,16 +167,16 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                       fontWeight: 500,
                       background:
                         accessMode === "authenticated"
-                          ? "var(--accent)"
-                          : "var(--bg-subtle)",
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--muted))",
                       color:
                         accessMode === "authenticated"
                           ? "#fff"
-                          : "var(--text-secondary)",
+                          : "hsl(var(--muted-foreground))",
                       border: `1px solid ${
                         accessMode === "authenticated"
-                          ? "var(--accent)"
-                          : "var(--border)"
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--border))"
                       }`,
                       cursor: "pointer",
                     }}
@@ -192,16 +192,16 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                       fontWeight: 500,
                       background:
                         accessMode === "public"
-                          ? "var(--accent)"
-                          : "var(--bg-subtle)",
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--muted))",
                       color:
                         accessMode === "public"
                           ? "#fff"
-                          : "var(--text-secondary)",
+                          : "hsl(var(--muted-foreground))",
                       border: `1px solid ${
                         accessMode === "public"
-                          ? "var(--accent)"
-                          : "var(--border)"
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--border))"
                       }`,
                       cursor: "pointer",
                     }}
@@ -217,7 +217,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                 <span
                   style={{
                     fontSize: 12,
-                    color: "var(--text-secondary)",
+                    color: "hsl(var(--muted-foreground))",
                   }}
                 >
                   Allow comments
@@ -229,8 +229,8 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                     width: 36,
                     height: 20,
                     background: allowComments
-                      ? "var(--accent)"
-                      : "var(--bg-hover)",
+                      ? "hsl(var(--primary))"
+                      : "hsl(var(--accent))",
                     border: "none",
                     cursor: "pointer",
                     position: "relative",
@@ -271,7 +271,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  background: "var(--accent)",
+                  background: "hsl(var(--primary))",
                   color: "#fff",
                   border: "none",
                   cursor: "pointer",
@@ -322,9 +322,9 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                   style={{
                     fontSize: 11,
                     fontFamily: "'Geist Mono', monospace",
-                    background: "var(--bg-subtle)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
+                    background: "hsl(var(--muted))",
+                    border: "1px solid hsl(var(--border))",
+                    color: "hsl(var(--muted-foreground))",
                     outline: "none",
                   }}
                 />
@@ -334,11 +334,11 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                   style={{
                     fontSize: 12,
                     fontWeight: 500,
-                    background: copied ? "#EAF2EC" : "var(--bg-subtle)",
+                    background: copied ? "#EAF2EC" : "hsl(var(--muted))",
                     border: `1px solid ${
-                      copied ? "#C6DCC9" : "var(--border)"
+                      copied ? "#C6DCC9" : "hsl(var(--border))"
                     }`,
-                    color: copied ? "#166534" : "var(--text-primary)",
+                    color: copied ? "#166534" : "hsl(var(--foreground))",
                     cursor: "pointer",
                   }}
                 >
@@ -353,9 +353,9 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
-                  background: "var(--bg-subtle)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-primary)",
+                  background: "hsl(var(--muted))",
+                  border: "1px solid hsl(var(--border))",
+                  color: "hsl(var(--foreground))",
                   cursor: "pointer",
                 }}
               >

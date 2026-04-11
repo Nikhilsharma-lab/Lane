@@ -48,7 +48,7 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs px-3 py-1.5 rounded-lg border border-[var(--accent)]/20 text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors"
+        className="text-xs px-3 py-1.5 rounded-lg border border-primary/20 text-primary hover:border-primary/40 transition-colors"
       >
         + Create Cycle
       </button>
@@ -57,20 +57,20 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+      <div className="bg-card border border rounded-xl p-6 w-full max-w-md shadow-xl">
+        <h2 className="text-sm font-semibold text-foreground mb-4">
           Create Cycle
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">
+            <label className="text-xs text-muted-foreground block mb-1">
               Project
             </label>
             <select
               name="projectId"
               required
-              className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
             >
               <option value="">Select project...</option>
               {projects.map((p) => (
@@ -82,7 +82,7 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">
+            <label className="text-xs text-muted-foreground block mb-1">
               Cycle Name
             </label>
             <input
@@ -90,13 +90,13 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
               type="text"
               required
               placeholder="e.g. Q2 Sprint 1"
-              className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)]"
+              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[var(--text-secondary)] block mb-1">
+              <label className="text-xs text-muted-foreground block mb-1">
                 Appetite (weeks)
               </label>
               <input
@@ -106,11 +106,11 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
                 max={52}
                 defaultValue={6}
                 required
-                className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
               />
             </div>
             <div>
-              <label className="text-xs text-[var(--text-secondary)] block mb-1">
+              <label className="text-xs text-muted-foreground block mb-1">
                 Starts
               </label>
               <input
@@ -118,7 +118,7 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
                 type="date"
                 required
                 defaultValue={new Date().toISOString().slice(0, 10)}
-                className="w-full text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
               />
             </div>
           </div>
@@ -134,14 +134,14 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
                 setOpen(false);
                 setError(null);
               }}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg border border text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create"}
             </button>

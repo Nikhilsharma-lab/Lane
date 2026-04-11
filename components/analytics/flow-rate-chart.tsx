@@ -22,7 +22,7 @@ interface FlowRateChartProps {
 export function FlowRateChart({ data }: FlowRateChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-xs text-[var(--text-tertiary)]">
+      <div className="flex items-center justify-center h-48 text-xs text-muted-foreground/60">
         No flow data yet
       </div>
     );
@@ -36,17 +36,17 @@ export function FlowRateChart({ data }: FlowRateChartProps) {
       >
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="var(--border)"
+          stroke="hsl(var(--border))"
           vertical={false}
         />
         <XAxis
           dataKey="week"
-          tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground) / 0.6)" }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground) / 0.6)" }}
           axisLine={false}
           tickLine={false}
           allowDecimals={false}

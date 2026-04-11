@@ -83,7 +83,7 @@ export function IterationComments({
       <p
         style={{
           fontSize: 11,
-          color: "var(--text-tertiary)",
+          color: "hsl(var(--muted-foreground) / 0.6)",
           padding: "12px 16px",
         }}
       >
@@ -96,7 +96,7 @@ export function IterationComments({
     <div className="px-4 py-3 space-y-3">
       {/* Comment list */}
       {topLevel.length === 0 && (
-        <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground) / 0.6)" }}>
           No comments yet. Start the conversation.
         </p>
       )}
@@ -109,7 +109,7 @@ export function IterationComments({
                 style={{
                   fontSize: 11,
                   fontWeight: 600,
-                  color: "var(--text-primary)",
+                  color: "hsl(var(--foreground))",
                 }}
               >
                 {c.authorName ?? "Unknown"}
@@ -118,7 +118,7 @@ export function IterationComments({
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 9,
-                  color: "var(--text-tertiary)",
+                  color: "hsl(var(--muted-foreground) / 0.6)",
                 }}
               >
                 {formatTs(c.createdAt)}
@@ -127,7 +127,7 @@ export function IterationComments({
             <p
               style={{
                 fontSize: 12,
-                color: "var(--text-secondary)",
+                color: "hsl(var(--muted-foreground))",
                 lineHeight: 1.5,
               }}
             >
@@ -137,7 +137,7 @@ export function IterationComments({
               onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
               style={{
                 fontSize: 10,
-                color: "var(--text-tertiary)",
+                color: "hsl(var(--muted-foreground) / 0.6)",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -154,7 +154,7 @@ export function IterationComments({
             <div
               className="ml-3 mt-2 space-y-2"
               style={{
-                borderLeft: "2px solid var(--border)",
+                borderLeft: "2px solid hsl(var(--border))",
                 paddingLeft: 12,
               }}
             >
@@ -165,7 +165,7 @@ export function IterationComments({
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "var(--text-primary)",
+                        color: "hsl(var(--foreground))",
                       }}
                     >
                       {r.authorName ?? "Unknown"}
@@ -174,7 +174,7 @@ export function IterationComments({
                       style={{
                         fontFamily: "'Geist Mono', monospace",
                         fontSize: 9,
-                        color: "var(--text-tertiary)",
+                        color: "hsl(var(--muted-foreground) / 0.6)",
                       }}
                     >
                       {formatTs(r.createdAt)}
@@ -183,7 +183,7 @@ export function IterationComments({
                   <p
                     style={{
                       fontSize: 12,
-                      color: "var(--text-secondary)",
+                      color: "hsl(var(--muted-foreground))",
                       lineHeight: 1.5,
                     }}
                   >
@@ -200,7 +200,7 @@ export function IterationComments({
               onSubmit={handleReply}
               className="ml-3 mt-2 flex gap-2"
               style={{
-                borderLeft: "2px solid var(--border)",
+                borderLeft: "2px solid hsl(var(--border))",
                 paddingLeft: 12,
               }}
             >
@@ -212,9 +212,9 @@ export function IterationComments({
                 className="flex-1 rounded-md px-2.5 py-1.5"
                 style={{
                   fontSize: 11,
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-primary)",
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  color: "hsl(var(--foreground))",
                   outline: "none",
                 }}
               />
@@ -225,7 +225,7 @@ export function IterationComments({
                 style={{
                   fontSize: 11,
                   fontWeight: 500,
-                  background: "var(--accent)",
+                  background: "hsl(var(--primary))",
                   color: "#fff",
                   border: "none",
                   cursor: "pointer",
@@ -250,7 +250,7 @@ export function IterationComments({
             fontSize: 11,
             background: "var(--bg-surface)",
             border: "1px solid var(--border)",
-            color: "var(--text-primary)",
+            color: "hsl(var(--foreground))",
             outline: "none",
           }}
         />
@@ -261,7 +261,7 @@ export function IterationComments({
           style={{
             fontSize: 11,
             fontWeight: 500,
-            background: "var(--accent)",
+            background: "hsl(var(--primary))",
             color: "#fff",
             border: "none",
             cursor: "pointer",

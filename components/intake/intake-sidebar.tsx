@@ -85,8 +85,8 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        borderRight: "1px solid var(--border)",
-        background: "var(--bg-surface)",
+        borderRight: "1px solid hsl(var(--border))",
+        background: "hsl(var(--card))",
       }}
     >
       {/* Header */}
@@ -102,7 +102,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
               fontFamily: "'Geist', sans-serif",
               fontSize: 14,
               fontWeight: 600,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
             }}
           >
             Intake
@@ -111,7 +111,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
             }}
           >
             {requests.length}
@@ -124,7 +124,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
             display: "flex",
             gap: 2,
             marginTop: 10,
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid hsl(var(--border))",
           }}
         >
           {tabs.map((t) => {
@@ -138,10 +138,10 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                   fontSize: 11,
                   fontFamily: "'Geist Mono', monospace",
                   fontWeight: active ? 600 : 400,
-                  color: active ? "var(--text-primary)" : "var(--text-tertiary)",
+                  color: active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground) / 0.6)",
                   background: "transparent",
                   border: "none",
-                  borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                  borderBottom: active ? "2px solid hsl(var(--primary))" : "2px solid transparent",
                   cursor: "pointer",
                   transition: "color 0.1s",
                 }}
@@ -152,7 +152,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     style={{
                       marginLeft: 4,
                       fontSize: 9,
-                      color: "var(--text-tertiary)",
+                      color: "hsl(var(--muted-foreground) / 0.6)",
                     }}
                   >
                     {t.count}
@@ -177,7 +177,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 12,
-                color: "var(--text-tertiary)",
+                color: "hsl(var(--muted-foreground) / 0.6)",
               }}
             >
               {tab === "pending" ? "No pending requests." : "No reviewed requests."}
@@ -202,18 +202,18 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                   width: "100%",
                   padding: "10px 16px",
                   textAlign: "left",
-                  background: isActive ? "var(--accent-soft, var(--bg-subtle))" : "transparent",
-                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                  background: isActive ? "hsl(var(--primary) / 0.1)" : "transparent",
+                  borderLeft: isActive ? "2px solid hsl(var(--primary))" : "2px solid transparent",
                   border: "none",
-                  borderBottom: "1px solid var(--border)",
+                  borderBottom: "1px solid hsl(var(--border))",
                   borderLeftWidth: 2,
                   borderLeftStyle: "solid",
-                  borderLeftColor: isActive ? "var(--accent)" : "transparent",
+                  borderLeftColor: isActive ? "hsl(var(--primary))" : "transparent",
                   cursor: "pointer",
                   transition: "background 0.1s",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "var(--bg-hover)";
+                  if (!isActive) e.currentTarget.style.background = "hsl(var(--accent))";
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) e.currentTarget.style.background = "transparent";
@@ -226,7 +226,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                       fontFamily: "'Geist', sans-serif",
                       fontSize: 12,
                       fontWeight: 500,
-                      color: "var(--text-primary)",
+                      color: "hsl(var(--foreground))",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -236,7 +236,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     {r.title}
                   </span>
                   {r.hasAiAnalysis && (
-                    <Sparkles size={11} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                    <Sparkles size={11} style={{ color: "hsl(var(--primary))", flexShrink: 0 }} />
                   )}
                 </div>
 
@@ -251,8 +251,8 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                         fontSize: 9,
                         fontWeight: 600,
                         fontFamily: "'Geist Mono', monospace",
-                        background: PRIORITY_COLORS[r.priority]?.bg ?? "var(--bg-hover)",
-                        color: PRIORITY_COLORS[r.priority]?.text ?? "var(--text-tertiary)",
+                        background: PRIORITY_COLORS[r.priority]?.bg ?? "hsl(var(--accent))",
+                        color: PRIORITY_COLORS[r.priority]?.text ?? "hsl(var(--muted-foreground) / 0.6)",
                       }}
                     >
                       {r.priority.toUpperCase()}
@@ -262,7 +262,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     style={{
                       fontFamily: "'Geist Mono', monospace",
                       fontSize: 10,
-                      color: "var(--text-tertiary)",
+                      color: "hsl(var(--muted-foreground) / 0.6)",
                     }}
                   >
                     {r.requesterName}
@@ -271,7 +271,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     style={{
                       fontFamily: "'Geist Mono', monospace",
                       fontSize: 10,
-                      color: "var(--text-tertiary)",
+                      color: "hsl(var(--muted-foreground) / 0.6)",
                       marginLeft: "auto",
                     }}
                   >
@@ -288,7 +288,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
       <div
         style={{
           padding: "6px 16px",
-          borderTop: "1px solid var(--border)",
+          borderTop: "1px solid hsl(var(--border))",
           display: "flex",
           gap: 12,
           flexShrink: 0,
@@ -300,7 +300,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 10,
-              color: "var(--text-tertiary)",
+              color: "hsl(var(--muted-foreground) / 0.6)",
             }}
           >
             {hint}

@@ -27,7 +27,7 @@ export function ProjectSwitcher({ projects }: Props) {
     <select
       value={current}
       onChange={handleChange}
-      className="text-xs bg-[var(--bg-subtle)] border border-[var(--border)] text-[var(--text-secondary)] rounded px-2 py-1 focus:outline-none focus:border-[var(--border-strong)] transition-colors cursor-pointer"
+      className="text-xs bg-muted border border text-muted-foreground rounded px-2 py-1 focus:outline-none focus:border-border/80 transition-colors cursor-pointer"
     >
       <option value="">All projects</option>
       {projects.map((p) => (

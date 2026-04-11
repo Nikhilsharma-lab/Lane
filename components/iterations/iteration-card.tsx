@@ -17,8 +17,8 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
     <div
       className="rounded-lg overflow-hidden"
       style={{
-        border: "1px solid var(--border)",
-        background: "var(--bg-surface)",
+        border: "1px solid hsl(var(--border))",
+        background: "hsl(var(--card))",
       }}
     >
       <div className="px-4 py-3">
@@ -28,7 +28,7 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "var(--text-primary)",
+              color: "hsl(var(--foreground))",
               lineHeight: 1.4,
             }}
           >
@@ -44,8 +44,8 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
               style={{
                 fontSize: 11,
                 fontWeight: 500,
-                color: "var(--accent)",
-                background: "var(--bg-subtle)",
+                color: "hsl(var(--primary))",
+                background: "hsl(var(--muted))",
                 textDecoration: "none",
               }}
             >
@@ -60,7 +60,7 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
           <p
             style={{
               fontSize: 12,
-              color: "var(--text-secondary)",
+              color: "hsl(var(--muted-foreground))",
               lineHeight: 1.6,
               marginTop: 6,
               display: "-webkit-box",
@@ -79,7 +79,7 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
           className="flex items-center gap-1.5 mt-3 transition-colors"
           style={{
             fontSize: 11,
-            color: "var(--text-tertiary)",
+            color: "hsl(var(--muted-foreground) / 0.6)",
             background: "none",
             border: "none",
             cursor: "pointer",
@@ -98,8 +98,8 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
       {expanded && (
         <div
           style={{
-            borderTop: "1px solid var(--border)",
-            background: "var(--bg-subtle)",
+            borderTop: "1px solid hsl(var(--border))",
+            background: "hsl(var(--muted))",
           }}
         >
           <IterationComments iterationId={iteration.id} />
