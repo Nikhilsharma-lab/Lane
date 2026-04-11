@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, businessContext, successMetrics, figmaUrl, impactMetric, impactPrediction, deadlineAt, projectId } = body;
+  const { title, description, businessContext, successMetrics, figmaUrl, impactMetric, impactPrediction, deadlineAt, projectId, intakeJustification } = body;
 
   if (!title?.trim() || !description?.trim()) {
     return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
         impactMetric: impactMetric?.trim() || null,
         impactPrediction: impactPrediction?.trim() || null,
         deadlineAt: deadlineAt ? new Date(deadlineAt) : null,
+        intakeJustification: intakeJustification?.trim() || null,
         status: "submitted",
         stage: "intake",
         projectId,

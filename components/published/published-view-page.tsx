@@ -1,30 +1,5 @@
-import type { PublishedView, Request } from "@/db/schema";
-
-const PHASE_LABELS: Record<string, string> = {
-  predesign: "Predesign",
-  design: "Design",
-  dev: "Dev",
-  track: "Track",
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  intake: "Intake",
-  context: "Context",
-  shape: "Shape",
-  bet: "Betting",
-  sense: "Sense",
-  frame: "Frame",
-  diverge: "Diverge",
-  converge: "Converge",
-  prove: "Prove",
-  todo: "To Do",
-  in_progress: "In Progress",
-  in_review: "In Review",
-  qa: "QA",
-  done: "Done",
-  measuring: "Measuring",
-  complete: "Complete",
-};
+import type { PublishedView, Request, Phase } from "@/db/schema";
+import { getPhaseLabel, getStageLabel } from "@/lib/workflow";
 
 const PRIORITY_LABELS: Record<string, string> = {
   p0: "P0",
@@ -34,10 +9,10 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 function getStage(r: Request): string {
-  if (r.phase === "predesign") return STAGE_LABELS[r.predesignStage ?? "intake"] ?? "";
-  if (r.phase === "design") return STAGE_LABELS[r.designStage ?? "sense"] ?? "";
-  if (r.phase === "dev") return STAGE_LABELS[r.kanbanState ?? "todo"] ?? "";
-  if (r.phase === "track") return STAGE_LABELS[r.trackStage ?? "measuring"] ?? "";
+  if (r.phase === "predesign") return getStageLabel(r.predesignStage ?? "intake");
+  if (r.phase === "design") return getStageLabel(r.designStage ?? "sense");
+  if (r.phase === "dev") return getStageLabel(r.kanbanState ?? "todo");
+  if (r.phase === "track") return getStageLabel(r.trackStage ?? "measuring");
   return "";
 }
 
@@ -177,7 +152,7 @@ export function PublishedViewPage({ view, requests, isPublic }: Props) {
                     color: "#6B6560",
                   }}
                 >
-                  {PHASE_LABELS[r.phase ?? ""] ?? ""} · {getStage(r)}
+                  {r.phase ? getPhaseLabel(r.phase as Phase) : ""} · {getStage(r)}
                 </span>
                 <span
                   style={{

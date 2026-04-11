@@ -129,6 +129,9 @@ export const requests = pgTable("requests", {
   snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
   snoozedById: uuid("snoozed_by_id").references(() => profiles.id),
 
+  // Intake gate — stored when PM submits a solution-specific request with justification
+  intakeJustification: text("intake_justification"),
+
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

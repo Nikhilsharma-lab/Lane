@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
         qualityFlags: result.qualityFlags,
         suggestions: result.suggestions,
         potentialDuplicates: result.potentialDuplicates,
+        classification: result.classification,
+        reframedProblem: result.reframedProblem,
       });
     } catch (err) {
       console.error("[preflight] triage failed:", err);

@@ -28,6 +28,7 @@ import type {
   RequestContextBrief,
   ImpactRetrospective,
 } from "@/db/schema";
+import { getPhaseLabel, getStageLabel } from "@/lib/workflow";
 
 interface EnrichedData {
   aiAnalysis: RequestAiAnalysis | null;
@@ -43,18 +44,6 @@ interface EnrichedData {
 
 const DOCK_WIDTH = 520;
 
-const PHASE_LABELS: Record<string, string> = {
-  predesign: "Predesign", design: "Design", dev: "Dev", track: "Track",
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  intake: "Intake", context: "Context", shape: "Shape", bet: "Betting",
-  sense: "Sense", frame: "Frame", diverge: "Diverge", converge: "Converge", prove: "Prove",
-  // Legacy design stages
-  explore: "Explore", validate: "Validate", handoff: "Handoff",
-  todo: "To Do", in_progress: "In Progress", in_review: "In Review", qa: "QA", done: "Done",
-  measuring: "Measuring", complete: "Complete",
-};
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:       { bg: "#F0EDE6", color: "#78716C" },
@@ -145,13 +134,13 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
-  const phaseLabel = PHASE_LABELS[request.phase ?? "predesign"] ?? request.phase;
+  const phaseLabel = getPhaseLabel((request.phase ?? "predesign") as import("@/db/schema").Phase);
   const stageKey =
     request.phase === "predesign" ? (request.predesignStage ?? "intake") :
     request.phase === "design"    ? (request.designStage ?? "sense") :
     request.phase === "dev"       ? (request.kanbanState ?? "todo") :
                                     (request.trackStage ?? "measuring");
-  const stageLabel = STAGE_LABELS[stageKey] ?? stageKey;
+  const stageLabel = getStageLabel(stageKey);
   const statusStyle = STATUS_COLORS[request.status] ?? { bg: "#F0EDE6", color: "#78716C" };
 
   return (

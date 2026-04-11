@@ -32,6 +32,12 @@ const triageSchema = z.object({
   ).describe(
     "Existing requests that appear semantically similar or overlapping. Only include if genuinely similar — not just same topic area."
   ),
+  classification: z.enum(["problem_framed", "solution_specific", "hybrid"]).describe(
+    "problem_framed=describes user problem/business gap without prescribing UI, solution_specific=prescribes UI/implementation without problem context, hybrid=has both problem and proposed solution"
+  ),
+  reframedProblem: z.string().nullable().describe(
+    "If solution_specific or hybrid, extract and rephrase the underlying problem as a clear problem statement. Null if already problem_framed."
+  ),
 });
 
 export type TriageResult = z.infer<typeof triageSchema>;
@@ -73,7 +79,14 @@ ${input.deadline ? `DEADLINE: ${input.deadline}\n` : ""}
 ${input.impactMetric || input.impactPrediction ? `IMPACT PREDICTION:\n${input.impactMetric ? `Metric: ${input.impactMetric}\n` : ""}${input.impactPrediction ? `Prediction: ${input.impactPrediction}\n` : ""}` : ""}
 ---
 ${existingBlock}
-Assess priority based on business impact and urgency. Assess complexity based on design effort required. Score quality based on how complete and actionable the request is for a designer to pick up without clarification. For potentialDuplicates, only flag requests that genuinely overlap in scope or goal — not just requests that touch the same product area.`,
+Assess priority based on business impact and urgency. Assess complexity based on design effort required. Score quality based on how complete and actionable the request is for a designer to pick up without clarification. For potentialDuplicates, only flag requests that genuinely overlap in scope or goal — not just requests that touch the same product area.
+
+CLASSIFICATION — This is critical. Classify the request as:
+- "problem_framed": Describes a user problem, business gap, or pain point WITHOUT prescribing specific UI elements or implementation. Signals: user behavior, data/metrics, asks "why", identifies a pain point.
+- "solution_specific": Prescribes UI changes or implementation details WITHOUT explaining the underlying problem. Signals: UI element names without problem context ("add a button", "change the color"), describes implementation ("make it like Stripe"), no user problem mentioned, starts with "Can we..." + UI change.
+- "hybrid": Contains BOTH a clear problem AND a proposed solution.
+
+If solution_specific or hybrid, extract and rephrase the underlying user/business problem as reframedProblem. If problem_framed, set reframedProblem to null.`,
   });
 
   return object;

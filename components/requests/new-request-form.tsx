@@ -13,6 +13,8 @@ interface PreflightResult {
   qualityFlags: string[];
   suggestions: string[];
   potentialDuplicates: Array<{ id: string; title: string; reason: string }>;
+  classification: "problem_framed" | "solution_specific" | "hybrid";
+  reframedProblem: string | null;
 }
 
 export function NewRequestForm({ onClose, projects }: Props) {
@@ -23,6 +25,9 @@ export function NewRequestForm({ onClose, projects }: Props) {
   const [preflight, setPreflight] = useState<PreflightResult | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [showIntakeGate, setShowIntakeGate] = useState(false);
+  const [intakeJustification, setIntakeJustification] = useState("");
+  const [showJustificationField, setShowJustificationField] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,6 +45,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
       impactPrediction: form.get("impactPrediction") || null,
       deadlineAt: form.get("deadlineAt") || null,
       projectId: form.get("projectId") || null,
+      intakeJustification: intakeJustification.trim() || null,
     };
 
     const res = await fetch("/api/requests", {
@@ -91,6 +97,9 @@ export function NewRequestForm({ onClose, projects }: Props) {
       if (!res.ok) throw new Error("preflight_failed");
       const data: PreflightResult = await res.json();
       setPreflight(data);
+      if (data.classification === "solution_specific" || data.classification === "hybrid") {
+        setShowIntakeGate(true);
+      }
     } catch {
       setPreflightError("Quality check failed — you can still submit");
     } finally {
@@ -119,7 +128,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          onChange={() => { if (preflight || preflightError) { setPreflight(null); setPreflightError(null); } }}
+          onChange={() => { if (preflight || preflightError) { setPreflight(null); setPreflightError(null); setShowIntakeGate(false); setShowJustificationField(false); setIntakeJustification(""); } }}
           className="px-6 py-5"
         >
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -247,6 +256,89 @@ export function NewRequestForm({ onClose, projects }: Props) {
             </div>
           </div>
 
+          {/* Intake gate — blocks solution-specific requests */}
+          {showIntakeGate && preflight && (preflight.classification === "solution_specific" || preflight.classification === "hybrid") && (
+            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  This looks like a solution, not a problem
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Lane works best when designers understand the <span className="font-medium text-foreground">WHY</span> before the <span className="font-medium text-foreground">WHAT</span>.
+                </p>
+              </div>
+
+              {preflight.reframedProblem && (
+                <div className="space-y-2">
+                  <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-green-500/80 mb-0.5">Problem detected</p>
+                    <p className="text-xs text-foreground">{preflight.reframedProblem}</p>
+                  </div>
+                </div>
+              )}
+
+              {showJustificationField ? (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    Why are you submitting this as-is?
+                  </label>
+                  <textarea
+                    value={intakeJustification}
+                    onChange={(e) => setIntakeJustification(e.target.value)}
+                    rows={2}
+                    className="w-full bg-background border border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+                    placeholder="Explain why this solution-specific request should proceed..."
+                  />
+                  <button
+                    type="button"
+                    disabled={!intakeJustification.trim()}
+                    onClick={() => setShowIntakeGate(false)}
+                    className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continue with justification
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {preflight.reframedProblem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (formRef.current) {
+                          const desc = formRef.current.querySelector<HTMLTextAreaElement>("textarea[name=description]");
+                          if (desc) desc.value = preflight.reframedProblem!;
+                        }
+                        setShowIntakeGate(false);
+                        setPreflight(null);
+                      }}
+                      className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+                    >
+                      Accept AI rewrite
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntakeGate(false);
+                      setPreflight(null);
+                      formRef.current?.querySelector<HTMLTextAreaElement>("textarea[name=description]")?.focus();
+                    }}
+                    className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors"
+                  >
+                    Edit myself
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowJustificationField(true)}
+                    className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border transition-colors"
+                  >
+                    Submit anyway
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Pre-flight results panel */}
           {(preflight || preflightError) && (
             <div
@@ -369,7 +461,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || showIntakeGate}
               className="bg-primary text-primary-foreground rounded-lg px-5 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading ? (

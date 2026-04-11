@@ -7,13 +7,14 @@ import { IterationCard } from "@/components/iterations/iteration-card";
 import { createIteration, getIterationsForRequest } from "@/app/actions/iterations";
 import { Plus } from "lucide-react";
 import type { Iteration } from "@/db/schema";
+import { getStageLabel } from "@/lib/workflow";
 
 const STAGES = [
-  { key: "sense",    label: "Sense",    desc: "Understand the problem deeply before proposing anything" },
-  { key: "frame",    label: "Frame",    desc: "Define what problem is actually being solved" },
-  { key: "diverge",  label: "Diverge",  desc: "Generate multiple solution directions" },
-  { key: "converge", label: "Converge", desc: "Narrow to a refined solution through critique" },
-  { key: "prove",    label: "Prove",    desc: "3 sign-offs: Designer · PM · Design Head" },
+  { key: "sense",    desc: "Understand the problem deeply before proposing anything" },
+  { key: "frame",    desc: "Define what problem is actually being solved" },
+  { key: "diverge",  desc: "Generate multiple solution directions" },
+  { key: "converge", desc: "Narrow to a refined solution through critique" },
+  { key: "prove",    desc: "3 sign-offs: Designer · PM · Design Head" },
 ] as const;
 
 type DesignStage = (typeof STAGES)[number]["key"];
@@ -147,7 +148,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
                     isCurrent ? "text-[#D4A84B]" : isDone ? "text-green-500/80" : "text-muted-foreground/60"
                   }`}>
-                    {s.label}
+                    {getStageLabel(s.key)}
                   </span>
                 </div>
                 {i < STAGES.length - 1 && (
@@ -163,7 +164,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
       <div className="px-5 py-4 space-y-4">
         {current && (
           <div>
-            <p className="text-xs font-semibold text-foreground mb-0.5">{current.label}</p>
+            <p className="text-xs font-semibold text-foreground mb-0.5">{getStageLabel(current.key)}</p>
             <p className="text-xs text-muted-foreground">{current.desc}</p>
           </div>
         )}
@@ -178,7 +179,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
               {missing.length > 0 ? (
                 <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
                   <p className="text-[11px] text-muted-foreground">
-                    {isLastDesign ? "To hand off to dev:" : `To advance to ${nextStage?.label}:`}
+                    {isLastDesign ? "To hand off to dev:" : `To advance to ${nextStage ? getStageLabel(nextStage.key) : ""}:`}
                   </p>
                   {missing.map((m, i) => (
                     <p key={i} className="text-[11px] text-amber-400/80 flex items-center gap-1.5">
@@ -191,7 +192,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                 <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
                   <span className="text-green-400 text-xs">✓</span>
                   <p className="text-[11px] text-green-400/80">
-                    {isLastDesign ? "Ready to hand off to dev" : `Ready to advance to ${nextStage?.label}`}
+                    {isLastDesign ? "Ready to hand off to dev" : `Ready to advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
                   </p>
                 </div>
               )}
@@ -202,7 +203,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
               disabled={!canAdvance}
               className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage?.label}`}
+              {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
               <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">
                 ⌘↵
               </kbd>
