@@ -31,6 +31,7 @@ All notable changes are documented here. Update this file with every PR before m
 
 ### Added
 - `designer_owner_id` column on `requests` — tracks design assignment separately from requester (PR #13)
+- Linear-style triage inbox with action panels (PR #25)
 
 ### Docs
 - Split `CLAUDE.md` into public technical ref (`CLAUDE.md`) + private business context (`CLAUDE.local.md`, gitignored)
