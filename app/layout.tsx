@@ -5,6 +5,11 @@ import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "next-themes";
+import { Geist_Mono, Geist } from "next/font/google";
+
+const geistHeading = Geist({subsets:['latin'],variable:'--font-heading'});
+
+const geistMono = Geist_Mono({subsets:['latin'],variable:'--font-mono'});
 
 const sans = GeistSans;
 const mono = GeistMono;
@@ -20,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn(sans.variable, mono.variable, "font-mono")}>
+    <html lang="en" suppressHydrationWarning className={cn(sans.variable, mono.variable, "font-mono", geistMono.variable, geistHeading.variable)}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
