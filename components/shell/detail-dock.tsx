@@ -93,18 +93,16 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 500,
   letterSpacing: "0.07em",
   textTransform: "uppercase",
-  color: "var(--text-tertiary)",
   marginBottom: 4,
 };
 
 const metaValueStyle: React.CSSProperties = {
   fontSize: 12,
-  color: "var(--text-secondary)",
   fontWeight: 500,
 };
 
 const divider: React.CSSProperties = {
-  borderTop: "1px solid var(--border)",
+  borderTop: "1px solid hsl(var(--border))",
   paddingTop: 16,
   marginTop: 4,
 };
@@ -156,10 +154,9 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
   return (
     <aside
       className="flex flex-col shrink-0 overflow-y-auto"
+      className="bg-card border-l border-border"
       style={{
         width: DOCK_WIDTH,
-        background: "var(--bg-surface)",
-        borderLeft: "1px solid var(--border)",
         height: "100vh",
         position: "sticky",
         top: 0,
@@ -171,14 +168,13 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
       {/* Header */}
       <div
-        className="flex items-start justify-between px-5 py-4"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        className="flex items-start justify-between px-5 py-4 border-b border-border"
       >
         <div className="flex flex-col gap-1.5 min-w-0">
-          <p style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)", letterSpacing: "0.04em" }}>
+          <p className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, letterSpacing: "0.04em" }}>
             #{request.id.slice(0, 6).toUpperCase()}
           </p>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>
+          <h2 className="text-foreground" style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>
             {request.title}
           </h2>
           <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -189,7 +185,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
             }}>
               {request.status.replace(/_/g, " ")}
             </span>
-            <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {phaseLabel} · {stageLabel}
             </span>
           </div>
@@ -208,8 +204,8 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               deadlineAt: toISOorNull(request.deadlineAt),
             }} />
           )}
-          <button onClick={close} className="shrink-0 rounded flex items-center justify-center transition-colors"
-            style={{ width: 28, height: 28, color: "var(--text-tertiary)", background: "transparent", border: "none", cursor: "pointer" }}>
+          <button onClick={close} className="shrink-0 rounded flex items-center justify-center transition-colors text-muted-foreground/60"
+            style={{ width: 28, height: 28, background: "transparent", border: "none", cursor: "pointer" }}>
             <X size={14} />
           </button>
         </div>
@@ -219,18 +215,18 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
       <div className="flex flex-col gap-5 px-5 py-5">
 
         {/* ── Tab switcher ── */}
-        <div className="flex gap-0" style={{ borderBottom: "1px solid var(--border)", marginBottom: -4 }}>
+        <div className="flex gap-0 border-b border-border" style={{ marginBottom: -4 }}>
           {(["details", "timeline"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              className={activeTab === tab ? "text-foreground" : "text-muted-foreground/60"}
               style={{
                 fontSize: 12,
                 fontWeight: 500,
-                color: activeTab === tab ? "var(--text-primary)" : "var(--text-tertiary)",
                 background: "none",
                 border: "none",
-                borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
+                borderBottom: activeTab === tab ? "2px solid var(--primary)" : "2px solid transparent",
                 padding: "6px 12px 8px",
                 cursor: "pointer",
                 textTransform: "capitalize",
@@ -315,24 +311,24 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         {/* ── Description / Context ── */}
         {request.description && (
           <div style={divider}>
-            <p style={labelStyle}>Problem</p>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <p style={labelStyle} className="text-muted-foreground/60">Problem</p>
+            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
               {request.description}
             </p>
           </div>
         )}
         {request.businessContext && (
           <div>
-            <p style={labelStyle}>Business context</p>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <p style={labelStyle} className="text-muted-foreground/60">Business context</p>
+            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
               {request.businessContext}
             </p>
           </div>
         )}
         {request.successMetrics && (
           <div>
-            <p style={labelStyle}>Success metrics</p>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <p style={labelStyle} className="text-muted-foreground/60">Success metrics</p>
+            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
               {request.successMetrics}
             </p>
           </div>
@@ -341,9 +337,9 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         {/* ── Figma link + history ── */}
         {request.figmaUrl && (
           <div style={divider}>
-            <p style={labelStyle}>Figma</p>
+            <p style={labelStyle} className="text-muted-foreground/60">Figma</p>
             <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, textDecoration: "none" }}>
+              className="text-sm font-medium text-primary no-underline">
               Open in Figma ↗
             </a>
           </div>
@@ -368,18 +364,18 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         {enriched?.aiAnalysis && (
           <div style={divider}>
             <div className="flex items-center justify-between mb-3">
-              <p style={labelStyle}>AI Triage</p>
-              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)" }}>
+              <p style={labelStyle} className="text-muted-foreground/60">AI Triage</p>
+              <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9 }}>
                 {enriched.aiAnalysis.aiModel}
               </span>
             </div>
             <div className="flex flex-col gap-3">
-              <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.6 }}>
                 {enriched.aiAnalysis.summary}
               </p>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p style={labelStyle}>Request quality</p>
+                  <p style={labelStyle} className="text-muted-foreground/60">Request quality</p>
                   <span style={{
                     fontFamily: "'Geist Mono', monospace", fontSize: 11, fontWeight: 600,
                     color: enriched.aiAnalysis.qualityScore >= 70 ? "#166534" : enriched.aiAnalysis.qualityScore >= 40 ? "#B45309" : "#DC2626",
@@ -387,7 +383,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                     {enriched.aiAnalysis.qualityScore}/100
                   </span>
                 </div>
-                <div style={{ width: "100%", height: 4, background: "var(--bg-hover)", borderRadius: 2, overflow: "hidden" }}>
+                <div className="bg-accent" style={{ width: "100%", height: 4, borderRadius: 2, overflow: "hidden" }}>
                   <div style={{
                     height: "100%", width: `${enriched.aiAnalysis.qualityScore}%`, borderRadius: 2,
                     background: enriched.aiAnalysis.qualityScore >= 70 ? "#86A87A" : enriched.aiAnalysis.qualityScore >= 40 ? "#D4A84B" : "#E07070",
@@ -396,10 +392,10 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               </div>
               {enriched.aiAnalysis.qualityFlags.length > 0 && (
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }}>Issues</p>
+                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Issues</p>
                   <div className="flex flex-wrap gap-1">
                     {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
-                      <span key={i} style={{ fontSize: 11, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: "var(--radius-sm)", padding: "2px 6px" }}>
+                      <span key={i} className="rounded-sm" style={{ fontSize: 11, color: "#B45309", background: "#FEF3C7", border: "1px solid #FDE68A", padding: "2px 6px" }}>
                         {flag}
                       </span>
                     ))}
@@ -407,30 +403,31 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                 </div>
               )}
               <div>
-                <p style={{ ...labelStyle, marginBottom: 4 }}>Reasoning</p>
-                <p style={{ fontSize: 11, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+                <p style={{ ...labelStyle, marginBottom: 4 }} className="text-muted-foreground/60">Reasoning</p>
+                <p className="text-muted-foreground/60" style={{ fontSize: 11, lineHeight: 1.6 }}>
                   {enriched.aiAnalysis.reasoning}
                 </p>
               </div>
               {enriched.aiAnalysis.suggestions.length > 0 && (
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }}>Suggestions</p>
+                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Suggestions</p>
                   <ul className="space-y-1">
                     {enriched.aiAnalysis.suggestions.map((s, i) => (
-                      <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>· {s}</li>
+                      <li key={i} className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.5 }}>· {s}</li>
                     ))}
                   </ul>
                 </div>
               )}
               {enriched.aiAnalysis.potentialDuplicates.length > 0 && (
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }}>Potential duplicates</p>
+                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Potential duplicates</p>
                   <div className="space-y-1.5">
                     {enriched.aiAnalysis.potentialDuplicates.map((dup, i) => (
                       <Link key={i} href={`/dashboard/requests/${dup.id}`}
-                        style={{ display: "block", fontSize: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "6px 10px", color: "var(--text-secondary)", textDecoration: "none" }}>
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{dup.title}</span>
-                        <span style={{ color: "var(--text-tertiary)", marginLeft: 6 }}>{dup.reason}</span>
+                        className="text-muted-foreground border border-border rounded-md no-underline"
+                        style={{ display: "block", fontSize: 12, padding: "6px 10px" }}>
+                        <span className="text-foreground" style={{ fontWeight: 500 }}>{dup.title}</span>
+                        <span className="text-muted-foreground/60" style={{ marginLeft: 6 }}>{dup.reason}</span>
                       </Link>
                     ))}
                   </div>
@@ -447,7 +444,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
         {/* ── Assignees ── */}
         <div style={divider}>
-          <p style={{ ...labelStyle, marginBottom: 10 }}>Assignees</p>
+          <p style={{ ...labelStyle, marginBottom: 10 }} className="text-muted-foreground/60">Assignees</p>
           <AssignPanel requestId={request.id} />
         </div>
 
@@ -455,37 +452,37 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         <div style={divider}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p style={labelStyle}>Priority</p>
-              <p style={metaValueStyle}>{request.priority ? PRIORITY_LABELS[request.priority] : "—"}</p>
+              <p style={labelStyle} className="text-muted-foreground/60">Priority</p>
+              <p style={metaValueStyle} className="text-muted-foreground">{request.priority ? PRIORITY_LABELS[request.priority] : "—"}</p>
             </div>
             <div>
-              <p style={labelStyle}>Type</p>
-              <p style={metaValueStyle}>{request.requestType ?? "—"}</p>
+              <p style={labelStyle} className="text-muted-foreground/60">Type</p>
+              <p style={metaValueStyle} className="text-muted-foreground">{request.requestType ?? "—"}</p>
             </div>
             <div>
-              <p style={labelStyle}>Due</p>
-              <p style={metaValueStyle}>{formatDate(request.deadlineAt ?? null)}</p>
+              <p style={labelStyle} className="text-muted-foreground/60">Due</p>
+              <p style={metaValueStyle} className="text-muted-foreground">{formatDate(request.deadlineAt ?? null)}</p>
             </div>
             <div>
-              <p style={labelStyle}>Created</p>
-              <p style={metaValueStyle}>{formatDate(request.createdAt)}</p>
+              <p style={labelStyle} className="text-muted-foreground/60">Created</p>
+              <p style={metaValueStyle} className="text-muted-foreground">{formatDate(request.createdAt)}</p>
             </div>
             {request.complexity && (
               <div>
-                <p style={labelStyle}>Complexity</p>
-                <p style={metaValueStyle}>{request.complexity} / 5</p>
+                <p style={labelStyle} className="text-muted-foreground/60">Complexity</p>
+                <p style={metaValueStyle} className="text-muted-foreground">{request.complexity} / 5</p>
               </div>
             )}
             {request.impactPrediction && (
               <div>
-                <p style={labelStyle}>Predicted impact</p>
-                <p style={metaValueStyle}>{request.impactPrediction}</p>
+                <p style={labelStyle} className="text-muted-foreground/60">Predicted impact</p>
+                <p style={metaValueStyle} className="text-muted-foreground">{request.impactPrediction}</p>
               </div>
             )}
             {enriched?.requesterName && (
               <div className="col-span-2">
-                <p style={labelStyle}>Submitted by</p>
-                <p style={metaValueStyle}>{enriched.requesterName}</p>
+                <p style={labelStyle} className="text-muted-foreground/60">Submitted by</p>
+                <p style={metaValueStyle} className="text-muted-foreground">{enriched.requesterName}</p>
               </div>
             )}
           </div>
@@ -494,12 +491,12 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         {/* ── Stage history ── */}
         {enriched && enriched.stageHistory.length > 0 && (
           <div style={divider}>
-            <p style={{ ...labelStyle, marginBottom: 8 }}>History</p>
+            <p style={{ ...labelStyle, marginBottom: 8 }} className="text-muted-foreground/60">History</p>
             <div className="space-y-1.5">
               {enriched.stageHistory.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2">
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>{s.stage}</span>
-                  <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)" }}>
+                  <span className="text-muted-foreground" style={{ fontSize: 12, textTransform: "capitalize" }}>{s.stage}</span>
+                  <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10 }}>
                     {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>
@@ -510,36 +507,36 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
         {/* ── Activity / Comments ── */}
         <div style={divider}>
-          <p style={{ ...labelStyle, marginBottom: enrichedLoading ? 8 : 10 }}>
+          <p style={{ ...labelStyle, marginBottom: enrichedLoading ? 8 : 10 }} className="text-muted-foreground/60">
             Activity{enriched ? ` (${enriched.comments.length})` : ""}
           </p>
           {enrichedLoading && (
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Loading…</p>
+            <p className="text-muted-foreground/60" style={{ fontSize: 12 }}>Loading…</p>
           )}
           {enriched && enriched.comments.length === 0 && (
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12 }}>No comments yet</p>
+            <p className="text-muted-foreground/60" style={{ fontSize: 12, marginBottom: 12 }}>No comments yet</p>
           )}
           {enriched && enriched.comments.length > 0 && (
             <div className="space-y-3 mb-4">
               {enriched.comments.map((c) => {
                 const author = c.authorId ? enriched.authorMap[c.authorId] : null;
                 return (
-                  <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                  <div key={c.id} className="border border-border rounded-md" style={{ padding: "10px 12px" }}>
                     <div className="flex items-center gap-2 mb-1">
                       {c.isSystem ? (
-                        <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, color: "var(--text-tertiary)", background: "var(--bg-subtle)", borderRadius: "var(--radius-sm)", padding: "1px 5px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                        <span className="text-muted-foreground/60 bg-muted rounded-sm" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, padding: "1px 5px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                           system
                         </span>
                       ) : (
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                        <span className="text-foreground" style={{ fontSize: 12, fontWeight: 500 }}>
                           {author?.fullName ?? "Unknown"}
                         </span>
                       )}
-                      <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: "var(--text-tertiary)" }}>
+                      <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10 }}>
                         {c.createdAt ? formatDateTime(new Date(c.createdAt).toISOString()) : ""}
                       </span>
                     </div>
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{c.body}</p>
+                    <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.6 }}>{c.body}</p>
                   </div>
                 );
               })}
@@ -551,8 +548,8 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
         </>}
 
         {/* ── Open full page ── */}
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, textAlign: "center" }}>
-          <Link href={`/dashboard/requests/${request.id}`} style={{ fontSize: 12, color: "var(--text-tertiary)", textDecoration: "none" }}>
+        <div className="border-t border-border" style={{ paddingTop: 12, textAlign: "center" }}>
+          <Link href={`/dashboard/requests/${request.id}`} className="text-muted-foreground/60 no-underline" style={{ fontSize: 12 }}>
             Open full page →
           </Link>
         </div>

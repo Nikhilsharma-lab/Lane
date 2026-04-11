@@ -54,6 +54,7 @@ const PHASE_LABELS: Record<string, string> = {
 function Kbd({ children }: { children: string }) {
   return (
     <kbd
+      className="bg-muted border border-border text-muted-foreground/60"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -65,9 +66,6 @@ function Kbd({ children }: { children: string }) {
         fontSize: 10,
         fontFamily: "'Geist Mono', monospace",
         fontWeight: 500,
-        background: "var(--bg-subtle)",
-        border: "1px solid var(--border)",
-        color: "var(--text-tertiary)",
         lineHeight: 1,
       }}
     >
@@ -97,7 +95,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   return (
     // Backdrop
     <div
-      className="fixed inset-0 z-50 bg-[var(--text-primary)]/40 backdrop-blur-sm flex items-start justify-center pt-[18vh]"
+      className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm flex items-start justify-center pt-[18vh]"
       onClick={onClose}
     >
       {/* Palette */}
@@ -106,23 +104,23 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <Command
-          className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden"
+          className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden"
           loop
         >
           <Command.Input
             ref={inputRef}
             placeholder="Search requests, pages..."
-            className="w-full bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none border-b border-[var(--border)]"
+            className="w-full bg-transparent px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none border-b border-border"
           />
 
           <Command.List className="max-h-80 overflow-y-auto py-2">
-            <Command.Empty className="px-4 py-8 text-sm text-[var(--text-tertiary)] text-center">
+            <Command.Empty className="px-4 py-8 text-sm text-muted-foreground/60 text-center">
               No results
             </Command.Empty>
 
             {/* Navigation */}
             <Command.Group>
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-2 pb-1">
+              <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide px-4 pt-2 pb-1">
                 Navigation
               </div>
               {NAV_ITEMS.map((item) => {
@@ -132,13 +130,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     key={item.href}
                     value={`go to ${item.label}`}
                     onSelect={() => navigate(item.href)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground cursor-pointer aria-selected:bg-accent rounded-lg mx-2"
                   >
-                    <Icon size={14} className="text-[var(--text-tertiary)] shrink-0" />
+                    <Icon size={14} className="text-muted-foreground/60 shrink-0" />
                     <span className="flex-1">{item.label}</span>
                     <span className="flex items-center gap-1 shrink-0">
                       <Kbd>{item.keys[0]}</Kbd>
-                      <span className="text-[var(--text-tertiary)] text-[9px]">then</span>
+                      <span className="text-muted-foreground/60 text-[9px]">then</span>
                       <Kbd>{item.keys[1]}</Kbd>
                     </span>
                   </Command.Item>
@@ -148,7 +146,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
 
             {/* Creation */}
             <Command.Group>
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-3 pb-1">
+              <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide px-4 pt-3 pb-1">
                 Create
               </div>
               {CREATE_ITEMS.map((item) => {
@@ -158,13 +156,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     key={item.href}
                     value={`create ${item.label}`}
                     onSelect={() => navigate(item.href)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground cursor-pointer aria-selected:bg-accent rounded-lg mx-2"
                   >
-                    <Icon size={14} className="text-[var(--text-tertiary)] shrink-0" />
+                    <Icon size={14} className="text-muted-foreground/60 shrink-0" />
                     <span className="flex-1">{item.label}</span>
                     <span className="flex items-center gap-1 shrink-0">
                       <Kbd>{item.keys[0]}</Kbd>
-                      <span className="text-[var(--text-tertiary)] text-[9px]">then</span>
+                      <span className="text-muted-foreground/60 text-[9px]">then</span>
                       <Kbd>{item.keys[1]}</Kbd>
                     </span>
                   </Command.Item>
@@ -175,7 +173,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             {/* Requests */}
             {limitedRequests.length > 0 && (
               <Command.Group>
-                <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-4 pt-3 pb-1">
+                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide px-4 pt-3 pb-1">
                   Requests
                 </div>
                 {limitedRequests.map((r) => (
@@ -183,11 +181,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     key={r.id}
                     value={r.title}
                     onSelect={() => navigate(`/dashboard/requests/${r.id}`)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] cursor-pointer aria-selected:bg-[var(--bg-hover)] rounded-lg mx-2"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground cursor-pointer aria-selected:bg-accent rounded-lg mx-2"
                   >
                     <span className="flex-1 truncate">{r.title}</span>
                     {r.phase && (
-                      <span className="text-[10px] text-[var(--text-tertiary)] shrink-0">
+                      <span className="text-[10px] text-muted-foreground/60 shrink-0">
                         {PHASE_LABELS[r.phase] ?? r.phase}
                       </span>
                     )}
@@ -197,14 +195,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             )}
           </Command.List>
 
-          <div className="border-t border-[var(--border)] px-4 py-2 flex items-center gap-3">
-            <span className="text-[10px] text-[var(--text-tertiary)]">↑↓ navigate</span>
-            <span className="text-[10px] text-[var(--text-tertiary)]">↵ open</span>
-            <span className="text-[10px] text-[var(--text-tertiary)]">Esc close</span>
-            <span className="text-[10px] text-[var(--text-tertiary)] ml-auto">
+          <div className="border-t border-border px-4 py-2 flex items-center gap-3">
+            <span className="text-[10px] text-muted-foreground/60">↑↓ navigate</span>
+            <span className="text-[10px] text-muted-foreground/60">↵ open</span>
+            <span className="text-[10px] text-muted-foreground/60">Esc close</span>
+            <span className="text-[10px] text-muted-foreground/60 ml-auto">
               <Kbd>G</Kbd> <span className="mx-0.5">+</span> <Kbd>key</Kbd> go to
             </span>
-            <span className="text-[10px] text-[var(--text-tertiary)]">
+            <span className="text-[10px] text-muted-foreground/60">
               <Kbd>N</Kbd> <span className="mx-0.5">+</span> <Kbd>key</Kbd> create
             </span>
           </div>

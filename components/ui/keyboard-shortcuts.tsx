@@ -40,16 +40,16 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[var(--text-primary)]/40 backdrop-blur-sm flex items-center justify-center"
+      className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm flex items-center justify-center"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm mx-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xl p-5"
+        className="w-full max-w-sm mx-4 bg-card border border-border rounded-xl shadow-2xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <p className="text-sm font-medium text-[var(--text-primary)]">Keyboard shortcuts</p>
-          <kbd className="text-[10px] text-[var(--text-secondary)] border border-[var(--border)] rounded px-1.5 py-0.5 font-mono bg-[var(--bg-subtle)]">
+          <p className="text-sm font-medium text-foreground">Keyboard shortcuts</p>
+          <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 font-mono bg-muted">
             Esc
           </kbd>
         </div>
@@ -57,7 +57,7 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
         <div className="space-y-5">
           {SHORTCUTS.map((section) => (
             <div key={section.section}>
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2">
+              <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
                 {section.section}
               </p>
               <div className="space-y-2">
@@ -66,8 +66,8 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
                     key={item.key}
                     className="flex items-center justify-between"
                   >
-                    <span className="text-sm text-[var(--text-secondary)]">{item.label}</span>
-                    <kbd className="text-[10px] text-[var(--text-secondary)] border border-[var(--border)] rounded px-1.5 py-0.5 font-mono bg-[var(--bg-subtle)]">
+                    <span className="text-sm text-muted-foreground">{item.label}</span>
+                    <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 font-mono bg-muted">
                       {item.key}
                     </kbd>
                   </div>

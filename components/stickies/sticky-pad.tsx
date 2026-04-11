@@ -94,10 +94,9 @@ export function StickyPad() {
       {/* Capture card overlay */}
       {isOpen && (
         <div
+          className="bg-card border border-border"
           style={{
             width: 280,
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border)",
             borderRadius: 12,
             padding: 14,
             boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
@@ -115,10 +114,10 @@ export function StickyPad() {
             }}
           >
             <span
+              className="text-foreground"
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: "var(--text-primary)",
               }}
             >
               Quick sticky
@@ -126,11 +125,11 @@ export function StickyPad() {
             <button
               type="button"
               onClick={handleDiscard}
+              className="text-muted-foreground/60"
               style={{
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                color: "var(--text-tertiary)",
                 padding: 2,
                 display: "flex",
               }}
@@ -154,12 +153,10 @@ export function StickyPad() {
             maxLength={500}
             placeholder="What's on your mind?"
             rows={3}
+            className="text-foreground bg-muted border border-border"
             style={{
               fontSize: 13,
               lineHeight: 1.5,
-              color: "var(--text-primary)",
-              background: "var(--bg-subtle)",
-              border: "1px solid var(--border)",
               borderRadius: 8,
               padding: "8px 10px",
               resize: "vertical",
@@ -171,9 +168,9 @@ export function StickyPad() {
 
           {/* Character count */}
           <div
+            className="text-muted-foreground/60"
             style={{
               fontSize: 11,
-              color: "var(--text-tertiary)",
               textAlign: "right",
               marginTop: -6,
             }}
@@ -184,9 +181,9 @@ export function StickyPad() {
           {/* Color picker */}
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span
+              className="text-muted-foreground/60"
               style={{
                 fontSize: 11,
-                color: "var(--text-tertiary)",
                 marginRight: 2,
               }}
             >
@@ -205,8 +202,8 @@ export function StickyPad() {
                   background: c.hex,
                   border:
                     color === c.key
-                      ? "2px solid var(--text-primary)"
-                      : "1px solid var(--border)",
+                      ? "2px solid hsl(var(--foreground))"
+                      : "1px solid hsl(var(--border))",
                   cursor: "pointer",
                   padding: 0,
                   transition: "border 0.1s ease",
@@ -217,16 +214,14 @@ export function StickyPad() {
 
           {/* Link to request */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Link2 size={12} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+            <Link2 size={12} className="text-muted-foreground/60 shrink-0" />
             <select
               value={linkedRequestId ?? ""}
               onChange={(e) => setLinkedRequestId(e.target.value || null)}
+              className={`bg-muted border border-border ${linkedRequestId ? "text-foreground" : "text-muted-foreground/60"}`}
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: linkedRequestId ? "var(--text-primary)" : "var(--text-tertiary)",
-                background: "var(--bg-subtle)",
-                border: "1px solid var(--border)",
                 borderRadius: 6,
                 padding: "4px 8px",
                 outline: "none",
@@ -254,10 +249,10 @@ export function StickyPad() {
             <button
               type="button"
               onClick={handleDiscard}
+              className="text-muted-foreground"
               style={{
                 fontSize: 13,
                 fontWeight: 520,
-                color: "var(--text-secondary)",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -271,13 +266,10 @@ export function StickyPad() {
               type="button"
               onClick={handleSave}
               disabled={!content.trim() || isSaving}
+              className={`text-primary-foreground ${!content.trim() || isSaving ? "bg-muted-foreground/40" : "bg-primary"}`}
               style={{
                 fontSize: 13,
                 fontWeight: 560,
-                color: "#fff",
-                background: !content.trim() || isSaving
-                  ? "var(--text-tertiary)"
-                  : "var(--accent)",
                 border: "none",
                 cursor: !content.trim() || isSaving ? "not-allowed" : "pointer",
                 padding: "5px 14px",
@@ -296,12 +288,11 @@ export function StickyPad() {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         title="New sticky (N then S)"
+        className="bg-primary text-primary-foreground"
         style={{
           width: 48,
           height: 48,
           borderRadius: "50%",
-          background: "var(--accent)",
-          color: "#fff",
           border: "none",
           cursor: "pointer",
           display: "flex",

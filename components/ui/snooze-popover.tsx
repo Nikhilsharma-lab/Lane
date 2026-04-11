@@ -49,6 +49,7 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={() => setOpen(!open)}
+        className="bg-muted text-muted-foreground border border-border"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -59,9 +60,6 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
           fontSize: 12,
           fontFamily: "'Geist Mono', monospace",
           fontWeight: 500,
-          background: "var(--bg-subtle)",
-          color: "var(--text-secondary)",
-          border: "1px solid var(--border)",
           cursor: "pointer",
           transition: "background 0.1s",
         }}
@@ -72,13 +70,12 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
 
       {open && (
         <div
+          className="bg-card border border-border"
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
             right: 0,
             width: 220,
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border)",
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
             zIndex: 50,
@@ -89,6 +86,7 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
             <button
               key={p.label}
               onClick={() => handlePreset(p.date)}
+              className="text-foreground hover:bg-accent"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -98,21 +96,18 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
                 borderRadius: 5,
                 fontSize: 12,
                 fontFamily: "'Geist', sans-serif",
-                color: "var(--text-primary)",
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
                 transition: "background 0.1s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <span style={{ fontWeight: 500 }}>{p.label}</span>
               <span
+                className="text-muted-foreground/60"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 10,
-                  color: "var(--text-tertiary)",
                 }}
               >
                 {format(p.date, "MMM d")}
@@ -121,21 +116,21 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
           ))}
 
           <div
+            className="border-t border-border"
             style={{
-              borderTop: "1px solid var(--border)",
               margin: "4px 0",
             }}
           />
 
           <div style={{ padding: "4px 10px 6px" }}>
             <span
+              className="text-muted-foreground/60"
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 9,
                 fontWeight: 500,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                color: "var(--text-tertiary)",
               }}
             >
               CUSTOM DATE
@@ -146,22 +141,21 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
                 min={format(addDays(now, 1), "yyyy-MM-dd")}
+                className="bg-muted border border-border text-foreground"
                 style={{
                   flex: 1,
                   height: 28,
                   padding: "0 6px",
                   borderRadius: 4,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg-subtle)",
                   fontSize: 11,
                   fontFamily: "'Geist Mono', monospace",
-                  color: "var(--text-primary)",
                   outline: "none",
                 }}
               />
               <button
                 onClick={handleCustomConfirm}
                 disabled={!customDate}
+                className={customDate ? "bg-primary text-white" : "bg-accent text-muted-foreground"}
                 style={{
                   height: 28,
                   padding: "0 8px",
@@ -169,8 +163,6 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
                   fontSize: 11,
                   fontFamily: "'Geist Mono', monospace",
                   fontWeight: 600,
-                  background: customDate ? "var(--accent)" : "var(--bg-hover)",
-                  color: customDate ? "#fff" : "var(--text-tertiary)",
                   border: "none",
                   cursor: customDate ? "pointer" : "default",
                 }}

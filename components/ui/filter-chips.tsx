@@ -24,15 +24,12 @@ export function FilterChips({ chips, onRemove, onClearAll }: FilterChipsProps) {
         <button
           key={`${chip.key}-${chip.rawValue}`}
           onClick={() => onRemove(chip.key)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-[var(--bg-hover)]"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-accent text-muted-foreground bg-muted border border-border"
           style={{
-            background: "var(--bg-subtle)",
-            border: "1px solid var(--border)",
-            color: "var(--text-secondary)",
             cursor: "pointer",
           }}
         >
-          <span style={{ fontWeight: 500, color: "var(--text-tertiary)" }}>
+          <span className="text-muted-foreground/60" style={{ fontWeight: 500 }}>
             {chip.label}:
           </span>
           <span style={{ fontWeight: 560 }}>{chip.value}</span>
@@ -42,9 +39,8 @@ export function FilterChips({ chips, onRemove, onClearAll }: FilterChipsProps) {
       {chips.length >= 2 && (
         <button
           onClick={onClearAll}
-          className="text-xs px-2 py-1 rounded transition-colors hover:bg-[var(--bg-hover)]"
+          className="text-xs px-2 py-1 rounded transition-colors hover:bg-accent text-muted-foreground/60"
           style={{
-            color: "var(--text-tertiary)",
             background: "none",
             border: "none",
             cursor: "pointer",

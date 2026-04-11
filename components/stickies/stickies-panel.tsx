@@ -64,17 +64,11 @@ export function StickiesPanel({ stickies: initial }: StickiesPanelProps) {
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
+            className={activeTab === tab.key ? "text-primary bg-primary/10" : "text-muted-foreground"}
             style={{
               fontSize: 13,
               fontWeight: activeTab === tab.key ? 560 : 440,
-              color:
-                activeTab === tab.key
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-              background:
-                activeTab === tab.key
-                  ? "var(--accent-subtle, rgba(46,83,57,0.08))"
-                  : "transparent",
+              background: activeTab === tab.key ? undefined : "transparent",
               border: "none",
               cursor: "pointer",
               padding: "5px 12px",

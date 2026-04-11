@@ -147,8 +147,6 @@ function SectionLabel({ label }: { label: string }) {
           fontWeight: 600,
           letterSpacing: "0.06em",
           textTransform: "uppercase" as const,
-          color: "var(--text-tertiary)",
-          opacity: 0.6,
         }}
         className="text-muted-foreground/60"
       >

@@ -81,9 +81,9 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      className="bg-card"
       style={{
         borderTop: `3px solid ${borderColor}`,
-        background: "var(--bg-surface)",
         borderRadius: 10,
         padding: "12px 14px",
         width: 220,
@@ -113,15 +113,13 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
           type="button"
           onClick={() => onUpdate(sticky.id, { isPinned: !sticky.isPinned })}
           title={sticky.isPinned ? "Unpin" : "Pin"}
+          className={sticky.isPinned ? "text-primary" : "text-muted-foreground/60"}
           style={{
             background: "none",
             border: "none",
             cursor: "pointer",
             padding: 2,
             borderRadius: 4,
-            color: sticky.isPinned
-              ? "var(--accent)"
-              : "var(--text-tertiary)",
             display: "flex",
             alignItems: "center",
           }}
@@ -133,13 +131,13 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
             type="button"
             onClick={() => onArchive(sticky.id)}
             title="Archive"
+            className="text-muted-foreground/60"
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
               padding: 2,
               borderRadius: 4,
-              color: "var(--text-tertiary)",
               display: "flex",
               alignItems: "center",
             }}
@@ -159,12 +157,11 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
           onKeyDown={handleKeyDown}
           maxLength={500}
           rows={3}
+          className="text-foreground border border-border"
           style={{
             fontSize: 13,
             lineHeight: 1.5,
-            color: "var(--text-primary)",
             background: "transparent",
-            border: "1px solid var(--border)",
             borderRadius: 6,
             padding: "6px 8px",
             resize: "vertical",
@@ -180,10 +177,10 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
             setEditContent(sticky.content);
             setIsEditing(true);
           }}
+          className="text-foreground"
           style={{
             fontSize: 13,
             lineHeight: 1.5,
-            color: "var(--text-primary)",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             cursor: "text",
@@ -209,20 +206,19 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
         }}
       >
         <span
+          className="text-muted-foreground/60"
           style={{
             fontSize: 11,
-            color: "var(--text-tertiary)",
           }}
         >
           {timeAgo(sticky.createdAt)}
         </span>
         {sticky.requestId && (
           <span
+            className="text-primary bg-primary/10"
             style={{
               fontSize: 10,
               fontWeight: 560,
-              color: "var(--accent)",
-              background: "var(--accent-subtle, rgba(46,83,57,0.08))",
               padding: "2px 6px",
               borderRadius: 4,
               display: "inline-flex",

@@ -46,22 +46,17 @@ export function ActivityEntry({ entry }: { entry: ActivityEntryData }) {
 
   return (
     <div
-      className="flex items-start gap-3 px-1 py-2.5"
-      style={{ borderBottom: "1px solid var(--border)" }}
+      className="flex items-start gap-3 px-1 py-2.5 border-b border-border"
     >
       {/* Dot indicator */}
       <div
-        className="shrink-0 mt-1.5 rounded-full"
-        style={{
-          width: 6,
-          height: 6,
-          background: isSystem ? "var(--text-tertiary)" : "var(--accent)",
-        }}
+        className={`shrink-0 mt-1.5 rounded-full ${isSystem ? "bg-muted-foreground/60" : "bg-primary"}`}
+        style={{ width: 6, height: 6 }}
       />
 
       <div className="flex-1 min-w-0">
-        <p style={{ fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)" }}>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+        <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.5 }}>
+          <span className="text-foreground" style={{ fontWeight: 600 }}>
             {actor}
           </span>{" "}
           {label}
@@ -69,13 +64,12 @@ export function ActivityEntry({ entry }: { entry: ActivityEntryData }) {
             <>
               {" "}
               <span
+                className="text-foreground bg-muted"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 11,
-                  background: "var(--bg-subtle)",
                   borderRadius: 4,
                   padding: "1px 5px",
-                  color: "var(--text-primary)",
                 }}
               >
                 {entry.newValue}
@@ -84,10 +78,10 @@ export function ActivityEntry({ entry }: { entry: ActivityEntryData }) {
           )}
         </p>
         <p
+          className="text-muted-foreground/60"
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
             marginTop: 2,
           }}
         >

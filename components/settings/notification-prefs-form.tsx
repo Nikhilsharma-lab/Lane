@@ -75,7 +75,7 @@ function Toggle({
         width: 36,
         height: 20,
         borderRadius: 10,
-        background: checked ? "var(--accent)" : "var(--bg-hover, #d1d5db)",
+        background: checked ? "var(--primary)" : "var(--accent)",
         border: "none",
         cursor: "pointer",
         position: "relative",
@@ -143,15 +143,15 @@ export function NotificationPrefsForm({
           gridTemplateColumns: "1fr 80px 80px",
           gap: 0,
           padding: "0 0 8px 0",
-          borderBottom: "1px solid var(--border)",
+          borderBottom: "1px solid hsl(var(--border))",
           marginBottom: 4,
         }}
       >
         <span
+          className="text-muted-foreground/60"
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "var(--text-tertiary)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
           }}
@@ -159,10 +159,10 @@ export function NotificationPrefsForm({
           Category
         </span>
         <span
+          className="text-muted-foreground/60"
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "var(--text-tertiary)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             textAlign: "center",
@@ -171,10 +171,10 @@ export function NotificationPrefsForm({
           In-App
         </span>
         <span
+          className="text-muted-foreground/60"
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "var(--text-tertiary)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             textAlign: "center",
@@ -194,14 +194,14 @@ export function NotificationPrefsForm({
             gap: 0,
             alignItems: "center",
             padding: "12px 0",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid hsl(var(--border))",
           }}
         >
           <span
+            className="text-foreground"
             style={{
               fontSize: 13,
               fontWeight: 480,
-              color: "var(--text-primary)",
             }}
           >
             {row.label}
@@ -216,9 +216,9 @@ export function NotificationPrefsForm({
               />
             ) : (
               <span
+                className="text-muted-foreground/60"
                 style={{
                   fontSize: 12,
-                  color: "var(--text-tertiary)",
                 }}
               >
                 --
@@ -235,9 +235,9 @@ export function NotificationPrefsForm({
               />
             ) : (
               <span
+                className="text-muted-foreground/60"
                 style={{
                   fontSize: 12,
-                  color: "var(--text-tertiary)",
                 }}
               >
                 --
@@ -252,12 +252,10 @@ export function NotificationPrefsForm({
         <button
           type="button"
           onClick={handleReset}
+          className="text-muted-foreground bg-muted border border-border"
           style={{
             fontSize: 13,
             fontWeight: 520,
-            color: "var(--text-secondary)",
-            background: "var(--bg-subtle)",
-            border: "1px solid var(--border)",
             cursor: "pointer",
             padding: "6px 14px",
             borderRadius: 6,

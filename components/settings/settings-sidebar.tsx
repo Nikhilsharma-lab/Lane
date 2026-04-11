@@ -23,11 +23,11 @@ export function SettingsSidebar({ isAdmin }: Props) {
     const active = pathname === href;
     if (danger) {
       return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-        active ? "bg-red-500/10 text-red-500" : "text-[var(--text-secondary)] hover:text-red-400 hover:bg-[var(--bg-subtle)]"
+        active ? "bg-red-500/10 text-red-500" : "text-muted-foreground hover:text-red-400 hover:bg-muted"
       }`;
     }
     return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-medium" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+      active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent"
     }`;
   }
 
@@ -35,11 +35,11 @@ export function SettingsSidebar({ isAdmin }: Props) {
     <aside className="w-[200px] shrink-0">
       <Link
         href="/dashboard"
-        className="flex items-center gap-1.5 px-3 py-1.5 mb-5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors rounded-lg hover:bg-[var(--bg-hover)]"
+        className="flex items-center gap-1.5 px-3 py-1.5 mb-5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors rounded-lg hover:bg-accent"
       >
         ← Dashboard
       </Link>
-      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-4 px-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 px-3">
         Settings
       </p>
       <nav className="space-y-0.5">
@@ -53,7 +53,7 @@ export function SettingsSidebar({ isAdmin }: Props) {
             Plan
           </Link>
         )}
-        <div className="my-3 border-t border-[var(--border)]" />
+        <div className="my-3 border-t border-border" />
         <Link href="/settings/danger" className={linkClass("/settings/danger", true)}>
           Danger Zone
         </Link>

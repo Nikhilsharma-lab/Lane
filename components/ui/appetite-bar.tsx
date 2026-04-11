@@ -23,18 +23,18 @@ export function AppetiteBar({
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span
+          className="text-muted-foreground"
           style={{
             fontSize: 11,
-            color: "var(--text-secondary)",
             fontWeight: 520,
           }}
         >
           {weeksElapsed} of {appetiteWeeks} weeks elapsed
         </span>
         <span
+          className="text-muted-foreground"
           style={{
             fontSize: 11,
-            color: "var(--text-secondary)",
             fontWeight: 520,
           }}
         >
@@ -42,10 +42,10 @@ export function AppetiteBar({
         </span>
       </div>
       <div
+        className="bg-accent"
         style={{
           width: "100%",
           height: 6,
-          background: "var(--bg-hover)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -60,7 +60,7 @@ export function AppetiteBar({
                 ? "#E07070"
                 : elapsed > 0.7
                   ? "#D4A84B"
-                  : "var(--accent)",
+                  : "var(--primary)",
             transition: "width 300ms ease",
           }}
         />

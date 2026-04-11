@@ -43,9 +43,9 @@ export function ActivityTimeline({ requestId }: { requestId: string }) {
   if (loading) {
     return (
       <p
+        className="text-muted-foreground/60"
         style={{
           fontSize: 12,
-          color: "var(--text-tertiary)",
           padding: 16,
         }}
       >

@@ -22,10 +22,10 @@ export function EmptyState({
         </div>
       )}
       <p
+        className="text-foreground"
         style={{
           fontSize: 14,
           fontWeight: 560,
-          color: "var(--text-primary)",
           textAlign: "center",
         }}
       >
@@ -33,9 +33,9 @@ export function EmptyState({
       </p>
       {subtitle && (
         <p
+          className="text-muted-foreground"
           style={{
             fontSize: 13,
-            color: "var(--text-secondary)",
             textAlign: "center",
             marginTop: 6,
             maxWidth: 320,
@@ -50,11 +50,10 @@ export function EmptyState({
           {cta.href ? (
             <Link
               href={cta.href}
+              className="text-primary no-underline"
               style={{
                 fontSize: 13,
-                color: "var(--accent)",
                 fontWeight: 520,
-                textDecoration: "none",
               }}
             >
               {cta.label} →
@@ -62,9 +61,9 @@ export function EmptyState({
           ) : (
             <button
               onClick={cta.onClick}
+              className="text-primary"
               style={{
                 fontSize: 13,
-                color: "var(--accent)",
                 fontWeight: 520,
                 background: "none",
                 border: "none",

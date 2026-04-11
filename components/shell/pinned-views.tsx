@@ -42,10 +42,10 @@ export function PinnedViews({ views }: Props) {
     return (
       <div className="px-2.5 py-2">
         <p
+          className="text-muted-foreground/60"
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
             lineHeight: 1.4,
           }}
         >
@@ -65,18 +65,17 @@ export function PinnedViews({ views }: Props) {
           <Link
             key={view.id}
             href={href}
-            className="flex items-center gap-2 px-2.5 py-[6px] rounded-[7px] transition-colors hover:bg-[var(--bg-hover)]"
+            className="flex items-center gap-2 px-2.5 py-[6px] rounded-[7px] transition-colors hover:bg-accent"
             style={{
-              background: isActive ? "var(--bg-hover)" : undefined,
+              background: isActive ? "var(--accent)" : undefined,
             }}
           >
-            <Pin size={12} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+            <Pin size={12} className="text-muted-foreground/60 shrink-0" />
             <span
-              className="truncate"
+              className={`truncate ${isActive ? "text-foreground" : "text-muted-foreground/60"}`}
               style={{
                 fontSize: 12,
                 fontWeight: isActive ? 540 : 440,
-                color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
                 letterSpacing: "-0.01em",
               }}
             >
