@@ -135,7 +135,7 @@ export function Sidebar({
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger>
-                <SidebarMenuButton size="lg" className="gap-3">
+                <SidebarMenuButton size="lg" className="gap-3" render={<div />}>
                   <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-[11px] font-bold shrink-0">
                     L
                   </div>
@@ -308,41 +308,23 @@ export function Sidebar({
         <Separator />
 
         {/* User */}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <SidebarMenuButton size="lg" className="gap-3">
-                  <Avatar className="size-7 shrink-0">
-                    <AvatarFallback className="text-[10px] font-semibold bg-gradient-to-br from-primary/30 to-pink-400/30">
-                      {user.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col gap-0.5 leading-none">
-                    <span className="text-xs font-medium">{user.name}</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {user.role}
-                    </span>
-                  </div>
-                  <div className="ml-auto flex items-center gap-0.5">
-                    <NotificationsBell userRole={userRole} />
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTheme(resolvedTheme === "dark" ? "light" : "dark");
-                      }}
-                    >
-                      {resolvedTheme === "dark" ? (
-                        <Sun className="size-3.5" />
-                      ) : (
-                        <Moon className="size-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
+        <div className="flex items-center gap-1 px-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <div className="flex items-center gap-2.5 flex-1 min-w-0 rounded-md px-2 py-1.5 hover:bg-sidebar-accent cursor-pointer transition-colors">
+                <Avatar className="size-7 shrink-0">
+                  <AvatarFallback className="text-[10px] font-semibold">
+                    {user.initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-0.5 leading-none min-w-0">
+                  <span className="text-xs font-medium truncate">{user.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono truncate">
+                    {user.role}
+                  </span>
+                </div>
+              </div>
+            </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" sideOffset={4}>
                 <DropdownMenuItem>
                   <Link href="/settings" className="flex items-center gap-2 w-full">
@@ -361,9 +343,20 @@ export function Sidebar({
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+          </DropdownMenu>
+          <NotificationsBell userRole={userRole} />
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          >
+            {resolvedTheme === "dark" ? (
+              <Sun className="size-3.5" />
+            ) : (
+              <Moon className="size-3.5" />
+            )}
+          </Button>
+        </div>
       </SidebarFooter>
     </ShadcnSidebar>
   );
