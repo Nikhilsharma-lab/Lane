@@ -101,10 +101,10 @@ export function DevPhasePanel({
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+    <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 3 — Dev
         </span>
         <div className="flex items-center gap-2">
@@ -113,24 +113,24 @@ export function DevPhasePanel({
               {devQuestionCount} dev {devQuestionCount === 1 ? "question" : "questions"}
             </span>
           )}
-          <span className="text-xs text-[var(--text-tertiary)]">Dev leads</span>
+          <span className="text-xs text-muted-foreground/60">Dev leads</span>
         </div>
       </div>
 
       {/* Figma lock badge */}
       {figmaUrl && (
-        <div className="px-5 py-2.5 border-b border-[var(--border)]/50 flex items-center gap-2">
-          <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Figma</span>
+        <div className="px-5 py-2.5 border-b border-border/50 flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Figma</span>
           <a
             href={figmaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-[var(--accent)] hover:opacity-80 transition-colors truncate"
+            className="text-xs text-primary hover:opacity-80 transition-colors truncate"
           >
             Open design
           </a>
           {figmaLockedAt && (
-            <span className="text-[10px] text-[var(--text-tertiary)]/60 ml-auto shrink-0">
+            <span className="text-[10px] text-muted-foreground/60 ml-auto shrink-0">
               locked {new Date(figmaLockedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </span>
           )}
@@ -138,7 +138,7 @@ export function DevPhasePanel({
       )}
 
       {/* Kanban stepper */}
-      <div className="px-5 py-4 border-b border-[var(--border)]/50">
+      <div className="px-5 py-4 border-b border-border/50">
         <div className="flex items-start">
           {STATES.map((s, i) => {
             const isPast = i < optimisticIdx;
@@ -149,18 +149,18 @@ export function DevPhasePanel({
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono border transition-colors ${
                     isPast ? "bg-green-500/15 border-green-500/30 text-green-400"
                     : isCur ? "bg-[#7DA5C4]/15 border-[#7DA5C4]/30 text-[#7DA5C4]"
-                    : "bg-[var(--bg-hover)]/40 border-[var(--border)] text-[var(--text-tertiary)]"
+                    : "bg-accent/40 border text-muted-foreground/60"
                   }`}>
                     {isPast ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center leading-tight ${
-                    isCur ? "text-[#7DA5C4]" : isPast ? "text-green-500/80" : "text-[var(--text-tertiary)]"
+                    isCur ? "text-[#7DA5C4]" : isPast ? "text-green-500/80" : "text-muted-foreground/60"
                   }`}>
                     {s.label}
                   </span>
                 </div>
                 {i < STATES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-[var(--border)]"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-border"}`} />
                 )}
               </div>
             );
@@ -172,8 +172,8 @@ export function DevPhasePanel({
       <div className="px-5 py-4 space-y-3">
         {current && (
           <div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] mb-0.5">{current.label}</p>
-            <p className="text-xs text-[var(--text-secondary)]">{current.desc}</p>
+            <p className="text-xs font-semibold text-foreground mb-0.5">{current.label}</p>
+            <p className="text-xs text-muted-foreground">{current.desc}</p>
           </div>
         )}
 
@@ -182,14 +182,14 @@ export function DevPhasePanel({
             {optimisticIdx > 0 && (
               <button
                 onClick={() => moveState(STATES[optimisticIdx - 1].key)}
-                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground border hover:border-border/80 px-3 py-1.5 rounded-lg transition-colors"
               >
                 ← {STATES[optimisticIdx - 1].label}
               </button>
             )}
             <button
               onClick={() => moveState(STATES[optimisticIdx + 1].key)}
-              className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]/80 text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors"
+              className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors"
             >
               Move to {STATES[optimisticIdx + 1].label}
             </button>
@@ -205,20 +205,20 @@ export function DevPhasePanel({
             <button
               onClick={shipToTrack}
               disabled={shipping}
-              className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]/80 text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {shipping && <span className="w-3 h-3 border border-[var(--text-secondary)] border-t-transparent rounded-full animate-spin" />}
+              {shipping && <span className="w-3 h-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />}
               Ship to Track
             </button>
           </div>
         )}
 
         {/* Ask Designer */}
-        <div className="pt-1 border-t border-[var(--border)]/50">
+        <div className="pt-1 border-t border-border/50">
           {!askOpen ? (
             <button
               onClick={() => setAskOpen(true)}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] px-3 py-1.5 rounded-lg transition-colors w-full text-left"
+              className="text-xs text-muted-foreground hover:text-foreground border hover:border-border/80 px-3 py-1.5 rounded-lg transition-colors w-full text-left"
             >
               Ask designer a question
             </button>
@@ -229,7 +229,7 @@ export function DevPhasePanel({
                 onChange={(e) => setAskBody(e.target.value)}
                 placeholder="What do you need clarification on?"
                 rows={3}
-                className="w-full text-xs bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] resize-none focus:outline-none focus:border-[var(--border-strong)]"
+                className="w-full text-xs bg-muted border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:border-border/80"
               />
               <div className="flex gap-2">
                 <button
@@ -241,7 +241,7 @@ export function DevPhasePanel({
                 </button>
                 <button
                   onClick={() => { setAskOpen(false); setAskBody(""); }}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>

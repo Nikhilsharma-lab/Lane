@@ -44,7 +44,7 @@ const DIRECTION_ICONS: Record<RoiRow["direction"], string> = {
 const DIRECTION_COLORS: Record<RoiRow["direction"], string> = {
   positive: "text-green-400",
   negative: "text-red-400",
-  mixed: "text-[var(--text-tertiary)]",
+  mixed: "text-muted-foreground/60",
 };
 
 export function DesignRoi() {
@@ -61,12 +61,12 @@ export function DesignRoi() {
 
   if (loading) {
     return (
-      <div className="border border-[var(--border)] rounded-xl p-5 space-y-3 animate-pulse">
+      <div className="border rounded-xl p-5 space-y-3 animate-pulse">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-center justify-between gap-3">
-            <div className="h-3 bg-[var(--bg-hover)] rounded w-20" />
-            <div className="h-3 bg-[var(--bg-hover)] rounded w-12" />
-            <div className="h-3 bg-[var(--bg-hover)] rounded w-16" />
+            <div className="h-3 bg-accent rounded w-20" />
+            <div className="h-3 bg-accent rounded w-12" />
+            <div className="h-3 bg-accent rounded w-16" />
           </div>
         ))}
       </div>
@@ -75,9 +75,9 @@ export function DesignRoi() {
 
   if (!roi.length) {
     return (
-      <div className="border border-[var(--border)] rounded-xl px-5 py-8 text-center">
-        <p className="text-sm text-[var(--text-tertiary)]">No impact data yet</p>
-        <p className="text-xs text-[var(--text-tertiary)] mt-1">
+      <div className="border rounded-xl px-5 py-8 text-center">
+        <p className="text-sm text-muted-foreground/60">No impact data yet</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">
           Design ROI appears after impact is logged on completed requests
         </p>
       </div>
@@ -85,23 +85,23 @@ export function DesignRoi() {
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide px-5 py-2.5 border-b border-[var(--border)] bg-[var(--bg-subtle)] gap-4">
+    <div className="border rounded-xl overflow-hidden">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] text-[10px] text-muted-foreground/60 uppercase tracking-wide px-5 py-2.5 border-b bg-muted gap-4">
         <span>Type</span>
         <span className="text-right">Requests</span>
         <span className="text-right">Avg variance</span>
         <span className="text-right">Direction</span>
       </div>
-      <div className="divide-y divide-[var(--border)]">
+      <div className="divide-y">
         {roi.map((row) => (
           <div
             key={row.requestType}
             className="grid grid-cols-[1fr_auto_auto_auto] items-center px-5 py-3 gap-4"
           >
-            <span className="text-sm text-[var(--text-primary)]">
+            <span className="text-sm text-foreground">
               {TYPE_LABELS[row.requestType] ?? row.requestType}
             </span>
-            <span className="text-xs text-[var(--text-secondary)] text-right font-mono">
+            <span className="text-xs text-muted-foreground text-right font-mono">
               {row.count}
             </span>
             <div className="flex justify-end">
@@ -115,7 +115,7 @@ export function DesignRoi() {
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[var(--text-tertiary)] px-5 py-2.5 border-t border-[var(--border)]">
+      <p className="text-[10px] text-muted-foreground/60 px-5 py-2.5 border-t">
         Variance = (actual − predicted) / |predicted| × 100
       </p>
     </div>

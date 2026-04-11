@@ -67,12 +67,12 @@ function DesignerCard({
   const alreadyBlocked = designer.mostStalledRequestStatus === "blocked";
 
   return (
-    <div className="flex items-start justify-between border border-[var(--border)] rounded-xl px-5 py-3">
+    <div className="flex items-start justify-between border rounded-xl px-5 py-3">
       <div>
-        <p className="text-sm text-[var(--text-primary)]">
+        <p className="text-sm text-foreground">
           {STATUS_DOT[designer.status] ?? "⚪"} {designer.fullName}
         </p>
-        <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5">
           {designer.activeCount} active
           {designer.lastMovedMs !== null &&
             ` · last moved ${formatStaleness(designer.lastMovedMs)}`}
@@ -94,14 +94,14 @@ function DesignerCard({
           <button
             onClick={handleNudge}
             disabled={nudge !== "idle"}
-            className="text-xs text-[var(--text-secondary)] border border-[var(--border)] rounded px-2 py-1 hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50 transition-colors"
+            className="text-xs text-muted-foreground border rounded px-2 py-1 hover:border-border/80 hover:text-foreground disabled:opacity-50 transition-colors"
           >
             {nudge === "loading" ? "…" : nudge === "done" ? "Sent ✓" : "Nudge"}
           </button>
           <button
             onClick={handleMarkAtRisk}
             disabled={risk !== "idle" || alreadyBlocked}
-            className="text-xs text-[var(--text-secondary)] border border-[var(--border)] rounded px-2 py-1 hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50 transition-colors"
+            className="text-xs text-muted-foreground border rounded px-2 py-1 hover:border-border/80 hover:text-foreground disabled:opacity-50 transition-colors"
           >
             {alreadyBlocked
               ? "Already blocked"
@@ -128,7 +128,7 @@ export function DesignerStatus({
 }) {
   if (designers.length === 0) {
     return (
-      <p className="text-sm text-[var(--text-tertiary)] border border-[var(--border)] rounded-xl px-5 py-4">
+      <p className="text-sm text-muted-foreground/60 border rounded-xl px-5 py-4">
         No designers in this org yet.
       </p>
     );

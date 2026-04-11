@@ -95,10 +95,10 @@ export function TrackPhasePanel({
   const vcfg = variancePercent !== null ? varianceConfig(variancePercent) : null;
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+    <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 4 — Track
         </span>
         <span
@@ -116,40 +116,40 @@ export function TrackPhasePanel({
         {/* Metric */}
         {impactMetric && (
           <div>
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Metric</p>
-            <p className="text-xs text-[var(--text-primary)]">{impactMetric}</p>
+            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">Metric</p>
+            <p className="text-xs text-foreground">{impactMetric}</p>
           </div>
         )}
 
         {/* Predicted */}
         {impactPrediction && (
           <div>
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Predicted</p>
-            <p className="text-xs text-[var(--text-secondary)]">{impactPrediction}</p>
+            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">Predicted</p>
+            <p className="text-xs text-muted-foreground">{impactPrediction}</p>
           </div>
         )}
 
         {/* Actual result */}
         <div>
-          <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Actual result</p>
+          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">Actual result</p>
           {isComplete ? (
-            <p className="text-xs text-[var(--text-primary)]">{optimisticActual ?? "—"}</p>
+            <p className="text-xs text-foreground">{optimisticActual ?? "—"}</p>
           ) : (
             <div className="space-y-2">
               {optimisticActual && (
-                <p className="text-xs text-[var(--text-primary)]">{optimisticActual}</p>
+                <p className="text-xs text-foreground">{optimisticActual}</p>
               )}
               <input
                 type="text"
                 value={actual}
                 onChange={(e) => setActual(e.target.value)}
                 placeholder="e.g. +4.2% retention"
-                className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+                className="w-full bg-muted border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
               />
               <button
                 onClick={handleSave}
                 disabled={!actual.trim()}
-                className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>
@@ -159,16 +159,16 @@ export function TrackPhasePanel({
 
         {/* Accuracy block — shown when variance is known */}
         {vcfg && optimisticActual && (
-          <div className="border border-[var(--border)] rounded-lg px-4 py-3 space-y-2.5 bg-[var(--bg-subtle)]">
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Accuracy</p>
+          <div className="border rounded-lg px-4 py-3 space-y-2.5 bg-muted">
+            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Accuracy</p>
             {impactPrediction && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text-tertiary)]">Predicted</span>
-                <span className="font-mono text-[var(--text-secondary)]">{impactPrediction}</span>
+                <span className="text-muted-foreground/60">Predicted</span>
+                <span className="font-mono text-muted-foreground">{impactPrediction}</span>
               </div>
             )}
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[var(--text-tertiary)]">Variance</span>
+              <span className="text-muted-foreground/60">Variance</span>
               <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${vcfg.style}`}>
                 {variancePercent! > 0 ? "+" : ""}
                 {variancePercent!.toFixed(1)}%
@@ -185,10 +185,10 @@ export function TrackPhasePanel({
           <button
             onClick={markComplete}
             disabled={completing}
-            className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {completing && (
-              <span className="w-3 h-3 border border-[var(--text-secondary)] border-t-transparent rounded-full animate-spin" />
+              <span className="w-3 h-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />
             )}
             Mark complete
           </button>

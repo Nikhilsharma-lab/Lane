@@ -1,0 +1,238 @@
+<h2>Navigation Paradigm: How should Lane organize work?</h2>
+<p class="subtitle">Click the approach that feels right for Lane's workflow. Consider: designers, PMs, and leads all use this daily.</p>
+
+<div class="cards">
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a1a;border-radius:8px;padding:0;overflow:hidden;font-family:system-ui;font-size:12px;display:flex;height:320px;">
+        <!-- Sidebar -->
+        <div style="width:180px;background:#111;padding:12px 0;border-right:1px solid #2a2a2a;flex-shrink:0;">
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personal</div>
+            <div style="color:#fff;padding:5px 8px;background:#2E5339;border-radius:5px;margin-bottom:2px;">My Work</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">Inbox <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">3</span></div>
+          </div>
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Workspace</div>
+            <div style="color:#fff;padding:5px 8px;background:#222;border-radius:5px;margin-bottom:2px;">⚡ Requests</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">💡 Ideas</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">🎯 Cycles</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">📊 Insights</div>
+          </div>
+          <div style="padding:4px 14px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Team</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">Health</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">Members</div>
+          </div>
+        </div>
+        <!-- Main content -->
+        <div style="flex:1;padding:16px;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="color:#fff;font-size:14px;font-weight:600;">Requests</div>
+            <div style="display:flex;gap:6px;">
+              <div style="color:#888;background:#222;padding:3px 10px;border-radius:4px;font-size:10px;">Filter</div>
+              <div style="color:#888;background:#222;padding:3px 10px;border-radius:4px;font-size:10px;">Group: Phase ▾</div>
+              <div style="color:#888;background:#222;padding:3px 10px;border-radius:4px;font-size:10px;">⊞ Board</div>
+            </div>
+          </div>
+          <!-- Grouped by phase -->
+          <div style="margin-bottom:10px;">
+            <div style="color:#F59E0B;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">⬤ Predesign <span style="color:#555;font-weight:normal;">4</span></div>
+            <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;">
+              <div style="color:#ddd;">Checkout abandonment spike</div>
+              <div style="display:flex;gap:4px;align-items:center;"><span style="background:#7C3AED;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P0</span><span style="color:#555;font-size:10px;">Intake</span></div>
+            </div>
+            <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;">
+              <div style="color:#ddd;">Onboarding flow redesign</div>
+              <div style="display:flex;gap:4px;align-items:center;"><span style="background:#2563EB;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P1</span><span style="color:#555;font-size:10px;">Shape</span></div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="color:#2E5339;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">⬤ Design <span style="color:#555;font-weight:normal;">3</span></div>
+            <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;">
+              <div style="color:#ddd;">Search results relevance</div>
+              <div style="display:flex;gap:4px;align-items:center;"><span style="background:#2563EB;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P1</span><span style="color:#555;font-size:10px;">Diverge</span></div>
+            </div>
+            <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;">
+              <div style="color:#ddd;">Dashboard data density</div>
+              <div style="display:flex;gap:4px;align-items:center;"><span style="background:#059669;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P2</span><span style="color:#555;font-size:10px;">Sense</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="color:#3B82F6;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">⬤ Dev <span style="color:#555;font-weight:normal;">2</span></div>
+            <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px 10px;margin-bottom:4px;display:flex;justify-content:space-between;">
+              <div style="color:#ddd;">Mobile nav refactor</div>
+              <div style="display:flex;gap:4px;align-items:center;"><span style="background:#7C3AED;color:white;padding:1px 6px;border-radius:3px;font-size:9px;">P0</span><span style="color:#555;font-size:10px;">In Review</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Object-first (Linear-style)</h3>
+      <p><strong>~7 sidebar links.</strong> One powerful "Requests" view with filters, grouping (by phase, stage, assignee, project), and board/list toggle. Phases aren't separate pages — they're grouping options. Designers filter to "my work in Design," PMs filter to "my requests in Predesign."</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Minimal sidebar, maximum power</li><li>One mental model for everyone</li><li>Scales — 10 or 100 requests, same view</li><li>Proven pattern (Linear, Notion, Jira)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Requires good filter/group UX to not feel overwhelming</li><li>Pipeline visibility requires active grouping</li><li>New users need to learn the filter system</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a1a;border-radius:8px;padding:0;overflow:hidden;font-family:system-ui;font-size:12px;display:flex;height:320px;">
+        <!-- Sidebar -->
+        <div style="width:180px;background:#111;padding:12px 0;border-right:1px solid #2a2a2a;flex-shrink:0;">
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personal</div>
+            <div style="color:#fff;padding:5px 8px;background:#2E5339;border-radius:5px;margin-bottom:2px;">My Work</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">Inbox</div>
+          </div>
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Pipeline</div>
+            <div style="color:#F59E0B;padding:5px 8px;margin-bottom:2px;">🚪 Intake Gate <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">4</span></div>
+            <div style="color:#22C55E;padding:5px 8px;margin-bottom:2px;background:#222;border-radius:5px;">🎨 Design <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">3</span></div>
+            <div style="color:#3B82F6;padding:5px 8px;margin-bottom:2px;">🔨 Dev <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">2</span></div>
+            <div style="color:#A855F7;padding:5px 8px;margin-bottom:2px;">📈 Impact <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">1</span></div>
+          </div>
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">More</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">💡 Ideas</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">🎯 Betting</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">📊 Insights</div>
+          </div>
+        </div>
+        <!-- Main: Design phase board -->
+        <div style="flex:1;padding:16px;overflow:hidden;">
+          <div style="color:#fff;font-size:14px;font-weight:600;margin-bottom:12px;">🎨 Design Phase</div>
+          <div style="display:flex;gap:8px;overflow:hidden;">
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Sense</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Dashboard density</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P2 · Sarah</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Frame</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Pricing page</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P1 · Mike</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Diverge</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Search results</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P1 · Yash</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Converge</div>
+              <div style="color:#555;font-size:10px;text-align:center;padding:20px 0;">Empty</div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Prove</div>
+              <div style="color:#555;font-size:10px;text-align:center;padding:20px 0;">Empty</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Phase-first (Pipeline nav)</h3>
+      <p><strong>~10 sidebar links.</strong> Pipeline section maps directly to Lane's 4 phases. Each phase opens a dedicated board — Design shows stage columns (Sense→Prove), Dev shows kanban. The pipeline IS the navigation. Very legible for leads.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Pipeline is always visible in sidebar</li><li>Maps to Lane's core mental model</li><li>Leads instantly see flow</li><li>Counts per phase = at-a-glance health</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More sidebar links</li><li>Designers mostly care about Design — other phases are noise</li><li>Doesn't feel as modern as Linear</li><li>Rigid — hard to add cross-phase views</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C: Hybrid -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a1a;border-radius:8px;padding:0;overflow:hidden;font-family:system-ui;font-size:12px;display:flex;height:320px;">
+        <!-- Sidebar -->
+        <div style="width:180px;background:#111;padding:12px 0;border-right:1px solid #2a2a2a;flex-shrink:0;">
+          <div style="padding:4px 14px;margin-bottom:12px;">
+            <div style="color:#fff;padding:5px 8px;background:#2E5339;border-radius:5px;margin-bottom:2px;">⌂ Home</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">🔍 Search <span style="color:#555;font-size:10px;">⌘K</span></div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">📥 Inbox <span style="background:#333;padding:1px 6px;border-radius:10px;font-size:10px;">3</span></div>
+          </div>
+          <div style="height:1px;background:#2a2a2a;margin:0 14px 12px;"></div>
+          <div style="padding:4px 14px;margin-bottom:8px;">
+            <div style="color:#fff;padding:5px 8px;margin-bottom:2px;background:#222;border-radius:5px;">⚡ Requests</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">💡 Ideas</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">🎯 Cycles</div>
+          </div>
+          <div style="height:1px;background:#2a2a2a;margin:0 14px 12px;"></div>
+          <div style="padding:4px 14px;">
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">📊 Insights</div>
+            <div style="color:#999;padding:5px 8px;margin-bottom:2px;">👥 Team</div>
+          </div>
+        </div>
+        <!-- Main: Requests with phase tabs -->
+        <div style="flex:1;padding:16px;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="color:#fff;font-size:14px;font-weight:600;">Requests</div>
+            <div style="display:flex;gap:6px;">
+              <div style="color:#888;background:#222;padding:3px 10px;border-radius:4px;font-size:10px;">+ New</div>
+              <div style="color:#888;background:#222;padding:3px 10px;border-radius:4px;font-size:10px;">⊞ ≡</div>
+            </div>
+          </div>
+          <!-- Phase tabs -->
+          <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid #2a2a2a;">
+            <div style="color:#999;padding:6px 12px;font-size:11px;cursor:pointer;">All</div>
+            <div style="color:#F59E0B;padding:6px 12px;font-size:11px;cursor:pointer;">Predesign <span style="color:#555">4</span></div>
+            <div style="color:#fff;padding:6px 12px;font-size:11px;border-bottom:2px solid #2E5339;">Design <span style="color:#555">3</span></div>
+            <div style="color:#3B82F6;padding:6px 12px;font-size:11px;cursor:pointer;">Dev <span style="color:#555">2</span></div>
+            <div style="color:#A855F7;padding:6px 12px;font-size:11px;cursor:pointer;">Impact <span style="color:#555">1</span></div>
+          </div>
+          <!-- Stage columns when Design tab selected -->
+          <div style="display:flex;gap:8px;overflow:hidden;">
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Sense</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Dashboard density</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P2 · Sarah</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Frame</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Pricing page</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P1 · Mike</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Diverge</div>
+              <div style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:6px;padding:8px;margin-bottom:4px;">
+                <div style="color:#ddd;font-size:11px;">Search results</div>
+                <div style="color:#555;font-size:9px;margin-top:3px;">P1 · Yash</div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Converge</div>
+              <div style="color:#555;font-size:10px;text-align:center;padding:16px 0;">—</div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="color:#888;font-size:10px;text-transform:uppercase;margin-bottom:6px;text-align:center;">Prove</div>
+              <div style="color:#555;font-size:10px;text-align:center;padding:16px 0;">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Hybrid (Recommended)</h3>
+      <p><strong>~8 sidebar links.</strong> Minimal Linear-style sidebar with objects (Requests, Ideas, Cycles). But inside Requests, phase tabs across the top give you the pipeline view. Selecting "Design" tab auto-switches to stage columns. Selecting "Dev" tab shows kanban. Best of both worlds — sidebar stays clean, pipeline lives inside the Requests view.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Fewest sidebar links (clean)</li><li>Pipeline visible via tabs (discoverable)</li><li>Phase tabs auto-adapt view layout</li><li>Scales — add more objects without sidebar bloat</li><li>Feels modern like Linear</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Pipeline is one click deeper than Phase-first</li><li>Phase tabs need good design to not feel like "just tabs"</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

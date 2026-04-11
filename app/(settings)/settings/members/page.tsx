@@ -19,8 +19,8 @@ export default async function MembersPage() {
   return (
     <div className="max-w-2xl space-y-10">
       <div>
-        <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Members</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Manage your team members and pending invites.</p>
+        <h1 className="text-lg font-semibold text-foreground mb-1">Members</h1>
+        <p className="text-sm text-muted-foreground">Manage your team members and pending invites.</p>
       </div>
       <MembersList
         members={members.map((m) => ({ id: m.id, fullName: m.fullName, email: m.email, role: m.role }))}

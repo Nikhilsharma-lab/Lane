@@ -124,28 +124,28 @@ export default async function RadarPage() {
       <RealtimeRadar orgId={viewer.orgId} />
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-10">
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Designer Status
           </h2>
           <DesignerStatus designers={radarDesigners} canActionMap={canActionMap} avgDevQuestionsMap={avgDevQuestionsMap} />
         </section>
 
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Phase Heat Map
           </h2>
           <HeatMap heatMap={heatMap} />
         </section>
 
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Risk
           </h2>
           <RiskPanel risk={risk} />
         </section>
 
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Shipped This Week
           </h2>
           <ShippedWeek shipped={shipped} />

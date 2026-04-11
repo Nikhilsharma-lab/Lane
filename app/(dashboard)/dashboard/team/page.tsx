@@ -92,36 +92,36 @@ export default async function TeamPage() {
     <main className="max-w-3xl mx-auto px-6 py-10 space-y-10">
       {/* Invite section */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">Invite member</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">Invite member</h2>
         <InviteForm />
-        <p className="text-xs text-[var(--text-tertiary)] mt-2">
+        <p className="text-xs text-muted-foreground/60 mt-2">
           Invite links are valid for 7 days. Share directly with your teammate — no email required.
         </p>
       </section>
 
       {/* Current members */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           Team ({members.length})
         </h2>
         <div className="space-y-2">
           {members.map((m) => (
             <div
               key={m.id}
-              className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3"
+              className="flex items-center justify-between border border-border rounded-xl px-5 py-3"
             >
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-[var(--bg-hover)] flex items-center justify-center text-xs font-medium text-[var(--text-secondary)]">
+                <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-medium text-muted-foreground">
                   {m.fullName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm text-[var(--text-primary)]">
+                  <p className="text-sm text-foreground">
                     {m.fullName}
                     {m.id === user.id && (
-                      <span className="text-xs text-[var(--text-tertiary)] ml-1.5">(you)</span>
+                      <span className="text-xs text-muted-foreground/60 ml-1.5">(you)</span>
                     )}
                   </p>
-                  <p className="text-xs text-[var(--text-tertiary)]">{m.email}</p>
+                  <p className="text-xs text-muted-foreground/60">{m.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -134,14 +134,14 @@ export default async function TeamPage() {
                     }`}>
                       {pmStats[m.id].avgQuality}/100
                     </p>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">{pmStats[m.id].requestCount} requests</p>
+                    <p className="text-[10px] text-muted-foreground/60">{pmStats[m.id].requestCount} requests</p>
                   </div>
                 )}
                 {/* Designer workload */}
                 {(m.role === "designer" || m.role === "lead") && designerLoad[m.id] !== undefined && (
                   <div className="text-right">
-                    <p className="text-xs text-[var(--text-secondary)]">{designerLoad[m.id]}</p>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">assigned</p>
+                    <p className="text-xs text-muted-foreground">{designerLoad[m.id]}</p>
+                    <p className="text-[10px] text-muted-foreground/60">assigned</p>
                   </div>
                 )}
                 {profile.role === "admin" && (
@@ -155,7 +155,7 @@ export default async function TeamPage() {
                     )}
                   />
                 )}
-                <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-1.5 py-0.5 capitalize">
+                <span className="text-xs text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5 capitalize">
                   {roleLabels[m.role] ?? m.role}
                 </span>
               </div>
@@ -167,18 +167,18 @@ export default async function TeamPage() {
       {/* Pending invites */}
       {activePending.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Pending invites ({activePending.length})
           </h2>
           <div className="space-y-2">
             {activePending.map((inv) => (
               <div
                 key={inv.id}
-                className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3"
+                className="flex items-center justify-between border border-border rounded-xl px-5 py-3"
               >
                 <div>
-                  <p className="text-sm text-[var(--text-primary)]">{inv.email}</p>
-                  <p className="text-xs text-[var(--text-tertiary)] capitalize">
+                  <p className="text-sm text-foreground">{inv.email}</p>
+                  <p className="text-xs text-muted-foreground/60 capitalize">
                     {roleLabels[inv.role] ?? inv.role} · Expires {formatDate(inv.expiresAt)}
                   </p>
                 </div>
@@ -191,22 +191,22 @@ export default async function TeamPage() {
 
       {expired.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Expired invites ({expired.length})
           </h2>
           <div className="space-y-2">
             {expired.map((inv) => (
               <div
                 key={inv.id}
-                className="flex items-center justify-between border border-[var(--border)] rounded-xl px-5 py-3 opacity-50"
+                className="flex items-center justify-between border border-border rounded-xl px-5 py-3 opacity-50"
               >
                 <div>
-                  <p className="text-sm text-[var(--text-secondary)]">{inv.email}</p>
-                  <p className="text-xs text-[var(--text-tertiary)] capitalize">
+                  <p className="text-sm text-muted-foreground">{inv.email}</p>
+                  <p className="text-xs text-muted-foreground/60 capitalize">
                     {roleLabels[inv.role] ?? inv.role} · Expired {formatDate(inv.expiresAt)}
                   </p>
                 </div>
-                <span className="text-xs text-[var(--text-tertiary)]">Expired</span>
+                <span className="text-xs text-muted-foreground/60">Expired</span>
               </div>
             ))}
           </div>

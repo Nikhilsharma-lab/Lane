@@ -197,9 +197,9 @@ export default async function InsightsPage() {
     in_progress: "bg-[#2E5339]/60",
     in_review: "bg-[#7DA5C4]/60",
     blocked: "bg-red-500/60",
-    completed: "bg-[var(--border-strong)]",
-    shipped: "bg-[var(--accent)]/40",
-    draft: "bg-[var(--bg-hover)]",
+    completed: "bg-border/80",
+    shipped: "bg-primary/40",
+    draft: "bg-accent",
   };
 
   return (
@@ -212,7 +212,7 @@ export default async function InsightsPage() {
 
       {/* Pipeline metrics */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           Pipeline
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -229,25 +229,25 @@ export default async function InsightsPage() {
 
       {/* Status breakdown */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           Status breakdown
         </h2>
-        <div className="border border-[var(--border)] rounded-xl p-5 space-y-3">
+        <div className="border rounded-xl p-5 space-y-3">
           {STATUS_ORDER.filter((s) => statusCounts[s]).map((s) => {
             const cnt = statusCounts[s] ?? 0;
             const pct = Math.round((cnt / orgRequests.length) * 100);
             return (
               <div key={s} className="flex items-center gap-3">
-                <span className="text-xs text-[var(--text-secondary)] w-20 capitalize shrink-0">
+                <span className="text-xs text-muted-foreground w-20 capitalize shrink-0">
                   {s.replace(/_/g, " ")}
                 </span>
-                <div className="flex-1 bg-[var(--bg-hover)] rounded-full h-1.5 overflow-hidden">
+                <div className="flex-1 bg-accent rounded-full h-1.5 overflow-hidden">
                   <div
                     className={`h-full rounded-full ${STATUS_COLORS[s]}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <span className="text-xs text-[var(--text-secondary)] w-6 text-right shrink-0">
+                <span className="text-xs text-muted-foreground w-6 text-right shrink-0">
                   {cnt}
                 </span>
               </div>
@@ -259,7 +259,7 @@ export default async function InsightsPage() {
       {/* PM request quality */}
       {Object.keys(qualityByPM).length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             PM request quality
           </h2>
           <div className="space-y-2">
@@ -276,16 +276,16 @@ export default async function InsightsPage() {
                 return (
                   <div
                     key={m.id}
-                    className="flex items-center gap-3 border border-[var(--border)] rounded-xl px-5 py-3"
+                    className="flex items-center gap-3 border rounded-xl px-5 py-3"
                   >
                     <div className="flex-1">
-                      <p className="text-sm text-[var(--text-primary)]">{m.fullName}</p>
-                      <p className="text-xs text-[var(--text-tertiary)]">
+                      <p className="text-sm text-foreground">{m.fullName}</p>
+                      <p className="text-xs text-muted-foreground/60">
                         {q.count} request{q.count !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-24 bg-[var(--bg-hover)] rounded-full h-1.5">
+                      <div className="w-24 bg-accent rounded-full h-1.5">
                         <div
                           className={`h-full rounded-full ${
                             avg >= 80
@@ -313,7 +313,7 @@ export default async function InsightsPage() {
                 );
               })}
             {avgQuality !== null && (
-              <p className="text-xs text-[var(--text-tertiary)] pt-1">
+              <p className="text-xs text-muted-foreground/60 pt-1">
                 Org avg quality score: {avgQuality}/100
               </p>
             )}
@@ -324,7 +324,7 @@ export default async function InsightsPage() {
       {/* Designer workload */}
       {workloadRows.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Designer workload
           </h2>
           <div className="space-y-2">
@@ -342,14 +342,14 @@ export default async function InsightsPage() {
                 return (
                   <div
                     key={m.id}
-                    className="flex items-center gap-3 border border-[var(--border)] rounded-xl px-5 py-3"
+                    className="flex items-center gap-3 border rounded-xl px-5 py-3"
                   >
                     <div className="flex-1">
-                      <p className="text-sm text-[var(--text-primary)]">{m.fullName}</p>
-                      <p className="text-xs text-[var(--text-tertiary)] capitalize">{m.role}</p>
+                      <p className="text-sm text-foreground">{m.fullName}</p>
+                      <p className="text-xs text-muted-foreground/60 capitalize">{m.role}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-24 bg-[var(--bg-hover)] rounded-full h-1.5">
+                      <div className="w-24 bg-accent rounded-full h-1.5">
                         <div
                           className={`h-full rounded-full ${
                             isOverloaded ? "bg-red-500/70" : "bg-[#D4A84B]/60"
@@ -359,7 +359,7 @@ export default async function InsightsPage() {
                       </div>
                       <span
                         className={`text-xs font-mono w-20 text-right ${
-                          isOverloaded ? "text-red-600" : "text-[var(--text-secondary)]"
+                          isOverloaded ? "text-red-600" : "text-muted-foreground"
                         }`}
                       >
                         {load} active{isOverloaded ? " ⚠" : ""}
@@ -375,10 +375,10 @@ export default async function InsightsPage() {
       {/* Pipeline view */}
       {pipelineData.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Pipeline view
           </h2>
-          <div className="border border-[var(--border)] rounded-xl p-5">
+          <div className="border rounded-xl p-5">
             <PipelineChart data={pipelineData} />
           </div>
         </section>
@@ -387,10 +387,10 @@ export default async function InsightsPage() {
       {/* Flow rate */}
       {flowRateData.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Flow rate
           </h2>
-          <div className="border border-[var(--border)] rounded-xl p-5">
+          <div className="border rounded-xl p-5">
             <FlowRateChart data={flowRateData} />
           </div>
         </section>
@@ -399,10 +399,10 @@ export default async function InsightsPage() {
       {/* Cycle throughput */}
       {cycleThroughputData.length > 0 && (
         <section>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Cycle throughput
           </h2>
-          <div className="border border-[var(--border)] rounded-xl p-5">
+          <div className="border rounded-xl p-5">
             <CycleThroughputChart data={cycleThroughputData} />
           </div>
         </section>
@@ -421,9 +421,9 @@ function Metric({
   color?: string;
 }) {
   return (
-    <div className="border border-[var(--border)] rounded-xl px-5 py-4">
-      <p className="text-xs text-[var(--text-tertiary)] mb-1">{label}</p>
-      <p className={`text-2xl font-semibold ${color ?? "text-[var(--text-primary)]"}`}>
+    <div className="border rounded-xl px-5 py-4">
+      <p className="text-xs text-muted-foreground/60 mb-1">{label}</p>
+      <p className={`text-2xl font-semibold ${color ?? "text-foreground"}`}>
         {value}
       </p>
     </div>

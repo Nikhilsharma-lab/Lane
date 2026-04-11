@@ -15,22 +15,22 @@ export default function RequestError({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex items-center justify-center">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
       <div className="text-center max-w-md px-6">
-        <p className="text-[var(--text-secondary)] text-sm mb-1">Something went wrong loading this request.</p>
+        <p className="text-muted-foreground text-sm mb-1">Something went wrong loading this request.</p>
         {error.digest && (
-          <p className="text-[var(--text-tertiary)] text-xs mb-6 font-mono">Digest: {error.digest}</p>
+          <p className="text-muted-foreground/60 text-xs mb-6 font-mono">Digest: {error.digest}</p>
         )}
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded-lg px-4 py-2 transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground border hover:border-border/80 rounded-lg px-4 py-2 transition-colors"
           >
             Try again
           </button>
           <Link
             href="/dashboard"
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Back to requests
           </Link>

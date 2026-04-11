@@ -32,30 +32,30 @@ export function ProjectForm({ project, onDone }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1 uppercase tracking-wide">
+        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
           Name <span className="text-red-400">*</span>
         </label>
         <input
           name="name"
           defaultValue={project?.name}
           required
-          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
           placeholder="e.g. Rider App"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1 uppercase tracking-wide">
+        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
           Description
         </label>
         <input
           name="description"
           defaultValue={project?.description ?? ""}
-          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
           placeholder="Optional"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Color</label>
+        <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Color</label>
         <div className="flex gap-2 flex-wrap">
           {PROJECT_COLORS.map((c) => (
             <button
@@ -63,7 +63,7 @@ export function ProjectForm({ project, onDone }: Props) {
               type="button"
               onClick={() => setColor(c)}
               className={`w-6 h-6 rounded-full transition-all ${
-                color === c ? "ring-2 ring-offset-2 ring-offset-[var(--bg-surface)] ring-[var(--accent)] scale-110" : "hover:scale-105"
+                color === c ? "ring-2 ring-offset-2 ring-offset-card ring-primary scale-110" : "hover:scale-105"
               }`}
               style={{ backgroundColor: c }}
             />
@@ -75,11 +75,11 @@ export function ProjectForm({ project, onDone }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="text-xs bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-1.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="text-xs bg-primary text-primary-foreground rounded-lg px-4 py-1.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {loading ? "Saving…" : project ? "Save changes" : "Create project"}
         </button>
-        <button type="button" onClick={onDone} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-4 py-1.5 transition-colors">
+        <button type="button" onClick={onDone} className="text-xs text-muted-foreground hover:text-foreground px-4 py-1.5 transition-colors">
           Cancel
         </button>
       </div>

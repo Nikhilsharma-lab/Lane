@@ -65,12 +65,12 @@ export function IntakeClientWrapper({
           />
         ) : (
           <div
+            className="text-muted-foreground/60"
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               height: "100%",
-              color: "var(--text-tertiary)",
               fontFamily: "'Geist Mono', monospace",
               fontSize: 12,
             }}

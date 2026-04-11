@@ -103,17 +103,17 @@ export function PredesignPanel({
   }, [canAdvance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+    <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 1 — Predesign
         </span>
-        <span className="text-xs text-[var(--text-tertiary)]">PM + Org decides what to build</span>
+        <span className="text-xs text-muted-foreground/60">PM + Org decides what to build</span>
       </div>
 
       {/* Stage stepper */}
-      <div className="px-5 py-4 border-b border-[var(--border)]">
+      <div className="px-5 py-4 border-b">
         <div className="flex items-start">
           {STAGES.map((s, i) => {
             const isDone = i < optimisticIdx;
@@ -127,7 +127,7 @@ export function PredesignPanel({
                         ? "bg-green-500/15 border-green-500/30 text-green-400"
                         : isCurrent
                         ? "bg-[#D4A84B]/10 border-[#D4A84B]/20 text-[#D4A84B]"
-                        : "bg-[var(--bg-hover)] border-[var(--border)] text-[var(--text-tertiary)]"
+                        : "bg-accent border text-muted-foreground/60"
                     }`}
                   >
                     {isDone ? "✓" : i + 1}
@@ -138,7 +138,7 @@ export function PredesignPanel({
                         ? "text-[#D4A84B]"
                         : isDone
                         ? "text-green-500/80"
-                        : "text-[var(--text-tertiary)]"
+                        : "text-muted-foreground/60"
                     }`}
                   >
                     {s.label}
@@ -147,7 +147,7 @@ export function PredesignPanel({
                 {i < STAGES.length - 1 && (
                   <div
                     className={`h-px w-full mb-5 mx-0.5 ${
-                      i < optimisticIdx ? "bg-green-500/20" : "bg-[var(--bg-hover)]"
+                      i < optimisticIdx ? "bg-green-500/20" : "bg-accent"
                     }`}
                   />
                 )}
@@ -161,8 +161,8 @@ export function PredesignPanel({
       <div className="px-5 py-4 space-y-4">
         {current && (
           <div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] mb-0.5">{current.label}</p>
-            <p className="text-xs text-[var(--text-secondary)]">{current.desc}</p>
+            <p className="text-xs font-semibold text-foreground mb-0.5">{current.label}</p>
+            <p className="text-xs text-muted-foreground">{current.desc}</p>
           </div>
         )}
 
@@ -180,7 +180,7 @@ export function PredesignPanel({
         <div>
           {missing.length > 0 ? (
             <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
-              <p className="text-[11px] text-[var(--text-secondary)]">
+              <p className="text-[11px] text-muted-foreground">
                 {isFinal ? "To approve the bet:" : `To advance to ${nextStage?.label}:`}
               </p>
               {missing.map((m, i) => (
@@ -204,10 +204,10 @@ export function PredesignPanel({
         <button
           onClick={handleAdvance}
           disabled={!canAdvance}
-          className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isFinal ? "Approve Bet — Start Design Phase" : `Advance to ${nextStage?.label}`}
-          <kbd className="hidden md:inline ml-2 text-[10px] border border-[var(--border-strong)] rounded px-1 py-0.5 font-mono opacity-60">
+          <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">
             ⌘↵
           </kbd>
         </button>

@@ -18,10 +18,10 @@ export default async function StickiesPage() {
         style={{
           fontSize: 18,
           fontWeight: 620,
-          color: "var(--text-primary)",
           letterSpacing: "-0.02em",
           marginBottom: 16,
         }}
+        className="text-foreground"
       >
         Stickies
       </h1>

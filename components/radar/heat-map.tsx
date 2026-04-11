@@ -16,10 +16,10 @@ export function HeatMap({ heatMap }: { heatMap: PhaseHeatMap }) {
         <Link
           key={phase}
           href={`/dashboard?phase=${phase}`}
-          className="border border-[var(--border)] rounded-xl px-5 py-4 hover:border-[var(--border-strong)] transition-colors block"
+          className="border rounded-xl px-5 py-4 hover:border-border/80 transition-colors block"
         >
-          <p className="text-xs text-[var(--text-secondary)] mb-1">{PHASE_LABELS[phase]}</p>
-          <p className="text-2xl font-semibold text-[var(--text-primary)]">{heatMap[phase]}</p>
+          <p className="text-xs text-muted-foreground mb-1">{PHASE_LABELS[phase]}</p>
+          <p className="text-2xl font-semibold text-foreground">{heatMap[phase]}</p>
         </Link>
       ))}
     </div>

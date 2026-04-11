@@ -59,13 +59,13 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
   return (
     <div className="space-y-8">
       {/* Create new project */}
-      <div className="border border-[var(--border)] rounded-xl px-6 py-5">
+      <div className="border border-border rounded-xl px-6 py-5">
         {showCreateForm ? (
           <ProjectForm onDone={() => setShowCreateForm(false)} />
         ) : (
           <button
             onClick={() => setShowCreateForm(true)}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-2"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
           >
             <span className="text-lg leading-none">+</span> New project
           </button>
@@ -75,10 +75,10 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
       {/* Active projects */}
       {activeProjects.length > 0 && (
         <div>
-          <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">Active</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Active</h2>
           <div className="space-y-1">
             {activeProjects.map((p) => (
-              <div key={p.id} className="border border-[var(--border)] rounded-xl px-5 py-4">
+              <div key={p.id} className="border border-border rounded-xl px-5 py-4">
                 {editingId === p.id ? (
                   <ProjectForm project={p} onDone={() => setEditingId(null)} />
                 ) : (
@@ -86,21 +86,21 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                       <div>
-                        <p className="text-sm font-medium text-[var(--text-primary)]">{p.name}</p>
-                        {p.description && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{p.description}</p>}
+                        <p className="text-sm font-medium text-foreground">{p.name}</p>
+                        {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setEditingId(p.id)}
-                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleArchive(p.id)}
                         disabled={loadingId === p.id}
-                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       >
                         {loadingId === p.id ? "…" : "Archive"}
                       </button>
@@ -120,30 +120,30 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
         <div>
           <button
             onClick={() => setShowArchived((v) => !v)}
-            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {showArchived ? "Hide" : "Show"} archived ({archivedProjects.length})
           </button>
           {showArchived && (
             <div className="mt-3 space-y-1">
               {archivedProjects.map((p) => (
-                <div key={p.id} className="border border-[var(--border)] rounded-xl px-5 py-4 opacity-60">
+                <div key={p.id} className="border border-border rounded-xl px-5 py-4 opacity-60">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                      <p className="text-sm text-[var(--text-secondary)]">{p.name}</p>
+                      <p className="text-sm text-muted-foreground">{p.name}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleUnarchive(p.id)}
                         disabled={loadingId === p.id}
-                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       >
                         {loadingId === p.id ? "…" : "Unarchive"}
                       </button>
                       <button
                         onClick={() => { setDeleteTarget(p); setDeleteAction(null); setDeleteError(null); }}
-                        className="text-xs text-[var(--text-secondary)] hover:text-red-400 transition-colors"
+                        className="text-xs text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         Delete
                       </button>
@@ -158,11 +158,11 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
 
       {/* Delete confirmation dialog */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--text-primary)]/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
-          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md mx-4 space-y-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4 space-y-5" onClick={(e) => e.stopPropagation()}>
             <div>
-              <h3 className="text-base font-semibold text-[var(--text-primary)]">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">This project has existing requests.</p>
+              <h3 className="text-base font-semibold text-foreground">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
+              <p className="text-sm text-muted-foreground mt-1">This project has existing requests.</p>
             </div>
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
@@ -174,12 +174,12 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                   className="mt-0.5"
                 />
                 <div className="flex-1">
-                  <p className="text-sm text-[var(--text-primary)]">Move requests to another project</p>
+                  <p className="text-sm text-foreground">Move requests to another project</p>
                   {deleteAction === "move" && (
                     <select
                       value={moveToId}
                       onChange={(e) => setMoveToId(e.target.value)}
-                      className="mt-2 w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)]"
+                      className="mt-2 w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80"
                     >
                       <option value="">Select project…</option>
                       {moveTargets.map((p) => (
@@ -196,14 +196,14 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                   checked={deleteAction === "delete"}
                   onChange={() => setDeleteAction("delete")}
                 />
-                <p className="text-sm text-[var(--text-primary)]">Delete all requests too</p>
+                <p className="text-sm text-foreground">Delete all requests too</p>
               </label>
             </div>
             {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] rounded-lg px-4 py-2 transition-colors"
+                className="flex-1 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-4 py-2 transition-colors"
               >
                 Cancel
               </button>

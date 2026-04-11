@@ -48,7 +48,7 @@ const TREND_ICONS = { improving: "↑", worsening: "↓", stable: "→" };
 const TREND_COLORS = {
   improving: "text-[#2E5339]",
   worsening: "text-red-600",
-  stable: "text-[var(--text-secondary)]",
+  stable: "text-muted-foreground",
 };
 
 function VariancePill({ v }: { v: number }) {
@@ -115,17 +115,17 @@ export function PmCalibration({ coaching }: Props) {
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-2">
-        <div className="w-3 h-3 border border-[var(--border-strong)] border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs text-[var(--text-tertiary)]">Loading calibration data...</span>
+        <div className="w-3 h-3 border border-border/80 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-muted-foreground/60">Loading calibration data...</span>
       </div>
     );
   }
 
   if (!entries.length) {
     return (
-      <div className="border border-[var(--border)] rounded-xl px-5 py-8 text-center">
-        <p className="text-sm text-[var(--text-tertiary)]">No impact data yet</p>
-        <p className="text-xs text-[var(--text-tertiary)] mt-1">
+      <div className="border rounded-xl px-5 py-8 text-center">
+        <p className="text-sm text-muted-foreground/60">No impact data yet</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">
           PM calibration scores appear after impact is logged on completed requests
         </p>
       </div>
@@ -139,14 +139,14 @@ export function PmCalibration({ coaching }: Props) {
         const isExpanded = expanded === c.pmId;
 
         return (
-          <div key={c.pmId} className="border border-[var(--border)] rounded-xl overflow-hidden">
+          <div key={c.pmId} className="border rounded-xl overflow-hidden">
             <button
               onClick={() => setExpanded(isExpanded ? null : c.pmId)}
-              className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-[var(--bg-subtle)] transition-colors"
+              className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-muted transition-colors"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-[var(--text-primary)] font-medium">{c.fullName}</span>
+                  <span className="text-sm text-foreground font-medium">{c.fullName}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${cfg.style}`}>
                     {cfg.text}
                   </span>
@@ -154,28 +154,28 @@ export function PmCalibration({ coaching }: Props) {
                     {TREND_ICONS[c.trend]}
                   </span>
                 </div>
-                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                <p className="text-xs text-muted-foreground/60 mt-0.5">
                   {c.predictionCount} prediction{c.predictionCount !== 1 ? "s" : ""} · {cfg.desc}
                 </p>
               </div>
               <div className="shrink-0 text-right">
                 <VariancePill v={c.avgVariancePercent} />
-                <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">avg variance</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-0.5">avg variance</p>
               </div>
-              <span className="text-[var(--text-tertiary)] text-xs shrink-0">
+              <span className="text-muted-foreground/60 text-xs shrink-0">
                 {isExpanded ? "▲" : "▼"}
               </span>
             </button>
 
             {isExpanded && (
-              <div className="border-t border-[var(--border)]">
+              <div className="border-t">
                 {/* AI coaching note */}
                 {c.note && (
-                  <div className="px-5 py-3 bg-[var(--bg-subtle)]">
-                    <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">
+                  <div className="px-5 py-3 bg-muted">
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
                       Coaching
                     </p>
-                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">
                       &ldquo;{c.note}&rdquo;
                     </p>
                   </div>
@@ -183,22 +183,22 @@ export function PmCalibration({ coaching }: Props) {
 
                 {/* Recent predictions */}
                 {c.recent.length > 0 && (
-                  <div className="divide-y divide-[var(--border)]">
+                  <div className="divide-y">
                     {c.recent.map((p) => (
                       <div key={p.requestId} className="px-5 py-3 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <Link
                             href={`/dashboard/requests/${p.requestId}`}
-                            className="text-xs text-[var(--text-primary)] hover:text-[var(--text-primary)] transition-colors truncate block"
+                            className="text-xs text-foreground hover:text-foreground transition-colors truncate block"
                           >
                             {p.requestTitle}
                           </Link>
-                          <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                          <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                             Predicted{" "}
-                            <span className="text-[var(--text-secondary)]">{p.predictedValue}</span>
+                            <span className="text-muted-foreground">{p.predictedValue}</span>
                             {" · "}
                             Actual{" "}
-                            <span className="text-[var(--text-secondary)]">
+                            <span className="text-muted-foreground">
                               {p.actualValue ?? "—"}
                             </span>
                           </p>
@@ -214,7 +214,7 @@ export function PmCalibration({ coaching }: Props) {
         );
       })}
 
-      <p className="text-[10px] text-[var(--text-tertiary)] text-center pt-1">
+      <p className="text-[10px] text-muted-foreground/60 text-center pt-1">
         Variance = (actual − predicted) / |predicted| × 100
       </p>
     </div>

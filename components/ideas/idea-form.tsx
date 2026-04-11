@@ -70,14 +70,14 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--text-primary)]/40 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm px-4">
+      <div className="w-full max-w-lg bg-card border rounded-2xl overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Submit an idea</h2>
+        <div className="px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Submit an idea</h2>
           <button
             onClick={onClose}
-            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none"
+            className="text-muted-foreground/60 hover:text-foreground transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -86,48 +86,48 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Title */}
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">Idea title *</label>
+            <label className="text-xs text-muted-foreground block mb-1">Idea title *</label>
             <input
               type="text"
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               placeholder="Short, descriptive name"
-              className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
           {/* Problem */}
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">What problem does this solve? *</label>
+            <label className="text-xs text-muted-foreground block mb-1">What problem does this solve? *</label>
             <textarea
               value={form.problem}
               onChange={(e) => set("problem", e.target.value)}
               rows={3}
               placeholder="Describe the problem clearly..."
-              className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors resize-none"
+              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
             />
           </div>
 
           {/* Proposed solution */}
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">Proposed solution *</label>
+            <label className="text-xs text-muted-foreground block mb-1">Proposed solution *</label>
             <textarea
               value={form.proposedSolution}
               onChange={(e) => set("proposedSolution", e.target.value)}
               rows={3}
               placeholder="How would you solve it?"
-              className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors resize-none"
+              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
             />
           </div>
 
           {/* Category + Effort row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[var(--text-secondary)] block mb-1">Category</label>
+              <label className="text-xs text-muted-foreground block mb-1">Category</label>
               <select
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
-                className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+                className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80 transition-colors"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -135,39 +135,39 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-[var(--text-secondary)] block mb-1">Effort estimate (weeks)</label>
+              <label className="text-xs text-muted-foreground block mb-1">Effort estimate (weeks)</label>
               <input
                 type="number"
                 min={1}
                 value={form.effortEstimateWeeks}
                 onChange={(e) => set("effortEstimateWeeks", e.target.value)}
                 placeholder="e.g. 2"
-                className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+                className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
               />
             </div>
           </div>
 
           {/* Impact estimate */}
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">Expected impact</label>
+            <label className="text-xs text-muted-foreground block mb-1">Expected impact</label>
             <input
               type="text"
               value={form.impactEstimate}
               onChange={(e) => set("impactEstimate", e.target.value)}
               placeholder="e.g. Reduce onboarding drop-off by 20%"
-              className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
           {/* Target users */}
           <div>
-            <label className="text-xs text-[var(--text-secondary)] block mb-1">Target users</label>
+            <label className="text-xs text-muted-foreground block mb-1">Target users</label>
             <input
               type="text"
               value={form.targetUsers}
               onChange={(e) => set("targetUsers", e.target.value)}
               placeholder="e.g. New users in onboarding flow"
-              className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
@@ -177,9 +177,9 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
               type="checkbox"
               checked={form.isAnonymous}
               onChange={(e) => set("isAnonymous", e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--bg-subtle)]"
+              className="w-3.5 h-3.5 rounded border bg-muted"
             />
-            <span className="text-xs text-[var(--text-secondary)]">Submit anonymously</span>
+            <span className="text-xs text-muted-foreground">Submit anonymously</span>
           </label>
 
           {error && (
@@ -192,14 +192,14 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-4 py-2 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground px-4 py-2 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="text-xs bg-[var(--accent)] text-[var(--accent-text)] px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {submitting ? "Submitting..." : "Submit idea"}
             </button>

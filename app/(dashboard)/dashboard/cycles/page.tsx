@@ -49,10 +49,10 @@ export default async function CyclesPage() {
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h1 className="text-lg font-semibold text-foreground">
             Cycles
           </h1>
-          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+          <p className="text-xs text-muted-foreground/60 mt-1">
             Time-boxed appetite windows per project
           </p>
         </div>
@@ -73,7 +73,7 @@ export default async function CyclesPage() {
                   className="inline-block w-2.5 h-2.5 rounded-full"
                   style={{ background: group.projectColor }}
                 />
-                <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {group.projectName}
                 </h2>
               </div>

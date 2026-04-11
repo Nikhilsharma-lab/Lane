@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, organizations } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { profiles, requests, organizations, publishedViews } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { RequestsProvider } from "@/context/requests-context";
 import { GlobalShortcutsProvider } from "@/components/ui/global-shortcuts-provider";
 import { HotkeysProvider } from "@/components/shell/hotkeys-provider";
@@ -17,6 +17,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   let orgRequests: Request[] = [];
+  let userPinnedViews: any[] = [];
   let userId = "";
   let profileRole = "member";
   let isTestUser = false;
@@ -60,6 +61,24 @@ export default async function DashboardLayout({
           .select()
           .from(requests)
           .where(eq(requests.orgId, profile.orgId));
+
+        userPinnedViews = await db
+          .select({
+            id: publishedViews.id,
+            name: publishedViews.name,
+            viewType: publishedViews.viewType,
+            filters: publishedViews.filters,
+            groupBy: publishedViews.groupBy,
+            viewMode: publishedViews.viewMode,
+          })
+          .from(publishedViews)
+          .where(
+            and(
+              eq(publishedViews.orgId, profile.orgId),
+              eq(publishedViews.isActive, true),
+              sql`${publishedViews.pinnedBy} @> ${JSON.stringify([user.id])}::jsonb`
+            )
+          );
       }
     }
   } catch {
@@ -74,7 +93,7 @@ export default async function DashboardLayout({
     <RequestsProvider requests={orgRequests}>
       <GlobalShortcutsProvider>
         <HotkeysProvider>
-        <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
+        <div className="flex min-h-screen bg-background">
           <Sidebar
             user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
             userRole={profileRole}
@@ -87,8 +106,9 @@ export default async function DashboardLayout({
               ctaLabel: "Check it out",
               ctaHref: "/dashboard/ideas",
             }}
+            pinnedViews={userPinnedViews}
           />
-          <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+          <main className="flex-1 min-w-0 overflow-y-auto">
             {children}
           </main>
           <Suspense>

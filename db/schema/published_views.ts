@@ -10,6 +10,9 @@ export interface ViewFilters {
   cycleId?: string[];
   designStage?: string[];
   assigneeId?: string[];
+  kanbanState?: string[];
+  status?: string[];
+  createdBy?: string[];
 }
 
 export const publishedViews = pgTable("published_views", {
@@ -29,6 +32,10 @@ export const publishedViews = pgTable("published_views", {
   allowComments: boolean("allow_comments").notNull().default(false),
   allowVoting: boolean("allow_voting").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
+  groupBy: text("group_by"),
+  viewMode: text("view_mode").notNull().default("list"),
+  sortBy: text("sort_by"),
+  pinnedBy: jsonb("pinned_by").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

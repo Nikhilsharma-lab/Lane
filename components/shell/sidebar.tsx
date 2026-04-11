@@ -8,27 +8,21 @@ import { X } from "lucide-react";
 import {
   Home,
   Inbox,
-  FileText,
-  ArrowRight,
-  LayoutGrid,
-  Kanban,
-  List,
   Lightbulb,
   BarChart3,
-  Target,
-  Activity,
   Settings,
   LogOut,
   Plus,
   Search,
-  ChevronRight,
   ChevronDown,
-  StickyNote,
   Clock,
-  Layers,
+  Zap,
+  FolderOpen,
+  Users,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { PinnedViews } from "@/components/shell/pinned-views";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,19 +35,20 @@ interface NavItem {
   trailing?: string;
 }
 
-interface SectionProps {
-  label: string;
-  count?: number;
-  showAdd?: boolean;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
-
 interface SidebarBanner {
   title: string;
   description: string;
   ctaLabel: string;
   ctaHref: string;
+}
+
+interface PinnedView {
+  id: string;
+  name: string;
+  viewType: string;
+  filters: Record<string, unknown>;
+  groupBy: string | null;
+  viewMode: string;
 }
 
 interface Props {
@@ -63,86 +58,36 @@ interface Props {
   orgPlan: string;
   activeCount: number;
   banner?: SidebarBanner;
-}
-
-// ── Section (collapsible) ────────────────────────────────────────────────────
-
-function Section({ label, count, showAdd, children, defaultOpen = true }: SectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className="mt-2.5">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 w-full px-2.5 py-1 group"
-      >
-        <ChevronRight
-          size={10}
-          className="transition-transform text-[var(--text-tertiary)]"
-          style={{ transform: open ? "rotate(90deg)" : undefined, opacity: 0.5 }}
-        />
-        <span
-          className="flex-1 text-left transition-colors group-hover:text-[var(--text-secondary)]"
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--text-tertiary)",
-          }}
-        >
-          {label}
-        </span>
-        {count !== undefined && (
-          <span
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              color: "var(--text-tertiary)",
-            }}
-          >
-            {count}
-          </span>
-        )}
-        {showAdd && (
-          <span className="hidden group-hover:flex opacity-50">
-            <Plus size={12} />
-          </span>
-        )}
-      </button>
-      {open && <div className="py-0.5 px-1">{children}</div>}
-    </div>
-  );
+  pinnedViews?: PinnedView[];
 }
 
 // ── Nav Item ─────────────────────────────────────────────────────────────────
 
 function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: NavItem) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  // Home only matches exact "/dashboard"; all others use startsWith
+  const isActive =
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href);
 
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-[7px] relative transition-colors"
-      style={{
-        background: isActive ? "var(--bg-hover)" : undefined,
-      }}
+      className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-[7px] relative transition-colors${isActive ? " bg-accent" : ""}`}
     >
       {isActive && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r"
-          style={{ width: 2.5, height: 14, background: "var(--accent)" }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r bg-primary"
+          style={{ width: 2.5, height: 14 }}
         />
       )}
       <Icon size={15} />
       <span
-        className="flex-1 truncate"
+        className={`flex-1 truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}
         style={{
           fontSize: 13,
           fontWeight: isActive ? 560 : 460,
-          color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
           letterSpacing: "-0.01em",
         }}
       >
@@ -150,7 +95,13 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
       </span>
       {badge !== undefined && (
         <span
-          className="rounded-full text-center"
+          className={`rounded-full text-center ${
+            badgeStyle === "accent"
+              ? "bg-primary text-primary-foreground"
+              : badgeStyle === "warn"
+              ? "bg-yellow-100 text-yellow-700"
+              : "bg-muted text-muted-foreground border"
+          }`}
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
@@ -158,11 +109,6 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
             padding: "1px 6px",
             minWidth: 16,
             lineHeight: "16px",
-            ...(badgeStyle === "accent"
-              ? { background: "var(--accent)", color: "#fff" }
-              : badgeStyle === "warn"
-              ? { background: "rgba(212,168,75,0.12)", color: "#D4A84B" }
-              : { background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border)" }),
           }}
         >
           {badge}
@@ -170,10 +116,10 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
       )}
       {trailing && (
         <span
+          className="text-muted-foreground/60"
           style={{
             fontFamily: "'Geist Mono', monospace",
             fontSize: 10,
-            color: "var(--text-tertiary)",
           }}
         >
           {trailing}
@@ -183,51 +129,75 @@ function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: N
   );
 }
 
+// ── Divider ───────────────────────────────────────────────────────────────────
+
+function NavDivider() {
+  return <div className="my-1 mx-2.5 border-t" />;
+}
+
+// ── Section Label ─────────────────────────────────────────────────────────────
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div className="px-2.5 pt-2 pb-1">
+      <span
+        style={{
+          fontFamily: "'Geist Mono', monospace",
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase" as const,
+          color: "var(--text-tertiary)",
+          opacity: 0.6,
+        }}
+        className="text-muted-foreground/60"
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner }: Props) {
+export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner, pinnedViews }: Props) {
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const hasPinnedViews = pinnedViews && pinnedViews.length > 0;
 
   return (
     <aside
-      className="flex flex-col shrink-0 select-none"
+      className="flex flex-col shrink-0 select-none bg-muted border-r sticky top-0 z-20"
       style={{
         width: 256,
         minWidth: 256,
         height: "100vh",
-        background: "var(--bg-subtle)",
-        borderRight: "1px solid var(--border)",
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
       }}
     >
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="px-3.5 pt-4 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-2.5 px-1.5 py-1 rounded-lg cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
+      <div className="px-3.5 pt-4 pb-3 border-b">
+        <div className="flex items-center gap-2.5 px-1.5 py-1 rounded-lg cursor-pointer hover:bg-accent transition-colors">
           <div
-            className="flex items-center justify-center rounded-[7px] shrink-0"
+            className="flex items-center justify-center rounded-[7px] shrink-0 bg-primary"
             style={{
               width: 28,
               height: 28,
-              background: "var(--accent)",
               boxShadow: "0 1px 4px rgba(46,83,57,0.15)",
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>L</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 13.5, fontWeight: 620, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+            <div className="text-foreground" style={{ fontSize: 13.5, fontWeight: 620, letterSpacing: "-0.02em" }}>
               {orgName}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
+                className="text-primary"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 9,
                   fontWeight: 600,
                   letterSpacing: "0.04em",
-                  color: "var(--accent)",
                   background: "rgba(46,83,57,0.08)",
                   padding: "1px 5px",
                   borderRadius: 3,
@@ -236,36 +206,28 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
                 {orgPlan}
               </span>
               <span
+                className="text-muted-foreground/60"
                 style={{
                   fontFamily: "'Geist Mono', monospace",
                   fontSize: 10,
-                  color: "var(--text-tertiary)",
                 }}
               >
                 {activeCount} active
               </span>
             </div>
           </div>
-          <ChevronDown size={14} className="shrink-0 opacity-40" style={{ color: "var(--text-tertiary)" }} />
+          <ChevronDown size={14} className="shrink-0 opacity-40 text-muted-foreground/60" />
         </div>
 
         {/* Search */}
-        <div
-          className="flex items-center gap-2 mt-2.5 px-2.5 py-[7px] rounded-[7px] cursor-text"
-          style={{
-            background: "var(--bg-hover)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <Search size={13} style={{ color: "var(--text-tertiary)" }} />
-          <span style={{ fontSize: 12.5, color: "var(--text-tertiary)", flex: 1 }}>Search...</span>
+        <div className="flex items-center gap-2 mt-2.5 px-2.5 py-[7px] rounded-[7px] cursor-text bg-accent border">
+          <Search size={13} className="text-muted-foreground/60" />
+          <span className="text-muted-foreground/60 flex-1" style={{ fontSize: 12.5 }}>Search...</span>
           <kbd
+            className="text-muted-foreground/60 bg-muted border"
             style={{
               fontFamily: "'Geist Mono', monospace",
               fontSize: 9.5,
-              color: "var(--text-tertiary)",
-              background: "var(--bg-subtle)",
-              border: "1px solid var(--border)",
               padding: "1px 5px",
               borderRadius: 3,
             }}
@@ -275,45 +237,48 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
         </div>
       </div>
 
-      {/* ── Scrollable ──────────────────────────────────────────── */}
+      {/* ── Scrollable Nav ──────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sidebar-scroll">
-        {/* Personal */}
-        <Section label="Personal">
-          <NavItemLink href="/dashboard" icon={Home} label="My Work" />
+        {/* Group 1: Personal */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard" icon={Home} label="Home" />
           <NavItemLink href="/dashboard/inbox" icon={Inbox} label="Inbox" badge={3} badgeStyle="accent" />
-          <NavItemLink href="/dashboard/drafts" icon={FileText} label="Drafts" />
-          <NavItemLink href="/dashboard/stickies" icon={StickyNote} label="Stickies" />
-        </Section>
+        </div>
 
-        {/* Workspace */}
-        <Section label="Workspace">
-          <NavItemLink href="/dashboard/intake" icon={Inbox} label="Intake" />
-          <NavItemLink href="/dashboard/journey" icon={ArrowRight} label="Journey View" />
-          <NavItemLink href="/dashboard/betting" icon={LayoutGrid} label="Betting Board" />
-          <NavItemLink href="/dashboard/dev" icon={Kanban} label="Dev Board" />
-          <NavItemLink href="/dashboard" icon={List} label="All Requests" />
-          <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Idea Board" />
+        <NavDivider />
+
+        {/* Group 2: Workspace */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard/requests" icon={Zap} label="Requests" />
+          <NavItemLink href="/dashboard/projects" icon={FolderOpen} label="Projects" />
+          <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Ideas" />
           <NavItemLink href="/dashboard/cycles" icon={Clock} label="Cycles" />
-          <NavItemLink href="/dashboard/initiatives" icon={Layers} label="Initiatives" />
-        </Section>
+        </div>
 
-        {/* Insights */}
-        <Section label="Insights">
-          <NavItemLink href="/dashboard/insights" icon={BarChart3} label="Capacity" />
-          <NavItemLink href="/dashboard/insights/impact" icon={Target} label="Impact" />
-          <NavItemLink href="/dashboard/radar" icon={Activity} label="Team Health" />
-          <NavItemLink href="/dashboard/team" icon={Activity} label="Team" />
-        </Section>
+        <NavDivider />
+
+        {/* Group 3: Insights + Team */}
+        <div className="py-0.5 px-1">
+          <NavItemLink href="/dashboard/insights" icon={BarChart3} label="Insights" />
+          <NavItemLink href="/dashboard/team" icon={Users} label="Team" />
+        </div>
+
+        {/* Pinned Views (only shown if views exist) */}
+        {hasPinnedViews && (
+          <>
+            <NavDivider />
+            <SectionLabel label="Pinned Views" />
+            <PinnedViews views={pinnedViews!} />
+          </>
+        )}
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="shrink-0 border-t">
         {/* New Request button */}
         <button
-          className="flex items-center justify-center gap-1.5 mx-3 mt-3 py-2 w-[calc(100%-24px)] rounded-[7px] transition-colors"
+          className="flex items-center justify-center gap-1.5 mx-3 mt-3 py-2 w-[calc(100%-24px)] rounded-[7px] transition-colors bg-primary text-primary-foreground"
           style={{
-            background: "var(--accent)",
-            color: "#fff",
             fontFamily: "'Satoshi', sans-serif",
             fontSize: 12.5,
             fontWeight: 560,
@@ -328,34 +293,26 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
 
         {/* Promo / update banner */}
         {banner && !bannerDismissed && (
-          <div
-            className="mx-2.5 mt-2.5 p-3 rounded-lg"
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-            }}
-          >
+          <div className="mx-2.5 mt-2.5 p-3 rounded-lg bg-card border">
             <div className="flex items-start justify-between gap-2">
-              <span style={{ fontSize: 13, fontWeight: 580, color: "var(--text-primary)", lineHeight: 1.3 }}>
+              <span className="text-foreground" style={{ fontSize: 13, fontWeight: 580, lineHeight: 1.3 }}>
                 {banner.title}
               </span>
               <button
                 onClick={() => setBannerDismissed(true)}
-                className="shrink-0 flex items-center justify-center rounded hover:bg-[var(--bg-hover)] transition-colors"
-                style={{ width: 20, height: 20, background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", marginTop: -2 }}
+                className="shrink-0 flex items-center justify-center rounded hover:bg-accent transition-colors text-muted-foreground/60"
+                style={{ width: 20, height: 20, background: "none", border: "none", cursor: "pointer", marginTop: -2 }}
               >
                 <X size={10} />
               </button>
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
+            <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
               {banner.description}
             </p>
             <Link
               href={banner.ctaHref}
-              className="flex items-center justify-center mt-2.5 py-1.5 rounded-md transition-opacity hover:opacity-85"
+              className="flex items-center justify-center mt-2.5 py-1.5 rounded-md transition-opacity hover:opacity-85 bg-foreground text-background"
               style={{
-                background: "var(--text-primary)",
-                color: "var(--bg-surface)",
                 fontSize: 12,
                 fontWeight: 560,
                 textDecoration: "none",
@@ -369,25 +326,24 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
         {/* User */}
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 pb-4">
           <div
-            className="flex items-center justify-center rounded-full shrink-0 cursor-pointer"
+            className="flex items-center justify-center rounded-full shrink-0 cursor-pointer text-foreground"
             style={{
               width: 28,
               height: 28,
               background: "linear-gradient(135deg, rgba(46,83,57,0.30), rgba(194,123,158,0.30))",
               fontSize: 10.5,
               fontWeight: 650,
-              color: "var(--text-primary)",
             }}
           >
             {user.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 530, color: "var(--text-primary)" }}>{user.name}</div>
+            <div className="text-foreground" style={{ fontSize: 12.5, fontWeight: 530 }}>{user.name}</div>
             <div
+              className="text-muted-foreground/60"
               style={{
                 fontFamily: "'Geist Mono', monospace",
                 fontSize: 10,
-                color: "var(--text-tertiary)",
                 marginTop: 1,
               }}
             >
@@ -398,7 +354,7 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
             <NotificationsBell userRole={userRole} />
             <Link
               href="/settings"
-              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-[var(--bg-hover)] transition-all"
+              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-accent transition-all"
             >
               <Settings size={14} />
             </Link>
@@ -414,7 +370,6 @@ export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, banner 
           </div>
         </div>
       </div>
-
     </aside>
   );
 }

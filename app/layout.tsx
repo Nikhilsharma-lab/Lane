@@ -3,10 +3,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
-
-const heading = Inter({subsets:['latin'],variable:'--font-heading'});
 
 const sans = GeistSans;
 const mono = GeistMono;
@@ -22,12 +19,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={cn("font-mono", sans.variable, mono.variable, heading.variable)}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
-      </head>
+    <html lang="en" className={cn(sans.variable, mono.variable, "font-mono")}>
       <body>{children}<SpeedInsights /></body>
     </html>
   )

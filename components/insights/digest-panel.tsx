@@ -26,16 +26,16 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
 
   if (!digest && !loading) {
     return (
-      <div className="border border-[var(--border)] rounded-xl p-8 text-center">
-        <p className="text-sm text-[var(--text-secondary)] mb-1">
+      <div className="border rounded-xl p-8 text-center">
+        <p className="text-sm text-muted-foreground mb-1">
           AI reads your pipeline and writes the digest
         </p>
-        <p className="text-xs text-[var(--text-tertiary)] mb-5">
+        <p className="text-xs text-muted-foreground/60 mb-5">
           Shipped this week, cycle times, standout performers, coaching recommendations
         </p>
         <button
           onClick={generate}
-          className="bg-[var(--accent)] text-[var(--accent-text)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           ✦ Generate digest
         </button>
@@ -45,10 +45,10 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
 
   if (loading) {
     return (
-      <div className="border border-[var(--border)] rounded-xl p-8">
+      <div className="border rounded-xl p-8">
         <div className="flex items-center gap-3">
-          <span className="w-4 h-4 border-2 border-[var(--border-strong)] border-t-[var(--accent)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--text-secondary)]">Reading the pipeline…</span>
+          <span className="w-4 h-4 border-2 border-border/80 border-t-primary rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">Reading the pipeline…</span>
         </div>
       </div>
     );
@@ -57,39 +57,39 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
   if (!digest) return null;
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+    <div className="border rounded-xl overflow-hidden">
       {/* Headline */}
-      <div className="px-5 py-4 bg-[var(--accent-subtle)] border-b border-[var(--accent)]/15">
-        <p className="text-[10px] text-[var(--accent)] uppercase tracking-wide font-medium mb-1">
+      <div className="px-5 py-4 bg-primary/10 border-b border-primary/15">
+        <p className="text-[10px] text-primary uppercase tracking-wide font-medium mb-1">
           ✦ Weekly design digest
         </p>
-        <p className="text-sm text-[var(--text-primary)] font-medium leading-snug">
+        <p className="text-sm text-foreground font-medium leading-snug">
           {digest.headline}
         </p>
       </div>
 
-      <div className="divide-y divide-[var(--border)]">
+      <div className="divide-y divide-border">
         <div className="px-5 py-4">
           <p className="text-[10px] text-[#2E5339] uppercase tracking-wide font-medium mb-2">
             🚢 Shipped this week
           </p>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
             {digest.shippedThisWeek}
           </p>
         </div>
 
         <div className="px-5 py-4">
-          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide font-medium mb-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">
             🧠 Team health
           </p>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.teamHealth}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{digest.teamHealth}</p>
         </div>
 
         <div className="px-5 py-4">
           <p className="text-[10px] text-[#D4A84B] uppercase tracking-wide font-medium mb-2">
             ⭐ Standout
           </p>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{digest.standout}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{digest.standout}</p>
         </div>
 
         <div className="px-5 py-4">
@@ -100,7 +100,7 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
             {digest.recommendations.map((rec, i) => (
               <li
                 key={i}
-                className="text-sm text-[var(--text-secondary)] leading-relaxed flex gap-2"
+                className="text-sm text-muted-foreground leading-relaxed flex gap-2"
               >
                 <span className="text-amber-500/60 shrink-0">{i + 1}.</span>
                 <span>{rec}</span>
@@ -110,8 +110,8 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
         </div>
       </div>
 
-      <div className="border-t border-[var(--border)] px-5 py-3 flex items-center justify-between">
-        <span className="text-[10px] text-[var(--text-tertiary)]">
+      <div className="border-t px-5 py-3 flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground/60">
           Generated by Claude ·{" "}
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
@@ -121,7 +121,7 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
         </span>
         <button
           onClick={generate}
-          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Regenerate
         </button>

@@ -117,17 +117,17 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   }, [canAdvance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+    <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-subtle)] flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 2 — Design
         </span>
-        <span className="text-xs text-[var(--text-tertiary)]">Designer leads</span>
+        <span className="text-xs text-muted-foreground/60">Designer leads</span>
       </div>
 
       {/* Stage stepper */}
-      <div className="px-5 py-4 border-b border-[var(--border)]">
+      <div className="px-5 py-4 border-b">
         <div className="flex items-start">
           {STAGES.map((s, i) => {
             const isDone = i < optimisticIdx;
@@ -140,18 +140,18 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                       ? "bg-green-500/15 border-green-500/30 text-green-400"
                       : isCurrent
                       ? "bg-[#D4A84B]/10 border-[#D4A84B]/20 text-[#D4A84B]"
-                      : "bg-[var(--bg-hover)] border-[var(--border)] text-[var(--text-tertiary)]"
+                      : "bg-accent border text-muted-foreground/60"
                   }`}>
                     {isDone ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
-                    isCurrent ? "text-[#D4A84B]" : isDone ? "text-green-500/80" : "text-[var(--text-tertiary)]"
+                    isCurrent ? "text-[#D4A84B]" : isDone ? "text-green-500/80" : "text-muted-foreground/60"
                   }`}>
                     {s.label}
                   </span>
                 </div>
                 {i < STAGES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-[var(--bg-hover)]"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-accent"}`} />
                 )}
               </div>
             );
@@ -163,8 +163,8 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
       <div className="px-5 py-4 space-y-4">
         {current && (
           <div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] mb-0.5">{current.label}</p>
-            <p className="text-xs text-[var(--text-secondary)]">{current.desc}</p>
+            <p className="text-xs font-semibold text-foreground mb-0.5">{current.label}</p>
+            <p className="text-xs text-muted-foreground">{current.desc}</p>
           </div>
         )}
 
@@ -177,7 +177,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <div>
               {missing.length > 0 ? (
                 <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
-                  <p className="text-[11px] text-[var(--text-secondary)]">
+                  <p className="text-[11px] text-muted-foreground">
                     {isLastDesign ? "To hand off to dev:" : `To advance to ${nextStage?.label}:`}
                   </p>
                   {missing.map((m, i) => (
@@ -200,10 +200,10 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <button
               onClick={handleAdvance}
               disabled={!canAdvance}
-              className="text-xs bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage?.label}`}
-              <kbd className="hidden md:inline ml-2 text-[10px] border border-[var(--border-strong)] rounded px-1 py-0.5 font-mono opacity-60">
+              <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">
                 ⌘↵
               </kbd>
             </button>
@@ -217,21 +217,14 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
       {/* Iterations section — shown during diverge & converge */}
       {showIterations && (
-        <div className="px-5 py-4 border-t border-[var(--border)] space-y-3">
+        <div className="px-5 py-4 border-t space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-[var(--text-primary)]">
+            <p className="text-xs font-semibold text-foreground">
               Iterations{iterationsList.length > 0 ? ` (${iterationsList.length})` : ""}
             </p>
             <button
               onClick={() => setShowAddForm((v) => !v)}
-              className="flex items-center gap-1 text-[11px] font-medium transition-colors"
-              style={{
-                color: "var(--accent)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-              }}
+              className="flex items-center gap-1 text-[11px] font-medium text-primary transition-colors bg-transparent border-none cursor-pointer p-0"
             >
               <Plus size={12} />
               Add Direction
@@ -240,45 +233,40 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
           {/* Add form */}
           {showAddForm && (
-            <form onSubmit={handleAddIteration} className="space-y-2 p-3 rounded-lg" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+            <form onSubmit={handleAddIteration} className="space-y-2 p-3 rounded-lg bg-muted border">
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Direction title"
-                className="w-full rounded-md px-2.5 py-1.5"
-                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none"
               />
               <textarea
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full rounded-md px-2.5 py-1.5 resize-none"
-                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none resize-none"
               />
               <input
                 type="url"
                 value={newFigmaUrl}
                 onChange={(e) => setNewFigmaUrl(e.target.value)}
                 placeholder="Figma URL (optional)"
-                className="w-full rounded-md px-2.5 py-1.5"
-                style={{ fontSize: 12, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none"
               />
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="text-[11px] px-2.5 py-1 rounded-md transition-colors"
-                  style={{ color: "var(--text-secondary)", background: "none", border: "1px solid var(--border)", cursor: "pointer" }}
+                  className="text-[11px] px-2.5 py-1 rounded-md border text-muted-foreground bg-transparent cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addingIteration || !newTitle.trim()}
-                  className="text-[11px] px-2.5 py-1 rounded-md transition-opacity disabled:opacity-40"
-                  style={{ fontWeight: 500, color: "#fff", background: "var(--accent)", border: "none", cursor: "pointer" }}
+                  className="text-[11px] px-2.5 py-1 rounded-md font-medium text-primary-foreground bg-primary border-none cursor-pointer transition-opacity disabled:opacity-40"
                 >
                   {addingIteration ? "Adding..." : "Add"}
                 </button>
@@ -288,7 +276,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
           {/* Iteration list */}
           {iterationsList.length === 0 && !showAddForm && (
-            <p className="text-[11px] text-[var(--text-tertiary)] py-2">
+            <p className="text-[11px] text-muted-foreground/60 py-2">
               {currentDesignStage === "diverge"
                 ? "Start exploring directions. There's no wrong answer yet."
                 : "Narrow down your directions. Log what you chose and why."}

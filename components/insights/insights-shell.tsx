@@ -20,7 +20,7 @@ export function InsightsShell({ initialDigest, initialPmCoaching }: Props) {
     <>
       {/* Weekly digest */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           Weekly digest
         </h2>
         <DigestPanel
@@ -31,7 +31,7 @@ export function InsightsShell({ initialDigest, initialPmCoaching }: Props) {
 
       {/* PM calibration */}
       <section>
-        <h2 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           PM calibration
         </h2>
         <PmCalibration coaching={pmCoaching ?? undefined} />
