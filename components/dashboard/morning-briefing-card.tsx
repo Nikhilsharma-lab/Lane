@@ -200,9 +200,9 @@ export function MorningBriefingCard({ brief, alertCount = 0 }: Props) {
                   {content.oneThing}
                 </p>
                 {content.oneThingHref && (
-                  <Button size="xs" render={<Link href={content.oneThingHref} />}>
+                  <Link href={content.oneThingHref} className="shrink-0 inline-flex items-center h-5 px-2 rounded-sm bg-primary text-primary-foreground text-[10px] font-medium hover:bg-primary/80 transition-colors">
                     Go →
-                  </Button>
+                  </Link>
                 )}
               </div>
             </>

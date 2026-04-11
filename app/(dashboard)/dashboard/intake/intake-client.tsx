@@ -64,17 +64,7 @@ export function IntakeClientWrapper({
             aiAnalysis={activeDetail.aiAnalysis}
           />
         ) : (
-          <div
-            className="text-muted-foreground/60"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 12,
-            }}
-          >
+          <div className="flex items-center justify-center h-full font-mono text-xs text-muted-foreground/60">
             Select a request to view details
           </div>
         )}

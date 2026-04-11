@@ -53,22 +53,7 @@ const PHASE_LABELS: Record<string, string> = {
 
 function Kbd({ children }: { children: string }) {
   return (
-    <kbd
-      className="bg-muted border border-border text-muted-foreground/60"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minWidth: 18,
-        height: 18,
-        padding: "0 4px",
-        borderRadius: 3,
-        fontSize: 10,
-        fontFamily: "'Geist Mono', monospace",
-        fontWeight: 500,
-        lineHeight: 1,
-      }}
-    >
+    <kbd className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-sm text-[10px] font-mono font-medium leading-none bg-muted border text-muted-foreground/60">
       {children}
     </kbd>
   );

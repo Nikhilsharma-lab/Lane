@@ -35,14 +35,12 @@ export function SettingsSidebar({ isAdmin }: Props) {
 
   return (
     <aside className="w-[200px] shrink-0">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-5 text-xs text-muted-foreground/60 hover:text-foreground"
-        render={<Link href="/dashboard" />}
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center mb-5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
       >
         &larr; Dashboard
-      </Button>
+      </Link>
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 px-3">
         Settings
       </p>

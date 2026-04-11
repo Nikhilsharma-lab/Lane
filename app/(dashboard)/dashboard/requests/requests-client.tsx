@@ -10,7 +10,7 @@ import {
   useSensors,
   closestCorners,
 } from "@dnd-kit/core";
-import { Search, Plus, Share2 } from "lucide-react";
+import { Search, Plus, Share2, InboxIcon } from "lucide-react";
 import {
   KANBAN_STATES,
   KANBAN_STATE_LABELS,
@@ -27,9 +27,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { NewRequestForm } from "@/components/requests/new-request-form";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
 import { ShareDialog } from "@/components/published/share-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { DESIGN_STAGES, getActiveStageLabel, getPhaseLabel } from "@/lib/workflow";
 import type { Request, Project } from "@/db/schema";
-import { InboxIcon } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,23 +43,17 @@ type PhaseFilter = "all" | "predesign" | "design" | "dev" | "track";
 function PriorityBadge({ priority }: { priority: string | null }) {
   if (!priority) return null;
   return (
-    <span
+    <Badge
+      variant="outline"
+      className="font-mono text-[10px] font-bold uppercase tracking-[0.04em] shrink-0 rounded px-1.5 py-px"
       style={{
-        display: "inline-block",
-        fontFamily: "'Geist Mono', monospace",
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-        padding: "1px 6px",
-        borderRadius: 4,
         background: `var(--priority-${priority}-bg)`,
         color: `var(--priority-${priority}-text)`,
-        flexShrink: 0,
+        borderColor: "transparent",
       }}
     >
       {priority.toUpperCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -170,11 +167,9 @@ export function RequestsClient({
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
       const params = new URLSearchParams();
-      // Carry forward existing params
       for (const [k, v] of Object.entries(searchParams)) {
         if (typeof v === "string") params.set(k, v);
       }
-      // Apply updates
       for (const [k, v] of Object.entries(updates)) {
         if (v === null || v === "" || v === "none" || v === "all") {
           params.delete(k);
@@ -348,113 +343,52 @@ export function RequestsClient({
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
+    <div className="flex flex-col h-full overflow-hidden">
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          height: 52,
-          padding: "0 20px",
-          flexShrink: 0,
-        }}
-        className="border-b bg-card"
-      >
+      <div className="flex items-center gap-2 h-[52px] px-5 shrink-0 border-b bg-card">
         {/* Page title */}
-        <span
-          style={{
-            fontFamily: "'Satoshi', sans-serif",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            marginRight: 12,
-            flexShrink: 0,
-          }}
-          className="text-foreground"
-        >
+        <span className="text-[13px] font-semibold tracking-[-0.01em] mr-3 shrink-0 text-foreground">
           Requests
         </span>
 
         {/* Phase tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
+        <div className="flex items-center gap-0.5 flex-1">
           {PHASE_TABS.map((tab) => {
             const isActive = phaseFilter === tab.key;
             return (
-              <button
+              <Button
                 key={tab.key}
+                variant={isActive ? "default" : "ghost"}
+                size="sm"
                 onClick={() => handlePhaseChange(tab.key)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  height: 28,
-                  padding: "0 10px",
-                  border: "none",
-                  borderRadius: 6,
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 11,
-                  fontWeight: isActive ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "background 0.1s, color 0.1s",
-                  background: isActive ? "hsl(var(--primary))" : "transparent",
-                  color: isActive ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                  whiteSpace: "nowrap",
-                }}
-                className={isActive ? "" : "hover:bg-accent"}
+                className={`font-mono text-[11px] gap-1.5 whitespace-nowrap ${
+                  isActive ? "font-semibold" : "font-normal text-muted-foreground"
+                }`}
               >
                 {tab.label}
                 <span
-                  style={{
-                    fontFamily: "'Geist Mono', monospace",
-                    fontSize: 9,
-                    opacity: isActive ? 0.7 : 0.5,
-                  }}
+                  className={`font-mono text-[9px] ${
+                    isActive ? "opacity-70" : "opacity-50"
+                  }`}
                 >
                   {phaseCounts[tab.key]}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
 
         {/* Right side controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Search */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              height: 28,
-              padding: "0 8px",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 6,
-              background: "hsl(var(--muted))",
-            }}
-          >
-            <Search size={11} className="text-muted-foreground/60" style={{ flexShrink: 0 }} />
-            <input
+          <div className="flex items-center gap-1.5 h-7 px-2 border border-border rounded-md bg-muted">
+            <Search size={11} className="text-muted-foreground/60 shrink-0" />
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => updateParams({ q: e.target.value || null })}
-              placeholder="Search…"
-              style={{
-                width: 120,
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 11,
-              }}
-              className="text-foreground"
+              placeholder="Search..."
+              className="w-[120px] h-auto border-0 bg-transparent p-0 font-mono text-[11px] text-foreground shadow-none focus-visible:ring-0 focus-visible:border-transparent"
             />
           </div>
 
@@ -476,65 +410,32 @@ export function RequestsClient({
             onSave={handleSaveView}
           />
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowShareDialog(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              height: 28,
-              padding: "0 10px",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 6,
-              background: "transparent",
-              color: "hsl(var(--muted-foreground))",
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 11,
-              fontWeight: 500,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-            className="hover:bg-accent"
+            className="font-mono text-[11px] font-medium text-muted-foreground shrink-0"
           >
             <Share2 size={11} />
             Share
-          </button>
+          </Button>
 
           {/* New request */}
-          <button
+          <Button
+            variant="default"
+            size="sm"
             onClick={() => setShowNewForm(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              height: 28,
-              padding: "0 10px",
-              border: "none",
-              borderRadius: 6,
-              background: "hsl(var(--primary))",
-              color: "hsl(var(--primary-foreground))",
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
+            className="font-mono text-[11px] font-semibold shrink-0"
           >
             <Plus size={12} />
             New
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* ── Filter chips sub-bar ─────────────────────────────────────────── */}
       {filterChips.length > 0 && (
-        <div
-          style={{
-            padding: "0 20px",
-            flexShrink: 0,
-          }}
-          className="border-b bg-card"
-        >
+        <div className="px-5 shrink-0 border-b bg-card">
           <FilterChips
             chips={filterChips}
             onRemove={(key) => updateParams({ [key]: null })}
@@ -546,7 +447,7 @@ export function RequestsClient({
       )}
 
       {/* ── Content area ─────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div className="flex-1 overflow-auto">
         {filteredRequests.length === 0 ? (
           <EmptyState
             icon={InboxIcon}
@@ -573,7 +474,6 @@ export function RequestsClient({
             }
           />
         ) : viewMode === "kanban" && phaseFilter === "dev" ? (
-          // ── Kanban view (dev phase only) ──────────────────────────────
           <KanbanContent
             requests={filteredRequests}
             projectMap={projectMap}
@@ -585,7 +485,6 @@ export function RequestsClient({
             handleDragEnd={handleDragEnd}
           />
         ) : viewMode === "board" && phaseFilter === "design" ? (
-          // ── Board view (design phase only) ───────────────────────────
           <BoardView
             requests={filteredRequests}
             columns={DESIGN_BOARD_COLUMNS}
@@ -594,7 +493,6 @@ export function RequestsClient({
             onRequestClick={(r) => openDock(r.id)}
           />
         ) : (
-          // ── List view (default) ──────────────────────────────────────
           <ListView
             requests={filteredRequests}
             projectMap={projectMap}
@@ -607,21 +505,7 @@ export function RequestsClient({
 
       {/* ── Error toast ──────────────────────────────────────────────────── */}
       {error && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            background: "color-mix(in oklch, var(--accent-danger) 10%, transparent)",
-            border: "1px solid color-mix(in oklch, var(--accent-danger) 20%, transparent)",
-            color: "var(--accent-danger)",
-            borderRadius: 8,
-            padding: "8px 14px",
-            fontSize: 12,
-            fontFamily: "'Geist Mono', monospace",
-            zIndex: 100,
-          }}
-        >
+        <div className="fixed bottom-5 right-5 rounded-lg px-3.5 py-2 text-xs font-mono z-[100] bg-[color-mix(in_oklch,var(--accent-danger)_10%,transparent)] border border-[color-mix(in_oklch,var(--accent-danger)_20%,transparent)] text-[var(--accent-danger)]">
           {error}
         </div>
       )}
@@ -629,31 +513,12 @@ export function RequestsClient({
       {/* ── New request modal ─────────────────────────────────────────────── */}
       {showNewForm && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            zIndex: 200,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
+          className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-5"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowNewForm(false);
           }}
         >
-          <div
-            style={{
-              background: "hsl(var(--card))",
-              borderRadius: 12,
-              width: "100%",
-              maxWidth: 600,
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.16)",
-            }}
-          >
+          <div className="bg-card rounded-xl w-full max-w-[600px] max-h-[90vh] overflow-y-auto shadow-[0_8px_32px_rgba(0,0,0,0.16)]">
             <NewRequestForm
               onClose={() => {
                 setShowNewForm(false);
@@ -717,46 +582,13 @@ function KanbanContent({
     columns[state].push(toCardData(r, projectMap, assigneesByRequest));
   }
 
-  function toCardData(
-    r: Request,
-    pm: Record<string, { name: string; color: string }>,
-    ab: Record<string, string[]>
-  ): CardData {
-    const proj = r.projectId ? pm[r.projectId] : null;
-    return {
-      id: r.id,
-      title: r.title,
-      description: r.description,
-      businessContext: r.businessContext ?? null,
-      priority: r.priority ?? null,
-      requestType: r.requestType ?? null,
-      kanbanState: (r.kanbanState ?? "todo") as KanbanState,
-      projectId: r.projectId ?? null,
-      projectName: proj?.name ?? null,
-      projectColor: proj?.color ?? null,
-      assignees: ab[r.id] ?? [],
-      deadlineAt: r.deadlineAt ? r.deadlineAt.toISOString() : null,
-      figmaUrl: r.figmaUrl ?? null,
-      figmaLockedAt: r.figmaLockedAt ? r.figmaLockedAt.toISOString() : null,
-    };
-  }
-
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragEnd={handleDragEnd}
     >
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          padding: "16px 20px",
-          height: "100%",
-          alignItems: "flex-start",
-          overflowX: "auto",
-        }}
-      >
+      <div className="flex gap-3 px-5 py-4 h-full items-start overflow-x-auto">
         {KANBAN_STATES.map((state) => (
           <KanbanColumn
             key={state}
@@ -792,8 +624,6 @@ function ListView({
   groupBy,
   onRequestClick,
 }: ListViewProps) {
-  // When groupBy is "none", "assignee", or "cycle" we just render flat list
-  // For phase/stage/project/priority we group
   const groupableKeys: GroupableKey[] = ["phase", "stage", "project", "priority"];
   const shouldGroup = groupableKeys.includes(groupBy as GroupableKey);
 
@@ -833,7 +663,6 @@ function ListView({
         ? (projectMap[r.projectId]?.name ?? r.projectId)
         : "No Project";
     } else {
-      // priority
       key = r.priority ?? "__none__";
       label = r.priority ? r.priority.toUpperCase() : "No Priority";
     }
@@ -849,34 +678,11 @@ function ListView({
       {Array.from(groups.entries()).map(([key, group]) => (
         <div key={key}>
           {/* Group header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "10px 20px 6px",
-            }}
-            className="border-b bg-muted"
-          >
-            <span
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 10,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-              className="text-muted-foreground"
-            >
+          <div className="flex items-center gap-2 px-5 pt-2.5 pb-1.5 border-b bg-muted">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
               {group.label}
             </span>
-            <span
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 10,
-              }}
-              className="text-muted-foreground/60"
-            >
+            <span className="font-mono text-[10px] text-muted-foreground/60">
               {group.requests.length}
             </span>
           </div>
@@ -898,26 +704,11 @@ function ListView({
 
 function ListHeader() {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "80px 1fr 120px 140px 70px",
-        gap: 12,
-        padding: "6px 20px",
-        }}
-        className="border-b bg-muted"
-    >
+    <div className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-1.5 border-b bg-muted">
       {["ID", "REQUEST", "STAGE", "ASSIGNEE", "PRIORITY"].map((col) => (
         <span
           key={col}
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-          className="text-muted-foreground/60"
+          className="font-mono text-[9px] font-semibold tracking-[0.08em] uppercase text-muted-foreground/60"
         >
           {col}
         </span>
@@ -941,93 +732,33 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
   return (
     <button
       onClick={onClick}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "80px 1fr 120px 140px 70px",
-        gap: 12,
-        padding: "9px 20px",
-        width: "100%",
-        textAlign: "left",
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        transition: "background 0.1s",
-        alignItems: "center",
-      }}
-      className="border-b hover:bg-muted"
+      className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-2.5 w-full text-left bg-transparent cursor-pointer transition-colors items-center border-b hover:bg-muted"
     >
       {/* ID */}
-      <span
-        style={{
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 10,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        className="text-muted-foreground/60"
-      >
+      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground/60">
         {r.id.slice(0, 8)}
       </span>
 
       {/* Title + project */}
-      <div style={{ overflow: "hidden" }}>
-        <div
-          style={{
-            fontFamily: "'Satoshi', sans-serif",
-            fontSize: 13,
-            fontWeight: 500,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-          className="text-foreground"
-        >
+      <div className="overflow-hidden">
+        <div className="text-[13px] font-medium overflow-hidden text-ellipsis whitespace-nowrap text-foreground">
           {r.title}
         </div>
         {proj && (
-          <div
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              marginTop: 2,
-            }}
-            className="text-muted-foreground/60"
-          >
+          <div className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap mt-0.5 text-muted-foreground/60">
             {proj.name}
           </div>
         )}
       </div>
 
       {/* Stage */}
-      <span
-        style={{
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 10,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        className="text-muted-foreground"
-      >
+      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground">
         {stageLabel}
       </span>
 
       {/* Assignee */}
-      <span
-        style={{
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 10,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        className="text-muted-foreground"
-      >
-        {assignees[0] ?? "—"}
+      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground">
+        {assignees[0] ?? "\u2014"}
       </span>
 
       {/* Priority */}

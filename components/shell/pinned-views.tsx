@@ -59,15 +59,16 @@ export function PinnedViews({ views }: Props) {
 
         return (
           <SidebarMenuItem key={view.id}>
-            <SidebarMenuButton
-              render={<Link href={href} />}
-              isActive={isActive}
-              tooltip={view.name}
-              size="sm"
-            >
-              <Pin className="size-3" />
-              <span>{view.name}</span>
-            </SidebarMenuButton>
+            <Link href={href} className="contents">
+              <SidebarMenuButton
+                isActive={isActive}
+                tooltip={view.name}
+                size="sm"
+              >
+                <Pin className="size-3" />
+                <span>{view.name}</span>
+              </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         );
       })}

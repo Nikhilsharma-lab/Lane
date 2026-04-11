@@ -93,9 +93,9 @@ function LoginForm() {
         <CardFooter className="justify-center">
           <p className="text-xs text-muted-foreground">
             No account?{" "}
-            <Button variant="link" size="sm" className="px-0" render={<Link href="/signup" />}>
+            <Link href="/signup" className="text-foreground hover:text-primary transition-colors font-medium">
               Create workspace
-            </Button>
+            </Link>
           </p>
         </CardFooter>
       </Card>

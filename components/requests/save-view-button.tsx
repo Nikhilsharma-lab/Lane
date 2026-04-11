@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Star, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface SaveViewButtonProps {
   onSave: (name: string) => void;
@@ -46,84 +48,38 @@ export function SaveViewButton({ onSave, hasActiveFilters }: SaveViewButtonProps
 
   if (isEditing) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          height: 28,
-          border: "1px solid hsl(var(--border) / 0.8)",
-          borderRadius: 6,
-          overflow: "hidden",
-          background: "hsl(var(--card))",
-        }}
-      >
-        <input
+      <div className="flex items-center gap-0 h-7 border rounded-md overflow-hidden bg-card">
+        <Input
           ref={inputRef}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="View name…"
-          style={{
-            height: "100%",
-            padding: "0 8px",
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 11,
-            color: "hsl(var(--foreground))",
-            width: 140,
-          }}
+          className="h-full border-none rounded-none font-mono text-[11px] w-[140px] focus-visible:ring-0"
         />
-        <button
+        <Button
+          variant={name.trim() ? "default" : "secondary"}
+          size="icon-sm"
           onClick={handleConfirm}
           title="Save view"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 28,
-            height: "100%",
-            border: "none",
-            borderLeft: "1px solid hsl(var(--border))",
-            background: name.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))",
-            color: name.trim() ? "var(--primary-foreground)" : "hsl(var(--muted-foreground) / 0.6)",
-            cursor: name.trim() ? "pointer" : "default",
-            transition: "background 0.1s",
-          }}
+          className="rounded-none border-l h-full"
         >
-          <Check size={12} />
-        </button>
+          <Check className="size-3" />
+        </Button>
       </div>
     );
   }
 
   return (
-    <button
+    <Button
+      variant="outline"
+      size="sm"
       onClick={() => setIsEditing(true)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        height: 28,
-        padding: "0 10px",
-        border: "1px solid hsl(var(--border))",
-        borderRadius: 6,
-        background: "hsl(var(--card))",
-        color: "hsl(var(--muted-foreground))",
-        fontFamily: "'Geist Mono', monospace",
-        fontSize: 11,
-        fontWeight: 500,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        transition: "background 0.1s",
-      }}
-      className="hover:bg-accent"
+      className="gap-1.5 font-mono text-[11px] font-medium"
     >
-      <Star size={11} />
+      <Star className="size-3" />
       Save View
-    </button>
+    </Button>
   );
 }

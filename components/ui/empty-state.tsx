@@ -33,9 +33,9 @@ export function EmptyState({
       {cta && (
         <div className="mt-4">
           {cta.href ? (
-            <Button variant="link" render={<Link href={cta.href} />} className="text-[13px] font-medium">
+            <Link href={cta.href} className="text-[13px] font-medium text-primary hover:underline">
               {cta.label} →
-            </Button>
+            </Link>
           ) : (
             <Button
               variant="link"

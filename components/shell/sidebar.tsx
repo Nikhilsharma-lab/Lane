@@ -128,7 +128,7 @@ export function Sidebar({
   }
 
   return (
-    <ShadcnSidebar collapsible="icon">
+    <ShadcnSidebar>
       {/* ── Header ──────────────────────────────────────────── */}
       <SidebarHeader>
         <SidebarMenu>
@@ -189,14 +189,15 @@ export function Sidebar({
             <SidebarMenu>
               {personalNav.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={isActive(item.href)}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
+                  <Link href={item.href} className="contents">
+                    <SidebarMenuButton
+                      isActive={isActive(item.href)}
+                      tooltip={item.label}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
                   {item.label === "Inbox" && inboxUnreadCount ? (
                     <SidebarMenuBadge>
                       <Badge variant="default" className="h-4 min-w-4 px-1 text-[10px] font-mono">
@@ -218,14 +219,15 @@ export function Sidebar({
             <SidebarMenu>
               {workspaceNav.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={isActive(item.href)}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
+                  <Link href={item.href} className="contents">
+                    <SidebarMenuButton
+                      isActive={isActive(item.href)}
+                      tooltip={item.label}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -240,14 +242,15 @@ export function Sidebar({
             <SidebarMenu>
               {insightsNav.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={isActive(item.href)}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
+                  <Link href={item.href} className="contents">
+                    <SidebarMenuButton
+                      isActive={isActive(item.href)}
+                      tooltip={item.label}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -294,9 +297,11 @@ export function Sidebar({
             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
               {banner.description}
             </p>
-            <Button variant="secondary" size="sm" className="w-full mt-2" render={<Link href={banner.ctaHref} />}>
-              {banner.ctaLabel}
-            </Button>
+            <Link href={banner.ctaHref} className="contents">
+              <Button variant="secondary" size="sm" className="w-full mt-2">
+                {banner.ctaLabel}
+              </Button>
+            </Link>
           </div>
         )}
 

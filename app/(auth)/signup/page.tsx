@@ -108,9 +108,9 @@ export default function SignupPage() {
         <CardFooter className="justify-center">
           <p className="text-xs text-muted-foreground">
             Already have an account?{" "}
-            <Button variant="link" size="sm" className="px-0" render={<Link href="/login" />}>
+            <Link href="/login" className="text-foreground hover:text-primary transition-colors font-medium">
               Sign in
-            </Button>
+            </Link>
           </p>
         </CardFooter>
       </Card>

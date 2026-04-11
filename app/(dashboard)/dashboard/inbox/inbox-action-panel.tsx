@@ -505,10 +505,10 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
 
       {/* Footer -- view full request */}
       <div className="px-5 py-3 border-t border-border shrink-0">
-        <Button variant="ghost" size="sm" className="w-full text-muted-foreground" render={<Link href={notification.url} />}>
+        <Link href={notification.url} className="flex items-center justify-center gap-1.5 w-full h-7 rounded-md text-xs text-muted-foreground hover:bg-muted transition-colors">
           <ExternalLink size={12} />
           View full {notification.requestId ? "request" : "page"}
-        </Button>
+        </Link>
       </div>
     </div>
   );

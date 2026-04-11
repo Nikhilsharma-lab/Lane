@@ -68,9 +68,9 @@ export default async function InvitePage({
 
         {(isAccepted || isExpired) && (
           <CardFooter className="justify-center">
-            <Button variant="link" size="sm" render={<Link href="/login" />}>
+            <Link href="/login" className="text-sm text-primary hover:underline">
               Sign in instead
-            </Button>
+            </Link>
           </CardFooter>
         )}
       </Card>

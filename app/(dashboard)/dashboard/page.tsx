@@ -27,7 +27,11 @@ function PriorityBadge({ priority }: { priority: string | null }) {
   return (
     <Badge
       variant="outline"
-      className={`font-mono text-[10px] font-bold uppercase tracking-wide shrink-0 bg-[var(--priority-${priority}-bg)] text-[var(--priority-${priority}-text)] border-transparent`}
+      className="font-mono text-[10px] font-bold uppercase tracking-wide shrink-0 border-transparent"
+      style={{
+        background: `var(--priority-${priority}-bg)`,
+        color: `var(--priority-${priority}-text)`,
+      }}
     >
       {priority.toUpperCase()}
     </Badge>
