@@ -173,7 +173,7 @@ body {
   * {
     border-color: var(--border);
     outline-color: var(--ring);
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;

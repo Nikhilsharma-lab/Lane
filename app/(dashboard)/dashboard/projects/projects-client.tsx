@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createProject } from "@/app/actions/projects";
-import { PROJECT_COLORS } from "@/lib/projects";
+import { PROJECT_COLORS, type ProjectColor } from "@/lib/projects";
 import type { Project } from "@/db/schema";
 
 interface RequestCount {
@@ -48,7 +48,7 @@ function appetiteLabel(targetDate: string | null): { label: string; exceeded: bo
 export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
-  const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState<ProjectColor>(PROJECT_COLORS[0]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
