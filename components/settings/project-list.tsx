@@ -179,7 +179,7 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                     <select
                       value={moveToId}
                       onChange={(e) => setMoveToId(e.target.value)}
-                      className="mt-2 w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[var(--border-strong)]"
+                      className="mt-2 w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80"
                     >
                       <option value="">Select project…</option>
                       {moveTargets.map((p) => (

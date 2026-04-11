@@ -29,37 +29,37 @@ export function InviteSignupForm({ token, defaultEmail, orgName }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm text-[var(--text-secondary)] mb-1.5">Full name</label>
+        <label className="block text-sm text-muted-foreground mb-1.5">Full name</label>
         <input
           name="fullName"
           type="text"
           required
           autoFocus
           placeholder="Your name"
-          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
       <div>
-        <label className="block text-sm text-[var(--text-secondary)] mb-1.5">Email</label>
+        <label className="block text-sm text-muted-foreground mb-1.5">Email</label>
         <input
           name="email"
           type="email"
           required
           defaultValue={defaultEmail}
-          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
       <div>
-        <label className="block text-sm text-[var(--text-secondary)] mb-1.5">Password</label>
+        <label className="block text-sm text-muted-foreground mb-1.5">Password</label>
         <input
           name="password"
           type="password"
           required
           minLength={6}
           placeholder="Create a password"
-          className="w-full bg-[var(--bg-subtle)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--border-strong)] transition-colors"
+          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
@@ -72,7 +72,7 @@ export function InviteSignupForm({ token, defaultEmail, orgName }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-[var(--accent)] text-[var(--accent-text)] rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Joining…" : `Join ${orgName}`}
       </button>

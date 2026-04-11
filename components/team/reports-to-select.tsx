@@ -42,7 +42,7 @@ export function ReportsToSelect({
       value={value}
       onChange={handleChange}
       disabled={saving}
-      className="text-xs bg-[var(--bg-subtle)] border border-[var(--border)] rounded px-2 py-1 text-[var(--text-secondary)] hover:border-[var(--border-strong)] disabled:opacity-50 transition-colors"
+      className="text-xs bg-muted border border-border rounded px-2 py-1 text-muted-foreground hover:border-border/80 disabled:opacity-50 transition-colors"
     >
       <option value="">No manager</option>
       {managers.map((m) => (
