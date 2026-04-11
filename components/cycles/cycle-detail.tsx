@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppetiteBar } from "@/components/ui/appetite-bar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { updateCycleStatus, addRequestToCycle, removeRequestFromCycle } from "@/app/actions/cycles";
 
 const statusStyles: Record<string, string> = {
@@ -137,31 +141,35 @@ export function CycleDetail({
         {/* Status actions */}
         <div className="flex items-center gap-2 shrink-0">
           {cycle.status === "draft" && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handleStatusChange("active")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border-green-500/30 text-green-600 bg-green-500/5 hover:bg-green-500/10 transition-colors disabled:opacity-50"
+              className="border-green-500/30 text-green-600 bg-green-500/5 hover:bg-green-500/10"
             >
               Activate
-            </button>
+            </Button>
           )}
           {cycle.status === "active" && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handleStatusChange("completed")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--phase-dev)]/30 text-[var(--phase-dev)] bg-[var(--phase-dev)]/5 hover:bg-[var(--phase-dev)]/10 transition-colors disabled:opacity-50"
             >
               Complete
-            </button>
+            </Button>
           )}
           {(cycle.status === "draft" || cycle.status === "active") && (
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={() => handleStatusChange("cancelled")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-500 bg-red-500/5 hover:bg-red-500/10 transition-colors disabled:opacity-50"
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -214,34 +222,36 @@ export function CycleDetail({
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Requests
           </h2>
-          <button
+          <Button
+            variant="link"
+            size="xs"
             onClick={() => setShowAddRequest(!showAddRequest)}
-            className="text-[11px] text-primary hover:underline"
           >
             {showAddRequest ? "Cancel" : "+ Add request"}
-          </button>
+          </Button>
         </div>
 
         {/* Add request search */}
         {showAddRequest && (
           <div className="px-4 py-3 border-b border bg-muted">
-            <input
+            <Input
               type="text"
               placeholder="Search requests by title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
             {searchTerm && filteredOrgRequests.length > 0 && (
               <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                 {filteredOrgRequests.slice(0, 10).map((r) => (
-                  <button
+                  <Button
                     key={r.id}
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleAddRequest(r.id)}
-                    className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-accent text-foreground transition-colors"
+                    className="w-full justify-start"
                   >
                     {r.title}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -288,13 +298,15 @@ export function CycleDetail({
                       {priorityLabels[r.priority] ?? r.priority}
                     </span>
                   )}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => handleRemoveRequest(r.id)}
-                    className="text-[10px] text-muted-foreground/60 hover:text-red-500 transition-colors ml-1"
                     title="Remove from cycle"
+                    className="text-muted-foreground/60 hover:text-destructive ml-1"
                   >
                     ×
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

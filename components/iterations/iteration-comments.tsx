@@ -6,6 +6,8 @@ import {
   getIterationComments,
   addIterationComment,
 } from "@/app/actions/iterations";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface CommentData {
   id: string;
@@ -80,23 +82,17 @@ export function IterationComments({
 
   if (loading) {
     return (
-      <p
-        style={{
-          fontSize: 11,
-          color: "hsl(var(--muted-foreground) / 0.6)",
-          padding: "12px 16px",
-        }}
-      >
+      <p className="px-4 py-3 text-[11px] text-muted-foreground/60">
         Loading comments...
       </p>
     );
   }
 
   return (
-    <div className="px-4 py-3 space-y-3">
+    <div className="space-y-3 px-4 py-3">
       {/* Comment list */}
       {topLevel.length === 0 && (
-        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground) / 0.6)" }}>
+        <p className="text-[11px] text-muted-foreground/60">
           No comments yet. Start the conversation.
         </p>
       )}
@@ -105,45 +101,19 @@ export function IterationComments({
         <div key={c.id}>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "hsl(var(--foreground))",
-                }}
-              >
+              <span className="text-[11px] font-semibold text-foreground">
                 {c.authorName ?? "Unknown"}
               </span>
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 9,
-                  color: "hsl(var(--muted-foreground) / 0.6)",
-                }}
-              >
+              <span className="font-mono text-[9px] text-muted-foreground/60">
                 {formatTs(c.createdAt)}
               </span>
             </div>
-            <p
-              style={{
-                fontSize: 12,
-                color: "hsl(var(--muted-foreground))",
-                lineHeight: 1.5,
-              }}
-            >
+            <p className="text-xs leading-relaxed text-muted-foreground">
               {c.body}
             </p>
             <button
               onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
-              style={{
-                fontSize: 10,
-                color: "hsl(var(--muted-foreground) / 0.6)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-                fontWeight: 500,
-              }}
+              className="cursor-pointer border-none bg-transparent p-0 text-[10px] font-medium text-muted-foreground/60"
             >
               Reply
             </button>
@@ -151,42 +121,18 @@ export function IterationComments({
 
           {/* Replies */}
           {replies(c.id).length > 0 && (
-            <div
-              className="ml-3 mt-2 space-y-2"
-              style={{
-                borderLeft: "2px solid hsl(var(--border))",
-                paddingLeft: 12,
-              }}
-            >
+            <div className="ml-3 mt-2 space-y-2 border-l-2 border-border pl-3">
               {replies(c.id).map((r) => (
                 <div key={r.id} className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "hsl(var(--foreground))",
-                      }}
-                    >
+                    <span className="text-[11px] font-semibold text-foreground">
                       {r.authorName ?? "Unknown"}
                     </span>
-                    <span
-                      style={{
-                        fontFamily: "'Geist Mono', monospace",
-                        fontSize: 9,
-                        color: "hsl(var(--muted-foreground) / 0.6)",
-                      }}
-                    >
+                    <span className="font-mono text-[9px] text-muted-foreground/60">
                       {formatTs(r.createdAt)}
                     </span>
                   </div>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "hsl(var(--muted-foreground))",
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     {r.body}
                   </p>
                 </div>
@@ -198,41 +144,22 @@ export function IterationComments({
           {replyTo === c.id && (
             <form
               onSubmit={handleReply}
-              className="ml-3 mt-2 flex gap-2"
-              style={{
-                borderLeft: "2px solid hsl(var(--border))",
-                paddingLeft: 12,
-              }}
+              className="ml-3 mt-2 flex gap-2 border-l-2 border-border pl-3"
             >
-              <input
+              <Input
                 type="text"
                 value={replyBody}
                 onChange={(e) => setReplyBody(e.target.value)}
                 placeholder="Write a reply..."
-                className="flex-1 rounded-md px-2.5 py-1.5"
-                style={{
-                  fontSize: 11,
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  color: "hsl(var(--foreground))",
-                  outline: "none",
-                }}
+                className="flex-1 text-[11px]"
               />
-              <button
+              <Button
                 type="submit"
+                size="sm"
                 disabled={submitting || !replyBody.trim()}
-                className="rounded-md px-2.5 py-1.5 transition-opacity disabled:opacity-40"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  background: "hsl(var(--primary))",
-                  color: "var(--primary-foreground)",
-                  border: "none",
-                  cursor: "pointer",
-                }}
               >
                 Reply
-              </button>
+              </Button>
             </form>
           )}
         </div>
@@ -240,35 +167,20 @@ export function IterationComments({
 
       {/* New comment form */}
       <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
-        <input
+        <Input
           type="text"
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
           placeholder="Add a comment..."
-          className="flex-1 rounded-md px-2.5 py-1.5"
-          style={{
-            fontSize: 11,
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            color: "hsl(var(--foreground))",
-            outline: "none",
-          }}
+          className="flex-1 text-[11px]"
         />
-        <button
+        <Button
           type="submit"
+          size="sm"
           disabled={submitting || !newBody.trim()}
-          className="rounded-md px-2.5 py-1.5 transition-opacity disabled:opacity-40"
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            background: "hsl(var(--primary))",
-            color: "var(--primary-foreground)",
-            border: "none",
-            cursor: "pointer",
-          }}
         >
           Post
-        </button>
+        </Button>
       </form>
     </div>
   );

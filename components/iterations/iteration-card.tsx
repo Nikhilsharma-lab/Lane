@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { MessageSquare, ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
 import { IterationComments } from "./iteration-comments";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import type { Iteration } from "@/db/schema";
 
 interface Props {
@@ -14,61 +18,35 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{
-        border: "1px solid hsl(var(--border))",
-        background: "hsl(var(--card))",
-      }}
-    >
-      <div className="px-4 py-3">
+    <Card className="overflow-hidden">
+      <CardContent className="px-4 py-3">
         {/* Title row */}
         <div className="flex items-start justify-between gap-2">
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "hsl(var(--foreground))",
-              lineHeight: 1.4,
-            }}
-          >
+          <p className="text-[13px] font-semibold leading-snug text-foreground">
             {iteration.title}
           </p>
 
           {iteration.figmaUrl && (
-            <a
-              href={iteration.figmaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-1 rounded px-2 py-1 transition-colors"
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: "hsl(var(--primary))",
-                background: "hsl(var(--muted))",
-                textDecoration: "none",
-              }}
+            <Badge
+              variant="secondary"
+              className="shrink-0 gap-1"
+              render={
+                <a
+                  href={iteration.figmaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
             >
               <ExternalLink size={10} />
               Open in Figma
-            </a>
+            </Badge>
           )}
         </div>
 
         {/* Description */}
         {iteration.description && (
-          <p
-            style={{
-              fontSize: 12,
-              color: "hsl(var(--muted-foreground))",
-              lineHeight: 1.6,
-              marginTop: 6,
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
             {iteration.description}
           </p>
         )}
@@ -76,15 +54,7 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
         {/* Comment toggle */}
         <button
           onClick={() => setExpanded((prev) => !prev)}
-          className="flex items-center gap-1.5 mt-3 transition-colors"
-          style={{
-            fontSize: 11,
-            color: "hsl(var(--muted-foreground) / 0.6)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-          }}
+          className="mt-3 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           <MessageSquare size={11} />
@@ -92,19 +62,14 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
             {commentCount} comment{commentCount !== 1 ? "s" : ""}
           </span>
         </button>
-      </div>
+      </CardContent>
 
       {/* Expanded comments */}
       {expanded && (
-        <div
-          style={{
-            borderTop: "1px solid hsl(var(--border))",
-            background: "hsl(var(--muted))",
-          }}
-        >
+        <div className="border-t border-border bg-muted">
           <IterationComments iterationId={iteration.id} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }

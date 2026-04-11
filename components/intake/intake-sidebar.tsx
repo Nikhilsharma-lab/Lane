@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Sparkles } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export interface IntakeSidebarRequest {
   id: string;
@@ -26,15 +29,16 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
   p3: { bg: "color-mix(in oklch, var(--priority-p3) 12%, transparent)", text: "var(--priority-p3)" },
 };
 
-type Tab = "pending" | "reviewed";
-
 export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarProps) {
-  const [tab, setTab] = useState<Tab>("pending");
+  const [tab, setTab] = useState<"pending" | "reviewed">("pending");
   const [focusedIdx, setFocusedIdx] = useState(-1);
 
   const filtered = requests.filter((r) =>
     tab === "reviewed" ? r.hasAiAnalysis : !r.hasAiAnalysis
   );
+
+  const pendingCount = requests.filter((r) => !r.hasAiAnalysis).length;
+  const reviewedCount = requests.filter((r) => r.hasAiAnalysis).length;
 
   // J/K keyboard navigation
   const handleKeyDown = useCallback(
@@ -74,112 +78,51 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
     if (idx !== -1) setFocusedIdx(idx);
   }, [activeId, filtered]);
 
-  const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "pending", label: "Pending", count: requests.filter((r) => !r.hasAiAnalysis).length },
-    { key: "reviewed", label: "Reviewed", count: requests.filter((r) => r.hasAiAnalysis).length },
-  ];
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        borderRight: "1px solid hsl(var(--border))",
-        background: "hsl(var(--card))",
-      }}
-    >
+    <div className="flex flex-col h-full border-r border-border bg-card">
       {/* Header */}
-      <div
-        style={{
-          padding: "14px 16px 0",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span
-            style={{
-              fontFamily: "'Geist', sans-serif",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "hsl(var(--foreground))",
-            }}
-          >
+      <div className="px-4 pt-3.5 shrink-0">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-foreground">
             Intake
           </span>
-          <span
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              color: "hsl(var(--muted-foreground) / 0.6)",
-            }}
-          >
+          <span className="font-mono text-[10px] text-muted-foreground/60">
             {requests.length}
           </span>
         </div>
 
         {/* Tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            marginTop: 10,
-            borderBottom: "1px solid hsl(var(--border))",
-          }}
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as "pending" | "reviewed")}
+          className="mt-2.5"
         >
-          {tabs.map((t) => {
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                style={{
-                  padding: "6px 10px",
-                  fontSize: 11,
-                  fontFamily: "'Geist Mono', monospace",
-                  fontWeight: active ? 600 : 400,
-                  color: active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground) / 0.6)",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: active ? "2px solid hsl(var(--primary))" : "2px solid transparent",
-                  cursor: "pointer",
-                  transition: "color 0.1s",
-                }}
-              >
-                {t.label}
-                {t.count > 0 && (
-                  <span
-                    style={{
-                      marginLeft: 4,
-                      fontSize: 9,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                    }}
-                  >
-                    {t.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+          <TabsList variant="line">
+            <TabsTrigger value="pending">
+              Pending
+              {pendingCount > 0 && (
+                <span className="ml-1 text-[9px] text-muted-foreground/60">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reviewed">
+              Reviewed
+              {reviewedCount > 0 && (
+                <span className="ml-1 text-[9px] text-muted-foreground/60">
+                  {reviewedCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Request list */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div
-            style={{
-              padding: "32px 16px",
-              textAlign: "center",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 12,
-                color: "hsl(var(--muted-foreground) / 0.6)",
-              }}
-            >
+          <div className="px-4 py-8 text-center">
+            <p className="font-mono text-xs text-muted-foreground/60">
               {tab === "pending" ? "No pending requests." : "No reviewed requests."}
             </p>
           </div>
@@ -195,62 +138,30 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
               <button
                 key={r.id}
                 onClick={() => onSelect(r.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 3,
-                  width: "100%",
-                  padding: "10px 16px",
-                  textAlign: "left",
-                  background: isActive ? "hsl(var(--primary) / 0.1)" : "transparent",
-                  borderLeft: isActive ? "2px solid hsl(var(--primary))" : "2px solid transparent",
-                  border: "none",
-                  borderBottom: "1px solid hsl(var(--border))",
-                  borderLeftWidth: 2,
-                  borderLeftStyle: "solid",
-                  borderLeftColor: isActive ? "hsl(var(--primary))" : "transparent",
-                  cursor: "pointer",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "hsl(var(--accent))";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "transparent";
-                }}
+                className={cn(
+                  "flex flex-col gap-0.5 w-full px-4 py-2.5 text-left border-b border-border cursor-pointer transition-colors",
+                  "border-l-2",
+                  isActive
+                    ? "bg-primary/10 border-l-primary"
+                    : "bg-transparent border-l-transparent hover:bg-accent"
+                )}
               >
                 {/* Title row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    style={{
-                      fontFamily: "'Geist', sans-serif",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "hsl(var(--foreground))",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      flex: 1,
-                    }}
-                  >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap flex-1">
                     {r.title}
                   </span>
                   {r.hasAiAnalysis && (
-                    <Sparkles size={11} style={{ color: "hsl(var(--primary))", flexShrink: 0 }} />
+                    <Sparkles size={11} className="text-primary shrink-0" />
                   )}
                 </div>
 
                 {/* Meta row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="flex items-center gap-1.5">
                   {r.priority && (
                     <span
+                      className="inline-flex px-1 py-px rounded-sm text-[9px] font-semibold font-mono"
                       style={{
-                        display: "inline-flex",
-                        padding: "1px 4px",
-                        borderRadius: 3,
-                        fontSize: 9,
-                        fontWeight: 600,
-                        fontFamily: "'Geist Mono', monospace",
                         background: PRIORITY_COLORS[r.priority]?.bg ?? "hsl(var(--accent))",
                         color: PRIORITY_COLORS[r.priority]?.text ?? "hsl(var(--muted-foreground) / 0.6)",
                       }}
@@ -258,23 +169,10 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                       {r.priority.toUpperCase()}
                     </span>
                   )}
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 10,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                    }}
-                  >
+                  <span className="font-mono text-[10px] text-muted-foreground/60">
                     {r.requesterName}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 10,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                      marginLeft: "auto",
-                    }}
-                  >
+                  <span className="font-mono text-[10px] text-muted-foreground/60 ml-auto">
                     {relativeTime}
                   </span>
                 </div>
@@ -285,27 +183,10 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
       </div>
 
       {/* Keyboard hints */}
-      <div
-        style={{
-          padding: "6px 16px",
-          borderTop: "1px solid hsl(var(--border))",
-          display: "flex",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        {["J/K navigate"].map((hint) => (
-          <span
-            key={hint}
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              color: "hsl(var(--muted-foreground) / 0.6)",
-            }}
-          >
-            {hint}
-          </span>
-        ))}
+      <div className="px-4 py-1.5 border-t border-border flex gap-3 shrink-0">
+        <span className="font-mono text-[10px] text-muted-foreground/60">
+          J/K navigate
+        </span>
       </div>
     </div>
   );

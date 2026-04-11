@@ -5,6 +5,7 @@ import { profiles, invites } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { MembersList } from "@/components/settings/members-list";
 import { PendingInvites } from "@/components/settings/pending-invites";
+import { Separator } from "@/components/ui/separator";
 
 export default async function MembersPage() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export default async function MembersPage() {
   const allInvites = await db.select().from(invites).where(eq(invites.orgId, profile.orgId));
 
   return (
-    <div className="max-w-2xl space-y-10">
+    <div className="max-w-2xl space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">Members</h1>
         <p className="text-sm text-muted-foreground">Manage your team members and pending invites.</p>
@@ -27,6 +28,7 @@ export default async function MembersPage() {
         currentUserId={user.id}
         isAdmin={profile.role === "admin"}
       />
+      <Separator />
       <PendingInvites
         invites={allInvites.map((i) => ({ id: i.id, email: i.email, role: i.role, expiresAt: i.expiresAt, acceptedAt: i.acceptedAt }))}
         isAdmin={profile.role === "admin"}

@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { leaveOrg, deleteOrg } from "@/app/actions/settings";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Props { isAdmin: boolean; orgSlug: string; }
 
@@ -28,62 +32,89 @@ export function DangerZone({ isAdmin, orgSlug }: Props) {
   }
 
   return (
-    <div className="space-y-8">
-      {error && <p className="text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">{error}</p>}
-      <div className="border border-border rounded-xl px-6 py-5">
-        <h3 className="text-sm font-medium text-foreground mb-1">Leave workspace</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          You&apos;ll lose access to all requests, designs, and team data.
-          {isAdmin && " If you are the only admin, assign another admin first."}
-        </p>
-        {showLeaveConfirm ? (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">Are you sure? This cannot be undone.</p>
-            <div className="flex gap-2">
-              <button onClick={handleLeave} disabled={isPending}
-                className="text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-40">
-                {isPending ? "Leaving…" : "Yes, leave"}
-              </button>
-              <button onClick={() => setShowLeaveConfirm(false)}
-                className="text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-4 py-2 transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => { setError(null); setShowLeaveConfirm(true); }}
-            className="text-sm text-red-500 hover:text-red-600 border border-red-500/30 hover:border-red-500/50 rounded-lg px-4 py-2 transition-colors">
-            Leave workspace
-          </button>
-        )}
-      </div>
-      {isAdmin && (
-        <div className="border border-red-500/20 rounded-xl px-6 py-5">
-          <h3 className="text-sm font-medium text-red-500 mb-1">Delete workspace</h3>
-          <p className="text-xs text-muted-foreground mb-4">Permanently deletes the org, all members, all requests, and all data. This cannot be undone.</p>
-          {showDeleteConfirm ? (
+    <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Leave workspace</CardTitle>
+          <CardDescription>
+            You&apos;ll lose access to all requests, designs, and team data.
+            {isAdmin && " If you are the only admin, assign another admin first."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {showLeaveConfirm ? (
             <div className="space-y-3">
-              <p className="text-sm text-foreground">Type <span className="font-mono text-foreground bg-accent px-1.5 py-0.5 rounded">{orgSlug}</span> to confirm.</p>
-              <input type="text" value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)} placeholder={orgSlug}
-                className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground font-mono placeholder-muted-foreground/60 focus:outline-none focus:border-red-700 transition-colors" />
+              <p className="text-sm text-foreground">Are you sure? This cannot be undone.</p>
               <div className="flex gap-2">
-                <button onClick={handleDelete} disabled={deleteInput !== orgSlug || isPending}
-                  className="text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  {isPending ? "Deleting…" : "Delete workspace"}
-                </button>
-                <button onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }}
-                  className="text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-4 py-2 transition-colors">
+                <Button variant="destructive" onClick={handleLeave} disabled={isPending}>
+                  {isPending ? "Leaving..." : "Yes, leave"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <button onClick={() => { setError(null); setShowDeleteConfirm(true); }}
-              className="text-sm text-red-500 hover:text-red-600 border border-red-500/30 hover:border-red-500/50 rounded-lg px-4 py-2 transition-colors">
-              Delete workspace
-            </button>
+            <Button
+              variant="destructive"
+              onClick={() => { setError(null); setShowLeaveConfirm(true); }}
+            >
+              Leave workspace
+            </Button>
           )}
-        </div>
+        </CardContent>
+      </Card>
+
+      {isAdmin && (
+        <Card className="ring-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-destructive">Delete workspace</CardTitle>
+            <CardDescription>
+              Permanently deletes the org, all members, all requests, and all data. This cannot be undone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {showDeleteConfirm ? (
+              <div className="space-y-3">
+                <p className="text-sm text-foreground">
+                  Type <span className="font-mono text-foreground bg-accent px-1.5 py-0.5 rounded">{orgSlug}</span> to confirm.
+                </p>
+                <Input
+                  type="text"
+                  value={deleteInput}
+                  onChange={(e) => setDeleteInput(e.target.value)}
+                  placeholder={orgSlug}
+                  className="font-mono"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={deleteInput !== orgSlug || isPending}
+                  >
+                    {isPending ? "Deleting..." : "Delete workspace"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={() => { setError(null); setShowDeleteConfirm(true); }}
+              >
+                Delete workspace
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

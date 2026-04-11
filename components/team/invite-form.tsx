@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { createInvite } from "@/app/actions/invites";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ROLES = [
   { value: "designer", label: "Designer" },
@@ -44,52 +48,46 @@ export function InviteForm() {
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex items-end gap-3">
-        <div className="flex-1">
-          <label className="block text-xs text-muted-foreground mb-1.5">Email address</label>
-          <input
+        <div className="flex-1 space-y-1.5">
+          <Label htmlFor="invite-email">Email address</Label>
+          <Input
+            id="invite-email"
             name="email"
             type="email"
             required
             placeholder="colleague@company.com"
-            className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
           />
         </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">Role</label>
+        <div className="space-y-1.5">
+          <Label htmlFor="invite-role">Role</Label>
           <select
+            id="invite-role"
             name="role"
             defaultValue="designer"
-            className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80 transition-colors"
+            className="h-7 min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 dark:bg-input/30"
           >
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </select>
         </div>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
-        >
-          {isPending ? "Generating…" : "Generate invite link"}
-        </button>
+        <Button type="submit" disabled={isPending} className="shrink-0">
+          {isPending ? "Generating..." : "Generate invite link"}
+        </Button>
       </form>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {inviteLink && (
         <div className="flex items-center gap-3 bg-muted border border-border rounded-lg px-4 py-3">
           <p className="text-xs text-muted-foreground font-mono flex-1 truncate">{inviteLink}</p>
-          <button
-            onClick={handleCopy}
-            className="text-xs text-muted-foreground hover:text-foreground border border-border hover:border-border/80 rounded px-2.5 py-1 transition-colors shrink-0"
-          >
+          <Button variant="outline" size="xs" onClick={handleCopy} className="shrink-0">
             {copied ? "Copied!" : "Copy"}
-          </button>
+          </Button>
         </div>
       )}
     </div>

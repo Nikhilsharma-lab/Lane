@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { profiles, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { WorkspaceForm } from "@/components/settings/workspace-form";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default async function WorkspacePage() {
   const supabase = await createClient();
@@ -15,12 +16,24 @@ export default async function WorkspacePage() {
   if (!org) redirect("/login");
 
   return (
-    <div className="max-w-lg space-y-10">
+    <div className="max-w-lg space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">Workspace</h1>
         <p className="text-sm text-muted-foreground">Your organization name, slug, and plan.</p>
       </div>
-      <WorkspaceForm org={{ name: org.name, slug: org.slug, plan: org.plan }} isAdmin={profile.role === "admin"} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Organization details</CardTitle>
+          <CardDescription>
+            {profile.role === "admin"
+              ? "Update your workspace name and slug."
+              : "Contact your admin to change workspace settings."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WorkspaceForm org={{ name: org.name, slug: org.slug, plan: org.plan }} isAdmin={profile.role === "admin"} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

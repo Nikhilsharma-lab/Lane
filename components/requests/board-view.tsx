@@ -1,6 +1,8 @@
 "use client";
 
 import type { Request } from "@/db/schema";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 interface BoardColumn {
   key: string;
@@ -18,23 +20,16 @@ interface BoardViewProps {
 function PriorityBadge({ priority }: { priority: string | null }) {
   if (!priority) return null;
   return (
-    <span
+    <Badge
+      variant="outline"
+      className="shrink-0 rounded font-mono text-[9px] font-bold uppercase tracking-wide px-1.5 py-px"
       style={{
-        display: "inline-block",
-        fontFamily: "'Geist Mono', monospace",
-        fontSize: 9,
-        fontWeight: 700,
-        textTransform: "uppercase" as const,
-        letterSpacing: "0.04em",
-        padding: "1px 5px",
-        borderRadius: 3,
         background: `var(--priority-${priority}-bg)`,
         color: `var(--priority-${priority}-text)`,
-        flexShrink: 0,
       }}
     >
       {priority.toUpperCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -64,90 +59,33 @@ export function BoardView({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        overflowX: "auto",
-        padding: "16px 20px",
-        height: "100%",
-        alignItems: "flex-start",
-      }}
-    >
+    <div className="flex gap-3 overflow-x-auto px-5 py-4 h-full items-start">
       {columns.map((col) => {
         const cards = grouped[col.key] ?? [];
         return (
           <div
             key={col.key}
-            style={{ display: "flex", flexDirection: "column", width: 240, flexShrink: 0 }}
+            className="flex flex-col w-60 shrink-0"
           >
             {/* Column header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "hsl(var(--muted-foreground))",
-                }}
-              >
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {col.label}
               </span>
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 10,
-                  color: "hsl(var(--muted-foreground) / 0.6)",
-                  background: "hsl(var(--muted))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 4,
-                  padding: "1px 6px",
-                }}
-              >
+              <span className="font-mono text-[10px] text-muted-foreground/60 bg-muted border border-border rounded px-1.5 py-px">
                 {cards.length}
               </span>
             </div>
 
             {/* Cards */}
             <div
-              style={{
-                flex: 1,
-                borderRadius: 10,
-                background: "hsl(var(--muted))",
-                minHeight: 80,
-                padding: cards.length > 0 ? 8 : 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-              }}
+              className={`flex-1 rounded-[10px] bg-muted min-h-20 flex flex-col gap-1.5 ${
+                cards.length > 0 ? "p-2" : "p-0"
+              }`}
             >
               {cards.length === 0 ? (
-                <div
-                  style={{
-                    height: 80,
-                    border: "1.5px dashed hsl(var(--border))",
-                    borderRadius: 8,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 10,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                    }}
-                  >
+                <div className="h-20 border-[1.5px] border-dashed border-border rounded-lg flex items-center justify-center">
+                  <span className="font-mono text-[10px] text-muted-foreground/60">
                     Empty
                   </span>
                 </div>
@@ -155,64 +93,26 @@ export function BoardView({
                 cards.map((r) => {
                   const proj = r.projectId ? projectMap[r.projectId] : null;
                   return (
-                    <button
+                    <Card
                       key={r.id}
+                      size="sm"
+                      className="cursor-pointer text-left transition-colors hover:bg-accent hover:shadow-sm p-0 gap-0"
                       onClick={() => onRequestClick(r)}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                        padding: "10px 12px",
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "background 0.1s, box-shadow 0.1s",
-                      }}
-                      className="hover:bg-accent hover:shadow-sm"
                     >
-                      <span
-                        style={{
-                          fontFamily: "'Satoshi', sans-serif",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "hsl(var(--foreground))",
-                          lineHeight: 1.4,
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {r.title}
-                      </span>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <PriorityBadge priority={r.priority} />
-                        {proj && (
-                          <span
-                            style={{
-                              fontFamily: "'Geist Mono', monospace",
-                              fontSize: 9,
-                              color: "hsl(var(--muted-foreground) / 0.6)",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              maxWidth: 120,
-                            }}
-                          >
-                            {proj.name}
-                          </span>
-                        )}
+                      <div className="flex flex-col gap-1.5 px-3 py-2.5">
+                        <span className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                          {r.title}
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <PriorityBadge priority={r.priority} />
+                          {proj && (
+                            <span className="font-mono text-[9px] text-muted-foreground/60 truncate max-w-[120px]">
+                              {proj.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </button>
+                    </Card>
                   );
                 })
               )}

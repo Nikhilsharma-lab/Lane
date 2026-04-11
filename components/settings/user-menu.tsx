@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 interface UserMenuProps {
   fullName: string;
@@ -24,17 +26,19 @@ export function UserMenu({ fullName }: UserMenuProps) {
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setOpen((o) => !o)}
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         {fullName}
-      </button>
+      </Button>
       {open && (
         <div className="absolute right-0 top-full mt-1.5 w-48 bg-card border border-border rounded-xl shadow-xl z-50 py-1 overflow-hidden">
-          <p className="px-3 py-2 text-xs text-muted-foreground border-b border-border truncate">
+          <p className="px-3 py-2 text-xs text-muted-foreground truncate">
             {fullName}
           </p>
+          <Separator />
           <Link
             href="/settings/account"
             onClick={() => setOpen(false)}

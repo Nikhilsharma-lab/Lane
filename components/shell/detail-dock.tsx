@@ -21,6 +21,11 @@ import { EditRequestButton } from "@/components/requests/edit-request-button";
 import { ContextBriefPanel } from "@/components/requests/context-brief-panel";
 import { ProjectBadge } from "@/components/projects/project-badge";
 import { RealtimeRequest } from "@/components/realtime/realtime-request";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type {
   RequestAiAnalysis,
   Comment,
@@ -43,7 +48,6 @@ interface EnrichedData {
 }
 
 const DOCK_WIDTH = 520;
-
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:       { bg: "color-mix(in oklch, var(--status-draft) 10%, transparent)", color: "var(--status-draft)" },
@@ -79,25 +83,16 @@ function toISOorNull(d: Date | string | null | undefined): string | null {
   return d instanceof Date ? d.toISOString() : String(d);
 }
 
-const labelStyle: React.CSSProperties = {
-  fontFamily: "'Geist Mono', monospace",
-  fontSize: 9,
-  fontWeight: 500,
-  letterSpacing: "0.07em",
-  textTransform: "uppercase",
-  marginBottom: 4,
-};
+// ── Reusable label component ─────────────────────────────────────────────
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="font-mono text-[9px] font-medium tracking-[0.07em] uppercase mb-1 text-muted-foreground/60">
+      {children}
+    </p>
+  );
+}
 
-const metaValueStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-};
-
-const divider: React.CSSProperties = {
-  borderTop: "1px solid hsl(var(--border))",
-  paddingTop: 16,
-  marginTop: 4,
-};
+// ── Main component ───────────────────────────────────────────────────────
 
 export function DetailDock({ profileRole = "member", isTestUser = false }: { profileRole?: string; isTestUser?: boolean }) {
   const searchParams = useSearchParams();
@@ -110,10 +105,8 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
 
   const [enriched, setEnriched] = useState<EnrichedData | null>(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"details" | "timeline">("details");
 
-
-  // ── Enriched data fetch ──────────────────────────────────────────────────
+  // Enriched data fetch
   useEffect(() => {
     if (!dockId) { setEnriched(null); return; }
     setEnriched(null);
@@ -141,42 +134,37 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
     request.phase === "dev"       ? (request.kanbanState ?? "todo") :
                                     (request.trackStage ?? "measuring");
   const stageLabel = getStageLabel(stageKey);
-  const statusStyle = STATUS_COLORS[request.status] ?? { bg: "color-mix(in oklch, var(--status-draft) 10%, transparent)", color: "var(--status-draft)" };
+  const statusStyle = STATUS_COLORS[request.status] ?? STATUS_COLORS.draft;
 
   return (
     <aside
-      className="flex flex-col shrink-0 overflow-y-auto bg-card border-l border-border"
+      className="flex flex-col shrink-0 overflow-y-auto bg-card border-l sticky top-0 z-10"
       style={{
         width: DOCK_WIDTH,
         height: "100vh",
-        position: "sticky",
-        top: 0,
         animation: "dockSlideIn 200ms ease-out",
       }}
     >
-      {/* Realtime subscription — invisible, refreshes on any DB change */}
+      {/* Realtime subscription */}
       <RealtimeRequest requestId={request.id} />
 
       {/* Header */}
-      <div
-        className="flex items-start justify-between px-5 py-4 border-b border-border"
-      >
+      <div className="flex items-start justify-between px-5 py-4 border-b">
         <div className="flex flex-col gap-1.5 min-w-0">
-          <p className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, letterSpacing: "0.04em" }}>
+          <p className="font-mono text-[10px] tracking-wider text-muted-foreground/60">
             #{request.id.slice(0, 6).toUpperCase()}
           </p>
-          <h2 className="text-foreground" style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>
+          <h2 className="text-[15px] font-semibold leading-snug text-foreground">
             {request.title}
           </h2>
           <div className="flex items-center gap-2 flex-wrap mt-1">
-            <span className="rounded" style={{
-              fontFamily: "'Geist Mono', monospace", fontSize: 9, fontWeight: 600,
-              letterSpacing: "0.06em", textTransform: "uppercase",
-              padding: "2px 6px", background: statusStyle.bg, color: statusStyle.color,
-            }}>
+            <span
+              className="rounded font-mono text-[9px] font-semibold tracking-wider uppercase px-1.5 py-0.5"
+              style={{ background: statusStyle.bg, color: statusStyle.color }}
+            >
               {request.status.replace(/_/g, " ")}
             </span>
-            <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <span className="font-mono text-[9px] tracking-wider uppercase text-muted-foreground/60">
               {phaseLabel} · {stageLabel}
             </span>
           </div>
@@ -195,364 +183,368 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
               deadlineAt: toISOorNull(request.deadlineAt),
             }} />
           )}
-          <button onClick={close} className="shrink-0 rounded flex items-center justify-center transition-colors text-muted-foreground/60"
-            style={{ width: 28, height: 28, background: "transparent", border: "none", cursor: "pointer" }}>
-            <X size={14} />
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={close}>
+            <X className="size-3.5" />
+          </Button>
         </div>
       </div>
 
       {/* Body */}
       <div className="flex flex-col gap-5 px-5 py-5">
 
-        {/* ── Tab switcher ── */}
-        <div className="flex gap-0 border-b border-border" style={{ marginBottom: -4 }}>
-          {(["details", "timeline"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? "text-foreground" : "text-muted-foreground/60"}
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                background: "none",
-                border: "none",
-                borderBottom: activeTab === tab ? "2px solid var(--primary)" : "2px solid transparent",
-                padding: "6px 12px 8px",
-                cursor: "pointer",
-                textTransform: "capitalize",
-                transition: "color 150ms, border-color 150ms",
-              }}
-            >
-              {tab === "timeline" && <Activity size={11} style={{ display: "inline", marginRight: 4, verticalAlign: "-1px" }} />}
-              {tab === "details" ? "Details" : "Timeline"}
-            </button>
-          ))}
-        </div>
+        {/* Tab switcher */}
+        <Tabs defaultValue="details" className="-mb-1">
+          <TabsList variant="line" className="w-full justify-start border-b">
+            <TabsTrigger value="details">
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="timeline">
+              <Activity className="size-3" />
+              Timeline
+            </TabsTrigger>
+          </TabsList>
 
-        {/* ── Timeline tab content ── */}
-        {activeTab === "timeline" && request && (
-          <ActivityTimeline requestId={request.id} />
-        )}
+          <TabsContent value="timeline" className="mt-4">
+            <ActivityTimeline requestId={request.id} />
+          </TabsContent>
 
-        {/* ── Details tab content ── */}
-        {activeTab === "details" && <>
+          <TabsContent value="details" className="mt-4 flex flex-col gap-5">
+            {/* Project badge */}
+            {enriched?.project && (
+              <ProjectBadge name={enriched.project.name} color={enriched.project.color} />
+            )}
 
-        {/* ── Project badge ── */}
-        {enriched?.project && (
-          <ProjectBadge name={enriched.project.name} color={enriched.project.color} />
-        )}
+            {/* Phase panel */}
+            {request.phase === "predesign" && (
+              <>
+                <Separator />
+                <PredesignPanel
+                  requestId={request.id}
+                  currentStage={(request.predesignStage ?? request.stage) as "intake" | "context" | "shape" | "bet"}
+                  description={request.description}
+                  businessContext={request.businessContext}
+                  successMetrics={request.successMetrics}
+                  profileRole={profileRole}
+                  impactMetric={request.impactMetric}
+                  impactPrediction={request.impactPrediction}
+                  existingConfidence={null}
+                />
+              </>
+            )}
+            {request.phase === "design" && (
+              <>
+                <Separator />
+                <DesignPhasePanel
+                  requestId={request.id}
+                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "frame" | "diverge" | "converge" | "prove"}
+                  figmaUrl={request.figmaUrl}
+                  profileRole={profileRole}
+                  isTestUser={isTestUser}
+                />
+              </>
+            )}
+            {request.phase === "dev" && (
+              <>
+                <Separator />
+                <DevPhasePanel
+                  requestId={request.id}
+                  kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
+                  figmaUrl={request.figmaUrl}
+                  figmaLockedAt={toISOorNull(request.figmaLockedAt)}
+                  devQuestionCount={enriched?.comments.filter((c) => c.isDevQuestion).length ?? 0}
+                />
+              </>
+            )}
+            {request.phase === "track" && (
+              <>
+                <Separator />
+                <TrackPhasePanel
+                  requestId={request.id}
+                  trackStage={(request.trackStage ?? "measuring") as "measuring" | "complete"}
+                  impactMetric={request.impactMetric}
+                  impactPrediction={request.impactPrediction}
+                  impactActual={request.impactActual}
+                  initialVariancePercent={null}
+                />
+              </>
+            )}
+            {request.phase === "track" && enriched && (
+              <>
+                <Separator />
+                <ImpactRetrospectivePanel
+                  requestId={request.id}
+                  existingRetrospective={enriched.existingRetrospective}
+                />
+              </>
+            )}
 
-        {/* ── Phase panel ── */}
-        {request.phase === "predesign" && (
-          <div style={divider}>
-            <PredesignPanel
-              requestId={request.id}
-              currentStage={(request.predesignStage ?? request.stage) as "intake" | "context" | "shape" | "bet"}
-              description={request.description}
-              businessContext={request.businessContext}
-              successMetrics={request.successMetrics}
-              profileRole={profileRole}
-              impactMetric={request.impactMetric}
-              impactPrediction={request.impactPrediction}
-              existingConfidence={null}
-            />
-          </div>
-        )}
-        {request.phase === "design" && (
-          <div style={divider}>
-            <DesignPhasePanel
-              requestId={request.id}
-              currentDesignStage={(request.designStage ?? "sense") as "sense" | "frame" | "diverge" | "converge" | "prove"}
-              figmaUrl={request.figmaUrl}
-              profileRole={profileRole}
-              isTestUser={isTestUser}
-            />
-          </div>
-        )}
-        {request.phase === "dev" && (
-          <div style={divider}>
-            <DevPhasePanel
-              requestId={request.id}
-              kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
-              figmaUrl={request.figmaUrl}
-              figmaLockedAt={toISOorNull(request.figmaLockedAt)}
-              devQuestionCount={enriched?.comments.filter((c) => c.isDevQuestion).length ?? 0}
-            />
-          </div>
-        )}
-        {request.phase === "track" && (
-          <div style={divider}>
-            <TrackPhasePanel
-              requestId={request.id}
-              trackStage={(request.trackStage ?? "measuring") as "measuring" | "complete"}
-              impactMetric={request.impactMetric}
-              impactPrediction={request.impactPrediction}
-              impactActual={request.impactActual}
-              initialVariancePercent={null}
-            />
-          </div>
-        )}
-        {request.phase === "track" && enriched && (
-          <div style={divider}>
-            <ImpactRetrospectivePanel
-              requestId={request.id}
-              existingRetrospective={enriched.existingRetrospective}
-            />
-          </div>
-        )}
+            {/* Handoff checklist */}
+            <Separator />
+            <HandoffChecklist requestId={request.id} stage={request.stage} />
 
-        {/* ── Handoff checklist ── */}
-        <div style={divider}>
-          <HandoffChecklist requestId={request.id} stage={request.stage} />
-        </div>
-
-        {/* ── Description / Context ── */}
-        {request.description && (
-          <div style={divider}>
-            <p style={labelStyle} className="text-muted-foreground/60">Problem</p>
-            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
-              {request.description}
-            </p>
-          </div>
-        )}
-        {request.businessContext && (
-          <div>
-            <p style={labelStyle} className="text-muted-foreground/60">Business context</p>
-            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
-              {request.businessContext}
-            </p>
-          </div>
-        )}
-        {request.successMetrics && (
-          <div>
-            <p style={labelStyle} className="text-muted-foreground/60">Success metrics</p>
-            <p className="text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.6 }}>
-              {request.successMetrics}
-            </p>
-          </div>
-        )}
-
-        {/* ── Figma link + history ── */}
-        {request.figmaUrl && (
-          <div style={divider}>
-            <p style={labelStyle} className="text-muted-foreground/60">Figma</p>
-            <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer"
-              className="text-sm font-medium text-primary no-underline">
-              Open in Figma ↗
-            </a>
-          </div>
-        )}
-        {request.figmaUrl && (request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
-          <div style={divider}>
-            <FigmaHistory requestId={request.id} phase={request.phase as string} />
-          </div>
-        )}
-
-        {/* ── AI Context Brief (design phase) ── */}
-        {request.phase === "design" && (
-          <div style={divider}>
-            <ContextBriefPanel
-              requestId={request.id}
-              existingBrief={enriched?.existingBrief ?? null}
-            />
-          </div>
-        )}
-
-        {/* ── AI Triage ── */}
-        {enriched?.aiAnalysis && (
-          <div style={divider}>
-            <div className="flex items-center justify-between mb-3">
-              <p style={labelStyle} className="text-muted-foreground/60">AI Triage</p>
-              <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9 }}>
-                {enriched.aiAnalysis.aiModel}
-              </span>
-            </div>
-            <div className="flex flex-col gap-3">
-              <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                {enriched.aiAnalysis.summary}
-              </p>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p style={labelStyle} className="text-muted-foreground/60">Request quality</p>
-                  <span style={{
-                    fontFamily: "'Geist Mono', monospace", fontSize: 11, fontWeight: 600,
-                    color: enriched.aiAnalysis.qualityScore >= 70 ? "var(--accent-success)" : enriched.aiAnalysis.qualityScore >= 40 ? "var(--accent-warning)" : "var(--accent-danger)",
-                  }}>
-                    {enriched.aiAnalysis.qualityScore}/100
-                  </span>
-                </div>
-                <div className="bg-accent" style={{ width: "100%", height: 4, borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%", width: `${enriched.aiAnalysis.qualityScore}%`, borderRadius: 2,
-                    background: enriched.aiAnalysis.qualityScore >= 70 ? "var(--accent-success)" : enriched.aiAnalysis.qualityScore >= 40 ? "var(--accent-warning)" : "var(--accent-danger)",
-                  }} />
-                </div>
-              </div>
-              {enriched.aiAnalysis.qualityFlags.length > 0 && (
+            {/* Description / Context */}
+            {request.description && (
+              <>
+                <Separator />
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Issues</p>
-                  <div className="flex flex-wrap gap-1">
-                    {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
-                      <span key={i} className="rounded-sm" style={{ fontSize: 11, color: "var(--accent-warning)", background: "color-mix(in oklch, var(--accent-warning) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--accent-warning) 20%, transparent)", padding: "2px 6px" }}>
-                        {flag}
-                      </span>
-                    ))}
-                  </div>
+                  <FieldLabel>Problem</FieldLabel>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    {request.description}
+                  </p>
                 </div>
-              )}
+              </>
+            )}
+            {request.businessContext && (
               <div>
-                <p style={{ ...labelStyle, marginBottom: 4 }} className="text-muted-foreground/60">Reasoning</p>
-                <p className="text-muted-foreground/60" style={{ fontSize: 11, lineHeight: 1.6 }}>
-                  {enriched.aiAnalysis.reasoning}
+                <FieldLabel>Business context</FieldLabel>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  {request.businessContext}
                 </p>
               </div>
-              {enriched.aiAnalysis.suggestions.length > 0 && (
+            )}
+            {request.successMetrics && (
+              <div>
+                <FieldLabel>Success metrics</FieldLabel>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  {request.successMetrics}
+                </p>
+              </div>
+            )}
+
+            {/* Figma link + history */}
+            {request.figmaUrl && (
+              <>
+                <Separator />
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Suggestions</p>
-                  <ul className="space-y-1">
-                    {enriched.aiAnalysis.suggestions.map((s, i) => (
-                      <li key={i} className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.5 }}>· {s}</li>
-                    ))}
-                  </ul>
+                  <FieldLabel>Figma</FieldLabel>
+                  <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-medium text-primary hover:underline">
+                    Open in Figma ↗
+                  </a>
                 </div>
-              )}
-              {enriched.aiAnalysis.potentialDuplicates.length > 0 && (
+              </>
+            )}
+            {request.figmaUrl && (request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
+              <>
+                <Separator />
+                <FigmaHistory requestId={request.id} phase={request.phase as string} />
+              </>
+            )}
+
+            {/* AI Context Brief (design phase) */}
+            {request.phase === "design" && (
+              <>
+                <Separator />
+                <ContextBriefPanel
+                  requestId={request.id}
+                  existingBrief={enriched?.existingBrief ?? null}
+                />
+              </>
+            )}
+
+            {/* AI Triage */}
+            {enriched?.aiAnalysis && (
+              <>
+                <Separator />
                 <div>
-                  <p style={{ ...labelStyle, marginBottom: 6 }} className="text-muted-foreground/60">Potential duplicates</p>
-                  <div className="space-y-1.5">
-                    {enriched.aiAnalysis.potentialDuplicates.map((dup, i) => (
-                      <Link key={i} href={`/dashboard/requests/${dup.id}`}
-                        className="text-muted-foreground border border-border rounded-md no-underline"
-                        style={{ display: "block", fontSize: 12, padding: "6px 10px" }}>
-                        <span className="text-foreground" style={{ fontWeight: 500 }}>{dup.title}</span>
-                        <span className="text-muted-foreground/60" style={{ marginLeft: 6 }}>{dup.reason}</span>
-                      </Link>
-                    ))}
+                  <div className="flex items-center justify-between mb-3">
+                    <FieldLabel>AI Triage</FieldLabel>
+                    <span className="font-mono text-[9px] text-muted-foreground/60">
+                      {enriched.aiAnalysis.aiModel}
+                    </span>
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {enriched && !enriched.aiAnalysis && (
-          <div style={divider}>
-            <TriageButton requestId={request.id} />
-          </div>
-        )}
-
-        {/* ── Assignees ── */}
-        <div style={divider}>
-          <p style={{ ...labelStyle, marginBottom: 10 }} className="text-muted-foreground/60">Assignees</p>
-          <AssignPanel requestId={request.id} />
-        </div>
-
-        {/* ── Meta grid ── */}
-        <div style={divider}>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p style={labelStyle} className="text-muted-foreground/60">Priority</p>
-              <p style={metaValueStyle} className="text-muted-foreground">{request.priority ? PRIORITY_LABELS[request.priority] : "—"}</p>
-            </div>
-            <div>
-              <p style={labelStyle} className="text-muted-foreground/60">Type</p>
-              <p style={metaValueStyle} className="text-muted-foreground">{request.requestType ?? "—"}</p>
-            </div>
-            <div>
-              <p style={labelStyle} className="text-muted-foreground/60">Due</p>
-              <p style={metaValueStyle} className="text-muted-foreground">{formatDate(request.deadlineAt ?? null)}</p>
-            </div>
-            <div>
-              <p style={labelStyle} className="text-muted-foreground/60">Created</p>
-              <p style={metaValueStyle} className="text-muted-foreground">{formatDate(request.createdAt)}</p>
-            </div>
-            {request.complexity && (
-              <div>
-                <p style={labelStyle} className="text-muted-foreground/60">Complexity</p>
-                <p style={metaValueStyle} className="text-muted-foreground">{request.complexity} / 5</p>
-              </div>
-            )}
-            {request.impactPrediction && (
-              <div>
-                <p style={labelStyle} className="text-muted-foreground/60">Predicted impact</p>
-                <p style={metaValueStyle} className="text-muted-foreground">{request.impactPrediction}</p>
-              </div>
-            )}
-            {enriched?.requesterName && (
-              <div className="col-span-2">
-                <p style={labelStyle} className="text-muted-foreground/60">Submitted by</p>
-                <p style={metaValueStyle} className="text-muted-foreground">{enriched.requesterName}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Stage history ── */}
-        {enriched && enriched.stageHistory.length > 0 && (
-          <div style={divider}>
-            <p style={{ ...labelStyle, marginBottom: 8 }} className="text-muted-foreground/60">History</p>
-            <div className="space-y-1.5">
-              {enriched.stageHistory.map((s) => (
-                <div key={s.id} className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground" style={{ fontSize: 12, textTransform: "capitalize" }}>{s.stage}</span>
-                  <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10 }}>
-                    {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Activity / Comments ── */}
-        <div style={divider}>
-          <p style={{ ...labelStyle, marginBottom: enrichedLoading ? 8 : 10 }} className="text-muted-foreground/60">
-            Activity{enriched ? ` (${enriched.comments.length})` : ""}
-          </p>
-          {enrichedLoading && (
-            <p className="text-muted-foreground/60" style={{ fontSize: 12 }}>Loading…</p>
-          )}
-          {enriched && enriched.comments.length === 0 && (
-            <p className="text-muted-foreground/60" style={{ fontSize: 12, marginBottom: 12 }}>No comments yet</p>
-          )}
-          {enriched && enriched.comments.length > 0 && (
-            <div className="space-y-3 mb-4">
-              {enriched.comments.map((c) => {
-                const author = c.authorId ? enriched.authorMap[c.authorId] : null;
-                return (
-                  <div key={c.id} className="border border-border rounded-md" style={{ padding: "10px 12px" }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      {c.isSystem ? (
-                        <span className="text-muted-foreground/60 bg-muted rounded-sm" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 9, padding: "1px 5px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                          system
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {enriched.aiAnalysis.summary}
+                    </p>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <FieldLabel>Request quality</FieldLabel>
+                        <span
+                          className="font-mono text-[11px] font-semibold"
+                          style={{
+                            color: enriched.aiAnalysis.qualityScore >= 70 ? "var(--accent-success)" : enriched.aiAnalysis.qualityScore >= 40 ? "var(--accent-warning)" : "var(--accent-danger)",
+                          }}
+                        >
+                          {enriched.aiAnalysis.qualityScore}/100
                         </span>
-                      ) : (
-                        <span className="text-foreground" style={{ fontSize: 12, fontWeight: 500 }}>
-                          {author?.fullName ?? "Unknown"}
-                        </span>
-                      )}
-                      <span className="text-muted-foreground/60" style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10 }}>
-                        {c.createdAt ? formatDateTime(new Date(c.createdAt).toISOString()) : ""}
-                      </span>
+                      </div>
+                      <Progress
+                        value={enriched.aiAnalysis.qualityScore}
+                        className="h-1"
+                      />
                     </div>
-                    <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.6 }}>{c.body}</p>
+                    {enriched.aiAnalysis.qualityFlags.length > 0 && (
+                      <div>
+                        <FieldLabel>Issues</FieldLabel>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
+                            <Badge key={i} variant="outline" className="text-[11px] text-[var(--accent-warning)] border-[var(--accent-warning)]/20 bg-[var(--accent-warning)]/10">
+                              {flag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <FieldLabel>Reasoning</FieldLabel>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground/60">
+                        {enriched.aiAnalysis.reasoning}
+                      </p>
+                    </div>
+                    {enriched.aiAnalysis.suggestions.length > 0 && (
+                      <div>
+                        <FieldLabel>Suggestions</FieldLabel>
+                        <ul className="space-y-1 mt-1.5">
+                          {enriched.aiAnalysis.suggestions.map((s, i) => (
+                            <li key={i} className="text-xs leading-relaxed text-muted-foreground">· {s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {enriched.aiAnalysis.potentialDuplicates.length > 0 && (
+                      <div>
+                        <FieldLabel>Potential duplicates</FieldLabel>
+                        <div className="space-y-1.5 mt-1.5">
+                          {enriched.aiAnalysis.potentialDuplicates.map((dup, i) => (
+                            <Link key={i} href={`/dashboard/requests/${dup.id}`}
+                              className="block text-xs p-2 rounded-md border hover:bg-muted transition-colors no-underline">
+                              <span className="font-medium text-foreground">{dup.title}</span>
+                              <span className="ml-1.5 text-muted-foreground/60">{dup.reason}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              </>
+            )}
+            {enriched && !enriched.aiAnalysis && (
+              <>
+                <Separator />
+                <TriageButton requestId={request.id} />
+              </>
+            )}
+
+            {/* Assignees */}
+            <Separator />
+            <div>
+              <FieldLabel>Assignees</FieldLabel>
+              <div className="mt-2.5">
+                <AssignPanel requestId={request.id} />
+              </div>
             </div>
-          )}
-          <CommentBox requestId={request.id} />
-        </div>
 
-        </>}
+            {/* Meta grid */}
+            <Separator />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Priority</FieldLabel>
+                <p className="text-xs font-medium text-muted-foreground">{request.priority ? PRIORITY_LABELS[request.priority] : "—"}</p>
+              </div>
+              <div>
+                <FieldLabel>Type</FieldLabel>
+                <p className="text-xs font-medium text-muted-foreground">{request.requestType ?? "—"}</p>
+              </div>
+              <div>
+                <FieldLabel>Due</FieldLabel>
+                <p className="text-xs font-medium text-muted-foreground">{formatDate(request.deadlineAt ?? null)}</p>
+              </div>
+              <div>
+                <FieldLabel>Created</FieldLabel>
+                <p className="text-xs font-medium text-muted-foreground">{formatDate(request.createdAt)}</p>
+              </div>
+              {request.complexity && (
+                <div>
+                  <FieldLabel>Complexity</FieldLabel>
+                  <p className="text-xs font-medium text-muted-foreground">{request.complexity} / 5</p>
+                </div>
+              )}
+              {request.impactPrediction && (
+                <div>
+                  <FieldLabel>Predicted impact</FieldLabel>
+                  <p className="text-xs font-medium text-muted-foreground">{request.impactPrediction}</p>
+                </div>
+              )}
+              {enriched?.requesterName && (
+                <div className="col-span-2">
+                  <FieldLabel>Submitted by</FieldLabel>
+                  <p className="text-xs font-medium text-muted-foreground">{enriched.requesterName}</p>
+                </div>
+              )}
+            </div>
 
-        {/* ── Open full page ── */}
-        <div className="border-t border-border" style={{ paddingTop: 12, textAlign: "center" }}>
-          <Link href={`/dashboard/requests/${request.id}`} className="text-muted-foreground/60 no-underline" style={{ fontSize: 12 }}>
+            {/* Stage history */}
+            {enriched && enriched.stageHistory.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <FieldLabel>History</FieldLabel>
+                  <div className="space-y-1.5 mt-2">
+                    {enriched.stageHistory.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground capitalize">{s.stage}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground/60">
+                          {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Activity / Comments */}
+            <Separator />
+            <div>
+              <FieldLabel>
+                Activity{enriched ? ` (${enriched.comments.length})` : ""}
+              </FieldLabel>
+              {enrichedLoading && (
+                <p className="text-xs text-muted-foreground/60 mt-2">Loading...</p>
+              )}
+              {enriched && enriched.comments.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 mt-2 mb-3">No comments yet</p>
+              )}
+              {enriched && enriched.comments.length > 0 && (
+                <div className="space-y-3 mt-2.5 mb-4">
+                  {enriched.comments.map((c) => {
+                    const author = c.authorId ? enriched.authorMap[c.authorId] : null;
+                    return (
+                      <div key={c.id} className="border rounded-md p-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          {c.isSystem ? (
+                            <Badge variant="secondary" className="font-mono text-[9px] tracking-wider uppercase h-4">
+                              system
+                            </Badge>
+                          ) : (
+                            <span className="text-xs font-medium text-foreground">
+                              {author?.fullName ?? "Unknown"}
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] text-muted-foreground/60">
+                            {c.createdAt ? formatDateTime(new Date(c.createdAt).toISOString()) : ""}
+                          </span>
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">{c.body}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <CommentBox requestId={request.id} />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Open full page */}
+        <Separator />
+        <div className="text-center pb-2">
+          <Link href={`/dashboard/requests/${request.id}`} className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors no-underline">
             Open full page →
           </Link>
         </div>
-
       </div>
     </aside>
   );

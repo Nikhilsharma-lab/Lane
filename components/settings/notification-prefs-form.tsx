@@ -3,8 +3,11 @@
 import { useState, useCallback } from "react";
 import { saveNotificationPreferences } from "@/app/actions/notification-preferences";
 import type { NotificationPreference } from "@/db/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
-// Default values matching the DB schema defaults
 const DEFAULTS: PrefsState = {
   nudgesInApp: true,
   nudgesEmail: false,
@@ -44,66 +47,13 @@ interface RowConfig {
 const ROWS: RowConfig[] = [
   { label: "AI Nudges", inAppKey: "nudgesInApp", emailKey: "nudgesEmail" },
   { label: "Comments", inAppKey: "commentsInApp", emailKey: "commentsEmail" },
-  {
-    label: "Stage Changes",
-    inAppKey: "stageChangesInApp",
-    emailKey: "stageChangesEmail",
-  },
+  { label: "Stage Changes", inAppKey: "stageChangesInApp", emailKey: "stageChangesEmail" },
   { label: "Mentions", inAppKey: "mentionsInApp", emailKey: "mentionsEmail" },
   { label: "Weekly Digest", inAppKey: null, emailKey: "weeklyDigestEmail" },
-  {
-    label: "Morning Briefing",
-    inAppKey: "morningBriefingInApp",
-    emailKey: null,
-  },
+  { label: "Morning Briefing", inAppKey: "morningBriefingInApp", emailKey: null },
 ];
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 36,
-        height: 20,
-        borderRadius: 10,
-        background: checked ? "var(--primary)" : "var(--accent)",
-        border: "none",
-        cursor: "pointer",
-        position: "relative",
-        transition: "background 0.15s ease",
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: 2,
-          left: checked ? 18 : 2,
-          width: 16,
-          height: 16,
-          borderRadius: "50%",
-          background: "var(--background)",
-          transition: "left 0.15s ease",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-        }}
-      />
-    </button>
-  );
-}
-
-export function NotificationPrefsForm({
-  initialPrefs,
-}: NotificationPrefsFormProps) {
+export function NotificationPrefsForm({ initialPrefs }: NotificationPrefsFormProps) {
   const [prefs, setPrefs] = useState<PrefsState>(() => {
     if (!initialPrefs) return { ...DEFAULTS };
     return {
@@ -123,7 +73,6 @@ export function NotificationPrefsForm({
   const handleToggle = useCallback(
     (key: keyof PrefsState, value: boolean) => {
       setPrefs((prev) => ({ ...prev, [key]: value }));
-      // Fire-and-forget save
       saveNotificationPreferences({ [key]: value });
     },
     []
@@ -135,136 +84,68 @@ export function NotificationPrefsForm({
   }
 
   return (
-    <div>
-      {/* Table header */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 80px 80px",
-          gap: 0,
-          padding: "0 0 8px 0",
-          borderBottom: "1px solid hsl(var(--border))",
-          marginBottom: 4,
-        }}
-      >
-        <span
-          className="text-muted-foreground/60"
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Category
-        </span>
-        <span
-          className="text-muted-foreground/60"
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            textAlign: "center",
-          }}
-        >
-          In-App
-        </span>
-        <span
-          className="text-muted-foreground/60"
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            textAlign: "center",
-          }}
-        >
-          Email
-        </span>
-      </div>
-
-      {/* Rows */}
-      {ROWS.map((row) => (
-        <div
-          key={row.label}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 80px 80px",
-            gap: 0,
-            alignItems: "center",
-            padding: "12px 0",
-            borderBottom: "1px solid hsl(var(--border))",
-          }}
-        >
-          <span
-            className="text-foreground"
-            style={{
-              fontSize: 13,
-              fontWeight: 480,
-            }}
-          >
-            {row.label}
+    <Card>
+      <CardHeader>
+        <CardTitle>Channels</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_80px_80px] gap-0 pb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Category
           </span>
-
-          {/* In-App toggle */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            {row.inAppKey ? (
-              <Toggle
-                checked={prefs[row.inAppKey]}
-                onChange={(v) => handleToggle(row.inAppKey!, v)}
-              />
-            ) : (
-              <span
-                className="text-muted-foreground/60"
-                style={{
-                  fontSize: 12,
-                }}
-              >
-                --
-              </span>
-            )}
-          </div>
-
-          {/* Email toggle */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            {row.emailKey ? (
-              <Toggle
-                checked={prefs[row.emailKey]}
-                onChange={(v) => handleToggle(row.emailKey!, v)}
-              />
-            ) : (
-              <span
-                className="text-muted-foreground/60"
-                style={{
-                  fontSize: 12,
-                }}
-              >
-                --
-              </span>
-            )}
-          </div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 text-center">
+            In-App
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 text-center">
+            Email
+          </span>
         </div>
-      ))}
+        <Separator />
 
-      {/* Reset button */}
-      <div style={{ marginTop: 20 }}>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="text-muted-foreground bg-muted border border-border"
-          style={{
-            fontSize: 13,
-            fontWeight: 520,
-            cursor: "pointer",
-            padding: "6px 14px",
-            borderRadius: 6,
-            transition: "all 0.15s ease",
-          }}
-        >
-          Reset to defaults
-        </button>
-      </div>
-    </div>
+        {/* Rows */}
+        {ROWS.map((row) => (
+          <div key={row.label}>
+            <div className="grid grid-cols-[1fr_80px_80px] gap-0 items-center py-3">
+              <span className="text-sm font-medium text-foreground">
+                {row.label}
+              </span>
+
+              {/* In-App toggle */}
+              <div className="flex justify-center">
+                {row.inAppKey ? (
+                  <Switch
+                    checked={prefs[row.inAppKey]}
+                    onCheckedChange={(v) => handleToggle(row.inAppKey!, v)}
+                  />
+                ) : (
+                  <span className="text-xs text-muted-foreground/60">--</span>
+                )}
+              </div>
+
+              {/* Email toggle */}
+              <div className="flex justify-center">
+                {row.emailKey ? (
+                  <Switch
+                    checked={prefs[row.emailKey]}
+                    onCheckedChange={(v) => handleToggle(row.emailKey!, v)}
+                  />
+                ) : (
+                  <span className="text-xs text-muted-foreground/60">--</span>
+                )}
+              </div>
+            </div>
+            <Separator />
+          </div>
+        ))}
+
+        {/* Reset button */}
+        <div className="mt-5">
+          <Button type="button" variant="outline" onClick={handleReset}>
+            Reset to defaults
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,9 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Check, Globe, Lock, Link2 } from "lucide-react";
+import { Copy, Check, Globe, Lock, Link2 } from "lucide-react";
 import { createPublishedView } from "@/app/actions/published-views";
 import type { ViewFilters } from "@/db/schema/published_views";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 interface Props {
   currentFilters: ViewFilters;
@@ -62,251 +74,91 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-    >
-      <div
-        className="rounded-xl shadow-lg w-full max-w-md mx-4"
-        style={{
-          background: "hsl(var(--card))",
-          border: "1px solid hsl(var(--border))",
-        }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid hsl(var(--border))" }}
-        >
-          <div className="flex items-center gap-2">
-            <Link2 size={14} style={{ color: "hsl(var(--primary))" }} />
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "hsl(var(--foreground))",
-              }}
-            >
-              Publish View
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded flex items-center justify-center"
-            style={{
-              width: 28,
-              height: 28,
-              color: "hsl(var(--muted-foreground) / 0.6)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <X size={14} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Link2 size={14} className="text-primary" />
+            Publish View
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="space-y-4">
           {!publishedUrl ? (
             <>
               {/* Name */}
-              <div>
-                <label
-                  style={{
-                    fontFamily: "'Geist Mono', monospace",
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                    color: "hsl(var(--muted-foreground) / 0.6)",
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                >
+              <div className="space-y-1.5">
+                <Label className="font-mono text-[9px] font-medium tracking-[0.07em] uppercase text-muted-foreground/60">
                   View name
-                </label>
-                <input
+                </Label>
+                <Input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Q2 Design Pipeline"
-                  className="w-full rounded-lg px-3 py-2"
-                  style={{
-                    fontSize: 13,
-                    background: "hsl(var(--muted))",
-                    border: "1px solid hsl(var(--border))",
-                    color: "hsl(var(--foreground))",
-                    outline: "none",
-                  }}
                 />
               </div>
 
               {/* Access mode */}
-              <div>
-                <label
-                  style={{
-                    fontFamily: "'Geist Mono', monospace",
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                    color: "hsl(var(--muted-foreground) / 0.6)",
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                >
+              <div className="space-y-1.5">
+                <Label className="font-mono text-[9px] font-medium tracking-[0.07em] uppercase text-muted-foreground/60">
                   Access
-                </label>
+                </Label>
                 <div className="flex gap-2">
-                  <button
+                  <Button
+                    variant={accessMode === "authenticated" ? "default" : "outline"}
+                    className="flex-1"
+                    size="sm"
                     onClick={() => setAccessMode("authenticated")}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 transition-colors"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      background:
-                        accessMode === "authenticated"
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--muted))",
-                      color:
-                        accessMode === "authenticated"
-                          ? "var(--primary-foreground)"
-                          : "hsl(var(--muted-foreground))",
-                      border: `1px solid ${
-                        accessMode === "authenticated"
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--border))"
-                      }`,
-                      cursor: "pointer",
-                    }}
                   >
                     <Lock size={12} />
                     Authenticated
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant={accessMode === "public" ? "default" : "outline"}
+                    className="flex-1"
+                    size="sm"
                     onClick={() => setAccessMode("public")}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 transition-colors"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      background:
-                        accessMode === "public"
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--muted))",
-                      color:
-                        accessMode === "public"
-                          ? "var(--primary-foreground)"
-                          : "hsl(var(--muted-foreground))",
-                      border: `1px solid ${
-                        accessMode === "public"
-                          ? "hsl(var(--primary))"
-                          : "hsl(var(--border))"
-                      }`,
-                      cursor: "pointer",
-                    }}
                   >
                     <Globe size={12} />
                     Anyone with link
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {/* Allow comments */}
               <div className="flex items-center justify-between">
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "hsl(var(--muted-foreground))",
-                  }}
-                >
+                <Label className="text-xs text-muted-foreground">
                   Allow comments
-                </span>
-                <button
-                  onClick={() => setAllowComments((v) => !v)}
-                  className="rounded-full transition-colors"
-                  style={{
-                    width: 36,
-                    height: 20,
-                    background: allowComments
-                      ? "hsl(var(--primary))"
-                      : "hsl(var(--accent))",
-                    border: "none",
-                    cursor: "pointer",
-                    position: "relative",
-                  }}
-                >
-                  <span
-                    className="block rounded-full transition-transform"
-                    style={{
-                      width: 14,
-                      height: 14,
-                      background: "var(--primary-foreground)",
-                      position: "absolute",
-                      top: 3,
-                      left: allowComments ? 19 : 3,
-                    }}
-                  />
-                </button>
+                </Label>
+                <Switch
+                  checked={allowComments}
+                  onCheckedChange={setAllowComments}
+                />
               </div>
 
               {error && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "var(--accent-danger)",
-                    background: "color-mix(in oklch, var(--accent-danger) 10%, transparent)",
-                    borderRadius: 8,
-                    padding: "8px 12px",
-                  }}
-                >
-                  {error}
-                </p>
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
 
-              <button
+              <Button
                 onClick={handlePublish}
                 disabled={submitting}
-                className="w-full rounded-lg px-4 py-2.5 transition-opacity disabled:opacity-50"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: "hsl(var(--primary))",
-                  color: "var(--primary-foreground)",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+                className="w-full"
               >
                 {submitting ? "Publishing..." : "Publish"}
-              </button>
+              </Button>
             </>
           ) : (
             <>
               {/* Published state */}
-              <div
-                className="rounded-lg px-4 py-3"
-                style={{
-                  background: "color-mix(in oklch, var(--accent-success) 10%, transparent)",
-                  border: "1px solid color-mix(in oklch, var(--accent-success) 20%, transparent)",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--accent-success)",
-                    marginBottom: 4,
-                  }}
-                >
+              <div className="rounded-lg px-4 py-3 bg-[color-mix(in_oklch,var(--accent-success)_10%,transparent)] border border-[color-mix(in_oklch,var(--accent-success)_20%,transparent)]">
+                <p className="text-xs font-semibold text-[var(--accent-success)] mb-1">
                   View published
                 </p>
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: "var(--accent-success)",
-                    lineHeight: 1.5,
-                  }}
-                >
+                <p className="text-[11px] text-[var(--accent-success)] leading-normal">
                   {accessMode === "public"
                     ? "Anyone with this link can view the requests."
                     : "Only authenticated team members can access this view."}
@@ -314,57 +166,36 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
               </div>
 
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   readOnly
                   value={publishedUrl}
-                  className="flex-1 rounded-lg px-3 py-2"
-                  style={{
-                    fontSize: 11,
-                    fontFamily: "'Geist Mono', monospace",
-                    background: "hsl(var(--muted))",
-                    border: "1px solid hsl(var(--border))",
-                    color: "hsl(var(--muted-foreground))",
-                    outline: "none",
-                  }}
+                  className="flex-1 font-mono text-[11px]"
                 />
-                <button
+                <Button
+                  variant={copied ? "secondary" : "outline"}
+                  size="sm"
                   onClick={handleCopy}
-                  className="shrink-0 rounded-lg px-3 py-2 flex items-center gap-1.5 transition-colors"
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    background: copied ? "color-mix(in oklch, var(--accent-success) 10%, transparent)" : "hsl(var(--muted))",
-                    border: `1px solid ${
-                      copied ? "color-mix(in oklch, var(--accent-success) 20%, transparent)" : "hsl(var(--border))"
-                    }`,
-                    color: copied ? "var(--accent-success)" : "hsl(var(--foreground))",
-                    cursor: "pointer",
-                  }}
+                  className={cn(
+                    copied && "bg-[color-mix(in_oklch,var(--accent-success)_10%,transparent)] border-[color-mix(in_oklch,var(--accent-success)_20%,transparent)] text-[var(--accent-success)]"
+                  )}
                 >
                   {copied ? <Check size={12} /> : <Copy size={12} />}
                   {copied ? "Copied" : "Copy"}
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Button
+                variant="outline"
                 onClick={onClose}
-                className="w-full rounded-lg px-4 py-2 transition-colors"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  background: "hsl(var(--muted))",
-                  border: "1px solid hsl(var(--border))",
-                  color: "hsl(var(--foreground))",
-                  cursor: "pointer",
-                }}
+                className="w-full"
               >
                 Done
-              </button>
+              </Button>
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

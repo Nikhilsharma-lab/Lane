@@ -3,6 +3,11 @@
 import { formatDistanceToNow } from "date-fns";
 import { Sparkles, AlertTriangle } from "lucide-react";
 import { IntakeActions } from "./intake-actions";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface AiAnalysis {
   priority: string;
@@ -31,56 +36,39 @@ interface IntakeDetailProps {
   aiAnalysis: AiAnalysis | null;
 }
 
-/* ── Shared label style (matches detail-dock.tsx pattern) ────────────── */
-const labelStyle: React.CSSProperties = {
-  fontFamily: "'Geist Mono', monospace",
-  fontSize: 9,
-  fontWeight: 500,
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  color: "hsl(var(--muted-foreground) / 0.6)",
-  marginBottom: 4,
-};
-
-const sectionStyle: React.CSSProperties = {
-  padding: "12px 0",
-  borderBottom: "1px solid hsl(var(--border))",
-};
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="font-mono text-[9px] font-medium uppercase tracking-[0.06em] text-muted-foreground/60 mb-1">
+      {children}
+    </div>
+  );
+}
 
 function QualityBar({ score }: { score: number }) {
   const clampedScore = Math.max(0, Math.min(100, score));
-  const color =
-    clampedScore >= 70 ? "hsl(var(--primary))" : clampedScore >= 40 ? "var(--accent-warning)" : "var(--accent-danger)";
+  const colorClass =
+    clampedScore >= 70
+      ? "text-primary"
+      : clampedScore >= 40
+        ? "text-[var(--accent-warning)]"
+        : "text-[var(--accent-danger)]";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <div
-        style={{
-          flex: 1,
-          height: 4,
-          borderRadius: 2,
-          background: "hsl(var(--accent))",
-          overflow: "hidden",
-        }}
-      >
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1 rounded-sm bg-accent overflow-hidden">
         <div
-          style={{
-            width: `${clampedScore}%`,
-            height: "100%",
-            borderRadius: 2,
-            background: color,
-            transition: "width 0.3s ease",
-          }}
+          className={cn(
+            "h-full rounded-sm transition-[width] duration-300 ease-out",
+            clampedScore >= 70
+              ? "bg-primary"
+              : clampedScore >= 40
+                ? "bg-[var(--accent-warning)]"
+                : "bg-[var(--accent-danger)]"
+          )}
+          style={{ width: `${clampedScore}%` }}
         />
       </div>
-      <span
-        style={{
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 11,
-          fontWeight: 600,
-          color,
-        }}
-      >
+      <span className={cn("font-mono text-[11px] font-semibold", colorClass)}>
         {clampedScore}
       </span>
     </div>
@@ -94,73 +82,29 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
   );
 
   return (
-    <div
-      style={{
-        padding: "20px 24px",
-        overflowY: "auto",
-        height: "100%",
-      }}
-    >
+    <div className="px-6 py-5 overflow-y-auto h-full">
       {/* Title + ID badge */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-        <h2
-          style={{
-            fontFamily: "'Geist', sans-serif",
-            fontSize: 18,
-            fontWeight: 600,
-            color: "hsl(var(--foreground))",
-            margin: 0,
-            flex: 1,
-            lineHeight: 1.3,
-          }}
-        >
+      <div className="flex items-start gap-2">
+        <h2 className="text-lg font-semibold text-foreground flex-1 leading-snug">
           {request.title}
         </h2>
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            fontWeight: 500,
-            color: "hsl(var(--muted-foreground) / 0.6)",
-            background: "hsl(var(--muted))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 4,
-            padding: "2px 6px",
-            flexShrink: 0,
-          }}
-        >
+        <Badge variant="outline" className="font-mono text-[10px] font-medium shrink-0">
           {request.id.slice(0, 8).toUpperCase()}
-        </span>
+        </Badge>
       </div>
 
       {/* Meta line */}
-      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 11,
-            color: "hsl(var(--muted-foreground))",
-          }}
-        >
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="font-mono text-[11px] text-muted-foreground">
           {request.requesterName}
         </span>
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            color: "hsl(var(--muted-foreground) / 0.6)",
-          }}
-        >
+        <span className="font-mono text-[10px] text-muted-foreground/60">
           {relativeTime}
         </span>
         {request.priority && (
           <span
+            className="font-mono text-[9px] font-semibold px-1.5 py-px rounded-sm"
             style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 9,
-              fontWeight: 600,
-              padding: "1px 5px",
-              borderRadius: 3,
               background: `var(--priority-${request.priority}-bg, var(--accent))`,
               color: `var(--priority-${request.priority}-text, var(--muted-foreground))`,
             }}
@@ -170,254 +114,134 @@ export function IntakeDetail({ request, aiAnalysis }: IntakeDetailProps) {
         )}
       </div>
 
-      {/* ── Description ──────────────────────────────────────────────────── */}
-      <div style={sectionStyle}>
-        <div style={labelStyle}>DESCRIPTION</div>
-        <p
-          style={{
-            fontFamily: "'Geist', sans-serif",
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: "hsl(var(--foreground))",
-            margin: 0,
-            whiteSpace: "pre-wrap",
-          }}
-        >
+      {/* Description */}
+      <div className="py-3 border-b border-border">
+        <SectionLabel>DESCRIPTION</SectionLabel>
+        <p className="text-[13px] leading-relaxed text-foreground whitespace-pre-wrap">
           {request.description}
         </p>
       </div>
 
-      {/* ── Business Context ─────────────────────────────────────────────── */}
+      {/* Business Context */}
       {request.businessContext && (
-        <div style={sectionStyle}>
-          <div style={labelStyle}>BUSINESS CONTEXT</div>
-          <p
-            style={{
-              fontFamily: "'Geist', sans-serif",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "hsl(var(--foreground))",
-              margin: 0,
-              whiteSpace: "pre-wrap",
-            }}
-          >
+        <div className="py-3 border-b border-border">
+          <SectionLabel>BUSINESS CONTEXT</SectionLabel>
+          <p className="text-[13px] leading-relaxed text-foreground whitespace-pre-wrap">
             {request.businessContext}
           </p>
         </div>
       )}
 
-      {/* ── Success Metrics ──────────────────────────────────────────────── */}
+      {/* Success Metrics */}
       {request.successMetrics && (
-        <div style={sectionStyle}>
-          <div style={labelStyle}>SUCCESS METRICS</div>
-          <p
-            style={{
-              fontFamily: "'Geist', sans-serif",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "hsl(var(--foreground))",
-              margin: 0,
-              whiteSpace: "pre-wrap",
-            }}
-          >
+        <div className="py-3 border-b border-border">
+          <SectionLabel>SUCCESS METRICS</SectionLabel>
+          <p className="text-[13px] leading-relaxed text-foreground whitespace-pre-wrap">
             {request.successMetrics}
           </p>
         </div>
       )}
 
-      {/* ── AI Triage Section ─────────────────────────────────────────────── */}
+      {/* AI Triage Section */}
       {aiAnalysis && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            borderRadius: 8,
-            background: "hsl(var(--muted))",
-            border: "1px solid hsl(var(--border))",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-            <Sparkles size={13} style={{ color: "hsl(var(--primary))" }} />
-            <span
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 10,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "hsl(var(--primary))",
-              }}
-            >
-              AI TRIAGE
-            </span>
-          </div>
-
-          {/* Summary */}
-          <p
-            style={{
-              fontFamily: "'Geist', sans-serif",
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: "hsl(var(--foreground))",
-              margin: "0 0 12px",
-            }}
-          >
-            {aiAnalysis.summary}
-          </p>
-
-          {/* Quality score */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={labelStyle}>QUALITY SCORE</div>
-            <QualityBar score={aiAnalysis.qualityScore} />
-          </div>
-
-          {/* Inline meta */}
-          <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-            <div>
-              <div style={labelStyle}>PRIORITY</div>
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "hsl(var(--foreground))",
-                }}
-              >
-                {aiAnalysis.priority.toUpperCase()}
+        <Card className="mt-4 bg-muted">
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={13} className="text-primary" />
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-primary">
+                AI TRIAGE
               </span>
             </div>
-            <div>
-              <div style={labelStyle}>COMPLEXITY</div>
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "hsl(var(--foreground))",
-                }}
-              >
-                {aiAnalysis.complexity}/5
-              </span>
-            </div>
-            <div>
-              <div style={labelStyle}>TYPE</div>
-              <span
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "hsl(var(--foreground))",
-                  textTransform: "capitalize",
-                }}
-              >
-                {aiAnalysis.requestType}
-              </span>
-            </div>
-          </div>
 
-          {/* Reasoning */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={labelStyle}>REASONING</div>
-            <p
-              style={{
-                fontFamily: "'Geist', sans-serif",
-                fontSize: 12,
-                lineHeight: 1.5,
-                color: "hsl(var(--muted-foreground))",
-                margin: 0,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {aiAnalysis.reasoning}
+            {/* Summary */}
+            <p className="text-[13px] leading-normal text-foreground">
+              {aiAnalysis.summary}
             </p>
-          </div>
 
-          {/* Suggestions */}
-          {aiAnalysis.suggestions.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>SUGGESTIONS</div>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: 16,
-                  listStyle: "disc",
-                }}
-              >
-                {aiAnalysis.suggestions.map((s, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      fontFamily: "'Geist', sans-serif",
-                      fontSize: 12,
-                      lineHeight: 1.5,
-                      color: "hsl(var(--muted-foreground))",
-                      marginBottom: 2,
-                    }}
-                  >
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Potential duplicates */}
-          {aiAnalysis.potentialDuplicates.length > 0 && (
+            {/* Quality score */}
             <div>
-              <div style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 4 }}>
-                <AlertTriangle size={10} />
-                POTENTIAL DUPLICATES
-              </div>
-              {aiAnalysis.potentialDuplicates.map((dup) => (
-                <div
-                  key={dup.id}
-                  style={{
-                    padding: "6px 8px",
-                    borderRadius: 4,
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'Geist', sans-serif",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "hsl(var(--foreground))",
-                    }}
-                  >
-                    {dup.title}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Geist Mono', monospace",
-                      fontSize: 10,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                      marginLeft: 6,
-                    }}
-                  >
-                    {dup.id.slice(0, 6).toUpperCase()}
-                  </span>
-                  <p
-                    style={{
-                      fontFamily: "'Geist', sans-serif",
-                      fontSize: 11,
-                      color: "hsl(var(--muted-foreground) / 0.6)",
-                      margin: "2px 0 0",
-                    }}
-                  >
-                    {dup.reason}
-                  </p>
-                </div>
-              ))}
+              <SectionLabel>QUALITY SCORE</SectionLabel>
+              <QualityBar score={aiAnalysis.qualityScore} />
             </div>
-          )}
-        </div>
+
+            {/* Inline meta */}
+            <div className="flex gap-4">
+              <div>
+                <SectionLabel>PRIORITY</SectionLabel>
+                <span className="font-mono text-xs font-semibold text-foreground">
+                  {aiAnalysis.priority.toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <SectionLabel>COMPLEXITY</SectionLabel>
+                <span className="font-mono text-xs font-semibold text-foreground">
+                  {aiAnalysis.complexity}/5
+                </span>
+              </div>
+              <div>
+                <SectionLabel>TYPE</SectionLabel>
+                <span className="font-mono text-xs font-medium text-foreground capitalize">
+                  {aiAnalysis.requestType}
+                </span>
+              </div>
+            </div>
+
+            {/* Reasoning */}
+            <div>
+              <SectionLabel>REASONING</SectionLabel>
+              <p className="text-xs leading-normal text-muted-foreground whitespace-pre-wrap">
+                {aiAnalysis.reasoning}
+              </p>
+            </div>
+
+            {/* Suggestions */}
+            {aiAnalysis.suggestions.length > 0 && (
+              <div>
+                <SectionLabel>SUGGESTIONS</SectionLabel>
+                <ul className="pl-4 list-disc">
+                  {aiAnalysis.suggestions.map((s, i) => (
+                    <li
+                      key={i}
+                      className="text-xs leading-normal text-muted-foreground mb-0.5"
+                    >
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Potential duplicates */}
+            {aiAnalysis.potentialDuplicates.length > 0 && (
+              <div>
+                <div className="font-mono text-[9px] font-medium uppercase tracking-[0.06em] text-muted-foreground/60 mb-1 flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  POTENTIAL DUPLICATES
+                </div>
+                {aiAnalysis.potentialDuplicates.map((dup) => (
+                  <div
+                    key={dup.id}
+                    className="px-2 py-1.5 rounded bg-card border border-border mb-1"
+                  >
+                    <span className="text-xs font-medium text-foreground">
+                      {dup.title}
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground/60 ml-1.5">
+                      {dup.id.slice(0, 6).toUpperCase()}
+                    </span>
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                      {dup.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      {/* ── Actions ──────────────────────────────────────────────────────── */}
-      <div style={{ marginTop: 16 }}>
+      {/* Actions */}
+      <div className="mt-4">
         <IntakeActions requestId={request.id} />
       </div>
     </div>

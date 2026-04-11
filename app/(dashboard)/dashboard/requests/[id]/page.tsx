@@ -22,12 +22,18 @@ import { HandoffBriefPanel } from "@/components/requests/handoff-brief-panel";
 import { requestHandoffBriefs, predictionConfidence as predictionConfidenceTable, impactRetrospectives, impactRecords } from "@/db/schema";
 import { syncFigmaVersions } from "@/lib/figma/sync";
 import { decryptToken } from "@/lib/encrypt";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const priorityConfig: Record<string, { label: string; color: string; desc: string }> = {
-  p0: { label: "P0", color: "bg-red-500/15 text-red-400 border-red-500/20", desc: "Critical — blocking" },
-  p1: { label: "P1", color: "bg-orange-500/15 text-orange-400 border-orange-500/20", desc: "High — this week" },
-  p2: { label: "P2", color: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20", desc: "Medium — this sprint" },
-  p3: { label: "P3", color: "bg-accent text-muted-foreground/60 border", desc: "Low — backlog" },
+const priorityConfig: Record<string, { label: string; variant: "destructive" | "outline" | "secondary" | "default"; desc: string }> = {
+  p0: { label: "P0", variant: "destructive", desc: "Critical -- blocking" },
+  p1: { label: "P1", variant: "default", desc: "High -- this week" },
+  p2: { label: "P2", variant: "secondary", desc: "Medium -- this sprint" },
+  p3: { label: "P3", variant: "outline", desc: "Low -- backlog" },
 };
 
 const statusLabels: Record<string, string> = {
@@ -270,9 +276,23 @@ export default async function RequestDetailPage({
 
   const isTestUser = profile.email === "hi.nikhilsharma@gmail.com";
 
+  const qualityScore = aiAnalysis?.qualityScore ?? 0;
+  const qualityColor =
+    qualityScore >= 70
+      ? "text-green-400"
+      : qualityScore >= 40
+      ? "text-yellow-400"
+      : "text-red-400";
+  const qualityBarColor =
+    qualityScore >= 70
+      ? "bg-green-500"
+      : qualityScore >= 40
+      ? "bg-yellow-500"
+      : "bg-red-500";
+
   return (
     <>
-      {/* Real-time subscription — invisible, triggers router.refresh() on any change */}
+      {/* Real-time subscription -- invisible, triggers router.refresh() on any change */}
       <RealtimeRequest requestId={request.id} />
       <div className="max-w-5xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -282,13 +302,20 @@ export default async function RequestDetailPage({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 {request.priority && (
-                  <span className={`text-xs px-2 py-0.5 rounded border font-mono ${priorityConfig[request.priority]?.color}`}>
+                  <Badge
+                    variant={priorityConfig[request.priority]?.variant ?? "outline"}
+                    className="font-mono text-[10px]"
+                  >
                     {request.priority.toUpperCase()}
-                  </span>
+                  </Badge>
                 )}
-                <span className="text-xs text-muted-foreground">{statusLabels[request.status] ?? request.status}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {statusLabels[request.status] ?? request.status}
+                </Badge>
                 {request.requestType && (
-                  <span className="text-xs text-muted-foreground/60 capitalize">· {request.requestType}</span>
+                  <span className="text-xs text-muted-foreground/60 capitalize">
+                    {request.requestType}
+                  </span>
                 )}
               </div>
               <div className="flex items-start justify-between gap-3 mb-2">
@@ -327,7 +354,7 @@ export default async function RequestDetailPage({
               </section>
             )}
 
-            {/* AI Context Brief — design phase only */}
+            {/* AI Context Brief -- design phase only */}
             {request.phase === "design" && (
               <ContextBriefPanel
                 requestId={request.id}
@@ -335,7 +362,7 @@ export default async function RequestDetailPage({
               />
             )}
 
-            {/* AI Handoff Brief — shown at Handoff stage and throughout dev phase */}
+            {/* AI Handoff Brief -- shown at Handoff stage and throughout dev phase */}
             {request.phase === "dev" && (
               <HandoffBriefPanel
                 requestId={request.id}
@@ -346,13 +373,13 @@ export default async function RequestDetailPage({
             {request.figmaUrl && (
               <section>
                 <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Figma</h2>
-                <a href={request.figmaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary transition-colors">
+                <Button variant="link" className="p-0 h-auto text-sm" render={<a href={request.figmaUrl} target="_blank" rel="noopener noreferrer" />}>
                   Open in Figma
-                </a>
+                </Button>
               </section>
             )}
 
-            {/* Figma update history — visible from design phase onwards */}
+            {/* Figma update history -- visible from design phase onwards */}
             {(request.phase === "design" || request.phase === "dev" || request.phase === "track") && (
               <FigmaHistory requestId={request.id} phase={request.phase as string} isConnected={isConnected} figmaUrl={request.figmaUrl} />
             )}
@@ -361,13 +388,17 @@ export default async function RequestDetailPage({
 
             {/* AI Triage */}
             {aiAnalysis ? (
-              <section className="border rounded-xl overflow-hidden">
-                <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Triage</span>
-                  <span className="text-[10px] text-muted-foreground/60 font-mono">{aiAnalysis.aiModel}</span>
-                </div>
+              <Card>
+                <CardHeader className="border-b">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      AI Triage
+                    </CardTitle>
+                    <span className="text-[10px] text-muted-foreground/60 font-mono">{aiAnalysis.aiModel}</span>
+                  </div>
+                </CardHeader>
 
-                <div className="p-5 space-y-5">
+                <CardContent className="space-y-5">
                   {/* Summary */}
                   <p className="text-sm text-foreground leading-relaxed">{aiAnalysis.summary}</p>
 
@@ -375,25 +406,14 @@ export default async function RequestDetailPage({
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Request quality</span>
-                      <span className={`text-xs font-mono ${
-                        aiAnalysis.qualityScore >= 70
-                          ? "text-green-400"
-                          : aiAnalysis.qualityScore >= 40
-                          ? "text-yellow-400"
-                          : "text-red-400"
-                      }`}>
+                      <span className={`text-xs font-mono ${qualityColor}`}>
                         {aiAnalysis.qualityScore}/100
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-accent rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          aiAnalysis.qualityScore >= 70
-                            ? "bg-green-500"
-                            : aiAnalysis.qualityScore >= 40
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
+                        className={`h-full rounded-full transition-all ${qualityBarColor}`}
+                        /* percentage-based width needs inline style for dynamic value */
                         style={{ width: `${aiAnalysis.qualityScore}%` }}
                       />
                     </div>
@@ -405,9 +425,9 @@ export default async function RequestDetailPage({
                       <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Issues</div>
                       <div className="flex flex-wrap gap-1.5">
                         {aiAnalysis.qualityFlags.map((flag, i) => (
-                          <span key={i} className="text-[11px] text-yellow-400/80 bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-0.5">
+                          <Badge key={i} variant="outline" className="text-[11px] text-yellow-400/80 bg-yellow-500/10 border-yellow-500/20">
                             {flag}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     </div>
@@ -440,20 +460,23 @@ export default async function RequestDetailPage({
                       <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Potential duplicates</div>
                       <div className="space-y-1.5">
                         {aiAnalysis.potentialDuplicates.map((dup, i) => (
-                          <Link
-                            key={i}
-                            href={`/dashboard/requests/${dup.id}`}
-                            className="block text-xs border rounded-lg px-3 py-2 hover:border-border/80 transition-colors"
-                          >
-                            <span className="text-foreground">{dup.title}</span>
-                            <span className="text-muted-foreground/60 ml-2">{dup.reason}</span>
-                          </Link>
+                          <Card key={i} size="sm" className="hover:ring-foreground/20 transition-all">
+                            <CardContent className="px-3 py-2">
+                              <Link
+                                href={`/dashboard/requests/${dup.id}`}
+                                className="block text-xs"
+                              >
+                                <span className="text-foreground">{dup.title}</span>
+                                <span className="text-muted-foreground/60 ml-2">{dup.reason}</span>
+                              </Link>
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     </div>
                   )}
-                </div>
-              </section>
+                </CardContent>
+              </Card>
             ) : (
               <TriageButton requestId={request.id} />
             )}
@@ -470,19 +493,21 @@ export default async function RequestDetailPage({
                   {requestComments.map((c) => {
                     const author = c.authorId ? authorMap[c.authorId] : null;
                     return (
-                      <div key={c.id} className="border rounded-lg px-4 py-3">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          {c.isSystem ? (
-                            <span className="text-[10px] text-muted-foreground/60 bg-accent rounded px-1.5 py-0.5">system</span>
-                          ) : (
-                            <span className="text-xs font-medium text-foreground">{author?.fullName ?? "Unknown"}</span>
-                          )}
-                          <span className="text-xs text-muted-foreground/60">
-                            {c.createdAt ? formatDate(new Date(c.createdAt).toISOString()) : ""}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{c.body}</p>
-                      </div>
+                      <Card key={c.id} size="sm">
+                        <CardContent className="px-4 py-3">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            {c.isSystem ? (
+                              <Badge variant="secondary" className="text-[10px]">system</Badge>
+                            ) : (
+                              <span className="text-xs font-medium text-foreground">{author?.fullName ?? "Unknown"}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground/60">
+                              {c.createdAt ? formatDate(new Date(c.createdAt).toISOString()) : ""}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{c.body}</p>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
@@ -551,34 +576,41 @@ export default async function RequestDetailPage({
             )}
 
             {stageHistory.length > 0 && (
-              <div className="border-b pb-4">
-                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">History</div>
-                <div className="space-y-1.5">
-                  {stageHistory.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground/60 capitalize">{s.stage}</span>
-                      <span className="text-[10px] text-muted-foreground/60">
-                        {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  ))}
+              <>
+                <Separator />
+                <div className="pb-1">
+                  <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">History</div>
+                  <div className="space-y-1.5">
+                    {stageHistory.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground/60 capitalize">{s.stage}</span>
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {new Date(s.completedAt ?? s.enteredAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <SidebarField label="Status">
-              <span className="text-sm capitalize">{request.status.replace(/_/g, " ")}</span>
+              <Badge variant="outline" className="capitalize">
+                {request.status.replace(/_/g, " ")}
+              </Badge>
             </SidebarField>
 
             {request.priority && (
               <SidebarField label="Priority">
-                <span className={`text-xs px-1.5 py-0.5 rounded border font-mono ${priorityConfig[request.priority]?.color}`}>
-                  {request.priority.toUpperCase()}
-                </span>
-                <span className="text-xs text-muted-foreground/60 ml-1.5">{priorityConfig[request.priority]?.desc}</span>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant={priorityConfig[request.priority]?.variant ?? "outline"} className="font-mono text-[10px]">
+                    {request.priority.toUpperCase()}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">{priorityConfig[request.priority]?.desc}</span>
+                </div>
               </SidebarField>
             )}
 
@@ -598,14 +630,22 @@ export default async function RequestDetailPage({
               </SidebarField>
             )}
 
-            <div className="border-b pb-4">
+            <Separator />
+            <div className="pb-1">
               <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Assignees</div>
               <AssignPanel requestId={request.id} />
             </div>
 
             <SidebarField label="Requester">
-              <span className="text-sm">{requesterName}</span>
-              <span className="text-xs text-muted-foreground/60 capitalize ml-1">({requesterRole})</span>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-[10px]">
+                    {requesterName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm">{requesterName}</span>
+                <span className="text-xs text-muted-foreground/60 capitalize">({requesterRole})</span>
+              </div>
             </SidebarField>
 
             <SidebarField label="Created">
@@ -626,9 +666,12 @@ function SidebarField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b pb-4">
-      <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">{label}</div>
-      <div className="text-foreground">{children}</div>
-    </div>
+    <>
+      <Separator />
+      <div className="pb-1">
+        <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">{label}</div>
+        <div className="text-foreground">{children}</div>
+      </div>
+    </>
   );
 }

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const categoryColors: Record<string, string> = {
   design: "bg-[var(--phase-design)]/10 text-[var(--phase-design)] border-[var(--phase-design)]/20",
@@ -12,12 +15,12 @@ const categoryColors: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  pending_votes: "bg-accent text-muted-foreground border",
+  pending_votes: "bg-accent text-muted-foreground border-border",
   validation: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   approved: "bg-green-500/10 text-green-400 border-green-500/20",
   approved_with_conditions: "bg-green-500/10 text-green-400 border-green-500/20",
   rejected: "bg-red-500/10 text-red-400 border-red-500/20",
-  archived: "bg-accent text-muted-foreground/60 border",
+  archived: "bg-accent text-muted-foreground/60 border-border",
 };
 
 const statusLabels: Record<string, string> = {
@@ -113,62 +116,74 @@ export function IdeaCard({
   const canValidate = (profileRole === "lead" || profileRole === "admin") && status === "pending_votes";
 
   return (
-    <div className="border rounded-xl p-4 bg-card space-y-3 hover:border-border/80 transition-colors">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${categoryColors[category] ?? "bg-accent text-muted-foreground border"}`}>
-              {category}
-            </span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${statusColors[status] ?? "bg-accent text-muted-foreground border"}`}>
-              {statusLabels[status] ?? status}
-            </span>
-            {effortEstimateWeeks && (
-              <span className="text-[10px] text-muted-foreground/60">{effortEstimateWeeks}w est.</span>
-            )}
+    <Card size="sm" className="hover:ring-foreground/20 transition-shadow">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <Badge
+                variant="outline"
+                className={`text-[10px] h-auto py-0.5 rounded capitalize ${categoryColors[category] ?? ""}`}
+              >
+                {category}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={`text-[10px] h-auto py-0.5 rounded ${statusColors[status] ?? ""}`}
+              >
+                {statusLabels[status] ?? status}
+              </Badge>
+              {effortEstimateWeeks && (
+                <span className="text-[10px] text-muted-foreground/60 font-mono">{effortEstimateWeeks}w est.</span>
+              )}
+            </div>
+            <h3 className="text-sm font-medium text-foreground leading-snug">{title}</h3>
           </div>
-          <h3 className="text-sm font-medium text-foreground leading-snug">{title}</h3>
+
+          {/* Net score */}
+          <div className="shrink-0 flex flex-col items-center">
+            <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-green-400" : localNetScore < 0 ? "text-red-400" : "text-muted-foreground"}`}>
+              {localNetScore > 0 ? "+" : ""}{localNetScore}
+            </span>
+            <span className="text-[9px] text-muted-foreground/60">score</span>
+          </div>
         </div>
+      </CardHeader>
 
-        {/* Net score */}
-        <div className="shrink-0 flex flex-col items-center">
-          <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-green-400" : localNetScore < 0 ? "text-red-400" : "text-muted-foreground"}`}>
-            {localNetScore > 0 ? "+" : ""}{localNetScore}
-          </span>
-          <span className="text-[9px] text-muted-foreground/60">score</span>
-        </div>
-      </div>
+      <CardContent>
+        {/* Problem snippet */}
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{problem}</p>
+      </CardContent>
 
-      {/* Problem snippet */}
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{problem}</p>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between gap-2">
+      <CardFooter className="justify-between gap-2">
         {/* Vote buttons */}
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => handleVote("upvote")}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
+            className={
               optimisticVotes.myVote === "upvote"
                 ? "bg-green-500/15 border-green-500/30 text-green-400"
-                : "border text-muted-foreground hover:text-foreground hover:border-border/80"
-            }`}
+                : ""
+            }
           >
-            <span>▲</span>
+            <span>&#x25B2;</span>
             <span className="font-mono">{optimisticVotes.upvotes}</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => handleVote("downvote")}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
+            className={
               optimisticVotes.myVote === "downvote"
                 ? "bg-red-500/15 border-red-500/30 text-red-400"
-                : "border text-muted-foreground hover:text-foreground hover:border-border/80"
-            }`}
+                : ""
+            }
           >
-            <span>▼</span>
+            <span>&#x25BC;</span>
             <span className="font-mono">{optimisticVotes.downvotes}</span>
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -179,20 +194,22 @@ export function IdeaCard({
 
           {/* Time remaining */}
           {status === "pending_votes" && (
-            <span className="text-[11px] text-muted-foreground/60">{timeRemaining(votingEndsAt)}</span>
+            <span className="text-[11px] text-muted-foreground/60 font-mono">{timeRemaining(votingEndsAt)}</span>
           )}
 
           {/* Validate button for leads */}
           {canValidate && onValidate && (
-            <button
+            <Button
+              variant="outline"
+              size="xs"
               onClick={onValidate}
-              className="text-[11px] text-primary border border-primary/20 rounded px-2 py-0.5 hover:border-primary/40 transition-colors"
+              className="text-primary border-primary/20 hover:border-primary/40"
             >
               Validate
-            </button>
+            </Button>
           )}
         </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }

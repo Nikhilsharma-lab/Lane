@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, figmaConnections } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default async function IntegrationsPage({
   searchParams,
@@ -33,94 +37,100 @@ export default async function IntegrationsPage({
   }
 
   return (
-    <div>
-      <h1 className="text-lg font-semibold text-foreground mb-1">Integrations</h1>
-      <p className="text-sm text-muted-foreground mb-8">Connect your tools to Lane</p>
+    <div className="max-w-lg space-y-8">
+      <div>
+        <h1 className="text-lg font-semibold text-foreground mb-1">Integrations</h1>
+        <p className="text-sm text-muted-foreground">Connect your tools to Lane</p>
+      </div>
 
       {connected === "true" && (
-        <div className="mb-6 bg-green-500/5 border border-green-500/20 rounded-lg px-4 py-3">
-          <p className="text-sm text-green-400">Figma connected successfully</p>
-        </div>
+        <Alert>
+          <AlertDescription className="text-green-400">
+            Figma connected successfully
+          </AlertDescription>
+        </Alert>
       )}
       {error && (
-        <div className="mb-6 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-3">
-          <p className="text-sm text-red-400">Connection failed — please try again</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            Connection failed — please try again
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="space-y-3">
-        {/* Figma — functional */}
-        <div className="border rounded-xl p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-medium text-foreground mb-0.5">Figma</h2>
-              <p className="text-xs text-muted-foreground mb-1.5">
-                Track design file updates and post-handoff changes
-              </p>
-              {connection && (
-                <p className="text-xs text-muted-foreground/60">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 align-middle" />
-                  Connected{connectorName ? ` by ${connectorName}` : ""}{" · "}
-                  {new Date(connection.createdAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
+        {/* Figma -- functional */}
+        <Card>
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-medium text-foreground mb-0.5">Figma</h2>
+                <p className="text-xs text-muted-foreground mb-1.5">
+                  Track design file updates and post-handoff changes
                 </p>
+                {connection && (
+                  <p className="text-xs text-muted-foreground/60">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 align-middle" />
+                    Connected{connectorName ? ` by ${connectorName}` : ""}{" · "}
+                    {new Date(connection.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+              {connection ? (
+                <form action="/api/figma/oauth/disconnect" method="POST">
+                  <Button type="submit" variant="outline" size="sm">
+                    Disconnect
+                  </Button>
+                </form>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<a href="/api/figma/oauth/connect" />}
+                >
+                  Connect Figma
+                </Button>
               )}
             </div>
-            {connection ? (
-              <form action="/api/figma/oauth/disconnect" method="POST">
-                <button
-                  type="submit"
-                  className="text-xs text-muted-foreground hover:text-red-400 border hover:border-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  Disconnect
-                </button>
-              </form>
-            ) : (
-              <a
-                href="/api/figma/oauth/connect"
-                className="text-xs bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Connect Figma
-              </a>
-            )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Slack — coming soon */}
-        <div className="border rounded-xl p-5 opacity-50">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-sm font-medium text-foreground">Slack</h2>
-                <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-                  Coming soon
-                </span>
+        {/* Slack -- coming soon */}
+        <Card className="opacity-50">
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h2 className="text-sm font-medium text-foreground">Slack</h2>
+                  <Badge variant="secondary">Coming soon</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Get notifications in Slack for sign-offs, handoffs, and alerts
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Get notifications in Slack for sign-offs, handoffs, and alerts
-              </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Linear — coming soon */}
-        <div className="border rounded-xl p-5 opacity-50">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-sm font-medium text-foreground">Linear</h2>
-                <span className="text-[10px] bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-                  Coming soon
-                </span>
+        {/* Linear -- coming soon */}
+        <Card className="opacity-50">
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h2 className="text-sm font-medium text-foreground">Linear</h2>
+                  <Badge variant="secondary">Coming soon</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Auto-create Linear issues on handoff and sync status back
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Auto-create Linear issues on handoff and sync status back
-              </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

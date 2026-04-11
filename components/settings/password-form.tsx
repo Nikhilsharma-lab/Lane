@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function PasswordForm() {
   const [isPending, startTransition] = useTransition();
@@ -27,22 +31,27 @@ export function PasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">New password</label>
-        <input name="newPassword" type="password" required minLength={8}
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors" />
+      <div className="space-y-1.5">
+        <Label htmlFor="newPassword">New password</Label>
+        <Input id="newPassword" name="newPassword" type="password" required minLength={8} />
       </div>
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Confirm new password</label>
-        <input name="confirmPassword" type="password" required
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors" />
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <Input id="confirmPassword" name="confirmPassword" type="password" required />
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {success && <p className="text-sm text-green-400">Password updated.</p>}
-      <button type="submit" disabled={isPending}
-        className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40">
-        {isPending ? "Updating…" : "Update password"}
-      </button>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert>
+          <AlertDescription className="text-green-400">Password updated.</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Updating..." : "Update password"}
+      </Button>
     </form>
   );
 }

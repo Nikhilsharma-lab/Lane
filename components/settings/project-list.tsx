@@ -4,6 +4,18 @@ import { useState } from "react";
 import { archiveProject, unarchiveProject, deleteProject } from "@/app/actions/projects";
 import { ProjectForm } from "./project-form";
 import type { Project } from "@/db/schema";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Props {
   activeProjects: Project[];
@@ -57,20 +69,23 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
   const moveTargets = activeProjects.filter((p) => p.id !== deleteTarget?.id);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Create new project */}
-      <div className="border border-border rounded-xl px-6 py-5">
-        {showCreateForm ? (
-          <ProjectForm onDone={() => setShowCreateForm(false)} />
-        ) : (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
-          >
-            <span className="text-lg leading-none">+</span> New project
-          </button>
-        )}
-      </div>
+      <Card>
+        <CardContent>
+          {showCreateForm ? (
+            <ProjectForm onDone={() => setShowCreateForm(false)} />
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => setShowCreateForm(true)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <span className="text-lg leading-none mr-1">+</span> New project
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Active projects */}
       {activeProjects.length > 0 && (
@@ -78,78 +93,90 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Active</h2>
           <div className="space-y-1">
             {activeProjects.map((p) => (
-              <div key={p.id} className="border border-border rounded-xl px-5 py-4">
-                {editingId === p.id ? (
-                  <ProjectForm project={p} onDone={() => setEditingId(null)} />
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{p.name}</p>
-                        {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
+              <Card key={p.id}>
+                <CardContent>
+                  {editingId === p.id ? (
+                    <ProjectForm project={p} onDone={() => setEditingId(null)} />
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {/* Project color dot is intentionally inline since it's a dynamic DB value */}
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{p.name}</p>
+                          {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="xs" onClick={() => setEditingId(p.id)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => handleArchive(p.id)}
+                          disabled={loadingId === p.id}
+                        >
+                          {loadingId === p.id ? "..." : "Archive"}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setEditingId(p.id)}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleArchive(p.id)}
-                        disabled={loadingId === p.id}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                      >
-                        {loadingId === p.id ? "…" : "Archive"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       )}
 
-      {archiveError && <p className="text-xs text-red-400">{archiveError}</p>}
+      {archiveError && (
+        <Alert variant="destructive">
+          <AlertDescription>{archiveError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Archived projects toggle */}
       {archivedProjects.length > 0 && (
         <div>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
             onClick={() => setShowArchived((v) => !v)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {showArchived ? "Hide" : "Show"} archived ({archivedProjects.length})
-          </button>
+          </Button>
           {showArchived && (
             <div className="mt-3 space-y-1">
               {archivedProjects.map((p) => (
-                <div key={p.id} className="border border-border rounded-xl px-5 py-4 opacity-60">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                      <p className="text-sm text-muted-foreground">{p.name}</p>
+                <Card key={p.id} className="opacity-60">
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        <p className="text-sm text-muted-foreground">{p.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => handleUnarchive(p.id)}
+                          disabled={loadingId === p.id}
+                        >
+                          {loadingId === p.id ? "..." : "Unarchive"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="hover:text-destructive"
+                          onClick={() => { setDeleteTarget(p); setDeleteAction(null); setDeleteError(null); }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleUnarchive(p.id)}
-                        disabled={loadingId === p.id}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                      >
-                        {loadingId === p.id ? "…" : "Unarchive"}
-                      </button>
-                      <button
-                        onClick={() => { setDeleteTarget(p); setDeleteAction(null); setDeleteError(null); }}
-                        className="text-xs text-muted-foreground hover:text-red-400 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
@@ -157,67 +184,70 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
       )}
 
       {/* Delete confirmation dialog */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4 space-y-5" onClick={(e) => e.stopPropagation()}>
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Delete &ldquo;{deleteTarget.name}&rdquo;?</h3>
-              <p className="text-sm text-muted-foreground mt-1">This project has existing requests.</p>
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="deleteAction"
-                  checked={deleteAction === "move"}
-                  onChange={() => setDeleteAction("move")}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">Move requests to another project</p>
-                  {deleteAction === "move" && (
-                    <select
-                      value={moveToId}
-                      onChange={(e) => setMoveToId(e.target.value)}
-                      className="mt-2 w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80"
-                    >
-                      <option value="">Select project…</option>
-                      {moveTargets.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="deleteAction"
-                  checked={deleteAction === "delete"}
-                  onChange={() => setDeleteAction("delete")}
-                />
-                <p className="text-sm text-foreground">Delete all requests too</p>
-              </label>
-            </div>
-            {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-4 py-2 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                disabled={deleteLoading || !deleteAction || (deleteAction === "move" && !moveToId)}
-                className="flex-1 text-sm text-white bg-red-600 hover:bg-red-500 rounded-lg px-4 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {deleteLoading ? "Deleting…" : "Delete project"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          {deleteTarget && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Delete &ldquo;{deleteTarget.name}&rdquo;?</DialogTitle>
+                <DialogDescription>This project has existing requests.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deleteAction"
+                    checked={deleteAction === "move"}
+                    onChange={() => setDeleteAction("move")}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">Move requests to another project</p>
+                    {deleteAction === "move" && (
+                      <select
+                        value={moveToId}
+                        onChange={(e) => setMoveToId(e.target.value)}
+                        className="mt-2 h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 dark:bg-input/30"
+                      >
+                        <option value="">Select project...</option>
+                        {moveTargets.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </Label>
+                <Label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deleteAction"
+                    checked={deleteAction === "delete"}
+                    onChange={() => setDeleteAction("delete")}
+                  />
+                  <p className="text-sm text-foreground">Delete all requests too</p>
+                </Label>
+              </div>
+              {deleteError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{deleteError}</AlertDescription>
+                </Alert>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteConfirm}
+                  disabled={deleteLoading || !deleteAction || (deleteAction === "move" && !moveToId)}
+                >
+                  {deleteLoading ? "Deleting..." : "Delete project"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export default async function PlanPage() {
     .where(eq(profiles.orgId, org.id));
 
   return (
-    <div className="max-w-lg space-y-10">
+    <div className="max-w-lg space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">Plan</h1>
         <p className="text-sm text-muted-foreground">Your current plan and included features.</p>

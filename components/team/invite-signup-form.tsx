@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { acceptInvite } from "@/app/actions/invites";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Props {
   token: string;
@@ -28,54 +32,55 @@ export function InviteSignupForm({ token, defaultEmail, orgName }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm text-muted-foreground mb-1.5">Full name</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="invite-fullName">Full name</Label>
+        <Input
+          id="invite-fullName"
           name="fullName"
           type="text"
           required
           autoFocus
           placeholder="Your name"
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
-      <div>
-        <label className="block text-sm text-muted-foreground mb-1.5">Email</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="invite-email">Email</Label>
+        <Input
+          id="invite-email"
           name="email"
           type="email"
           required
           defaultValue={defaultEmail}
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
-      <div>
-        <label className="block text-sm text-muted-foreground mb-1.5">Password</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="invite-password">Password</Label>
+        <Input
+          id="invite-password"
           name="password"
           type="password"
           required
           minLength={6}
           placeholder="Create a password"
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={loading}
-        className="w-full bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full"
+        size="lg"
       >
-        {loading ? "Joining…" : `Join ${orgName}`}
-      </button>
+        {loading ? "Joining\u2026" : `Join ${orgName}`}
+      </Button>
     </form>
   );
 }

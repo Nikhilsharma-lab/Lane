@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Check, X, Link2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { SnoozePopover } from "@/components/ui/snooze-popover";
 import { advanceToContext, declineRequest, snoozeRequest } from "@/app/actions/requests";
 
@@ -38,101 +41,51 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: "16px 0 0",
-        borderTop: "1px solid hsl(var(--border))",
-      }}
-    >
+    <div className="flex flex-col gap-2 pt-4 border-t">
       {/* Primary action row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex items-center gap-1.5">
         {/* Accept */}
-        <button
+        <Button
           onClick={handleAccept}
           disabled={isPendingAccept}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            height: 30,
-            padding: "0 12px",
-            borderRadius: 5,
-            fontSize: 12,
-            fontFamily: "'Geist Mono', monospace",
-            fontWeight: 600,
-            background: "hsl(var(--primary))",
-            color: "var(--primary-foreground)",
-            border: "none",
-            cursor: isPendingAccept ? "wait" : "pointer",
-            opacity: isPendingAccept ? 0.6 : 1,
-            transition: "opacity 0.1s",
-          }}
+          size="sm"
+          className="gap-1.5 font-mono"
         >
-          <Check size={13} />
+          <Check className="size-3.5" />
           {isPendingAccept ? "Accepting..." : "Accept"}
-        </button>
+        </Button>
 
         {/* Decline */}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 font-mono"
           onClick={() => setDeclining(!declining)}
           disabled={isPendingDecline}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            height: 30,
-            padding: "0 10px",
-            borderRadius: 5,
-            fontSize: 12,
-            fontFamily: "'Geist Mono', monospace",
-            fontWeight: 500,
-            background: "hsl(var(--muted))",
-            color: "hsl(var(--muted-foreground))",
-            border: "1px solid hsl(var(--border))",
-            cursor: isPendingDecline ? "wait" : "pointer",
-            opacity: isPendingDecline ? 0.6 : 1,
-          }}
         >
-          <X size={13} />
+          <X className="size-3.5" />
           {isPendingDecline ? "Declining..." : "Decline"}
-        </button>
+        </Button>
 
         {/* Snooze */}
         <SnoozePopover onSnooze={handleSnooze} label={isPendingSnooze ? "Snoozing..." : "Snooze"} />
 
         {/* Duplicate placeholder */}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 font-mono"
           disabled
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            height: 30,
-            padding: "0 10px",
-            borderRadius: 5,
-            fontSize: 12,
-            fontFamily: "'Geist Mono', monospace",
-            fontWeight: 500,
-            background: "hsl(var(--muted))",
-            color: "hsl(var(--muted-foreground) / 0.6)",
-            border: "1px solid hsl(var(--border))",
-            cursor: "default",
-            opacity: 0.5,
-          }}
         >
-          <Link2 size={13} />
+          <Link2 className="size-3.5" />
           Duplicate
-        </button>
+        </Button>
       </div>
 
       {/* Inline decline reason */}
       {declining && (
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input
-            type="text"
+        <div className="flex gap-1.5 items-center">
+          <Input
             value={declineReason}
             onChange={(e) => setDeclineReason(e.target.value)}
             placeholder="Reason for declining..."
@@ -144,37 +97,17 @@ export function IntakeActions({ requestId }: IntakeActionsProps) {
                 setDeclineReason("");
               }
             }}
-            style={{
-              flex: 1,
-              height: 30,
-              padding: "0 8px",
-              borderRadius: 5,
-              border: "1px solid hsl(var(--border))",
-              background: "hsl(var(--muted))",
-              fontSize: 12,
-              fontFamily: "'Geist', sans-serif",
-              color: "hsl(var(--foreground))",
-              outline: "none",
-            }}
+            className="flex-1 h-7 text-xs"
           />
-          <button
+          <Button
+            size="sm"
+            variant={declineReason.trim() ? "destructive" : "secondary"}
+            className="font-mono text-[11px]"
             onClick={handleDeclineConfirm}
             disabled={!declineReason.trim() || isPendingDecline}
-            style={{
-              height: 30,
-              padding: "0 10px",
-              borderRadius: 5,
-              fontSize: 11,
-              fontFamily: "'Geist Mono', monospace",
-              fontWeight: 600,
-              background: declineReason.trim() ? "var(--accent-danger)" : "hsl(var(--accent))",
-              color: declineReason.trim() ? "var(--primary-foreground)" : "hsl(var(--muted-foreground) / 0.6)",
-              border: "none",
-              cursor: declineReason.trim() ? "pointer" : "default",
-            }}
           >
             Confirm
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { addDays, addWeeks, format } from "date-fns";
 import { Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
 interface SnoozePopoverProps {
   onSnooze: (until: Date) => void;
@@ -46,129 +49,55 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
   }
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
-      <button
+    <div ref={ref} className="relative inline-block">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 font-mono"
         onClick={() => setOpen(!open)}
-        className="bg-muted text-muted-foreground border border-border"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          height: 30,
-          padding: "0 10px",
-          borderRadius: 5,
-          fontSize: 12,
-          fontFamily: "'Geist Mono', monospace",
-          fontWeight: 500,
-          cursor: "pointer",
-          transition: "background 0.1s",
-        }}
       >
-        <Clock size={13} />
+        <Clock className="size-3.5" />
         {label}
-      </button>
+      </Button>
 
       {open && (
-        <div
-          className="bg-card border border-border"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            width: 220,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            zIndex: 50,
-            padding: 6,
-          }}
-        >
+        <div className="absolute top-[calc(100%+6px)] right-0 w-[220px] rounded-lg bg-card border shadow-lg z-50 p-1.5">
           {presets.map((p) => (
             <button
               key={p.label}
               onClick={() => handlePreset(p.date)}
-              className="text-foreground hover:bg-accent"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 5,
-                fontSize: 12,
-                fontFamily: "'Geist', sans-serif",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                transition: "background 0.1s",
-              }}
+              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs text-foreground hover:bg-accent transition-colors bg-transparent border-none cursor-pointer"
             >
-              <span style={{ fontWeight: 500 }}>{p.label}</span>
-              <span
-                className="text-muted-foreground/60"
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 10,
-                }}
-              >
+              <span className="font-medium">{p.label}</span>
+              <span className="font-mono text-[10px] text-muted-foreground/60">
                 {format(p.date, "MMM d")}
               </span>
             </button>
           ))}
 
-          <div
-            className="border-t border-border"
-            style={{
-              margin: "4px 0",
-            }}
-          />
+          <Separator className="my-1" />
 
-          <div style={{ padding: "4px 10px 6px" }}>
-            <span
-              className="text-muted-foreground/60"
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              CUSTOM DATE
+          <div className="px-2.5 py-1.5">
+            <span className="font-mono text-[9px] font-medium tracking-[0.06em] uppercase text-muted-foreground/60">
+              Custom date
             </span>
-            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-              <input
+            <div className="flex gap-1 mt-1">
+              <Input
                 type="date"
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
                 min={format(addDays(now, 1), "yyyy-MM-dd")}
-                className="bg-muted border border-border text-foreground"
-                style={{
-                  flex: 1,
-                  height: 28,
-                  padding: "0 6px",
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontFamily: "'Geist Mono', monospace",
-                  outline: "none",
-                }}
+                className="flex-1 h-7 font-mono text-[11px]"
               />
-              <button
+              <Button
+                size="sm"
+                variant={customDate ? "default" : "secondary"}
                 onClick={handleCustomConfirm}
                 disabled={!customDate}
-                className={customDate ? "bg-primary text-white" : "bg-accent text-muted-foreground"}
-                style={{
-                  height: 28,
-                  padding: "0 8px",
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontFamily: "'Geist Mono', monospace",
-                  fontWeight: 600,
-                  border: "none",
-                  cursor: customDate ? "pointer" : "default",
-                }}
+                className="h-7 font-mono text-[11px]"
               >
                 Set
-              </button>
+              </Button>
             </div>
           </div>
         </div>

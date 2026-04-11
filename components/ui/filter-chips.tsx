@@ -1,6 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export interface FilterChip {
   key: string;
@@ -21,33 +23,28 @@ export function FilterChips({ chips, onRemove, onClearAll }: FilterChipsProps) {
   return (
     <div className="flex items-center gap-2 flex-wrap py-2">
       {chips.map((chip) => (
-        <button
+        <Badge
           key={`${chip.key}-${chip.rawValue}`}
-          onClick={() => onRemove(chip.key)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-accent text-muted-foreground bg-muted border border-border"
-          style={{
-            cursor: "pointer",
-          }}
+          variant="outline"
+          className="cursor-pointer gap-1.5 px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+          render={<button onClick={() => onRemove(chip.key)} />}
         >
-          <span className="text-muted-foreground/60" style={{ fontWeight: 500 }}>
+          <span className="text-muted-foreground/60 font-medium">
             {chip.label}:
           </span>
-          <span style={{ fontWeight: 560 }}>{chip.value}</span>
+          <span className="font-semibold">{chip.value}</span>
           <X size={10} className="ml-0.5 opacity-50" />
-        </button>
+        </Badge>
       ))}
       {chips.length >= 2 && (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={onClearAll}
-          className="text-xs px-2 py-1 rounded transition-colors hover:bg-accent text-muted-foreground/60"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-xs text-muted-foreground/60"
         >
           Clear all
-        </button>
+        </Button>
       )}
     </div>
   );

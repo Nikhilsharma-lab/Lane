@@ -5,6 +5,7 @@ import { StickyNote } from "lucide-react";
 import { StickyCard } from "./sticky-card";
 import { updateSticky, archiveSticky } from "@/app/actions/stickies";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import type { Sticky } from "@/db/schema";
 
 type FilterTab = "all" | "pinned" | "linked";
@@ -52,32 +53,21 @@ export function StickiesPanel({ stickies: initial }: StickiesPanelProps) {
   return (
     <div>
       {/* Filter tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 16,
-        }}
-      >
+      <div className="mb-4 flex gap-1">
         {TABS.map((tab) => (
-          <button
+          <Button
             key={tab.key}
-            type="button"
+            variant={activeTab === tab.key ? "secondary" : "ghost"}
+            size="sm"
             onClick={() => setActiveTab(tab.key)}
-            className={activeTab === tab.key ? "text-primary bg-primary/10" : "text-muted-foreground"}
-            style={{
-              fontSize: 13,
-              fontWeight: activeTab === tab.key ? 560 : 440,
-              background: activeTab === tab.key ? undefined : "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "5px 12px",
-              borderRadius: 6,
-              transition: "all 0.15s ease",
-            }}
+            className={
+              activeTab === tab.key
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground font-normal"
+            }
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -89,13 +79,7 @@ export function StickiesPanel({ stickies: initial }: StickiesPanelProps) {
           subtitle="Press N then S to start."
         />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 16,
-          }}
-        >
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
           {filtered.map((s) => (
             <StickyCard
               key={s.id}

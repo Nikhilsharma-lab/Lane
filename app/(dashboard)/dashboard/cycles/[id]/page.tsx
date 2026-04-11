@@ -8,7 +8,7 @@ import { CycleDetail } from "@/components/cycles/cycle-detail";
 export default async function CycleDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -22,10 +22,12 @@ export default async function CycleDetailPage({
     .where(eq(profiles.id, user.id));
   if (!profile) redirect("/signup");
 
+  const { id } = await params;
+
   const [cycle] = await db
     .select()
     .from(cycles)
-    .where(and(eq(cycles.id, params.id), eq(cycles.orgId, profile.orgId)));
+    .where(and(eq(cycles.id, id), eq(cycles.orgId, profile.orgId)));
   if (!cycle) notFound();
 
   const [project] = await db

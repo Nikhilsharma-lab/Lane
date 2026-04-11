@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   icon?: ComponentType<{ size?: string | number }>;
@@ -21,57 +22,28 @@ export function EmptyState({
           <Icon size={40} />
         </div>
       )}
-      <p
-        className="text-foreground"
-        style={{
-          fontSize: 14,
-          fontWeight: 560,
-          textAlign: "center",
-        }}
-      >
+      <p className="text-sm font-semibold text-foreground text-center">
         {title}
       </p>
       {subtitle && (
-        <p
-          className="text-muted-foreground"
-          style={{
-            fontSize: 13,
-            textAlign: "center",
-            marginTop: 6,
-            maxWidth: 320,
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="text-[13px] text-muted-foreground text-center mt-1.5 max-w-xs leading-normal">
           {subtitle}
         </p>
       )}
       {cta && (
         <div className="mt-4">
           {cta.href ? (
-            <Link
-              href={cta.href}
-              className="text-primary no-underline"
-              style={{
-                fontSize: 13,
-                fontWeight: 520,
-              }}
-            >
+            <Button variant="link" render={<Link href={cta.href} />} className="text-[13px] font-medium">
               {cta.label} →
-            </Link>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="link"
               onClick={cta.onClick}
-              className="text-primary"
-              style={{
-                fontSize: 13,
-                fontWeight: 520,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className="text-[13px] font-medium"
             >
               {cta.label} →
-            </button>
+            </Button>
           )}
         </div>
       )}

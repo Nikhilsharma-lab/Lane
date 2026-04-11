@@ -17,13 +17,17 @@ import {
   FolderOpen,
   Check,
   Clock,
-  X,
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { InboxActionPanel } from "./inbox-action-panel";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -378,214 +382,196 @@ export function InboxClient({
   return (
     <div className="flex-1 flex min-h-0">
       {/* ── Left: Notification List ─────────────────────────────── */}
-      <div className={`flex flex-col overflow-y-auto px-6 py-6 ${selectedNotif ? "w-[420px] shrink-0 border-r" : "flex-1 max-w-2xl"}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-lg font-bold text-foreground">Inbox</h1>
-        {tab === "inbox" && active.length > 0 && (
-          <button
-            onClick={archiveAll}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Mark all as done
-          </button>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-5 border-b">
-        <button
-          onClick={() => { setTab("inbox"); setSelectedIndex(0); }}
-          className={`text-sm font-medium px-3 py-2 border-b-2 transition-colors ${
-            tab === "inbox"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Inbox
-          {unreadCount > 0 && (
-            <span className="ml-2 text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-              {unreadCount}
-            </span>
+      <div className={`flex flex-col overflow-y-auto px-6 py-6 ${selectedNotif ? "w-[420px] shrink-0 border-r border-border" : "flex-1 max-w-2xl"}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="text-lg font-bold text-foreground">Inbox</h1>
+          {tab === "inbox" && active.length > 0 && (
+            <Button variant="ghost" size="xs" onClick={archiveAll}>
+              Mark all as done
+            </Button>
           )}
-        </button>
-        <button
-          onClick={() => { setTab("done"); setSelectedIndex(0); }}
-          className={`text-sm font-medium px-3 py-2 border-b-2 transition-colors ${
-            tab === "done"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+        </div>
+
+        {/* Tabs */}
+        <Tabs
+          value={tab}
+          onValueChange={(v) => { setTab(v as "inbox" | "done"); setSelectedIndex(0); }}
+          className="mb-5"
         >
-          Done
-        </button>
-      </div>
+          <TabsList variant="line">
+            <TabsTrigger value="inbox">
+              Inbox
+              {unreadCount > 0 && (
+                <Badge className="ml-1.5 h-4 min-w-4 px-1 text-[10px]">{unreadCount}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="done">Done</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      {/* Keyboard hint */}
-      {currentList.length > 0 && (
-        <div className="flex items-center gap-3 mb-4 text-[10px] text-muted-foreground/50">
-          <span><kbd className="px-1 py-0.5 rounded border text-[9px]">J</kbd><kbd className="px-1 py-0.5 rounded border text-[9px] ml-0.5">K</kbd> navigate</span>
-          <span><kbd className="px-1 py-0.5 rounded border text-[9px]">E</kbd> done</span>
-          <span><kbd className="px-1 py-0.5 rounded border text-[9px]">U</kbd> read</span>
-          <span><kbd className="px-1 py-0.5 rounded border text-[9px]">H</kbd> snooze</span>
-          <span><kbd className="px-1 py-0.5 rounded border text-[9px]">↵</kbd> open</span>
-          {selectedNotif && <span><kbd className="px-1 py-0.5 rounded border text-[9px]">Esc</kbd> close</span>}
-        </div>
-      )}
+        {/* Keyboard hint */}
+        {currentList.length > 0 && (
+          <div className="flex items-center gap-3 mb-4 text-[10px] text-muted-foreground/50">
+            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">J</kbd><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono ml-0.5">K</kbd> navigate</span>
+            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">E</kbd> done</span>
+            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">U</kbd> read</span>
+            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">H</kbd> snooze</span>
+            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">&#x23CE;</kbd> open</span>
+            {selectedNotif && <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">Esc</kbd> close</span>}
+          </div>
+        )}
 
-      {/* Notification list */}
-      {currentList.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <CheckCircle2 size={36} className="text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-medium text-foreground mb-1">
-            {tab === "inbox" ? "All caught up!" : "No archived notifications"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {tab === "inbox"
-              ? "Nothing needs your attention."
-              : "Items you mark as done will appear here."}
-          </p>
-        </div>
-      ) : (
-        <div ref={listRef} className="flex flex-col gap-6">
-          {indexedGroups.map((group) => (
-            <div key={group.label}>
-              {/* Time group header */}
-              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                {group.label}
-              </div>
+        {/* Notification list */}
+        {currentList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <CheckCircle2 size={36} className="text-muted-foreground/30 mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">
+              {tab === "inbox" ? "All caught up!" : "No archived notifications"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {tab === "inbox"
+                ? "Nothing needs your attention."
+                : "Items you mark as done will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div ref={listRef} className="flex flex-col gap-6">
+            {indexedGroups.map((group) => (
+              <div key={group.label}>
+                {/* Time group header */}
+                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">
+                  {group.label}
+                </div>
 
-              <div className="flex flex-col">
-                {group.items.map((notif) => {
-                  const Icon = typeIconMap[notif.type] || Bell;
-                  const color = typeColorMap[notif.type] || "var(--notif-project-update)";
-                  const isUnread = !notif.readAt;
-                  const isSelected = notif._flatIndex === selectedIndex;
-                  const snoozeOptions = getSnoozeOptions();
+                <div className="flex flex-col">
+                  {group.items.map((notif) => {
+                    const Icon = typeIconMap[notif.type] || Bell;
+                    const color = typeColorMap[notif.type] || "var(--notif-project-update)";
+                    const isUnread = !notif.readAt;
+                    const isSelected = notif._flatIndex === selectedIndex;
+                    const snoozeOptions = getSnoozeOptions();
 
-                  return (
-                    <div
-                      key={notif.id}
-                      data-index={notif._flatIndex}
-                      onClick={() => selectNotification(notif)}
-                      className={`group flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
-                        notif.id === selectedNotifId
-                          ? "bg-accent ring-1 ring-primary/30"
-                          : isSelected
-                          ? "bg-accent/60"
-                          : "hover:bg-accent/50"
-                      }`}
-                    >
-                      {/* Unread dot */}
-                      <div className="w-2 pt-2.5 shrink-0">
-                        {isUnread && (
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ background: color }}
-                          />
-                        )}
-                      </div>
-
-                      {/* Type icon */}
+                    return (
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ background: `${color}15` }}
+                        key={notif.id}
+                        data-index={notif._flatIndex}
+                        onClick={() => selectNotification(notif)}
+                        className={`group flex items-start gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all ${
+                          notif.id === selectedNotifId
+                            ? "bg-accent ring-1 ring-primary/30"
+                            : isSelected
+                            ? "bg-accent/60"
+                            : "hover:bg-accent/50"
+                        }`}
                       >
-                        <Icon size={14} style={{ color }} />
-                      </div>
+                        {/* Unread dot */}
+                        <div className="w-2 pt-2.5 shrink-0">
+                          {isUnread && (
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: color }}
+                            />
+                          )}
+                        </div>
 
-                      {/* Actor initials */}
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-medium border"
-                        style={{
-                          background: notif.actorName ? "var(--accent)" : `${color}15`,
-                          color: notif.actorName ? "var(--foreground)" : color,
-                          borderColor: notif.actorName ? "var(--border)" : "transparent",
-                        }}
-                      >
-                        {getInitials(notif.actorName)}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm leading-snug ${
-                            isUnread ? "font-semibold text-foreground" : "text-foreground/80"
-                          }`}
+                        {/* Type icon */}
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}
                         >
-                          {notif.title}
-                        </p>
-                        {notif.body && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                            {notif.body}
+                          <Icon size={14} style={{ color }} />
+                        </div>
+
+                        {/* Actor initials */}
+                        <Avatar size="sm" className="mt-0.5">
+                          <AvatarFallback className="text-[10px]">
+                            {getInitials(notif.actorName)}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm leading-snug ${
+                              isUnread ? "font-semibold text-foreground" : "text-foreground/80"
+                            }`}
+                          >
+                            {notif.title}
                           </p>
-                        )}
-                      </div>
+                          {notif.body && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                              {notif.body}
+                            </p>
+                          )}
+                        </div>
 
-                      {/* Right side: time + actions */}
-                      <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                        <span className="text-[11px] text-muted-foreground/60">
-                          {timeAgo(notif.createdAt)}
-                        </span>
+                        {/* Right side: time + actions */}
+                        <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                          <span className="text-[11px] text-muted-foreground/60 font-mono">
+                            {timeAgo(notif.createdAt)}
+                          </span>
 
-                        {tab === "inbox" && (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {/* Mark as done */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                archiveNotif(notif.id);
-                              }}
-                              className="w-6 h-6 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-green-600 transition-colors"
-                              title="Mark as done (E)"
-                            >
-                              <Check size={14} />
-                            </button>
-
-                            {/* Snooze */}
-                            <Popover
-                              open={snoozeOpenId === notif.id}
-                              onOpenChange={(open) =>
-                                setSnoozeOpenId(open ? notif.id : null)
-                              }
-                            >
-                              <PopoverTrigger
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-6 h-6 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-amber-500 transition-colors"
-                                title="Snooze (H)"
+                          {tab === "inbox" && (
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Mark as done */}
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  archiveNotif(notif.id);
+                                }}
+                                className="text-muted-foreground hover:text-green-600"
+                                title="Mark as done (E)"
                               >
-                                <Clock size={14} />
-                              </PopoverTrigger>
-                              <PopoverContent
-                                align="end"
-                                className="w-44 p-1"
-                                onClick={(e) => e.stopPropagation()}
+                                <Check size={14} />
+                              </Button>
+
+                              {/* Snooze */}
+                              <Popover
+                                open={snoozeOpenId === notif.id}
+                                onOpenChange={(open) =>
+                                  setSnoozeOpenId(open ? notif.id : null)
+                                }
                               >
-                                <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5">
-                                  Snooze until...
-                                </div>
-                                {snoozeOptions.map((opt) => (
-                                  <button
-                                    key={opt.label}
-                                    onClick={() => snoozeNotif(notif.id, opt.until)}
-                                    className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent transition-colors"
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                        )}
+                                <PopoverTrigger
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center justify-center size-5 rounded-sm text-muted-foreground hover:text-amber-500 hover:bg-muted transition-colors"
+                                  title="Snooze (H)"
+                                >
+                                  <Clock size={14} />
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  align="end"
+                                  className="w-44 p-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5">
+                                    Snooze until...
+                                  </div>
+                                  {snoozeOptions.map((opt) => (
+                                    <button
+                                      key={opt.label}
+                                      onClick={() => snoozeNotif(notif.id, opt.until)}
+                                      className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent transition-colors"
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Right: Action Panel ─────────────────────────────────── */}

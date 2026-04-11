@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Pin } from "lucide-react";
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 
 interface PinnedView {
   id: string;
@@ -40,50 +45,32 @@ export function PinnedViews({ views }: Props) {
 
   if (views.length === 0) {
     return (
-      <div className="px-2.5 py-2">
-        <p
-          className="text-muted-foreground/60"
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            lineHeight: 1.4,
-          }}
-        >
-          Save a filtered view from Requests to pin it here
-        </p>
-      </div>
+      <p className="px-2 py-2 text-[10px] font-mono text-muted-foreground/60 leading-snug">
+        Save a filtered view from Requests to pin it here
+      </p>
     );
   }
 
   return (
-    <div className="py-0.5 px-1">
+    <SidebarMenu>
       {views.map((view) => {
         const href = buildViewHref(view);
         const isActive = currentUrl.includes(href);
 
         return (
-          <Link
-            key={view.id}
-            href={href}
-            className="flex items-center gap-2 px-2.5 py-[6px] rounded-[7px] transition-colors hover:bg-accent"
-            style={{
-              background: isActive ? "var(--accent)" : undefined,
-            }}
-          >
-            <Pin size={12} className="text-muted-foreground/60 shrink-0" />
-            <span
-              className={`truncate ${isActive ? "text-foreground" : "text-muted-foreground/60"}`}
-              style={{
-                fontSize: 12,
-                fontWeight: isActive ? 540 : 440,
-                letterSpacing: "-0.01em",
-              }}
+          <SidebarMenuItem key={view.id}>
+            <SidebarMenuButton
+              render={<Link href={href} />}
+              isActive={isActive}
+              tooltip={view.name}
+              size="sm"
             >
-              {view.name}
-            </span>
-          </Link>
+              <Pin className="size-3" />
+              <span>{view.name}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         );
       })}
-    </div>
+    </SidebarMenu>
   );
 }

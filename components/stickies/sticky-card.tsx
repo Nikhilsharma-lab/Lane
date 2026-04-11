@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Pin, Trash2, Link as LinkIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 
 const COLOR_MAP: Record<string, string> = {
   cream: "#F8F6F1",
@@ -81,75 +84,46 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="bg-card"
-      style={{
-        borderTop: `3px solid ${borderColor}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        width: 220,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        transition: "box-shadow 0.15s ease",
-        boxShadow: isHovered
-          ? "0 2px 12px rgba(0,0,0,0.08)"
-          : "0 1px 3px rgba(0,0,0,0.04)",
-        position: "relative",
-      }}
+      className={`relative flex w-[220px] flex-col gap-2 rounded-[10px] bg-card px-3.5 py-3 transition-shadow ${
+        isHovered ? "shadow-md" : "shadow-sm"
+      }`}
+      style={{ borderTop: `3px solid ${borderColor}` }}
     >
       {/* Action buttons */}
       <div
-        style={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          display: "flex",
-          gap: 4,
-          opacity: isHovered || sticky.isPinned ? 1 : 0,
-          transition: "opacity 0.15s ease",
-        }}
+        className={`absolute right-2 top-2 flex gap-1 transition-opacity ${
+          isHovered || sticky.isPinned ? "opacity-100" : "opacity-0"
+        }`}
       >
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => onUpdate(sticky.id, { isPinned: !sticky.isPinned })}
           title={sticky.isPinned ? "Unpin" : "Pin"}
-          className={sticky.isPinned ? "text-primary" : "text-muted-foreground/60"}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 2,
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-          }}
+          className={
+            sticky.isPinned
+              ? "text-primary"
+              : "text-muted-foreground/60"
+          }
         >
           <Pin size={14} />
-        </button>
+        </Button>
         {isHovered && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => onArchive(sticky.id)}
             title="Archive"
             className="text-muted-foreground/60"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 2,
-              borderRadius: 4,
-              display: "flex",
-              alignItems: "center",
-            }}
           >
             <Trash2 size={14} />
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Content */}
       {isEditing ? (
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
@@ -157,18 +131,7 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
           onKeyDown={handleKeyDown}
           maxLength={500}
           rows={3}
-          className="text-foreground border border-border"
-          style={{
-            fontSize: 13,
-            lineHeight: 1.5,
-            background: "transparent",
-            borderRadius: 6,
-            padding: "6px 8px",
-            resize: "vertical",
-            outline: "none",
-            fontFamily: "inherit",
-            width: "100%",
-          }}
+          className="w-full resize-y bg-transparent text-[13px] leading-relaxed"
         />
       ) : (
         <button
@@ -177,58 +140,22 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
             setEditContent(sticky.content);
             setIsEditing(true);
           }}
-          className="text-foreground"
-          style={{
-            fontSize: 13,
-            lineHeight: 1.5,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            cursor: "text",
-            textAlign: "left",
-            background: "none",
-            border: "none",
-            padding: 0,
-            fontFamily: "inherit",
-            minHeight: 20,
-          }}
+          className="min-h-[20px] cursor-text whitespace-pre-wrap break-words border-none bg-transparent p-0 text-left font-inherit text-[13px] leading-relaxed text-foreground"
         >
           {sticky.content}
         </button>
       )}
 
       {/* Footer */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginTop: "auto",
-        }}
-      >
-        <span
-          className="text-muted-foreground/60"
-          style={{
-            fontSize: 11,
-          }}
-        >
+      <div className="mt-auto flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground/60">
           {timeAgo(sticky.createdAt)}
         </span>
         {sticky.requestId && (
-          <span
-            className="text-primary bg-primary/10"
-            style={{
-              fontSize: 10,
-              fontWeight: 560,
-              padding: "2px 6px",
-              borderRadius: 4,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 3,
-            }}
-          >
+          <Badge variant="secondary" className="gap-[3px] text-[10px] text-primary bg-primary/10">
             <LinkIcon size={10} />
             Linked
-          </span>
+          </Badge>
         )}
       </div>
     </div>

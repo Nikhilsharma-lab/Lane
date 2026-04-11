@@ -2,6 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CATEGORIES = [
   { value: "design", label: "Design" },
@@ -70,142 +85,129 @@ export function IdeaForm({ onClose }: IdeaFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg bg-card border rounded-2xl overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Submit an idea</h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground/60 hover:text-foreground transition-colors text-lg leading-none"
-          >
-            ×
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Submit an idea</DialogTitle>
+          <DialogDescription>
+            Share your idea with the org. Anyone can vote during the 1-week voting period.
+          </DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Idea title *</label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="idea-title">Idea title *</Label>
+            <Input
+              id="idea-title"
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               placeholder="Short, descriptive name"
-              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
           {/* Problem */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">What problem does this solve? *</label>
-            <textarea
+          <div className="space-y-1.5">
+            <Label htmlFor="idea-problem">What problem does this solve? *</Label>
+            <Textarea
+              id="idea-problem"
               value={form.problem}
               onChange={(e) => set("problem", e.target.value)}
               rows={3}
               placeholder="Describe the problem clearly..."
-              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
             />
           </div>
 
           {/* Proposed solution */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Proposed solution *</label>
-            <textarea
+          <div className="space-y-1.5">
+            <Label htmlFor="idea-solution">Proposed solution *</Label>
+            <Textarea
+              id="idea-solution"
               value={form.proposedSolution}
               onChange={(e) => set("proposedSolution", e.target.value)}
               rows={3}
               placeholder="How would you solve it?"
-              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
             />
           </div>
 
           {/* Category + Effort row */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Category</label>
-              <select
+            <div className="space-y-1.5">
+              <Label htmlFor="idea-category">Category</Label>
+              <NativeSelect
+                id="idea-category"
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
-                className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border/80 transition-colors"
+                className="w-full"
               >
                 {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                  <NativeSelectOption key={c.value} value={c.value}>{c.label}</NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Effort estimate (weeks)</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="idea-effort">Effort estimate (weeks)</Label>
+              <Input
+                id="idea-effort"
                 type="number"
                 min={1}
                 value={form.effortEstimateWeeks}
                 onChange={(e) => set("effortEstimateWeeks", e.target.value)}
                 placeholder="e.g. 2"
-                className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
               />
             </div>
           </div>
 
           {/* Impact estimate */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Expected impact</label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="idea-impact">Expected impact</Label>
+            <Input
+              id="idea-impact"
               value={form.impactEstimate}
               onChange={(e) => set("impactEstimate", e.target.value)}
               placeholder="e.g. Reduce onboarding drop-off by 20%"
-              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
           {/* Target users */}
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Target users</label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="idea-users">Target users</Label>
+            <Input
+              id="idea-users"
               value={form.targetUsers}
               onChange={(e) => set("targetUsers", e.target.value)}
               placeholder="e.g. New users in onboarding flow"
-              className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
             />
           </div>
 
           {/* Anonymous toggle */}
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2.5">
+            <Checkbox
+              id="idea-anonymous"
               checked={form.isAnonymous}
-              onChange={(e) => set("isAnonymous", e.target.checked)}
-              className="w-3.5 h-3.5 rounded border bg-muted"
+              onCheckedChange={(checked) => set("isAnonymous", !!checked)}
             />
-            <span className="text-xs text-muted-foreground">Submit anonymously</span>
-          </label>
+            <Label htmlFor="idea-anonymous" className="font-normal text-muted-foreground">
+              Submit anonymously
+            </Label>
+          </div>
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs text-muted-foreground hover:text-foreground px-4 py-2 transition-colors"
-            >
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            </Button>
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Submitting..." : "Submit idea"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

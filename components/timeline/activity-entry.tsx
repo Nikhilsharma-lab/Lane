@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 const ACTION_LABELS: Record<string, string> = {
   stage_changed: "moved to",
@@ -45,46 +46,28 @@ export function ActivityEntry({ entry }: { entry: ActivityEntryData }) {
       : new Date(entry.createdAt);
 
   return (
-    <div
-      className="flex items-start gap-3 px-1 py-2.5 border-b border-border"
-    >
+    <div className="flex items-start gap-3 px-1 py-2.5 border-b">
       {/* Dot indicator */}
       <div
-        className={`shrink-0 mt-1.5 rounded-full ${isSystem ? "bg-muted-foreground/60" : "bg-primary"}`}
-        style={{ width: 6, height: 6 }}
+        className={`size-1.5 shrink-0 mt-1.5 rounded-full ${isSystem ? "bg-muted-foreground/60" : "bg-primary"}`}
       />
 
       <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.5 }}>
-          <span className="text-foreground" style={{ fontWeight: 600 }}>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          <span className="font-semibold text-foreground">
             {actor}
           </span>{" "}
           {label}
           {entry.newValue && (
             <>
               {" "}
-              <span
-                className="text-foreground bg-muted"
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 11,
-                  borderRadius: 4,
-                  padding: "1px 5px",
-                }}
-              >
+              <Badge variant="secondary" className="font-mono text-[11px] h-auto py-0 px-1.5">
                 {entry.newValue}
-              </span>
+              </Badge>
             </>
           )}
         </p>
-        <p
-          className="text-muted-foreground/60"
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            marginTop: 2,
-          }}
-        >
+        <p className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">
           {formatDistanceToNow(ts, { addSuffix: true })}
         </p>
       </div>

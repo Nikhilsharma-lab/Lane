@@ -17,6 +17,7 @@ import { MorningBriefingCard } from "@/components/dashboard/morning-briefing-car
 import { AlertsSection } from "@/components/dashboard/alerts-section";
 import { buildFocusSections } from "@/lib/focus-ordering";
 import { getActiveStageLabel, getPhaseLabel } from "@/lib/workflow";
+import { Badge } from "@/components/ui/badge";
 import type { Request } from "@/db/schema";
 
 // ── Priority badge helpers ──────────────────────────────────────────────────
@@ -24,23 +25,12 @@ import type { Request } from "@/db/schema";
 function PriorityBadge({ priority }: { priority: string | null }) {
   if (!priority) return null;
   return (
-    <span
-      style={{
-        display: "inline-block",
-        fontFamily: "'Geist Mono', monospace",
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-        padding: "1px 6px",
-        borderRadius: 4,
-        background: `var(--priority-${priority}-bg)`,
-        color: `var(--priority-${priority}-text)`,
-        flexShrink: 0,
-      }}
+    <Badge
+      variant="outline"
+      className={`font-mono text-[10px] font-bold uppercase tracking-wide shrink-0 bg-[var(--priority-${priority}-bg)] text-[var(--priority-${priority}-text)] border-transparent`}
     >
       {priority.toUpperCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -59,43 +49,16 @@ function RequestCard({
   return (
     <Link
       href={`/dashboard/requests?dock=${request.id}`}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "9px 20px",
-        textDecoration: "none",
-        transition: "background 0.1s",
-      }}
-      className="border-b hover:bg-muted"
+      className="flex items-center gap-3 px-5 py-2.5 no-underline transition-colors border-b hover:bg-muted"
     >
       {/* Title */}
-      <span
-        style={{
-          flex: 1,
-          fontFamily: "'Satoshi', sans-serif",
-          fontSize: 13,
-          fontWeight: 500,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        className="text-foreground"
-      >
+      <span className="flex-1 text-sm font-medium truncate text-foreground">
         {request.title}
       </span>
 
       {/* Phase · Stage */}
       {phaseLabel && (
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-          className="text-muted-foreground/60"
-        >
+        <span className="font-mono text-[10px] whitespace-nowrap shrink-0 text-muted-foreground/60">
           {phaseLabel} · {stageLabel}
         </span>
       )}
@@ -105,15 +68,7 @@ function RequestCard({
 
       {/* First assignee */}
       {firstAssigneeName && (
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-          className="text-muted-foreground/60"
-        >
+        <span className="font-mono text-[10px] whitespace-nowrap shrink-0 text-muted-foreground/60">
           {firstAssigneeName}
         </span>
       )}
@@ -137,46 +92,18 @@ function FocusSectionBlock({
   assigneesByRequest: Record<string, string[]>;
 }) {
   return (
-    <section aria-label={label} style={{ marginBottom: 24 }}>
+    <section aria-label={label} className="mb-6">
       {/* Section header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 20px",
-        }}
-        className="border-b"
-      >
+      <div className="flex items-center gap-2 px-5 py-1.5 border-b">
         <span
           aria-hidden
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: color,
-            flexShrink: 0,
-          }}
+          className="w-[7px] h-[7px] rounded-full shrink-0"
+          style={{ background: color }}
         />
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}
-          className="text-muted-foreground"
-        >
+        <span className="font-mono text-[11px] font-semibold tracking-wide uppercase text-muted-foreground">
           {label}
         </span>
-        <span
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-          }}
-          className="text-muted-foreground/60"
-        >
+        <span className="font-mono text-[10px] text-muted-foreground/60">
           {sectionRequests.length}
         </span>
       </div>
@@ -333,25 +260,8 @@ export default async function DashboardPage() {
       <RealtimeDashboard orgId={profile.orgId} />
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: 40,
-          padding: "0 20px",
-          flexShrink: 0,
-        }}
-        className="border-b bg-card"
-      >
-        <span
-          style={{
-            fontFamily: "'Satoshi', sans-serif",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-          }}
-          className="text-foreground"
-        >
+      <div className="flex items-center h-10 px-5 shrink-0 border-b bg-card">
+        <span className="text-sm font-semibold tracking-tight text-foreground">
           Home
         </span>
       </div>
@@ -360,36 +270,20 @@ export default async function DashboardPage() {
       <MorningBriefingCard brief={briefForCard} alertCount={inlineAlerts.length} />
 
       {/* ── Alerts ──────────────────────────────────────────────────────── */}
-      <div style={{ padding: "12px 20px 0" }}>
+      <div className="px-5 pt-3">
         <AlertsSection alerts={inlineAlerts} />
       </div>
 
       {/* ── Focus sections ──────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "80px 20px",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "'Satoshi', sans-serif",
-                fontSize: 14,
-                textAlign: "center",
-                maxWidth: 320,
-                lineHeight: 1.6,
-              }}
-              className="text-muted-foreground/60"
-            >
+          <div className="flex items-center justify-center px-5 py-20">
+            <p className="text-sm text-center max-w-xs leading-relaxed text-muted-foreground/60">
               You&apos;re clear. Time to think, learn, or help a teammate.
             </p>
           </div>
         ) : (
-          <div style={{ paddingTop: 16 }}>
+          <div className="pt-4">
             {focusSections.map((section) => (
               <FocusSectionBlock
                 key={section.key}

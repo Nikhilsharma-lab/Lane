@@ -4,6 +4,10 @@ import { useState } from "react";
 import { createProject, updateProject } from "@/app/actions/projects";
 import { PROJECT_COLORS } from "@/lib/projects";
 import type { Project } from "@/db/schema";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Props {
   project?: Project;
@@ -31,31 +35,29 @@ export function ProjectForm({ project, onDone }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-          Name <span className="text-red-400">*</span>
-        </label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="project-name">
+          Name <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="project-name"
           name="name"
           defaultValue={project?.name}
           required
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
           placeholder="e.g. Rider App"
         />
       </div>
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-          Description
-        </label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="project-desc">Description</Label>
+        <Input
+          id="project-desc"
           name="description"
           defaultValue={project?.description ?? ""}
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
           placeholder="Optional"
         />
       </div>
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Color</label>
+      <div className="space-y-2">
+        <Label>Color</Label>
         <div className="flex gap-2 flex-wrap">
           {PROJECT_COLORS.map((c) => (
             <button
@@ -65,23 +67,24 @@ export function ProjectForm({ project, onDone }: Props) {
               className={`w-6 h-6 rounded-full transition-all ${
                 color === c ? "ring-2 ring-offset-2 ring-offset-card ring-primary scale-110" : "hover:scale-105"
               }`}
+              /* Color swatches are intentionally inline since they're dynamic DB values */
               style={{ backgroundColor: c }}
             />
           ))}
         </div>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       <div className="flex gap-2 pt-1">
-        <button
-          type="submit"
-          disabled={loading}
-          className="text-xs bg-primary text-primary-foreground rounded-lg px-4 py-1.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {loading ? "Saving…" : project ? "Save changes" : "Create project"}
-        </button>
-        <button type="button" onClick={onDone} className="text-xs text-muted-foreground hover:text-foreground px-4 py-1.5 transition-colors">
+        <Button type="submit" disabled={loading} size="sm">
+          {loading ? "Saving..." : project ? "Save changes" : "Create project"}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

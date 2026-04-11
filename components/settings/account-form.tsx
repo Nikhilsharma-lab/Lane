@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { updateProfile } from "@/app/actions/settings";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const TIMEZONES = [
   "UTC","America/New_York","America/Chicago","America/Denver","America/Los_Angeles",
@@ -35,30 +39,39 @@ export function AccountForm({ profile }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Full name</label>
-        <input name="fullName" type="text" required defaultValue={profile.fullName}
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-border transition-colors" />
+      <div className="space-y-1.5">
+        <Label htmlFor="fullName">Full name</Label>
+        <Input id="fullName" name="fullName" type="text" required defaultValue={profile.fullName} />
       </div>
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Email</label>
-        <input type="email" value={profile.email} disabled
-          className="w-full bg-accent border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground/60 cursor-not-allowed" />
-        <p className="text-xs text-muted-foreground/60 mt-1">Email cannot be changed here.</p>
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" value={profile.email} disabled className="cursor-not-allowed opacity-60" />
+        <p className="text-xs text-muted-foreground/60">Email cannot be changed here.</p>
       </div>
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Timezone</label>
-        <select name="timezone" defaultValue={profile.timezone}
-          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border transition-colors">
+      <div className="space-y-1.5">
+        <Label htmlFor="timezone">Timezone</Label>
+        <select
+          id="timezone"
+          name="timezone"
+          defaultValue={profile.timezone}
+          className="h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 md:text-xs/relaxed dark:bg-input/30"
+        >
           {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
         </select>
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {success && <p className="text-sm text-green-400">Saved.</p>}
-      <button type="submit" disabled={isPending}
-        className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40">
-        {isPending ? "Saving…" : "Save changes"}
-      </button>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert>
+          <AlertDescription className="text-green-400">Saved.</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Saving..." : "Save changes"}
+      </Button>
     </form>
   );
 }

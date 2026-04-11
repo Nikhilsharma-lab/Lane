@@ -23,7 +23,7 @@ export default async function ProjectsPage() {
     .where(and(eq(projects.orgId, profile.orgId), isNotNull(projects.archivedAt)));
 
   return (
-    <div className="max-w-lg space-y-10">
+    <div className="max-w-lg space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">Projects</h1>
         <p className="text-sm text-muted-foreground">Organise requests into product lines or initiatives.</p>

@@ -3,6 +3,11 @@
 import { useState, useTransition } from "react";
 import { updateMemberRole, removeMember } from "@/app/actions/settings";
 import { InviteForm } from "@/components/team/invite-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ROLE_LABELS: Record<string, string> = { pm: "PM", designer: "Designer", developer: "Developer", lead: "Lead", admin: "Admin" };
 const ROLES = ["pm", "designer", "developer", "lead", "admin"];
@@ -31,53 +36,79 @@ export function MembersList({ members, currentUserId, isAdmin }: Props) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {isAdmin && (
-        <div>
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Invite member</h2>
-          <InviteForm />
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite member</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <InviteForm />
+          </CardContent>
+        </Card>
       )}
-      <div>
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Team ({members.length})</h2>
-        {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
-        <div className="space-y-2">
-          {members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between border border-border rounded-xl px-5 py-3">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
-                  {m.fullName.charAt(0).toUpperCase()}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Team ({members.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="space-y-2">
+            {members.map((m) => (
+              <div key={m.id} className="flex items-center justify-between border border-border rounded-lg px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar size="sm">
+                    <AvatarFallback>{m.fullName.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm text-foreground">
+                      {m.fullName}
+                      {m.id === currentUserId && <span className="text-xs text-muted-foreground/60 ml-1.5">(you)</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground/60">{m.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-foreground">{m.fullName}{m.id === currentUserId && <span className="text-xs text-muted-foreground/60 ml-1.5">(you)</span>}</p>
-                  <p className="text-xs text-muted-foreground/60">{m.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {isAdmin && m.id !== currentUserId ? (
-                  <select value={m.role} onChange={(e) => handleRoleChange(m.id, e.target.value)} disabled={isPending}
-                    className="bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-border/80 transition-colors disabled:opacity-40">
-                    {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                  </select>
-                ) : (
-                  <span className="text-xs text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5">{ROLE_LABELS[m.role] ?? m.role}</span>
-                )}
-                {isAdmin && m.id !== currentUserId && (
-                  confirmRemoveId === m.id ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">Remove?</span>
-                      <button onClick={() => handleRemove(m.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40">Yes</button>
-                      <button onClick={() => setConfirmRemoveId(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">No</button>
-                    </div>
+                <div className="flex items-center gap-3">
+                  {isAdmin && m.id !== currentUserId ? (
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRoleChange(m.id, e.target.value)}
+                      disabled={isPending}
+                      className="h-7 min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-40 dark:bg-input/30"
+                    >
+                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    </select>
                   ) : (
-                    <button onClick={() => setConfirmRemoveId(m.id)} className="text-xs text-muted-foreground/60 hover:text-red-400 transition-colors">Remove</button>
-                  )
-                )}
+                    <Badge variant="secondary">{ROLE_LABELS[m.role] ?? m.role}</Badge>
+                  )}
+                  {isAdmin && m.id !== currentUserId && (
+                    confirmRemoveId === m.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">Remove?</span>
+                        <Button variant="link" size="xs" className="text-destructive" onClick={() => handleRemove(m.id)} disabled={isPending}>
+                          Yes
+                        </Button>
+                        <Button variant="link" size="xs" onClick={() => setConfirmRemoveId(null)}>
+                          No
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="xs" className="text-muted-foreground/60 hover:text-destructive" onClick={() => setConfirmRemoveId(m.id)}>
+                        Remove
+                      </Button>
+                    )
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

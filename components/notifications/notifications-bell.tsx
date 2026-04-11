@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -52,11 +58,8 @@ const urgencyColor: Record<string, string> = {
 
 export function NotificationsBell({ userRole }: { userRole?: string }) {
   const [open, setOpen] = useState(false);
-  // Leads default to alerts tab, everyone else to activity
   const isLead = userRole === "lead" || userRole === "admin";
-  const [activeTab, setActiveTab] = useState<"alerts" | "activity">(
-    isLead ? "alerts" : "activity"
-  );
+  const defaultTab = isLead ? "alerts" : "activity";
 
   const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
   const [alertItems, setAlertItems] = useState<AlertItem[]>([]);
@@ -75,7 +78,7 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Load alert count silently on mount (for badge)
+  // Load alert count silently on mount
   useEffect(() => {
     fetch("/api/alerts")
       .then((r) => r.json())
@@ -107,16 +110,13 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
   }
 
   async function handleDismiss(alertId: string) {
-    // Snapshot for rollback
     const snapshot = alertItems;
-    // Optimistic update
     setAlertItems((prev) => prev.filter((a) => a.id !== alertId));
     setAlertCount((prev) => Math.max(0, prev - 1));
 
     try {
       await fetch(`/api/alerts/${alertId}/dismiss`, { method: "POST" });
     } catch {
-      // Roll back optimistic update if dismiss failed
       setAlertItems(snapshot);
       setAlertCount((prev) => prev + 1);
     }
@@ -125,150 +125,130 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
   return (
     <div ref={ref} className="relative">
       {/* Bell button */}
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={handleOpen}
-        className="relative text-muted-foreground hover:text-foreground transition-colors p-1"
         aria-label="Notifications"
+        className="relative"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v2.5L2 10h12l-1.5-1.5V6A4.5 4.5 0 0 0 8 1.5z" />
-          <path d="M6.5 13a1.5 1.5 0 0 0 3 0" />
-        </svg>
+        <Bell className="size-3.5" />
         {alertCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary rounded-full text-[8px] text-primary-foreground flex items-center justify-center font-medium">
+          <span className="absolute -top-0.5 -right-0.5 size-3.5 bg-primary rounded-full text-[8px] text-primary-foreground flex items-center justify-center font-medium">
             {alertCount > 9 ? "9+" : alertCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute left-0 bottom-full mb-2 w-80 bg-card border border rounded-xl shadow-2xl z-50 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border">
-            {(["alerts", "activity"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 px-4 py-2.5 text-xs font-medium transition-colors ${
-                  activeTab === tab
-                    ? "text-foreground border-b-2 border-primary"
-                    : "text-muted-foreground/60 hover:text-muted-foreground"
-                }`}
-              >
-                {tab === "alerts" ? (
-                  <>
-                    Alerts
-                    {alertCount > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full text-[9px]">
-                        {alertCount}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  "Activity"
+        <div className="absolute left-0 bottom-full mb-2 w-80 bg-card border rounded-xl shadow-2xl z-50 overflow-hidden">
+          <Tabs defaultValue={defaultTab}>
+            <TabsList variant="line" className="w-full border-b">
+              <TabsTrigger value="alerts">
+                Alerts
+                {alertCount > 0 && (
+                  <Badge className="ml-1.5 h-4 min-w-4 px-1 text-[9px]">
+                    {alertCount}
+                  </Badge>
                 )}
-              </button>
-            ))}
-          </div>
+              </TabsTrigger>
+              <TabsTrigger value="activity">
+                Activity
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="max-h-96 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center gap-2 px-4 py-6">
-                <span className="w-3 h-3 border-2 border-border/80 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-muted-foreground/60">Loading…</span>
-              </div>
-            ) : activeTab === "alerts" ? (
-              /* ── Alerts tab ── */
-              alertItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground/60 px-4 py-6 text-center">
-                  No alerts — all clear.
-                </p>
+            <div className="max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center gap-2 px-4 py-6">
+                  <Spinner className="size-3" />
+                  <span className="text-xs text-muted-foreground/60">Loading...</span>
+                </div>
               ) : (
-                alertItems.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="px-4 py-3 border-b border last:border-0"
-                  >
-                    <div className="flex items-start gap-2">
-                      {/* Urgency dot */}
-                      <span
-                        className="w-2 h-2 rounded-full mt-1 shrink-0"
-                        style={{ backgroundColor: urgencyColor[alert.urgency] }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-medium text-foreground leading-snug">
-                            {alert.title}
-                          </p>
-                          <span className="text-[10px] text-muted-foreground/60 shrink-0">
-                            {timeAgo(alert.generatedAt)}
+                <>
+                  <TabsContent value="alerts" className="mt-0">
+                    {alertItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60 px-4 py-6 text-center">
+                        No alerts — all clear.
+                      </p>
+                    ) : (
+                      alertItems.map((alert) => (
+                        <div key={alert.id} className="px-4 py-3 border-b last:border-0">
+                          <div className="flex items-start gap-2">
+                            <span
+                              className="size-2 rounded-full mt-1 shrink-0"
+                              style={{ backgroundColor: urgencyColor[alert.urgency] }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-xs font-medium text-foreground leading-snug">
+                                  {alert.title}
+                                </p>
+                                <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                                  {timeAgo(alert.generatedAt)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                                {alert.body}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Link
+                                  href={alert.ctaUrl}
+                                  onClick={() => setOpen(false)}
+                                  className="text-[10px] font-medium text-primary hover:underline"
+                                >
+                                  {alert.ctaLabel}
+                                </Link>
+                                <span className="text-muted-foreground/60">·</span>
+                                <button
+                                  onClick={() => handleDismiss(alert.id)}
+                                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="activity" className="mt-0">
+                    {notifItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60 px-4 py-6 text-center">
+                        No activity yet
+                      </p>
+                    ) : (
+                      notifItems.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={`/dashboard/requests/${item.requestId}`}
+                          onClick={() => setOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors border-b last:border-0 no-underline"
+                        >
+                          <span className="text-xs text-muted-foreground mt-0.5 w-4 shrink-0">
+                            {notifTypeIcon[item.type]}
                           </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                          {alert.body}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Link
-                            href={alert.ctaUrl}
-                            onClick={() => setOpen(false)}
-                            className="text-[10px] font-medium text-primary hover:underline"
-                          >
-                            {alert.ctaLabel}
-                          </Link>
-                          <span className="text-muted-foreground/60">·</span>
-                          <button
-                            onClick={() => handleDismiss(alert.id)}
-                            className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                          >
-                            Dismiss
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )
-            ) : (
-              /* ── Activity tab ── */
-              notifItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground/60 px-4 py-6 text-center">
-                  No activity yet
-                </p>
-              ) : (
-                notifItems.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/dashboard/requests/${item.requestId}`}
-                    onClick={() => setOpen(false)}
-                    className="flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors border-b border last:border-0"
-                  >
-                    <span className="text-xs text-muted-foreground mt-0.5 w-4 shrink-0">
-                      {notifTypeIcon[item.type]}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-foreground truncate font-medium">
-                        {item.requestTitle}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                        {item.body}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground/60 shrink-0 mt-0.5">
-                      {timeAgo(item.createdAt)}
-                    </span>
-                  </Link>
-                ))
-              )
-            )}
-          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-foreground truncate font-medium">
+                              {item.requestTitle}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                              {item.body}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground/60 shrink-0 mt-0.5">
+                            {timeAgo(item.createdAt)}
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </TabsContent>
+                </>
+              )}
+            </div>
+          </Tabs>
         </div>
       )}
     </div>

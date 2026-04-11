@@ -23,6 +23,7 @@ import { DesignerStatus } from "@/components/radar/designer-status";
 import { HeatMap } from "@/components/radar/heat-map";
 import { RiskPanel } from "@/components/radar/risk-panel";
 import { ShippedWeek } from "@/components/radar/shipped-week";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function RadarPage() {
   const supabase = await createClient();
@@ -94,7 +95,7 @@ export default async function RadarPage() {
         Array<{ requestId: string }>
       ];
 
-  // Build lookup: requestId → primary designer name
+  // Build lookup: requestId -> primary designer name
   const profileMap = Object.fromEntries(allProfiles.map((p) => [p.id, p.fullName]));
   const designerByRequest: Record<string, string> = {};
   for (const a of allAssignments) {
@@ -123,33 +124,49 @@ export default async function RadarPage() {
     <>
       <RealtimeRadar orgId={viewer.orgId} />
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-10">
-        <section>
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-            Designer Status
-          </h2>
-          <DesignerStatus designers={radarDesigners} canActionMap={canActionMap} avgDevQuestionsMap={avgDevQuestionsMap} />
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Designer Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DesignerStatus designers={radarDesigners} canActionMap={canActionMap} avgDevQuestionsMap={avgDevQuestionsMap} />
+          </CardContent>
+        </Card>
 
-        <section>
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-            Phase Heat Map
-          </h2>
-          <HeatMap heatMap={heatMap} />
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Phase Heat Map
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HeatMap heatMap={heatMap} />
+          </CardContent>
+        </Card>
 
-        <section>
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-            Risk
-          </h2>
-          <RiskPanel risk={risk} />
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Risk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RiskPanel risk={risk} />
+          </CardContent>
+        </Card>
 
-        <section>
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-            Shipped This Week
-          </h2>
-          <ShippedWeek shipped={shipped} />
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Shipped This Week
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShippedWeek shipped={shipped} />
+          </CardContent>
+        </Card>
       </main>
     </>
   );

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface AlertItem {
   id: string;
@@ -17,10 +20,10 @@ interface Props {
   alerts: AlertItem[];
 }
 
-const urgencyBorder: Record<string, string> = {
-  high: "var(--accent-danger)",
-  medium: "var(--accent-warning)",
-  low: "hsl(var(--border) / 0.8)",
+const urgencyColors: Record<string, string> = {
+  high: "bg-[var(--accent-danger)]",
+  medium: "bg-[var(--accent-warning)]",
+  low: "bg-border/80",
 };
 
 const INLINE_LIMIT = 3;
@@ -39,7 +42,7 @@ export function AlertsSection({ alerts: initial }: Props) {
     try {
       await fetch(`/api/alerts/${id}/dismiss`, { method: "POST" });
     } catch {
-      // silent fail — badge in bell will still show on next load
+      // silent fail
     }
   }
 
@@ -59,74 +62,52 @@ export function AlertsSection({ alerts: initial }: Props) {
     <div className="mb-5 flex flex-col gap-2">
       {alerts.length >= 2 && (
         <div className="flex items-center justify-between mb-1">
-          <span
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              color: "hsl(var(--muted-foreground) / 0.6)",
-            }}
-          >
+          <span className="font-mono text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/60">
             Alerts
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground/60 font-mono"
             onClick={handleDismissAll}
-            className="hover:opacity-70 transition-opacity"
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 10,
-              color: "hsl(var(--muted-foreground) / 0.6)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
           >
             Dismiss all
-          </button>
+          </Button>
         </div>
       )}
+
       {visible.map((alert) => (
         <div
           key={alert.id}
-          className="rounded-xl overflow-hidden flex"
-          style={{
-            border: "1px solid hsl(var(--border))",
-            background: "hsl(var(--muted))",
-          }}
+          className="rounded-xl overflow-hidden flex border bg-muted"
         >
           {/* Urgency bar */}
-          <div
-            className="w-1 shrink-0"
-            style={{ background: urgencyBorder[alert.urgency] }}
-          />
+          <div className={`w-1 shrink-0 ${urgencyColors[alert.urgency]}`} />
 
           <div className="flex-1 px-4 py-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-medium leading-snug" style={{ color: "hsl(var(--foreground))" }}>
+              <p className="text-sm font-medium text-foreground leading-snug">
                 {alert.title}
               </p>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => handleDismiss(alert.id)}
-                className="shrink-0 text-xs leading-none hover:opacity-70 transition-opacity mt-0.5"
-                style={{ color: "hsl(var(--muted-foreground) / 0.6)", background: "none", border: "none", cursor: "pointer" }}
                 aria-label="Dismiss alert"
+                className="shrink-0 text-muted-foreground/60"
               >
-                ×
-              </button>
+                <X className="size-3" />
+              </Button>
             </div>
 
-            <p className="text-xs mt-1 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {alert.body}
             </p>
 
             <div className="mt-2.5">
               <Link
                 href={alert.ctaUrl}
-                className="text-xs font-medium hover:opacity-80 transition-opacity"
-                style={{ color: "hsl(var(--primary))" }}
+                className="text-xs font-medium text-primary hover:opacity-80 transition-opacity"
               >
                 {alert.ctaLabel} →
               </Link>
@@ -136,13 +117,14 @@ export function AlertsSection({ alerts: initial }: Props) {
       ))}
 
       {overflow > 0 && (
-        <button
+        <Button
+          variant="link"
+          size="xs"
+          className="text-muted-foreground/60 justify-start px-0"
           onClick={() => setPanelOpen(true)}
-          className="text-xs text-left hover:opacity-70 transition-opacity"
-          style={{ color: "hsl(var(--muted-foreground) / 0.6)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
           View all {alerts.length} alerts →
-        </button>
+        </Button>
       )}
     </div>
   );

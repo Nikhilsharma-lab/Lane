@@ -5,6 +5,10 @@ import { profiles, invites, requests, requestAiAnalysis, assignments, projects }
 import { eq, count, inArray, and, isNull } from "drizzle-orm";
 import { InviteForm } from "@/components/team/invite-form";
 import { ReportsToSelect } from "@/components/team/reports-to-select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 const roleLabels: Record<string, string> = {
   pm: "PM",
@@ -95,7 +99,7 @@ export default async function TeamPage() {
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">Invite member</h2>
         <InviteForm />
         <p className="text-xs text-muted-foreground/60 mt-2">
-          Invite links are valid for 7 days. Share directly with your teammate — no email required.
+          Invite links are valid for 7 days. Share directly with your teammate -- no email required.
         </p>
       </section>
 
@@ -106,60 +110,61 @@ export default async function TeamPage() {
         </h2>
         <div className="space-y-2">
           {members.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between border border-border rounded-xl px-5 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-medium text-muted-foreground">
-                  {m.fullName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-sm text-foreground">
-                    {m.fullName}
-                    {m.id === user.id && (
-                      <span className="text-xs text-muted-foreground/60 ml-1.5">(you)</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground/60">{m.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* PM quality score */}
-                {pmStats[m.id] && (
-                  <div className="text-right">
-                    <p className={`text-xs font-mono ${
-                      pmStats[m.id].avgQuality >= 80 ? "text-green-400" :
-                      pmStats[m.id].avgQuality >= 50 ? "text-yellow-400" : "text-red-400"
-                    }`}>
-                      {pmStats[m.id].avgQuality}/100
+            <Card key={m.id} size="sm">
+              <CardContent className="flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-7 w-7">
+                    <AvatarFallback className="text-xs font-medium">
+                      {m.fullName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm text-foreground">
+                      {m.fullName}
+                      {m.id === user.id && (
+                        <span className="text-xs text-muted-foreground/60 ml-1.5">(you)</span>
+                      )}
                     </p>
-                    <p className="text-[10px] text-muted-foreground/60">{pmStats[m.id].requestCount} requests</p>
+                    <p className="text-xs text-muted-foreground/60">{m.email}</p>
                   </div>
-                )}
-                {/* Designer workload */}
-                {(m.role === "designer" || m.role === "lead") && designerLoad[m.id] !== undefined && (
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">{designerLoad[m.id]}</p>
-                    <p className="text-[10px] text-muted-foreground/60">assigned</p>
-                  </div>
-                )}
-                {profile.role === "admin" && (
-                  <ReportsToSelect
-                    memberId={m.id}
-                    currentManagerId={m.managerId ?? null}
-                    managers={members.filter(
-                      (p) =>
-                        (p.role === "lead" || p.role === "admin") &&
-                        p.id !== m.id
-                    )}
-                  />
-                )}
-                <span className="text-xs text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5 capitalize">
-                  {roleLabels[m.role] ?? m.role}
-                </span>
-              </div>
-            </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* PM quality score */}
+                  {pmStats[m.id] && (
+                    <div className="text-right">
+                      <p className={`text-xs font-mono ${
+                        pmStats[m.id].avgQuality >= 80 ? "text-green-400" :
+                        pmStats[m.id].avgQuality >= 50 ? "text-yellow-400" : "text-red-400"
+                      }`}>
+                        {pmStats[m.id].avgQuality}/100
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60">{pmStats[m.id].requestCount} requests</p>
+                    </div>
+                  )}
+                  {/* Designer workload */}
+                  {(m.role === "designer" || m.role === "lead") && designerLoad[m.id] !== undefined && (
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">{designerLoad[m.id]}</p>
+                      <p className="text-[10px] text-muted-foreground/60">assigned</p>
+                    </div>
+                  )}
+                  {profile.role === "admin" && (
+                    <ReportsToSelect
+                      memberId={m.id}
+                      currentManagerId={m.managerId ?? null}
+                      managers={members.filter(
+                        (p) =>
+                          (p.role === "lead" || p.role === "admin") &&
+                          p.id !== m.id
+                      )}
+                    />
+                  )}
+                  <Badge variant="outline" className="capitalize">
+                    {roleLabels[m.role] ?? m.role}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </section>
@@ -172,18 +177,19 @@ export default async function TeamPage() {
           </h2>
           <div className="space-y-2">
             {activePending.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex items-center justify-between border border-border rounded-xl px-5 py-3"
-              >
-                <div>
-                  <p className="text-sm text-foreground">{inv.email}</p>
-                  <p className="text-xs text-muted-foreground/60 capitalize">
-                    {roleLabels[inv.role] ?? inv.role} · Expires {formatDate(inv.expiresAt)}
-                  </p>
-                </div>
-                <span className="text-xs text-yellow-500/70">Pending</span>
-              </div>
+              <Card key={inv.id} size="sm">
+                <CardContent className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm text-foreground">{inv.email}</p>
+                    <p className="text-xs text-muted-foreground/60 capitalize">
+                      {roleLabels[inv.role] ?? inv.role} · Expires {formatDate(inv.expiresAt)}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-yellow-500/70">
+                    Pending
+                  </Badge>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </section>
@@ -196,18 +202,19 @@ export default async function TeamPage() {
           </h2>
           <div className="space-y-2">
             {expired.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex items-center justify-between border border-border rounded-xl px-5 py-3 opacity-50"
-              >
-                <div>
-                  <p className="text-sm text-muted-foreground">{inv.email}</p>
-                  <p className="text-xs text-muted-foreground/60 capitalize">
-                    {roleLabels[inv.role] ?? inv.role} · Expired {formatDate(inv.expiresAt)}
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground/60">Expired</span>
-              </div>
+              <Card key={inv.id} size="sm" className="opacity-50">
+                <CardContent className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{inv.email}</p>
+                    <p className="text-xs text-muted-foreground/60 capitalize">
+                      {roleLabels[inv.role] ?? inv.role} · Expired {formatDate(inv.expiresAt)}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-muted-foreground/60">
+                    Expired
+                  </Badge>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </section>

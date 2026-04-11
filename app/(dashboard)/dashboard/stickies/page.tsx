@@ -14,15 +14,7 @@ export default async function StickiesPage() {
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6">
-      <h1
-        style={{
-          fontSize: 18,
-          fontWeight: 620,
-          letterSpacing: "-0.02em",
-          marginBottom: 16,
-        }}
-        className="text-foreground"
-      >
+      <h1 className="text-lg font-semibold tracking-tight text-foreground mb-4">
         Stickies
       </h1>
       <StickiesPanel stickies={myStickies} />

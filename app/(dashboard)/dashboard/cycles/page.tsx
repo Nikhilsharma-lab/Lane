@@ -7,6 +7,7 @@ import { getCyclesForOrg } from "@/app/actions/cycles";
 import { CycleCard } from "@/components/cycles/cycle-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateCycleForm } from "@/components/cycles/create-cycle-form";
+import { Badge } from "@/components/ui/badge";
 
 export default async function CyclesPage() {
   const supabase = await createClient();
@@ -70,7 +71,7 @@ export default async function CyclesPage() {
             <section key={projectId}>
               <div className="flex items-center gap-2 mb-3">
                 <span
-                  className="inline-block w-2.5 h-2.5 rounded-full"
+                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ background: group.projectColor }}
                 />
                 <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

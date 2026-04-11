@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-// Note: ideas list comes directly from server props so router.refresh() keeps it fresh
 import { IdeaCard } from "./idea-card";
 import { IdeaForm } from "./idea-form";
 import { IdeaValidationPanel } from "./idea-validation-panel";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 const STATUS_TABS = [
   { key: null, label: "All" },
@@ -72,58 +75,50 @@ export function IdeaBoard({ initialIdeas, profileRole }: IdeaBoardProps) {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 mb-6">
         {/* Filter tabs */}
-        <div className="flex items-center gap-1">
-          {STATUS_TABS.map((tab) => {
-            const count = tab.key === null ? ideas.length : (counts[tab.key] ?? 0);
-            const isActive = activeStatus === tab.key;
-            return (
-              <button
-                key={String(tab.key)}
-                onClick={() => setActiveStatus(tab.key)}
-                className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-                {count > 0 && (
-                  <span className={`ml-1.5 text-[10px] font-mono ${isActive ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <Tabs
+          value={activeStatus ?? "all"}
+          onValueChange={(v) => setActiveStatus(v === "all" ? null : v as StatusKey)}
+        >
+          <TabsList variant="default">
+            {STATUS_TABS.map((tab) => {
+              const count = tab.key === null ? ideas.length : (counts[tab.key] ?? 0);
+              return (
+                <TabsTrigger key={String(tab.key)} value={tab.key ?? "all"}>
+                  {tab.label}
+                  {count > 0 && (
+                    <span className="ml-1.5 text-[10px] font-mono text-muted-foreground">
+                      {count}
+                    </span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         <div className="flex items-center gap-2">
           {/* Sort */}
-          <select
+          <NativeSelect
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="text-xs bg-muted border rounded-lg px-2 py-1 text-muted-foreground focus:outline-none"
           >
             {SORT_OPTIONS.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
+              <NativeSelectOption key={s.key} value={s.key}>{s.label}</NativeSelectOption>
             ))}
-          </select>
+          </NativeSelect>
 
           {/* Submit button */}
-          <button
-            onClick={() => setShowForm(true)}
-            className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg transition-colors"
-          >
+          <Button size="sm" onClick={() => setShowForm(true)}>
             + Submit idea
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Empty state */}
       {filtered.length === 0 && (
-        <div className="border rounded-xl px-6 py-12 text-center">
+        <div className="border border-border rounded-xl px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground/60">
-            {activeStatus ? `No ideas in "${activeStatus}" status` : "No ideas yet — be the first to submit one!"}
+            {activeStatus ? `No ideas in "${activeStatus}" status` : "No ideas yet -- be the first to submit one!"}
           </p>
         </div>
       )}

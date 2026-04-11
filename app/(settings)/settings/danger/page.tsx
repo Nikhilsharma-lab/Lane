@@ -15,7 +15,7 @@ export default async function DangerPage() {
   if (!org) redirect("/login");
 
   return (
-    <div className="max-w-lg space-y-10">
+    <div className="max-w-lg space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-foreground mb-1">Danger Zone</h1>
         <p className="text-sm text-muted-foreground">Irreversible actions. Take care.</p>

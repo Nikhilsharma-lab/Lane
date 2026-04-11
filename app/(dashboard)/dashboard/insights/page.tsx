@@ -17,6 +17,8 @@ import { InsightsShell } from "@/components/insights/insights-shell";
 import { PipelineChart } from "@/components/analytics/pipeline-chart";
 import { FlowRateChart } from "@/components/analytics/flow-rate-chart";
 import { CycleThroughputChart } from "@/components/analytics/cycle-throughput-chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { DigestResponse } from "@/lib/digest";
 
 const STALL_EXEMPT = new Set(["draft", "completed", "shipped", "blocked"]);
@@ -216,14 +218,14 @@ export default async function InsightsPage() {
           Pipeline
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Metric label="Total requests" value={orgRequests.length} />
-          <Metric label="Active" value={activeCount} />
-          <Metric
+          <MetricCard label="Total requests" value={orgRequests.length} />
+          <MetricCard label="Active" value={activeCount} />
+          <MetricCard
             label="Stalled"
             value={stalledCount}
             color={stalledCount > 0 ? "text-amber-600" : undefined}
           />
-          <Metric label="Shipped" value={shippedCount} color="text-[var(--accent-success)]" />
+          <MetricCard label="Shipped" value={shippedCount} color="text-[var(--accent-success)]" />
         </div>
       </section>
 
@@ -232,28 +234,30 @@ export default async function InsightsPage() {
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
           Status breakdown
         </h2>
-        <div className="border rounded-xl p-5 space-y-3">
-          {STATUS_ORDER.filter((s) => statusCounts[s]).map((s) => {
-            const cnt = statusCounts[s] ?? 0;
-            const pct = Math.round((cnt / orgRequests.length) * 100);
-            return (
-              <div key={s} className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-20 capitalize shrink-0">
-                  {s.replace(/_/g, " ")}
-                </span>
-                <div className="flex-1 bg-accent rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${STATUS_COLORS[s]}`}
-                    style={{ width: `${pct}%` }}
-                  />
+        <Card>
+          <CardContent className="space-y-3 pt-5">
+            {STATUS_ORDER.filter((s) => statusCounts[s]).map((s) => {
+              const cnt = statusCounts[s] ?? 0;
+              const pct = Math.round((cnt / orgRequests.length) * 100);
+              return (
+                <div key={s} className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20 capitalize shrink-0">
+                    {s.replace(/_/g, " ")}
+                  </span>
+                  <div className="flex-1 bg-accent rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${STATUS_COLORS[s]}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground w-6 text-right shrink-0 font-mono">
+                    {cnt}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground w-6 text-right shrink-0">
-                  {cnt}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       </section>
 
       {/* PM request quality */}
@@ -274,42 +278,41 @@ export default async function InsightsPage() {
                 const q = qualityByPM[m.id];
                 const avg = Math.round(q.total / q.count);
                 return (
-                  <div
-                    key={m.id}
-                    className="flex items-center gap-3 border rounded-xl px-5 py-3"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{m.fullName}</p>
-                      <p className="text-xs text-muted-foreground/60">
-                        {q.count} request{q.count !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24 bg-accent rounded-full h-1.5">
-                        <div
-                          className={`h-full rounded-full ${
-                            avg >= 80
-                              ? "bg-[var(--accent-success)]/70"
-                              : avg >= 50
-                              ? "bg-[var(--accent-active)]/70"
-                              : "bg-red-500/70"
-                          }`}
-                          style={{ width: `${avg}%` }}
-                        />
+                  <Card key={m.id} size="sm">
+                    <CardContent className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{m.fullName}</p>
+                        <p className="text-xs text-muted-foreground/60">
+                          {q.count} request{q.count !== 1 ? "s" : ""}
+                        </p>
                       </div>
-                      <span
-                        className={`text-xs font-mono w-14 text-right ${
-                          avg >= 80
-                            ? "text-[var(--accent-success)]"
-                            : avg >= 50
-                            ? "text-[var(--accent-active)]"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {avg}/100
-                      </span>
-                    </div>
-                  </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 bg-accent rounded-full h-1.5">
+                          <div
+                            className={`h-full rounded-full ${
+                              avg >= 80
+                                ? "bg-[var(--accent-success)]/70"
+                                : avg >= 50
+                                ? "bg-[var(--accent-active)]/70"
+                                : "bg-red-500/70"
+                            }`}
+                            style={{ width: `${avg}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`text-xs font-mono w-14 text-right ${
+                            avg >= 80
+                              ? "text-[var(--accent-success)]"
+                              : avg >= 50
+                              ? "text-[var(--accent-active)]"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {avg}/100
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             {avgQuality !== null && (
@@ -340,32 +343,31 @@ export default async function InsightsPage() {
                 const maxLoad = Math.max(...Object.values(workloadMap), 1);
                 const isOverloaded = load >= 4;
                 return (
-                  <div
-                    key={m.id}
-                    className="flex items-center gap-3 border rounded-xl px-5 py-3"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{m.fullName}</p>
-                      <p className="text-xs text-muted-foreground/60 capitalize">{m.role}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24 bg-accent rounded-full h-1.5">
-                        <div
-                          className={`h-full rounded-full ${
-                            isOverloaded ? "bg-red-500/70" : "bg-[var(--accent-active)]/60"
-                          }`}
-                          style={{ width: `${Math.min((load / maxLoad) * 100, 100)}%` }}
-                        />
+                  <Card key={m.id} size="sm">
+                    <CardContent className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{m.fullName}</p>
+                        <p className="text-xs text-muted-foreground/60 capitalize">{m.role}</p>
                       </div>
-                      <span
-                        className={`text-xs font-mono w-20 text-right ${
-                          isOverloaded ? "text-red-600" : "text-muted-foreground"
-                        }`}
-                      >
-                        {load} active{isOverloaded ? " ⚠" : ""}
-                      </span>
-                    </div>
-                  </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 bg-accent rounded-full h-1.5">
+                          <div
+                            className={`h-full rounded-full ${
+                              isOverloaded ? "bg-red-500/70" : "bg-[var(--accent-active)]/60"
+                            }`}
+                            style={{ width: `${Math.min((load / maxLoad) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`text-xs font-mono w-20 text-right ${
+                            isOverloaded ? "text-red-600" : "text-muted-foreground"
+                          }`}
+                        >
+                          {load} active
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
           </div>
@@ -378,9 +380,11 @@ export default async function InsightsPage() {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Pipeline view
           </h2>
-          <div className="border rounded-xl p-5">
-            <PipelineChart data={pipelineData} />
-          </div>
+          <Card>
+            <CardContent className="pt-5">
+              <PipelineChart data={pipelineData} />
+            </CardContent>
+          </Card>
         </section>
       )}
 
@@ -390,9 +394,11 @@ export default async function InsightsPage() {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Flow rate
           </h2>
-          <div className="border rounded-xl p-5">
-            <FlowRateChart data={flowRateData} />
-          </div>
+          <Card>
+            <CardContent className="pt-5">
+              <FlowRateChart data={flowRateData} />
+            </CardContent>
+          </Card>
         </section>
       )}
 
@@ -402,16 +408,18 @@ export default async function InsightsPage() {
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
             Cycle throughput
           </h2>
-          <div className="border rounded-xl p-5">
-            <CycleThroughputChart data={cycleThroughputData} />
-          </div>
+          <Card>
+            <CardContent className="pt-5">
+              <CycleThroughputChart data={cycleThroughputData} />
+            </CardContent>
+          </Card>
         </section>
       )}
     </main>
   );
 }
 
-function Metric({
+function MetricCard({
   label,
   value,
   color,
@@ -421,11 +429,13 @@ function Metric({
   color?: string;
 }) {
   return (
-    <div className="border rounded-xl px-5 py-4">
-      <p className="text-xs text-muted-foreground/60 mb-1">{label}</p>
-      <p className={`text-2xl font-semibold ${color ?? "text-foreground"}`}>
-        {value}
-      </p>
-    </div>
+    <Card size="sm">
+      <CardContent className="px-5 py-4">
+        <p className="text-xs text-muted-foreground/60 mb-1">{label}</p>
+        <p className={`text-2xl font-semibold ${color ?? "text-foreground"}`}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

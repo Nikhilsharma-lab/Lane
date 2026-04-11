@@ -1,5 +1,16 @@
 import type { PublishedView, Request, Phase } from "@/db/schema";
 import { getPhaseLabel, getStageLabel } from "@/lib/workflow";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 
 const PRIORITY_LABELS: Record<string, string> = {
   p0: "P0",
@@ -24,203 +35,89 @@ interface Props {
 
 export function PublishedViewPage({ view, requests, isPublic }: Props) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--background)",
-        fontFamily: "Satoshi, system-ui, sans-serif",
-      }}
-    >
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border)",
-          padding: "24px 32px",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color: "var(--foreground)",
-            marginBottom: 4,
-          }}
-        >
+      <header className="border-b px-8 py-6">
+        <h1 className="text-xl font-bold text-foreground mb-1">
           {view.name}
         </h1>
         {view.description && (
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--muted-foreground)",
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {view.description}
           </p>
         )}
-        <p
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--muted-foreground)",
-            marginTop: 8,
-          }}
-        >
+        <p className="font-mono text-[10px] tracking-wider uppercase text-muted-foreground mt-2">
           {requests.length} request{requests.length !== 1 ? "s" : ""}
-          {isPublic ? " \u00B7 Public view" : " \u00B7 Team view"}
+          {isPublic ? " · Public view" : " · Team view"}
         </p>
       </header>
 
       {/* Table */}
-      <main style={{ padding: "16px 32px 48px" }}>
+      <main className="px-8 py-4 pb-12">
         {requests.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "64px 0",
-              color: "var(--muted-foreground)",
-              fontSize: 14,
-            }}
-          >
+          <div className="text-center py-16 text-sm text-muted-foreground">
             No requests match the current filters.
           </div>
         ) : (
-          <div
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              overflow: "hidden",
-              background: "var(--card)",
-            }}
-          >
-            {/* Table header */}
-            <div
-              className="grid"
-              style={{
-                gridTemplateColumns: isPublic
-                  ? "1fr 120px 120px 80px"
-                  : "1fr 120px 120px 80px",
-                padding: "10px 16px",
-                background: "var(--muted)",
-                borderBottom: "1px solid var(--border)",
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--muted-foreground)",
-              }}
-            >
-              <span>Title</span>
-              <span>Phase / Stage</span>
-              <span>Priority</span>
-              <span>Status</span>
-            </div>
-
-            {/* Table rows */}
-            {requests.map((r) => (
-              <div
-                key={r.id}
-                className="grid"
-                style={{
-                  gridTemplateColumns: isPublic
-                    ? "1fr 120px 120px 80px"
-                    : "1fr 120px 120px 80px",
-                  padding: "12px 16px",
-                  borderBottom: "1px solid var(--border)",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--foreground)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {r.title}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "var(--muted-foreground)",
-                  }}
-                >
-                  {r.phase ? getPhaseLabel(r.phase as Phase) : ""} · {getStage(r)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Geist Mono', monospace",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: "var(--muted-foreground)",
-                  }}
-                >
-                  {r.priority ? PRIORITY_LABELS[r.priority] : "\u2014"}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Geist Mono', monospace",
-                    fontSize: 9,
-                    textTransform: "uppercase",
-                    color: "var(--muted-foreground)",
-                  }}
-                >
-                  {r.status.replace(/_/g, " ")}
-                </span>
-              </div>
-            ))}
-          </div>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead className="w-[140px]">Phase / Stage</TableHead>
+                  <TableHead className="w-[100px]">Priority</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium truncate max-w-[300px]">
+                      {r.title}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-[11px]">
+                      {r.phase ? getPhaseLabel(r.phase as Phase) : ""} · {getStage(r)}
+                    </TableCell>
+                    <TableCell>
+                      {r.priority ? (
+                        <Badge variant="outline" className="font-mono text-[10px]">
+                          {PRIORITY_LABELS[r.priority]}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-[9px] uppercase text-muted-foreground">
+                        {r.status.replace(/_/g, " ")}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         )}
 
         {/* Comments placeholder */}
         {view.allowComments && !isPublic && (
-          <div
-            style={{
-              marginTop: 24,
-              padding: "16px 20px",
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              background: "var(--card)",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "var(--muted-foreground)",
-                marginBottom: 8,
-              }}
-            >
-              Comments
-            </p>
-            <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-              Comments will appear here. This feature is coming soon.
-            </p>
-          </div>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="font-mono text-[9px] font-medium tracking-wider uppercase text-muted-foreground">
+                Comments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Comments will appear here. This feature is coming soon.
+              </p>
+            </CardContent>
+          </Card>
         )}
       </main>
 
       {/* Footer */}
-      <footer
-        style={{
-          textAlign: "center",
-          padding: "16px 32px 32px",
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 10,
-          letterSpacing: "0.06em",
-          color: "var(--muted-foreground)",
-        }}
-      >
+      <footer className="text-center px-8 py-4 pb-8 font-mono text-[10px] tracking-wider text-muted-foreground">
         Powered by Lane
       </footer>
     </div>

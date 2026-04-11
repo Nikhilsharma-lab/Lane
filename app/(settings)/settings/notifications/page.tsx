@@ -13,27 +13,15 @@ export default async function NotificationsSettingsPage() {
   const prefs = await getNotificationPreferences();
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-6">
-      <h1
-        style={{
-          fontSize: 18,
-          fontWeight: 620,
-          letterSpacing: "-0.02em",
-          marginBottom: 4,
-        }}
-        className="text-foreground"
-      >
-        Notification Preferences
-      </h1>
-      <p
-        style={{
-          fontSize: 13,
-          marginBottom: 24,
-        }}
-        className="text-muted-foreground"
-      >
-        Control how and when Lane reaches out to you.
-      </p>
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-lg font-semibold text-foreground mb-1">
+          Notification Preferences
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Control how and when Lane reaches out to you.
+        </p>
+      </div>
       <NotificationPrefsForm initialPrefs={prefs} />
     </div>
   );

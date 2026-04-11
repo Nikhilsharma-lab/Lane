@@ -2,6 +2,10 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   onClose: () => void;
@@ -109,9 +113,9 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-card border border rounded-2xl w-full max-w-3xl shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-3xl shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
           <div>
             <h2 className="text-sm font-semibold text-foreground">New request</h2>
             <p className="text-xs text-muted-foreground mt-0.5">AI will triage after you submit</p>
@@ -135,27 +139,27 @@ export function NewRequestForm({ onClose, projects }: Props) {
             {/* Left column */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Title <span className="text-red-400">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
                   name="title"
                   type="text"
                   required
                   autoFocus
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="w-full bg-background rounded-lg px-3 py-2.5 h-auto text-sm"
                   placeholder="e.g. Redesign onboarding flow for mobile"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Project <span className="text-red-400">*</span>
-                </label>
+                </Label>
                 <select
                   name="projectId"
                   required
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-border/80 transition-colors"
+                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-ring transition-colors"
                 >
                   <option value="">Select a project…</option>
                   {projects.map((p) => (
@@ -165,26 +169,26 @@ export function NewRequestForm({ onClose, projects }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Description <span className="text-red-400">*</span>
-                </label>
+                </Label>
                 <textarea
                   name="description"
                   required
                   rows={3}
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
                   placeholder="What needs to be designed? What problem does this solve?"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Business context
-                </label>
+                </Label>
                 <textarea
                   name="businessContext"
                   rows={2}
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
                   placeholder="Why does this matter? What's the business impact?"
                 />
               </div>
@@ -193,61 +197,61 @@ export function NewRequestForm({ onClose, projects }: Props) {
             {/* Right column */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Success metrics
-                </label>
-                <input
+                </Label>
+                <Input
                   name="successMetrics"
                   type="text"
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="w-full bg-background rounded-lg px-3 py-2.5 h-auto text-sm"
                   placeholder="How will we know it worked?"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Deadline
-                </label>
-                <input
+                </Label>
+                <Input
                   name="deadlineAt"
                   type="date"
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="w-full bg-background rounded-lg px-3 py-2.5 h-auto text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Figma link
-                </label>
-                <input
+                </Label>
+                <Input
                   name="figmaUrl"
                   type="url"
-                  className="w-full bg-background border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="w-full bg-background rounded-lg px-3 py-2.5 h-auto text-sm"
                   placeholder="https://figma.com/file/..."
                 />
               </div>
 
-              <div className="border border rounded-xl p-3 space-y-3 bg-muted">
+              <div className="border border-border rounded-xl p-3 space-y-3 bg-muted">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Impact prediction</p>
                   <p className="text-[11px] text-muted-foreground/60">What metric will this move, and by how much?</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Metric</label>
-                    <input
+                    <Label className="block text-xs font-medium text-muted-foreground mb-1">Metric</Label>
+                    <Input
                       name="impactMetric"
                       type="text"
-                      className="w-full bg-background border border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                      className="w-full bg-background rounded-lg px-3 py-2 h-auto text-sm"
                       placeholder="e.g. checkout conversion"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Prediction</label>
-                    <input
+                    <Label className="block text-xs font-medium text-muted-foreground mb-1">Prediction</Label>
+                    <Input
                       name="impactPrediction"
                       type="text"
-                      className="w-full bg-background border border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                      className="w-full bg-background rounded-lg px-3 py-2 h-auto text-sm"
                       placeholder="e.g. +5% improvement"
                     />
                   </div>
@@ -279,30 +283,33 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
               {showJustificationField ? (
                 <div className="space-y-2">
-                  <label className="block text-xs font-medium text-muted-foreground">
+                  <Label className="block text-xs font-medium text-muted-foreground">
                     Why are you submitting this as-is?
-                  </label>
+                  </Label>
                   <textarea
                     value={intakeJustification}
                     onChange={(e) => setIntakeJustification(e.target.value)}
                     rows={2}
-                    className="w-full bg-background border border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+                    className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
                     placeholder="Explain why this solution-specific request should proceed..."
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     disabled={!intakeJustification.trim()}
                     onClick={() => setShowIntakeGate(false)}
-                    className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Continue with justification
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {preflight.reframedProblem && (
-                    <button
+                    <Button
                       type="button"
+                      variant="default"
+                      size="sm"
                       onClick={() => {
                         if (formRef.current) {
                           const desc = formRef.current.querySelector<HTMLTextAreaElement>("textarea[name=description]");
@@ -311,29 +318,30 @@ export function NewRequestForm({ onClose, projects }: Props) {
                         setShowIntakeGate(false);
                         setPreflight(null);
                       }}
-                      className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90"
                     >
                       Accept AI rewrite
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setShowIntakeGate(false);
                       setPreflight(null);
                       formRef.current?.querySelector<HTMLTextAreaElement>("textarea[name=description]")?.focus();
                     }}
-                    className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors"
                   >
                     Edit myself
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowJustificationField(true)}
-                    className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border transition-colors"
                   >
                     Submit anyway
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -341,10 +349,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
           {/* Pre-flight results panel */}
           {(preflight || preflightError) && (
-            <div
-              className="mt-4 rounded-xl border p-4 space-y-3"
-              style={{ background: "hsl(var(--muted))", borderColor: "hsl(var(--border))" }}
-            >
+            <div className="mt-4 rounded-xl border border-border p-4 space-y-3 bg-muted">
               {preflightError ? (
                 <p className="text-xs text-red-400">{preflightError}</p>
               ) : preflight && (
@@ -352,25 +357,18 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   {/* Score */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-muted-foreground">Quality score</span>
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{
-                        background:
-                          preflight.qualityScore >= 80
-                            ? "rgba(46,83,57,0.12)"
-                            : preflight.qualityScore >= 50
-                            ? "rgba(212,168,75,0.12)"
-                            : "rgba(239,68,68,0.12)",
-                        color:
-                          preflight.qualityScore >= 80
-                            ? "hsl(var(--primary))"
-                            : preflight.qualityScore >= 50
-                            ? "var(--accent-warning)"
-                            : "var(--accent-danger)",
-                      }}
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        preflight.qualityScore >= 80
+                          ? "bg-primary/10 text-primary"
+                          : preflight.qualityScore >= 50
+                          ? "bg-[var(--accent-warning)]/10 text-[var(--accent-warning)]"
+                          : "bg-destructive/10 text-destructive"
+                      }`}
                     >
                       {preflight.qualityScore}/100
-                    </span>
+                    </Badge>
                     <span className="text-xs text-muted-foreground/60">
                       {preflight.qualityScore >= 80
                         ? "Good to go"
@@ -436,33 +434,35 @@ export function NewRequestForm({ onClose, projects }: Props) {
           )}
 
           <div className="flex items-center justify-end gap-3 pt-3">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={handlePreflight}
               disabled={preflightLoading}
-              className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))" }}
+              className="text-sm"
             >
               {preflightLoading ? (
                 <>
-                  <span className="inline-block w-3 h-3 border-2 border-t-primary border-t-primary rounded-full animate-spin" />
+                  <span className="inline-block w-3 h-3 border-2 border-t-primary rounded-full animate-spin" />
                   Checking…
                 </>
               ) : (
                 "Check quality"
               )}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="default"
               disabled={loading || showIntakeGate}
-              className="bg-primary text-primary-foreground rounded-lg px-5 py-2 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="text-sm px-5"
             >
               {loading ? (
                 <>
@@ -472,7 +472,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
               ) : (
                 "Submit & triage"
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

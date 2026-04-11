@@ -5,7 +5,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { X } from "lucide-react";
 import {
   Home,
   Inbox,
@@ -15,28 +14,49 @@ import {
   LogOut,
   Plus,
   Search,
-  ChevronDown,
   Clock,
   Zap,
   FolderOpen,
   Users,
   Sun,
   Moon,
+  X,
+  ChevronsUpDown,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import { PinnedViews } from "@/components/shell/pinned-views";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Avatar,
+  AvatarFallback,
+} from "@/components/ui/avatar";
 
-interface NavItem {
-  href: string;
-  icon: React.ComponentType<{ size?: number | string }>;
-  label: string;
-  badge?: number | string;
-  badgeStyle?: "accent" | "warn" | "muted";
-  trailing?: string;
-}
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface SidebarBanner {
   title: string;
@@ -65,322 +85,281 @@ interface Props {
   pinnedViews?: PinnedView[];
 }
 
-// ── Nav Item ─────────────────────────────────────────────────────────────────
+// ── Nav Config ──────────────────────────────────────────────────────────────
 
-function NavItemLink({ href, icon: Icon, label, badge, badgeStyle, trailing }: NavItem) {
-  const pathname = usePathname();
-  // Home only matches exact "/dashboard"; all others use startsWith
-  const isActive =
-    href === "/dashboard"
-      ? pathname === "/dashboard"
-      : pathname.startsWith(href);
+const personalNav = [
+  { href: "/dashboard", icon: Home, label: "Home" },
+  { href: "/dashboard/inbox", icon: Inbox, label: "Inbox" },
+] as const;
 
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-[7px] relative transition-colors${isActive ? " bg-accent" : ""}`}
-    >
-      {isActive && (
-        <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r bg-primary"
-          style={{ width: 2.5, height: 14 }}
-        />
-      )}
-      <Icon size={15} />
-      <span
-        className={`flex-1 truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}
-        style={{
-          fontSize: 13,
-          fontWeight: isActive ? 560 : 460,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {label}
-      </span>
-      {badge !== undefined && (
-        <span
-          className={`rounded-full text-center ${
-            badgeStyle === "accent"
-              ? "bg-primary text-primary-foreground"
-              : badgeStyle === "warn"
-              ? "bg-yellow-100 text-yellow-700"
-              : "bg-muted text-muted-foreground border"
-          }`}
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-            fontWeight: 600,
-            padding: "1px 6px",
-            minWidth: 16,
-            lineHeight: "16px",
-          }}
-        >
-          {badge}
-        </span>
-      )}
-      {trailing && (
-        <span
-          className="text-muted-foreground/60"
-          style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 10,
-          }}
-        >
-          {trailing}
-        </span>
-      )}
-    </Link>
-  );
-}
+const workspaceNav = [
+  { href: "/dashboard/requests", icon: Zap, label: "Requests" },
+  { href: "/dashboard/projects", icon: FolderOpen, label: "Projects" },
+  { href: "/dashboard/ideas", icon: Lightbulb, label: "Ideas" },
+  { href: "/dashboard/cycles", icon: Clock, label: "Cycles" },
+] as const;
 
-// ── Divider ───────────────────────────────────────────────────────────────────
-
-function NavDivider() {
-  return <div className="my-1 mx-2.5 border-t" />;
-}
-
-// ── Section Label ─────────────────────────────────────────────────────────────
-
-function SectionLabel({ label }: { label: string }) {
-  return (
-    <div className="px-2.5 pt-2 pb-1">
-      <span
-        style={{
-          fontFamily: "'Geist Mono', monospace",
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase" as const,
-        }}
-        className="text-muted-foreground/60"
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
+const insightsNav = [
+  { href: "/dashboard/insights", icon: BarChart3, label: "Insights" },
+  { href: "/dashboard/team", icon: Users, label: "Team" },
+] as const;
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ user, userRole, orgName, orgPlan, activeCount, inboxUnreadCount, banner, pinnedViews }: Props) {
+export function Sidebar({
+  user,
+  userRole,
+  orgName,
+  orgPlan,
+  activeCount,
+  inboxUnreadCount,
+  banner,
+  pinnedViews,
+}: Props) {
+  const pathname = usePathname();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const hasPinnedViews = pinnedViews && pinnedViews.length > 0;
 
+  function isActive(href: string) {
+    return href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href);
+  }
+
   return (
-    <aside
-      className="flex flex-col shrink-0 select-none bg-muted border-r sticky top-0 z-20"
-      style={{
-        width: 256,
-        minWidth: 256,
-        height: "100vh",
-      }}
-    >
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="px-3.5 pt-4 pb-3 border-b">
-        <div className="flex items-center gap-2.5 px-1.5 py-1 rounded-lg cursor-pointer hover:bg-accent transition-colors">
-          <div
-            className="flex items-center justify-center rounded-[7px] shrink-0 bg-primary"
-            style={{
-              width: 28,
-              height: 28,
-              boxShadow: "0 1px 4px rgba(46,83,57,0.15)",
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--primary-foreground)" }}>L</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-foreground" style={{ fontSize: 13.5, fontWeight: 620, letterSpacing: "-0.02em" }}>
-              {orgName}
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span
-                className="text-primary"
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 9,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  background: "rgba(46,83,57,0.08)",
-                  padding: "1px 5px",
-                  borderRadius: 3,
-                }}
-              >
-                {orgPlan}
-              </span>
-              <span
-                className="text-muted-foreground/60"
-                style={{
-                  fontFamily: "'Geist Mono', monospace",
-                  fontSize: 10,
-                }}
-              >
-                {activeCount} active
-              </span>
-            </div>
-          </div>
-          <ChevronDown size={14} className="shrink-0 opacity-40 text-muted-foreground/60" />
-        </div>
+    <ShadcnSidebar collapsible="icon">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <SidebarMenuButton size="lg" className="gap-3">
+                  <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-[11px] font-bold shrink-0">
+                    L
+                  </div>
+                  <div className="flex flex-col gap-0.5 leading-none">
+                    <span className="font-semibold text-sm tracking-tight">
+                      {orgName}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="h-4 text-[9px] px-1.5 font-mono">
+                        {orgPlan}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {activeCount} active
+                      </span>
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
+                <DropdownMenuItem>
+                  <Link href="/settings" className="flex items-center gap-2 w-full">
+                    <Settings className="size-3.5" />
+                    Organization Settings
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
 
         {/* Search */}
-        <div className="flex items-center gap-2 mt-2.5 px-2.5 py-[7px] rounded-[7px] cursor-text bg-accent border">
-          <Search size={13} className="text-muted-foreground/60" />
-          <span className="text-muted-foreground/60 flex-1" style={{ fontSize: 12.5 }}>Search...</span>
-          <kbd
-            className="text-muted-foreground/60 bg-muted border"
-            style={{
-              fontFamily: "'Geist Mono', monospace",
-              fontSize: 9.5,
-              padding: "1px 5px",
-              borderRadius: 3,
-            }}
-          >
-            ⌘K
-          </kbd>
-        </div>
-      </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton className="text-muted-foreground">
+              <Search className="size-4" />
+              <span className="flex-1">Search...</span>
+              <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground hidden sm:inline-flex">
+                ⌘K
+              </kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      {/* ── Scrollable Nav ──────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-1.5 py-1.5 sidebar-scroll">
-        {/* Group 1: Personal */}
-        <div className="py-0.5 px-1">
-          <NavItemLink href="/dashboard" icon={Home} label="Home" />
-          <NavItemLink href="/dashboard/inbox" icon={Inbox} label="Inbox" badge={inboxUnreadCount || undefined} badgeStyle="accent" />
-        </div>
+      {/* ── Scrollable Content ─────────────────────────────── */}
+      <SidebarContent>
+        {/* Personal */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {personalNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={isActive(item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                  {item.label === "Inbox" && inboxUnreadCount ? (
+                    <SidebarMenuBadge>
+                      <Badge variant="default" className="h-4 min-w-4 px-1 text-[10px] font-mono">
+                        {inboxUnreadCount}
+                      </Badge>
+                    </SidebarMenuBadge>
+                  ) : null}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        <NavDivider />
+        <SidebarSeparator />
 
-        {/* Group 2: Workspace */}
-        <div className="py-0.5 px-1">
-          <NavItemLink href="/dashboard/requests" icon={Zap} label="Requests" />
-          <NavItemLink href="/dashboard/projects" icon={FolderOpen} label="Projects" />
-          <NavItemLink href="/dashboard/ideas" icon={Lightbulb} label="Ideas" />
-          <NavItemLink href="/dashboard/cycles" icon={Clock} label="Cycles" />
-        </div>
+        {/* Workspace */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {workspaceNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={isActive(item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        <NavDivider />
+        <SidebarSeparator />
 
-        {/* Group 3: Insights + Team */}
-        <div className="py-0.5 px-1">
-          <NavItemLink href="/dashboard/insights" icon={BarChart3} label="Insights" />
-          <NavItemLink href="/dashboard/team" icon={Users} label="Team" />
-        </div>
+        {/* Insights + Team */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {insightsNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={isActive(item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        {/* Pinned Views (only shown if views exist) */}
+        {/* Pinned Views */}
         {hasPinnedViews && (
           <>
-            <NavDivider />
-            <SectionLabel label="Pinned Views" />
-            <PinnedViews views={pinnedViews!} />
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Pinned Views</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <PinnedViews views={pinnedViews!} />
+              </SidebarGroupContent>
+            </SidebarGroup>
           </>
         )}
-      </div>
+      </SidebarContent>
 
-      {/* ── Footer ──────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t">
+      {/* ── Footer ──────────────────────────────────────────── */}
+      <SidebarFooter>
         {/* New Request button */}
-        <button
-          className="flex items-center justify-center gap-1.5 mx-3 mt-3 py-2 w-[calc(100%-24px)] rounded-[7px] transition-colors bg-primary text-primary-foreground"
-          style={{
-            fontFamily: "'Satoshi', sans-serif",
-            fontSize: 12.5,
-            fontWeight: 560,
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 1px 6px rgba(46,83,57,0.15)",
-          }}
-        >
-          <Plus size={14} />
+        <Button className="w-full gap-1.5" size="lg">
+          <Plus className="size-4" />
           New Request
-        </button>
+        </Button>
 
-        {/* Promo / update banner */}
+        {/* Promo banner */}
         {banner && !bannerDismissed && (
-          <div className="mx-2.5 mt-2.5 p-3 rounded-lg bg-card border">
+          <div className="rounded-lg border bg-card p-3">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-foreground" style={{ fontSize: 13, fontWeight: 580, lineHeight: 1.3 }}>
+              <span className="text-xs font-medium text-foreground leading-snug">
                 {banner.title}
               </span>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setBannerDismissed(true)}
-                className="shrink-0 flex items-center justify-center rounded hover:bg-accent transition-colors text-muted-foreground/60"
-                style={{ width: 20, height: 20, background: "none", border: "none", cursor: "pointer", marginTop: -2 }}
               >
-                <X size={10} />
-              </button>
+                <X className="size-3" />
+              </Button>
             </div>
-            <p className="text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
               {banner.description}
             </p>
-            <Link
-              href={banner.ctaHref}
-              className="flex items-center justify-center mt-2.5 py-1.5 rounded-md transition-opacity hover:opacity-85 bg-foreground text-background"
-              style={{
-                fontSize: 12,
-                fontWeight: 560,
-                textDecoration: "none",
-              }}
-            >
+            <Button variant="secondary" size="sm" className="w-full mt-2" render={<Link href={banner.ctaHref} />}>
               {banner.ctaLabel}
-            </Link>
+            </Button>
           </div>
         )}
 
+        <Separator />
+
         {/* User */}
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 pb-4">
-          <div
-            className="flex items-center justify-center rounded-full shrink-0 cursor-pointer text-foreground"
-            style={{
-              width: 28,
-              height: 28,
-              background: "linear-gradient(135deg, rgba(46,83,57,0.30), rgba(194,123,158,0.30))",
-              fontSize: 10.5,
-              fontWeight: 650,
-            }}
-          >
-            {user.initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-foreground" style={{ fontSize: 12.5, fontWeight: 530 }}>{user.name}</div>
-            <div
-              className="text-muted-foreground/60"
-              style={{
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: 10,
-                marginTop: 1,
-              }}
-            >
-              {user.role}
-            </div>
-          </div>
-          <div className="flex gap-1 items-center">
-            <NotificationsBell userRole={userRole} />
-            <button
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-accent transition-all"
-              style={{ background: "none", border: "none", cursor: "pointer" }}
-              aria-label="Toggle theme"
-            >
-              {resolvedTheme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-            <Link
-              href="/settings"
-              className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-accent transition-all"
-            >
-              <Settings size={14} />
-            </Link>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="p-1 rounded opacity-40 hover:opacity-70 hover:bg-red-500/10 transition-all"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-              >
-                <LogOut size={14} />
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </aside>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <SidebarMenuButton size="lg" className="gap-3">
+                  <Avatar className="size-7 shrink-0">
+                    <AvatarFallback className="text-[10px] font-semibold bg-gradient-to-br from-primary/30 to-pink-400/30">
+                      {user.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-0.5 leading-none">
+                    <span className="text-xs font-medium">{user.name}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {user.role}
+                    </span>
+                  </div>
+                  <div className="ml-auto flex items-center gap-0.5">
+                    <NotificationsBell userRole={userRole} />
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTheme(resolvedTheme === "dark" ? "light" : "dark");
+                      }}
+                    >
+                      {resolvedTheme === "dark" ? (
+                        <Sun className="size-3.5" />
+                      ) : (
+                        <Moon className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" sideOffset={4}>
+                <DropdownMenuItem>
+                  <Link href="/settings" className="flex items-center gap-2 w-full">
+                    <Settings className="size-3.5" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={async () => {
+                    await logout();
+                  }}
+                >
+                  <LogOut className="size-3.5" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </ShadcnSidebar>
   );
 }

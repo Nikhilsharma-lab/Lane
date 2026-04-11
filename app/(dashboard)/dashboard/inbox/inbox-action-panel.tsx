@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   UserPlus,
@@ -18,8 +18,13 @@ import {
   ExternalLink,
   Send,
   Check,
-  X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -132,56 +137,53 @@ function SignoffRequestedPanel({ notification, onArchive }: { notification: Inbo
 
       <div className="flex flex-col gap-2">
         {(["approved", "approved_with_conditions", "rejected"] as const).map((d) => (
-          <button
+          <Button
             key={d}
+            variant="outline"
+            size="lg"
             onClick={() => setDecision(decision === d ? null : d)}
-            className={`text-left text-sm px-3 py-2.5 rounded-lg border transition-colors ${
+            className={`justify-start text-sm ${
               decision === d
                 ? d === "approved"
-                  ? "bg-green-500/10 border-green-500/30 text-green-600"
+                  ? "bg-green-500/10 border-green-500/30 text-green-600 hover:bg-green-500/15"
                   : d === "approved_with_conditions"
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-600"
-                  : "bg-red-500/10 border-red-500/30 text-red-600"
-                : "border-border hover:bg-accent text-foreground"
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-600 hover:bg-amber-500/15"
+                  : "bg-red-500/10 border-red-500/30 text-red-600 hover:bg-red-500/15"
+                : ""
             }`}
           >
             {d === "approved" ? "Approve" : d === "approved_with_conditions" ? "Approve with conditions" : "Request changes"}
-          </button>
+          </Button>
         ))}
       </div>
 
       {decision === "approved_with_conditions" && (
-        <input
-          type="text"
+        <Input
           value={conditions}
           onChange={(e) => setConditions(e.target.value)}
           placeholder="Describe the conditions..."
-          className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30"
         />
       )}
 
       {decision === "rejected" && (
-        <textarea
+        <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="What needs to change?"
           rows={3}
-          className="w-full bg-muted border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
         />
       )}
 
       {decision && (
-        <button
+        <Button
           onClick={handleSubmit}
           disabled={submitting || (decision === "approved_with_conditions" && !conditions.trim())}
-          className={`w-full text-sm font-medium px-3 py-2.5 rounded-lg transition-colors disabled:opacity-40 ${
-            decision === "rejected"
-              ? "bg-red-600 hover:bg-red-500 text-white"
-              : "bg-primary hover:opacity-90 text-primary-foreground"
-          }`}
+          variant={decision === "rejected" ? "destructive" : "default"}
+          size="lg"
+          className="w-full"
         >
           {submitting ? "Submitting..." : "Submit sign-off"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -221,11 +223,13 @@ function CommentPanel({ notification, onArchive }: { notification: InboxNotifica
     <div className="space-y-4">
       {/* Original comment */}
       {notification.body && (
-        <div className="bg-muted rounded-lg p-3 border">
+        <div className="bg-muted rounded-lg p-3 border border-border">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-full bg-accent border flex items-center justify-center text-[9px] font-medium text-foreground">
-              {getInitials(notification.actorName)}
-            </div>
+            <Avatar size="sm">
+              <AvatarFallback className="text-[9px]">
+                {getInitials(notification.actorName)}
+              </AvatarFallback>
+            </Avatar>
             <span className="text-xs font-medium text-foreground">{notification.actorName || "System"}</span>
           </div>
           <p className="text-sm text-foreground/80 leading-relaxed">{notification.body}</p>
@@ -235,38 +239,39 @@ function CommentPanel({ notification, onArchive }: { notification: InboxNotifica
       {/* Reply */}
       {notification.requestId && (
         <div className="space-y-2">
-          <textarea
+          <Textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             placeholder="Write a reply..."
             rows={3}
-            className="w-full bg-muted border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.metaKey) handleReply();
             }}
           />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground/50">
-              {reply.trim() ? "⌘↵ to send" : ""}
+            <span className="text-[10px] text-muted-foreground/50 font-mono">
+              {reply.trim() ? "Cmd+Enter to send" : ""}
             </span>
-            <button
+            <Button
               onClick={handleReply}
               disabled={isPending || !reply.trim()}
-              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-colors disabled:opacity-40"
+              size="sm"
             >
               <Send size={13} />
               {isPending ? "Sending..." : "Reply"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => onArchive(notification.id)}
-        className="w-full text-xs text-muted-foreground hover:text-foreground py-2 transition-colors"
+        className="w-full text-muted-foreground"
       >
         Mark as done without replying
-      </button>
+      </Button>
     </div>
   );
 }
@@ -277,7 +282,6 @@ function FigmaDriftPanel({ notification, onArchive }: { notification: InboxNotif
 
   async function handleMarkReviewed() {
     setSubmitting(true);
-    // Mark the notification as done — the full Figma review flow happens on the request page
     onArchive(notification.id);
     setReviewed(true);
     setSubmitting(false);
@@ -294,23 +298,22 @@ function FigmaDriftPanel({ notification, onArchive }: { notification: InboxNotif
 
   return (
     <div className="space-y-4">
-      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-        <p className="text-xs text-amber-600 font-medium mb-1">Post-handoff change detected</p>
-        <p className="text-xs text-muted-foreground">
+      <Alert>
+        <AlertTitle className="text-amber-600">Post-handoff change detected</AlertTitle>
+        <AlertDescription>
           {notification.body || "A design file was updated after handoff. Review the changes to ensure your implementation stays in sync."}
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleMarkReviewed}
-          disabled={submitting}
-          className="flex-1 text-sm font-medium px-3 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-colors disabled:opacity-40"
-        >
-          <Check size={14} className="inline mr-1.5" />
-          Acknowledge
-        </button>
-      </div>
+      <Button
+        onClick={handleMarkReviewed}
+        disabled={submitting}
+        size="lg"
+        className="w-full"
+      >
+        <Check size={14} />
+        Acknowledge
+      </Button>
 
       <p className="text-[11px] text-muted-foreground/60 text-center">
         Open the request to do a full Figma review
@@ -334,12 +337,11 @@ function NudgePanel({ notification, onArchive }: { notification: InboxNotificati
     setSelectedResponse(responseKey);
 
     startTransition(async () => {
-      // Post a comment on the request if linked
       if (notification.requestId) {
         const responseMap: Record<string, string> = {
-          blocked: "I'm currently blocked on this — will update when I have a path forward.",
+          blocked: "I'm currently blocked on this -- will update when I have a path forward.",
           thinking: "Still thinking through the approach. Will share progress soon.",
-          update: "Thanks for the nudge — posting a reflection now.",
+          update: "Thanks for the nudge -- posting a reflection now.",
         };
         await fetch(`/api/requests/${notification.requestId}/comment`, {
           method: "POST",
@@ -368,20 +370,24 @@ function NudgePanel({ notification, onArchive }: { notification: InboxNotificati
 
       <div className="flex flex-col gap-2">
         {responses.map((r) => (
-          <button
+          <Button
             key={r.key}
+            variant="outline"
+            size="lg"
             onClick={() => handleRespond(r.key)}
             disabled={isPending}
-            className={`text-left px-3 py-3 rounded-lg border transition-colors hover:bg-accent ${
-              selectedResponse === r.key ? "bg-accent border-primary/30" : "border-border"
-            } disabled:opacity-60`}
+            className={`justify-start h-auto py-3 ${
+              selectedResponse === r.key ? "bg-accent border-primary/30" : ""
+            }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base">{r.icon}</span>
-              <span className="text-sm font-medium text-foreground">{r.label}</span>
+            <div className="text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{r.icon}</span>
+                <span className="text-sm font-medium text-foreground">{r.label}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 ml-7">{r.desc}</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5 ml-7">{r.desc}</p>
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -392,18 +398,15 @@ function StageChangePanel({ notification, onArchive }: { notification: InboxNoti
   return (
     <div className="space-y-4">
       {notification.body && (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-          <p className="text-sm text-foreground/80 leading-relaxed">{notification.body}</p>
-        </div>
+        <Alert>
+          <AlertDescription>{notification.body}</AlertDescription>
+        </Alert>
       )}
 
-      <button
-        onClick={() => onArchive(notification.id)}
-        className="w-full text-sm font-medium px-3 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-colors"
-      >
-        <Check size={14} className="inline mr-1.5" />
+      <Button onClick={() => onArchive(notification.id)} size="lg" className="w-full">
+        <Check size={14} />
         Acknowledge
-      </button>
+      </Button>
     </div>
   );
 }
@@ -412,18 +415,15 @@ function GenericPanel({ notification, onArchive }: { notification: InboxNotifica
   return (
     <div className="space-y-4">
       {notification.body && (
-        <div className="bg-muted rounded-lg p-3 border">
+        <div className="bg-muted rounded-lg p-3 border border-border">
           <p className="text-sm text-foreground/80 leading-relaxed">{notification.body}</p>
         </div>
       )}
 
-      <button
-        onClick={() => onArchive(notification.id)}
-        className="w-full text-sm font-medium px-3 py-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-colors"
-      >
-        <Check size={14} className="inline mr-1.5" />
+      <Button onClick={() => onArchive(notification.id)} size="lg" className="w-full">
+        <Check size={14} />
         Mark as done
-      </button>
+      </Button>
     </div>
   );
 }
@@ -438,11 +438,11 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-5 py-4 border-b shrink-0">
+      <div className="px-5 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2.5 mb-3">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: `${config.color}15` }}
+            style={{ background: `color-mix(in srgb, ${config.color} 10%, transparent)` }}
           >
             <Icon size={16} style={{ color: config.color }} />
           </div>
@@ -453,14 +453,15 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
             >
               {config.label}
             </span>
-            <p className="text-xs text-muted-foreground/60 mt-0.5">{formatTime(notification.createdAt)}</p>
+            <p className="text-xs text-muted-foreground/60 mt-0.5 font-mono">{formatTime(notification.createdAt)}</p>
           </div>
 
           {/* Quick actions */}
           <div className="flex items-center gap-1">
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => onToggleRead(notification.id)}
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               title={isUnread ? "Mark as read (U)" : "Mark as unread (U)"}
             >
               <div
@@ -468,14 +469,16 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
                   isUnread ? "border-primary bg-primary" : "border-muted-foreground/40"
                 }`}
               />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => onArchive(notification.id)}
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-green-500/10 text-muted-foreground hover:text-green-600 transition-colors"
+              className="text-muted-foreground hover:text-green-600"
               title="Mark as done (E)"
             >
               <Check size={15} />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -485,35 +488,27 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
         {/* Actor */}
         {notification.actorName && (
           <div className="flex items-center gap-2 mt-2.5">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-medium border"
-              style={{
-                background: "var(--accent)",
-                color: "var(--foreground)",
-                borderColor: "var(--border)",
-              }}
-            >
-              {getInitials(notification.actorName)}
-            </div>
+            <Avatar size="sm">
+              <AvatarFallback className="text-[9px]">
+                {getInitials(notification.actorName)}
+              </AvatarFallback>
+            </Avatar>
             <span className="text-xs text-muted-foreground">{notification.actorName}</span>
           </div>
         )}
       </div>
 
-      {/* Content — scrollable */}
+      {/* Content -- scrollable */}
       <div className="flex-1 overflow-y-auto px-5 py-4">
         {renderActionContent(notification, onArchive)}
       </div>
 
-      {/* Footer — view full request */}
-      <div className="px-5 py-3 border-t shrink-0">
-        <Link
-          href={notification.url}
-          className="flex items-center justify-center gap-1.5 w-full text-xs font-medium text-muted-foreground hover:text-foreground py-2 rounded-lg hover:bg-accent transition-colors"
-        >
+      {/* Footer -- view full request */}
+      <div className="px-5 py-3 border-t border-border shrink-0">
+        <Button variant="ghost" size="sm" className="w-full text-muted-foreground" render={<Link href={notification.url} />}>
           <ExternalLink size={12} />
           View full {notification.requestId ? "request" : "page"}
-        </Link>
+        </Button>
       </div>
     </div>
   );

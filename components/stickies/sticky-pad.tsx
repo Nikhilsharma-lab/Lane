@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { StickyNote, X, Link2 } from "lucide-react";
 import { createSticky } from "@/app/actions/stickies";
 import { useRequests } from "@/context/requests-context";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const COLORS = [
   { key: "cream", hex: "#F8F6F1" },
@@ -79,231 +82,120 @@ export function StickyPad() {
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 40,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 8,
-      }}
-    >
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
       {/* Capture card overlay */}
       {isOpen && (
-        <div
-          className="bg-card border border-border"
-          style={{
-            width: 280,
-            borderRadius: 12,
-            padding: 14,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span
-              className="text-foreground"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
+        <Card className="w-[280px] shadow-lg">
+          <CardHeader className="flex-row items-center justify-between pb-0">
+            <CardTitle className="text-[13px] font-semibold">
               Quick sticky
-            </span>
-            <button
-              type="button"
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleDiscard}
               className="text-muted-foreground/60"
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 2,
-                display: "flex",
-              }}
             >
               <X size={14} />
-            </button>
-          </div>
+            </Button>
+          </CardHeader>
 
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") handleDiscard();
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                handleSave();
-              }
-            }}
-            maxLength={500}
-            placeholder="What's on your mind?"
-            rows={3}
-            className="text-foreground bg-muted border border-border"
-            style={{
-              fontSize: 13,
-              lineHeight: 1.5,
-              borderRadius: 8,
-              padding: "8px 10px",
-              resize: "vertical",
-              outline: "none",
-              fontFamily: "inherit",
-              width: "100%",
-            }}
-          />
-
-          {/* Character count */}
-          <div
-            className="text-muted-foreground/60"
-            style={{
-              fontSize: 11,
-              textAlign: "right",
-              marginTop: -6,
-            }}
-          >
-            {content.length}/500
-          </div>
-
-          {/* Color picker */}
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span
-              className="text-muted-foreground/60"
-              style={{
-                fontSize: 11,
-                marginRight: 2,
+          <CardContent className="flex flex-col gap-2.5">
+            {/* Textarea */}
+            <Textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") handleDiscard();
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleSave();
+                }
               }}
-            >
-              Color
-            </span>
-            {COLORS.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setColor(c.key)}
-                title={c.key}
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: c.hex,
-                  border:
-                    color === c.key
-                      ? "2px solid hsl(var(--foreground))"
-                      : "1px solid hsl(var(--border))",
-                  cursor: "pointer",
-                  padding: 0,
-                  transition: "border 0.1s ease",
-                }}
-              />
-            ))}
-          </div>
+              maxLength={500}
+              placeholder="What's on your mind?"
+              rows={3}
+              className="resize-y text-[13px] leading-relaxed"
+            />
 
-          {/* Link to request */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Link2 size={12} className="text-muted-foreground/60 shrink-0" />
-            <select
-              value={linkedRequestId ?? ""}
-              onChange={(e) => setLinkedRequestId(e.target.value || null)}
-              className={`bg-muted border border-border ${linkedRequestId ? "text-foreground" : "text-muted-foreground/60"}`}
-              style={{
-                flex: 1,
-                fontSize: 12,
-                borderRadius: 6,
-                padding: "4px 8px",
-                outline: "none",
-                fontFamily: "inherit",
-              }}
-            >
-              <option value="">Link to request (optional)</option>
-              {requests.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title.length > 35 ? r.title.slice(0, 35) + "…" : r.title}
-                </option>
+            {/* Character count */}
+            <p className="-mt-1.5 text-right text-[11px] text-muted-foreground/60">
+              {content.length}/500
+            </p>
+
+            {/* Color picker */}
+            <div className="flex items-center gap-1.5">
+              <span className="mr-0.5 text-[11px] text-muted-foreground/60">
+                Color
+              </span>
+              {COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setColor(c.key)}
+                  title={c.key}
+                  className="size-[18px] cursor-pointer rounded-full p-0 transition-[border] duration-100"
+                  style={{
+                    background: c.hex,
+                    border:
+                      color === c.key
+                        ? "2px solid hsl(var(--foreground))"
+                        : "1px solid hsl(var(--border))",
+                  }}
+                />
               ))}
-            </select>
-          </div>
+            </div>
 
-          {/* Actions */}
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              justifyContent: "flex-end",
-              marginTop: 2,
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleDiscard}
-              className="text-muted-foreground"
-              style={{
-                fontSize: 13,
-                fontWeight: 520,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "4px 10px",
-                borderRadius: 6,
-              }}
-            >
-              Discard
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!content.trim() || isSaving}
-              className={`text-primary-foreground ${!content.trim() || isSaving ? "bg-muted-foreground/40" : "bg-primary"}`}
-              style={{
-                fontSize: 13,
-                fontWeight: 560,
-                border: "none",
-                cursor: !content.trim() || isSaving ? "not-allowed" : "pointer",
-                padding: "5px 14px",
-                borderRadius: 6,
-                transition: "background 0.15s ease",
-              }}
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </div>
+            {/* Link to request */}
+            <div className="flex items-center gap-1.5">
+              <Link2 size={12} className="shrink-0 text-muted-foreground/60" />
+              <select
+                value={linkedRequestId ?? ""}
+                onChange={(e) => setLinkedRequestId(e.target.value || null)}
+                className={`flex-1 rounded-md border border-input bg-input/20 px-2 py-1 text-xs font-inherit outline-none ${
+                  linkedRequestId
+                    ? "text-foreground"
+                    : "text-muted-foreground/60"
+                }`}
+              >
+                <option value="">Link to request (optional)</option>
+                {requests.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title.length > 35
+                      ? r.title.slice(0, 35) + "…"
+                      : r.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-0.5 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={handleDiscard}>
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!content.trim() || isSaving}
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* FAB */}
-      <button
-        type="button"
+      <Button
         onClick={() => setIsOpen((prev) => !prev)}
         title="New sticky (N then S)"
-        className="bg-primary text-primary-foreground"
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 2px 12px rgba(46,83,57,0.3)",
-          transition: "transform 0.15s ease, box-shadow 0.15s ease",
-        }}
+        size="icon-lg"
+        className="size-12 rounded-full shadow-lg"
       >
         <StickyNote size={22} />
-      </button>
+      </Button>
     </div>
   );
 }

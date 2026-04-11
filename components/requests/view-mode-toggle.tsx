@@ -1,6 +1,7 @@
 "use client";
 
 import { AlignJustify, LayoutGrid, Columns, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export type ViewMode = "list" | "board" | "kanban";
 
@@ -32,42 +33,26 @@ export function ViewModeToggle({
   if (visibleModes.length <= 1) return null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        border: "1px solid hsl(var(--border))",
-        borderRadius: 6,
-        overflow: "hidden",
-        height: 28,
-      }}
-    >
+    <div className="flex items-center border border-border rounded-md overflow-hidden h-7">
       {visibleModes.map(({ mode, label, Icon }) => {
         const isActive = value === mode;
         return (
-          <button
+          <Button
             key={mode}
+            variant="ghost"
+            size="icon"
             title={label}
             aria-label={label}
             aria-pressed={isActive}
             onClick={() => onChange(mode)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 30,
-              height: "100%",
-              border: "none",
-              borderRight: "1px solid hsl(var(--border))",
-              background: isActive ? "hsl(var(--accent))" : "hsl(var(--card))",
-              color: isActive ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground) / 0.6)",
-              cursor: "pointer",
-              transition: "background 0.1s, color 0.1s",
-            }}
-            className="hover:bg-accent"
+            className={`w-[30px] h-full rounded-none border-r border-border ${
+              isActive
+                ? "bg-accent text-foreground"
+                : "bg-card text-muted-foreground/60"
+            } hover:bg-accent`}
           >
             <Icon size={13} />
-          </button>
+          </Button>
         );
       })}
     </div>

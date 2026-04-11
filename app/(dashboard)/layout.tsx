@@ -9,6 +9,7 @@ import { HotkeysProvider } from "@/components/shell/hotkeys-provider";
 import { Sidebar } from "@/components/shell/sidebar";
 import { DetailDock } from "@/components/shell/detail-dock";
 import { StickyPad } from "@/components/stickies/sticky-pad";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import type { Request } from "@/db/schema";
 
 export default async function DashboardLayout({
@@ -112,30 +113,30 @@ export default async function DashboardLayout({
     <RequestsProvider requests={orgRequests}>
       <GlobalShortcutsProvider>
         <HotkeysProvider>
-        <div className="flex min-h-screen bg-background">
-          <Sidebar
-            user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
-            userRole={profileRole}
-            orgName={orgName}
-            orgPlan={orgPlan}
-            activeCount={activeCount}
-            banner={{
-              title: "Idea Board is live",
-              description: "Anyone can submit ideas. Your org votes, AI validates the top picks.",
-              ctaLabel: "Check it out",
-              ctaHref: "/dashboard/ideas",
-            }}
-            inboxUnreadCount={inboxUnreadCount}
-            pinnedViews={userPinnedViews}
-          />
-          <main className="flex-1 min-w-0 overflow-y-auto">
-            {children}
-          </main>
-          <Suspense>
-            <DetailDock profileRole={profileRole} isTestUser={isTestUser} />
-          </Suspense>
-          <StickyPad />
-        </div>
+          <SidebarProvider>
+            <Sidebar
+              user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
+              userRole={profileRole}
+              orgName={orgName}
+              orgPlan={orgPlan}
+              activeCount={activeCount}
+              banner={{
+                title: "Idea Board is live",
+                description: "Anyone can submit ideas. Your org votes, AI validates the top picks.",
+                ctaLabel: "Check it out",
+                ctaHref: "/dashboard/ideas",
+              }}
+              inboxUnreadCount={inboxUnreadCount}
+              pinnedViews={userPinnedViews}
+            />
+            <SidebarInset>
+              {children}
+            </SidebarInset>
+            <Suspense>
+              <DetailDock profileRole={profileRole} isTestUser={isTestUser} />
+            </Suspense>
+            <StickyPad />
+          </SidebarProvider>
         </HotkeysProvider>
       </GlobalShortcutsProvider>
     </RequestsProvider>
