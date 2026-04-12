@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { RadarDesigner } from "@/lib/radar";
 
 function formatStaleness(ms: number | null): string {
@@ -81,9 +82,9 @@ function DesignerCard({
         </p>
         {avgDevQuestions > 0 && (
           <p className={`text-[10px] mt-1 ${
-            avgDevQuestions <= 1 ? "text-green-400"
-            : avgDevQuestions <= 3 ? "text-yellow-400"
-            : "text-red-400"
+            avgDevQuestions <= 1 ? "text-accent-success"
+            : avgDevQuestions <= 3 ? "text-accent-warning"
+            : "text-accent-danger"
           }`}>
             {avgDevQuestions} avg dev {avgDevQuestions === 1 ? "question" : "questions"}/handoff (30d)
           </p>
@@ -91,17 +92,19 @@ function DesignerCard({
       </div>
       {canAct && designer.mostStalledRequestId && (
         <div className="flex items-center gap-2 shrink-0 ml-4">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleNudge}
             disabled={nudge !== "idle"}
-            className="text-xs text-muted-foreground border rounded px-2 py-1 hover:border-border/80 hover:text-foreground disabled:opacity-50 transition-colors"
           >
             {nudge === "loading" ? "…" : nudge === "done" ? "Sent ✓" : "Nudge"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleMarkAtRisk}
             disabled={risk !== "idle" || alreadyBlocked}
-            className="text-xs text-muted-foreground border rounded px-2 py-1 hover:border-border/80 hover:text-foreground disabled:opacity-50 transition-colors"
           >
             {alreadyBlocked
               ? "Already blocked"
@@ -110,7 +113,7 @@ function DesignerCard({
               : risk === "done"
               ? "Marked ✓"
               : "Mark at-risk"}
-          </button>
+          </Button>
         </div>
       )}
     </div>

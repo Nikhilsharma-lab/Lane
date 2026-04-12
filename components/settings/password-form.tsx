@@ -46,7 +46,7 @@ export function PasswordForm() {
       )}
       {success && (
         <Alert>
-          <AlertDescription className="text-green-400">Password updated.</AlertDescription>
+          <AlertDescription className="text-accent-success">Password updated.</AlertDescription>
         </Alert>
       )}
       <Button type="submit" disabled={isPending}>

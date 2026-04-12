@@ -551,13 +551,14 @@ export function InboxClient({
                                     Snooze until...
                                   </div>
                                   {snoozeOptions.map((opt) => (
-                                    <button
+                                    <Button
                                       key={opt.label}
+                                      variant="ghost"
                                       onClick={() => snoozeNotif(notif.id, opt.until)}
-                                      className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent transition-colors"
+                                      className="w-full justify-start text-sm px-2 py-1.5 h-auto font-normal"
                                     >
                                       {opt.label}
-                                    </button>
+                                    </Button>
                                   ))}
                                 </PopoverContent>
                               </Popover>

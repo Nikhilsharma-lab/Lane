@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type Manager = { id: string; fullName: string };
 
@@ -38,11 +39,10 @@ export function ReportsToSelect({
   }
 
   return (
-    <select
+    <NativeSelect
       value={value}
       onChange={handleChange}
       disabled={saving}
-      className="text-xs bg-muted border border-border rounded px-2 py-1 text-muted-foreground hover:border-border/80 disabled:opacity-50 transition-colors"
     >
       <option value="">No manager</option>
       {managers.map((m) => (
@@ -50,6 +50,6 @@ export function ReportsToSelect({
           {m.fullName}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }

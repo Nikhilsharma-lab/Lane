@@ -2,6 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface SerializedRequest {
   id: string;
@@ -62,82 +75,98 @@ export function EditRequestModal({ request, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-card border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-5 border-b sticky top-0 bg-card">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Edit request</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Changes are saved immediately</p>
-          </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none transition-colors">×</button>
-        </div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit request</DialogTitle>
+          <DialogDescription>Changes are saved immediately</DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-              Title <span className="text-red-400">*</span>
-            </label>
-            <input
+            <Label htmlFor="title" className="uppercase tracking-wide">
+              Title <span className="text-accent-danger">*</span>
+            </Label>
+            <Input
+              id="title"
               name="title"
               type="text"
               required
               defaultValue={request.title}
-              className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+              className="mt-1.5"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-              Description <span className="text-red-400">*</span>
-            </label>
-            <textarea
+            <Label htmlFor="description" className="uppercase tracking-wide">
+              Description <span className="text-accent-danger">*</span>
+            </Label>
+            <Textarea
+              id="description"
               name="description"
               required
               rows={4}
               defaultValue={request.description}
-              className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+              className="mt-1.5 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Business context</label>
-            <textarea
+            <Label htmlFor="businessContext" className="uppercase tracking-wide">
+              Business context
+            </Label>
+            <Textarea
+              id="businessContext"
               name="businessContext"
               rows={2}
               defaultValue={request.businessContext ?? ""}
-              className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors resize-none"
+              className="mt-1.5 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Success metrics</label>
-              <input
+              <Label htmlFor="successMetrics" className="uppercase tracking-wide">
+                Success metrics
+              </Label>
+              <Input
+                id="successMetrics"
                 name="successMetrics"
                 type="text"
                 defaultValue={request.successMetrics ?? ""}
-                className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                className="mt-1.5"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Deadline</label>
-              <input
+              <Label htmlFor="deadlineAt" className="uppercase tracking-wide">
+                Deadline
+              </Label>
+              <Input
+                id="deadlineAt"
                 name="deadlineAt"
                 type="date"
                 defaultValue={toDateInput(request.deadlineAt)}
-                className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                className="mt-1.5"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Figma link</label>
-            <input
+            <Label htmlFor="figmaUrl" className="uppercase tracking-wide">
+              Figma link
+            </Label>
+            <Input
+              id="figmaUrl"
               name="figmaUrl"
               type="url"
               defaultValue={request.figmaUrl ?? ""}
               placeholder="https://figma.com/file/..."
-              className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+              className="mt-1.5"
             />
           </div>
 
@@ -145,46 +174,44 @@ export function EditRequestModal({ request, onClose }: Props) {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Impact prediction</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Metric</label>
-                <input
+                <Label htmlFor="impactMetric">Metric</Label>
+                <Input
+                  id="impactMetric"
                   name="impactMetric"
                   type="text"
                   defaultValue={request.impactMetric ?? ""}
                   placeholder="e.g. checkout conversion"
-                  className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="mt-1.5"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Prediction</label>
-                <input
+                <Label htmlFor="impactPrediction">Prediction</Label>
+                <Input
+                  id="impactPrediction"
                   name="impactPrediction"
                   type="text"
                   defaultValue={request.impactPrediction ?? ""}
                   placeholder="e.g. +5% improvement"
-                  className="w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                  className="mt-1.5"
                 />
               </div>
             </div>
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+            <Callout variant="error">{error}</Callout>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <DialogFooter className="pt-1">
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-primary text-primary-foreground rounded-lg px-5 py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isPending ? "Saving…" : "Save changes"}
-            </button>
-          </div>
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Saving\u2026" : "Save changes"}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

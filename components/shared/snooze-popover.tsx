@@ -63,16 +63,17 @@ export function SnoozePopover({ onSnooze, label = "Snooze" }: SnoozePopoverProps
       {open && (
         <div className="absolute top-[calc(100%+6px)] right-0 w-[220px] rounded-lg bg-card border shadow-lg z-50 p-1.5">
           {presets.map((p) => (
-            <button
+            <Button
+              variant="ghost"
               key={p.label}
               onClick={() => handlePreset(p.date)}
-              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs text-foreground hover:bg-accent transition-colors bg-transparent border-none cursor-pointer"
+              className="w-full justify-between px-2.5 py-1.5 h-auto text-xs text-foreground"
             >
               <span className="font-medium">{p.label}</span>
               <span className="font-mono text-[10px] text-muted-foreground/60">
                 {format(p.date, "MMM d")}
               </span>
-            </button>
+            </Button>
           ))}
 
           <Separator className="my-1" />

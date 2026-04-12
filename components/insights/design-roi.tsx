@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SectionLabel } from "@/components/ui/section-label";
 
 interface RoiRow {
   requestType: string;
@@ -13,10 +14,10 @@ function VariancePill({ v }: { v: number }) {
   const abs = Math.abs(v);
   const color =
     abs <= 10
-      ? "text-green-400 bg-green-500/10 border-green-500/20"
+      ? "text-accent-success bg-accent-success/10 border-accent-success/20"
       : abs <= 25
-      ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
-      : "text-red-400 bg-red-500/10 border-red-500/20";
+      ? "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
+      : "text-accent-danger bg-accent-danger/10 border-accent-danger/20";
   return (
     <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${color}`}>
       {v > 0 ? "+" : ""}
@@ -42,8 +43,8 @@ const DIRECTION_ICONS: Record<RoiRow["direction"], string> = {
 };
 
 const DIRECTION_COLORS: Record<RoiRow["direction"], string> = {
-  positive: "text-green-400",
-  negative: "text-red-400",
+  positive: "text-accent-success",
+  negative: "text-accent-danger",
   mixed: "text-muted-foreground/60",
 };
 

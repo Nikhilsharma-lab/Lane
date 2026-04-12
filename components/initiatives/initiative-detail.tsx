@@ -7,18 +7,14 @@ import {
   addRequestToInitiative,
   removeRequestFromInitiative,
 } from "@/app/actions/initiatives";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PHASE_BADGE } from "@/lib/theme-colors";
 
 const statusStyles: Record<string, string> = {
-  active: "bg-green-500/10 text-green-600 border-green-500/20",
+  active: "bg-accent-success/10 text-accent-success border-accent-success/20",
   completed: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
   archived: "bg-accent text-muted-foreground/60 border",
-};
-
-const phaseColors: Record<string, string> = {
-  predesign: "bg-[var(--phase-predesign)]/10 text-[var(--phase-predesign)] border-[var(--phase-predesign)]/20",
-  design: "bg-[var(--phase-design)]/10 text-[var(--phase-design)] border-[var(--phase-design)]/20",
-  dev: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  track: "bg-[var(--phase-track)]/10 text-[var(--phase-track)] border-[var(--phase-track)]/20",
 };
 
 interface InitiativeRequest {
@@ -127,31 +123,36 @@ export function InitiativeDetail({
         {/* Status actions */}
         <div className="flex items-center gap-2 shrink-0">
           {initiative.status === "active" && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handleStatusChange("completed")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--phase-dev)]/30 text-[var(--phase-dev)] bg-[var(--phase-dev)]/5 hover:bg-[var(--phase-dev)]/10 transition-colors disabled:opacity-50"
+              className="border-[var(--phase-dev)]/30 text-[var(--phase-dev)] bg-[var(--phase-dev)]/5 hover:bg-[var(--phase-dev)]/10"
             >
               Complete
-            </button>
+            </Button>
           )}
           {initiative.status === "active" && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handleStatusChange("archived")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
               Archive
-            </button>
+            </Button>
           )}
           {initiative.status !== "active" && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handleStatusChange("active")}
               disabled={isUpdating}
-              className="text-xs px-3 py-1.5 rounded-lg border border-green-500/30 text-green-600 bg-green-500/5 hover:bg-green-500/10 transition-colors disabled:opacity-50"
+              className="border-accent-success/30 text-accent-success bg-accent-success/5 hover:bg-accent-success/10"
             >
               Reactivate
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -162,34 +163,38 @@ export function InitiativeDetail({
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Requests
           </h2>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowAddRequest(!showAddRequest)}
-            className="text-[11px] text-primary hover:underline"
+            className="text-primary hover:underline"
           >
             {showAddRequest ? "Cancel" : "+ Add request"}
-          </button>
+          </Button>
         </div>
 
         {/* Add request search */}
         {showAddRequest && (
           <div className="px-4 py-3 border-b border bg-muted">
-            <input
+            <Input
               type="text"
               placeholder="Search requests by title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+              inputSize="lg"
             />
             {searchTerm && filteredOrgRequests.length > 0 && (
               <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                 {filteredOrgRequests.slice(0, 10).map((r) => (
-                  <button
+                  <Button
                     key={r.id}
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleAddRequest(r.id)}
-                    className="w-full text-left text-xs px-3 py-2 rounded-lg hover:bg-accent text-foreground transition-colors"
+                    className="w-full justify-start text-left"
                   >
                     {r.title}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -227,7 +232,7 @@ export function InitiativeDetail({
                 <div className="flex items-center gap-2 shrink-0">
                   {r.phase && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${phaseColors[r.phase] ?? ""}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${PHASE_BADGE[r.phase] ?? ""}`}
                     >
                       {r.phase}
                     </span>
@@ -237,13 +242,15 @@ export function InitiativeDetail({
                       {r.priority.toUpperCase()}
                     </span>
                   )}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => handleRemoveRequest(r.id)}
-                    className="text-[10px] text-muted-foreground/60 hover:text-red-500 transition-colors ml-1"
+                    className="text-muted-foreground/60 hover:text-accent-danger ml-1"
                     title="Remove from initiative"
                   >
                     ×
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

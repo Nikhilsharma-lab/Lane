@@ -2,6 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Callout } from "@/components/ui/callout";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { ImpactRetrospective } from "@/db/schema";
 
 type Props = {
@@ -45,20 +48,20 @@ export function ImpactRetrospectivePanel({ requestId, existingRetrospective }: P
 
   return (
     <div className="border rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader className="px-4">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           What We Learned
         </span>
         <span className="text-[10px] text-muted-foreground/60 font-mono">{retro.aiModel}</span>
-      </div>
+      </PanelHeader>
 
       <div className="p-4 space-y-4">
         {/* Celebrate callout (over-delivered only) */}
         {retro.celebrate && (
-          <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2.5 flex items-start gap-2">
-            <span className="text-green-400 text-xs mt-0.5">★</span>
-            <p className="text-xs text-green-400/90 leading-relaxed">{retro.celebrate}</p>
-          </div>
+          <Callout variant="success" className="py-2.5 flex items-start gap-2">
+            <span className="text-xs mt-0.5">★</span>
+            <p className="text-xs leading-relaxed">{retro.celebrate}</p>
+          </Callout>
         )}
 
         {/* Headline */}
@@ -70,7 +73,7 @@ export function ImpactRetrospectivePanel({ requestId, existingRetrospective }: P
         {/* Likely reasons */}
         {retro.likelyReasons.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Likely reasons</div>
+            <SectionLabel className="mb-2">Likely reasons</SectionLabel>
             <ul className="space-y-1.5">
               {retro.likelyReasons.map((reason, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">

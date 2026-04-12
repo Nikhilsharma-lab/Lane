@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ChecklistItem {
   category: "spec" | "accessibility" | "responsive" | "edge_case" | "assets" | "handoff";
@@ -12,10 +13,10 @@ interface ChecklistItem {
 const categoryColors: Record<string, string> = {
   spec: "text-[var(--phase-dev)]",
   accessibility: "text-[var(--phase-design)]",
-  responsive: "text-cyan-400",
-  edge_case: "text-yellow-400",
-  assets: "text-orange-400",
-  handoff: "text-green-400",
+  responsive: "text-accent-info",
+  edge_case: "text-accent-warning",
+  assets: "text-accent-warning",
+  handoff: "text-accent-success",
 };
 
 const categoryLabels: Record<string, string> = {
@@ -66,9 +67,10 @@ export function HandoffChecklist({ requestId, stage }: Props) {
 
   return (
     <section className="border rounded-xl overflow-hidden">
-      <button
+      <Button
+        variant="ghost"
         onClick={() => (open ? setOpen(false) : load())}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted transition-colors text-left"
+        className="w-full h-auto flex items-center justify-between px-5 py-3.5 rounded-none text-left"
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -77,9 +79,9 @@ export function HandoffChecklist({ requestId, stage }: Props) {
           {items && !loading && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
               allDone
-                ? "text-green-400 bg-green-500/10 border-green-500/20"
+                ? "text-accent-success bg-accent-success/10 border-accent-success/20"
                 : missing > 0
-                ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20"
+                ? "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
                 : "text-muted-foreground border"
             }`}>
               {allDone ? "Ready" : `${missing} missing`}
@@ -87,7 +89,7 @@ export function HandoffChecklist({ requestId, stage }: Props) {
           )}
         </div>
         <span className="text-muted-foreground/60 text-xs">{open ? "↑" : "↓"}</span>
-      </button>
+      </Button>
 
       {open && (
         <div className="border-t">
@@ -125,13 +127,13 @@ export function HandoffChecklist({ requestId, stage }: Props) {
                     )}
                   </div>
                   {!item.present && !checked[i] && (
-                    <span className="text-[10px] text-yellow-500/60 shrink-0 mt-0.5">missing</span>
+                    <span className="text-[10px] text-accent-warning/60 shrink-0 mt-0.5">missing</span>
                   )}
                 </label>
               ))}
               {allDone && (
-                <div className="px-5 py-3 bg-green-500/5">
-                  <p className="text-sm text-green-400">✓ All items checked — ready for developer handoff</p>
+                <div className="px-5 py-3 bg-accent-success/5">
+                  <p className="text-sm text-accent-success">✓ All items checked — ready for developer handoff</p>
                 </div>
               )}
             </div>

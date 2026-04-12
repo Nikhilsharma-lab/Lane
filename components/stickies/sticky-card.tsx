@@ -5,14 +5,7 @@ import { Pin, Trash2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-
-const COLOR_MAP: Record<string, string> = {
-  cream: "#F8F6F1",
-  green: "#2E5339",
-  rose: "#C27B9E",
-  sky: "#7DA5C4",
-  amber: "#D4A84B",
-};
+import { STICKY_COLORS } from "@/lib/theme-colors";
 
 interface StickyCardProps {
   sticky: {
@@ -53,7 +46,8 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const borderColor = COLOR_MAP[sticky.color] ?? COLOR_MAP.cream;
+  const colorEntry = STICKY_COLORS.find((c) => c.key === sticky.color);
+  const borderColor = colorEntry?.hex ?? STICKY_COLORS[0].hex;
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -134,16 +128,17 @@ export function StickyCard({ sticky, onUpdate, onArchive }: StickyCardProps) {
           className="w-full resize-y bg-transparent text-[13px] leading-relaxed"
         />
       ) : (
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => {
             setEditContent(sticky.content);
             setIsEditing(true);
           }}
-          className="min-h-[20px] cursor-text whitespace-pre-wrap break-words border-none bg-transparent p-0 text-left font-inherit text-[13px] leading-relaxed text-foreground"
+          className="min-h-[20px] h-auto cursor-text whitespace-pre-wrap break-words p-0 text-left font-inherit text-[13px] leading-relaxed text-foreground hover:bg-transparent"
         >
           {sticky.content}
-        </button>
+        </Button>
       )}
 
       {/* Footer */}

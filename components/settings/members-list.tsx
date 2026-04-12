@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const ROLE_LABELS: Record<string, string> = { pm: "PM", designer: "Designer", developer: "Developer", lead: "Lead", admin: "Admin" };
 const ROLES = ["pm", "designer", "developer", "lead", "admin"];
@@ -75,14 +76,13 @@ export function MembersList({ members, currentUserId, isAdmin }: Props) {
                 </div>
                 <div className="flex items-center gap-3">
                   {isAdmin && m.id !== currentUserId ? (
-                    <select
+                    <NativeSelect
                       value={m.role}
                       onChange={(e) => handleRoleChange(m.id, e.target.value)}
                       disabled={isPending}
-                      className="h-7 min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-40 dark:bg-input/30"
                     >
                       {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                    </select>
+                    </NativeSelect>
                   ) : (
                     <Badge variant="secondary">{ROLE_LABELS[m.role] ?? m.role}</Badge>
                   )}

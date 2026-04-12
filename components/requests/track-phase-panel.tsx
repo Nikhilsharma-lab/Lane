@@ -3,6 +3,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { SectionLabel } from "@/components/ui/section-label";
 
 interface Props {
   requestId: string;
@@ -23,11 +27,11 @@ function varianceConfig(v: number): { label: string; style: string } {
   if (v < -10)
     return {
       label: "Over-optimistic",
-      style: "text-red-600 bg-red-500/10 border-red-500/20",
+      style: "text-accent-danger bg-accent-danger/10 border-accent-danger/20",
     };
   return {
     label: "Under-optimistic",
-    style: "text-amber-600 bg-amber-500/10 border-amber-500/20",
+    style: "text-accent-warning bg-accent-warning/10 border-accent-warning/20",
   };
 }
 
@@ -97,7 +101,7 @@ export function TrackPhasePanel({
   return (
     <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 4 — Track
         </span>
@@ -105,18 +109,18 @@ export function TrackPhasePanel({
           className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
             isComplete
               ? "text-[var(--accent-success)] bg-[var(--accent-success)]/10 border-[var(--accent-success)]/20"
-              : "text-amber-600 bg-amber-500/10 border-amber-500/20"
+              : "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
           }`}
         >
           {isComplete ? "Complete" : "Measuring"}
         </span>
-      </div>
+      </PanelHeader>
 
       <div className="px-5 py-4 space-y-4">
         {/* Metric */}
         {impactMetric && (
           <div>
-            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">Metric</p>
+            <SectionLabel className="mb-1">Metric</SectionLabel>
             <p className="text-xs text-foreground">{impactMetric}</p>
           </div>
         )}
@@ -124,14 +128,14 @@ export function TrackPhasePanel({
         {/* Predicted */}
         {impactPrediction && (
           <div>
-            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">Predicted</p>
+            <SectionLabel className="mb-1">Predicted</SectionLabel>
             <p className="text-xs text-muted-foreground">{impactPrediction}</p>
           </div>
         )}
 
         {/* Actual result */}
         <div>
-          <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">Actual result</p>
+          <SectionLabel>Actual result</SectionLabel>
           {isComplete ? (
             <p className="text-xs text-foreground">{optimisticActual ?? "—"}</p>
           ) : (
@@ -139,20 +143,21 @@ export function TrackPhasePanel({
               {optimisticActual && (
                 <p className="text-xs text-foreground">{optimisticActual}</p>
               )}
-              <input
+              <Input
                 type="text"
                 value={actual}
                 onChange={(e) => setActual(e.target.value)}
                 placeholder="e.g. +4.2% retention"
-                className="w-full bg-muted border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                inputSize="sm"
               />
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleSave}
                 disabled={!actual.trim()}
-                className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -160,7 +165,7 @@ export function TrackPhasePanel({
         {/* Accuracy block — shown when variance is known */}
         {vcfg && optimisticActual && (
           <div className="border rounded-lg px-4 py-3 space-y-2.5 bg-muted">
-            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">Accuracy</p>
+            <SectionLabel className="mb-0">Accuracy</SectionLabel>
             {impactPrediction && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/60">Predicted</span>
@@ -182,16 +187,18 @@ export function TrackPhasePanel({
 
         {/* Mark complete */}
         {!isComplete && optimisticActual && (
-          <button
+          <Button
+            variant="default"
+            size="sm"
             onClick={markComplete}
             disabled={completing}
-            className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="flex items-center gap-2"
           >
             {completing && (
-              <span className="w-3 h-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />
+              <span className="w-3 h-3 border border-primary-foreground border-t-transparent rounded-full animate-spin" />
             )}
             Mark complete
-          </button>
+          </Button>
         )}
 
         {isComplete && (
@@ -202,7 +209,7 @@ export function TrackPhasePanel({
         )}
 
         {error && (
-          <p className="text-xs text-red-600 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-accent-danger bg-accent-danger/10 border border-accent-danger/20 rounded-lg px-3 py-2">
             {error}
           </p>
         )}

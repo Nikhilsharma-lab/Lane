@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export function TriageButton({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -29,14 +30,15 @@ export function TriageButton({ requestId }: { requestId: string }) {
   return (
     <div className="border rounded-xl p-6 text-center space-y-3">
       <p className="text-sm text-muted-foreground">This request hasn&apos;t been analyzed by AI yet</p>
-      <button
+      <Button
+        variant="outline"
         onClick={handleTriage}
         disabled={loading}
-        className="text-sm bg-primary/10 text-primary border border-primary/25 hover:bg-primary/20 hover:border-primary/40 rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+        className="text-sm bg-primary/10 text-primary border-primary/25 hover:bg-primary/20 hover:border-primary/40"
       >
         {loading ? "Analyzing..." : "Run AI Triage"}
-      </button>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      </Button>
+      {error && <p className="text-xs text-accent-danger">{error}</p>}
     </div>
   );
 }

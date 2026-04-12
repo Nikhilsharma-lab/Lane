@@ -2,20 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PRIORITY_TEXT } from "@/lib/theme-colors";
 import type { RiskRow, FigmaDriftRow } from "@/lib/radar";
-
-const PRIORITY_COLORS: Record<string, string> = {
-  p0: "text-red-400",
-  p1: "text-orange-400",
-  p2: "text-yellow-400",
-  p3: "text-muted-foreground",
-};
 
 function PriorityBadge({ priority }: { priority: string | null }) {
   if (!priority) return null;
   return (
     <span
-      className={`text-[10px] font-mono ${PRIORITY_COLORS[priority] ?? "text-muted-foreground"} bg-muted border rounded px-1 shrink-0`}
+      className={`text-[10px] font-mono ${PRIORITY_TEXT[priority] ?? "text-muted-foreground"} bg-muted border rounded px-1 shrink-0`}
     >
       {priority.toUpperCase()}
     </span>
@@ -34,20 +29,21 @@ function RiskSection({
   const [open, setOpen] = useState(true);
   return (
     <div className="border rounded-xl overflow-hidden">
-      <button
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted transition-colors"
+      <Button
+        variant="ghost"
+        className="w-full flex items-center justify-between px-5 py-3 h-auto rounded-none"
         onClick={() => setOpen((v) => !v)}
       >
         <span className="text-sm font-medium text-foreground">{title}</span>
         <div className="flex items-center gap-2">
           <span
-            className={`text-xs font-mono ${count > 0 ? "text-red-400" : "text-green-400"}`}
+            className={`text-xs font-mono ${count > 0 ? "text-accent-danger" : "text-accent-success"}`}
           >
             {count}
           </span>
           <span className="text-muted-foreground/60 text-xs">{open ? "▲" : "▼"}</span>
         </div>
-      </button>
+      </Button>
       {open && <div className="border-t">{children}</div>}
     </div>
   );
@@ -67,7 +63,7 @@ export function RiskPanel({
       {/* Stalled */}
       <RiskSection title="Stalled Requests" count={risk.stalled.length}>
         {risk.stalled.length === 0 ? (
-          <p className="px-5 py-3 text-sm text-green-500">All clear</p>
+          <p className="px-5 py-3 text-sm text-accent-success">All clear</p>
         ) : (
           <div className="divide-y">
             {risk.stalled.map((r) => (
@@ -80,7 +76,7 @@ export function RiskPanel({
                 <span className="text-sm text-foreground flex-1 truncate">{r.title}</span>
                 <span className="text-xs text-muted-foreground capitalize shrink-0">{r.phase}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{r.designerName}</span>
-                <span className="text-xs text-red-400 shrink-0">{r.staleDays}d stalled</span>
+                <span className="text-xs text-accent-danger shrink-0">{r.staleDays}d stalled</span>
               </Link>
             ))}
           </div>
@@ -90,7 +86,7 @@ export function RiskPanel({
       {/* Sign-off overdue */}
       <RiskSection title="Sign-off Overdue" count={risk.signOffOverdue.length}>
         {risk.signOffOverdue.length === 0 ? (
-          <p className="px-5 py-3 text-sm text-green-500">All clear</p>
+          <p className="px-5 py-3 text-sm text-accent-success">All clear</p>
         ) : (
           <div className="divide-y">
             {risk.signOffOverdue.map((r) => (
@@ -102,7 +98,7 @@ export function RiskPanel({
                 <PriorityBadge priority={r.priority} />
                 <span className="text-sm text-foreground flex-1 truncate">{r.title}</span>
                 <span className="text-xs text-muted-foreground shrink-0">Waiting for sign-offs</span>
-                <span className="text-xs text-red-400 shrink-0">{r.staleDays}d</span>
+                <span className="text-xs text-accent-danger shrink-0">{r.staleDays}d</span>
               </Link>
             ))}
           </div>
@@ -115,7 +111,7 @@ export function RiskPanel({
         count={risk.figmaDrift.length}
       >
         {risk.figmaDrift.length === 0 ? (
-          <p className="px-5 py-3 text-sm text-green-500">All clear</p>
+          <p className="px-5 py-3 text-sm text-accent-success">All clear</p>
         ) : (
           <div className="divide-y">
             {risk.figmaDrift.map((r) => (
@@ -129,7 +125,7 @@ export function RiskPanel({
                 <span className="text-xs text-muted-foreground shrink-0">
                   Figma updated post-handoff
                 </span>
-                <span className="text-xs text-amber-400 shrink-0">
+                <span className="text-xs text-accent-warning shrink-0">
                   {r.unreviewedCount} unreviewed
                 </span>
               </Link>

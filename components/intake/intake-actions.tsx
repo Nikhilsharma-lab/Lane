@@ -5,7 +5,7 @@ import { Check, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { SnoozePopover } from "@/components/ui/snooze-popover";
+import { SnoozePopover } from "@/components/shared/snooze-popover";
 import { advanceToContext, declineRequest, snoozeRequest } from "@/app/actions/requests";
 
 interface IntakeActionsProps {

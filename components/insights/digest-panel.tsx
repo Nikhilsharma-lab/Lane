@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { WeeklyDigest, PmCoachingNote } from "@/lib/digest";
 
 interface Props {
@@ -33,12 +35,9 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
         <p className="text-xs text-muted-foreground/60 mb-5">
           Shipped this week, cycle times, standout performers, coaching recommendations
         </p>
-        <button
-          onClick={generate}
-          className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-        >
+        <Button onClick={generate}>
           ✦ Generate digest
-        </button>
+        </Button>
       </div>
     );
   }
@@ -60,9 +59,9 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
     <div className="border rounded-xl overflow-hidden">
       {/* Headline */}
       <div className="px-5 py-4 bg-primary/10 border-b border-primary/15">
-        <p className="text-[10px] text-primary uppercase tracking-wide font-medium mb-1">
+        <SectionLabel className="text-primary font-medium mb-1">
           ✦ Weekly design digest
-        </p>
+        </SectionLabel>
         <p className="text-sm text-foreground font-medium leading-snug">
           {digest.headline}
         </p>
@@ -70,39 +69,39 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
 
       <div className="divide-y divide-border">
         <div className="px-5 py-4">
-          <p className="text-[10px] text-[var(--accent-success)] uppercase tracking-wide font-medium mb-2">
+          <SectionLabel className="text-[var(--accent-success)] font-medium mb-2">
             🚢 Shipped this week
-          </p>
+          </SectionLabel>
           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
             {digest.shippedThisWeek}
           </p>
         </div>
 
         <div className="px-5 py-4">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">
+          <SectionLabel className="text-muted-foreground font-medium mb-2">
             🧠 Team health
-          </p>
+          </SectionLabel>
           <p className="text-sm text-muted-foreground leading-relaxed">{digest.teamHealth}</p>
         </div>
 
         <div className="px-5 py-4">
-          <p className="text-[10px] text-[var(--accent-active)] uppercase tracking-wide font-medium mb-2">
+          <SectionLabel className="text-[var(--accent-active)] font-medium mb-2">
             ⭐ Standout
-          </p>
+          </SectionLabel>
           <p className="text-sm text-muted-foreground leading-relaxed">{digest.standout}</p>
         </div>
 
         <div className="px-5 py-4">
-          <p className="text-[10px] text-amber-600 uppercase tracking-wide font-medium mb-2">
+          <SectionLabel className="text-accent-warning font-medium mb-2">
             💡 Recommendations
-          </p>
+          </SectionLabel>
           <ul className="space-y-1.5">
             {digest.recommendations.map((rec, i) => (
               <li
                 key={i}
                 className="text-sm text-muted-foreground leading-relaxed flex gap-2"
               >
-                <span className="text-amber-500/60 shrink-0">{i + 1}.</span>
+                <span className="text-accent-warning/60 shrink-0">{i + 1}.</span>
                 <span>{rec}</span>
               </li>
             ))}
@@ -119,12 +118,9 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
             day: "numeric",
           })}
         </span>
-        <button
-          onClick={generate}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <Button variant="ghost" size="sm" onClick={generate}>
           Regenerate
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -5,7 +5,9 @@ import { formatDistanceToNow } from "date-fns";
 import { Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PRIORITY_STYLE } from "@/lib/theme-colors";
 
 export interface IntakeSidebarRequest {
   id: string;
@@ -21,13 +23,6 @@ interface IntakeSidebarProps {
   activeId: string | null;
   onSelect: (id: string) => void;
 }
-
-const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-  p0: { bg: "color-mix(in oklch, var(--priority-p0) 12%, transparent)", text: "var(--priority-p0)" },
-  p1: { bg: "color-mix(in oklch, var(--priority-p1) 12%, transparent)", text: "var(--priority-p1)" },
-  p2: { bg: "color-mix(in oklch, var(--priority-p2) 12%, transparent)", text: "var(--priority-p2)" },
-  p3: { bg: "color-mix(in oklch, var(--priority-p3) 12%, transparent)", text: "var(--priority-p3)" },
-};
 
 export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarProps) {
   const [tab, setTab] = useState<"pending" | "reviewed">("pending");
@@ -135,11 +130,12 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
             );
 
             return (
-              <button
+              <Button
                 key={r.id}
+                variant="ghost"
                 onClick={() => onSelect(r.id)}
                 className={cn(
-                  "flex flex-col gap-0.5 w-full px-4 py-2.5 text-left border-b border-border cursor-pointer transition-colors",
+                  "flex flex-col gap-0.5 w-full px-4 py-2.5 text-left border-b border-border cursor-pointer h-auto rounded-none items-start",
                   "border-l-2",
                   isActive
                     ? "bg-primary/10 border-l-primary"
@@ -162,8 +158,8 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     <span
                       className="inline-flex px-1 py-px rounded-sm text-[9px] font-semibold font-mono"
                       style={{
-                        background: PRIORITY_COLORS[r.priority]?.bg ?? "hsl(var(--accent))",
-                        color: PRIORITY_COLORS[r.priority]?.text ?? "hsl(var(--muted-foreground) / 0.6)",
+                        background: PRIORITY_STYLE[r.priority]?.bg ?? "hsl(var(--accent))",
+                        color: PRIORITY_STYLE[r.priority]?.color ?? "hsl(var(--muted-foreground) / 0.6)",
                       }}
                     >
                       {r.priority.toUpperCase()}
@@ -176,7 +172,7 @@ export function IntakeSidebar({ requests, activeId, onSelect }: IntakeSidebarPro
                     {relativeTime}
                   </span>
                 </div>
-              </button>
+              </Button>
             );
           })
         )}

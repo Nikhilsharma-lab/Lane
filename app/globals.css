@@ -4,9 +4,19 @@
 
 
 @theme {
+  /* ── Typography ──────────────────────────────────── */
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* ── Radius ──────────────────────────────────────── */
   --radius: 0.45rem;
+  --radius-sm: calc(var(--radius) - 0.1rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.15rem);
+  --radius-xl: calc(var(--radius) + 0.35rem);
+  --radius-2xl: calc(var(--radius) + 0.55rem);
+
+  /* ── Core colors (shadcn) ────────────────────────── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -26,11 +36,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* ── Chart colors ────────────────────────────────── */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* ── Sidebar colors ──────────────────────────────── */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -39,6 +53,42 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Phase colors ────────────────────────────────── */
+  --color-phase-predesign: var(--phase-predesign);
+  --color-phase-design: var(--phase-design);
+  --color-phase-dev: var(--phase-dev);
+  --color-phase-track: var(--phase-track);
+
+  /* ── Status colors ───────────────────────────────── */
+  --color-status-draft: var(--status-draft);
+  --color-status-submitted: var(--status-submitted);
+  --color-status-triaged: var(--status-triaged);
+  --color-status-assigned: var(--status-assigned);
+  --color-status-in-progress: var(--status-in-progress);
+  --color-status-in-review: var(--status-in-review);
+  --color-status-blocked: var(--status-blocked);
+  --color-status-completed: var(--status-completed);
+  --color-status-shipped: var(--status-shipped);
+
+  /* ── Priority colors ─────────────────────────────── */
+  --color-priority-p0: var(--priority-p0);
+  --color-priority-p1: var(--priority-p1);
+  --color-priority-p2: var(--priority-p2);
+  --color-priority-p3: var(--priority-p3);
+
+  /* ── Semantic accent colors ──────────────────────── */
+  --color-accent-active: var(--accent-active);
+  --color-accent-success: var(--accent-success);
+  --color-accent-warning: var(--accent-warning);
+  --color-accent-danger: var(--accent-danger);
+  --color-accent-info: var(--accent-info);
+
+  /* ── Category colors ─────────────────────────────── */
+  --color-category-workflow: var(--category-workflow);
+  --color-category-performance: var(--category-performance);
+  --color-category-ux: var(--category-ux);
+  --color-category-pending: var(--category-pending);
 }
 
 html {
@@ -139,6 +189,12 @@ body {
     --accent-warning: #c47a30;
     --accent-danger: #d45050;
     --accent-info: #5b8fad;
+
+    /* Category colors (ideas, checklists) */
+    --category-workflow: #5ba8ad;
+    --category-performance: #c47a30;
+    --category-ux: #b56b8b;
+    --category-pending: #b89230;
   }
 
   .dark {
@@ -215,6 +271,11 @@ body {
     --accent-warning: #e5873a;
     --accent-danger: #ef4444;
     --accent-info: #7da5c4;
+
+    --category-workflow: #7dc4c9;
+    --category-performance: #e5873a;
+    --category-ux: #c98aab;
+    --category-pending: #d4a84b;
   }
 
   * {

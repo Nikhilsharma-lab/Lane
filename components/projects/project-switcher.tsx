@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface ProjectOption {
   id: string;
@@ -24,10 +25,9 @@ export function ProjectSwitcher({ projects }: Props) {
   }
 
   return (
-    <select
+    <NativeSelect
       value={current}
       onChange={handleChange}
-      className="text-xs bg-muted border border text-muted-foreground rounded px-2 py-1 focus:outline-none focus:border-border/80 transition-colors cursor-pointer"
     >
       <option value="">All projects</option>
       {projects.map((p) => (
@@ -35,6 +35,6 @@ export function ProjectSwitcher({ projects }: Props) {
           {p.name}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }

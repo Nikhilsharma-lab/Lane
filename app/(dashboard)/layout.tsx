@@ -4,7 +4,6 @@ import { db } from "@/db";
 import { profiles, requests, organizations, publishedViews, notifications } from "@/db/schema";
 import { eq, and, sql, isNull, lte, or } from "drizzle-orm";
 import { RequestsProvider } from "@/context/requests-context";
-import { GlobalShortcutsProvider } from "@/components/ui/global-shortcuts-provider";
 import { HotkeysProvider } from "@/components/shell/hotkeys-provider";
 import { Sidebar } from "@/components/shell/sidebar";
 import { DetailDock } from "@/components/shell/detail-dock";
@@ -111,8 +110,7 @@ export default async function DashboardLayout({
 
   return (
     <RequestsProvider requests={orgRequests}>
-      <GlobalShortcutsProvider>
-        <HotkeysProvider>
+      <HotkeysProvider>
           <SidebarProvider>
             <Sidebar
               user={{ initials: userInitials || "U", name: userName || "User", role: profileRole === "lead" ? "Lead · Design" : profileRole }}
@@ -138,7 +136,6 @@ export default async function DashboardLayout({
             <StickyPad />
           </SidebarProvider>
         </HotkeysProvider>
-      </GlobalShortcutsProvider>
     </RequestsProvider>
   );
 }

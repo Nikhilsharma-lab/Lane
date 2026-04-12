@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { EditRequestModal } from "./edit-request-modal";
 
 // Serialized version of Request (Dates as ISO strings for RSC transport)
@@ -22,12 +23,13 @@ export function EditRequestButton({ request }: { request: SerializedRequest }) {
   return (
     <>
       {open && <EditRequestModal request={request} onClose={() => setOpen(false)} />}
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="text-xs text-muted-foreground hover:text-foreground border border hover:border-border/80 rounded-lg px-3 py-1.5 transition-colors"
       >
         Edit
-      </button>
+      </Button>
     </>
   );
 }

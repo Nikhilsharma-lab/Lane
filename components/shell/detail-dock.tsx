@@ -34,6 +34,7 @@ import type {
   ImpactRetrospective,
 } from "@/db/schema";
 import { getPhaseLabel, getStageLabel } from "@/lib/workflow";
+import { STATUS_STYLE } from "@/lib/theme-colors";
 
 interface EnrichedData {
   aiAnalysis: RequestAiAnalysis | null;
@@ -48,18 +49,6 @@ interface EnrichedData {
 }
 
 const DOCK_WIDTH = 520;
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:       { bg: "color-mix(in oklch, var(--status-draft) 10%, transparent)", color: "var(--status-draft)" },
-  submitted:   { bg: "color-mix(in oklch, var(--status-submitted) 10%, transparent)", color: "var(--status-submitted)" },
-  triaged:     { bg: "color-mix(in oklch, var(--status-triaged) 10%, transparent)", color: "var(--status-triaged)" },
-  assigned:    { bg: "color-mix(in oklch, var(--status-assigned) 10%, transparent)", color: "var(--status-assigned)" },
-  in_progress: { bg: "color-mix(in oklch, var(--status-in-progress) 10%, transparent)", color: "var(--status-in-progress)" },
-  in_review:   { bg: "color-mix(in oklch, var(--status-in-review) 10%, transparent)", color: "var(--status-in-review)" },
-  blocked:     { bg: "color-mix(in oklch, var(--status-blocked) 10%, transparent)", color: "var(--status-blocked)" },
-  completed:   { bg: "color-mix(in oklch, var(--status-completed) 10%, transparent)", color: "var(--status-completed)" },
-  shipped:     { bg: "color-mix(in oklch, var(--status-shipped) 10%, transparent)", color: "var(--status-shipped)" },
-};
 
 const PRIORITY_LABELS: Record<string, string> = {
   p0: "P0 · Critical", p1: "P1 · High", p2: "P2 · Medium", p3: "P3 · Low",
@@ -134,7 +123,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
     request.phase === "dev"       ? (request.kanbanState ?? "todo") :
                                     (request.trackStage ?? "measuring");
   const stageLabel = getStageLabel(stageKey);
-  const statusStyle = STATUS_COLORS[request.status] ?? STATUS_COLORS.draft;
+  const statusStyle = STATUS_STYLE[request.status] ?? STATUS_STYLE.draft;
 
   return (
     <aside

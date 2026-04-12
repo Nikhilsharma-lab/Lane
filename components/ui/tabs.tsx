@@ -31,9 +31,16 @@ const tabsListVariants = cva(
         default: "bg-muted",
         line: "gap-1 bg-transparent",
       },
+      size: {
+        default: "group-data-horizontal/tabs:h-8",
+        sm: "group-data-horizontal/tabs:h-7",
+        md: "group-data-horizontal/tabs:h-8",
+        lg: "group-data-horizontal/tabs:h-9",
+      },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 )
@@ -41,13 +48,14 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  size = "default",
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      className={cn(tabsListVariants({ variant, size, className }))}
       {...props}
     />
   )

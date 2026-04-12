@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { RequestContextBrief } from "@/db/schema";
 
 type Props = {
@@ -50,28 +52,28 @@ export function ContextBriefPanel({ requestId, existingBrief }: Props) {
 
   return (
     <section className="border rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           AI Context Brief
         </span>
         <span className="text-[10px] text-muted-foreground/60 font-mono">{brief.aiModel}</span>
-      </div>
+      </PanelHeader>
 
       <div className="p-5 space-y-5">
         {/* What this actually means */}
         <div>
-          <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
+          <SectionLabel>
             What this actually means
-          </div>
+          </SectionLabel>
           <p className="text-sm text-foreground leading-relaxed">{brief.plainSummary}</p>
         </div>
 
         {/* Related past work */}
         {brief.relatedRequests.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+            <SectionLabel className="mb-2">
               Related past work
-            </div>
+            </SectionLabel>
             <div className="space-y-1.5">
               {brief.relatedRequests.map((r) => (
                 <Link
@@ -90,13 +92,13 @@ export function ContextBriefPanel({ requestId, existingBrief }: Props) {
         {/* Key constraints */}
         {brief.keyConstraints.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+            <SectionLabel className="mb-2">
               Key constraints
-            </div>
+            </SectionLabel>
             <ul className="space-y-1.5">
               {brief.keyConstraints.map((c, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                  <span className="text-orange-400 shrink-0">—</span>
+                  <span className="text-accent-warning shrink-0">—</span>
                   {c}
                 </li>
               ))}
@@ -107,9 +109,9 @@ export function ContextBriefPanel({ requestId, existingBrief }: Props) {
         {/* Questions to ask */}
         {brief.questionsToAsk.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+            <SectionLabel className="mb-2">
               Questions to ask before starting
-            </div>
+            </SectionLabel>
             <ul className="space-y-1.5">
               {brief.questionsToAsk.map((q, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
@@ -124,13 +126,13 @@ export function ContextBriefPanel({ requestId, existingBrief }: Props) {
         {/* Exploration directions */}
         {brief.explorationDirections.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">
+            <SectionLabel className="mb-2">
               Exploration directions
-            </div>
+            </SectionLabel>
             <ul className="space-y-1.5">
               {brief.explorationDirections.map((d, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                  <span className="text-emerald-400 shrink-0">→</span>
+                  <span className="text-accent-success shrink-0">→</span>
                   {d}
                 </li>
               ))}

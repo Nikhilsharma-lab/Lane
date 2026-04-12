@@ -2,15 +2,11 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { DevPhasePanel } from "@/components/requests/dev-phase-panel";
+import { SectionLabel } from "@/components/ui/section-label";
+import { PRIORITY_BADGE } from "@/lib/theme-colors";
 import type { CardData } from "./types";
-
-const PRIORITY_COLORS: Record<string, string> = {
-  p0: "bg-red-500/15 text-red-400 border-red-500/20",
-  p1: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-  p2: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
-  p3: "bg-accent text-muted-foreground border",
-};
 
 interface Props {
   card: CardData;
@@ -41,12 +37,14 @@ export function CardDrawer({ card, onClose }: Props) {
           <span className="text-sm font-semibold text-foreground truncate pr-4">
             {card.title}
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0 text-xl leading-none"
+            className="text-muted-foreground hover:text-foreground shrink-0 text-xl leading-none"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="px-5 py-5 space-y-6">
@@ -61,9 +59,9 @@ export function CardDrawer({ card, onClose }: Props) {
 
           {/* Description */}
           <section>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
+            <SectionLabel>
               Description
-            </div>
+            </SectionLabel>
             <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {card.description}
             </p>
@@ -71,9 +69,9 @@ export function CardDrawer({ card, onClose }: Props) {
 
           {card.businessContext && (
             <section>
-              <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
+              <SectionLabel>
                 Business Context
-              </div>
+              </SectionLabel>
               <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {card.businessContext}
               </p>
@@ -84,21 +82,21 @@ export function CardDrawer({ card, onClose }: Props) {
           <section className="space-y-3">
             {card.assignees.length > 0 && (
               <div>
-                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">
+                <SectionLabel className="mb-1">
                   Assignees
-                </div>
+                </SectionLabel>
                 <p className="text-xs text-muted-foreground">{card.assignees.join(", ")}</p>
               </div>
             )}
 
             {card.priority && (
               <div>
-                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">
+                <SectionLabel className="mb-1">
                   Priority
-                </div>
+                </SectionLabel>
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
-                    PRIORITY_COLORS[card.priority] ?? ""
+                    PRIORITY_BADGE[card.priority] ?? ""
                   }`}
                 >
                   {card.priority.toUpperCase()}
@@ -108,9 +106,9 @@ export function CardDrawer({ card, onClose }: Props) {
 
             {card.deadlineAt && (
               <div>
-                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1">
+                <SectionLabel className="mb-1">
                   Deadline
-                </div>
+                </SectionLabel>
                 <p className="text-xs text-muted-foreground">
                   {new Date(card.deadlineAt).toLocaleDateString("en-US", {
                     month: "short",

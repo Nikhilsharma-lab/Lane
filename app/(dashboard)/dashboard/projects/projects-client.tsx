@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createProject } from "@/app/actions/projects";
 import { PROJECT_COLORS, type ProjectColor } from "@/lib/projects";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { Project } from "@/db/schema";
 
 interface RequestCount {
@@ -80,21 +82,13 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
           Projects
         </h1>
         {canCreate && (
-          <button
+          <Button
+            variant="default"
+            size="sm"
             onClick={() => setShowForm((v) => !v)}
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--primary-foreground)",
-              background: "var(--primary)",
-              border: "none",
-              borderRadius: 6,
-              padding: "6px 14px",
-              cursor: "pointer",
-            }}
           >
             + New Project
-          </button>
+          </Button>
         )}
       </div>
 
@@ -121,19 +115,10 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
             <label style={{ fontSize: 12, fontWeight: 500, color: "var(--muted-foreground)" }}>
               Name <span style={{ color: "var(--accent-danger)" }}>*</span>
             </label>
-            <input
+            <Input
               name="name"
               required
               placeholder="e.g. Checkout redesign"
-              style={{
-                fontSize: 13,
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--background)",
-                color: "var(--foreground)",
-                outline: "none",
-              }}
             />
           </div>
 
@@ -143,18 +128,15 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
             </label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {PROJECT_COLORS.map((c) => (
-                <button
+                <Button
                   key={c}
                   type="button"
+                  variant="ghost"
                   onClick={() => setSelectedColor(c)}
+                  className="w-[22px] h-[22px] rounded-full p-0 min-w-0"
                   style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
                     background: c,
                     border: selectedColor === c ? "2px solid var(--foreground)" : "2px solid transparent",
-                    cursor: "pointer",
-                    padding: 0,
                   }}
                   aria-label={`Select color ${c}`}
                 />
@@ -166,19 +148,10 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
             <label style={{ fontSize: 12, fontWeight: 500, color: "var(--muted-foreground)" }}>
               Target date (appetite)
             </label>
-            <input
+            <Input
               name="targetDate"
               type="date"
-              style={{
-                fontSize: 13,
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--background)",
-                color: "var(--foreground)",
-                outline: "none",
-                width: "fit-content",
-              }}
+              className="w-fit"
             />
           </div>
 
@@ -187,39 +160,22 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
           )}
 
           <div style={{ display: "flex", gap: 8 }}>
-            <button
+            <Button
               type="submit"
+              variant="default"
+              size="sm"
               disabled={isPending}
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--primary-foreground)",
-                background: "var(--primary)",
-                border: "none",
-                borderRadius: 6,
-                padding: "6px 16px",
-                cursor: isPending ? "not-allowed" : "pointer",
-                opacity: isPending ? 0.7 : 1,
-              }}
             >
               {isPending ? "Creating…" : "Create"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => { setShowForm(false); setError(null); }}
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--muted-foreground)",
-                background: "transparent",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                padding: "6px 16px",
-                cursor: "pointer",
-              }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -250,77 +206,44 @@ export function ProjectsClient({ projects, canCreate }: ProjectsClientProps) {
           {projects.map((project) => {
             const appetite = appetiteLabel(project.targetDate);
             return (
-              <button
+              <Button
                 key={project.id}
+                variant="ghost"
                 onClick={() => router.push(`/dashboard/requests?project=${project.id}`)}
-                style={{
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: "16px 18px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  transition: "box-shadow 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
-                }}
+                className="h-auto flex flex-col items-stretch gap-2.5 p-4 text-left bg-card border border-border rounded-[10px] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-shadow"
               >
                 {/* Name row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      background: project.color,
-                      flexShrink: 0,
-                    }}
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: project.color }}
                   />
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "var(--foreground)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <span className="text-sm font-semibold text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
                     {project.name}
                   </span>
                 </div>
 
                 {/* Meta row */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 12, color: "color-mix(in oklch, var(--muted-foreground) 60%, transparent)" }}>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground/60">
                     {project.requestCount} request{project.requestCount === 1 ? "" : "s"}
                   </span>
                   {project.leadName && (
-                    <span style={{ fontSize: 12, color: "color-mix(in oklch, var(--muted-foreground) 60%, transparent)" }}>
+                    <span className="text-xs text-muted-foreground/60">
                       Lead: {project.leadName}
                     </span>
                   )}
                   {appetite && (
                     <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: appetite.exceeded ? "var(--accent-danger)" : "color-mix(in oklch, var(--muted-foreground) 60%, transparent)",
-                        marginTop: 2,
-                      }}
+                      className={`text-[11px] font-medium mt-0.5 ${
+                        appetite.exceeded ? "text-[var(--accent-danger)]" : "text-muted-foreground/60"
+                      }`}
                     >
                       {appetite.label}
                     </span>
                   )}
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>

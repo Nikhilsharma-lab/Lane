@@ -2,6 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 export function CommentBox({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -33,21 +35,22 @@ export function CommentBox({ requestId }: { requestId: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2 mt-4">
-      <textarea
+      <Textarea
         ref={ref}
         rows={3}
         placeholder="Add a comment or check-in update..."
-        className="w-full bg-muted border border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 resize-none"
+        className="w-full bg-muted resize-none"
       />
       <div className="flex items-center justify-between">
-        {error ? <p className="text-xs text-red-400">{error}</p> : <span />}
-        <button
+        {error ? <p className="text-xs text-accent-danger">{error}</p> : <span />}
+        <Button
           type="submit"
+          variant="secondary"
+          size="sm"
           disabled={isPending}
-          className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
         >
           {isPending ? "Posting..." : "Post"}
-        </button>
+        </Button>
       </div>
     </form>
   );

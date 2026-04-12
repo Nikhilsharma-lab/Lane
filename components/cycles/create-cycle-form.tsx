@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCycle } from "@/app/actions/cycles";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface Project {
   id: string;
@@ -46,12 +48,13 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
 
   if (!open) {
     return (
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="text-xs px-3 py-1.5 rounded-lg border border-primary/20 text-primary hover:border-primary/40 transition-colors"
       >
         + Create Cycle
-      </button>
+      </Button>
     );
   }
 
@@ -67,10 +70,10 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
             <label className="text-xs text-muted-foreground block mb-1">
               Project
             </label>
-            <select
+            <NativeSelect
               name="projectId"
               required
-              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
+              className="w-full"
             >
               <option value="">Select project...</option>
               {projects.map((p) => (
@@ -78,7 +81,7 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
                   {p.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
 
           <div>
@@ -124,27 +127,28 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
           </div>
 
           {error && (
-            <p className="text-xs text-red-500">{error}</p>
+            <p className="text-xs text-accent-danger">{error}</p>
           )}
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setOpen(false);
                 setError(null);
               }}
-              className="text-xs px-3 py-1.5 rounded-lg border border text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              size="sm"
               disabled={loading}
-              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

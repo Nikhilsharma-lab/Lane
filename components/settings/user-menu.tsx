@@ -47,12 +47,13 @@ export function UserMenu({ fullName }: UserMenuProps) {
             Settings
           </Link>
           <form action={logout}>
-            <button
+            <Button
               type="submit"
-              className="w-full text-left flex items-center px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+              variant="ghost"
+              className="w-full justify-start rounded-none px-3 py-2 h-auto text-sm font-normal"
             >
               Sign out
-            </button>
+            </Button>
           </form>
         </div>
       )}
