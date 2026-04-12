@@ -60,6 +60,7 @@ export function ProjectForm({ project, onDone }: Props) {
         <Label>Color</Label>
         <div className="flex gap-2 flex-wrap">
           {PROJECT_COLORS.map((c) => (
+            // eslint-disable-next-line no-restricted-syntax -- color swatch with dynamic style
             <button
               key={c}
               type="button"

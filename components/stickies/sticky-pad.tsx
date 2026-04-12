@@ -124,6 +124,7 @@ export function StickyPad() {
                 Color
               </span>
               {STICKY_COLORS.map((c) => (
+                // eslint-disable-next-line no-restricted-syntax -- color swatch with dynamic style
                 <button
                   key={c.key}
                   type="button"

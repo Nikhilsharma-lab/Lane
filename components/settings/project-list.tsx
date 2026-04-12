@@ -195,6 +195,7 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
               </DialogHeader>
               <div className="space-y-3">
                 <Label className="flex items-start gap-3 cursor-pointer">
+                  {/* eslint-disable-next-line no-restricted-syntax -- native radio */}
                   <input
                     type="radio"
                     name="deleteAction"
@@ -219,6 +220,7 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                   </div>
                 </Label>
                 <Label className="flex items-center gap-3 cursor-pointer">
+                  {/* eslint-disable-next-line no-restricted-syntax -- native radio */}
                   <input
                     type="radio"
                     name="deleteAction"

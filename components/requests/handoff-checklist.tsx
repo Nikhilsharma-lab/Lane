@@ -106,6 +106,7 @@ export function HandoffChecklist({ requestId, stage }: Props) {
                   className="flex items-start gap-3 px-5 py-3 cursor-pointer hover:bg-muted transition-colors group"
                 >
                   <div className="mt-0.5 shrink-0">
+                    {/* eslint-disable-next-line no-restricted-syntax -- native checkbox */}
                     <input
                       type="checkbox"
                       checked={!!checked[i]}

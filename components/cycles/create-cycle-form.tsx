@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCycle } from "@/app/actions/cycles";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
 interface Project {
@@ -88,12 +89,11 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
             <label className="text-xs text-muted-foreground block mb-1">
               Cycle Name
             </label>
-            <input
+            <Input
               name="name"
               type="text"
               required
               placeholder="e.g. Q2 Sprint 1"
-              className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -102,26 +102,24 @@ export function CreateCycleForm({ projects }: CreateCycleFormProps) {
               <label className="text-xs text-muted-foreground block mb-1">
                 Appetite (weeks)
               </label>
-              <input
+              <Input
                 name="appetiteWeeks"
                 type="number"
                 min={1}
                 max={52}
                 defaultValue={6}
                 required
-                className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">
                 Starts
               </label>
-              <input
+              <Input
                 name="startsAt"
                 type="date"
                 required
                 defaultValue={new Date().toISOString().slice(0, 10)}
-                className="w-full text-sm bg-card border border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary"
               />
             </div>
           </div>

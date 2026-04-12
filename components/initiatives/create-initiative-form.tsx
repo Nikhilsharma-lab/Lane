@@ -97,6 +97,7 @@ export function CreateInitiativeForm() {
             </label>
             <div className="flex items-center gap-2">
               {INITIATIVE_COLORS.map((c) => (
+                // eslint-disable-next-line no-restricted-syntax -- color swatch with dynamic style
                 <button
                   key={c}
                   type="button"

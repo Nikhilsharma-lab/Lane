@@ -27,6 +27,7 @@ export function FilterChips({ chips, onRemove, onClearAll }: FilterChipsProps) {
           key={`${chip.key}-${chip.rawValue}`}
           variant="outline"
           className="cursor-pointer gap-1.5 px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+          // eslint-disable-next-line no-restricted-syntax -- Badge render prop requires raw button
           render={<button onClick={() => onRemove(chip.key)} />}
         >
           <span className="text-muted-foreground/60 font-medium">
