@@ -7,6 +7,12 @@ All notable changes are documented here. Update this file with every PR before m
 
 ---
 
+## 2026-04-12
+
+### Changed
+- complete design system migration (PR #26)
+
+
 ## 2026-04-11
 
 ### Changed
