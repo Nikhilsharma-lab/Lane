@@ -14,16 +14,16 @@ import { eq, inArray, sql, and, isNull, gte } from "drizzle-orm";
 import { RealtimeDashboard } from "@/components/realtime/realtime-dashboard";
 import { MorningBriefingCard } from "@/components/dashboard/morning-briefing-card";
 import { AlertsSection } from "@/components/dashboard/alerts-section";
-import { PipelineSummary } from "@/components/dashboard/pipeline-summary";
 import {
   RichRequestCard,
   MediumRequestCard,
   CompactRequestRow,
 } from "@/components/dashboard/request-card";
+import { DashboardSummary } from "@/components/dashboard/dashboard-summary";
 import { buildFocusSections } from "@/lib/focus-ordering";
 import { Badge } from "@/components/ui/badge";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { Request } from "@/db/schema";
+import type { Request, Phase } from "@/db/schema";
 
 // ── Greeting helper ────────────────────────────────────────────────────────
 
@@ -254,12 +254,58 @@ export default async function DashboardPage() {
     year: "numeric",
   });
 
+  // ── Right panel data (derived, no extra queries) ──────────────────────
+  const phaseCounts: Record<string, number> = { predesign: 0, design: 0, dev: 0, track: 0 };
+  const priorityCounts: Record<string, number> = { p0: 0, p1: 0, p2: 0, p3: 0 };
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  let shippedThisWeek = 0;
+
+  for (const r of allRequests) {
+    if (r.phase) phaseCounts[r.phase] = (phaseCounts[r.phase] ?? 0) + 1;
+    if (r.priority) priorityCounts[r.priority] = (priorityCounts[r.priority] ?? 0) + 1;
+    if (r.status === "shipped" && r.updatedAt > oneWeekAgo) shippedThisWeek++;
+  }
+
+  const phases = [
+    { key: "predesign", label: "Predesign", count: phaseCounts.predesign },
+    { key: "design", label: "Design", count: phaseCounts.design },
+    { key: "dev", label: "Dev", count: phaseCounts.dev },
+    { key: "track", label: "Track", count: phaseCounts.track },
+  ];
+
+  const priorityLabels: Record<string, string> = { p0: "Urgent", p1: "High", p2: "Medium", p3: "Low" };
+  const priorityStats = ["p0", "p1", "p2", "p3"].map((k) => ({
+    key: k,
+    label: priorityLabels[k],
+    count: priorityCounts[k],
+  }));
+
+  // Count active assignments per member
+  const teamCounts: Record<string, number> = {};
+  for (const a of allAssignments) {
+    const name = memberMap[a.assigneeId];
+    if (name) teamCounts[name] = (teamCounts[name] ?? 0) + 1;
+  }
+  const teamStats = Object.entries(teamCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({
+      name,
+      count,
+      initials: name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2),
+    }));
+
   return (
     <>
       <RealtimeDashboard orgId={profile.orgId} />
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between h-12 px-5 shrink-0 border-b bg-card">
+      <div className="flex items-center justify-between h-12 px-5 shrink-0 border-b">
         <span className="text-sm font-semibold tracking-tight text-foreground">
           {getGreeting()}, {firstName}
         </span>
@@ -268,43 +314,54 @@ export default async function DashboardPage() {
         </span>
       </div>
 
-      {/* ── Scrollable content ──────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-5 py-6 space-y-8">
-          {/* Pipeline summary */}
-          <PipelineSummary allRequests={allRequests} />
+      {/* ── 3-pane body ─────────────────────────────────────────────────── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ── Main content ────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-6 py-6 space-y-6">
+            {/* Morning briefing */}
+            <MorningBriefingCard
+              brief={briefForCard}
+              alertCount={inlineAlerts.length}
+            />
 
-          {/* Morning briefing */}
-          <MorningBriefingCard
-            brief={briefForCard}
-            alertCount={inlineAlerts.length}
-          />
+            {/* Alerts */}
+            <AlertsSection alerts={inlineAlerts} />
 
-          {/* Alerts */}
-          <AlertsSection alerts={inlineAlerts} />
-
-          {/* Focus sections */}
-          {isEmpty ? (
-            <div className="flex items-center justify-center px-5 py-20">
-              <p className="text-sm text-center max-w-xs leading-relaxed text-muted-foreground/60">
-                You&apos;re clear. Time to think, learn, or help a teammate.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {focusSections.map((section) => (
-                <FocusSectionBlock
-                  key={section.key}
-                  sectionKey={section.key}
-                  label={section.label}
-                  color={section.color}
-                  sectionRequests={section.requests}
-                  assigneesByRequest={assigneesByRequest}
-                />
-              ))}
-            </div>
-          )}
+            {/* Focus sections */}
+            {isEmpty ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-sm text-center max-w-xs leading-relaxed text-muted-foreground/60">
+                  You&apos;re clear. Time to think, learn, or help a teammate.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {focusSections.map((section) => (
+                  <FocusSectionBlock
+                    key={section.key}
+                    sectionKey={section.key}
+                    label={section.label}
+                    color={section.color}
+                    sectionRequests={section.requests}
+                    assigneesByRequest={assigneesByRequest}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ── Right summary panel ─────────────────────────────────────── */}
+        <aside className="hidden lg:flex w-[260px] shrink-0 border-l flex-col">
+          <DashboardSummary
+            phases={phases}
+            priorities={priorityStats}
+            team={teamStats}
+            totalRequests={allRequests.length}
+            shippedThisWeek={shippedThisWeek}
+          />
+        </aside>
       </div>
     </>
   );
