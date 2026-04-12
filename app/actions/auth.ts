@@ -73,7 +73,8 @@ export async function signup(formData: FormData) {
     if (!result) throw new Error("bootstrap_organization_membership returned no result");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { error: `DB error: ${msg}` };
+    console.error("[signup] workspace bootstrap failed:", msg);
+    return { error: "Something went wrong setting up your workspace. Please try again or contact support." };
   }
 
   revalidatePath("/", "layout");
