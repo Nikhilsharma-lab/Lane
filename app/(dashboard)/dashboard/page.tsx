@@ -5,12 +5,11 @@ import {
   profiles,
   requests,
   assignments,
-  projects,
   morningBriefings,
   proactiveAlerts,
   validationSignoffs,
 } from "@/db/schema";
-import { eq, inArray, sql, and, isNull, gte } from "drizzle-orm";
+import { eq, inArray, sql, and, gte } from "drizzle-orm";
 import { RealtimeDashboard } from "@/components/realtime/realtime-dashboard";
 import { MorningBriefingCard } from "@/components/dashboard/morning-briefing-card";
 import { AlertsSection } from "@/components/dashboard/alerts-section";
@@ -237,13 +236,6 @@ export default async function DashboardPage() {
     const name = memberMap[a.assigneeId];
     if (name) assigneesByRequest[a.requestId].push(name);
   }
-
-  // Active projects (kept for RealtimeDashboard context)
-  const activeProjects = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.orgId, profile.orgId), isNull(projects.archivedAt)));
-  void activeProjects; // used implicitly via RealtimeDashboard
 
   const isEmpty = focusSections.length === 0;
 
