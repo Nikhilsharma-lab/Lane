@@ -382,7 +382,7 @@ export function InboxClient({
   return (
     <div className="flex-1 flex min-h-0">
       {/* ── Left: Notification List ─────────────────────────────── */}
-      <div className={`flex flex-col overflow-y-auto px-6 py-6 ${selectedNotif ? "w-[420px] shrink-0 border-r border-border" : "flex-1 max-w-2xl"}`}>
+      <div className={`flex flex-col overflow-y-auto px-6 py-6 ${selectedNotif ? "w-[420px] shrink-0" : "flex-1 max-w-2xl"}`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-lg font-bold text-foreground">Inbox</h1>
@@ -413,12 +413,12 @@ export function InboxClient({
         {/* Keyboard hint */}
         {currentList.length > 0 && (
           <div className="flex items-center gap-3 mb-4 text-[10px] text-muted-foreground/50">
-            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">J</kbd><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono ml-0.5">K</kbd> navigate</span>
-            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">E</kbd> done</span>
-            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">U</kbd> read</span>
-            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">H</kbd> snooze</span>
-            <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">&#x23CE;</kbd> open</span>
-            {selectedNotif && <span><kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">Esc</kbd> close</span>}
+            <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">J</kbd><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono ml-0.5">K</kbd> navigate</span>
+            <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">E</kbd> done</span>
+            <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">U</kbd> read</span>
+            <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">H</kbd> snooze</span>
+            <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">&#x23CE;</kbd> open</span>
+            {selectedNotif && <span><kbd className="px-1.5 py-0.5 rounded-md bg-muted text-[9px] font-mono">Esc</kbd> close</span>}
           </div>
         )}
 

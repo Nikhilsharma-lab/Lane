@@ -223,7 +223,7 @@ function CommentPanel({ notification, onArchive }: { notification: InboxNotifica
     <div className="space-y-4">
       {/* Original comment */}
       {notification.body && (
-        <div className="bg-muted rounded-lg p-3 border border-border">
+        <div className="bg-muted rounded-xl p-3">
           <div className="flex items-center gap-2 mb-2">
             <Avatar size="sm">
               <AvatarFallback className="text-[9px]">
@@ -415,7 +415,7 @@ function GenericPanel({ notification, onArchive }: { notification: InboxNotifica
   return (
     <div className="space-y-4">
       {notification.body && (
-        <div className="bg-muted rounded-lg p-3 border border-border">
+        <div className="bg-muted rounded-xl p-3">
           <p className="text-sm text-foreground/80 leading-relaxed">{notification.body}</p>
         </div>
       )}
@@ -438,7 +438,7 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border shrink-0">
+      <div className="px-5 py-4 shrink-0">
         <div className="flex items-center gap-2.5 mb-3">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
@@ -504,7 +504,7 @@ export function InboxActionPanel({ notification, onArchive, onToggleRead }: Acti
       </div>
 
       {/* Footer -- view full request */}
-      <div className="px-5 py-3 border-t border-border shrink-0">
+      <div className="px-5 py-3 shrink-0">
         <Link href={notification.url} className="flex items-center justify-center gap-1.5 w-full h-7 rounded-md text-xs text-muted-foreground hover:bg-muted transition-colors">
           <ExternalLink size={12} />
           View full {notification.requestId ? "request" : "page"}
