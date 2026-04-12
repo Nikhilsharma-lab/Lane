@@ -130,7 +130,7 @@ export function Sidebar({
   }
 
   return (
-    <ShadcnSidebar>
+    <ShadcnSidebar variant="inset">
       {/* ── Header ──────────────────────────────────────────── */}
       <SidebarHeader>
         <SidebarMenu>

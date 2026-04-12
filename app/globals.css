@@ -134,13 +134,13 @@ body {
     --chart-3: oklch(0.646 0.222 41.116);
     --chart-4: oklch(0.553 0.195 38.402);
     --chart-5: oklch(0.47 0.157 37.304);
-    --sidebar: oklch(0.985 0 0);
+    --sidebar: oklch(0.965 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent: oklch(0.94 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: oklch(0.9 0 0);
     --sidebar-ring: oklch(0.708 0 0);
 
     /* ── App semantic colors ─────────────────────────── */
@@ -221,13 +221,13 @@ body {
     --chart-3: oklch(0.646 0.222 41.116);
     --chart-4: oklch(0.553 0.195 38.402);
     --chart-5: oklch(0.47 0.157 37.304);
-    --sidebar: oklch(0.205 0 0);
+    --sidebar: oklch(0.13 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent: oklch(0.205 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-border: oklch(1 0 0 / 8%);
     --sidebar-ring: oklch(0.556 0 0);
 
     /* ── App semantic colors (dark) ─────────────────── */
