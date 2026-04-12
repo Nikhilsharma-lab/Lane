@@ -153,7 +153,7 @@ export async function POST(
     const currentDesignStage = (designStage ?? "sense") as DesignStage;
     const currentIdx = DESIGN_STAGES.indexOf(currentDesignStage);
 
-    if (currentDesignStage === "prove") {
+    if (currentDesignStage === "refine") {
       return NextResponse.json(
         { error: "Prove requires 3 sign-offs. Use the validation panel." },
         { status: 422 }
@@ -255,7 +255,7 @@ export async function POST(
       });
 
       // When entering prove stage, notify all signers
-      if (next === "prove") {
+      if (next === "refine") {
         const orgMembers = await db
           .select()
           .from(profiles)
@@ -385,7 +385,7 @@ function checkPredesignGate(
       if (!request.businessContext) return "Add context/research notes before shaping";
       break;
     case "shape":
-      if (!request.successMetrics) return "Define constraints and time appetite before betting";
+      if (!request.successMetrics) return "Define constraints and time appetite before committing";
       break;
     case "bet":
       if (role !== "lead" && role !== "admin")

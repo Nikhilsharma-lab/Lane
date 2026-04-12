@@ -323,7 +323,7 @@ To Do → In Progress → In Review → Design QA → Done
 | Dev kanban | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Impact records | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Idea Board | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Betting Board | View only | View only | View only | ✅ (decide) | ✅ |
+| Commitments | View only | View only | View only | ✅ (decide) | ✅ |
 | AI morning briefing | ✅ (own) | ❌ | ✅ (own) | ✅ (team) | ✅ |
 
 ---
@@ -444,7 +444,7 @@ app/
     dashboard/
     requests/[id]/
     idea-board/
-    betting-board/
+    commitments/
     insights/
     radar/
     dev/
@@ -611,7 +611,7 @@ npm run start
 
 ### Week 11-12: Polish + Beta
 - [ ] Bug fixes, performance
-- [ ] Betting board view
+- [ ] Commitments view
 
 ---
 

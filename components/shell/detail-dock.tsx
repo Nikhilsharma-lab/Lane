@@ -225,7 +225,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                 <Separator />
                 <DesignPhasePanel
                   requestId={request.id}
-                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "frame" | "diverge" | "converge" | "prove"}
+                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "explore" | "interrogate" | "validate" | "refine"}
                   figmaUrl={request.figmaUrl}
                   profileRole={profileRole}
                   isTestUser={isTestUser}
@@ -368,7 +368,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                         <FieldLabel>Issues</FieldLabel>
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
-                            <Badge key={i} variant="outline" className="text-[11px] text-[var(--accent-warning)] border-[var(--accent-warning)]/20 bg-[var(--accent-warning)]/10">
+                            <Badge key={i} variant="outline" className="text-[11px] text-accent-warning border-accent-warning/20 bg-accent-warning/10">
                               {flag}
                             </Badge>
                           ))}

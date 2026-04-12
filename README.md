@@ -230,7 +230,7 @@ app/
     dashboard/requests/[id]/  # Request detail — full timeline
     requests/new/             # Create request (intake gate)
     idea-board/
-    betting-board/
+    commitments/
   actions/                    # Server actions (mutations)
   api/
     requests/[id]/

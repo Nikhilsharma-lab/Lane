@@ -127,25 +127,27 @@ export default async function DashboardPage() {
   if (!profile) redirect("/signup");
 
   const firstName = profile.fullName?.split(" ")[0] ?? "there";
-
-  // Morning briefing
   const todayString = new Date().toISOString().slice(0, 10);
-  const [briefRow] = await db
-    .select()
-    .from(morningBriefings)
-    .where(
-      and(
-        eq(morningBriefings.userId, user.id),
-        eq(morningBriefings.date, todayString)
-      )
-    )
-    .limit(1);
-  const briefForCard = briefRow && !briefRow.dismissedAt ? briefRow : null;
 
-  // Proactive alerts
-  const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  const inlineAlerts = (
-    await db
+  // Batch 1: All independent queries in parallel
+  const [
+    [briefRow],
+    alertsRaw,
+    allRequests,
+    myAssignments,
+    orgMembers,
+  ] = await Promise.all([
+    db
+      .select()
+      .from(morningBriefings)
+      .where(
+        and(
+          eq(morningBriefings.userId, user.id),
+          eq(morningBriefings.date, todayString)
+        )
+      )
+      .limit(1),
+    db
       .select({
         id: proactiveAlerts.id,
         type: proactiveAlerts.type,
@@ -162,47 +164,66 @@ export default async function DashboardPage() {
           eq(proactiveAlerts.dismissed, false),
           gte(proactiveAlerts.expiresAt, new Date())
         )
-      )
-  ).sort(
+      ),
+    db
+      .select()
+      .from(requests)
+      .where(eq(requests.orgId, profile.orgId))
+      .orderBy(
+        sql`CASE priority WHEN 'p0' THEN 0 WHEN 'p1' THEN 1 WHEN 'p2' THEN 2 WHEN 'p3' THEN 3 ELSE 4 END`,
+        requests.createdAt
+      ),
+    db
+      .select({ requestId: assignments.requestId })
+      .from(assignments)
+      .where(eq(assignments.assigneeId, user.id)),
+    db
+      .select({ id: profiles.id, fullName: profiles.fullName })
+      .from(profiles)
+      .where(eq(profiles.orgId, profile.orgId)),
+  ]);
+
+  const briefForCard = briefRow && !briefRow.dismissedAt ? briefRow : null;
+  const urgencyOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const inlineAlerts = alertsRaw.sort(
     (a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9)
   );
 
-  // All org requests ordered by priority
-  const allRequests = await db
-    .select()
-    .from(requests)
-    .where(eq(requests.orgId, profile.orgId))
-    .orderBy(
-      sql`CASE priority WHEN 'p0' THEN 0 WHEN 'p1' THEN 1 WHEN 'p2' THEN 2 WHEN 'p3' THEN 3 ELSE 4 END`,
-      requests.createdAt
-    );
-
-  // My assignments → myRequestIds
-  const myAssignments = await db
-    .select({ requestId: assignments.requestId })
-    .from(assignments)
-    .where(eq(assignments.assigneeId, user.id));
   const myRequestIds = new Set(myAssignments.map((a) => a.requestId));
 
-  // Pending validations — prove-stage requests where user hasn't signed off yet
+  // Batch 2: Queries that depend on allRequests
   const proveRequests = allRequests.filter(
-    (r) => r.phase === "design" && r.designStage === "prove"
+    (r) => r.phase === "design" && r.designStage === "refine"
   );
-  let validationsPending = new Set<string>();
-  if (proveRequests.length > 0) {
-    const proveIds = proveRequests.map((r) => r.id);
-    const alreadySigned = await db
-      .select({ requestId: validationSignoffs.requestId })
-      .from(validationSignoffs)
-      .where(
-        and(
-          eq(validationSignoffs.signerId, user.id),
-          inArray(validationSignoffs.requestId, proveIds)
-        )
-      );
-    const signedIds = new Set(alreadySigned.map((v) => v.requestId));
-    validationsPending = new Set(proveIds.filter((id) => !signedIds.has(id)));
-  }
+  const orgReqIds = allRequests.map((r) => r.id);
+
+  const [validationRows, allAssignments] = await Promise.all([
+    proveRequests.length > 0
+      ? db
+          .select({ requestId: validationSignoffs.requestId })
+          .from(validationSignoffs)
+          .where(
+            and(
+              eq(validationSignoffs.signerId, user.id),
+              inArray(validationSignoffs.requestId, proveRequests.map((r) => r.id))
+            )
+          )
+      : Promise.resolve([]),
+    orgReqIds.length
+      ? db
+          .select({
+            requestId: assignments.requestId,
+            assigneeId: assignments.assigneeId,
+          })
+          .from(assignments)
+          .where(inArray(assignments.requestId, orgReqIds))
+      : Promise.resolve([]),
+  ]);
+
+  const signedIds = new Set(validationRows.map((v) => v.requestId));
+  const validationsPending = new Set(
+    proveRequests.map((r) => r.id).filter((id) => !signedIds.has(id))
+  );
 
   // Build focus sections
   const focusSections = buildFocusSections({
@@ -211,23 +232,6 @@ export default async function DashboardPage() {
     myRequestIds,
     validationsPending,
   });
-
-  // Assignee names for all org requests
-  const orgReqIds = allRequests.map((r) => r.id);
-  const allAssignments = orgReqIds.length
-    ? await db
-        .select({
-          requestId: assignments.requestId,
-          assigneeId: assignments.assigneeId,
-        })
-        .from(assignments)
-        .where(inArray(assignments.requestId, orgReqIds))
-    : [];
-
-  const orgMembers = await db
-    .select({ id: profiles.id, fullName: profiles.fullName })
-    .from(profiles)
-    .where(eq(profiles.orgId, profile.orgId));
   const memberMap = Object.fromEntries(orgMembers.map((m) => [m.id, m.fullName]));
 
   const assigneesByRequest: Record<string, string[]> = {};
