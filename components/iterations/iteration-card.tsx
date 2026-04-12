@@ -52,16 +52,18 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
         )}
 
         {/* Comment toggle */}
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setExpanded((prev) => !prev)}
-          className="mt-3 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+          className="mt-3 h-auto p-0 gap-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground"
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           <MessageSquare size={11} />
           <span>
             {commentCount} comment{commentCount !== 1 ? "s" : ""}
           </span>
-        </button>
+        </Button>
       </CardContent>
 
       {/* Expanded comments */}

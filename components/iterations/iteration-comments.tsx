@@ -111,12 +111,14 @@ export function IterationComments({
             <p className="text-xs leading-relaxed text-muted-foreground">
               {c.body}
             </p>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}
-              className="cursor-pointer border-none bg-transparent p-0 text-[10px] font-medium text-muted-foreground/60"
+              className="h-auto p-0 text-[10px] font-medium text-muted-foreground/60"
             >
               Reply
-            </button>
+            </Button>
           </div>
 
           {/* Replies */}

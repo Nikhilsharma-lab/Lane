@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const TIMEZONES = [
   "UTC","America/New_York","America/Chicago","America/Denver","America/Los_Angeles",
@@ -50,14 +51,14 @@ export function AccountForm({ profile }: Props) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="timezone">Timezone</Label>
-        <select
+        <NativeSelect
           id="timezone"
           name="timezone"
           defaultValue={profile.timezone}
-          className="h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 md:text-xs/relaxed dark:bg-input/30"
+          className="w-full"
         >
           {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-        </select>
+        </NativeSelect>
       </div>
       {error && (
         <Alert variant="destructive">
@@ -66,7 +67,7 @@ export function AccountForm({ profile }: Props) {
       )}
       {success && (
         <Alert>
-          <AlertDescription className="text-green-400">Saved.</AlertDescription>
+          <AlertDescription className="text-accent-success">Saved.</AlertDescription>
         </Alert>
       )}
       <Button type="submit" disabled={isPending}>

@@ -5,22 +5,14 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DECISION_BADGE } from "@/lib/theme-colors";
 
 const categoryColors: Record<string, string> = {
   design: "bg-[var(--phase-design)]/10 text-[var(--phase-design)] border-[var(--phase-design)]/20",
   feature: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  workflow: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-  performance: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  ux: "bg-pink-500/10 text-pink-400 border-pink-500/20",
-};
-
-const statusColors: Record<string, string> = {
-  pending_votes: "bg-accent text-muted-foreground border-border",
-  validation: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  approved: "bg-green-500/10 text-green-400 border-green-500/20",
-  approved_with_conditions: "bg-green-500/10 text-green-400 border-green-500/20",
-  rejected: "bg-red-500/10 text-red-400 border-red-500/20",
-  archived: "bg-accent text-muted-foreground/60 border-border",
+  workflow: "bg-[var(--category-workflow)]/10 text-[var(--category-workflow)] border-[var(--category-workflow)]/20",
+  performance: "bg-[var(--accent-warning)]/10 text-[var(--accent-warning)] border-[var(--accent-warning)]/20",
+  ux: "bg-[var(--category-ux)]/10 text-[var(--category-ux)] border-[var(--category-ux)]/20",
 };
 
 const statusLabels: Record<string, string> = {
@@ -129,7 +121,7 @@ export function IdeaCard({
               </Badge>
               <Badge
                 variant="outline"
-                className={`text-[10px] h-auto py-0.5 rounded ${statusColors[status] ?? ""}`}
+                className={`text-[10px] h-auto py-0.5 rounded ${DECISION_BADGE[status] ?? ""}`}
               >
                 {statusLabels[status] ?? status}
               </Badge>
@@ -142,7 +134,7 @@ export function IdeaCard({
 
           {/* Net score */}
           <div className="shrink-0 flex flex-col items-center">
-            <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-green-400" : localNetScore < 0 ? "text-red-400" : "text-muted-foreground"}`}>
+            <span className={`text-sm font-mono font-semibold ${localNetScore > 0 ? "text-accent-success" : localNetScore < 0 ? "text-accent-danger" : "text-muted-foreground"}`}>
               {localNetScore > 0 ? "+" : ""}{localNetScore}
             </span>
             <span className="text-[9px] text-muted-foreground/60">score</span>
@@ -164,7 +156,7 @@ export function IdeaCard({
             onClick={() => handleVote("upvote")}
             className={
               optimisticVotes.myVote === "upvote"
-                ? "bg-green-500/15 border-green-500/30 text-green-400"
+                ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                 : ""
             }
           >
@@ -177,7 +169,7 @@ export function IdeaCard({
             onClick={() => handleVote("downvote")}
             className={
               optimisticVotes.myVote === "downvote"
-                ? "bg-red-500/15 border-red-500/30 text-red-400"
+                ? "bg-accent-danger/15 border-accent-danger/30 text-accent-danger"
                 : ""
             }
           >

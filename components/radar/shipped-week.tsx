@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { ShippedCard } from "@/lib/radar";
 
 function CycleCard({ card }: { card: ShippedCard }) {
@@ -22,12 +23,14 @@ function CycleCard({ card }: { card: ShippedCard }) {
         {card.designerName} · {card.fullDays}d full cycle
       </p>
       {hasBreakdown && (
-        <button
-          className="text-xs text-muted-foreground/60 hover:text-muted-foreground mt-1 transition-colors"
+        <Button
+          variant="link"
+          size="sm"
+          className="text-xs text-muted-foreground/60 hover:text-muted-foreground mt-1 p-0 h-auto"
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? "▲ Collapse" : `▶ ${breakdownLabel}`}
-        </button>
+        </Button>
       )}
       {expanded && (
         <div className="mt-1 flex gap-4 text-xs text-muted-foreground">

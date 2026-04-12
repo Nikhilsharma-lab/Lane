@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Dialog,
   DialogContent,
@@ -204,16 +205,16 @@ export function ProjectList({ activeProjects, archivedProjects }: Props) {
                   <div className="flex-1">
                     <p className="text-sm text-foreground">Move requests to another project</p>
                     {deleteAction === "move" && (
-                      <select
+                      <NativeSelect
                         value={moveToId}
                         onChange={(e) => setMoveToId(e.target.value)}
-                        className="mt-2 h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 dark:bg-input/30"
+                        className="mt-2 w-full"
                       >
                         <option value="">Select project...</option>
                         {moveTargets.map((p) => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     )}
                   </div>
                 </Label>

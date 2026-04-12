@@ -200,12 +200,14 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
                                   {alert.ctaLabel}
                                 </Link>
                                 <span className="text-muted-foreground/60">·</span>
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => handleDismiss(alert.id)}
-                                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground p-0 h-auto"
                                 >
                                   Dismiss
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           </div>

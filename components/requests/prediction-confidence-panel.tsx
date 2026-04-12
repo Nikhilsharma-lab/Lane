@@ -2,6 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { PredictionConfidence } from "@/db/schema";
 
 type Props = {
@@ -13,10 +15,10 @@ const LABEL_CONFIG: Record<
   string,
   { text: string; ringColor: string; textColor: string; bgColor: string }
 > = {
-  realistic:     { text: "Realistic prediction",  ringColor: "stroke-green-400",   textColor: "text-green-400",   bgColor: "bg-green-500/5 border-green-500/15" },
-  optimistic:    { text: "Over-optimistic",        ringColor: "stroke-amber-400",   textColor: "text-amber-400",   bgColor: "bg-amber-500/5 border-amber-500/15" },
-  vague:         { text: "Vague metric",           ringColor: "stroke-orange-400",  textColor: "text-orange-400",  bgColor: "bg-orange-500/5 border-orange-500/15" },
-  unmeasurable:  { text: "Unmeasurable",           ringColor: "stroke-red-400",     textColor: "text-red-400",     bgColor: "bg-red-500/5 border-red-500/15" },
+  realistic:     { text: "Realistic prediction",  ringColor: "stroke-accent-success",   textColor: "text-accent-success",   bgColor: "bg-accent-success/5 border-accent-success/15" },
+  optimistic:    { text: "Over-optimistic",        ringColor: "stroke-accent-warning",   textColor: "text-accent-warning",   bgColor: "bg-accent-warning/5 border-accent-warning/15" },
+  vague:         { text: "Vague metric",           ringColor: "stroke-accent-warning",  textColor: "text-accent-warning",  bgColor: "bg-accent-warning/5 border-accent-warning/15" },
+  unmeasurable:  { text: "Unmeasurable",           ringColor: "stroke-accent-danger",     textColor: "text-accent-danger",     bgColor: "bg-accent-danger/5 border-accent-danger/15" },
 };
 
 function ScoreRing({ score, label }: { score: number; label: string }) {
@@ -86,12 +88,12 @@ export function PredictionConfidencePanel({ requestId, existingConfidence }: Pro
 
   return (
     <div className="border rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader className="px-4">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Prediction Confidence
         </span>
         <span className="text-[10px] text-muted-foreground/60 font-mono">{confidence.aiModel}</span>
-      </div>
+      </PanelHeader>
 
       <div className="p-4 space-y-4">
         {/* Score ring + label */}
@@ -108,11 +110,11 @@ export function PredictionConfidencePanel({ requestId, existingConfidence }: Pro
         {/* Red flags */}
         {confidence.redFlags.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Issues</div>
+            <SectionLabel className="mb-2">Issues</SectionLabel>
             <ul className="space-y-1.5">
               {confidence.redFlags.map((flag, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                  <span className="text-red-400 shrink-0">!</span>
+                  <span className="text-accent-danger shrink-0">!</span>
                   {flag}
                 </li>
               ))}

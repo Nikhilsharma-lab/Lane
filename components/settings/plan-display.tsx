@@ -49,7 +49,7 @@ export function PlanDisplay({ plan, seatCount }: Props) {
       <Card>
         <CardContent>
           <div className="flex items-center gap-3 mb-1">
-            <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-accent-success shrink-0" />
             <span className="text-lg font-semibold text-foreground">{PLAN_LABELS[plan]}</span>
             <span className="text-sm text-muted-foreground">{PLAN_PRICE[plan]}</span>
           </div>
@@ -74,10 +74,10 @@ export function PlanDisplay({ plan, seatCount }: Props) {
               <div
                 className={`h-2 rounded-full transition-all ${
                   seatCount / PLAN_LIMITS[plan] >= 1
-                    ? "bg-red-500"
+                    ? "bg-accent-danger"
                     : seatCount / PLAN_LIMITS[plan] >= 0.8
-                    ? "bg-amber-400"
-                    : "bg-green-400"
+                    ? "bg-accent-warning"
+                    : "bg-accent-success"
                 }`}
                 /* progress bar width is intentionally inline since it's a dynamic computed value */
                 style={{ width: `${Math.min(100, (seatCount / PLAN_LIMITS[plan]) * 100)}%` }}
@@ -105,7 +105,7 @@ export function PlanDisplay({ plan, seatCount }: Props) {
                 <div key={f.label} className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0">
                   <span className={`text-sm ${included ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{f.label}</span>
                   {included
-                    ? <span className="text-green-400 text-sm">&#10003;</span>
+                    ? <span className="text-accent-success text-sm">&#10003;</span>
                     : <span className="text-muted-foreground/60 text-sm">&#8212;</span>}
                 </div>
               );
@@ -214,7 +214,7 @@ export function PlanDisplay({ plan, seatCount }: Props) {
               </DialogHeader>
               {modal.targetPlan === "free" && (
                 <Alert>
-                  <AlertDescription className="text-amber-400">
+                  <AlertDescription className="text-accent-warning">
                     You&apos;ll lose access to Figma sync, AI weekly digest, and email notifications.
                     {seatCount > PLAN_LIMITS.free && " You also have more than 3 members — remove members to fit the Free plan limit first."}
                   </AlertDescription>

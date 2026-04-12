@@ -60,7 +60,7 @@ export function WorkspaceForm({ org, isAdmin }: Props) {
       <div className="space-y-1.5">
         <Label htmlFor="orgSlug">Slug</Label>
         <Input id="orgSlug" name="slug" type="text" required defaultValue={org.slug} pattern="[a-z0-9-]+" className="font-mono" />
-        <p className="text-xs text-yellow-600/80">Changing the slug will break any existing shared links.</p>
+        <p className="text-xs text-accent-warning/80">Changing the slug will break any existing shared links.</p>
       </div>
       <div className="space-y-1.5">
         <Label>Plan</Label>
@@ -78,7 +78,7 @@ export function WorkspaceForm({ org, isAdmin }: Props) {
       )}
       {success && (
         <Alert>
-          <AlertDescription className="text-green-400">Saved.</AlertDescription>
+          <AlertDescription className="text-accent-success">Saved.</AlertDescription>
         </Alert>
       )}
       <Button type="submit" disabled={isPending}>

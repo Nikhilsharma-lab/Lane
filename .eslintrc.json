@@ -1,3 +1,32 @@
 {
-  "extends": ["next/core-web-vitals"]
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXOpeningElement[name.name='button']",
+        "message": "Use <Button> from @/components/ui/button instead of raw <button>. Exception: color swatches with dynamic style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='input']",
+        "message": "Use <Input> from @/components/ui/input instead of raw <input>."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='textarea']",
+        "message": "Use <Textarea> from @/components/ui/textarea instead of raw <textarea>."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='select']",
+        "message": "Use <NativeSelect> from @/components/ui/native-select instead of raw <select>."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["components/ui/**/*.tsx"],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
 }

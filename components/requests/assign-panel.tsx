@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 interface Member {
   id: string;
@@ -140,12 +141,14 @@ export function AssignPanel({ requestId }: Props) {
                   <span className={`text-[10px] px-1.5 py-0.5 rounded border ${roleColors[assignment?.role ?? "lead"]}`}>
                     {assignment?.role ?? "lead"}
                   </span>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => unassign(m.id)}
-                    className="text-muted-foreground/60 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-all"
+                    className="text-muted-foreground/60 hover:text-accent-danger opacity-0 group-hover:opacity-100"
                   >
                     ✕
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
@@ -157,12 +160,14 @@ export function AssignPanel({ requestId }: Props) {
 
       {/* Assign button / picker */}
       {!showPicker ? (
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setShowPicker(true)}
-          className="text-xs text-muted-foreground hover:text-foreground border border hover:border-border/80 rounded-lg px-3 py-1.5 transition-colors w-full"
+          className="w-full"
         >
           + Assign someone
-        </button>
+        </Button>
       ) : (
         <div className="border rounded-xl overflow-hidden">
           {/* AI recommendation */}
@@ -188,15 +193,17 @@ export function AssignPanel({ requestId }: Props) {
           {/* Role picker */}
           <div className="flex border-b">
             {assignmentRoles.map((r) => (
-              <button
+              <Button
                 key={r}
+                variant="ghost"
+                size="xs"
                 onClick={() => setSelectedRole(r)}
-                className={`flex-1 text-[10px] py-2 capitalize transition-colors ${
+                className={`flex-1 rounded-none capitalize ${
                   selectedRole === r ? "bg-accent text-foreground" : "text-muted-foreground/60 hover:text-muted-foreground"
                 }`}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -209,10 +216,11 @@ export function AssignPanel({ requestId }: Props) {
                 const load_ = workloads[m.id] ?? 0;
                 const isRecommended = recommendation?.recommendedId === m.id;
                 return (
-                  <button
+                  <Button
                     key={m.id}
+                    variant="ghost"
                     onClick={() => assign(m.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent transition-colors text-left ${
+                    className={`w-full h-auto flex items-center gap-2.5 px-3 py-2.5 justify-start text-left ${
                       isRecommended ? "bg-primary/10" : ""
                     }`}
                   >
@@ -229,19 +237,21 @@ export function AssignPanel({ requestId }: Props) {
                     <div className="shrink-0 text-right">
                       <p className="text-[10px] text-muted-foreground/60">{load_} active</p>
                     </div>
-                  </button>
+                  </Button>
                 );
               })
             )}
           </div>
 
           <div className="border-t px-3 py-2">
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => setShowPicker(false)}
-              className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+              className="text-muted-foreground/60 hover:text-muted-foreground"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

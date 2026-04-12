@@ -22,7 +22,7 @@ import { BoardView } from "@/components/requests/board-view";
 import { GroupByDropdown, type GroupByOption } from "@/components/requests/group-by-dropdown";
 import { ViewModeToggle, type ViewMode } from "@/components/requests/view-mode-toggle";
 import { SaveViewButton } from "@/components/requests/save-view-button";
-import { FilterChips, type FilterChip } from "@/components/ui/filter-chips";
+import { FilterChips, type FilterChip } from "@/components/shared/filter-chips";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NewRequestForm } from "@/components/requests/new-request-form";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
@@ -730,9 +730,10 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
   const stageLabel = getActiveStageLabel(r);
 
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
-      className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-2.5 w-full text-left bg-transparent cursor-pointer transition-colors items-center border-b hover:bg-muted"
+      className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-2.5 w-full text-left h-auto rounded-none cursor-pointer items-center border-b hover:bg-muted"
     >
       {/* ID */}
       <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground/60">
@@ -765,6 +766,6 @@ function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRo
       <div>
         <PriorityBadge priority={r.priority} />
       </div>
-    </button>
+    </Button>
   );
 }

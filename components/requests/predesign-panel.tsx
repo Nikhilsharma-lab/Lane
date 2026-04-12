@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { PanelHeader } from "@/components/ui/panel-header";
 import { PredictionConfidencePanel } from "@/components/requests/prediction-confidence-panel";
 import { getStageLabel } from "@/lib/workflow";
 
@@ -106,12 +109,12 @@ export function PredesignPanel({
   return (
     <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 1 — Predesign
         </span>
         <span className="text-xs text-muted-foreground/60">PM + Org decides what to build</span>
-      </div>
+      </PanelHeader>
 
       {/* Stage stepper */}
       <div className="px-5 py-4 border-b">
@@ -125,7 +128,7 @@ export function PredesignPanel({
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono border transition-colors ${
                       isDone
-                        ? "bg-green-500/15 border-green-500/30 text-green-400"
+                        ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                         : isCurrent
                         ? "bg-[var(--accent-active)]/10 border-[var(--accent-active)]/20 text-[var(--accent-active)]"
                         : "bg-accent border text-muted-foreground/60"
@@ -138,7 +141,7 @@ export function PredesignPanel({
                       isCurrent
                         ? "text-[var(--accent-active)]"
                         : isDone
-                        ? "text-green-500/80"
+                        ? "text-accent-success/80"
                         : "text-muted-foreground/60"
                     }`}
                   >
@@ -148,7 +151,7 @@ export function PredesignPanel({
                 {i < STAGES.length - 1 && (
                   <div
                     className={`h-px w-full mb-5 mx-0.5 ${
-                      i < optimisticIdx ? "bg-green-500/20" : "bg-accent"
+                      i < optimisticIdx ? "bg-accent-success/20" : "bg-accent"
                     }`}
                   />
                 )}
@@ -180,43 +183,42 @@ export function PredesignPanel({
         {/* Gate status */}
         <div>
           {missing.length > 0 ? (
-            <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
+            <div className="bg-accent-warning/5 border border-accent-warning/15 rounded-lg px-3 py-2.5 space-y-1">
               <p className="text-[11px] text-muted-foreground">
                 {isFinal ? "To approve the bet:" : `To advance to ${nextStage ? getStageLabel(nextStage.key) : ""}:`}
               </p>
               {missing.map((m, i) => (
-                <p key={i} className="text-[11px] text-amber-400/80 flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-amber-400/60 shrink-0" />
+                <p key={i} className="text-[11px] text-accent-warning/80 flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-accent-warning/60 shrink-0" />
                   {m}
                 </p>
               ))}
             </div>
           ) : (
-            <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
-              <span className="text-green-400 text-xs">✓</span>
-              <p className="text-[11px] text-green-400/80">
+            <Callout variant="success" className="flex items-center gap-2">
+              <span className="text-xs">✓</span>
+              <p className="text-[11px]">
                 {isFinal ? "Ready to approve — this starts the Design Phase" : `Ready to advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
               </p>
-            </div>
+            </Callout>
           )}
         </div>
 
         {/* Advance button — always shown, label changes at final betting stage */}
-        <button
+        <Button
+          variant="default"
+          size="sm"
           onClick={handleAdvance}
           disabled={!canAdvance}
-          className="text-xs bg-accent hover:bg-border text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isFinal ? "Approve Bet — Start Design Phase" : `Advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
           <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">
             ⌘↵
           </kbd>
-        </button>
+        </Button>
 
         {error && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-            {error}
-          </p>
+          <Callout variant="error">{error}</Callout>
         )}
       </div>
     </div>

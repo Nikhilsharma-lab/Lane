@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getStageLabel } from "@/lib/workflow";
+import { Button } from "@/components/ui/button";
 
 const STAGES = [
   "intake", "context", "shape", "bet",
@@ -84,7 +85,7 @@ export function StageControls({
               className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
                 isCurrent
                   ? isBlocked
-                    ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                    ? "bg-accent-danger/20 text-accent-danger border border-accent-danger/30"
                     : "bg-[var(--accent-active)]/10 text-[var(--accent-active)] border border-[var(--accent-active)]/20"
                   : isCompleted
                   ? "text-muted-foreground/60 line-through"
@@ -99,13 +100,14 @@ export function StageControls({
 
       {/* Advance button */}
       {nextStage && !isBlocked && (
-        <button
+        <Button
+          variant="outline"
           onClick={handleAdvance}
           disabled={isPending}
-          className="w-full text-left text-xs text-muted-foreground hover:text-foreground border hover:border-border/80 rounded-lg px-3 py-2 transition-colors disabled:opacity-40"
+          className="w-full justify-start text-xs text-muted-foreground hover:text-foreground"
         >
           {isPending ? "Moving..." : `→ Move to ${getStageLabel(nextStage)}`}
-        </button>
+        </Button>
       )}
 
       {isLast && !isBlocked && (
@@ -113,30 +115,32 @@ export function StageControls({
       )}
 
       {/* Blocked toggle */}
-      <button
+      <Button
+        variant="outline"
         onClick={handleToggleBlocked}
         disabled={isPending}
-        className={`w-full text-left text-xs border rounded-lg px-3 py-2 transition-colors disabled:opacity-40 ${
+        className={`w-full justify-start text-xs ${
           isBlocked
-            ? "text-red-400 border-red-500/30 hover:border-red-400/50 bg-red-500/10"
-            : "text-muted-foreground/60 border hover:border-border/80 hover:text-muted-foreground"
+            ? "text-accent-danger border-accent-danger/30 hover:border-accent-danger/50 bg-accent-danger/10"
+            : "text-muted-foreground/60 hover:text-muted-foreground"
         }`}
       >
         {isPending ? "Updating..." : isBlocked ? "⊘ Unblock" : "⊘ Mark as blocked"}
-      </button>
+      </Button>
 
       {/* Stall nudge */}
       {isStalled && !isBlocked && (
-        <button
+        <Button
+          variant="outline"
           onClick={handleNudge}
           disabled={isPending || nudged}
-          className="w-full text-left text-xs border border-yellow-500/20 bg-yellow-500/5 text-yellow-500/70 hover:text-yellow-400 hover:border-yellow-500/40 rounded-lg px-3 py-2 transition-colors disabled:opacity-40"
+          className="w-full justify-start text-xs border-accent-warning/20 bg-accent-warning/5 text-accent-warning/70 hover:text-accent-warning hover:border-accent-warning/40"
         >
           {nudged ? "✓ Nudge sent" : isPending ? "Sending…" : "🔔 Send nudge"}
-        </button>
+        </Button>
       )}
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-accent-danger">{error}</p>}
     </div>
   );
 }

@@ -53,7 +53,7 @@ export function PendingInvites({ invites, isAdmin }: Props) {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-yellow-500/70 border-yellow-500/30">Pending</Badge>
+                    <Badge variant="outline" className="text-accent-warning/70 border-accent-warning/30">Pending</Badge>
                     {isAdmin && (
                       <Button
                         variant="ghost"

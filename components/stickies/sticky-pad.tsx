@@ -7,14 +7,8 @@ import { useRequests } from "@/context/requests-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const COLORS = [
-  { key: "cream", hex: "#F8F6F1" },
-  { key: "green", hex: "#2E5339" },
-  { key: "rose", hex: "#C27B9E" },
-  { key: "sky", hex: "#7DA5C4" },
-  { key: "amber", hex: "#D4A84B" },
-];
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { STICKY_COLORS } from "@/lib/theme-colors";
 
 export function StickyPad() {
   const [isOpen, setIsOpen] = useState(false);
@@ -129,7 +123,7 @@ export function StickyPad() {
               <span className="mr-0.5 text-[11px] text-muted-foreground/60">
                 Color
               </span>
-              {COLORS.map((c) => (
+              {STICKY_COLORS.map((c) => (
                 <button
                   key={c.key}
                   type="button"
@@ -150,24 +144,25 @@ export function StickyPad() {
             {/* Link to request */}
             <div className="flex items-center gap-1.5">
               <Link2 size={12} className="shrink-0 text-muted-foreground/60" />
-              <select
+              <NativeSelect
                 value={linkedRequestId ?? ""}
                 onChange={(e) => setLinkedRequestId(e.target.value || null)}
-                className={`flex-1 rounded-md border border-input bg-input/20 px-2 py-1 text-xs font-inherit outline-none ${
+                size="sm"
+                className={`flex-1 ${
                   linkedRequestId
                     ? "text-foreground"
                     : "text-muted-foreground/60"
                 }`}
               >
-                <option value="">Link to request (optional)</option>
+                <NativeSelectOption value="">Link to request (optional)</NativeSelectOption>
                 {requests.map((r) => (
-                  <option key={r.id} value={r.id}>
+                  <NativeSelectOption key={r.id} value={r.id}>
                     {r.title.length > 35
                       ? r.title.slice(0, 35) + "…"
                       : r.title}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             {/* Actions */}

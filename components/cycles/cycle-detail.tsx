@@ -2,25 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppetiteBar } from "@/components/ui/appetite-bar";
+import { AppetiteBar } from "@/components/shared/appetite-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { updateCycleStatus, addRequestToCycle, removeRequestFromCycle } from "@/app/actions/cycles";
+import { PHASE_BADGE } from "@/lib/theme-colors";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-accent text-muted-foreground border",
-  active: "bg-green-500/10 text-green-600 border-green-500/20",
+  active: "bg-accent-success/10 text-accent-success border-accent-success/20",
   completed: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
-};
-
-const phaseColors: Record<string, string> = {
-  predesign: "bg-[var(--phase-predesign)]/10 text-[var(--phase-predesign)] border-[var(--phase-predesign)]/20",
-  design: "bg-[var(--phase-design)]/10 text-[var(--phase-design)] border-[var(--phase-design)]/20",
-  dev: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  track: "bg-[var(--phase-track)]/10 text-[var(--phase-track)] border-[var(--phase-track)]/20",
+  cancelled: "bg-accent-danger/10 text-accent-danger border-accent-danger/20",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -146,7 +140,7 @@ export function CycleDetail({
               size="sm"
               onClick={() => handleStatusChange("active")}
               disabled={isUpdating}
-              className="border-green-500/30 text-green-600 bg-green-500/5 hover:bg-green-500/10"
+              className="border-accent-success/30 text-accent-success bg-accent-success/5 hover:bg-accent-success/10"
             >
               Activate
             </Button>
@@ -288,7 +282,7 @@ export function CycleDetail({
                 <div className="flex items-center gap-2 shrink-0">
                   {r.phase && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${phaseColors[r.phase] ?? ""}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${PHASE_BADGE[r.phase] ?? ""}`}
                     >
                       {r.phase}
                     </span>

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FigmaConnectPrompt } from "./figma-connect-prompt";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface FigmaUpdate {
   id: string;
@@ -104,11 +106,11 @@ export function FigmaHistory({ requestId, phase, isConnected, figmaUrl }: Props)
 
       {/* Post-handoff alert */}
       {unreviewedPostHandoff.length > 0 && (
-        <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-3">
-          <p className="text-xs text-amber-400 font-medium mb-0.5">
+        <div className="mb-3 bg-accent-warning/5 border border-accent-warning/20 rounded-lg px-4 py-3">
+          <p className="text-xs text-accent-warning font-medium mb-0.5">
             ⚠️ {unreviewedPostHandoff.length} post-handoff design change{unreviewedPostHandoff.length > 1 ? "s" : ""} need dev review
           </p>
-          <p className="text-[11px] text-amber-400/60">
+          <p className="text-[11px] text-accent-warning/60">
             The design was updated after handoff — confirm you&apos;ve reviewed before continuing
           </p>
         </div>
@@ -120,7 +122,7 @@ export function FigmaHistory({ requestId, phase, isConnected, figmaUrl }: Props)
             key={u.id}
             className={`border rounded-lg overflow-hidden ${
               u.postHandoff && !u.devReviewed
-                ? "border-amber-500/25 bg-amber-500/3"
+                ? "border-accent-warning/25 bg-accent-warning/3"
                 : "border"
             }`}
           >
@@ -134,8 +136,8 @@ export function FigmaHistory({ requestId, phase, isConnected, figmaUrl }: Props)
                     {u.postHandoff && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${
                         u.devReviewed
-                          ? "text-green-400/70 bg-green-500/8 border-green-500/15"
-                          : "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                          ? "text-accent-success/70 bg-accent-success/8 border-accent-success/15"
+                          : "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
                       }`}>
                         {u.devReviewed ? "reviewed" : "post-handoff"}
                       </span>
@@ -160,25 +162,27 @@ export function FigmaHistory({ requestId, phase, isConnected, figmaUrl }: Props)
               {/* Dev review action — only for unreviewed post-handoff during dev phase */}
               {u.postHandoff && !u.devReviewed && phase === "dev" && (
                 <div className="mt-2.5 space-y-1.5">
-                  <input
+                  <Input
                     type="text"
                     value={reviewNotes[u.id] ?? ""}
                     onChange={(e) =>
                       setReviewNotes((prev) => ({ ...prev, [u.id]: e.target.value }))
                     }
                     placeholder="Review notes (optional)..."
-                    className="w-full bg-muted border border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                    inputSize="sm"
                   />
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => markReviewed(u.id)}
                     disabled={reviewing === u.id}
-                    className="text-[11px] bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="bg-accent-warning/10 hover:bg-accent-warning/20 border-accent-warning/20 text-accent-warning flex items-center gap-1.5"
                   >
                     {reviewing === u.id && (
-                      <span className="w-2.5 h-2.5 border border-amber-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="w-2.5 h-2.5 border border-accent-warning border-t-transparent rounded-full animate-spin" />
                     )}
                     Mark reviewed
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

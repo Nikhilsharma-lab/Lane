@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const ROLES = [
   { value: "designer", label: "Designer" },
@@ -60,16 +61,15 @@ export function InviteForm() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="invite-role">Role</Label>
-          <select
+          <NativeSelect
             id="invite-role"
             name="role"
             defaultValue="designer"
-            className="h-7 min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 dark:bg-input/30"
           >
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <Button type="submit" disabled={isPending} className="shrink-0">
           {isPending ? "Generating..." : "Generate invite link"}

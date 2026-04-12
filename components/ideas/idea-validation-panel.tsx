@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { SectionLabel } from "@/components/ui/section-label";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 
 interface AiScores {
@@ -41,7 +42,7 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
       </div>
       <div className="w-full h-1.5 bg-accent rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${value >= 7 ? "bg-green-500" : value >= 4 ? "bg-yellow-500" : "bg-red-500"}`}
+          className={`h-full rounded-full transition-all ${value >= 7 ? "bg-accent-success" : value >= 4 ? "bg-accent-warning" : "bg-accent-danger"}`}
           style={{ width: `${value * 10}%` }}
         />
       </div>
@@ -140,15 +141,15 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
               <Card size="sm">
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">AI Analysis</CardTitle>
+                    <SectionLabel className="mb-0">AI Analysis</SectionLabel>
                     <span className="text-[10px] text-muted-foreground/60 font-mono">claude-3-5-haiku</span>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <ScoreBar label="Impact" value={aiScores.impactScore} color={aiScores.impactScore >= 7 ? "text-green-400" : aiScores.impactScore >= 4 ? "text-yellow-400" : "text-red-400"} />
-                  <ScoreBar label="Effort" value={aiScores.effortEstimate} color={aiScores.effortEstimate <= 4 ? "text-green-400" : aiScores.effortEstimate <= 7 ? "text-yellow-400" : "text-red-400"} />
-                  <ScoreBar label="Feasibility" value={aiScores.feasibilityScore} color={aiScores.feasibilityScore >= 7 ? "text-green-400" : aiScores.feasibilityScore >= 4 ? "text-yellow-400" : "text-red-400"} />
-                  <ScoreBar label="ROI" value={aiScores.roiScore} color={aiScores.roiScore >= 7 ? "text-green-400" : aiScores.roiScore >= 4 ? "text-yellow-400" : "text-red-400"} />
+                  <ScoreBar label="Impact" value={aiScores.impactScore} color={aiScores.impactScore >= 7 ? "text-accent-success" : aiScores.impactScore >= 4 ? "text-accent-warning" : "text-accent-danger"} />
+                  <ScoreBar label="Effort" value={aiScores.effortEstimate} color={aiScores.effortEstimate <= 4 ? "text-accent-success" : aiScores.effortEstimate <= 7 ? "text-accent-warning" : "text-accent-danger"} />
+                  <ScoreBar label="Feasibility" value={aiScores.feasibilityScore} color={aiScores.feasibilityScore >= 7 ? "text-accent-success" : aiScores.feasibilityScore >= 4 ? "text-accent-warning" : "text-accent-danger"} />
+                  <ScoreBar label="ROI" value={aiScores.roiScore} color={aiScores.roiScore >= 7 ? "text-accent-success" : aiScores.roiScore >= 4 ? "text-accent-warning" : "text-accent-danger"} />
                   <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">{aiScores.reasoning}</p>
                 </CardContent>
               </Card>
@@ -211,10 +212,10 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
                         className={
                           decision === d
                             ? d === "approved"
-                              ? "bg-green-500/15 border-green-500/30 text-green-400"
+                              ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                               : d === "approved_with_conditions"
-                              ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                              : "bg-red-500/15 border-red-500/30 text-red-400"
+                              ? "bg-accent-warning/15 border-accent-warning/30 text-accent-warning"
+                              : "bg-accent-danger/15 border-accent-danger/30 text-accent-danger"
                             : ""
                         }
                       >
@@ -227,7 +228,7 @@ export function IdeaValidationPanel({ ideaId, ideaTitle, onClose }: IdeaValidati
 
               {decision === "approved" && (
                 <Alert>
-                  <AlertDescription className="text-green-400/80">
+                  <AlertDescription className="text-accent-success/80">
                     Approving will auto-create a request in PREDESIGN phase and link it to this idea.
                   </AlertDescription>
                 </Alert>

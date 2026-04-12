@@ -2,6 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { RequestHandoffBrief } from "@/db/schema";
 
 type Props = {
@@ -47,17 +49,17 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
 
   return (
     <section className="border rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           AI Handoff Brief
         </span>
         <span className="text-[10px] text-muted-foreground/60 font-mono">{brief.aiModel}</span>
-      </div>
+      </PanelHeader>
 
       <div className="p-5 space-y-5">
         {brief.designDecisions.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Design decisions</div>
+            <SectionLabel className="mb-2">Design decisions</SectionLabel>
             <div className="space-y-2.5">
               {brief.designDecisions.map((d, i) => (
                 <div key={i} className="border rounded-lg px-3 py-2.5">
@@ -71,11 +73,11 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
 
         {brief.openQuestions.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Open questions — flag these back</div>
+            <SectionLabel className="mb-2">Open questions — flag these back</SectionLabel>
             <ul className="space-y-1.5">
               {brief.openQuestions.map((q, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                  <span className="text-amber-400 shrink-0">?</span>
+                  <span className="text-accent-warning shrink-0">?</span>
                   {q}
                 </li>
               ))}
@@ -85,7 +87,7 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
 
         {brief.buildSequence.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Build sequence</div>
+            <SectionLabel className="mb-2">Build sequence</SectionLabel>
             <ol className="space-y-1.5">
               {brief.buildSequence.map((step, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">
@@ -99,14 +101,14 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
 
         {brief.figmaNotes && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">Figma notes</div>
+            <SectionLabel>Figma notes</SectionLabel>
             <p className="text-xs text-muted-foreground leading-relaxed">{brief.figmaNotes}</p>
           </div>
         )}
 
         {brief.edgeCases.length > 0 && (
           <div>
-            <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-2">Edge cases to handle</div>
+            <SectionLabel className="mb-2">Edge cases to handle</SectionLabel>
             <ul className="space-y-1.5">
               {brief.edgeCases.map((e, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex gap-2">

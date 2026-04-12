@@ -3,9 +3,13 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/ui/badge";
+import { SectionLabel } from "@/components/ui/section-label";
 
 interface Props {
   onClose: () => void;
@@ -120,12 +124,14 @@ export function NewRequestForm({ onClose, projects }: Props) {
             <h2 className="text-sm font-semibold text-foreground">New request</h2>
             <p className="text-xs text-muted-foreground mt-0.5">AI will triage after you submit</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-xl leading-none transition-colors"
+            className="text-muted-foreground hover:text-foreground text-xl leading-none"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {/* Form */}
@@ -140,7 +146,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
             <div className="space-y-4">
               <div>
                 <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                  Title <span className="text-red-400">*</span>
+                  Title <span className="text-accent-danger">*</span>
                 </Label>
                 <Input
                   name="title"
@@ -154,29 +160,30 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
               <div>
                 <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                  Project <span className="text-red-400">*</span>
+                  Project <span className="text-accent-danger">*</span>
                 </Label>
-                <select
+                <NativeSelect
                   name="projectId"
                   required
-                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-ring transition-colors"
+                  className="w-full rounded-lg px-3 py-2.5 text-sm"
                 >
                   <option value="">Select a project…</option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
-                </select>
+                </NativeSelect>
               </div>
 
               <div>
                 <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                  Description <span className="text-red-400">*</span>
+                  Description <span className="text-accent-danger">*</span>
                 </Label>
-                <textarea
+                <Textarea
                   name="description"
                   required
                   rows={3}
-                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
+                  size="lg"
+                  className="w-full"
                   placeholder="What needs to be designed? What problem does this solve?"
                 />
               </div>
@@ -185,10 +192,11 @@ export function NewRequestForm({ onClose, projects }: Props) {
                 <Label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Business context
                 </Label>
-                <textarea
+                <Textarea
                   name="businessContext"
                   rows={2}
-                  className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
+                  size="default"
+                  className="w-full"
                   placeholder="Why does this matter? What's the business impact?"
                 />
               </div>
@@ -262,7 +270,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
           {/* Intake gate — blocks solution-specific requests */}
           {showIntakeGate && preflight && (preflight.classification === "solution_specific" || preflight.classification === "hybrid") && (
-            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+            <div className="mt-4 rounded-xl border border-accent-warning/30 bg-accent-warning/5 p-5 space-y-3">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">
                   This looks like a solution, not a problem
@@ -274,10 +282,10 @@ export function NewRequestForm({ onClose, projects }: Props) {
 
               {preflight.reframedProblem && (
                 <div className="space-y-2">
-                  <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-green-500/80 mb-0.5">Problem detected</p>
+                  <Callout variant="success">
+                    <SectionLabel className="font-semibold mb-0.5">Problem detected</SectionLabel>
                     <p className="text-xs text-foreground">{preflight.reframedProblem}</p>
-                  </div>
+                  </Callout>
                 </div>
               )}
 
@@ -286,11 +294,12 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   <Label className="block text-xs font-medium text-muted-foreground">
                     Why are you submitting this as-is?
                   </Label>
-                  <textarea
+                  <Textarea
                     value={intakeJustification}
                     onChange={(e) => setIntakeJustification(e.target.value)}
                     rows={2}
-                    className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors resize-none"
+                    size="default"
+                    className="w-full"
                     placeholder="Explain why this solution-specific request should proceed..."
                   />
                   <Button
@@ -351,7 +360,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
           {(preflight || preflightError) && (
             <div className="mt-4 rounded-xl border border-border p-4 space-y-3 bg-muted">
               {preflightError ? (
-                <p className="text-xs text-red-400">{preflightError}</p>
+                <p className="text-xs text-accent-danger">{preflightError}</p>
               ) : preflight && (
                 <>
                   {/* Score */}
@@ -381,11 +390,11 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   {/* Flags */}
                   {preflight.qualityFlags.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 mb-1">Issues</p>
+                      <SectionLabel className="font-semibold mb-1">Issues</SectionLabel>
                       <ul className="space-y-0.5">
                         {preflight.qualityFlags.map((flag, i) => (
                           <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                            <span className="text-red-400 mt-0.5">·</span>
+                            <span className="text-accent-danger mt-0.5">·</span>
                             {flag}
                           </li>
                         ))}
@@ -396,7 +405,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   {/* Suggestions */}
                   {preflight.suggestions.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 mb-1">Suggestions</p>
+                      <SectionLabel className="font-semibold mb-1">Suggestions</SectionLabel>
                       <ol className="space-y-0.5 list-none">
                         {preflight.suggestions.map((s, i) => (
                           <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -411,7 +420,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   {/* Duplicates */}
                   {preflight.potentialDuplicates.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 mb-1">Possible duplicates</p>
+                      <SectionLabel className="font-semibold mb-1">Possible duplicates</SectionLabel>
                       <ul className="space-y-1">
                         {preflight.potentialDuplicates.map((d) => (
                           <li key={d.id} className="text-xs text-muted-foreground">
@@ -428,9 +437,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
           )}
 
           {error && (
-            <p className="mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <Callout variant="error" className="mt-3">{error}</Callout>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-3">

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { PmCoachingNote, RecentPrediction } from "@/lib/digest";
 
 // Re-export types the parent may use
@@ -34,12 +36,12 @@ const LABEL_CONFIG: Record<
   },
   over_optimistic: {
     text: "Over-optimistic",
-    style: "text-red-600 bg-red-500/10 border-red-500/20",
+    style: "text-accent-danger bg-accent-danger/10 border-accent-danger/20",
     desc: "Consistently predicts more than delivered",
   },
   under_optimistic: {
     text: "Under-optimistic",
-    style: "text-amber-600 bg-amber-500/10 border-amber-500/20",
+    style: "text-accent-warning bg-accent-warning/10 border-accent-warning/20",
     desc: "Consistently delivers more than predicted",
   },
 };
@@ -47,7 +49,7 @@ const LABEL_CONFIG: Record<
 const TREND_ICONS = { improving: "↑", worsening: "↓", stable: "→" };
 const TREND_COLORS = {
   improving: "text-[var(--accent-success)]",
-  worsening: "text-red-600",
+  worsening: "text-accent-danger",
   stable: "text-muted-foreground",
 };
 
@@ -57,8 +59,8 @@ function VariancePill({ v }: { v: number }) {
     abs <= 10
       ? "text-[var(--accent-success)] bg-[var(--accent-success)]/10 border-[var(--accent-success)]/20"
       : abs <= 25
-      ? "text-amber-600 bg-amber-500/10 border-amber-500/20"
-      : "text-red-600 bg-red-500/10 border-red-500/20";
+      ? "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
+      : "text-accent-danger bg-accent-danger/10 border-accent-danger/20";
   return (
     <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${color}`}>
       {v > 0 ? "+" : ""}
@@ -140,9 +142,10 @@ export function PmCalibration({ coaching }: Props) {
 
         return (
           <div key={c.pmId} className="border rounded-xl overflow-hidden">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setExpanded(isExpanded ? null : c.pmId)}
-              className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-muted transition-colors"
+              className="w-full px-5 py-4 h-auto flex items-center gap-4 text-left rounded-none"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -165,16 +168,16 @@ export function PmCalibration({ coaching }: Props) {
               <span className="text-muted-foreground/60 text-xs shrink-0">
                 {isExpanded ? "▲" : "▼"}
               </span>
-            </button>
+            </Button>
 
             {isExpanded && (
               <div className="border-t">
                 {/* AI coaching note */}
                 {c.note && (
                   <div className="px-5 py-3 bg-muted">
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wide mb-1.5">
+                    <SectionLabel>
                       Coaching
-                    </p>
+                    </SectionLabel>
                     <p className="text-xs text-muted-foreground leading-relaxed italic">
                       &ldquo;{c.note}&rdquo;
                     </p>

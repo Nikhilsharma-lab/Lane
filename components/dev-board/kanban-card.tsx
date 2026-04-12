@@ -3,14 +3,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ProjectBadge } from "@/components/projects/project-badge";
+import { PRIORITY_BADGE } from "@/lib/theme-colors";
 import type { CardData } from "./types";
-
-const PRIORITY_COLORS: Record<string, string> = {
-  p0: "bg-red-500/15 text-red-400 border-red-500/20",
-  p1: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-  p2: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
-  p3: "bg-accent text-muted-foreground border",
-};
 
 interface Props {
   card: CardData;
@@ -60,7 +54,7 @@ export function KanbanCard({ card, isFocused, onClick, onFocus }: Props) {
         {card.priority && (
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
-              PRIORITY_COLORS[card.priority] ?? ""
+              PRIORITY_BADGE[card.priority] ?? ""
             }`}
           >
             {card.priority.toUpperCase()}

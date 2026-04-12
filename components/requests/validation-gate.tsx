@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Input } from "@/components/ui/input";
+import { DECISION_BADGE } from "@/lib/theme-colors";
 
 type SignerRole = "designer" | "pm" | "design_head";
 type Decision = "approved" | "approved_with_conditions" | "rejected";
@@ -35,9 +39,9 @@ function signerRoleFromProfile(role: string): SignerRole | null {
 }
 
 const decisionStyles: Record<Decision, string> = {
-  approved: "text-green-400 bg-green-500/10 border-green-500/20",
-  approved_with_conditions: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  rejected: "text-red-400 bg-red-500/10 border-red-500/20",
+  approved: DECISION_BADGE.approved,
+  approved_with_conditions: DECISION_BADGE.approved_with_conditions,
+  rejected: DECISION_BADGE.rejected,
 };
 
 const decisionLabels: Record<Decision, string> = {
@@ -137,15 +141,15 @@ export function ValidationGate({ requestId, myProfileRole, isTestUser = false }:
     <div className="space-y-3">
       {/* Status banner */}
       {allSigned && (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-lg px-3 py-2.5 flex items-center gap-2">
-          <span className="text-green-400 text-xs">✓</span>
-          <p className="text-[11px] text-green-400">All 3 sign-offs received — advancing to Handoff</p>
-        </div>
+        <Callout variant="success" className="py-2.5 flex items-center gap-2">
+          <span className="text-xs">✓</span>
+          <p className="text-[11px]">All 3 sign-offs received — advancing to Handoff</p>
+        </Callout>
       )}
       {anyRejected && !allSigned && (
-        <div className="bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2.5">
-          <p className="text-[11px] text-red-400">Validation rejected — design needs revision before re-submission</p>
-        </div>
+        <Callout variant="error" className="py-2.5">
+          <p className="text-[11px]">Validation rejected — design needs revision before re-submission</p>
+        </Callout>
       )}
 
       {loading ? (
@@ -176,7 +180,7 @@ export function ValidationGate({ requestId, myProfileRole, isTestUser = false }:
                       </div>
                       <p className="text-[11px] text-muted-foreground/60 mt-0.5">{role.desc}</p>
                       {signoff?.conditions && (
-                        <p className="text-[11px] text-amber-400/80 mt-1 italic">Conditions: {signoff.conditions}</p>
+                        <p className="text-[11px] text-accent-warning/80 mt-1 italic">Conditions: {signoff.conditions}</p>
                       )}
                     </div>
 
@@ -198,62 +202,66 @@ export function ValidationGate({ requestId, myProfileRole, isTestUser = false }:
                       {/* Decision buttons */}
                       <div className="flex gap-1.5 flex-wrap">
                         {(["approved", "approved_with_conditions", "rejected"] as Decision[]).map((d) => (
-                          <button
+                          <Button
                             key={d}
+                            variant="outline"
+                            size="xs"
                             onClick={() => {
                               setActiveRole(role.key);
                               setActiveDecision(activeDecision === d && isActiveRow ? null : d);
                             }}
-                            className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
+                            className={
                               activeDecision === d && isActiveRow
                                 ? d === "approved"
-                                  ? "bg-green-500/15 border-green-500/30 text-green-400"
+                                  ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                                   : d === "approved_with_conditions"
-                                  ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                                  : "bg-red-500/15 border-red-500/30 text-red-400"
-                                : "border text-muted-foreground hover:text-foreground hover:border-border/80"
-                            }`}
+                                  ? "bg-accent-warning/15 border-accent-warning/30 text-accent-warning"
+                                  : "bg-accent-danger/15 border-accent-danger/30 text-accent-danger"
+                                : ""
+                            }
                           >
                             {d === "approved" ? "Approve" : d === "approved_with_conditions" ? "Approve with conditions" : "Reject"}
-                          </button>
+                          </Button>
                         ))}
                       </div>
 
                       {/* Conditions input */}
                       {activeDecision === "approved_with_conditions" && isActiveRow && (
-                        <input
+                        <Input
                           type="text"
                           value={conditions}
                           onChange={(e) => setConditions(e.target.value)}
                           placeholder="Describe the conditions..."
-                          className="w-full bg-muted border border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                          inputSize="sm"
                         />
                       )}
 
                       {/* Rejection reason */}
                       {activeDecision === "rejected" && isActiveRow && (
-                        <input
+                        <Input
                           type="text"
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
                           placeholder="Reason for rejection..."
-                          className="w-full bg-muted border border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-border/80 transition-colors"
+                          inputSize="sm"
                         />
                       )}
 
                       {/* Submit */}
                       {activeDecision && isActiveRow && (
-                        <button
+                        <Button
+                          variant={activeDecision === "rejected" ? "destructive" : "default"}
+                          size="xs"
                           onClick={handleSubmit}
                           disabled={activeDecision === "approved_with_conditions" && !conditions.trim()}
-                          className={`text-[11px] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                          className={
                             activeDecision === "rejected"
-                              ? "bg-red-600 hover:bg-red-500 text-white"
-                              : "bg-primary hover:opacity-90 text-primary-foreground"
-                          }`}
+                              ? "bg-accent-danger hover:bg-accent-danger/80 text-white"
+                              : ""
+                          }
                         >
                           Confirm
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -270,7 +278,7 @@ export function ValidationGate({ requestId, myProfileRole, isTestUser = false }:
       )}
 
       {error && (
-        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+        <Callout variant="error">{error}</Callout>
       )}
     </div>
   );

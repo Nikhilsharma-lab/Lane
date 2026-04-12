@@ -8,6 +8,11 @@ import { createIteration, getIterationsForRequest } from "@/app/actions/iteratio
 import { Plus } from "lucide-react";
 import type { Iteration } from "@/db/schema";
 import { getStageLabel } from "@/lib/workflow";
+import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Input } from "@/components/ui/input";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { Textarea } from "@/components/ui/textarea";
 
 const STAGES = [
   { key: "sense",    desc: "Understand the problem deeply before proposing anything" },
@@ -120,12 +125,12 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   return (
     <div className="border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b bg-muted flex items-center justify-between">
+      <PanelHeader>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Phase 2 — Design
         </span>
         <span className="text-xs text-muted-foreground/60">Designer leads</span>
-      </div>
+      </PanelHeader>
 
       {/* Stage stepper */}
       <div className="px-5 py-4 border-b">
@@ -138,7 +143,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono border transition-colors ${
                     isDone
-                      ? "bg-green-500/15 border-green-500/30 text-green-400"
+                      ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                       : isCurrent
                       ? "bg-[var(--accent-active)]/10 border-[var(--accent-active)]/20 text-[var(--accent-active)]"
                       : "bg-accent border text-muted-foreground/60"
@@ -146,13 +151,13 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                     {isDone ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
-                    isCurrent ? "text-[var(--accent-active)]" : isDone ? "text-green-500/80" : "text-muted-foreground/60"
+                    isCurrent ? "text-[var(--accent-active)]" : isDone ? "text-accent-success/80" : "text-muted-foreground/60"
                   }`}>
                     {getStageLabel(s.key)}
                   </span>
                 </div>
                 {i < STAGES.length - 1 && (
-                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-green-500/20" : "bg-accent"}`} />
+                  <div className={`h-px w-full mb-5 mx-0.5 ${i < optimisticIdx ? "bg-accent-success/20" : "bg-accent"}`} />
                 )}
               </div>
             );
@@ -177,42 +182,43 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             {/* Gate status for explore + handoff */}
             <div>
               {missing.length > 0 ? (
-                <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 space-y-1">
+                <div className="bg-accent-warning/5 border border-accent-warning/15 rounded-lg px-3 py-2.5 space-y-1">
                   <p className="text-[11px] text-muted-foreground">
                     {isLastDesign ? "To hand off to dev:" : `To advance to ${nextStage ? getStageLabel(nextStage.key) : ""}:`}
                   </p>
                   {missing.map((m, i) => (
-                    <p key={i} className="text-[11px] text-amber-400/80 flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-amber-400/60 shrink-0" />
+                    <p key={i} className="text-[11px] text-accent-warning/80 flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-accent-warning/60 shrink-0" />
                       {m}
                     </p>
                   ))}
                 </div>
               ) : (
-                <div className="bg-green-500/5 border border-green-500/15 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <span className="text-green-400 text-xs">✓</span>
-                  <p className="text-[11px] text-green-400/80">
+                <Callout variant="success" className="flex items-center gap-2">
+                  <span className="text-xs">✓</span>
+                  <p className="text-[11px]">
                     {isLastDesign ? "Ready to hand off to dev" : `Ready to advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
                   </p>
-                </div>
+                </Callout>
               )}
             </div>
 
-            <button
+            <Button
+              variant="default"
+              size="sm"
               onClick={handleAdvance}
               disabled={!canAdvance}
-              className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isLastDesign ? "Hand off to Dev" : `Advance to ${nextStage ? getStageLabel(nextStage.key) : ""}`}
               <kbd className="hidden md:inline ml-2 text-[10px] border border-border/80 rounded px-1 py-0.5 font-mono opacity-60">
                 ⌘↵
               </kbd>
-            </button>
+            </Button>
           </>
         )}
 
         {error && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          <Callout variant="error">{error}</Callout>
         )}
       </div>
 
@@ -223,54 +229,58 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
             <p className="text-xs font-semibold text-foreground">
               Iterations{iterationsList.length > 0 ? ` (${iterationsList.length})` : ""}
             </p>
-            <button
+            <Button
+              variant="link"
+              size="sm"
               onClick={() => setShowAddForm((v) => !v)}
-              className="flex items-center gap-1 text-[11px] font-medium text-primary transition-colors bg-transparent border-none cursor-pointer p-0"
+              className="flex items-center gap-1 text-[11px] font-medium"
             >
               <Plus size={12} />
               Add Direction
-            </button>
+            </Button>
           </div>
 
           {/* Add form */}
           {showAddForm && (
             <form onSubmit={handleAddIteration} className="space-y-2 p-3 rounded-lg bg-muted border">
-              <input
+              <Input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Direction title"
-                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none"
+                className="text-xs"
               />
-              <textarea
+              <Textarea
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none resize-none"
+                className="text-xs resize-none"
               />
-              <input
+              <Input
                 type="url"
                 value={newFigmaUrl}
                 onChange={(e) => setNewFigmaUrl(e.target.value)}
                 placeholder="Figma URL (optional)"
-                className="w-full rounded-md px-2.5 py-1.5 text-xs bg-card border text-foreground outline-none"
+                className="text-xs"
               />
               <div className="flex gap-2 justify-end">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowAddForm(false)}
-                  className="text-[11px] px-2.5 py-1 rounded-md border text-muted-foreground bg-transparent cursor-pointer transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="default"
+                  size="sm"
                   disabled={addingIteration || !newTitle.trim()}
-                  className="text-[11px] px-2.5 py-1 rounded-md font-medium text-primary-foreground bg-primary border-none cursor-pointer transition-opacity disabled:opacity-40"
                 >
                   {addingIteration ? "Adding..." : "Add"}
-                </button>
+                </Button>
               </div>
             </form>
           )}

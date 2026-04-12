@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { AppetiteBar } from "@/components/ui/appetite-bar";
+import { AppetiteBar } from "@/components/shared/appetite-bar";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-accent text-muted-foreground border",
-  active: "bg-green-500/10 text-green-600 border-green-500/20",
+  active: "bg-accent-success/10 text-accent-success border-accent-success/20",
   completed: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
+  cancelled: "bg-accent-danger/10 text-accent-danger border-accent-danger/20",
 };
 
 interface CycleCardProps {

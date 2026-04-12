@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function RequestError({
   error,
@@ -22,12 +23,9 @@ export default function RequestError({
           <p className="text-muted-foreground/60 text-xs mb-6 font-mono">Digest: {error.digest}</p>
         )}
         <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={reset}
-            className="text-sm text-muted-foreground hover:text-foreground border hover:border-border/80 rounded-lg px-4 py-2 transition-colors"
-          >
+          <Button variant="outline" size="lg" onClick={reset}>
             Try again
-          </button>
+          </Button>
           <Link
             href="/dashboard"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
