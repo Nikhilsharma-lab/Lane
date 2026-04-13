@@ -594,8 +594,16 @@ The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate,"
 - **"Validation gate"** as a user-facing label is forbidden — replace with "Prove" wherever it appears as a string the user sees.
 
 **What is being renamed (phased):**
-- **Phase 1 (labels + docs):** User-visible strings in sidebar, page headings, comments, and CLAUDE.md. Status: in progress.
-- **Phase 2 (component rename):** `components/requests/validation-gate.tsx` → `prove-gate.tsx`, export `ValidationGate` → `ProveGate`, update all import sites, rename `app/(dashboard)/dashboard/teams/[slug]/validation/` → `/prove/`, update nav keys `team:${slug}:validation_gate` → `team:${slug}:prove`. Status: pending.
+- **Phase 1 (labels + docs):** User-visible strings in sidebar, page headings, comments, and CLAUDE.md. Status: **shipped April 13 evening.**
+- **Stage enum fix (P0 bug):** `DESIGN_STAGES` array and all `designStage` comparisons aligned to current DB enum. 11 files fixed. Status: **shipped April 13 evening.**
+
+**Phase 2 scope (pending, next session):**
+- Rename `components/requests/validation-gate.tsx` → `prove-gate.tsx`
+- Rename export `ValidationGate` → `ProveGate`
+- Update all import sites
+- Rename `app/(dashboard)/dashboard/teams/[slug]/validation/` directory → `/prove/`
+- Update nav keys `team:${slug}:validation_gate` → `team:${slug}:prove` in `lib/nav/active-item.ts` and `lib/nav/order.ts`
+- **Stale code identifiers from the stage enum fix** — several variables still use old stage vocabulary despite the underlying logic being correct. Known examples: `isRefineStage` in `components/requests/design-phase-panel.tsx:83`. Grep for `isRefine\|isValidate\|isExplore\|isInterrogate` as identifier prefixes before the Phase 2 session to find the full list.
 
 **What is permanently NOT being renamed (documented as decisions, not drift):**
 - The `validation_signoffs` database table, its Drizzle schema exports (`validationSignoffs`, `ValidationSignoff`, `NewValidationSignoff`), and the `signer_role` column — internal schema, not user-facing.
@@ -603,6 +611,10 @@ The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate,"
 - Notification enum values `signoff_requested`, `signoff_submitted` — these use "sign-off" which is the canonical act word, so they are correct.
 - Function names like `detectSignoffOverdue`, types like `pendingSignoffRoles`, AI prompt text, email templates — all use "sign-off" which stays.
 - Historical plan and spec documents under `db/lane docs/docs/superpowers/` — these are artifacts of past sessions, not active references. Do not rewrite them.
+
+**Shipped April 13 evening:**
+- Phase 1 of Sign-off → Prove: UI labels renamed from "Validation gate" to "Prove" in sidebar, team page heading, and component comments.
+- **Stage enum fix (P0 bug):** `DESIGN_STAGES` array in `lib/workflow.ts` was using old stage names (`explore`, `interrogate`, `validate`, `refine`) that didn't match the database enum (`sense`, `frame`, `diverge`, `converge`, `prove`). Fixed in 11 files. This bug had silently broken Sign-off overdue detection, Design Radar risk panels, the Prove-stage guard in `/api/requests/[id]/advance-phase`, the morning briefing stage filter, and the dashboard home page Prove count. Core phase advancement logic is now aligned with the database schema.
 
 **Deferred features (each is a separate session):**
 
