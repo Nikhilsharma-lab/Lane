@@ -11,7 +11,7 @@ interface BadgeProps {
 /**
  * Single badge component for all sidebar badges.
  *
- * Tier 1: Action required from you (red, numeric). Validation gate never caps.
+ * Tier 1: Action required from you (red, numeric). Prove never caps.
  * Tier 2: New activity (neutral, numeric). Caps at 99+.
  * Tier 3: Ambient signal (dot, no number).
  */
@@ -32,7 +32,7 @@ export function NavBadge({ tier, value = 0, className }: BadgeProps) {
   }
 
   const isTier1 = tier === 1;
-  // Validation gate (tier 1) never caps; everything else caps at 99+
+  // Prove (tier 1) never caps; everything else caps at 99+
   const display = value > 99 && !isTier1 ? "99+" : String(value);
 
   return (

@@ -241,7 +241,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                 <Separator />
                 <DesignPhasePanel
                   requestId={request.id}
-                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "explore" | "interrogate" | "validate" | "refine"}
+                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "frame" | "diverge" | "converge" | "prove"}
                   figmaUrl={request.figmaUrl}
                   profileRole={profileRole}
                   isTestUser={isTestUser}

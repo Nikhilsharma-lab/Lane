@@ -58,7 +58,7 @@ export function TeamSection({ team, defaultOpen = true }: Props) {
     {
       href: `${base}/validation`,
       icon: ShieldCheck,
-      label: "Validation gate",
+      label: "Prove",
       badge: team.streamCounts.validation > 0 ? { tier: 1 as const, value: team.streamCounts.validation } : null,
     },
     {

@@ -585,11 +585,24 @@ npm run start
 
 Identified during the April 13 alignment session. Each item is deliberately deferred, not forgotten.
 
-**Vocabulary drift (next session):**
+**Vocabulary drift (in progress — phased rename):**
 
-- **Sign-off / Validation gate → Prove rename.** Six files still use the old terms instead of canonical Prove (CLAUDE.md Part 3 Stage 2e): `components/inbox-action-panel.tsx`, `components/nav/team-section.tsx`, `components/badge.tsx` or `components/risk-panel.tsx`, `lib/detect.ts`, `app/api/.../advance-phase` route. Scoped rename pass with extra caution around `detect.ts` and `advance-phase` — those contain business logic, not just labels.
+The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate," and "Prove" all refer to overlapping concepts. The canonical rule, locked during the April 13 session:
 
-- **Team-scoped streams route.** `app/(dashboard)/dashboard/teams/[slug]/streams/` exists but was not renamed. Purpose unclear — probably the destination for a future "Active requests" team item per `nav-spec.md` section 2. Investigate before building Zone 3.
+- **"Prove"** is the stage name (Phase 2 stage 2e, per Part 3).
+- **"Sign-off"** is the canonical term for the act of approving a Request at the Prove stage. It is used in labels, copy, AI prompts, emails, notifications, function names, and database columns. It stays.
+- **"Validation gate"** as a user-facing label is forbidden — replace with "Prove" wherever it appears as a string the user sees.
+
+**What is being renamed (phased):**
+- **Phase 1 (labels + docs):** User-visible strings in sidebar, page headings, comments, and CLAUDE.md. Status: in progress.
+- **Phase 2 (component rename):** `components/requests/validation-gate.tsx` → `prove-gate.tsx`, export `ValidationGate` → `ProveGate`, update all import sites, rename `app/(dashboard)/dashboard/teams/[slug]/validation/` → `/prove/`, update nav keys `team:${slug}:validation_gate` → `team:${slug}:prove`. Status: pending.
+
+**What is permanently NOT being renamed (documented as decisions, not drift):**
+- The `validation_signoffs` database table, its Drizzle schema exports (`validationSignoffs`, `ValidationSignoff`, `NewValidationSignoff`), and the `signer_role` column — internal schema, not user-facing.
+- The `/api/requests/[id]/validate/` API route — internal endpoint, not user-facing.
+- Notification enum values `signoff_requested`, `signoff_submitted` — these use "sign-off" which is the canonical act word, so they are correct.
+- Function names like `detectSignoffOverdue`, types like `pendingSignoffRoles`, AI prompt text, email templates — all use "sign-off" which stays.
+- Historical plan and spec documents under `db/lane docs/docs/superpowers/` — these are artifacts of past sessions, not active references. Do not rewrite them.
 
 **Deferred features (each is a separate session):**
 

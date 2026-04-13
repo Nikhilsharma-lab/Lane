@@ -7,7 +7,7 @@ export default async function ValidationGatePage({ params }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-foreground">Validation gate</h1>
+        <h1 className="text-lg font-semibold text-foreground">Prove</h1>
         <p className="text-xs text-muted-foreground/60 mt-1">
           Streams awaiting sign-off before dev handoff.
         </p>

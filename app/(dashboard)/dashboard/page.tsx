@@ -193,7 +193,7 @@ export default async function DashboardPage() {
 
   // Batch 2: Queries that depend on allRequests
   const proveRequests = allRequests.filter(
-    (r) => r.phase === "design" && r.designStage === "refine"
+    (r) => r.phase === "design" && r.designStage === "prove"
   );
   const orgReqIds = allRequests.map((r) => r.id);
 

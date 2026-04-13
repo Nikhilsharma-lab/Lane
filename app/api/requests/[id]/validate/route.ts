@@ -70,7 +70,7 @@ export async function POST(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-  if (request.designStage !== "refine") {
+  if (request.designStage !== "prove") {
     return NextResponse.json({ error: "Request is not in the Prove stage" }, { status: 422 });
   }
 

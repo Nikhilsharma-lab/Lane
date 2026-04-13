@@ -256,7 +256,7 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
       and(
         eq(requests.orgId, orgId),
         eq(requests.phase, "design"),
-        eq(requests.designStage, "refine")
+        eq(requests.designStage, "prove")
       )
     );
 
