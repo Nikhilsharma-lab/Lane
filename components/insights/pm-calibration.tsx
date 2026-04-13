@@ -31,7 +31,7 @@ const LABEL_CONFIG: Record<
 > = {
   well_calibrated: {
     text: "Well-calibrated",
-    style: "text-[var(--accent-success)] bg-[var(--accent-success)]/10 border-[var(--accent-success)]/20",
+    style: "text-accent-success bg-accent-success/10 border-accent-success/20",
     desc: "Predictions within ±10%",
   },
   over_optimistic: {
@@ -48,7 +48,7 @@ const LABEL_CONFIG: Record<
 
 const TREND_ICONS = { improving: "↑", worsening: "↓", stable: "→" };
 const TREND_COLORS = {
-  improving: "text-[var(--accent-success)]",
+  improving: "text-accent-success",
   worsening: "text-accent-danger",
   stable: "text-muted-foreground",
 };
@@ -57,7 +57,7 @@ function VariancePill({ v }: { v: number }) {
   const abs = Math.abs(v);
   const color =
     abs <= 10
-      ? "text-[var(--accent-success)] bg-[var(--accent-success)]/10 border-[var(--accent-success)]/20"
+      ? "text-accent-success bg-accent-success/10 border-accent-success/20"
       : abs <= 25
       ? "text-accent-warning bg-accent-warning/10 border-accent-warning/20"
       : "text-accent-danger bg-accent-danger/10 border-accent-danger/20";

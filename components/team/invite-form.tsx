@@ -9,10 +9,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NativeSelect } from "@/components/ui/native-select";
 
 const ROLES = [
-  { value: "designer", label: "Designer" },
-  { value: "pm", label: "Product Manager" },
-  { value: "developer", label: "Developer" },
-  { value: "lead", label: "Design Lead" },
+  { value: "member", label: "Member" },
+  { value: "admin", label: "Admin" },
+  { value: "guest", label: "Guest" },
 ];
 
 export function InviteForm() {
@@ -64,7 +63,7 @@ export function InviteForm() {
           <NativeSelect
             id="invite-role"
             name="role"
-            defaultValue="designer"
+            defaultValue="member"
           >
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>

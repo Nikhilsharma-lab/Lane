@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NativeSelect } from "@/components/ui/native-select";
 
-const ROLE_LABELS: Record<string, string> = { pm: "PM", designer: "Designer", developer: "Developer", lead: "Lead", admin: "Admin" };
-const ROLES = ["pm", "designer", "developer", "lead", "admin"];
+const ROLE_LABELS: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", pm: "Member", designer: "Member", developer: "Member", lead: "Admin" };
+const ROLES = ["member", "admin", "guest"];
 
 interface Member { id: string; fullName: string; email: string; role: string; }
 interface Props { members: Member[]; currentUserId: string; isAdmin: boolean; }

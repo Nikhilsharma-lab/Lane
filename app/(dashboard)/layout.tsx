@@ -58,46 +58,46 @@ export default async function DashboardLayout({
           orgPlan = (org as Record<string, unknown>).plan as string ?? "FREE";
         }
 
-        orgRequests = await db
-          .select()
-          .from(requests)
-          .where(eq(requests.orgId, profile.orgId));
-
-        userPinnedViews = await db
-          .select({
-            id: publishedViews.id,
-            name: publishedViews.name,
-            viewType: publishedViews.viewType,
-            filters: publishedViews.filters,
-            groupBy: publishedViews.groupBy,
-            viewMode: publishedViews.viewMode,
-          })
-          .from(publishedViews)
-          .where(
-            and(
-              eq(publishedViews.orgId, profile.orgId),
-              eq(publishedViews.isActive, true),
-              sql`${publishedViews.pinnedBy} @> ${JSON.stringify([user.id])}::jsonb`
-            )
-          );
-
-        // Inbox unread count
         const now = new Date();
-        const [{ value }] = await db
-          .select({ value: sql<number>`count(*)::int` })
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.recipientId, user.id),
-              isNull(notifications.archivedAt),
-              isNull(notifications.readAt),
-              or(
-                isNull(notifications.snoozedUntil),
-                lte(notifications.snoozedUntil, now)
+
+        const [orgRequestsResult, pinnedViewsResult, unreadResult] = await Promise.allSettled([
+          db.select().from(requests).where(eq(requests.orgId, profile.orgId)),
+          db
+            .select({
+              id: publishedViews.id,
+              name: publishedViews.name,
+              viewType: publishedViews.viewType,
+              filters: publishedViews.filters,
+              groupBy: publishedViews.groupBy,
+              viewMode: publishedViews.viewMode,
+            })
+            .from(publishedViews)
+            .where(
+              and(
+                eq(publishedViews.orgId, profile.orgId),
+                eq(publishedViews.isActive, true),
+                sql`${publishedViews.pinnedBy} @> ${JSON.stringify([user.id])}::jsonb`
               )
-            )
-          );
-        inboxUnreadCount = value;
+            ),
+          db
+            .select({ value: sql<number>`count(*)::int` })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.recipientId, user.id),
+                isNull(notifications.archivedAt),
+                isNull(notifications.readAt),
+                or(
+                  isNull(notifications.snoozedUntil),
+                  lte(notifications.snoozedUntil, now)
+                )
+              )
+            ),
+        ]);
+
+        orgRequests = orgRequestsResult.status === "fulfilled" ? orgRequestsResult.value : [];
+        userPinnedViews = pinnedViewsResult.status === "fulfilled" ? pinnedViewsResult.value : [];
+        inboxUnreadCount = unreadResult.status === "fulfilled" ? unreadResult.value[0].value : 0;
       }
     }
   } catch {
@@ -118,14 +118,7 @@ export default async function DashboardLayout({
               orgName={orgName}
               orgPlan={orgPlan}
               activeCount={activeCount}
-              banner={{
-                title: "Idea Board is live",
-                description: "Anyone can submit ideas. Your org votes, AI validates the top picks.",
-                ctaLabel: "Check it out",
-                ctaHref: "/dashboard/ideas",
-              }}
               inboxUnreadCount={inboxUnreadCount}
-              pinnedViews={userPinnedViews}
             />
             <SidebarInset>
               {children}

@@ -8,24 +8,25 @@ import { useTheme } from "next-themes";
 import {
   Home,
   Inbox,
+  Layers,
+  FileEdit,
+  Bookmark,
   Lightbulb,
-  BarChart3,
+  MessageSquare,
+  Send,
   Settings,
   LogOut,
-  Plus,
   Search,
-  Clock,
-  Zap,
-  FolderOpen,
-  Users,
+  UserPlus,
   Sun,
   Moon,
-  X,
   ChevronsUpDown,
+  Sparkles,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
-import { NotificationsBell } from "@/components/notifications/notifications-bell";
-import { PinnedViews } from "@/components/shell/pinned-views";
+import { useSidebarData } from "@/hooks/use-sidebar-data";
+import { TeamSection } from "@/components/nav/team-section";
+import { NavBadge } from "@/components/nav/badge";
 
 import {
   Sidebar as ShadcnSidebar,
@@ -33,7 +34,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
@@ -41,9 +41,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,22 +57,6 @@ import {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface SidebarBanner {
-  title: string;
-  description: string;
-  ctaLabel: string;
-  ctaHref: string;
-}
-
-interface PinnedView {
-  id: string;
-  name: string;
-  viewType: string;
-  filters: Record<string, unknown>;
-  groupBy: string | null;
-  viewMode: string;
-}
-
 interface Props {
   user: { initials: string; name: string; role: string };
   userRole?: string;
@@ -81,8 +64,6 @@ interface Props {
   orgPlan: string;
   activeCount: number;
   inboxUnreadCount?: number;
-  banner?: SidebarBanner;
-  pinnedViews?: PinnedView[];
 }
 
 // ── Nav Config ──────────────────────────────────────────────────────────────
@@ -90,18 +71,12 @@ interface Props {
 const personalNav = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/dashboard/inbox", icon: Inbox, label: "Inbox" },
-] as const;
-
-const workspaceNav = [
-  { href: "/dashboard/requests", icon: Zap, label: "Requests" },
-  { href: "/dashboard/projects", icon: FolderOpen, label: "Projects" },
+  { href: "/dashboard/my-requests", icon: Layers, label: "My requests" },
+  { href: "/dashboard/submitted", icon: Send, label: "Submitted by me" },
+  { href: "/dashboard/drafts", icon: FileEdit, label: "My drafts" },
+  { href: "/dashboard/saved", icon: Bookmark, label: "Saved" },
+  { href: "/dashboard/reflections", icon: MessageSquare, label: "Reflections" },
   { href: "/dashboard/ideas", icon: Lightbulb, label: "Ideas" },
-  { href: "/dashboard/cycles", icon: Clock, label: "Cycles" },
-] as const;
-
-const insightsNav = [
-  { href: "/dashboard/insights", icon: BarChart3, label: "Insights" },
-  { href: "/dashboard/team", icon: Users, label: "Team" },
 ] as const;
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
@@ -113,15 +88,16 @@ export function Sidebar({
   orgPlan,
   activeCount,
   inboxUnreadCount,
-  banner,
-  pinnedViews,
 }: Props) {
   const pathname = usePathname();
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [showUpdates, setShowUpdates] = useState(false);
   useEffect(() => setMounted(true), []);
-  const hasPinnedViews = pinnedViews && pinnedViews.length > 0;
+
+  // Fetch team data for Zone 3
+  const { data: sidebarData } = useSidebarData();
+  const teams = sidebarData?.teams ?? [];
 
   function isActive(href: string) {
     return href === "/dashboard"
@@ -131,7 +107,7 @@ export function Sidebar({
 
   return (
     <ShadcnSidebar variant="inset">
-      {/* ── Header ──────────────────────────────────────────── */}
+      {/* ── Zone 1: Workspace Header ──────────────────────── */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -139,7 +115,7 @@ export function Sidebar({
               <DropdownMenuTrigger>
                 <SidebarMenuButton size="lg" className="gap-3" render={<div />}>
                   <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-[11px] font-bold shrink-0">
-                    L
+                    {orgName.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex flex-col gap-0.5 leading-none">
                     <span className="font-semibold text-sm tracking-tight">
@@ -161,8 +137,43 @@ export function Sidebar({
                 <DropdownMenuItem>
                   <Link href="/settings" className="flex items-center gap-2 w-full">
                     <Settings className="size-3.5" />
-                    Organization Settings
+                    Settings
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/settings/members?invite=1" className="flex items-center gap-2 w-full">
+                    <UserPlus className="size-3.5" />
+                    Invite and manage members
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <div className="flex items-center gap-2.5 w-full">
+                    <Avatar className="size-5 shrink-0">
+                      <AvatarFallback className="text-[8px] font-semibold">
+                        {user.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs truncate">{user.name}</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                >
+                  {mounted && resolvedTheme === "dark" ? (
+                    <Sun className="size-3.5" />
+                  ) : (
+                    <Moon className="size-3.5" />
+                  )}
+                  {mounted && resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={async () => { await logout(); }}
+                >
+                  <LogOut className="size-3.5" />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -175,9 +186,6 @@ export function Sidebar({
             <SidebarMenuButton className="text-muted-foreground">
               <Search className="size-4" />
               <span className="flex-1">Search...</span>
-              <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground hidden sm:inline-flex">
-                ⌘K
-              </kbd>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -185,7 +193,7 @@ export function Sidebar({
 
       {/* ── Scrollable Content ─────────────────────────────── */}
       <SidebarContent>
-        {/* Personal */}
+        {/* Zone 2: Personal */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -202,9 +210,17 @@ export function Sidebar({
                   </Link>
                   {item.label === "Inbox" && inboxUnreadCount ? (
                     <SidebarMenuBadge>
-                      <Badge variant="default" className="h-4 min-w-4 px-1 text-[10px] font-mono">
-                        {inboxUnreadCount}
-                      </Badge>
+                      <NavBadge tier={2} value={inboxUnreadCount} />
+                    </SidebarMenuBadge>
+                  ) : null}
+                  {item.label === "My requests" && sidebarData?.personal?.myRequests ? (
+                    <SidebarMenuBadge>
+                      <NavBadge tier={2} value={sidebarData.personal.myRequests} />
+                    </SidebarMenuBadge>
+                  ) : null}
+                  {item.label === "Submitted by me" && sidebarData?.personal?.submittedByMe ? (
+                    <SidebarMenuBadge>
+                      <NavBadge tier={2} value={sidebarData.personal.submittedByMe} />
                     </SidebarMenuBadge>
                   ) : null}
                 </SidebarMenuItem>
@@ -213,151 +229,42 @@ export function Sidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
-
-        {/* Workspace */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {workspaceNav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} className="contents">
-                    <SidebarMenuButton
-                      isActive={isActive(item.href)}
-                      tooltip={item.label}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        {/* Insights + Team */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {insightsNav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} className="contents">
-                    <SidebarMenuButton
-                      isActive={isActive(item.href)}
-                      tooltip={item.label}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Pinned Views */}
-        {hasPinnedViews && (
+        {/* Zone 3: Teams */}
+        {teams.length > 0 && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Pinned Views</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <PinnedViews views={pinnedViews!} />
-              </SidebarGroupContent>
-            </SidebarGroup>
+            {teams.map((team, i) => (
+              <TeamSection
+                key={team.id}
+                team={team}
+                defaultOpen={i < 4}
+              />
+            ))}
           </>
         )}
       </SidebarContent>
 
-      {/* ── Footer ──────────────────────────────────────────── */}
+      {/* ── Footer ─────────────────────────────────────────── */}
       <SidebarFooter>
-        {/* New Request button */}
-        <Button className="w-full gap-1.5" size="lg">
-          <Plus className="size-4" />
-          New Request
-        </Button>
-
-        {/* Promo banner */}
-        {banner && !bannerDismissed && (
-          <div className="rounded-lg border bg-card p-3">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-foreground leading-snug">
-                {banner.title}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setBannerDismissed(true)}
-              >
-                <X className="size-3" />
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-              {banner.description}
-            </p>
-            <Link href={banner.ctaHref} className="contents">
-              <Button variant="secondary" size="sm" className="w-full mt-2">
-                {banner.ctaLabel}
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        <Separator />
-
-        {/* User */}
-        <div className="flex items-center gap-1 px-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <div className="flex items-center gap-2.5 flex-1 min-w-0 rounded-md px-2 py-1.5 hover:bg-sidebar-accent cursor-pointer transition-colors">
-                <Avatar className="size-7 shrink-0">
-                  <AvatarFallback className="text-[10px] font-semibold">
-                    {user.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col gap-0.5 leading-none min-w-0">
-                  <span className="text-xs font-medium truncate">{user.name}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono truncate">
-                    {user.role}
-                  </span>
-                </div>
-              </div>
-            </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" sideOffset={4}>
-                <DropdownMenuItem>
-                  <Link href="/settings" className="flex items-center gap-2 w-full">
-                    <Settings className="size-3.5" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={async () => {
-                    await logout();
-                  }}
-                >
-                  <LogOut className="size-3.5" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
-          <NotificationsBell userRole={userRole} />
+        <SidebarSeparator />
+        <div className="px-3 py-2">
           <Button
             variant="ghost"
-            size="icon-xs"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            size="sm"
+            onClick={() => setShowUpdates((v) => !v)}
+            className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-sidebar-accent-foreground transition-colors w-full"
           >
-            {mounted && resolvedTheme === "dark" ? (
-              <Sun className="size-3.5" />
-            ) : (
-              <Moon className="size-3.5" />
-            )}
+            <Sparkles className="size-3.5" />
+            <span>What&apos;s new</span>
           </Button>
+          {showUpdates && (
+            <div className="mt-2 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
+              <p className="text-xs font-medium mb-1">Latest updates</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Turbopack enabled, query performance improved, dark mode refined.
+              </p>
+            </div>
+          )}
         </div>
       </SidebarFooter>
     </ShadcnSidebar>

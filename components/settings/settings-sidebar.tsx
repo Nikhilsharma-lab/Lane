@@ -2,65 +2,107 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  User,
+  Bell,
+  Building2,
+  Users,
+  FolderKanban,
+  Puzzle,
+  CreditCard,
+  AlertTriangle,
+} from "lucide-react";
 
 interface Props {
   isAdmin: boolean;
 }
 
-const BASE_NAV = [
-  { href: "/settings/account", label: "Account" },
-  { href: "/settings/workspace", label: "Workspace" },
-  { href: "/settings/members", label: "Members" },
-  { href: "/settings/projects", label: "Projects" },
-  { href: "/settings/notifications", label: "Notifications" },
-  { href: "/settings/integrations", label: "Integrations" },
-];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  danger?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
 
 export function SettingsSidebar({ isAdmin }: Props) {
   const pathname = usePathname();
 
-  function linkClass(href: string, danger = false) {
-    const active = pathname === href;
-    if (danger) {
-      return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-        active ? "bg-destructive/10 text-destructive" : "text-muted-foreground hover:text-destructive hover:bg-muted"
-      }`;
-    }
-    return `block px-3 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent"
-    }`;
+  const groups: NavGroup[] = [
+    {
+      label: "My Account",
+      items: [
+        { href: "/settings/account", label: "Profile", icon: User },
+        { href: "/settings/notifications", label: "Notifications", icon: Bell },
+      ],
+    },
+    {
+      label: "Workspace",
+      items: [
+        { href: "/settings/workspace", label: "General", icon: Building2 },
+        { href: "/settings/members", label: "Members", icon: Users },
+        { href: "/settings/projects", label: "Projects", icon: FolderKanban },
+        { href: "/settings/integrations", label: "Integrations", icon: Puzzle },
+      ],
+    },
+  ];
+
+  if (isAdmin) {
+    groups.push({
+      label: "Administration",
+      items: [
+        { href: "/settings/plan", label: "Plan & Billing", icon: CreditCard },
+        { href: "/settings/danger", label: "Danger Zone", icon: AlertTriangle, danger: true },
+      ],
+    });
   }
 
   return (
-    <aside className="w-[200px] shrink-0">
+    <aside className="w-[220px] shrink-0">
       <Link
         href="/dashboard"
-        className="inline-flex items-center mb-5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 mb-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        &larr; Dashboard
+        <ArrowLeft className="size-3.5" />
+        Back to app
       </Link>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 px-3">
-        Settings
-      </p>
-      <nav className="space-y-0.5">
-        {BASE_NAV.map((item) => (
-          <Link key={item.href} href={item.href} className={linkClass(item.href)}>
-            {item.label}
-          </Link>
+
+      <nav className="space-y-6">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5 px-2">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                      active
+                        ? item.danger
+                          ? "bg-destructive/10 text-destructive font-medium"
+                          : "bg-sidebar-accent text-foreground font-medium"
+                        : item.danger
+                          ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    <item.icon className="size-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         ))}
-        {isAdmin && (
-          <Link href="/settings/plan" className={linkClass("/settings/plan")}>
-            Plan
-          </Link>
-        )}
-        <div className="my-3">
-          <Separator />
-        </div>
-        <Link href="/settings/danger" className={linkClass("/settings/danger", true)}>
-          Danger Zone
-        </Link>
       </nav>
     </aside>
   );

@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { DECISION_BADGE } from "@/lib/theme-colors";
 
 const categoryColors: Record<string, string> = {
-  design: "bg-[var(--phase-design)]/10 text-[var(--phase-design)] border-[var(--phase-design)]/20",
-  feature: "bg-[var(--phase-dev)]/10 text-[var(--phase-dev)] border-[var(--phase-dev)]/20",
-  workflow: "bg-[var(--category-workflow)]/10 text-[var(--category-workflow)] border-[var(--category-workflow)]/20",
-  performance: "bg-[var(--accent-warning)]/10 text-[var(--accent-warning)] border-[var(--accent-warning)]/20",
-  ux: "bg-[var(--category-ux)]/10 text-[var(--category-ux)] border-[var(--category-ux)]/20",
+  design: "bg-phase-design/10 text-phase-design border-phase-design/20",
+  feature: "bg-phase-dev/10 text-phase-dev border-phase-dev/20",
+  workflow: "bg-category-workflow/10 text-category-workflow border-category-workflow/20",
+  performance: "bg-accent-warning/10 text-accent-warning border-accent-warning/20",
+  ux: "bg-category-ux/10 text-category-ux border-category-ux/20",
 };
 
 const statusLabels: Record<string, string> = {

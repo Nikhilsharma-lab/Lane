@@ -4,8 +4,6 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
-import { UserMenu } from "@/components/settings/user-menu";
-import { Separator } from "@/components/ui/separator";
 
 export default async function SettingsLayout({
   children,
@@ -26,16 +24,15 @@ export default async function SettingsLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="flex items-center justify-between h-14">
-          <span className="text-sm font-medium text-foreground">Settings</span>
-          <UserMenu fullName={profile.fullName ?? ""} />
-        </div>
-        <Separator />
-        <div className="py-10 flex gap-12">
+      <div className="flex min-h-screen">
+        <div className="shrink-0 border-r border-border p-6 pt-8">
           <SettingsSidebar isAdmin={profile.role === "admin"} />
-          <main className="flex-1 min-w-0">{children}</main>
         </div>
+        <main className="flex-1 min-w-0 overflow-y-auto flex justify-center">
+          <div className="w-full max-w-2xl px-10 py-10">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

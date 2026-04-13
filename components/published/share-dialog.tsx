@@ -154,11 +154,11 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
           ) : (
             <>
               {/* Published state */}
-              <div className="rounded-lg px-4 py-3 bg-[color-mix(in_oklch,var(--accent-success)_10%,transparent)] border border-[color-mix(in_oklch,var(--accent-success)_20%,transparent)]">
-                <p className="text-xs font-semibold text-[var(--accent-success)] mb-1">
+              <div className="rounded-lg px-4 py-3 bg-accent-success/10 border border-accent-success/20">
+                <p className="text-xs font-semibold text-accent-success mb-1">
                   View published
                 </p>
-                <p className="text-[11px] text-[var(--accent-success)] leading-normal">
+                <p className="text-[11px] text-accent-success leading-normal">
                   {accessMode === "public"
                     ? "Anyone with this link can view the requests."
                     : "Only authenticated team members can access this view."}
@@ -177,7 +177,7 @@ export function ShareDialog({ currentFilters, viewType, onClose }: Props) {
                   size="sm"
                   onClick={handleCopy}
                   className={cn(
-                    copied && "bg-[color-mix(in_oklch,var(--accent-success)_10%,transparent)] border-[color-mix(in_oklch,var(--accent-success)_20%,transparent)] text-[var(--accent-success)]"
+                    copied && "bg-accent-success/10 border-accent-success/20 text-accent-success"
                   )}
                 >
                   {copied ? <Check size={12} /> : <Copy size={12} />}

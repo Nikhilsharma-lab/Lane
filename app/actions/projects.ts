@@ -41,7 +41,7 @@ export async function createProject(formData: FormData) {
 
     // Add creator as lead member
     await db.insert(projectMembers).values({
-      projectId: project.id,
+      teamId: project.id,
       userId,
       role: "lead",
     });

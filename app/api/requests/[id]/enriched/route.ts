@@ -148,6 +148,7 @@ export async function GET(
     profile.role === "admin";
 
   return NextResponse.json({
+    request,
     aiAnalysis,
     comments: requestComments,
     authorMap,

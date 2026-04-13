@@ -22,77 +22,75 @@ export default async function InboxPage() {
   const actor = alias(profiles, "actor");
   const now = new Date();
 
-  // Active inbox notifications (not archived, not snoozed into the future)
-  const activeNotifs = await db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      title: notifications.title,
-      body: notifications.body,
-      url: notifications.url,
-      readAt: notifications.readAt,
-      archivedAt: notifications.archivedAt,
-      snoozedUntil: notifications.snoozedUntil,
-      createdAt: notifications.createdAt,
-      requestId: notifications.requestId,
-      actorName: actor.fullName,
-    })
-    .from(notifications)
-    .leftJoin(actor, eq(notifications.actorId, actor.id))
-    .where(
-      and(
-        eq(notifications.recipientId, user.id),
-        isNull(notifications.archivedAt),
-        or(
-          isNull(notifications.snoozedUntil),
-          lte(notifications.snoozedUntil, now)
+  // All 3 queries are independent — run in parallel
+  const [activeNotifs, archivedNotifs, [{ value: unreadCount }]] = await Promise.all([
+    db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        body: notifications.body,
+        url: notifications.url,
+        readAt: notifications.readAt,
+        archivedAt: notifications.archivedAt,
+        snoozedUntil: notifications.snoozedUntil,
+        createdAt: notifications.createdAt,
+        requestId: notifications.requestId,
+        actorName: actor.fullName,
+      })
+      .from(notifications)
+      .leftJoin(actor, eq(notifications.actorId, actor.id))
+      .where(
+        and(
+          eq(notifications.recipientId, user.id),
+          isNull(notifications.archivedAt),
+          or(
+            isNull(notifications.snoozedUntil),
+            lte(notifications.snoozedUntil, now)
+          )
         )
       )
-    )
-    .orderBy(desc(notifications.createdAt))
-    .limit(100);
-
-  // Archived notifications (Done tab)
-  const archivedNotifs = await db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      title: notifications.title,
-      body: notifications.body,
-      url: notifications.url,
-      readAt: notifications.readAt,
-      archivedAt: notifications.archivedAt,
-      snoozedUntil: notifications.snoozedUntil,
-      createdAt: notifications.createdAt,
-      requestId: notifications.requestId,
-      actorName: actor.fullName,
-    })
-    .from(notifications)
-    .leftJoin(actor, eq(notifications.actorId, actor.id))
-    .where(
-      and(
-        eq(notifications.recipientId, user.id),
-        sql`${notifications.archivedAt} IS NOT NULL`
-      )
-    )
-    .orderBy(desc(notifications.archivedAt))
-    .limit(50);
-
-  // Unread count
-  const [{ value: unreadCount }] = await db
-    .select({ value: sql<number>`count(*)::int` })
-    .from(notifications)
-    .where(
-      and(
-        eq(notifications.recipientId, user.id),
-        isNull(notifications.archivedAt),
-        isNull(notifications.readAt),
-        or(
-          isNull(notifications.snoozedUntil),
-          lte(notifications.snoozedUntil, now)
+      .orderBy(desc(notifications.createdAt))
+      .limit(100),
+    db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        body: notifications.body,
+        url: notifications.url,
+        readAt: notifications.readAt,
+        archivedAt: notifications.archivedAt,
+        snoozedUntil: notifications.snoozedUntil,
+        createdAt: notifications.createdAt,
+        requestId: notifications.requestId,
+        actorName: actor.fullName,
+      })
+      .from(notifications)
+      .leftJoin(actor, eq(notifications.actorId, actor.id))
+      .where(
+        and(
+          eq(notifications.recipientId, user.id),
+          sql`${notifications.archivedAt} IS NOT NULL`
         )
       )
-    );
+      .orderBy(desc(notifications.archivedAt))
+      .limit(50),
+    db
+      .select({ value: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientId, user.id),
+          isNull(notifications.archivedAt),
+          isNull(notifications.readAt),
+          or(
+            isNull(notifications.snoozedUntil),
+            lte(notifications.snoozedUntil, now)
+          )
+        )
+      ),
+  ]);
 
   const serialize = (n: (typeof activeNotifs)[number]) => ({
     id: n.id,

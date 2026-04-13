@@ -154,13 +154,13 @@ export function DevPhasePanel({
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono border transition-colors ${
                     isPast ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
-                    : isCur ? "bg-[var(--phase-dev)]/15 border-[var(--phase-dev)]/30 text-[var(--phase-dev)]"
+                    : isCur ? "bg-phase-dev/15 border-phase-dev/30 text-phase-dev"
                     : "bg-accent/40 border text-muted-foreground/60"
                   }`}>
                     {isPast ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center leading-tight ${
-                    isCur ? "text-[var(--phase-dev)]" : isPast ? "text-accent-success/80" : "text-muted-foreground/60"
+                    isCur ? "text-phase-dev" : isPast ? "text-accent-success/80" : "text-muted-foreground/60"
                   }`}>
                     {s.label}
                   </span>

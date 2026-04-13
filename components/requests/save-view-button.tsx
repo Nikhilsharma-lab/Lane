@@ -74,9 +74,7 @@ export function SaveViewButton({ onSave, hasActiveFilters }: SaveViewButtonProps
   return (
     <Button
       variant="outline"
-      size="sm"
       onClick={() => setIsEditing(true)}
-      className="gap-1.5 font-mono text-[11px] font-medium"
     >
       <Star className="size-3" />
       Save View

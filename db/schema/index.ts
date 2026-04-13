@@ -24,3 +24,5 @@ export * from "./initiatives";
 export * from "./iterations";
 export * from "./published_views";
 export * from "./notifications";
+export * from "./workspace-members";
+export * from "./stream-guests";

@@ -23,8 +23,8 @@ interface Recommendation {
 }
 
 const roleColors: Record<string, string> = {
-  lead: "text-[var(--phase-dev)] bg-[var(--phase-dev)]/10 border-[var(--phase-dev)]/20",
-  reviewer: "text-[var(--phase-design)] bg-[var(--phase-design)]/10 border-[var(--phase-design)]/20",
+  lead: "text-phase-dev bg-phase-dev/10 border-phase-dev/20",
+  reviewer: "text-phase-design bg-phase-design/10 border-phase-design/20",
   contributor: "text-muted-foreground/60 bg-accent border",
 };
 
@@ -173,7 +173,7 @@ export function AssignPanel({ requestId }: Props) {
           {/* AI recommendation */}
           {loadingRec ? (
             <div className="px-3 py-2.5 border-b bg-muted flex items-center gap-2">
-              <span className="w-2.5 h-2.5 border-2 border-border/80 border-t-[var(--accent-active)] rounded-full animate-spin" />
+              <span className="w-2.5 h-2.5 border-2 border-border/80 border-t-accent-active rounded-full animate-spin" />
               <span className="text-[10px] text-muted-foreground/60">Getting AI recommendation…</span>
             </div>
           ) : recommendation?.recommendedId ? (

@@ -50,8 +50,8 @@ function QualityBar({ score }: { score: number }) {
     clampedScore >= 70
       ? "text-primary"
       : clampedScore >= 40
-        ? "text-[var(--accent-warning)]"
-        : "text-[var(--accent-danger)]";
+        ? "text-accent-warning"
+        : "text-accent-danger";
 
   return (
     <div className="flex items-center gap-2">
@@ -62,8 +62,8 @@ function QualityBar({ score }: { score: number }) {
             clampedScore >= 70
               ? "bg-primary"
               : clampedScore >= 40
-                ? "bg-[var(--accent-warning)]"
-                : "bg-[var(--accent-danger)]"
+                ? "bg-accent-warning"
+                : "bg-accent-danger"
           )}
           style={{ width: `${clampedScore}%` }}
         />

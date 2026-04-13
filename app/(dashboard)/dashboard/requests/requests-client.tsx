@@ -31,6 +31,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DESIGN_STAGES, getActiveStageLabel, getPhaseLabel } from "@/lib/workflow";
 import type { Request, Project } from "@/db/schema";
 
@@ -345,50 +354,41 @@ export function RequestsClient({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 h-[52px] px-5 shrink-0 border-b bg-card">
-        {/* Page title */}
-        <span className="text-[13px] font-semibold tracking-[-0.01em] mr-3 shrink-0 text-foreground">
+      <div className="flex items-center gap-3 h-12 px-5 shrink-0 border-b">
+        <h1 className="text-sm font-semibold tracking-tight shrink-0">
           Requests
-        </span>
+        </h1>
 
-        {/* Phase tabs */}
-        <div className="flex items-center gap-0.5 flex-1">
-          {PHASE_TABS.map((tab) => {
-            const isActive = phaseFilter === tab.key;
-            return (
-              <Button
+        <Separator orientation="vertical" className="h-4" />
+
+        {/* Phase tabs — shadcn line variant */}
+        <Tabs value={phaseFilter} className="flex-1">
+          <TabsList variant="line" size="sm" className="border-b-0">
+            {PHASE_TABS.map((tab) => (
+              <TabsTrigger
                 key={tab.key}
-                variant={isActive ? "default" : "ghost"}
-                size="sm"
+                value={tab.key}
                 onClick={() => handlePhaseChange(tab.key)}
-                className={`font-mono text-[11px] gap-1.5 whitespace-nowrap ${
-                  isActive ? "font-semibold" : "font-normal text-muted-foreground"
-                }`}
               >
                 {tab.label}
-                <span
-                  className={`font-mono text-[9px] ${
-                    isActive ? "opacity-70" : "opacity-50"
-                  }`}
-                >
+                <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px] font-mono">
                   {phaseCounts[tab.key]}
-                </span>
-              </Button>
-            );
-          })}
-        </div>
+                </Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {/* Right side controls */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Search */}
-          <div className="flex items-center gap-1.5 h-7 px-2 border border-border rounded-md bg-muted">
-            <Search size={11} className="text-muted-foreground/60 shrink-0" />
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => updateParams({ q: e.target.value || null })}
               placeholder="Search..."
-              className="w-[120px] h-auto border-0 bg-transparent p-0 font-mono text-[11px] text-foreground shadow-none focus-visible:ring-0 focus-visible:border-transparent"
+              className="h-7 w-[160px] pl-7 text-xs"
             />
           </div>
 
@@ -412,22 +412,16 @@ export function RequestsClient({
 
           <Button
             variant="outline"
-            size="sm"
             onClick={() => setShowShareDialog(true)}
-            className="font-mono text-[11px] font-medium text-muted-foreground shrink-0"
           >
-            <Share2 size={11} />
+            <Share2 className="size-3.5" />
             Share
           </Button>
 
-          {/* New request */}
           <Button
-            variant="default"
-            size="sm"
             onClick={() => setShowNewForm(true)}
-            className="font-mono text-[11px] font-semibold shrink-0"
           >
-            <Plus size={12} />
+            <Plus className="size-3.5" />
             New
           </Button>
         </div>
@@ -505,7 +499,7 @@ export function RequestsClient({
 
       {/* ── Error toast ──────────────────────────────────────────────────── */}
       {error && (
-        <div className="fixed bottom-5 right-5 rounded-lg px-3.5 py-2 text-xs font-mono z-[100] bg-[color-mix(in_oklch,var(--accent-danger)_10%,transparent)] border border-[color-mix(in_oklch,var(--accent-danger)_20%,transparent)] text-[var(--accent-danger)]">
+        <div className="fixed bottom-5 right-5 rounded-lg px-3.5 py-2 text-xs font-mono z-[100] bg-accent-danger/10 border border-accent-danger/20 text-accent-danger">
           {error}
         </div>
       )}
@@ -627,21 +621,61 @@ function ListView({
   const groupableKeys: GroupableKey[] = ["phase", "stage", "project", "priority"];
   const shouldGroup = groupableKeys.includes(groupBy as GroupableKey);
 
-  if (!shouldGroup) {
+  function renderTable(rows: Request[]) {
     return (
-      <div>
-        <ListHeader />
-        {requests.map((r) => (
-          <ListRow
-            key={r.id}
-            request={r}
-            projectMap={projectMap}
-            assigneesByRequest={assigneesByRequest}
-            onClick={() => onRequestClick(r)}
-          />
-        ))}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[80px] text-xs text-muted-foreground">ID</TableHead>
+            <TableHead className="text-xs text-muted-foreground">Request</TableHead>
+            <TableHead className="w-[120px] text-xs text-muted-foreground">Stage</TableHead>
+            <TableHead className="w-[140px] text-xs text-muted-foreground">Assignee</TableHead>
+            <TableHead className="w-[80px] text-xs text-muted-foreground">Priority</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => {
+            const proj = r.projectId ? projectMap[r.projectId] : null;
+            const assignees = assigneesByRequest[r.id] ?? [];
+            const stageLabel = getActiveStageLabel(r);
+            return (
+              <TableRow
+                key={r.id}
+                className="cursor-pointer"
+                onClick={() => onRequestClick(r)}
+              >
+                <TableCell className="font-mono text-[11px] text-muted-foreground/60">
+                  {r.id.slice(0, 8)}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-foreground truncate">
+                    {r.title}
+                  </div>
+                  {proj && (
+                    <div className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
+                      {proj.name}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground capitalize">
+                  {stageLabel}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {assignees[0] ?? "\u2014"}
+                </TableCell>
+                <TableCell>
+                  <PriorityBadge priority={r.priority} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     );
+  }
+
+  if (!shouldGroup) {
+    return <div className="px-4">{renderTable(requests)}</div>;
   }
 
   // Build groups
@@ -674,98 +708,20 @@ function ListView({
   }
 
   return (
-    <div>
+    <div className="px-4 space-y-6 py-4">
       {Array.from(groups.entries()).map(([key, group]) => (
         <div key={key}>
-          {/* Group header */}
-          <div className="flex items-center gap-2 px-5 pt-2.5 pb-1.5 border-b bg-muted">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {group.label}
             </span>
-            <span className="font-mono text-[10px] text-muted-foreground/60">
+            <Badge variant="secondary" className="text-[10px] font-mono">
               {group.requests.length}
-            </span>
+            </Badge>
           </div>
-          <ListHeader />
-          {group.requests.map((r) => (
-            <ListRow
-              key={r.id}
-              request={r}
-              projectMap={projectMap}
-              assigneesByRequest={assigneesByRequest}
-              onClick={() => onRequestClick(r)}
-            />
-          ))}
+          {renderTable(group.requests)}
         </div>
       ))}
     </div>
-  );
-}
-
-function ListHeader() {
-  return (
-    <div className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-1.5 border-b bg-muted">
-      {["ID", "REQUEST", "STAGE", "ASSIGNEE", "PRIORITY"].map((col) => (
-        <span
-          key={col}
-          className="font-mono text-[9px] font-semibold tracking-[0.08em] uppercase text-muted-foreground/60"
-        >
-          {col}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-interface ListRowProps {
-  request: Request;
-  projectMap: Record<string, { name: string; color: string }>;
-  assigneesByRequest: Record<string, string[]>;
-  onClick: () => void;
-}
-
-function ListRow({ request: r, projectMap, assigneesByRequest, onClick }: ListRowProps) {
-  const proj = r.projectId ? projectMap[r.projectId] : null;
-  const assignees = assigneesByRequest[r.id] ?? [];
-  const stageLabel = getActiveStageLabel(r);
-
-  return (
-    <Button
-      variant="ghost"
-      onClick={onClick}
-      className="grid grid-cols-[80px_1fr_120px_140px_70px] gap-3 px-5 py-2.5 w-full text-left h-auto rounded-none cursor-pointer items-center border-b hover:bg-muted"
-    >
-      {/* ID */}
-      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground/60">
-        {r.id.slice(0, 8)}
-      </span>
-
-      {/* Title + project */}
-      <div className="overflow-hidden">
-        <div className="text-[13px] font-medium overflow-hidden text-ellipsis whitespace-nowrap text-foreground">
-          {r.title}
-        </div>
-        {proj && (
-          <div className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap mt-0.5 text-muted-foreground/60">
-            {proj.name}
-          </div>
-        )}
-      </div>
-
-      {/* Stage */}
-      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground">
-        {stageLabel}
-      </span>
-
-      {/* Assignee */}
-      <span className="font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground">
-        {assignees[0] ?? "\u2014"}
-      </span>
-
-      {/* Priority */}
-      <div>
-        <PriorityBadge priority={r.priority} />
-      </div>
-    </Button>
   );
 }

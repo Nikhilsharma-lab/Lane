@@ -323,7 +323,7 @@ To Do → In Progress → In Review → Design QA → Done
 | Dev kanban | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Impact records | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Idea Board | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Betting Board | View only | View only | View only | ✅ (decide) | ✅ |
+| Commitments | View only | View only | View only | ✅ (decide) | ✅ |
 | AI morning briefing | ✅ (own) | ❌ | ✅ (own) | ✅ (team) | ✅ |
 
 ---
@@ -444,7 +444,7 @@ app/
     dashboard/
     requests/[id]/
     idea-board/
-    betting-board/
+    commitments/
     insights/
     radar/
     dev/
@@ -581,7 +581,29 @@ npm run start
 - [x] `designerOwnerId` column added to requests
 
 ---
+### Known drift and deferred work (resolve in follow-up sessions)
 
+Identified during the April 13 alignment session. Each item is deliberately deferred, not forgotten.
+
+**Vocabulary drift (next session):**
+
+- **Sign-off / Validation gate → Prove rename.** Six files still use the old terms instead of canonical Prove (CLAUDE.md Part 3 Stage 2e): `components/inbox-action-panel.tsx`, `components/nav/team-section.tsx`, `components/badge.tsx` or `components/risk-panel.tsx`, `lib/detect.ts`, `app/api/.../advance-phase` route. Scoped rename pass with extra caution around `detect.ts` and `advance-phase` — those contain business logic, not just labels.
+
+- **Team-scoped streams route.** `app/(dashboard)/dashboard/teams/[slug]/streams/` exists but was not renamed. Purpose unclear — probably the destination for a future "Active requests" team item per `nav-spec.md` section 2. Investigate before building Zone 3.
+
+**Deferred features (each is a separate session):**
+
+- **Onboarding build.** Full spec is in `docs/onboarding-spec.md`, vocabulary-aligned and ready to execute. Section 11 has the 13-step build order. Includes Design Head full flow (4 screens), Designer/PM lightweight variants, the intake check (the killer moment, aligns to CLAUDE.md Part 2 Stage 1 classifier), five progressive disclosure moments, sample team seed script, instrumentation. Budget a full day of focused work.
+
+- **Real implementations for placeholder pages.** `My requests`, `Submitted by me`, and `Reflections` currently render placeholder text. Each needs a real list view, queries, and empty states. The `Submitted by me` count needs a `requester_id` column on the requests table first.
+
+- **Command palette.** Deleted in the alignment session. Re-add when building Zone 3 team sections — wire `cmdk` to search Requests by title via pgvector, add an actions registry, re-add the `⌘K` chord hint to the sidebar search.
+
+- **Drafts and Saved routes.** May not have placeholder pages. Verify and stub if missing.
+
+**Reuse opportunities:**
+
+- **`components/nav/team-section.tsx`** was preserved during cleanup. When building Zone 3 team sections, look at this file first — it may already contain 80% of what's needed.
 ## Part 17: WHAT'S NEXT (Build Sequence)
 
 ### Immediate (after merging PR #13)
@@ -611,7 +633,7 @@ npm run start
 
 ### Week 11-12: Polish + Beta
 - [ ] Bug fixes, performance
-- [ ] Betting board view
+- [ ] Commitments view
 
 ---
 

@@ -3,18 +3,22 @@ import { pgTable, uuid, text, timestamp, pgEnum, type AnyPgColumn } from "drizzl
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer", "lead", "admin"]);
 
-export const organizations = pgTable("organizations", {
+export const workspaces = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  ownerUserId: uuid("owner_id"),
   plan: planEnum("plan").notNull().default("free"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Backward-compatible alias
+export const organizations = workspaces;
+
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey(), // references auth.users(id)
-  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  id: uuid("id").primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
   role: roleEnum("role").notNull().default("designer"),
@@ -25,7 +29,10 @@ export const profiles = pgTable("profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type Organization = typeof organizations.$inferSelect;
-export type NewOrganization = typeof organizations.$inferInsert;
+export type Workspace = typeof workspaces.$inferSelect;
+export type NewWorkspace = typeof workspaces.$inferInsert;
+// Backward-compatible aliases
+export type Organization = typeof workspaces.$inferSelect;
+export type NewOrganization = typeof workspaces.$inferInsert;
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;

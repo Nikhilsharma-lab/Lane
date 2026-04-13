@@ -69,7 +69,7 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
 
       <div className="divide-y divide-border">
         <div className="px-5 py-4">
-          <SectionLabel className="text-[var(--accent-success)] font-medium mb-2">
+          <SectionLabel className="text-accent-success font-medium mb-2">
             🚢 Shipped this week
           </SectionLabel>
           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -85,7 +85,7 @@ export function DigestPanel({ initialDigest, onCoachingGenerated }: Props) {
         </div>
 
         <div className="px-5 py-4">
-          <SectionLabel className="text-[var(--accent-active)] font-medium mb-2">
+          <SectionLabel className="text-accent-active font-medium mb-2">
             ⭐ Standout
           </SectionLabel>
           <p className="text-sm text-muted-foreground leading-relaxed">{digest.standout}</p>

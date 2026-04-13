@@ -25,10 +25,10 @@ describe('getPhaseLabel', () => {
 describe('getStageLabel', () => {
   it('returns human-readable labels for all design stages', () => {
     expect(getStageLabel('sense')).toBe('Sense')
-    expect(getStageLabel('frame')).toBe('Frame')
-    expect(getStageLabel('diverge')).toBe('Diverge')
-    expect(getStageLabel('converge')).toBe('Converge')
-    expect(getStageLabel('prove')).toBe('Prove')
+    expect(getStageLabel('explore')).toBe('Explore')
+    expect(getStageLabel('interrogate')).toBe('Interrogate')
+    expect(getStageLabel('validate')).toBe('Validate')
+    expect(getStageLabel('refine')).toBe('Refine')
   })
 
   it('returns human-readable labels for predesign stages', () => {
@@ -62,14 +62,14 @@ describe('nextPredesignStage', () => {
 
 describe('nextDesignStage', () => {
   it('advances through design stages in order', () => {
-    expect(nextDesignStage('sense')).toBe('frame')
-    expect(nextDesignStage('frame')).toBe('diverge')
-    expect(nextDesignStage('diverge')).toBe('converge')
-    expect(nextDesignStage('converge')).toBe('prove')
+    expect(nextDesignStage('sense')).toBe('explore')
+    expect(nextDesignStage('explore')).toBe('interrogate')
+    expect(nextDesignStage('interrogate')).toBe('validate')
+    expect(nextDesignStage('validate')).toBe('refine')
   })
 
-  it('returns null at prove (ready for dev handoff)', () => {
-    expect(nextDesignStage('prove')).toBeNull()
+  it('returns null at refine (ready for dev handoff)', () => {
+    expect(nextDesignStage('refine')).toBeNull()
   })
 })
 
@@ -113,7 +113,7 @@ describe('getActiveStageLabel', () => {
   })
 
   it('returns design sub-stage label', () => {
-    const req = { phase: 'design' as const, stage: 'intake' as const, predesignStage: null, designStage: 'diverge' as const, kanbanState: null, trackStage: null }
-    expect(getActiveStageLabel(req)).toBe('Diverge')
+    const req = { phase: 'design' as const, stage: 'intake' as const, predesignStage: null, designStage: 'interrogate' as const, kanbanState: null, trackStage: null }
+    expect(getActiveStageLabel(req)).toBe('Interrogate')
   })
 })

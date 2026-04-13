@@ -372,7 +372,7 @@ export function NewRequestForm({ onClose, projects }: Props) {
                         preflight.qualityScore >= 80
                           ? "bg-primary/10 text-primary"
                           : preflight.qualityScore >= 50
-                          ? "bg-[var(--accent-warning)]/10 text-[var(--accent-warning)]"
+                          ? "bg-accent-warning/10 text-accent-warning"
                           : "bg-destructive/10 text-destructive"
                       }`}
                     >

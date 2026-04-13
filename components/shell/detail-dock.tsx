@@ -37,6 +37,7 @@ import { getPhaseLabel, getStageLabel } from "@/lib/workflow";
 import { STATUS_STYLE } from "@/lib/theme-colors";
 
 interface EnrichedData {
+  request?: import("@/db/schema").Request;
   aiAnalysis: RequestAiAnalysis | null;
   comments: Comment[];
   authorMap: Record<string, { fullName: string | null }>;
@@ -90,7 +91,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
   const requests = useRequests();
 
   const dockId = searchParams.get("dock");
-  const request = dockId ? requests.find((r) => r.id === dockId) : null;
+  const contextRequest = dockId ? requests.find((r) => r.id === dockId) : null;
 
   const [enriched, setEnriched] = useState<EnrichedData | null>(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
@@ -107,7 +108,22 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
       .finally(() => setEnrichedLoading(false));
   }, [dockId]);
 
-  if (!request) return null;
+  // Use context request if available, otherwise fall back to enriched API response
+  const request = contextRequest ?? enriched?.request ?? null;
+
+  if (!dockId) return null;
+  if (!request && !enrichedLoading) return null;
+  if (!request) {
+    // Still loading — show minimal placeholder
+    return (
+      <aside
+        className="flex flex-col shrink-0 overflow-y-auto bg-card border-l sticky top-0 z-10 items-center justify-center"
+        style={{ width: DOCK_WIDTH, height: "100vh" }}
+      >
+        <div className="text-xs text-muted-foreground">Loading...</div>
+      </aside>
+    );
+  }
 
   function close() {
     const params = new URLSearchParams(searchParams.toString());
@@ -225,7 +241,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                 <Separator />
                 <DesignPhasePanel
                   requestId={request.id}
-                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "frame" | "diverge" | "converge" | "prove"}
+                  currentDesignStage={(request.designStage ?? "sense") as "sense" | "explore" | "interrogate" | "validate" | "refine"}
                   figmaUrl={request.figmaUrl}
                   profileRole={profileRole}
                   isTestUser={isTestUser}
@@ -368,7 +384,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                         <FieldLabel>Issues</FieldLabel>
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {enriched.aiAnalysis.qualityFlags.map((flag, i) => (
-                            <Badge key={i} variant="outline" className="text-[11px] text-[var(--accent-warning)] border-[var(--accent-warning)]/20 bg-[var(--accent-warning)]/10">
+                            <Badge key={i} variant="outline" className="text-[11px] text-accent-warning border-accent-warning/20 bg-accent-warning/10">
                               {flag}
                             </Badge>
                           ))}

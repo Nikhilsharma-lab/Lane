@@ -86,7 +86,7 @@ export function StageControls({
                 isCurrent
                   ? isBlocked
                     ? "bg-accent-danger/20 text-accent-danger border border-accent-danger/30"
-                    : "bg-[var(--accent-active)]/10 text-[var(--accent-active)] border border-[var(--accent-active)]/20"
+                    : "bg-accent-active/10 text-accent-active border border-accent-active/20"
                   : isCompleted
                   ? "text-muted-foreground/60 line-through"
                   : "text-muted-foreground/40"

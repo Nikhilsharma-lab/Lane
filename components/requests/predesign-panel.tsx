@@ -130,7 +130,7 @@ export function PredesignPanel({
                       isDone
                         ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                         : isCurrent
-                        ? "bg-[var(--accent-active)]/10 border-[var(--accent-active)]/20 text-[var(--accent-active)]"
+                        ? "bg-accent-active/10 border-accent-active/20 text-accent-active"
                         : "bg-accent border text-muted-foreground/60"
                     }`}
                   >
@@ -139,7 +139,7 @@ export function PredesignPanel({
                   <span
                     className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
                       isCurrent
-                        ? "text-[var(--accent-active)]"
+                        ? "text-accent-active"
                         : isDone
                         ? "text-accent-success/80"
                         : "text-muted-foreground/60"
@@ -204,7 +204,7 @@ export function PredesignPanel({
           )}
         </div>
 
-        {/* Advance button — always shown, label changes at final betting stage */}
+        {/* Advance button — always shown, label changes at final commit stage */}
         <Button
           variant="default"
           size="sm"

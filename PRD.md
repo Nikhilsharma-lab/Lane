@@ -417,7 +417,7 @@ Not:
 | PM accuracy score | N/A | N/A | ✅ own | ✅ org | ✅ |
 | Dev kanban | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Impact records | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Betting Board | View only | View only | View only | ✅ decide | ✅ |
+| Commitments | View only | View only | View only | ✅ decide | ✅ |
 | AI morning briefing | ✅ own | ❌ | ✅ own | ✅ team | ✅ |
 
 ---
@@ -481,7 +481,7 @@ Every AI nudge must pass this test before it ships:
 | 5–6 | Design Phase | 5-stage design flow (Sense → Frame → Diverge → Converge → Prove), Design Frame, iteration management, reflection system, feedback threads, Figma link management, 3-sign-off Prove gate |
 | 7–8 | Build + Impact | Dev kanban, handoff doc generation, Figma webhook + post-handoff alerts, impact logging, PM calibration |
 | 9–10 | The Voice | Weekly AI digest, private designer nudges, capacity dashboard, Idea Board |
-| 11–12 | Polish + Beta | Morning briefing, betting board view, journey view, bug fixes, performance, 10–15 paying customers |
+| 11–12 | Polish + Beta | Morning briefing, commitments view, journey view, bug fixes, performance, 10–15 paying customers |
 
 ### What's Not Building — MVP
 

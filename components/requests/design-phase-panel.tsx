@@ -15,11 +15,11 @@ import { PanelHeader } from "@/components/ui/panel-header";
 import { Textarea } from "@/components/ui/textarea";
 
 const STAGES = [
-  { key: "sense",    desc: "Understand the problem deeply before proposing anything" },
-  { key: "frame",    desc: "Define what problem is actually being solved" },
-  { key: "diverge",  desc: "Generate multiple solution directions" },
-  { key: "converge", desc: "Narrow to a refined solution through critique" },
-  { key: "prove",    desc: "3 sign-offs: Designer · PM · Design Head" },
+  { key: "sense",       desc: "Understand the problem deeply before proposing anything" },
+  { key: "explore",     desc: "Explore the problem space and potential directions" },
+  { key: "interrogate", desc: "Stress-test ideas through critique and edge cases" },
+  { key: "validate",    desc: "Confirm the solution meets criteria and constraints" },
+  { key: "refine",      desc: "3 sign-offs: Designer · PM · Design Head" },
 ] as const;
 
 type DesignStage = (typeof STAGES)[number]["key"];
@@ -44,7 +44,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   const [newDesc, setNewDesc] = useState("");
   const [newFigmaUrl, setNewFigmaUrl] = useState("");
   const [addingIteration, setAddingIteration] = useState(false);
-  const showIterations = currentDesignStage === "diverge" || currentDesignStage === "converge";
+  const showIterations = currentDesignStage === "explore" || currentDesignStage === "interrogate";
 
   const fetchIterations = useCallback(async () => {
     if (!showIterations) return;
@@ -80,11 +80,11 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   const current = STAGES[currentIdx];
   const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
   const isLastDesign = currentIdx >= STAGES.length - 1;
-  const isProveStage = currentDesignStage === "prove";
+  const isRefineStage = currentDesignStage === "refine";
 
   function getGateStatus(): { canAdvance: boolean; missing: string[] } {
     const missing: string[] = [];
-    if (currentDesignStage === "prove" && !figmaUrl) {
+    if (currentDesignStage === "refine" && !figmaUrl) {
       missing.push("Add a Figma URL before handing off to dev");
     }
     return { canAdvance: missing.length === 0, missing };
@@ -145,13 +145,13 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                     isDone
                       ? "bg-accent-success/15 border-accent-success/30 text-accent-success"
                       : isCurrent
-                      ? "bg-[var(--accent-active)]/10 border-[var(--accent-active)]/20 text-[var(--accent-active)]"
+                      ? "bg-accent-active/10 border-accent-active/20 text-accent-active"
                       : "bg-accent border text-muted-foreground/60"
                   }`}>
                     {isDone ? "✓" : i + 1}
                   </div>
                   <span className={`text-[9px] mt-1 font-medium uppercase tracking-wide text-center ${
-                    isCurrent ? "text-[var(--accent-active)]" : isDone ? "text-accent-success/80" : "text-muted-foreground/60"
+                    isCurrent ? "text-accent-active" : isDone ? "text-accent-success/80" : "text-muted-foreground/60"
                   }`}>
                     {getStageLabel(s.key)}
                   </span>
@@ -175,7 +175,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
         )}
 
         {/* Prove stage: show ValidationGate instead of advance button */}
-        {isProveStage ? (
+        {isRefineStage ? (
           <ValidationGate requestId={requestId} myProfileRole={profileRole} isTestUser={isTestUser} />
         ) : (
           <>
@@ -288,7 +288,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
           {/* Iteration list */}
           {iterationsList.length === 0 && !showAddForm && (
             <p className="text-[11px] text-muted-foreground/60 py-2">
-              {currentDesignStage === "diverge"
+              {currentDesignStage === "explore"
                 ? "Start exploring directions. There's no wrong answer yet."
                 : "Narrow down your directions. Log what you chose and why."}
             </p>

@@ -33,7 +33,7 @@ export function ViewModeToggle({
   if (visibleModes.length <= 1) return null;
 
   return (
-    <div className="flex items-center border border-border rounded-md overflow-hidden h-7">
+    <div className="flex items-center border border-input rounded-md overflow-hidden">
       {visibleModes.map(({ mode, label, Icon }) => {
         const isActive = value === mode;
         return (
@@ -45,10 +45,10 @@ export function ViewModeToggle({
             aria-label={label}
             aria-pressed={isActive}
             onClick={() => onChange(mode)}
-            className={`w-[30px] h-full rounded-none border-r border-border ${
+            className={`size-7 rounded-none border-r border-input last:border-r-0 ${
               isActive
                 ? "bg-accent text-foreground"
-                : "bg-card text-muted-foreground/60"
+                : "text-muted-foreground/60"
             } hover:bg-accent`}
           >
             <Icon size={13} />
