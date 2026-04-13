@@ -153,7 +153,7 @@ export async function POST(
     const currentDesignStage = (designStage ?? "sense") as DesignStage;
     const currentIdx = DESIGN_STAGES.indexOf(currentDesignStage);
 
-    if (currentDesignStage === "refine") {
+    if (currentDesignStage === "prove") {
       return NextResponse.json(
         { error: "Prove requires 3 sign-offs. Use the validation panel." },
         { status: 422 }
@@ -255,7 +255,7 @@ export async function POST(
       });
 
       // When entering prove stage, notify all signers
-      if (next === "refine") {
+      if (next === "prove") {
         const orgMembers = await db
           .select()
           .from(profiles)

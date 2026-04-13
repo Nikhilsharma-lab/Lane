@@ -195,7 +195,7 @@ export function getRiskItems(
     .filter(
       (r) =>
         isActive(r) &&
-        r.designStage === "refine" &&
+        r.designStage === "prove" &&
         now - new Date(r.updatedAt).getTime() >= 3 * 86_400_000
     )
     .map((r) => ({

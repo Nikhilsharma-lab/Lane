@@ -17,7 +17,7 @@ export async function createIteration(data: {
   title: string;
   description?: string;
   figmaUrl?: string;
-  stage: "sense" | "explore" | "interrogate" | "validate" | "refine";
+  stage: "sense" | "frame" | "diverge" | "converge" | "prove";
 }) {
   const userId = await getAuthedUserId();
   if (!userId) return { error: "Not authenticated" };

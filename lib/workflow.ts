@@ -11,10 +11,10 @@ export const PREDESIGN_STAGES: PredesignStage[] = [
 
 export const DESIGN_STAGES: DesignStage[] = [
   "sense",
-  "explore",
-  "interrogate",
-  "validate",
-  "refine",
+  "frame",
+  "diverge",
+  "converge",
+  "prove",
 ];
 
 // Legacy flat stages (still used in older requests)
@@ -92,10 +92,10 @@ export function getStageLabel(stage: string | null | undefined): string {
     bet: "Prioritize",
     // Design (5-phase stream model)
     sense: "Sense",
-    explore: "Explore",
-    interrogate: "Interrogate",
-    validate: "Validate",
-    refine: "Refine",
+    frame: "Frame",
+    diverge: "Diverge",
+    converge: "Converge",
+    prove: "Prove",
     handoff: "Handoff",
     // Dev (kanban)
     todo: "To Do",
@@ -125,10 +125,10 @@ export const STAGE_STATUS_MAP: Record<string, string> = {
   shape: "submitted",
   bet: "assigned",
   sense: "in_progress",
-  explore: "in_progress",
-  interrogate: "in_progress",
-  validate: "in_review",
-  refine: "in_review",
+  frame: "in_progress",
+  diverge: "in_progress",
+  converge: "in_review",
+  prove: "in_review",
   handoff: "in_review",
   build: "in_progress",
   impact: "completed",

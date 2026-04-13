@@ -77,7 +77,7 @@ async function gatherDesignerContext(userId: string, orgId: string) {
     : [];
 
   const proveReqIds = activeRequests
-    .filter((r) => r.designStage === "refine")
+    .filter((r) => r.designStage === "prove")
     .map((r) => r.id);
 
   const mySignoffs = proveReqIds.length
@@ -141,7 +141,7 @@ async function gatherPmContext(userId: string, orgId: string) {
     .limit(20);
 
   const proveReqIds = myRequests
-    .filter((r) => r.designStage === "refine")
+    .filter((r) => r.designStage === "prove")
     .map((r) => r.id);
 
   const pmSignoffs = proveReqIds.length
