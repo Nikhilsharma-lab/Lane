@@ -59,7 +59,8 @@ These items are on the sidebar or in the spec files but don't yet have enough de
 - [ ] **S2** — Spec "What's new" footer (25 min)
 - [ ] **S1** — Spec Reflections page (45 min)
 - [ ] **Item 1** — Phase 2 Sign-off → Prove rename + stale identifier sweep. Rename `components/requests/validation-gate.tsx` → `prove-gate.tsx`, rename `ValidationGate` export → `ProveGate`, update all import sites, rename `app/(dashboard)/dashboard/teams/[slug]/validation/` directory → `/prove/`, update nav keys `team:${slug}:validation_gate` → `team:${slug}:prove` in `lib/nav/active-item.ts` and `lib/nav/order.ts`, grep for and fix stale identifiers like `isRefineStage` in `components/requests/design-phase-panel.tsx:83` and elsewhere. Use scoped Claude Code prompts with stop points, per the pattern established in April 13 alignment session. (2 hours)
-- [ ] **Item 4** — Intake check UI build. Three-panel classifier (problem_framed, solution_specific, hybrid) per `docs/onboarding-spec.md` section 7. Classifier call to `claude-haiku-4-5-20251001`. Three distinct panel UIs with different CTAs. "Submit anyway with justification" escape hatch. Writes `requests.ai_flagged`, `requests.ai_classifier_result`, `requests.ai_extracted_problem`, `requests.ai_extracted_solution`, `requests.submit_justification`. Analytics events per onboarding-spec section 10. [STRICT: after V3] (5 hours)
+- [ ] **AI foundation verification + silent failure audit.** [STRICT: required before Item 4] Tonight's V3 investigation surfaced four AI integration bugs: zero credits, dead API key, deprecated model ID across 17 files, and Zod 4 + Anthropic structured output incompatibility in `triage.ts`. Only `triage` is verified working end-to-end; the other 7 features in `lib/ai/` (context-brief, handoff-brief, idea-validator, impact-retrospective, morning-briefing, prediction-confidence, proactive-alerts) are unverified and may have similar schema or wiring issues. Scope: (a) grep all 8 files in `lib/ai/` for Zod constraints that might be rejected by Anthropic structured output — `.min()`, `.max()`, `.minLength()`, `.maxLength()`, `.regex()`, `.email()`, `.url()`, and any `.int()` usage (Zod 4 auto-emits safe integer bounds); (b) fix each incompatible schema using the pattern from triage.ts (drop constraints, expand `.describe()`, add runtime validation/clamping); (c) run each of the 8 features end-to-end at least once with realistic input, verify output populated in the database; (d) refactor the catch blocks in each file to surface errors via `console.error` with context instead of silently swallowing them. Prerequisite for Item 4 — Item 4 adds a 9th AI feature with the same integration pattern, and shipping it without this audit repeats tonight's 3-hour debug cycle for every subsequent AI feature. (2-3 hours)
+- [ ] **Item 4** — Intake check UI build [STRICT: after V3, after AI foundation verification] . Three-panel classifier (problem_framed, solution_specific, hybrid) per `docs/onboarding-spec.md` section 7. Classifier call to `claude-haiku-4-5-20251001`. Three distinct panel UIs with different CTAs. "Submit anyway with justification" escape hatch. Writes `requests.ai_flagged`, `requests.ai_classifier_result`, `requests.ai_extracted_problem`, `requests.ai_extracted_solution`, `requests.submit_justification`. Analytics events per onboarding-spec section 10. [STRICT: after V3] (5 hours)
 - [ ] **Item 5** — Real My requests page. Replace `app/(dashboard)/dashboard/my-requests/page.tsx` placeholder with a real list view. Query: `requests.designer_owner_id = auth.uid()`. Sort by most recent update. Filter by phase. Empty state per `docs/nav-spec.md` tone. (4 hours)
 
 **Week 1 exit state:** All unknowns resolved. Both specs written. Vocabulary fully clean across the codebase. Intake check shipped and visible to users submitting requests. My requests page is real.
@@ -177,12 +178,14 @@ This is the dependency graph that made the sequencing decisions above. If you re
 
 - V1 → Item 11
 - V2 → Item 6
+- AI foundation verification → Item 4
 - V3 → Item 4 → Item 8 → Item 14
 - V4 → Item 9
 - S1 → Item 7-build, Item 8, Item 14
 - S2 → What's new build
 - Item 1 → Item 8, Item 14
 - Item 11 → Item 8
+
 
 Read as: "V1 must be done before Item 11 can start." And so on.
 
@@ -233,6 +236,10 @@ Items that come up mid-execution but aren't yet sequenced. Add anything here the
 - Each item is one line, with a date. Format: `- [YYYY-MM-DD] description`
 - Do not add effort estimates here. Estimates happen when an item leaves the parking lot and gets sequenced.
 - Do not prioritize. The parking lot is unsorted on purpose.
+- [2026-04-14] Item 4 intake check should use `claude-haiku-4-5-20251001` per onboarding-spec.md section 7, not the older `claude-3-5-haiku-20241022` that the existing AI features use. Don't copy the model string from triage/idea-validator/etc. when building the classifier.
+- [2026-04-14] AI silent failure audit. All code in lib/ai/ catches errors and writes null to database columns without surfacing the failure. Discovered during V3 investigation — triage, context-brief, handoff-brief, idea-validator, prediction-confidence, impact-retrospective, proactive-alerts, and morning-briefing have never run successfully (account had zero credits). Before shipping Item 4 (intake check), add proper error surfacing to all AI code so failures are visible in logs and to users. Also consider adding an AI integration smoke test that runs on deploy and verifies at least one real API call succeeds.
+- [2026-04-14] New Request creation has no sidebar shortcut. Currently only accessible via /dashboard/requests page header action. During V3 testing, I expected a button in the sidebar footer and was surprised not to find one. Consider: (a) adding a "New request" button to the sidebar footer alongside "What's new," (b) adding a keyboard shortcut like `N R` alongside the existing `N I` for new idea, or (c) both. Small feature, high discoverability value. Decide during week 4 re-scope or earlier if it keeps coming up.
+- [2026-04-14] Silent failure audit in lib/ai/. Discovered during V3 that the try/catch around triageRequest() in app/api/requests/route.ts swallows the entire error with no surfacing. When the Anthropic API key was dead, every Request created silently succeeded at the DB level but triage silently failed — no error to the user, no log in the terminal once the server restarted, nothing. This is a pattern across all 8 files in lib/ai/. Before shipping Item 4 (intake check UI), audit every try/catch in lib/ai/ to ensure: (a) errors are logged with enough context to debug, (b) errors surface to the user in some form (error state in UI, null with a distinct "failed" indicator, or an admin-only log), (c) the Request row's status reflects the AI failure clearly. Budget 1-2 hours. Prerequisite for Item 4.
 
 **Review cadence:**
 - **End of week 4 re-scope:** read the full parking lot. For each item, decide: sequence it into weeks 5-7, keep it in the parking lot, or delete it.
@@ -241,3 +248,6 @@ Items that come up mid-execution but aren't yet sequenced. Add anything here the
 **Items currently in the parking lot:**
 
 *(empty — add items as they come up)*
+
+
+---
