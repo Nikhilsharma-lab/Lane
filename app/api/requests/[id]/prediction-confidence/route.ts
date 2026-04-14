@@ -61,7 +61,7 @@ export async function POST(
           rationale: result.rationale,
           redFlags: result.redFlags,
           suggestion: result.suggestion,
-          aiModel: "claude-3-5-haiku-20241022",
+          aiModel: "claude-haiku-4-5-20251001",
         })
         .onConflictDoNothing()
         .returning();

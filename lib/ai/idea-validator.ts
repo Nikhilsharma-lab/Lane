@@ -45,7 +45,7 @@ export async function validateIdea(idea: {
   downvotes: number;
 }): Promise<IdeaValidationResult> {
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: ideaValidationSchema,
     prompt: `You are a senior product manager evaluating a design team idea.
 

@@ -54,7 +54,7 @@ export async function generateHandoffBrief(input: {
       : "\nCOMMENT THREAD: None\n";
 
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: handoffBriefSchema,
     prompt: `You are a senior designer writing a handoff brief for a developer who is about to build this feature. Your job is to translate everything known about this design into a brief that helps the dev build it correctly the first time — reducing back-and-forth questions.
 

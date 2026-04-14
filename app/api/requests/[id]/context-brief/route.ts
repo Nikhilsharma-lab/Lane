@@ -69,7 +69,7 @@ export async function POST(
           keyConstraints: result.keyConstraints,
           questionsToAsk: result.questionsToAsk,
           explorationDirections: result.explorationDirections,
-          aiModel: "claude-3-5-haiku-20241022",
+          aiModel: "claude-haiku-4-5-20251001",
         })
         .onConflictDoNothing()
         .returning();

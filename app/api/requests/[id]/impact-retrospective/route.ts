@@ -135,7 +135,7 @@ export async function POST(
           likelyReasons: result.likelyReasons,
           nextTimeSuggestion: result.nextTimeSuggestion,
           celebrate: result.celebrate ?? null,
-          aiModel: "claude-3-5-haiku-20241022",
+          aiModel: "claude-haiku-4-5-20251001",
         })
         .onConflictDoNothing()
         .returning();

@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           reasoning: result.reasoning,
           suggestions: result.suggestions,
           potentialDuplicates: result.potentialDuplicates ?? [],
-          aiModel: "claude-3-5-haiku-20241022",
+          aiModel: "claude-haiku-4-5-20251001",
         })
         .returning();
 

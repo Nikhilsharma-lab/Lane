@@ -81,7 +81,7 @@ export async function GET(
       .join("\n");
 
     const { object } = await generateObject({
-      model: anthropic("claude-3-5-haiku-20241022"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       schema: z.object({
         recommendedId: z.string().nullable().describe("UUID of the recommended member, or null"),
         reasoning: z.string().describe("One sentence: why this person is the best fit"),

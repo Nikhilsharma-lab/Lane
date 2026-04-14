@@ -58,7 +58,7 @@ export async function generateContextBrief(input: {
       : "";
 
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: contextBriefSchema,
     prompt: `You are a senior design strategist preparing a context brief for a designer who is about to start working on a request. Your job is to translate the PM's language into what the designer actually needs to know.
 

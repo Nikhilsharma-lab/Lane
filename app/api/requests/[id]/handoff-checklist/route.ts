@@ -34,7 +34,7 @@ export async function GET(
     );
 
     const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: z.object({
       items: z.array(z.object({
         category: z.enum(["spec", "accessibility", "responsive", "edge_case", "assets", "handoff"]),

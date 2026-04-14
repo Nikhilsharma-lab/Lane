@@ -47,7 +47,7 @@ export async function generatePredictionConfidence(input: {
   priority?: string | null;
 }): Promise<PredictionConfidenceResult> {
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: predictionConfidenceSchema,
     prompt: `You are a senior product strategist reviewing a PM's impact prediction before the Design Head places a bet. Your job is to rate how realistic the prediction is — not whether the feature is good, but whether the impact claim is credible and measurable.
 

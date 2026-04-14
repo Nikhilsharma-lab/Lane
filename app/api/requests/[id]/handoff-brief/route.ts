@@ -83,7 +83,7 @@ export async function POST(
           buildSequence: result.buildSequence,
           figmaNotes: result.figmaNotes,
           edgeCases: result.edgeCases,
-          aiModel: "claude-3-5-haiku-20241022",
+          aiModel: "claude-haiku-4-5-20251001",
         })
         .onConflictDoNothing()
         .returning();

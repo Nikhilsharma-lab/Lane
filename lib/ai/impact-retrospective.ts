@@ -57,7 +57,7 @@ export async function generateImpactRetrospective(input: {
       : "VARIANCE: Not calculable";
 
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: retrospectiveSchema,
     prompt: `You are a senior product strategist writing a post-launch retrospective for a design request. The PM has logged the actual impact. Your job is to produce a concise, honest retrospective that helps the team learn — not a celebration or a post-mortem, just a clear-eyed look at what happened.
 

@@ -61,7 +61,7 @@ export async function triageRequest(input: {
     : "";
 
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: triageSchema,
     prompt: `You are a senior design operations lead triaging a design request.
 

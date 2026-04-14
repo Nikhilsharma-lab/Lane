@@ -310,7 +310,7 @@ export async function generateDigestForOrg(orgId: string): Promise<DigestRespons
   // ── Claude call ────────────────────────────────────────────────────────────
 
   const { object } = await generateObject({
-    model: anthropic("claude-3-5-haiku-20241022"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     schema: digestWithCoachingSchema,
     prompt: `You are a design ops AI writing the weekly digest and PM coaching notes for a design team lead.
 

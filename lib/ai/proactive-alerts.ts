@@ -72,7 +72,7 @@ export async function generateAlertCopy(input: AlertInput): Promise<AlertCopy | 
       contextLines.push(`HOURS SINCE FIGMA CHANGE: ${input.hoursSinceFigmaChange}`);
 
     const { object } = await generateObject({
-      model: anthropic("claude-3-5-haiku-20241022"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       schema: alertSchema,
       prompt: `You are Lane's AI operations monitor for a design team. Your job is to write a clear, specific, human alert.
 
