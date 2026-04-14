@@ -174,3 +174,70 @@ These items are on the sidebar or in the spec files but don't yet have enough de
 ## Strict dependencies at a glance
 
 This is the dependency graph that made the sequencing decisions above. If you re-sequence, respect these.
+
+- V1 → Item 11
+- V2 → Item 6
+- V3 → Item 4 → Item 8 → Item 14
+- V4 → Item 9
+- S1 → Item 7-build, Item 8, Item 14
+- S2 → What's new build
+- Item 1 → Item 8, Item 14
+- Item 11 → Item 8
+
+Read as: "V1 must be done before Item 11 can start." And so on.
+
+---
+
+## What's explicitly NOT on this roadmap
+
+Things we've decided against or deferred indefinitely. Do not add these back without explicit discussion.
+
+- **Schema rename** of `validation_signoffs` table to `proofs` or similar. Formally cancelled April 13. Rationale: "sign-off" is the canonical act word per the vocabulary lock in CLAUDE.md; the schema is already coherent; rename cost outweighs benefit. Do not re-open without explicit discussion.
+- **API route rename** of `app/api/requests/[id]/validate/route.ts` to something Prove-named. Internal endpoint, not user-facing, no benefit to renaming. Stays.
+- **Historical plan document rewrites** under `db/lane docs/docs/superpowers/`. These are historical artifacts and should not be updated to new vocabulary. Leave them as-is.
+- **Slack integration, Figma plugin, mobile app, Linear integration, detailed Figma diffs, version comparison tool** — per CLAUDE.md Part 18. Defer 6+ months or never.
+- **Individual utilization %, activity frequency tracking, designer speed rankings, last-active timestamps** — per CLAUDE.md anti-surveillance principles. NEVER build these.
+
+---
+
+## Tier 4 work not in this roadmap
+
+The "Week 5-12" items from CLAUDE.md Part 17 are partially folded into this roadmap (as Item 14 and the Item 15 components). The rest of CLAUDE.md Part 17 — RLS, Redis rate limiting — is folded into weeks 2-3.
+
+If there's anything in CLAUDE.md Part 17 that you believe isn't in this roadmap, flag it during the week 4 re-scope and we'll decide whether to add it.
+
+---
+
+## How to update this file
+
+- **When you finish an item:** change `[ ]` to `[x]` and append actual hours in parentheses, e.g. `[x] Item 4 (5.5 hours, ran over by 30 min due to classifier prompt tuning)`
+- **When a week slips:** move unfinished items to the next week, update the "Planned" vs. "Budget" hours
+- **When you re-scope at week 4:** add a "Re-scope notes — April [date]" section and update the following weeks
+- **When something breaks and needs a fix:** add it as a new item in the current week with `[FIX]` prefix
+
+This file is a living plan. The commit history of this file is the story of how Lane actually got built.
+
+---
+
+*Last updated: April 14, 2026 — initial roadmap committed.*
+
+
+---
+
+## Parking lot
+
+Items that come up mid-execution but aren't yet sequenced. Add anything here the moment you think of it — don't hold it in your head, don't put it in a chat, don't stuff it into the current week.
+
+**Rules for the parking lot:**
+- Anything goes. Feature ideas, bug reports, customer feedback, refactoring opportunities, "wouldn't it be nice if..." thoughts. All of it.
+- Each item is one line, with a date. Format: `- [YYYY-MM-DD] description`
+- Do not add effort estimates here. Estimates happen when an item leaves the parking lot and gets sequenced.
+- Do not prioritize. The parking lot is unsorted on purpose.
+
+**Review cadence:**
+- **End of week 4 re-scope:** read the full parking lot. For each item, decide: sequence it into weeks 5-7, keep it in the parking lot, or delete it.
+- **End of week 7 or 8:** same review. Decide what survives into the next roadmap.
+
+**Items currently in the parking lot:**
+
+*(empty — add items as they come up)*

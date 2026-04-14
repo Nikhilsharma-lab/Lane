@@ -667,38 +667,34 @@ The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate,"
 **Reuse opportunities:**
 
 - **`components/nav/team-section.tsx`** was preserved during cleanup. When building Zone 3 team sections, look at this file first — it may already contain 80% of what's needed.
-## Part 17: WHAT'S NEXT (Build Sequence)
 
-### Immediate (after merging PR #13)
-- [ ] Run `npm run db:push` against Supabase dev to apply migration 0002 (adds `designer_owner_id`, new design stage enum)
+# Part 17: WHAT'S NEXT (Build Sequence)
 
-### Step 2 — RLS Policies (before first customer)
-- [ ] Write Supabase RLS for requests, reflections, validations — enforce org scoping at DB level
+**The active build sequence is in `docs/ROADMAP.md`.** That file is the source of truth for what to build next and is updated as work ships. Start every Lane session by opening it.
 
-### Step 3 — Redis Rate Limiting (before Week 3-4 AI build)
-- [ ] Add Upstash Redis rate limiting to AI routes (triage, context-brief, etc.)
+The roadmap absorbs and sequences everything that was previously listed here as "Immediate," "Steps 2-3," and "Weeks 5-12." The mapping from old Part 17 labels to current roadmap items:
 
-### Week 5-6: Design Phase UI
-- [ ] 5-stage design flow screens (Sense → Frame → Diverge → Converge → Prove)
-- [ ] Design Frame creation
-- [ ] Iteration management
-- [ ] Reflection system
-- [ ] Feedback threads
+| Original Part 17 item | Roadmap location |
+|---|---|
+| Migration 0002 (`npm run db:push`) | Week 1 — V1 + Item 11 |
+| Supabase RLS policies | Week 2 — Item 12 |
+| Upstash Redis rate limiting | Week 3 — Item 13 |
+| 5-stage design flow screens | Weeks 5-6 — Item 14 parts 1 and 2 |
+| Design Frame creation | Week 5 — Item 14 part 1 |
+| Iteration management | Week 6 — Item 14 part 2 |
+| Reflection system | Week 2 (page) and Week 6 (design-phase integration) — Item 7-build, Item 14 part 2 |
+| Feedback threads | Week 6 — Item 14 part 2 |
+| Handoff doc generation improvements | Week 6 — Item 15a |
+| Impact logging refinements | Week 7 — Item 15b |
+| Weekly AI digest cron | Week 7 — Item 15c |
+| Private designer nudges | Week 6 — Item 15d |
+| Morning briefing | Weeks 6-7 — Item 15e |
+| Commitments view | Week 3 — Item 15f |
+| Bug fixes, performance | Weeks 7-8 — Items 15g, 15h |
 
-### Week 7-8: Build + Impact
-- [ ] Handoff doc generation improvements
-- [ ] Impact logging refinements
+If you find yourself updating this table, you're probably doing it wrong — update `docs/ROADMAP.md` instead, and keep this table as a read-only cross-reference.
 
-### Week 9-10: The Voice
-- [ ] Weekly AI digest cron (pre-generation, stored per org)
-- [ ] Private designer nudges
-- [ ] Morning briefing
-
-### Week 11-12: Polish + Beta
-- [ ] Bug fixes, performance
-- [ ] Commitments view
-
----
+**For anything new that comes up during execution:** add it to the Parking lot section at the bottom of `docs/ROADMAP.md`. Do not add items to this Part 17 section.
 
 ## Part 18: WHAT WE'RE NOT BUILDING (MVP)
 
