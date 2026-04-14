@@ -6,12 +6,12 @@ const triageSchema = z.object({
   priority: z.enum(["p0", "p1", "p2", "p3"]).describe(
     "p0=critical/blocking, p1=high/this week, p2=medium/this sprint, p3=low/backlog"
   ),
-  complexity: z.number().int().min(1).max(5).describe(
-    "1=trivial (<2h), 2=small (2-8h), 3=medium (1-3d), 4=large (3-7d), 5=XL (1w+)"
+  complexity: z.number().describe(
+    "Integer from 1 to 5. 1=trivial (<2h), 2=small (2-8h), 3=medium (1-3d), 4=large (3-7d), 5=XL (1w+)"
   ),
   requestType: z.enum(["feature", "bug", "research", "content", "infra", "process", "other"]),
-  qualityScore: z.number().int().min(0).max(100).describe(
-    "How well-specified is this request? 0=unusable, 50=needs work, 80+=good to assign"
+  qualityScore: z.number().describe(
+    "Integer from 0 to 100. How well-specified is this request? 0=unusable, 50=needs work, 80+=good to assign"
   ),
   qualityFlags: z.array(z.string()).describe(
     "Specific issues with the request quality, e.g. 'Missing success metrics', 'No deadline specified'"
@@ -89,5 +89,32 @@ CLASSIFICATION — This is critical. Classify the request as:
 If solution_specific or hybrid, extract and rephrase the underlying user/business problem as reframedProblem. If problem_framed, set reframedProblem to null.`,
   });
 
-  return object;
+  // Runtime validation — Anthropic structured output doesn't enforce numeric
+  // ranges in Zod 4 (vercel/ai#13355). Schema is z.number() instead of
+  // z.number().int().min().max(), so we clamp and round here.
+
+  const rawComplexity = object.complexity;
+  const rawQualityScore = object.qualityScore;
+
+  const complexity = Math.max(1, Math.min(5, Math.round(rawComplexity)));
+  const qualityScore = Math.max(0, Math.min(100, Math.round(rawQualityScore)));
+
+  if (Math.abs(rawComplexity - complexity) > 0.5) {
+    console.warn(
+      "[triage] complexity out of range",
+      { rawValue: rawComplexity, clampedTo: complexity }
+    );
+  }
+  if (Math.abs(rawQualityScore - qualityScore) > 0.5) {
+    console.warn(
+      "[triage] qualityScore out of range",
+      { rawValue: rawQualityScore, clampedTo: qualityScore }
+    );
+  }
+
+  return {
+    ...object,
+    complexity,
+    qualityScore,
+  };
 }
