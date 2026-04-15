@@ -6,11 +6,8 @@ import { z } from "zod";
 const predictionConfidenceSchema = z.object({
   score: z
     .number()
-    .int()
-    .min(0)
-    .max(100)
     .describe(
-      "0-100 confidence that this prediction will be measurable and approximately correct. 70+ = realistic, 40-69 = optimistic, 20-39 = vague, 0-19 = unmeasurable."
+      "Integer from 0 to 100. Confidence that this prediction will be measurable and approximately correct. 70+ = realistic, 40-69 = optimistic, 20-39 = vague, 0-19 = unmeasurable."
     ),
   label: z
     .enum(["realistic", "optimistic", "vague", "unmeasurable"])
@@ -76,5 +73,19 @@ Common failure modes to check:
 Rate the prediction honestly. A realistic prediction is specific, grounded, and provably achievable.`,
   });
 
-  return object;
+  // Runtime validation — Anthropic structured output doesn't enforce numeric
+  // ranges in Zod 4 (vercel/ai#13355). Schema is z.number() instead of
+  // z.number().int().min().max(), so we clamp and round here.
+
+  const rawScore = object.score;
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+  if (Math.abs(rawScore - score) > 0.5) {
+    console.warn(
+      "[prediction-confidence] score out of range",
+      { rawValue: rawScore, clampedTo: score }
+    );
+  }
+
+  return { ...object, score };
 }
