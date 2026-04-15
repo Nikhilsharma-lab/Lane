@@ -25,8 +25,7 @@ const briefSchema = z.object({
         href: z.string().optional().describe("Link to the relevant request, e.g. /dashboard/requests/{id}. Only include when referencing a specific request from the context."),
       })
     )
-    .min(1)
-    .max(5),
+    .describe("Array of 1 to 5 briefing items, in priority order with the most important first."),
   oneThing: z
     .string()
     .describe("Single concrete action the user can take in the next hour. Start with 'Today:'"),
@@ -338,5 +337,29 @@ ${contextBlock}
 ---`,
   });
 
-  return object as MorningBriefContent;
+  // Runtime validation — Anthropic structured output doesn't enforce array
+  // length in Zod 4 (vercel/ai#13355). Schema dropped .min(1).max(5), so we
+  // validate here. Truncate if too long, throw if too short — empty briefings
+  // are a real failure that should surface, not silently render as empty UI.
+
+  const rawItems = object.items;
+  let items = rawItems;
+
+  if (rawItems.length > 5) {
+    items = rawItems.slice(0, 5);
+    console.warn(
+      "[morning-briefing] items array exceeded max length",
+      { rawLength: rawItems.length, truncatedTo: 5 }
+    );
+  }
+
+  if (items.length < 1) {
+    console.error(
+      "[morning-briefing] AI returned zero items — briefing is unusable",
+      { object }
+    );
+    throw new Error("Morning briefing generation failed: AI returned zero briefing items");
+  }
+
+  return { ...object, items } as MorningBriefContent;
 }
