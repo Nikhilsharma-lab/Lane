@@ -82,9 +82,49 @@ After the Personal zone, render a collapsible section for each team the user bel
 
 No sub-folders. No nested requests. No phase indicators in the sidebar. These five items are fixed.
 
-### Footer
+### Sidebar footer — "What's new"
 
-- "What's new" expandable section (small footnote-style, muted color) — lists recent shipped changes to Lane itself. Already in shipped code. Keep it.
+**Status as of April 15, 2026:** Spec'd in S2, build deferred to Week 4 per roadmap. The footer is NOT in shipped code — earlier nav-spec assertion that it was already built was inaccurate.
+
+**Purpose:** Small footnote-style expandable section at the bottom of the sidebar that surfaces recent shipped changes. Provides a quiet signal that the product is alive and evolving without dominating primary nav.
+
+**Data source:** `CHANGELOG.md` at repo root. Already exists (132 lines as of S2 spec date). The footer reads from this file at build time or render time — implementation choice deferred to build session.
+
+**Entry format:**
+
+```markdown
+## YYYY-MM-DD
+
+- **Title** — one-line description in plain English. Optional (link to a request, page, or doc).
+```
+
+Date as H2, entries as bullets under it. Multiple entries on the same date stack as bullets under the same H2. If existing CHANGELOG.md uses a different format, either the parser handles backward compatibility or the file gets migrated to this format before the footer ships.
+
+**UI behavior:**
+- Default state: collapsed, single line at the bottom of the sidebar showing "What's new" with a chevron indicator
+- Click: expands inline to show the most recent 5 entries, dates as section headers, bullets underneath
+- Click again: collapses
+- No state persistence across sessions (keeps implementation trivial)
+- Muted text color, smaller font than primary nav items
+
+**Discipline rule for what counts as a changelog entry:**
+
+A changelog entry exists when shipping a change that affects user experience.
+
+Add an entry for: new features, bug fixes the user would notice, UX changes, performance improvements users would feel, removed features.
+
+Skip an entry for: internal refactors, dependency updates, infrastructure changes, documentation, deprecations of unused/never-shipped features, test additions, code cleanups.
+
+When in doubt, ask: "would a user reading this entry think 'oh, that's interesting'?" If no, skip.
+
+**Out of scope for v1 build:**
+- No notification/dot/badge for "new since last visit"
+- No filtering, search, or categorization
+- No backlinks from entries to specific commits, PRs, or roadmap items
+
+These exclusions are intentional — adding any of them expands build cost meaningfully. If demand emerges post-launch, revisit.
+
+**Estimated build effort:** ~1.5 hours when executed (markdown parser, expandable footer component, sidebar wiring, styling).
 
 ---
 
