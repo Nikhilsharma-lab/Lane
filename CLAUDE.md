@@ -537,6 +537,12 @@ lib/
   encrypt.ts           ← AES-256-GCM for Figma tokens
 ```
 
+### Architectural notes
+
+**Sidebar and nav split.** Sidebar rendering lives in `components/shell/sidebar.tsx`. The `components/nav/` directory holds nav logic that's distinct from the sidebar shell — team sections (`components/nav/team-section.tsx`) and active-item logic. The `lib/nav/` directory holds nav keys and order constants. When modifying the sidebar's items, edit `components/shell/sidebar.tsx`. When modifying team-scoped nav structure, edit `components/nav/team-section.tsx`. When modifying nav keys or active-item resolution, edit `lib/nav/`.
+
+**Hotkeys.** Keyboard shortcuts are wired in `components/shell/hotkeys-provider.tsx`. When adding or removing sidebar destinations, check whether a corresponding hotkey exists and update both consistently — they were the source of inconsistency during the April 15 S1 deferral.
+
 ---
 
 ## Part 13: DEVELOPMENT PHILOSOPHY
