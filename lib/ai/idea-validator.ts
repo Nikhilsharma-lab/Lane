@@ -32,10 +32,11 @@ export async function validateIdea(idea: {
   upvotes: number;
   downvotes: number;
 }): Promise<IdeaValidationResult> {
-  const { object } = await generateObject({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    schema: ideaValidationSchema,
-    prompt: `You are a senior product manager evaluating a design team idea.
+  try {
+    const { object } = await generateObject({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      schema: ideaValidationSchema,
+      prompt: `You are a senior product manager evaluating a design team idea.
 
 IDEA:
 Title: ${idea.title}
@@ -49,34 +50,38 @@ COMMUNITY SIGNAL:
 Upvotes: ${idea.upvotes} | Downvotes: ${idea.downvotes} | Net score: ${idea.upvotes - idea.downvotes}
 
 Score each dimension 1-10 and provide brief reasoning (2-3 sentences).`,
-  });
+    });
 
-  // Runtime validation — Anthropic structured output doesn't enforce numeric
-  // ranges in Zod 4 (vercel/ai#13355). Schemas use z.number() instead of
-  // z.number().int().min().max(), so we clamp and round here.
+    // Runtime validation — Anthropic structured output doesn't enforce numeric
+    // ranges in Zod 4 (vercel/ai#13355). Schemas use z.number() instead of
+    // z.number().int().min().max(), so we clamp and round here.
 
-  const rawImpactScore = object.impactScore;
-  const rawEffortEstimate = object.effortEstimate;
-  const rawFeasibilityScore = object.feasibilityScore;
-  const rawRoiScore = object.roiScore;
+    const rawImpactScore = object.impactScore;
+    const rawEffortEstimate = object.effortEstimate;
+    const rawFeasibilityScore = object.feasibilityScore;
+    const rawRoiScore = object.roiScore;
 
-  const impactScore = Math.max(1, Math.min(10, Math.round(rawImpactScore)));
-  const effortEstimate = Math.max(1, Math.min(10, Math.round(rawEffortEstimate)));
-  const feasibilityScore = Math.max(1, Math.min(10, Math.round(rawFeasibilityScore)));
-  const roiScore = Math.max(1, Math.min(10, Math.round(rawRoiScore)));
+    const impactScore = Math.max(1, Math.min(10, Math.round(rawImpactScore)));
+    const effortEstimate = Math.max(1, Math.min(10, Math.round(rawEffortEstimate)));
+    const feasibilityScore = Math.max(1, Math.min(10, Math.round(rawFeasibilityScore)));
+    const roiScore = Math.max(1, Math.min(10, Math.round(rawRoiScore)));
 
-  if (Math.abs(rawImpactScore - impactScore) > 0.5) {
-    console.warn("[idea-validator] impactScore out of range", { rawValue: rawImpactScore, clampedTo: impactScore });
+    if (Math.abs(rawImpactScore - impactScore) > 0.5) {
+      console.warn("[idea-validator] impactScore out of range", { rawValue: rawImpactScore, clampedTo: impactScore });
+    }
+    if (Math.abs(rawEffortEstimate - effortEstimate) > 0.5) {
+      console.warn("[idea-validator] effortEstimate out of range", { rawValue: rawEffortEstimate, clampedTo: effortEstimate });
+    }
+    if (Math.abs(rawFeasibilityScore - feasibilityScore) > 0.5) {
+      console.warn("[idea-validator] feasibilityScore out of range", { rawValue: rawFeasibilityScore, clampedTo: feasibilityScore });
+    }
+    if (Math.abs(rawRoiScore - roiScore) > 0.5) {
+      console.warn("[idea-validator] roiScore out of range", { rawValue: rawRoiScore, clampedTo: roiScore });
+    }
+
+    return { ...object, impactScore, effortEstimate, feasibilityScore, roiScore };
+  } catch (err) {
+    console.error("[idea-validator] AI error:", err);
+    throw err;
   }
-  if (Math.abs(rawEffortEstimate - effortEstimate) > 0.5) {
-    console.warn("[idea-validator] effortEstimate out of range", { rawValue: rawEffortEstimate, clampedTo: effortEstimate });
-  }
-  if (Math.abs(rawFeasibilityScore - feasibilityScore) > 0.5) {
-    console.warn("[idea-validator] feasibilityScore out of range", { rawValue: rawFeasibilityScore, clampedTo: feasibilityScore });
-  }
-  if (Math.abs(rawRoiScore - roiScore) > 0.5) {
-    console.warn("[idea-validator] roiScore out of range", { rawValue: rawRoiScore, clampedTo: roiScore });
-  }
-
-  return { ...object, impactScore, effortEstimate, feasibilityScore, roiScore };
 }

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withUserSession } from "@/db/user";
 import { ideas, ideaValidations, ideaVotes, profiles, requests } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { validateIdea } from "@/lib/ai/idea-validator";
+import { validateIdea, type IdeaValidationResult } from "@/lib/ai/idea-validator";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/notifications";
 
@@ -47,16 +47,25 @@ export async function POST(
     const downvotes = votes.filter((v) => v.voteType === "downvote").length;
 
     // Run AI validation
-    const aiScores = await validateIdea({
-      title: idea.title,
-      problem: idea.problem,
-      proposedSolution: idea.proposedSolution,
-      category: idea.category,
-      impactEstimate: idea.impactEstimate,
-      effortEstimateWeeks: idea.effortEstimateWeeks,
-      upvotes,
-      downvotes,
-    });
+    let aiScores: IdeaValidationResult;
+    try {
+      aiScores = await validateIdea({
+        title: idea.title,
+        problem: idea.problem,
+        proposedSolution: idea.proposedSolution,
+        category: idea.category,
+        impactEstimate: idea.impactEstimate,
+        effortEstimateWeeks: idea.effortEstimateWeeks,
+        upvotes,
+        downvotes,
+      });
+    } catch (err) {
+      console.error("[idea-validate] AI error:", err);
+      return NextResponse.json(
+        { error: "Idea validation failed" },
+        { status: 500 }
+      );
+    }
 
     // Use override values if provided, else AI scores
     const impactScore = impactScoreOverride ?? aiScores.impactScore;

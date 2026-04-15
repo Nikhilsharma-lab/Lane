@@ -110,12 +110,20 @@ export async function POST(req: NextRequest) {
         .where(eq(requests.id, request.id));
 
       triage = saved;
+      return NextResponse.json({ request, triage, triageStatus: "ok" }, { status: 201 });
     } catch (err) {
       console.error("AI triage failed:", err);
       // Request is still created, just without triage
+      return NextResponse.json(
+        {
+          request,
+          triage: null,
+          triageStatus: "failed",
+          triageError: err instanceof Error ? err.message : "Unknown triage error",
+        },
+        { status: 201 }
+      );
     }
-
-    return NextResponse.json({ request, triage }, { status: 201 });
   });
 }
 
