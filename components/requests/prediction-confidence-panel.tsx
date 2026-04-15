@@ -57,7 +57,7 @@ export function PredictionConfidencePanel({ requestId, existingConfidence }: Pro
     fetch(`/api/requests/${requestId}/prediction-confidence`, { method: "POST" })
       .then((res) => res.json())
       .then((data) => { if (data.confidence) setConfidence(data.confidence); })
-      .catch(() => { /* silent fail */ })
+      .catch((err) => { console.error("[prediction-confidence-panel] fetch prediction confidence failed:", err); })
       .finally(() => setLoading(false));
   }, [requestId, existingConfidence]);
 

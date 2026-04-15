@@ -23,7 +23,7 @@ export function HandoffBriefPanel({ requestId, existingBrief }: Props) {
       .then((data) => {
         if (data.brief) setBrief(data.brief);
       })
-      .catch(() => { /* silent fail — brief is non-blocking */ })
+      .catch((err) => { console.error("[handoff-brief-panel] fetch handoff brief failed:", err); })
       .finally(() => setLoading(false));
   }, [requestId, existingBrief]);
 

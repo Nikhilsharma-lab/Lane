@@ -56,7 +56,7 @@ export function DesignRoi() {
     fetch("/api/insights/design-roi")
       .then((r) => r.json())
       .then((d) => setRoi(d.roi ?? []))
-      .catch(() => { /* silent fail */ })
+      .catch((err) => { console.error("[design-roi] fetch ROI data failed:", err); })
       .finally(() => setLoading(false));
   }, []);
 

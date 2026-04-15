@@ -51,7 +51,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
     try {
       const data = await getIterationsForRequest(requestId);
       setIterationsList(data);
-    } catch { /* silently fail */ }
+    } catch (err) { console.error("[design-phase-panel] fetch iterations failed:", err); }
   }, [requestId, showIterations]);
 
   useEffect(() => { fetchIterations(); }, [fetchIterations]);

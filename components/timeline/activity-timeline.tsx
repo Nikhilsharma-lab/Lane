@@ -30,7 +30,7 @@ export function ActivityTimeline({ requestId }: { requestId: string }) {
       .then((data) => {
         if (!cancelled) setEntries(data.entries ?? []);
       })
-      .catch(() => {})
+      .catch((err) => { console.error("[activity-timeline] fetch timeline failed:", err); })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

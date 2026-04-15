@@ -22,7 +22,7 @@ export function ImpactRetrospectivePanel({ requestId, existingRetrospective }: P
     fetch(`/api/requests/${requestId}/impact-retrospective`, { method: "POST" })
       .then((res) => res.json())
       .then((data) => { if (data.retrospective) setRetro(data.retrospective); })
-      .catch(() => { /* silent fail */ })
+      .catch((err) => { console.error("[impact-retrospective-panel] fetch impact retrospective failed:", err); })
       .finally(() => setLoading(false));
   }, [requestId, existingRetrospective]);
 

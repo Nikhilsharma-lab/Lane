@@ -83,7 +83,7 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
     fetch("/api/alerts")
       .then((r) => r.json())
       .then((d) => setAlertCount(d.unreadCount ?? 0))
-      .catch(() => {});
+      .catch((err) => { console.error("[notifications-bell] fetch alert count failed:", err); });
   }, []);
 
   function handleOpen() {
@@ -105,7 +105,7 @@ export function NotificationsBell({ userRole }: { userRole?: string }) {
         setAlertCount(alertData.unreadCount ?? fetchedAlerts.length);
         setNotifItems(fetchedNotifs);
       })
-      .catch(() => {})
+      .catch((err) => { console.error("[notifications-bell] fetch notifications failed:", err); })
       .finally(() => setLoading(false));
   }
 

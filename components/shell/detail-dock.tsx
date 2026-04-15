@@ -104,7 +104,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
     fetch(`/api/requests/${dockId}/enriched`)
       .then((r) => r.json())
       .then((data) => setEnriched(data))
-      .catch(() => {})
+      .catch((err) => { console.error("[detail-dock] fetch request details failed:", err); })
       .finally(() => setEnrichedLoading(false));
   }, [dockId]);
 
