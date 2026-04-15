@@ -351,7 +351,7 @@ function NudgePanel({ notification, onArchive }: { notification: InboxNotificati
   const responses = [
     { key: "blocked", label: "I'm blocked", icon: "\u{1F6A7}", desc: "Something is preventing progress" },
     { key: "thinking", label: "Still thinking", icon: "\u{1F4AD}", desc: "Working through the problem" },
-    { key: "update", label: "Update now", icon: "\u270F\uFE0F", desc: "I'll post a reflection" },
+    { key: "update", label: "Update now", icon: "\u270F\uFE0F", desc: "I'll post an update" },
   ];
 
   function handleRespond(responseKey: string) {
@@ -362,7 +362,7 @@ function NudgePanel({ notification, onArchive }: { notification: InboxNotificati
         const responseMap: Record<string, string> = {
           blocked: "I'm currently blocked on this -- will update when I have a path forward.",
           thinking: "Still thinking through the approach. Will share progress soon.",
-          update: "Thanks for the nudge -- posting a reflection now.",
+          update: "Thanks for the nudge -- posting an update now.",
         };
         await fetch(`/api/requests/${notification.requestId}/comment`, {
           method: "POST",

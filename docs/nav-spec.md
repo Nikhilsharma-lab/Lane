@@ -25,7 +25,7 @@ These are the only terms used in Lane's UI. The sidebar code must match this tab
 | The time window for committing | **cycle** | Lowercase in prose |
 | The upstream pool of thoughts | **Ideas** | Sidebar item, no "Board" suffix |
 | An item in Ideas | **idea** | Lowercase |
-| The designer's own written thinking | **Reflection** | First-class concept per CLAUDE.md |
+| The designer's own written thinking | **Reflection** | First-class concept per CLAUDE.md. *Feature deferred to post-v1 per April 15 S1 outcome; vocabulary preserved for future reconsideration.* |
 | The weekly AI digest | **weekly digest** | Matches CLAUDE.md Part 9.7 |
 | Functional units (Consumer app, Payments) | **Team** | |
 | Designer accountable for a Request | **designer owner** | Matches `designer_owner_id` column |
@@ -335,7 +335,6 @@ Canonical Personal zone jumps:
 - `G S` — Submitted by me
 - `G D` — Drafts
 - `G B` — Ideas (B for "board," avoiding collision with `I` for Inbox)
-- `G R` — Reflections
 - `G W` — Weekly digest (Admin / Design Head only; no-op otherwise)
 
 **No per-team jump shortcuts.** Use `⌘K` for team navigation — scales to any number of teams.
@@ -462,7 +461,7 @@ Follow this order when building new nav functionality. Do not build UI before th
 3. Seed script: one workspace, two teams, three users (one per role), Requests per team
 4. Typed query functions in `lib/queries/nav.ts` — `getCurrentUserWorkspaceRole`, `getUserTeamsForSidebar`, `getPersonalZoneCounts`. Use `group by` for team counts — no N+1.
 5. Update `hooks/use-sidebar-data.ts` to fetch from the queries above
-6. Update `components/shell/sidebar.tsx` personalNav array to match section 2 exactly (rename "My streams" → "My requests," add "Submitted by me," "Reflections")
+6. Update `components/shell/sidebar.tsx` personalNav array to match section 2 exactly (rename "My streams" → "My requests," add "Submitted by me"). *Reflections was previously listed here but removed April 15 per S1 outcome — do not re-add.*
 7. `components/nav/team-section.tsx` renders the five fixed items per team (already partially exists)
 8. Wire `<NavBadge>` counts per badge hierarchy in section 5
 9. `orderSidebarItems(data, role)` pure function + unit tests per role

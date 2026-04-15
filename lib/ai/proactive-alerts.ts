@@ -41,7 +41,7 @@ export interface AlertInput {
 
 const TYPE_CONTEXT: Record<AlertInput["type"], string> = {
   stall_nudge:
-    "A designer's request has had no activity (no stage change, reflection, or comment) for several days. Write a private, supportive nudge — not an accusation. The designer should feel supported, not watched.",
+    "A designer's request has had no activity (no stage change or comment) for several days. Write a private, supportive nudge — not an accusation. The designer should feel supported, not watched.",
   stall_escalation:
     "A designer was nudged privately but the request still hasn't moved. The Design Head needs to know. Frame it as a team health signal, not a performance issue.",
   signoff_overdue:
