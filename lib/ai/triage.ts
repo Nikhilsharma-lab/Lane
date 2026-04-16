@@ -38,6 +38,12 @@ const triageSchema = z.object({
   reframedProblem: z.string().nullable().describe(
     "If solution_specific or hybrid, extract and rephrase the underlying problem as a clear problem statement. Null if already problem_framed."
   ),
+  extractedSolution: z
+    .string()
+    .nullable()
+    .describe(
+      "If classification is hybrid, preserve the solution the requester proposed, verbatim or lightly cleaned. For problem_framed and solution_specific: null."
+    ),
 });
 
 export type TriageResult = z.infer<typeof triageSchema>;
@@ -86,7 +92,9 @@ CLASSIFICATION — This is critical. Classify the request as:
 - "solution_specific": Prescribes UI changes or implementation details WITHOUT explaining the underlying problem. Signals: UI element names without problem context ("add a button", "change the color"), describes implementation ("make it like Stripe"), no user problem mentioned, starts with "Can we..." + UI change.
 - "hybrid": Contains BOTH a clear problem AND a proposed solution.
 
-If solution_specific or hybrid, extract and rephrase the underlying user/business problem as reframedProblem. If problem_framed, set reframedProblem to null.`,
+If solution_specific or hybrid, extract and rephrase the underlying problem as a clear problem statement in reframedProblem. Null if already problem_framed.
+
+For hybrid classifications only, also preserve the solution the requester proposed in extractedSolution (verbatim or lightly cleaned). For problem_framed and solution_specific, set extractedSolution to null.`,
   });
 
   // Runtime validation — Anthropic structured output doesn't enforce numeric

@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         potentialDuplicates: result.potentialDuplicates,
         classification: result.classification,
         reframedProblem: result.reframedProblem,
+        extractedSolution: result.extractedSolution,
       });
     } catch (err) {
       console.error("[preflight] triage failed:", err);
