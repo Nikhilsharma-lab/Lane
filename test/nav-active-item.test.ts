@@ -84,9 +84,9 @@ describe("getActiveNavItem", () => {
     );
   });
 
-  it("team validation gate", () => {
-    expect(getActiveNavItem("/dashboard/teams/consumer-app/validation")).toBe(
-      "team:consumer-app:validation_gate",
+  it("team prove", () => {
+    expect(getActiveNavItem("/dashboard/teams/consumer-app/prove")).toBe(
+      "team:consumer-app:prove",
     );
   });
 

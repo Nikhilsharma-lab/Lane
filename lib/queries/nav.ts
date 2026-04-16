@@ -37,7 +37,7 @@ export interface TeamForSidebar {
   streamCounts: {
     active: number;
     intake: number;
-    validation: number;
+    prove: number;
     archived: number;
     total: number;
   };
@@ -123,13 +123,13 @@ export async function getUserTeamsForSidebar(
     .where(inArray(requests.projectId, teamIds))
     .groupBy(requests.projectId, requests.phase);
 
-  // Build count map: teamId → { active, intake, validation, archived, total }
+  // Build count map: teamId → { active, intake, prove, archived, total }
   const countMap = new Map<string, TeamForSidebar["streamCounts"]>();
   for (const row of streamCountRows) {
     if (!row.teamId) continue;
     let entry = countMap.get(row.teamId);
     if (!entry) {
-      entry = { active: 0, intake: 0, validation: 0, archived: 0, total: 0 };
+      entry = { active: 0, intake: 0, prove: 0, archived: 0, total: 0 };
       countMap.set(row.teamId, entry);
     }
     const n = Number(row.cnt);
@@ -149,7 +149,7 @@ export async function getUserTeamsForSidebar(
   }
 
   // Step 3: Count requests in Prove (design_stage = 'prove')
-  const validationRows = await db
+  const proveRows = await db
     .select({
       teamId: requests.projectId,
       cnt: count(),
@@ -163,11 +163,11 @@ export async function getUserTeamsForSidebar(
     )
     .groupBy(requests.projectId);
 
-  for (const row of validationRows) {
+  for (const row of proveRows) {
     if (!row.teamId) continue;
     const entry = countMap.get(row.teamId);
     if (entry) {
-      entry.validation = Number(row.cnt);
+      entry.prove = Number(row.cnt);
     }
   }
 
@@ -180,7 +180,7 @@ export async function getUserTeamsForSidebar(
     streamCounts: countMap.get(m.teamId) ?? {
       active: 0,
       intake: 0,
-      validation: 0,
+      prove: 0,
       archived: 0,
       total: 0,
     },

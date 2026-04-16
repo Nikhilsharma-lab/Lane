@@ -10,7 +10,7 @@ export interface SidebarTeam {
   streamCounts: {
     active: number;
     intake: number;
-    validation: number;
+    prove: number;
     archived: number;
     total: number;
   };

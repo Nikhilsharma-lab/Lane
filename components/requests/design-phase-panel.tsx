@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ValidationGate } from "./validation-gate";
+import { ProveGate } from "./prove-gate";
 import { IterationCard } from "@/components/iterations/iteration-card";
 import { createIteration, getIterationsForRequest } from "@/app/actions/iterations";
 import { Plus } from "lucide-react";
@@ -80,7 +80,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   const current = STAGES[currentIdx];
   const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
   const isLastDesign = currentIdx >= STAGES.length - 1;
-  const isRefineStage = currentDesignStage === "prove";
+  const isProveStage = currentDesignStage === "prove";
 
   function getGateStatus(): { canAdvance: boolean; missing: string[] } {
     const missing: string[] = [];
@@ -174,9 +174,9 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
           </div>
         )}
 
-        {/* Prove stage: show ValidationGate instead of advance button */}
-        {isRefineStage ? (
-          <ValidationGate requestId={requestId} myProfileRole={profileRole} isTestUser={isTestUser} />
+        {/* Prove stage: show ProveGate instead of advance button */}
+        {isProveStage ? (
+          <ProveGate requestId={requestId} myProfileRole={profileRole} isTestUser={isTestUser} />
         ) : (
           <>
             {/* Gate status for explore + handoff */}

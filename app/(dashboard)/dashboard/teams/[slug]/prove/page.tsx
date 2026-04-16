@@ -2,7 +2,7 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export default async function ValidationGatePage({ params }: Props) {
+export default async function ProveGatePage({ params }: Props) {
   const { slug } = await params;
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
@@ -14,7 +14,7 @@ export default async function ValidationGatePage({ params }: Props) {
       </div>
       <div className="rounded-xl border bg-card p-8 text-center">
         <p className="text-sm text-muted-foreground">
-          Nothing waiting for validation right now.
+          Nothing waiting for prove right now.
         </p>
       </div>
     </div>

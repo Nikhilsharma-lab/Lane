@@ -15,7 +15,7 @@ function makeTeam(overrides: Partial<SidebarTeam> = {}): SidebarTeam {
     slug: "consumer-app",
     teamRole: "designer",
     isTeamAdmin: false,
-    streamCounts: { active: 3, intake: 1, validation: 0, archived: 2, total: 6 },
+    streamCounts: { active: 3, intake: 1, prove: 0, archived: 2, total: 6 },
     ...overrides,
   };
 }

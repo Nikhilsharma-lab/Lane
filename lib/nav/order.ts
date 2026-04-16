@@ -25,14 +25,14 @@ export type TeamItemKey =
   | "active_requests"
   | "intake_queue"
   | "commitments"
-  | "validation_gate"
+  | "prove"
   | "archive";
 
 const DEFAULT_ORDER: readonly TeamItemKey[] = [
   "active_requests",
   "intake_queue",
   "commitments",
-  "validation_gate",
+  "prove",
   "archive",
 ] as const;
 
@@ -40,7 +40,7 @@ const PM_ORDER: readonly TeamItemKey[] = [
   "intake_queue",
   "active_requests",
   "commitments",
-  "validation_gate",
+  "prove",
   "archive",
 ] as const;
 
@@ -48,7 +48,7 @@ const DESIGN_HEAD_ORDER: readonly TeamItemKey[] = [
   "active_requests",
   "intake_queue",
   "commitments",
-  "validation_gate",
+  "prove",
   "archive",
 ] as const;
 

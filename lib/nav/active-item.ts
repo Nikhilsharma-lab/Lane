@@ -21,7 +21,7 @@ export type NavItemKey =
   | `team:${string}:active_requests`
   | `team:${string}:intake_queue`
   | `team:${string}:commitments`
-  | `team:${string}:validation_gate`
+  | `team:${string}:prove`
   | `team:${string}:archive`;
 
 export interface StreamContext {
@@ -66,7 +66,7 @@ export function getActiveNavItem(
 
   // ── Team-scoped pages ─────────────────────────────────────────────────────
   const teamMatch = pathname.match(
-    /^\/dashboard\/teams\/([^/]+)\/(active-requests|intake|commitments|validation|archive)/,
+    /^\/dashboard\/teams\/([^/]+)\/(active-requests|intake|commitments|prove|archive)/,
   );
   if (teamMatch) {
     const teamSlug = teamMatch[1];
@@ -78,8 +78,8 @@ export function getActiveNavItem(
         return `team:${teamSlug}:intake_queue`;
       case "commitments":
         return `team:${teamSlug}:commitments`;
-      case "validation":
-        return `team:${teamSlug}:validation_gate`;
+      case "prove":
+        return `team:${teamSlug}:prove`;
       case "archive":
         return `team:${teamSlug}:archive`;
     }

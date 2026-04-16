@@ -19,7 +19,7 @@ interface Signoff {
   signedAt: string;
 }
 
-interface ValidationGateProps {
+interface ProveGateProps {
   requestId: string;
   myProfileRole: string; // raw profile role (designer/pm/lead/admin)
   isTestUser?: boolean;  // test account — can sign for any role
@@ -50,7 +50,7 @@ const decisionLabels: Record<Decision, string> = {
   rejected: "Rejected",
 };
 
-export function ValidationGate({ requestId, myProfileRole, isTestUser = false }: ValidationGateProps) {
+export function ProveGate({ requestId, myProfileRole, isTestUser = false }: ProveGateProps) {
   const router = useRouter();
   const mySignerRole = signerRoleFromProfile(myProfileRole);
 
