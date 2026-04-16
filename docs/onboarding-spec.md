@@ -346,7 +346,10 @@ alter table requests add column ai_flagged text;
 alter table requests add column ai_classifier_result text;
 alter table requests add column ai_extracted_problem text;
 alter table requests add column ai_extracted_solution text;
-alter table requests add column submit_justification text;
+-- Note: intake_justification column already exists (added in prior work).
+-- Spec originally named this submit_justification; codebase uses intake_justification.
+-- The two refer to the same field — justification text the user provides when
+-- submitting a flagged request anyway.
 ```
 
 ### Events
@@ -513,7 +516,7 @@ create index analytics_events_name_time on analytics_events (event_name, created
 
 ## 11. Build order
 
-1. Schema additions: `onboarded_at`, `ai_flagged`, `ai_classifier_result`, `ai_extracted_problem`, `ai_extracted_solution`, `submit_justification`, `analytics_events` table, tracking columns
+1. Schema additions: `onboarded_at`, `ai_flagged`, `ai_classifier_result`, `ai_extracted_problem`, `ai_extracted_solution`, `intake_justification` (already exists), `analytics_events` table, tracking columns
 2. `lib/onboarding/detect-persona.ts` + unit tests per persona
 3. `lib/analytics/track.ts` — single `track(eventName, properties)` function
 4. Persona-routing logic on first login
