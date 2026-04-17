@@ -1,7 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, requests, organizations, publishedViews, notifications } from "@/db/schema";
+import { profiles, requests, organizations, publishedViews, notifications, workspaceMembers } from "@/db/schema";
 import { eq, and, sql, isNull, lte, or } from "drizzle-orm";
 import { RequestsProvider } from "@/context/requests-context";
 import { HotkeysProvider } from "@/components/shell/hotkeys-provider";
@@ -26,6 +27,7 @@ export default async function DashboardLayout({
   let userInitials = "";
   let orgName = "Lane";
   let orgPlan = "FREE";
+  let needsOnboarding = false;
 
   try {
     const supabase = await createClient();
@@ -39,6 +41,22 @@ export default async function DashboardLayout({
         .where(eq(profiles.id, user.id));
 
       if (profile) {
+        // Onboarding gate — runs before the heavy parallel queries below.
+        // If needsOnboarding flips true, we skip those queries and redirect
+        // after the try/catch (redirect() throws, which the catch would swallow).
+        const [membership] = await db
+          .select({ onboardedAt: workspaceMembers.onboardedAt })
+          .from(workspaceMembers)
+          .where(
+            and(
+              eq(workspaceMembers.workspaceId, profile.orgId),
+              eq(workspaceMembers.userId, user.id)
+            )
+          );
+        if (!membership || !membership.onboardedAt) {
+          needsOnboarding = true;
+        }
+
         profileRole = profile.role ?? "member";
         isTestUser = profile.email === "hi.nikhilsharma@gmail.com";
         userName = profile.fullName ?? user.email?.split("@")[0] ?? "";
@@ -60,6 +78,7 @@ export default async function DashboardLayout({
 
         const now = new Date();
 
+        if (!needsOnboarding) {
         const [orgRequestsResult, pinnedViewsResult, unreadResult] = await Promise.allSettled([
           db.select().from(requests).where(eq(requests.orgId, profile.orgId)),
           db
@@ -98,10 +117,15 @@ export default async function DashboardLayout({
         orgRequests = orgRequestsResult.status === "fulfilled" ? orgRequestsResult.value : [];
         userPinnedViews = pinnedViewsResult.status === "fulfilled" ? pinnedViewsResult.value : [];
         inboxUnreadCount = unreadResult.status === "fulfilled" ? unreadResult.value[0].value : 0;
+        }
       }
     }
   } catch {
     // Pages handle auth redirects themselves
+  }
+
+  if (needsOnboarding) {
+    redirect("/onboarding");
   }
 
   const activeCount = orgRequests.filter(
