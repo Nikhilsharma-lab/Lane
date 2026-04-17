@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Item 12 — Supabase RLS policies. Enforce org scoping at the database level for requests, validations, and related tables. Write CREATE POLICY SQL statements, test against existing schema, document in `docs/rls-policies.md`. Estimated ~4 hours. Read `docs/WORKING-RULES.md` first.
+> **Next session:** Item 6 — Real Submitted by me page. Replace placeholder with a real list view. Query: requests where current user is the submitter (`requester_id = profile.id`). Sort by most recent update. Filter by phase. Empty state per nav-spec tone. V2 confirmed `requester_id` column exists — no migration needed. Estimated ~4 hours. Read `docs/WORKING-RULES.md` first.
 
 ---
 
@@ -75,7 +75,7 @@ These items are on the sidebar or in the spec files but don't yet have enough de
 
 **Budget:** 15 hours. **Planned:** ~13.5 hours. **Slack:** 1.5 hours.
 
-- [ ] **Item 12** — Supabase RLS policies for requests, reflections, validations. Enforce org scoping at the database level. Write `create policy` SQL statements for each table covering: who can read (own org's rows only), who can insert (authenticated members of the org), who can update (creators and leads only), who can delete (leads or admins only). Test each policy against the existing schema. Document policies in `docs/rls-policies.md`. This is the one item with a real aspirational deadline (~2 months until first customer). (4 hours)
+- [x] **Item 12** — Supabase RLS policies for requests, reflections, validations. Enforce org scoping at the database level. Write `create policy` SQL statements for each table covering: who can read (own org's rows only), who can insert (authenticated members of the org), who can update (creators and leads only), who can delete (leads or admins only). Test each policy against the existing schema. Document policies in `docs/rls-policies.md`. This is the one item with a real aspirational deadline (~2 months until first customer). (4 hours) (audit only — migration plan in docs/rls-audit.md, execution deferred to pre-customer)
 - [ ] **Item 6** — Real Submitted by me page. [STRICT: after V2] If V2 showed no submitter column exists, start with a 15-minute migration to add `requests.requester_id` pointing to `auth.users`, update Drizzle schema, run `db:push`. Then replace the placeholder page with a real list view. Query: requests where current user was the submitter. Sort, filter, empty state. (4 hours + 30 min migration if needed)
 - [ ] **Item 7-build** — Real Reflections page. **DEFERRED TO POST-V1** per S1 outcome. Revisit after 3+ beta users have used Lane for 4+ weeks and indicated (or not) that they want a reflection surface. If revived, the implementation work remains as originally scoped (feed/list view, per-request attachment, designer-private visibility, AI summary for team signals). (~5 hours when revived, 0 hours in v1)
 
@@ -224,7 +224,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 17, 2026 — Week 1 complete. Next: Item 12 (Supabase RLS policies).*
+*Last updated: April 17, 2026 — Item 12 complete (audit). Next: Item 6 (Submitted by me page).*
 
 ---
 
@@ -294,12 +294,13 @@ Items that come up mid-execution but aren't yet sequenced. Add anything here the
 - [2026-04-15] **Revisit Reflections feature post-v1.** Deferred in S1 with reasoning captured in the Week 1 roadmap entry. Trigger conditions for reconsideration: (a) 3+ beta users actively requesting a reflection surface, (b) noticing that AI features would be meaningfully better with access to designer-written thinking, (c) hitting a product-market-fit moment where philosophical positioning matters more than feature count. If any of these triggers fire, reopen with a real user-research-informed spec rather than philosophy-first design.
 - [2026-04-16] Analytics instrumentation pass across whole app. Deferred during Item 4 session per decision to build analytics in one coherent pass after the app is functionally complete. Scope: create `analytics_events` table per onboarding-spec section 10, build `lib/analytics/track.ts` helper, wire all events from onboarding-spec section 10 (intake_check.*, onboarding.*, progressive.*). Also includes wiring events from Item 4 retroactively (intake_check.submission_attempted, intake_check.ai_rewrite_accepted, intake_check.reframed, intake_check.submitted_anyway). Trigger: after the product is feature-complete against nav-spec + onboarding-spec, before first paying customer. Budget: 3-4 hours.
 - [2026-04-16] **Stale STAGES array in `app/actions/requests.ts:9-11`.** Uses legacy flat stage names (`explore`, `validate`, `handoff`) from the old design-stage enum, not the current 4-phase model (predesign/design/build/track) or 5-stage design flow (sense/frame/diverge/converge/prove). Not actively broken but confusing drift discovered during Item 4 reconnaissance. Investigate whether it's dead code to delete or live code to rename. Budget: 15-30 min.
+- [2026-04-17] RLS Tier 1+2 migration — migrate 17 routes from @/db to withUserDb/withUserSession per docs/rls-audit.md. ~7 hours across 2 sessions. Execute before first customer onboarding.
 
 **Review cadence:**
 - **End of week 4 re-scope:** read the full parking lot. For each item, decide: sequence it into weeks 5-7, keep it in the parking lot, or delete it.
 - **End of week 7 or 8:** same review. Decide what survives into the next roadmap.
 
-**Active items:** 8 (model ID note and silent failure audit absorbed into completed "AI foundation verification" item)
+**Active items:** 9 (model ID note and silent failure audit absorbed into completed "AI foundation verification" item)
 
 
 ---
