@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Week 1 complete. Move to Week 2 — Item 12 (Supabase RLS policies for requests, reflections, validations). Write `create policy` SQL for each table covering read/insert/update/delete scoped to org membership and role. Document in `docs/rls-policies.md`. Estimated ~4 hours. Read `docs/WORKING-RULES.md` first. **Before deploying Week 1 work to real users**, resolve the two production blockers carried in the parking lot: (1) ANTHROPIC_API_KEY returns 401 in Vercel production, (2) database connection pool exhaustion on multiple endpoints. Both are blockers for real customer use; Week 1 features (intake check, My requests) are shipped to main but not safely usable in prod until these are fixed.
+> **Next session:** Item 12 — Supabase RLS policies. Enforce org scoping at the database level for requests, validations, and related tables. Write CREATE POLICY SQL statements, test against existing schema, document in `docs/rls-policies.md`. Estimated ~4 hours. Read `docs/WORKING-RULES.md` first.
 
 ---
 
@@ -224,7 +224,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 17, 2026 — Week 1 complete. Items 4 and 5 shipped. Next: Week 2, Item 12 (Supabase RLS policies). Production blockers (API key 401, connection pool) still open in parking lot.*
+*Last updated: April 17, 2026 — Week 1 complete. Next: Item 12 (Supabase RLS policies).*
 
 ---
 
