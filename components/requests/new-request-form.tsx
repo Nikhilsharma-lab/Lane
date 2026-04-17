@@ -23,11 +23,14 @@ interface PreflightResult {
   potentialDuplicates: Array<{ id: string; title: string; reason: string }>;
   classification: "problem_framed" | "solution_specific" | "hybrid";
   reframedProblem: string | null;
+  extractedSolution: string | null;
 }
 
 export function NewRequestForm({ onClose, projects }: Props) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preflight, setPreflight] = useState<PreflightResult | null>(null);
@@ -53,7 +56,15 @@ export function NewRequestForm({ onClose, projects }: Props) {
       impactPrediction: form.get("impactPrediction") || null,
       deadlineAt: form.get("deadlineAt") || null,
       projectId: form.get("projectId") || null,
-      intakeJustification: intakeJustification.trim() || null,
+      submitJustification: intakeJustification.trim() || null,
+      aiClassifierResult: preflight?.classification || null,
+      aiFlagged:
+        preflight?.classification === "solution_specific" ||
+        preflight?.classification === "hybrid"
+          ? preflight.classification
+          : null,
+      aiExtractedProblem: preflight?.reframedProblem || null,
+      aiExtractedSolution: preflight?.extractedSolution || null,
     };
 
     const res = await fetch("/api/requests", {
@@ -138,7 +149,20 @@ export function NewRequestForm({ onClose, projects }: Props) {
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          onChange={() => { if (preflight || preflightError) { setPreflight(null); setPreflightError(null); setShowIntakeGate(false); setShowJustificationField(false); setIntakeJustification(""); } }}
+          onChange={(e) => {
+            const target = e.target as HTMLElement;
+            // Don't reset preflight state when typing in the justification field —
+            // it's inside the form, so its change events bubble here, but a reset
+            // would collapse the intake-gate panel mid-type.
+            if (target.closest('[data-intake-justification]')) return;
+            if (preflight || preflightError) {
+              setPreflight(null);
+              setPreflightError(null);
+              setShowIntakeGate(false);
+              setShowJustificationField(false);
+              setIntakeJustification("");
+            }
+          }}
           className="px-6 py-5"
         >
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -182,6 +206,9 @@ export function NewRequestForm({ onClose, projects }: Props) {
                   name="description"
                   required
                   rows={3}
+                  ref={descriptionRef}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   size="lg"
                   className="w-full"
                   placeholder="What needs to be designed? What problem does this solve?"
@@ -268,88 +295,192 @@ export function NewRequestForm({ onClose, projects }: Props) {
             </div>
           </div>
 
-          {/* Intake gate — blocks solution-specific requests */}
-          {showIntakeGate && preflight && (preflight.classification === "solution_specific" || preflight.classification === "hybrid") && (
-            <div className="mt-4 rounded-xl border border-accent-warning/30 bg-accent-warning/5 p-5 space-y-3">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">
-                  This looks like a solution, not a problem
+          {/* Intake gate — solution_specific panel */}
+          {showIntakeGate && preflight?.classification === "solution_specific" && (
+            <div
+              className="mt-4 rounded-lg border p-4 space-y-3"
+              style={{
+                backgroundColor: "var(--color-background-warning)",
+                borderColor: "var(--color-border-warning, var(--color-background-warning))",
+              }}
+            >
+              <h3
+                className="font-semibold text-sm"
+                style={{ color: "var(--color-text-warning)" }}
+              >
+                This looks like a solution, not a problem.
+              </h3>
+              <div
+                className="text-sm space-y-2"
+                style={{ color: "var(--color-text-warning)" }}
+              >
+                <p>
+                  Lane works best when designers understand the WHY before the WHAT.
+                  When you submit &quot;build a date picker,&quot; you&apos;ve already
+                  decided the answer. The design team wants to know what users are
+                  struggling with so they can figure out the right fix together.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Lane works best when designers understand the <span className="font-medium text-foreground">WHY</span> before the <span className="font-medium text-foreground">WHAT</span>.
+                <p>
+                  <span className="font-medium">Try reframing:</span> instead of{" "}
+                  <em>&quot;build a date picker,&quot;</em> try{" "}
+                  <em>
+                    &quot;users can&apos;t tell what date format the form expects, and
+                    40% enter it wrong on first try.&quot;
+                  </em>
                 </p>
+                <p>What&apos;s the underlying problem you&apos;re seeing?</p>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {preflight.reframedProblem && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setDescription(preflight.reframedProblem || "");
+                      setPreflight(null);
+                      setShowIntakeGate(false);
+                    }}
+                  >
+                    Accept AI rewrite
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowIntakeGate(false);
+                    setPreflight(null);
+                    descriptionRef.current?.focus();
+                  }}
+                >
+                  Let me reframe
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={() => setShowJustificationField(true)}
+                >
+                  Submit anyway with justification
+                </Button>
               </div>
 
-              {preflight.reframedProblem && (
-                <div className="space-y-2">
-                  <Callout variant="success">
-                    <SectionLabel className="font-semibold mb-0.5">Problem detected</SectionLabel>
-                    <p className="text-xs text-foreground">{preflight.reframedProblem}</p>
-                  </Callout>
-                </div>
-              )}
-
-              {showJustificationField ? (
-                <div className="space-y-2">
-                  <Label className="block text-xs font-medium text-muted-foreground">
-                    Why are you submitting this as-is?
-                  </Label>
+              {showJustificationField && (
+                <div className="space-y-2 pt-2">
                   <Textarea
+                    data-intake-justification
+                    placeholder="Why should this proceed as written?"
                     value={intakeJustification}
                     onChange={(e) => setIntakeJustification(e.target.value)}
                     rows={2}
-                    size="default"
-                    className="w-full"
-                    placeholder="Explain why this solution-specific request should proceed..."
                   />
                   <Button
                     type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={!intakeJustification.trim()}
-                    onClick={() => setShowIntakeGate(false)}
-                  >
-                    Continue with justification
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {preflight.reframedProblem && (
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      onClick={() => {
-                        if (formRef.current) {
-                          const desc = formRef.current.querySelector<HTMLTextAreaElement>("textarea[name=description]");
-                          if (desc) desc.value = preflight.reframedProblem!;
-                        }
-                        setShowIntakeGate(false);
-                        setPreflight(null);
-                      }}
-                    >
-                      Accept AI rewrite
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
                     onClick={() => {
                       setShowIntakeGate(false);
-                      setPreflight(null);
-                      formRef.current?.querySelector<HTMLTextAreaElement>("textarea[name=description]")?.focus();
+                      formRef.current?.requestSubmit();
                     }}
+                    disabled={!intakeJustification.trim()}
                   >
-                    Edit myself
+                    Submit with justification
                   </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Intake gate — hybrid panel */}
+          {showIntakeGate && preflight?.classification === "hybrid" && (
+            <div
+              className="mt-4 rounded-lg border p-4 space-y-3"
+              style={{
+                backgroundColor: "var(--color-background-warning)",
+                borderColor: "var(--color-border-warning, var(--color-background-warning))",
+              }}
+            >
+              <h3
+                className="font-semibold text-sm"
+                style={{ color: "var(--color-text-warning)" }}
+              >
+                We found a problem inside a solution.
+              </h3>
+              <div
+                className="text-sm space-y-2"
+                style={{ color: "var(--color-text-warning)" }}
+              >
+                <p>
+                  You described both the problem and a proposed fix. Lane will keep
+                  the problem and set the solution aside — the design team will
+                  explore solutions after they understand the problem.
+                </p>
+                {preflight.reframedProblem && (
+                  <p>
+                    <span className="font-medium">Problem we extracted:</span>{" "}
+                    &quot;{preflight.reframedProblem}&quot;
+                  </p>
+                )}
+                {preflight.extractedSolution && (
+                  <p>
+                    <span className="font-medium">Solution you proposed:</span>{" "}
+                    &quot;{preflight.extractedSolution}&quot;{" "}
+                    <span className="text-xs opacity-75">
+                      (flagged for designer reference)
+                    </span>
+                  </p>
+                )}
+                <p>Submit with just the problem, or edit if we got it wrong.</p>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {preflight.reframedProblem && (
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowJustificationField(true)}
+                    onClick={() => {
+                      setDescription(preflight.reframedProblem || "");
+                      setPreflight(null);
+                      setShowIntakeGate(false);
+                    }}
                   >
-                    Submit anyway
+                    Submit with extracted problem
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowIntakeGate(false);
+                    setPreflight(null);
+                    descriptionRef.current?.focus();
+                  }}
+                >
+                  Let me edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={() => setShowJustificationField(true)}
+                >
+                  Submit anyway with justification
+                </Button>
+              </div>
+
+              {showJustificationField && (
+                <div className="space-y-2 pt-2">
+                  <Textarea
+                    data-intake-justification
+                    placeholder="Why should this proceed as written?"
+                    value={intakeJustification}
+                    onChange={(e) => setIntakeJustification(e.target.value)}
+                    rows={2}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowIntakeGate(false);
+                      formRef.current?.requestSubmit();
+                    }}
+                    disabled={!intakeJustification.trim()}
+                  >
+                    Submit with justification
                   </Button>
                 </div>
               )}
