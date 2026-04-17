@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Item 6 — Real Submitted by me page. Replace placeholder with a real list view. Query: requests where current user is the submitter (`requester_id = profile.id`). Sort by most recent update. Filter by phase. Empty state per nav-spec tone. V2 confirmed `requester_id` column exists — no migration needed. Estimated ~4 hours. Read `docs/WORKING-RULES.md` first.
+> **Next session:** Item 8 — Full onboarding build (Week 3). Execute the 13-step build order in `docs/onboarding-spec.md` section 11. Schema additions (`workspace_members.onboarded_at`, `analytics_events` table, new columns per onboarding-spec section 10). Persona detection logic in `lib/onboarding/detect-persona.ts`. Design Head 4-screen flow, Designer 2-screen flow, PM 2-screen flow + intake check beat on first submission. Sample team seed script. Five progressive disclosure moments per section 8. Per S1 outcome, review the reflection-related beat in designer onboarding and omit or replace with a generic "explore the sidebar" message. Estimated ~7 hours over 1-2 sessions. Read `docs/WORKING-RULES.md` first, re-read `docs/onboarding-spec.md` sections 8-11 before starting.
 
 ---
 
@@ -76,7 +76,7 @@ These items are on the sidebar or in the spec files but don't yet have enough de
 **Budget:** 15 hours. **Planned:** ~13.5 hours. **Slack:** 1.5 hours.
 
 - [x] **Item 12** — Supabase RLS policies for requests, reflections, validations. Enforce org scoping at the database level. Write `create policy` SQL statements for each table covering: who can read (own org's rows only), who can insert (authenticated members of the org), who can update (creators and leads only), who can delete (leads or admins only). Test each policy against the existing schema. Document policies in `docs/rls-policies.md`. This is the one item with a real aspirational deadline (~2 months until first customer). (4 hours) (audit only — migration plan in docs/rls-audit.md, execution deferred to pre-customer)
-- [ ] **Item 6** — Real Submitted by me page. [STRICT: after V2] If V2 showed no submitter column exists, start with a 15-minute migration to add `requests.requester_id` pointing to `auth.users`, update Drizzle schema, run `db:push`. Then replace the placeholder page with a real list view. Query: requests where current user was the submitter. Sort, filter, empty state. (4 hours + 30 min migration if needed)
+- [x] **Item 6** — Real Submitted by me page. Server component at `app/(dashboard)/dashboard/submitted/page.tsx` querying `requesterId = profile.id AND orgId = profile.orgId`, sorted by `updatedAt desc`. Shares the `PhaseFilter` client component — extracted from `my-requests/` to `components/requests/phase-filter.tsx` during this item so both Personal zone pages consume it (my-requests import updated). PM-tuned empty state: "All clear. Good time to review your impact data." per CLAUDE.md Part 8. `dev → build` label mapping in filtered empty state. V2 confirmation held — no migration needed. Shipped April 17 as commit 9135ece. (actual: ~45 min)
 - [ ] **Item 7-build** — Real Reflections page. **DEFERRED TO POST-V1** per S1 outcome. Revisit after 3+ beta users have used Lane for 4+ weeks and indicated (or not) that they want a reflection surface. If revived, the implementation work remains as originally scoped (feed/list view, per-request attachment, designer-private visibility, AI summary for team signals). (~5 hours when revived, 0 hours in v1)
 
 **Week 2 exit state:** Security layer in place. All three Personal zone placeholder pages are real pages with real queries. Lane is no longer "promises in the sidebar" — every click leads to a functional page.
@@ -224,7 +224,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 17, 2026 — Item 12 complete (audit). Next: Item 6 (Submitted by me page).*
+*Last updated: April 17, 2026 — Item 6 complete. Week 2 done. Next: Item 8 (onboarding build, Week 3).*
 
 ---
 
