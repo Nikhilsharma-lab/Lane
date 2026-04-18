@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Item 14 part 1 (Week 4) — build the front half of the 5-stage Design Phase UI: Sense screen, Frame screen, and the start of Diverge. Per April 18 re-scope, Item 14 moved ahead of Item 9 (command palette) and "What's new" footer because it's the only surface that answers "why would a designer use Lane?" Estimated 15 hours; new UI work, unlikely to compress like the list views did. Read `docs/WORKING-RULES.md` first, then the "Re-scope notes — April 18" section in this file for context. Dependencies are clean: S1, Item 1, and Item 11 all done.
+> **Next session:** Item 14 part 2 (Week 5) — finish the 5-stage Design Phase UI. Diverge polish (iteration management, comment threads per iteration, AI "Iteration Summary" generator, Figma version tracking). Build Converge (Decision Log, AI edge case generator, completeness meter, feedback threads). Build full Prove screen (three sign-off cards, structured feedback on rejection, engineering feasibility review, AI handoff checklist) — replaces the current minimal `ProveGate` per CLAUDE.md Part 3 Stage 2e. Week 5 also includes starts of Items 15a, 15d, 15e. Item 14 part 1 shipped April 18 at ~3.5 hours against a 15-hour budget — the compression came from reusing `ContextBriefPanel` and existing iterations infrastructure.
 
 ---
 
@@ -129,7 +129,7 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 
 **Budget:** 15 hours. **Planned:** ~15 hours (new UI work; unlikely to compress like the list views did).
 
-- [ ] **Item 14 part 1** — Sense screen (read-only view of context, research, past decisions; Sensing Summary text field; AI sidebar for related research). Frame screen (Design Frame structured form: problem in designer's words, success criteria, constraints, divergence from PM brief). Design Frame creation UI. Start of Diverge screen (iteration cards, "Add Direction" button). [STRICT: after S1, Item 1, Item 11] (~15 hours) **Note from S1 outcome:** Rename "Reflection field" in the Diverge stage to "Rationale" per CLAUDE.md Part 1 update. Iteration cards still have this field — it's just renamed. No other scope change from S1 deferral.
+- [x] **Item 14 part 1** — **Complete (April 18).** Schema additions: 5 columns on `requests` (`sensingSummary`, `designFrameProblem`, `designFrameSuccessCriteria`, `designFrameConstraints`, `designFrameDivergence`), 1 column on `iterations` (`rationale`). `SensePanel` with auto-save-on-blur sensing summary textarea + reused existing `ContextBriefPanel` for the AI research sidebar (passed `existingBrief={null}` so it auto-fetches via `/api/requests/[id]/context-brief`, avoiding duplicate fetch/render logic). `FramePanel` with four structured fields (problem, success criteria, constraints, divergence) and PM's original description shown as read-only reference above the form. Diverge rationale wired end-to-end: `createIteration` extended with `rationale` param, new `updateIteration` server action using `withUserDb` pattern, rationale textarea added to the in-panel add-iteration form, click-to-edit rationale display on `IterationCard` with Save/Cancel. Stage routing in `design-phase-panel.tsx` renders the right panel per stage; Converge and Prove unchanged. Shipped across 4 commits (658f894 schema, f03c693 Sense + routing, d5f15cf Frame, 8cc00d4 Diverge rationale). [STRICT: after S1, Item 1, Item 11] (actual: ~3.5 hours vs 15-hour estimate — large compression from reusing `ContextBriefPanel` and existing iterations table/card/create-action infrastructure)
 
 **Week 4 exit state:** Two of the five design stages are UI-complete. Designers can move a Request through Sense and Frame. Diverge has iteration-card scaffolding.
 
@@ -239,7 +239,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 18, 2026 — Weeks 1–3 complete. Re-scoped: Item 14 moved to Week 4; command palette + "What's new" deferred to post-launch. Next: Item 14 part 1.*
+*Last updated: April 18, 2026 — Weeks 1–3 complete, Item 14 part 1 shipped (~3.5 hours actual). Next: Item 14 part 2 in Week 5.*
 
 ---
 
