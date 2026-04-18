@@ -245,6 +245,14 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                   figmaUrl={request.figmaUrl}
                   profileRole={profileRole}
                   isTestUser={isTestUser}
+                  requestData={{
+                    sensingSummary: request.sensingSummary,
+                    designFrameProblem: request.designFrameProblem,
+                    designFrameSuccessCriteria: request.designFrameSuccessCriteria,
+                    designFrameConstraints: request.designFrameConstraints,
+                    designFrameDivergence: request.designFrameDivergence,
+                    description: request.description,
+                  }}
                 />
               </>
             )}

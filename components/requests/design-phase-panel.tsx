@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/tooltip";
 import { ProveFirstTimeModal } from "./prove-first-time-modal";
 import { getSeenHints } from "@/app/actions/get-seen-hints";
+import { SensePanel } from "./sense-panel";
+import { FramePanel } from "./frame-panel";
 
 const STAGES = [
   { key: "sense",    desc: "Deep understanding before proposing anything. Related research, past decisions, nothing rushed." },
@@ -38,9 +40,17 @@ interface Props {
   figmaUrl: string | null;
   profileRole: string;
   isTestUser?: boolean;
+  requestData?: {
+    sensingSummary: string | null;
+    designFrameProblem: string | null;
+    designFrameSuccessCriteria: string | null;
+    designFrameConstraints: string | null;
+    designFrameDivergence: string | null;
+    description: string | null;
+  };
 }
 
-export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, profileRole, isTestUser = false }: Props) {
+export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, profileRole, isTestUser = false, requestData }: Props) {
   const router = useRouter();
   const [optimisticStage, setOptimisticStage] = useState<DesignStage>(currentDesignStage);
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +227,27 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
 
       {/* Current stage content */}
       <div className="px-5 py-4 space-y-4">
-        {current && (
+        {current && currentDesignStage === "sense" && (
+          <SensePanel
+            requestId={requestId}
+            initialSummary={requestData?.sensingSummary ?? null}
+          />
+        )}
+
+        {current && currentDesignStage === "frame" && (
+          <FramePanel
+            requestId={requestId}
+            initialFrame={{
+              problem: requestData?.designFrameProblem ?? "",
+              successCriteria: requestData?.designFrameSuccessCriteria ?? "",
+              constraints: requestData?.designFrameConstraints ?? "",
+              divergence: requestData?.designFrameDivergence ?? "",
+            }}
+            originalProblem={requestData?.description ?? null}
+          />
+        )}
+
+        {current && currentDesignStage !== "sense" && currentDesignStage !== "frame" && (
           <div>
             <p className="text-xs font-semibold text-foreground mb-0.5">{getStageLabel(current.key)}</p>
             <p className="text-xs text-muted-foreground">{current.desc}</p>
