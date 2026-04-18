@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Week 6 — three items in sequence. **Item 15b** (3 hours): impact logging refinements per CLAUDE.md Part 5 — refine the existing impact record flow, add PM calibration display improvements. **Item 15c** (6 hours): weekly AI digest cron — pre-generate on Friday, store per org, use Vercel cron, handle retries. **Item 15g** (4 hours start, 3 more in Week 7): performance pass — profile slow pages, optimize queries, add indexes, check bundle size, reduce re-renders. Week 5 closed April 18 with all four items done (14 part 2, 15a, 15d, 15e) in ~4.25 hours actual against a 15-hour budget — remaining slack consider sweeping parking lot or pulling Item 9 forward.
+> **Next session:** Item 15c (Week 6) — weekly AI digest cron per CLAUDE.md Part 9 item 7 ("biggest moat" per the spec). Pre-generate on Friday, store per org, use Vercel cron, handle scheduling/retries/error handling. The weekly digest already exists as an on-demand feature; this session builds the cron infrastructure to pre-generate + cache. 6-hour estimate. Item 15b shipped April 18 — impact logging refinements (notes, editable actual, shared variance helper with warmer labels, prior-calibration hint, measuredAt display).
 
 ---
 
@@ -156,7 +156,7 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 
 **Budget:** 15 hours. **Planned:** ~15 hours.
 
-- [ ] **Item 15b** — Impact logging refinements per CLAUDE.md Part 5. Refine the existing impact record flow. PM calibration display improvements. (3 hours)
+- [x] **Item 15b** — **Complete (April 18).** Five refinements to the impact logging flow + a code-health cleanup (shipped as commit 29cf8d7, 4 files, +272/-78). (1) **Notes field** — `impact_records.notes` column existed but had no UI; added a Textarea in `track-phase-panel.tsx` with placeholder copy pointing at the kind of context that makes retrospectives better ("competitor launched same week", "holiday slowdown"). POST route already accepted the param — pure UI wiring. (2) **Editable actual** — track panel previously saved once and locked; added `editing` state + Edit link + Save-changes/Cancel flow so PMs can refine values as more data comes in. (3) **Shared variance helper** — new `lib/impact/variance.ts` exports `LABEL_CONFIG`, `classifyVariance(percent)`, `variancePillStyle(percent)`, `formatVariance(percent)`, `VarianceLabel` type. Both `track-phase-panel.tsx` and `components/insights/pm-calibration.tsx` now import from it; removed ~40 lines of duplicated logic across the two files. (4) **Warmer labels per CLAUDE.md Part 5 "calibration not scoring"** — `LABEL_CONFIG` now returns "Close to the mark" / "Aimed high" / "Aimed low" instead of the previous clinical "Well-calibrated" / "Over-optimistic" / "Under-optimistic". Both surfaces updated consistently via the shared helper. (5) **Prior-calibration hint** — new `GET /api/pm/prior-calibrations?excludeRequestId={id}` endpoint queries the current user's last 3 impact_records joined with requests for titles; dashed-border box above the input shows "Your recent predictions — for reference" with predicted vs actual vs variance%. Feeds the PM learning loop: they see their own calibration history right where the next prediction gets logged. (6) **`measuredAt` display** — track panel fetches existing impact record on mount and surfaces "Measured N days ago" below the accuracy block. Also cleaned up `initialVariancePercent: null` hardcoding in DetailDock (panel now fetches real variance itself). (actual: ~1 hour vs 3-hour estimate — compression from the API route already handling notes + updates; work was mostly UI surfacing + shared helper extraction)
 - [ ] **Item 15c** — Weekly AI digest cron. Pre-generate on Friday, store per org. Cron infrastructure via Vercel cron or similar. Handle scheduling, retries, error handling. Per CLAUDE.md Part 9 item 7. (6 hours)
 - [ ] **Item 15g** — Performance pass (start, 4 of 7 hours). Profile slow pages. Optimize queries. Add indexes. Check bundle size. Reduce re-renders. Continue in buffer week. (4 hours)
 
@@ -238,7 +238,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 18, 2026 — Weeks 1–5 complete. Week 5 items (14 part 2, 15a, 15d, 15e) shipped in ~4.25 hours against a 15-hour budget. All 5 design stages UI-complete; handoff brief + morning briefing synthesize the full design journey; nudge system compliant with anti-surveillance rules. Next: Week 6 — Items 15b (impact logging), 15c (weekly digest cron), 15g (performance pass).*
+*Last updated: April 18, 2026 — Weeks 1–5 complete, Item 15b shipped (~1 hour actual). Impact logging flow now has notes, editable actuals, prior-calibration hints, measuredAt, and a shared variance helper with warmer labels. Next: Item 15c (weekly digest cron, 6 hours).*
 
 ---
 
