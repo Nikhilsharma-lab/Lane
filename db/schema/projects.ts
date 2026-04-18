@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, date, unique, boolean } from "drizzle-orm/pg-core";
 import { profiles, workspaces } from "./users";
 
 export const teams = pgTable(
@@ -22,6 +22,7 @@ export const teams = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    isSample: boolean("is_sample").notNull().default(false),
   },
   (table) => ({
     uniqueOrgSlug: unique().on(table.orgId, table.slug),

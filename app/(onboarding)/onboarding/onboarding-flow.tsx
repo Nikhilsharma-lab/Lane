@@ -149,8 +149,13 @@ export function OnboardingFlow({
                   <Button
                     size="default"
                     onClick={() => {
-                      // TODO: Phase G — call seed-sample-team action
-                      setStep(3);
+                      startTransition(async () => {
+                        const { seedSampleTeam } = await import(
+                          "@/app/actions/seed-sample-team"
+                        );
+                        await seedSampleTeam();
+                        setStep(3);
+                      });
                     }}
                     disabled={isPending}
                   >
@@ -159,27 +164,30 @@ export function OnboardingFlow({
                 </CardContent>
               </Card>
 
-              {/* Card 2 — Create real team */}
+              {/* Card 2 — Skip sample, go straight to dashboard */}
               <Card>
                 <CardContent className="p-5 space-y-3 text-left">
                   <div>
                     <p className="font-medium text-sm text-foreground">
-                      Create my real team
+                      Skip sample — start for real
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Skip the sample. Jump straight in.
+                      Jump straight to your dashboard. Create a team from Settings.
                     </p>
                   </div>
                   <Button
                     variant="secondary"
                     size="default"
                     onClick={() => {
-                      // TODO: Phase G — open team creation modal or navigate
-                      setStep(3);
+                      startTransition(async () => {
+                        await finishOnboarding();
+                        router.push("/dashboard");
+                        router.refresh();
+                      });
                     }}
                     disabled={isPending}
                   >
-                    Create team
+                    Skip sample
                   </Button>
                 </CardContent>
               </Card>

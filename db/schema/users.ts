@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, boolean, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer", "lead", "admin"]);
@@ -27,6 +27,7 @@ export const profiles = pgTable("profiles", {
   managerId: uuid("manager_id").references((): AnyPgColumn => profiles.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  isSample: boolean("is_sample").notNull().default(false),
 });
 
 export type Workspace = typeof workspaces.$inferSelect;
