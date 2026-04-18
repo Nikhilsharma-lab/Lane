@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { requests } from "./requests";
 import { profiles } from "./users";
 
@@ -18,7 +18,9 @@ export const decisionLogEntries = pgTable("decision_log_entries", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (table) => ({
+  requestIdIdx: index("decision_log_entries_request_id_idx").on(table.requestId),
+}));
 
 export type DecisionLogEntry = typeof decisionLogEntries.$inferSelect;
 export type NewDecisionLogEntry = typeof decisionLogEntries.$inferInsert;

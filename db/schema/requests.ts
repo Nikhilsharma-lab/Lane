@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   boolean,
+  index,
 } from "drizzle-orm/pg-core";
 import { profiles, organizations } from "./users";
 import { projects } from "./projects";
@@ -148,7 +149,13 @@ export const requests = pgTable("requests", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  orgIdIdx: index("requests_org_id_idx").on(table.orgId),
+  designerOwnerIdIdx: index("requests_designer_owner_id_idx").on(table.designerOwnerId),
+  requesterIdIdx: index("requests_requester_id_idx").on(table.requesterId),
+  projectIdIdx: index("requests_project_id_idx").on(table.projectId),
+  phaseIdx: index("requests_phase_idx").on(table.phase),
+}));
 
 export const requestAiAnalysis = pgTable("request_ai_analysis", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -184,7 +191,9 @@ export const comments = pgTable("comments", {
   isDevQuestion: boolean("is_dev_question").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  requestIdIdx: index("comments_request_id_idx").on(table.requestId),
+}));
 
 export type Request = typeof requests.$inferSelect;
 export type NewRequest = typeof requests.$inferInsert;

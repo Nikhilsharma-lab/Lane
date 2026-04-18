@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { requests } from "./requests";
@@ -62,7 +63,9 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => ({
+  recipientIdIdx: index("notifications_recipient_id_idx").on(table.recipientId),
+}));
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;

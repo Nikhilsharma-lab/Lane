@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { requests, stageEnum } from "./requests";
 
@@ -20,7 +20,10 @@ export const assignments = pgTable("assignments", {
   role: assignmentRoleEnum("role").notNull().default("lead"),
   notes: text("notes"),
   assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  assigneeIdIdx: index("assignments_assignee_id_idx").on(table.assigneeId),
+  requestIdIdx: index("assignments_request_id_idx").on(table.requestId),
+}));
 
 export const requestStages = pgTable("request_stages", {
   id: uuid("id").primaryKey().defaultRandom(),
