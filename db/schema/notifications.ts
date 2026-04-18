@@ -25,6 +25,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "idea_approved",      // Your idea was approved and became a request
   "nudge",              // AI nudge (private to designer)
   "project_update",     // Project you're a member of has updates
+  "weekly_digest",      // Weekly AI digest landed (Fridays)
 ]);
 
 export const notifications = pgTable("notifications", {

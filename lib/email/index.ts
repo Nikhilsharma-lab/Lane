@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { figmaDriftEmail } from "./templates";
+import { figmaDriftEmail, weeklyDigestEmail } from "./templates";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -49,6 +49,35 @@ export async function sendFigmaDriftEmail(params: {
     requestTitle: params.requestTitle,
     requestUrl: params.requestUrl,
     designerName: params.designerName,
+  });
+  await sendEmail({ to: params.to, subject, html });
+}
+
+/**
+ * Send the Friday weekly digest email to a lead/admin.
+ * First-digest emails get a short onboarding preamble.
+ * Silently no-ops if RESEND_API_KEY is not set.
+ */
+export async function sendWeeklyDigestEmail(params: {
+  to: string;
+  digestHeadline: string;
+  shippedThisWeek: string;
+  teamHealth: string;
+  standout: string;
+  recommendations: string[];
+  isFirstDigest: boolean;
+}): Promise<void> {
+  if (!resend) {
+    console.log(`[email] RESEND_API_KEY not set — skipping weekly digest email to ${params.to}`);
+    return;
+  }
+  const { subject, html } = weeklyDigestEmail({
+    digestHeadline: params.digestHeadline,
+    shippedThisWeek: params.shippedThisWeek,
+    teamHealth: params.teamHealth,
+    standout: params.standout,
+    recommendations: params.recommendations,
+    isFirstDigest: params.isFirstDigest,
   });
   await sendEmail({ to: params.to, subject, html });
 }

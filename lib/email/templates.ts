@@ -238,3 +238,52 @@ export function figmaDriftEmail({
   `),
   };
 }
+
+export function weeklyDigestEmail({
+  digestHeadline,
+  shippedThisWeek,
+  teamHealth,
+  standout,
+  recommendations,
+  isFirstDigest,
+}: {
+  digestHeadline: string;
+  shippedThisWeek: string;
+  teamHealth: string;
+  standout: string;
+  recommendations: string[];
+  isFirstDigest: boolean;
+}): { subject: string; html: string } {
+  const subject = isFirstDigest
+    ? `Your first Lane weekly digest is here`
+    : `Lane weekly digest: ${digestHeadline}`;
+
+  const preamble = isFirstDigest
+    ? `<p style="margin:0 0 24px 0;font-size:14px;color:#a1a1aa;line-height:1.6;">
+         Welcome to your first Lane weekly digest. Every Friday, Lane generates a narrative summary of what your team shipped, how the work is flowing, and what to focus on next week. It's written for you — no dashboards, no spreadsheets.
+       </p>`
+    : "";
+
+  const recsHtml = recommendations.length
+    ? `<ul style="margin:0 0 16px 0;padding-left:18px;color:#e4e4e7;font-size:13px;line-height:1.6;">
+         ${recommendations.map((r) => `<li style="margin-bottom:6px;">${r}</li>`).join("")}
+       </ul>`
+    : value("No specific recommendations this week.");
+
+  return {
+    subject,
+    html: layout(`
+      <p style="margin:0 0 20px 0;font-size:20px;font-weight:600;color:#ffffff;">${digestHeadline}</p>
+      ${preamble}
+      ${label("Shipped this week")}
+      ${value(shippedThisWeek)}
+      ${label("Team health")}
+      ${value(teamHealth)}
+      ${label("Standout")}
+      ${value(standout)}
+      ${label("Recommendations")}
+      ${recsHtml}
+      ${button("Open in Lane", `${APP_URL}/dashboard/insights`)}
+    `),
+  };
+}

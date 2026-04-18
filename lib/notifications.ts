@@ -17,7 +17,8 @@ type NotificationType =
   | "idea_vote"
   | "idea_approved"
   | "nudge"
-  | "project_update";
+  | "project_update"
+  | "weekly_digest";
 
 interface NotificationParams {
   orgId: string;
