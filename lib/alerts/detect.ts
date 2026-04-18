@@ -10,7 +10,7 @@ import {
   proactiveAlerts,
   requestStages,
 } from "@/db/schema";
-import { eq, and, lt, not, inArray, desc, gt, or } from "drizzle-orm";
+import { eq, and, lt, not, inArray, sql, or } from "drizzle-orm";
 
 // ── Named thresholds ───────────────────────────────────────────────────────
 
@@ -41,34 +41,8 @@ function hoursAgo(n: number): Date {
   return new Date(Date.now() - n * 60 * 60 * 1000);
 }
 
-// Returns the most recent activity timestamp for a request
-// Activity = any non-system comment OR any request_stages entry
-async function getLastActivityAt(requestId: string): Promise<Date | null> {
-  const [[lastComment], [lastStage]] = await Promise.all([
-    db
-      .select({ createdAt: comments.createdAt })
-      .from(comments)
-      .where(and(eq(comments.requestId, requestId), eq(comments.isSystem, false)))
-      .orderBy(desc(comments.createdAt))
-      .limit(1),
-    db
-      .select({ enteredAt: requestStages.enteredAt })
-      .from(requestStages)
-      .where(eq(requestStages.requestId, requestId))
-      .orderBy(desc(requestStages.enteredAt))
-      .limit(1),
-  ]);
-
-  const commentTs = lastComment?.createdAt ?? null;
-  const stageTs = lastStage?.enteredAt ?? null;
-
-  if (!commentTs && !stageTs) return null;
-  if (!commentTs) return stageTs;
-  if (!stageTs) return commentTs;
-  return commentTs > stageTs ? commentTs : stageTs;
-}
-
-// Returns true if a rule_key already has a non-expired alert row
+// Returns true if a rule_key already has a non-expired alert row.
+// Kept for detectFigmaDrift; stall/signoff detection now batches existence checks.
 async function ruleKeyExists(ruleKey: string): Promise<boolean> {
   const [existing] = await db
     .select({ id: proactiveAlerts.id })
@@ -105,8 +79,12 @@ export interface AlertCandidate {
 // ── 1. Stall nudge ─────────────────────────────────────────────────────────
 // Design-phase requests with no activity for 5+ days.
 // Recipient: assigned designer (private).
+//
+// Batched: 1 round-trip for the request list, then 1 for existing rule keys,
+// then 3 parallel (comment maxes + stage maxes + lead assignments), then 1
+// for designer profiles. Total: O(4) serial regardless of N. Previously was
+// O(4×N) — a 50-request org went from 200 sequential DB hops to 4.
 export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]> {
-  const candidates: AlertCandidate[] = [];
   const wk = weekKey();
 
   const activeDesignRequests = await db
@@ -119,29 +97,102 @@ export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]
       )
     );
 
-  for (const req of activeDesignRequests) {
-    const ruleKey = `stall_nudge_${req.id}_${wk}`;
-    if (await ruleKeyExists(ruleKey)) continue;
+  if (activeDesignRequests.length === 0) return [];
 
-    const lastActivity = await getLastActivityAt(req.id);
-    if (lastActivity && lastActivity > daysAgo(STALL_NUDGE_THRESHOLD_DAYS)) continue;
+  const reqIds = activeDesignRequests.map((r) => r.id);
+  const threshold = daysAgo(STALL_NUDGE_THRESHOLD_DAYS);
 
-    const [assignment] = await db
-      .select({ assigneeId: assignments.assigneeId })
+  // Dedup: fetch existing non-expired rule keys for any of this week's candidates.
+  const candidateRuleKeys = reqIds.map((id) => `stall_nudge_${id}_${wk}`);
+  const existingKeyRows = await db
+    .select({ ruleKey: proactiveAlerts.ruleKey })
+    .from(proactiveAlerts)
+    .where(
+      and(
+        inArray(proactiveAlerts.ruleKey, candidateRuleKeys),
+        not(lt(proactiveAlerts.expiresAt, new Date()))
+      )
+    );
+  const existingRuleKeys = new Set(existingKeyRows.map((r) => r.ruleKey));
+
+  // Parallel: last non-system comment per request, last stage entry per request,
+  // lead assignment per request. All scoped to reqIds.
+  const [commentMaxes, stageMaxes, leadAssignmentRows] = await Promise.all([
+    db
+      .select({
+        requestId: comments.requestId,
+        lastAt: sql<Date>`max(${comments.createdAt})`,
+      })
+      .from(comments)
+      .where(
+        and(
+          inArray(comments.requestId, reqIds),
+          eq(comments.isSystem, false)
+        )
+      )
+      .groupBy(comments.requestId),
+    db
+      .select({
+        requestId: requestStages.requestId,
+        lastAt: sql<Date>`max(${requestStages.enteredAt})`,
+      })
+      .from(requestStages)
+      .where(inArray(requestStages.requestId, reqIds))
+      .groupBy(requestStages.requestId),
+    db
+      .select({
+        requestId: assignments.requestId,
+        assigneeId: assignments.assigneeId,
+      })
       .from(assignments)
       .where(
         and(
-          eq(assignments.requestId, req.id),
+          inArray(assignments.requestId, reqIds),
           eq(assignments.role, "lead")
         )
-      )
-      .limit(1);
-    if (!assignment) continue;
+      ),
+  ]);
 
-    const [designer] = await db
-      .select({ fullName: profiles.fullName })
-      .from(profiles)
-      .where(eq(profiles.id, assignment.assigneeId));
+  // Merge comment + stage maxes into a single last-activity timestamp per request.
+  const lastActivityByReq = new Map<string, Date>();
+  for (const c of commentMaxes) {
+    lastActivityByReq.set(c.requestId, c.lastAt);
+  }
+  for (const s of stageMaxes) {
+    const existing = lastActivityByReq.get(s.requestId);
+    if (!existing || s.lastAt > existing) {
+      lastActivityByReq.set(s.requestId, s.lastAt);
+    }
+  }
+
+  const leadByReq = new Map<string, string>();
+  for (const a of leadAssignmentRows) {
+    leadByReq.set(a.requestId, a.assigneeId);
+  }
+
+  // Final batch: designer profile lookups for names.
+  const designerIds = Array.from(new Set(leadAssignmentRows.map((a) => a.assigneeId)));
+  const designerRows = designerIds.length
+    ? await db
+        .select({ id: profiles.id, fullName: profiles.fullName })
+        .from(profiles)
+        .where(inArray(profiles.id, designerIds))
+    : [];
+  const designerNameById = new Map(
+    designerRows.map((d) => [d.id, d.fullName ?? "the designer"])
+  );
+
+  // In-memory join + filter.
+  const candidates: AlertCandidate[] = [];
+  for (const req of activeDesignRequests) {
+    const ruleKey = `stall_nudge_${req.id}_${wk}`;
+    if (existingRuleKeys.has(ruleKey)) continue;
+
+    const lastActivity = lastActivityByReq.get(req.id) ?? null;
+    if (lastActivity && lastActivity > threshold) continue;
+
+    const assigneeId = leadByReq.get(req.id);
+    if (!assigneeId) continue;
 
     const daysSince = lastActivity
       ? Math.floor((Date.now() - lastActivity.getTime()) / 86400000)
@@ -151,10 +202,10 @@ export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]
       type: "stall_nudge",
       requestId: req.id,
       requestTitle: req.title,
-      recipientId: assignment.assigneeId,
+      recipientId: assigneeId,
       ruleKey,
       ctaUrl: `/dashboard/requests/${req.id}`,
-      designerName: designer?.fullName ?? "the designer",
+      designerName: designerNameById.get(assigneeId) ?? "the designer",
       daysSinceActivity: daysSince ?? undefined,
       lastActivityDescription: lastActivity
         ? `Last activity was ${daysSince} days ago`
@@ -168,9 +219,11 @@ export async function detectStallNudges(orgId: string): Promise<AlertCandidate[]
 // ── 2. Sign-off overdue ────────────────────────────────────────────────────
 // Request in validate stage 3+ days, not all 3 roles have signed.
 // Recipients: each role that hasn't signed yet.
+//
+// Batched: 2 round-trips for the request list + org members, then 4 parallel
+// (latest validate stages + signoffs + lead assignments + existing rule keys),
+// then in-memory join. Total: O(3) serial. Previously O(2N + K + M).
 export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidate[]> {
-  const candidates: AlertCandidate[] = [];
-
   const validateRequests = await db
     .select({ id: requests.id, title: requests.title })
     .from(requests)
@@ -182,6 +235,10 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
       )
     );
 
+  if (validateRequests.length === 0) return [];
+
+  const reqIds = validateRequests.map((r) => r.id);
+
   const orgMembers = await db
     .select({ id: profiles.id, role: profiles.role })
     .from(profiles)
@@ -192,52 +249,99 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
     design_head: ["lead", "admin"],
   };
 
-  for (const req of validateRequests) {
-    const [validateStage] = await db
-      .select({ enteredAt: requestStages.enteredAt })
+  const threshold = daysAgo(SIGNOFF_OVERDUE_THRESHOLD_DAYS);
+  const today = new Date().toISOString().slice(0, 10);
+  const requiredRoles = ["designer", "pm", "design_head"] as const;
+
+  // Build every candidate rule key upfront so we can dedup in one batch.
+  const allCandidateRuleKeys = reqIds.flatMap((reqId) =>
+    requiredRoles.map((role) => `signoff_overdue_${reqId}_${role}_${today}`)
+  );
+
+  // Parallel batch:
+  // - Latest validate-stage entry per request (max(enteredAt) grouped).
+  // - All signoffs across the validate requests.
+  // - Lead assignment per request (for designer recipient lookup).
+  // - Existing non-expired rule keys from the candidate set.
+  const [stageRows, signoffRows, leadRows, existingKeyRows] = await Promise.all([
+    db
+      .select({
+        requestId: requestStages.requestId,
+        enteredAt: sql<Date>`max(${requestStages.enteredAt})`,
+      })
       .from(requestStages)
       .where(
         and(
-          eq(requestStages.requestId, req.id),
+          inArray(requestStages.requestId, reqIds),
           eq(requestStages.stage, "validate")
         )
       )
-      .orderBy(desc(requestStages.enteredAt))
-      .limit(1);
+      .groupBy(requestStages.requestId),
+    db
+      .select({
+        requestId: validationSignoffs.requestId,
+        signerRole: validationSignoffs.signerRole,
+      })
+      .from(validationSignoffs)
+      .where(inArray(validationSignoffs.requestId, reqIds)),
+    db
+      .select({
+        requestId: assignments.requestId,
+        assigneeId: assignments.assigneeId,
+      })
+      .from(assignments)
+      .where(
+        and(
+          inArray(assignments.requestId, reqIds),
+          eq(assignments.role, "lead")
+        )
+      ),
+    allCandidateRuleKeys.length
+      ? db
+          .select({ ruleKey: proactiveAlerts.ruleKey })
+          .from(proactiveAlerts)
+          .where(
+            and(
+              inArray(proactiveAlerts.ruleKey, allCandidateRuleKeys),
+              not(lt(proactiveAlerts.expiresAt, new Date()))
+            )
+          )
+      : Promise.resolve([]),
+  ]);
 
-    if (!validateStage) continue;
-    if (validateStage.enteredAt > daysAgo(SIGNOFF_OVERDUE_THRESHOLD_DAYS)) continue;
+  const stageByReq = new Map(stageRows.map((s) => [s.requestId, s.enteredAt]));
+
+  const signedRolesByReq = new Map<string, Set<string>>();
+  for (const s of signoffRows) {
+    if (!signedRolesByReq.has(s.requestId)) {
+      signedRolesByReq.set(s.requestId, new Set());
+    }
+    signedRolesByReq.get(s.requestId)!.add(s.signerRole);
+  }
+
+  const leadByReq = new Map(leadRows.map((a) => [a.requestId, a.assigneeId]));
+  const existingRuleKeys = new Set(existingKeyRows.map((r) => r.ruleKey));
+
+  // In-memory iteration
+  const candidates: AlertCandidate[] = [];
+  for (const req of validateRequests) {
+    const stageEnteredAt = stageByReq.get(req.id);
+    if (!stageEnteredAt) continue;
+    if (stageEnteredAt > threshold) continue;
 
     const daysSince = Math.floor(
-      (Date.now() - validateStage.enteredAt.getTime()) / 86400000
+      (Date.now() - stageEnteredAt.getTime()) / 86400000
     );
 
-    const existingSignoffs = await db
-      .select({ signerRole: validationSignoffs.signerRole })
-      .from(validationSignoffs)
-      .where(eq(validationSignoffs.requestId, req.id));
-
-    const signedRoles = new Set(existingSignoffs.map((s) => s.signerRole));
-    const requiredRoles = ["designer", "pm", "design_head"] as const;
+    const signedRoles = signedRolesByReq.get(req.id) ?? new Set<string>();
     const pendingRoles = requiredRoles.filter((r) => !signedRoles.has(r));
-
     if (pendingRoles.length === 0) continue;
 
     for (const pendingRole of pendingRoles) {
       let recipientId: string | undefined;
 
       if (pendingRole === "designer") {
-        const [assignment] = await db
-          .select({ assigneeId: assignments.assigneeId })
-          .from(assignments)
-          .where(
-            and(
-              eq(assignments.requestId, req.id),
-              eq(assignments.role, "lead")
-            )
-          )
-          .limit(1);
-        recipientId = assignment?.assigneeId;
+        recipientId = leadByReq.get(req.id);
       } else {
         const allowedRoles = roleToProfileRole[pendingRole];
         const match = orgMembers.find((m) => allowedRoles.includes(m.role ?? ""));
@@ -246,9 +350,8 @@ export async function detectSignoffOverdue(orgId: string): Promise<AlertCandidat
 
       if (!recipientId) continue;
 
-      const today = new Date().toISOString().slice(0, 10);
       const ruleKey = `signoff_overdue_${req.id}_${pendingRole}_${today}`;
-      if (await ruleKeyExists(ruleKey)) continue;
+      if (existingRuleKeys.has(ruleKey)) continue;
 
       candidates.push({
         type: "signoff_overdue",

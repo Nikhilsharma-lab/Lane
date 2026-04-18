@@ -1,7 +1,7 @@
 // components/shell/detail-dock.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useRequests } from "@/context/requests-context";
@@ -91,7 +91,6 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
   const requests = useRequests();
 
   const dockId = searchParams.get("dock");
-  const contextRequest = dockId ? requests.find((r) => r.id === dockId) : null;
 
   const [enriched, setEnriched] = useState<EnrichedData | null>(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
@@ -108,12 +107,85 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
       .finally(() => setEnrichedLoading(false));
   }, [dockId]);
 
-  // Use context request if available, otherwise fall back to enriched API response
-  const request = contextRequest ?? enriched?.request ?? null;
+  // ── Memoized derivations (must come before early returns so hook order
+  //    stays stable across render branches) ─────────────────────────────────
+
+  // Array search: stable across re-renders when dockId/requests don't change.
+  const contextRequest = useMemo(
+    () => (dockId ? requests.find((r) => r.id === dockId) : null),
+    [dockId, requests]
+  );
+
+  // Unified request source.
+  const request = useMemo(
+    () => contextRequest ?? enriched?.request ?? null,
+    [contextRequest, enriched?.request]
+  );
+
+  // Stable close handler — reference doesn't change across re-renders
+  // when search/router/pathname are stable.
+  const close = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("dock");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  }, [searchParams, router, pathname]);
+
+  // Phase/stage labels + status styling — recomputed only when the request itself changes.
+  const phaseMeta = useMemo(() => {
+    if (!request) return null;
+    const phaseLabel = getPhaseLabel((request.phase ?? "predesign") as import("@/db/schema").Phase);
+    const stageKey =
+      request.phase === "predesign" ? (request.predesignStage ?? "intake") :
+      request.phase === "design"    ? (request.designStage ?? "sense") :
+      request.phase === "dev"       ? (request.kanbanState ?? "todo") :
+                                      (request.trackStage ?? "measuring");
+    const stageLabel = getStageLabel(stageKey);
+    const statusStyle = STATUS_STYLE[request.status] ?? STATUS_STYLE.draft;
+    return { phaseLabel, stageLabel, statusStyle };
+  }, [request]);
+
+  // Filter runs only when the comment list reference changes, not on every render.
+  const devQuestionCount = useMemo(
+    () => enriched?.comments.filter((c) => c.isDevQuestion).length ?? 0,
+    [enriched?.comments]
+  );
+
+  // Inline object props stabilized — prevents child re-renders caused by a
+  // new object identity on every parent render.
+  const designPhaseRequestData = useMemo(() => {
+    if (!request) return null;
+    return {
+      sensingSummary: request.sensingSummary,
+      designFrameProblem: request.designFrameProblem,
+      designFrameSuccessCriteria: request.designFrameSuccessCriteria,
+      designFrameConstraints: request.designFrameConstraints,
+      designFrameDivergence: request.designFrameDivergence,
+      description: request.description,
+      engineeringFeasibility: request.engineeringFeasibility,
+    };
+  }, [request]);
+
+  const editRequestPayload = useMemo(() => {
+    if (!request) return null;
+    return {
+      id: request.id,
+      title: request.title,
+      description: request.description,
+      businessContext: request.businessContext,
+      successMetrics: request.successMetrics,
+      figmaUrl: request.figmaUrl,
+      impactMetric: request.impactMetric,
+      impactPrediction: request.impactPrediction,
+      deadlineAt: toISOorNull(request.deadlineAt),
+    };
+  }, [request]);
+
+  // ── Early returns ────────────────────────────────────────────────────────
 
   if (!dockId) return null;
   if (!request && !enrichedLoading) return null;
-  if (!request) {
+  if (!request || !phaseMeta) {
     // Still loading — show minimal placeholder
     return (
       <aside
@@ -125,21 +197,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
     );
   }
 
-  function close() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("dock");
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  }
-
-  const phaseLabel = getPhaseLabel((request.phase ?? "predesign") as import("@/db/schema").Phase);
-  const stageKey =
-    request.phase === "predesign" ? (request.predesignStage ?? "intake") :
-    request.phase === "design"    ? (request.designStage ?? "sense") :
-    request.phase === "dev"       ? (request.kanbanState ?? "todo") :
-                                    (request.trackStage ?? "measuring");
-  const stageLabel = getStageLabel(stageKey);
-  const statusStyle = STATUS_STYLE[request.status] ?? STATUS_STYLE.draft;
+  const { phaseLabel, stageLabel, statusStyle } = phaseMeta;
 
   return (
     <aside
@@ -175,18 +233,8 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {enriched?.canEdit && (
-            <EditRequestButton request={{
-              id: request.id,
-              title: request.title,
-              description: request.description,
-              businessContext: request.businessContext,
-              successMetrics: request.successMetrics,
-              figmaUrl: request.figmaUrl,
-              impactMetric: request.impactMetric,
-              impactPrediction: request.impactPrediction,
-              deadlineAt: toISOorNull(request.deadlineAt),
-            }} />
+          {enriched?.canEdit && editRequestPayload && (
+            <EditRequestButton request={editRequestPayload} />
           )}
           <Button variant="ghost" size="icon-sm" onClick={close}>
             <X className="size-3.5" />
@@ -236,7 +284,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                 />
               </>
             )}
-            {request.phase === "design" && (
+            {request.phase === "design" && designPhaseRequestData && (
               <>
                 <Separator />
                 <DesignPhasePanel
@@ -245,15 +293,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                   figmaUrl={request.figmaUrl}
                   profileRole={profileRole}
                   isTestUser={isTestUser}
-                  requestData={{
-                    sensingSummary: request.sensingSummary,
-                    designFrameProblem: request.designFrameProblem,
-                    designFrameSuccessCriteria: request.designFrameSuccessCriteria,
-                    designFrameConstraints: request.designFrameConstraints,
-                    designFrameDivergence: request.designFrameDivergence,
-                    description: request.description,
-                    engineeringFeasibility: request.engineeringFeasibility,
-                  }}
+                  requestData={designPhaseRequestData}
                 />
               </>
             )}
@@ -265,7 +305,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
                   kanbanState={(request.kanbanState ?? "todo") as "todo" | "in_progress" | "in_review" | "qa" | "done"}
                   figmaUrl={request.figmaUrl}
                   figmaLockedAt={toISOorNull(request.figmaLockedAt)}
-                  devQuestionCount={enriched?.comments.filter((c) => c.isDevQuestion).length ?? 0}
+                  devQuestionCount={devQuestionCount}
                 />
               </>
             )}
