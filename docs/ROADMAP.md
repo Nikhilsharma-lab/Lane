@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Phase I (weekly digest first-time email header) if prioritized, otherwise Item 13 (Upstash Redis rate limiting). Read `docs/WORKING-RULES.md` first.
+> **Next session:** Item 15f — Commitments view. Build the team Commitments page per `docs/nav-spec.md` section 2. Query: requests committed to the current cycle for the selected team. List UI, empty state. This closes the nav-spec execution loop — every sidebar item has a real destination. The extended empty-state copy for first-time viewers is already in place from Item 8 Phase H — the real build replaces the placeholder while preserving that copy. Estimated ~5 hours. Read `docs/WORKING-RULES.md` first.
 
 ---
 
@@ -90,7 +90,7 @@ These items are on the sidebar or in the spec files but don't yet have enough de
 **Budget:** 15 hours. **Planned:** ~16 hours (1 hour over; onboarding is best done in one focused block).
 
 - [x] **Item 8** — Full onboarding build. **Complete (April 17–18) — all user-facing onboarding work shipped across 7 phases.** Phase A (ad41297): schema — `workspace_members.onboarded_at` + `analytics_events` table + barrel export. Phase B (0f6f918): `lib/onboarding/detect-persona.ts` with owner/admin/pm precedence, `lib/analytics/track.ts` fire-and-forget helper. Phase C (f9ad77b): `(onboarding)` route group, minimal centered layout, server page with auth + persona detection, dashboard layout redirect via `needsOnboarding` flag (outside try/catch), `finishOnboarding` server action. Phase D (8c65dc8): Design Head 4-screen flow — Welcome → Phase model → Sample team → First action. Phase E+F (46d741f): Designer 2-screen (inviter attribution + waiting state) and PM 2-screen (inviter + intake foreshadowing → routes to `/dashboard/requests` where Item 4's classifier fires naturally as the payoff). Inviter name lookup added to server page. Phase G (6d38cef): `isSample` column on projects + profiles, `seedSampleTeam` action (Consumer app team, 3 fake profiles, 4 requests across all 4 phases), `clearSampleTeam` FK-safe delete, Screen 3 wiring. Phase H (3390072): `seenHints` jsonb column, `markHintSeen` + `getSeenHints` server actions, permanent hover tooltips on the 5 design stages, Prove first-time modal on Converge → Prove advance, extended empty states for Ideas and Commitments, vocabulary fixes (`"Idea Board"` → `"Ideas"`, `"Streams"` → `"Requests"`). Phase I (weekly digest first-time email) deferred to its own session. Phase J (analytics event wiring) deferred per April 16 parking lot decision — runs as a dedicated instrumentation pass after feature-complete. Reflection beat omitted per S1 outcome. (actual: ~7-8 hours across 2 sessions)
-- [ ] **Item 13** — Upstash Redis rate limiting for AI routes. Install `@upstash/ratelimit`, wrap each AI route handler (triage, context-brief, morning briefing, classifier). Set sensible limits per route. Test with rapid requests and confirm throttling. (1.5 hours)
+- [x] **Item 13** — Upstash Redis rate limiting for AI routes. **Complete (April 18) — gap-fill, not a build.** Audit revealed `@upstash/ratelimit` + `@upstash/redis` already installed, `lib/rate-limit.ts` already shipped with `checkAiRateLimit` (10 req/min per user, sliding window) + `checkGeneralRateLimit` (60 req/min), 9 AI routes already wrapped. Two gap routes wrapped: `app/api/requests/route.ts` (POST, runs triage) and `app/api/morning-briefing/route.ts` (on-demand generation). Cron routes verified: `app/api/cron/morning-briefing/route.ts` and `app/api/cron/alerts/route.ts` both guard via `Bearer ${CRON_SECRET}` — per-user rate limit is the wrong guard for server-to-server calls. All 11 AI routes now covered. Shipped April 18 as commit 006cf4c. (actual: ~15 min, vs 1.5 hour estimate)
 - [ ] **Item 15f** — Commitments view. Build the team Commitments page per `docs/nav-spec.md` section 2. Query: requests committed to the current cycle for the selected team. List UI, empty state ("Nothing's committed yet. When your team picks what to work on next, it shows up here."). This closes the nav-spec execution loop — every sidebar item has a real destination. (5 hours)
 - [ ] **Item 10** — Zone 3 team sections verification. Triggered item: activates once you've created a second team in the workspace. Verify `components/nav/team-section.tsx` renders correctly with real multi-team data. Debug any issues with collapsibles, counts, or data hooks. If you haven't created a second team by week 3, this slips to whenever it triggers. (2 hours)
 
@@ -224,7 +224,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 18, 2026 — Item 8 complete (Phases A–H). Phase I (weekly digest first-time email) and Phase J (analytics wiring) deferred to follow-up sessions.*
+*Last updated: April 18, 2026 — Item 13 complete (rate limiting gap-fill). Next: Item 15f (Commitments view).*
 
 ---
 
