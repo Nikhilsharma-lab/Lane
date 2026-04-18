@@ -17,6 +17,7 @@ export async function createIteration(data: {
   title: string;
   description?: string;
   figmaUrl?: string;
+  rationale?: string;
   stage: "sense" | "frame" | "diverge" | "converge" | "prove";
 }) {
   const userId = await getAuthedUserId();
@@ -29,8 +30,37 @@ export async function createIteration(data: {
       title: data.title,
       description: data.description ?? null,
       figmaUrl: data.figmaUrl ?? null,
+      rationale: data.rationale ?? null,
       stage: data.stage,
     });
+
+    revalidatePath(`/dashboard/requests/${data.requestId}`);
+    return { success: true };
+  });
+}
+
+export async function updateIteration(data: {
+  iterationId: string;
+  requestId: string;
+  title?: string;
+  description?: string;
+  figmaUrl?: string;
+  rationale?: string;
+}) {
+  const userId = await getAuthedUserId();
+  if (!userId) return { error: "Not authenticated" };
+
+  return withUserDb(userId, async (db) => {
+    await db
+      .update(iterations)
+      .set({
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.figmaUrl !== undefined && { figmaUrl: data.figmaUrl }),
+        ...(data.rationale !== undefined && { rationale: data.rationale }),
+        updatedAt: new Date(),
+      })
+      .where(eq(iterations.id, data.iterationId));
 
     revalidatePath(`/dashboard/requests/${data.requestId}`);
     return { success: true };

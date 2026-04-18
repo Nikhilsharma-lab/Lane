@@ -72,6 +72,7 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newFigmaUrl, setNewFigmaUrl] = useState("");
+  const [newRationale, setNewRationale] = useState("");
   const [addingIteration, setAddingIteration] = useState(false);
   const showIterations = currentDesignStage === "diverge" || currentDesignStage === "converge";
 
@@ -94,11 +95,13 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
       title: newTitle.trim(),
       description: newDesc.trim() || undefined,
       figmaUrl: newFigmaUrl.trim() || undefined,
+      rationale: newRationale.trim() || undefined,
       stage: currentDesignStage,
     });
     setNewTitle("");
     setNewDesc("");
     setNewFigmaUrl("");
+    setNewRationale("");
     setShowAddForm(false);
     setAddingIteration(false);
     fetchIterations();
@@ -343,6 +346,13 @@ export function DesignPhasePanel({ requestId, currentDesignStage, figmaUrl, prof
                 onChange={(e) => setNewFigmaUrl(e.target.value)}
                 placeholder="Figma URL (optional)"
                 className="text-xs"
+              />
+              <Textarea
+                value={newRationale}
+                onChange={(e) => setNewRationale(e.target.value)}
+                placeholder="Rationale — why this direction, what tradeoffs, what you're learning (optional)"
+                rows={2}
+                className="text-xs resize-none"
               />
               <div className="flex gap-2 justify-end">
                 <Button

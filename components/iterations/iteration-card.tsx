@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { updateIteration } from "@/app/actions/iterations";
 import type { Iteration } from "@/db/schema";
 
 interface Props {
@@ -16,6 +18,9 @@ interface Props {
 
 export function IterationCard({ iteration, commentCount = 0 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [rationale, setRationale] = useState(iteration.rationale ?? "");
+  const [editingRationale, setEditingRationale] = useState(false);
+  const [savingRationale, setSavingRationale] = useState(false);
 
   return (
     <Card className="overflow-hidden">
@@ -50,6 +55,72 @@ export function IterationCard({ iteration, commentCount = 0 }: Props) {
             {iteration.description}
           </p>
         )}
+
+        {/* Rationale */}
+        <div className="mt-2">
+          {editingRationale ? (
+            <div className="space-y-1.5">
+              <Textarea
+                value={rationale}
+                onChange={(e) => setRationale(e.target.value)}
+                placeholder="Why this direction? What tradeoffs? What are you learning?"
+                rows={2}
+                className="text-xs resize-none"
+                autoFocus
+              />
+              <div className="flex gap-1.5 justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => {
+                    setRationale(iteration.rationale ?? "");
+                    setEditingRationale(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  disabled={savingRationale}
+                  onClick={async () => {
+                    setSavingRationale(true);
+                    await updateIteration({
+                      iterationId: iteration.id,
+                      requestId: iteration.requestId,
+                      rationale: rationale.trim(),
+                    });
+                    setEditingRationale(false);
+                    setSavingRationale(false);
+                  }}
+                >
+                  {savingRationale ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingRationale(true)}
+              className="w-full text-left"
+            >
+              {iteration.rationale ? (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+                    Rationale:{" "}
+                  </span>
+                  {iteration.rationale}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground/40 italic">
+                  Add rationale — why this direction?
+                </p>
+              )}
+            </button>
+          )}
+        </div>
 
         {/* Comment toggle */}
         <Button
