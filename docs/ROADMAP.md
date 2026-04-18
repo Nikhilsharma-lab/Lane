@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Week 7 — buffer + GTM prep. Start with the active-requests page build (~1 hour), then the pre-customer security sweep (~4-5 hours). Remaining time goes to GTM prep: landing page, waitlist pipeline, demo recording, LinkedIn launch post. Read docs/WORKING-RULES.md first.
+> **Next session:** Week 7 — buffer + hardening only. Start with the active-requests page build (~1 hour), then the pre-customer security sweep (~4-5 hours). Log 15h bug fixes as they surface. GTM work begins in Week 8 after the Week 7 production-ready exit state is confirmed — strict dependency, not parallel. Read docs/WORKING-RULES.md first.
 
 ---
 
@@ -164,13 +164,11 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 
 ---
 
-## Week 7 — Buffer + GTM prep
+## Week 7 — Buffer + hardening
 
-**Goal:** Clean up deferred items. Prepare for first customer onboarding.
+**Goal:** Clean up deferred items. Harden for first customer onboarding. No GTM work this week — sequencing discipline: build complete → harden → ship to production → then GTM, not parallel.
 
-**Budget:** 15 hours. **Planned:** ~8 hours build + 7 hours GTM prep.
-
-### Build items
+**Budget:** 15 hours. **Planned:** ~8 hours build + 7 hours slack.
 
 - [ ] **active-requests page build** — Real query + list mirroring Items 5/6/15f. ~1 hour.
 - [ ] **Item 15h** — Bug fixes as they surface. Log here as you go.
@@ -182,7 +180,17 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
   - Phase 3 test data cleanup
   - (~4-5 hours total)
 
-### GTM prep
+**Week 7 exit state:** Lane is production-ready. All deferred build items shipped. Security sweep complete. No GTM work started — that's Week 8, gated on this exit state being confirmed.
+
+---
+
+## Week 8 — GTM launch
+
+**Goal:** Ship public surface. Start collecting real leads.
+
+**Budget:** 15 hours. **Planned:** ~15 hours GTM prep.
+
+**[STRICT: after Week 7 exit state]** Week 7 must be confirmed production-ready before any Week 8 item starts. The ordering is deliberate — shipping GTM before production is hardened risks a lead landing on a broken Lane.
 
 - [ ] **Landing page live** — Ship the public landing page with "Request access" form per onboarding-spec section 2. Waitlist + manual approval for first 90 days. Copy: problem statement, 4-phase model visual, "Built for design teams" positioning. No feature screenshots yet — philosophy-first.
 - [ ] **Waitlist pipeline** — Form submissions → Resend notification to you → manual review → invite email. Simple, no automation beyond email notification.
@@ -190,13 +198,13 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 - [ ] **LinkedIn launch post** — First public announcement. Frame: "I built the tool I wished existed as a Head of Design. Here's what it does differently." Link to waitlist. No feature list — story-first.
 - [ ] **Chaos Calculator update** — Update the lead magnet spreadsheet to reference Lane by name and link to the waitlist. The calculator quantifies the problem; Lane is the solution.
 
-**Week 7 exit state:** Lane is production-ready for first customers. Landing page is live. Waitlist is collecting leads. Demo video exists for 1:1 outreach. First LinkedIn post is published.
+**Week 8 exit state:** Landing page is live. Waitlist is collecting leads. Demo video exists for 1:1 outreach. First LinkedIn post is published.
 
 ---
 
-## Post-launch GTM (Weeks 8-12)
+## Post-launch GTM (Weeks 9+)
 
-Not sequenced week-by-week yet. Sequence after Week 7 ships based on what's working.
+Not sequenced week-by-week yet. Sequence after Week 8 ships based on what's working.
 
 ### Content engine
 - [ ] **84-day content calendar execution** — LinkedIn (primary) + Twitter/X (co-primary) + Reddit (supplementary). ~100 min/day budgeted. Write-once-publish-twice system.
@@ -276,7 +284,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 18, 2026 — Weeks 1-6 complete. Lane is feature-complete. Week 7: buffer + GTM prep.*
+*Last updated: April 18, 2026 — Weeks 1-6 complete. Lane is feature-complete. Week 7: buffer + hardening. Week 8: GTM launch (strict: after Week 7 exit state).*
 
 ---
 
