@@ -122,6 +122,13 @@ export const requests = pgTable("requests", {
   figmaVersionId: text("figma_version_id"),
   figmaLockedAt: timestamp("figma_locked_at", { withTimezone: true }),
 
+  // Design-phase content (per-stage text bodies, populated progressively)
+  sensingSummary: text("sensing_summary"),
+  designFrameProblem: text("design_frame_problem"),
+  designFrameSuccessCriteria: text("design_frame_success_criteria"),
+  designFrameConstraints: text("design_frame_constraints"),
+  designFrameDivergence: text("design_frame_divergence"),
+
   // If request was created from an approved idea
   linkedIdeaId: uuid("linked_idea_id"),
 

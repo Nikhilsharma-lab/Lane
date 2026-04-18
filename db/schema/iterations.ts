@@ -12,6 +12,7 @@ export const iterations = pgTable("iterations", {
     .references(() => profiles.id),
   title: text("title").notNull(),
   description: text("description"),
+  rationale: text("rationale"),
   figmaUrl: text("figma_url"),
   stage: designStageEnum("stage").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
