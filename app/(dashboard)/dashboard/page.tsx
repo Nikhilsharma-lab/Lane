@@ -197,7 +197,7 @@ export default async function DashboardPage() {
   );
   const orgReqIds = allRequests.map((r) => r.id);
 
-  const [validationRows, allAssignments] = await Promise.all([
+  const [validationRows, teamCountRows] = await Promise.all([
     proveRequests.length > 0
       ? db
           .select({ requestId: validationSignoffs.requestId })
@@ -212,11 +212,12 @@ export default async function DashboardPage() {
     orgReqIds.length
       ? db
           .select({
-            requestId: assignments.requestId,
             assigneeId: assignments.assigneeId,
+            count: sql<number>`count(*)::int`.as("count"),
           })
           .from(assignments)
           .where(inArray(assignments.requestId, orgReqIds))
+          .groupBy(assignments.assigneeId)
       : Promise.resolve([]),
   ]);
 
@@ -234,8 +235,26 @@ export default async function DashboardPage() {
   });
   const memberMap = Object.fromEntries(orgMembers.map((m) => [m.id, m.fullName]));
 
+  // Batch 3: fetch assignments only for requests visible in the focus view.
+  // teamCounts (right panel) uses the org-wide aggregate from batch 2;
+  // assigneesByRequest (focus cards) only needs the visible slice.
+  const focusRequestIds = new Set<string>();
+  for (const section of focusSections) {
+    for (const req of section.requests) focusRequestIds.add(req.id);
+  }
+  const focusIds = Array.from(focusRequestIds);
+  const focusAssignments = focusIds.length
+    ? await db
+        .select({
+          requestId: assignments.requestId,
+          assigneeId: assignments.assigneeId,
+        })
+        .from(assignments)
+        .where(inArray(assignments.requestId, focusIds))
+    : [];
+
   const assigneesByRequest: Record<string, string[]> = {};
-  for (const a of allAssignments) {
+  for (const a of focusAssignments) {
     if (!assigneesByRequest[a.requestId]) assigneesByRequest[a.requestId] = [];
     const name = memberMap[a.assigneeId];
     if (name) assigneesByRequest[a.requestId].push(name);
@@ -277,11 +296,11 @@ export default async function DashboardPage() {
     count: priorityCounts[k],
   }));
 
-  // Count active assignments per member
+  // Count active assignments per member — org-wide aggregate from batch 2.
   const teamCounts: Record<string, number> = {};
-  for (const a of allAssignments) {
-    const name = memberMap[a.assigneeId];
-    if (name) teamCounts[name] = (teamCounts[name] ?? 0) + 1;
+  for (const row of teamCountRows) {
+    const name = memberMap[row.assigneeId];
+    if (name) teamCounts[name] = row.count;
   }
   const teamStats = Object.entries(teamCounts)
     .sort((a, b) => b[1] - a[1])
