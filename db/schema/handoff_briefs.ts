@@ -26,6 +26,10 @@ export const requestHandoffBriefs = pgTable("request_handoff_briefs", {
     .$type<string[]>()
     .notNull()
     .default([]),
+  accessibilityGaps: jsonb("accessibility_gaps")
+    .$type<string[]>()
+    .notNull()
+    .default([]),
 
   aiModel: text("ai_model").notNull(),
   tokensUsed: integer("tokens_used"),

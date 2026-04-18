@@ -77,6 +77,7 @@ export function ProveGate({
     buildSequence: string[];
     figmaNotes: string;
     edgeCases: string[];
+    accessibilityGaps: string[];
   } | null>(null);
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [handoffFetched, setHandoffFetched] = useState(false);
@@ -452,6 +453,20 @@ export function ProveGate({
                   <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                     <span className="text-muted-foreground/40 shrink-0">!</span>
                     {ec}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {handoffBrief.accessibilityGaps && handoffBrief.accessibilityGaps.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Accessibility gaps
+                </p>
+                {handoffBrief.accessibilityGaps.map((gap, i) => (
+                  <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                    <span className="text-muted-foreground/40 shrink-0">♿</span>
+                    {gap}
                   </p>
                 ))}
               </div>

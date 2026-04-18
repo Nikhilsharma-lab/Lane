@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withUserSession } from "@/db/user";
-import { requests, profiles, comments, requestHandoffBriefs } from "@/db/schema";
+import { requests, profiles, comments, requestHandoffBriefs, iterations, decisionLogEntries } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { generateHandoffBrief } from "@/lib/ai/handoff-brief";
 import { checkAiRateLimit } from "@/lib/rate-limit";
@@ -65,6 +65,24 @@ export async function POST(
         authorName: c.authorId ? (authorLookup[c.authorId] ?? "Unknown") : "Unknown",
       }));
 
+      const requestIterations = await db
+        .select({
+          title: iterations.title,
+          description: iterations.description,
+          rationale: iterations.rationale,
+        })
+        .from(iterations)
+        .where(eq(iterations.requestId, requestId));
+
+      const decisions = await db
+        .select({
+          title: decisionLogEntries.title,
+          entryType: decisionLogEntries.entryType,
+          rationale: decisionLogEntries.rationale,
+        })
+        .from(decisionLogEntries)
+        .where(eq(decisionLogEntries.requestId, requestId));
+
       const result = await generateHandoffBrief({
         title: request.title,
         description: request.description,
@@ -72,6 +90,16 @@ export async function POST(
         successMetrics: request.successMetrics,
         figmaUrl: request.figmaUrl,
         comments: formattedComments,
+        sensingSummary: request.sensingSummary,
+        designFrame: {
+          problem: request.designFrameProblem,
+          successCriteria: request.designFrameSuccessCriteria,
+          constraints: request.designFrameConstraints,
+          divergence: request.designFrameDivergence,
+        },
+        iterations: requestIterations,
+        decisionLog: decisions,
+        engineeringFeasibility: request.engineeringFeasibility,
       });
 
       const inserted = await db
@@ -83,6 +111,7 @@ export async function POST(
           buildSequence: result.buildSequence,
           figmaNotes: result.figmaNotes,
           edgeCases: result.edgeCases,
+          accessibilityGaps: result.accessibilityGaps,
           aiModel: "claude-haiku-4-5-20251001",
         })
         .onConflictDoNothing()
