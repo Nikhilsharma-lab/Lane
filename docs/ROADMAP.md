@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Item 8 — Full onboarding build (Week 3). Execute the 13-step build order in `docs/onboarding-spec.md` section 11. Schema additions (`workspace_members.onboarded_at`, `analytics_events` table, new columns per onboarding-spec section 10). Persona detection logic in `lib/onboarding/detect-persona.ts`. Design Head 4-screen flow, Designer 2-screen flow, PM 2-screen flow + intake check beat on first submission. Sample team seed script. Five progressive disclosure moments per section 8. Per S1 outcome, review the reflection-related beat in designer onboarding and omit or replace with a generic "explore the sidebar" message. Estimated ~7 hours over 1-2 sessions. Read `docs/WORKING-RULES.md` first, re-read `docs/onboarding-spec.md` sections 8-11 before starting.
+> **Next session:** Item 8 — finish onboarding (Phases H + I). Phases A–G shipped April 17–18: schema, persona detection, routing, all three persona flows (Design Head 4-screen, Designer 2-screen, PM 2-screen), sample team seed + clear. Remaining: Phase H (5 progressive disclosure moments per `docs/onboarding-spec.md` section 8 — small inline hints triggered the first time a user encounters each concept; requires a "seen hints" tracking mechanism) and Phase I (weekly digest first-time email, cron-adjacent). Phase J (analytics wiring) stays deferred per the April 16 parking lot decision. Estimated ~3–4 hours for H + I combined. Read `docs/WORKING-RULES.md` first.
 
 ---
 
@@ -224,7 +224,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 17, 2026 — Item 6 complete. Week 2 done. Next: Item 8 (onboarding build, Week 3).*
+*Last updated: April 18, 2026 — Item 8 Phases A–G shipped. Next: Phases H + I to finish Item 8.*
 
 ---
 
@@ -295,12 +295,13 @@ Items that come up mid-execution but aren't yet sequenced. Add anything here the
 - [2026-04-16] Analytics instrumentation pass across whole app. Deferred during Item 4 session per decision to build analytics in one coherent pass after the app is functionally complete. Scope: create `analytics_events` table per onboarding-spec section 10, build `lib/analytics/track.ts` helper, wire all events from onboarding-spec section 10 (intake_check.*, onboarding.*, progressive.*). Also includes wiring events from Item 4 retroactively (intake_check.submission_attempted, intake_check.ai_rewrite_accepted, intake_check.reframed, intake_check.submitted_anyway). Trigger: after the product is feature-complete against nav-spec + onboarding-spec, before first paying customer. Budget: 3-4 hours.
 - [2026-04-16] **Stale STAGES array in `app/actions/requests.ts:9-11`.** Uses legacy flat stage names (`explore`, `validate`, `handoff`) from the old design-stage enum, not the current 4-phase model (predesign/design/build/track) or 5-stage design flow (sense/frame/diverge/converge/prove). Not actively broken but confusing drift discovered during Item 4 reconnaissance. Investigate whether it's dead code to delete or live code to rename. Budget: 15-30 min.
 - [2026-04-17] RLS Tier 1+2 migration — migrate 17 routes from @/db to withUserDb/withUserSession per docs/rls-audit.md. ~7 hours across 2 sessions. Execute before first customer onboarding.
+- [2026-04-17] stageEnum migration — legacy requestStages table uses old stage names (explore/validate/handoff) incompatible with current 4-phase model (sense/frame/diverge/converge/prove + kanban states). Discovered during Phase G seed when inserting "diverge" would throw. Needs: ALTER TYPE to add new values, or replace the enum, or deprecate requestStages entirely. Blocks any feature that writes to requestStages with current vocabulary. Budget: 1-2 hours investigation + migration.
 
 **Review cadence:**
 - **End of week 4 re-scope:** read the full parking lot. For each item, decide: sequence it into weeks 5-7, keep it in the parking lot, or delete it.
 - **End of week 7 or 8:** same review. Decide what survives into the next roadmap.
 
-**Active items:** 9 (model ID note and silent failure audit absorbed into completed "AI foundation verification" item)
+**Active items:** 10 (model ID note and silent failure audit absorbed into completed "AI foundation verification" item)
 
 
 ---
