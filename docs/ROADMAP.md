@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Week 7.5 — User flow foundation spec session. P0 blocker: Lane has no signup-to-workspace flow. Map every user path (self-signup, invite, role transfer, edge cases) before building. Read the five diagnostic outputs from the April 19 session first.
+> **Next session:** Week 7.5a — Phase A test harness setup (A1: pg-tap harness). The spec session completed April 19; see docs/user-flows-spec.md v2. Week 7.5 has expanded to four sub-weeks (7.5a-d) of build work at ~50-54 hours total. Phase A harnesses must ship before Phase B migrations.
 
 ---
 
@@ -180,24 +180,88 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 
 ## Week 7.5 — User flow foundation (P0 BLOCKER)
 
-**Goal:** Build the complete signup-to-workspace flow. Without this, no user can successfully sign up and use Lane.
+**Goal:** Ship enterprise-grade signup-to-workspace flow per `docs/user-flows-spec.md` v2. Close the P0 bug (workspace_members never populated) and establish the auth/membership foundation Lane will use for every future feature.
 
-**Budget:** 10-15 hours. **Planned:** TBD after spec session.
+**Budget:** ~50-54 hours at 15 hrs/week = 4 calendar weeks. Splits into four sub-weeks (7.5a-d) with distinct goals. Build order is tests-parallel per WORKING-RULES.md — no step is complete until its test is written and passing.
 
-**Why this is P0:** The missing workspace_members row discovered on April 19 exposed a systemic gap — Lane has no signup-to-workspace flow. The onboarding system, role detection, and every org-scoped query depend on workspace_members existing with the correct role. Nothing in the codebase creates this row. This blocks every user, not just the founder.
+**Why this is P0:** The missing workspace_members row discovered April 19 exposed a systemic gap. Onboarding persona detection, role enforcement, org-scoped queries, and every access-control decision depend on workspace_members. Nothing currently creates this row. This blocks every user. The full scope also includes audit logging, idempotent RPC patterns, rate limiting, and ownership transfer — all enterprise foundation pieces that are cheap to build now and expensive to retrofit later.
 
-- [ ] **Spec session** — Map every user flow end-to-end:
-  - Self-signup (personal email) → workspace creation → owner role
-  - Self-signup (work email) → workspace creation or auto-join existing
-  - Invite link signup (designer) → join existing workspace → member role + team assignment
-  - Invite link signup (PM) → join existing workspace → member role + PM team role
-  - Role transfer (design head leaves org → who becomes owner?)
-  - Edge cases: duplicate emails, multiple workspaces, orphaned workspaces
-  - Produces docs/user-flows-spec.md
-- [ ] **Implementation** — Build the flows against the spec. Signup action creates workspace + membership. Invite accept creates membership with correct role. Role transfer mechanism for ownership.
-- [ ] **Verify** — Test every path end-to-end in dev, then production.
+**Spec session completed:** April 19. Output: `docs/user-flows-spec.md` v2. Do not re-litigate the spec inside this roadmap — if scope needs to change, update the spec first.
+
+### Week 7.5a — Test harnesses + database foundation (~17 hours)
+
+Phase A — harnesses first, prerequisite for everything below:
+
+- [ ] **A1.** pg-tap harness setup — install extension, wire `npm run test:sql`, GitHub Actions CI step, one trivial assertion smoke test. (~3 hours)
+- [ ] **A2.** Playwright harness setup — install, configure against dev Supabase, wire Mailhog/Resend sandbox, `e2e/fixtures/reset.ts`, one browser smoke test. (~4 hours)
+- [ ] **A3.** Test fixtures — `supabase/test-seed.sql` creates deterministic baseline used by both harnesses. (~1 hour)
+
+Phase B — schema + RPCs, each migration shipped with its pg-tap test:
+
+- [ ] **B1.** Migration 0006 — workspace_members population + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel: `test/sql/test_migration_0006.sql` (~12 assertions). (~4.5 hours)
+- [ ] **B2.** Migration 0007 — invite team scoping + unique pending invite index + pg-tap. (~1.25 hours)
+- [ ] **B3.** Migration 0008 — `transfer_workspace_ownership` RPC + pg-tap. (~2 hours)
+- [ ] **B4.** Migration 0009 — `profiles.left_at` + orphaned workspace admin view + pg-tap. (~1 hour)
+
+**7.5a exit state:** Database layer is correct and proven. Every later phase can assume the DB does the right thing.
+
+### Week 7.5b — Server actions (~8 hours)
+
+Phase C — each server action shipped with its Vitest integration test:
+
+- [ ] **C1.** Update `app/actions/auth.ts` — idempotent signup + recovery path per spec §5.6. Parallel integration tests. (~2.5 hours)
+- [ ] **C2.** Update `app/actions/invites.ts` — team payload + idempotent accept. Parallel integration tests. (~2 hours)
+- [ ] **C3.** New `app/actions/ownership.ts` — `transferOwnership`. Parallel integration tests. (~1.5 hours)
+- [ ] **C4.** New `app/actions/members.ts` — `leaveWorkspace`, `removeMember`. Parallel integration tests. (~2 hours)
+
+**7.5b exit state:** Action layer is correct and proven. The only remaining risk surface is UI.
+
+### Week 7.5c — UI + supporting infrastructure (~20 hours)
+
+Phase D — each UI surface shipped with its Playwright flow test:
+
+- [ ] **D1.** `/settings/members` page + Playwright. (~4 hours)
+- [ ] **D2.** `/settings/workspace` page (ownership transfer) + Playwright. (~2.5 hours)
+- [ ] **D3.** `/settings/profile` page (leave workspace) + Playwright. (~1.75 hours)
+- [ ] **D4.** `/invite/accept` page (4 paths: new user, existing user blocked, email mismatch, expired) + Playwright. (~3.5 hours)
+- [ ] **D5.** `/signup` page (idempotent recovery UI) + Playwright. (~2.5 hours)
+
+Phase E — supporting infrastructure:
+
+- [ ] **E1.** Resend templates (5 new: invite, ownership_transferred, member_removed, auto_promoted_to_owner, signup_notification) + smoke test. (~1.75 hours)
+- [ ] **E2.** Cron `/api/cron/cleanup-invites` — delete invites where `expires_at < now() - interval '30 days'` + test. (~1 hour)
+- [ ] **E3.** Cron `/api/cron/resolve-orphans` — auto-promote earliest-joined admin in owner-less workspaces + test. (~2 hours)
+- [ ] **E4.** Rate limiting — signup, invite-create, invite-accept endpoints per spec §4.8 + test. (~1.25 hours)
+
+**7.5c exit state:** Every user-facing surface in the spec is built and tested. Ready for manual QA.
+
+### Week 7.5d — Verification + ship (~5-8 hours)
+
+Phase F — production rollout:
+
+- [ ] **F1.** Manual QA against the 10 flows in spec §5-§11 on dev environment. Checklist-driven. Log every issue. (~2 hours)
+- [ ] **F2.** Fix any issues found in F1. If >2 issues, stop and retro — the spec or build missed a case. (~1-4 hours, budget generously)
+- [ ] **F3.** Production deploy. Immediately run migration 0006 invariant verification queries per spec §4.1.3. If any return rows, roll back. (~1 hour)
+- [ ] **F4.** Production smoke test — sign up with test email, invite second test email, accept, transfer ownership, leave. (~30 min)
+- [ ] **F5.** Update ROADMAP.md — mark Week 7.5 complete, unblock Week 8. Update Next session pointer. (~30 min)
+
+Parallel housekeeping (do any time during 7.5a-c, before 7.5d):
+
+- [ ] Update `docs/onboarding-spec.md` §2 — remove stale "waitlist for first 90 days" claim; reference the new open-with-auto-approve default. (~15 min)
+- [ ] Update `docs/WORKING-RULES.md` — add idempotent RPC pattern as Lane's standard for auth bootstrap. (~15 min)
+
+**Week 7.5 exit state:** Lane has a complete, tested, production-deployed signup-to-workspace foundation. Every path from spec §5-§11 works end-to-end. Audit log captures all state-changing events. Rate limiting protects auth endpoints. Infrastructure for waitlist gating is in place (defaulted off via env flag). Week 8 GTM unblocked.
 
 [STRICT: blocks Week 8 GTM. No landing page until users can actually sign up and land in a working workspace.]
+
+### Risk register (watch during build)
+
+From spec §15.2:
+
+- **Supabase Auth quirks on idempotent retry** — `auth.signUp` behavior when called twice for the same email varies by SDK version. Budget 1-2 hours in C1.
+- **RLS policies for `audit_log`** — append-only is fiddly. Budget 1 extra hour in B1.
+- **Playwright + Mailhog in CI** — email interception can be flaky. Budget 1-2 extra hours in A2 if container networking causes issues.
+- **Production backfill** — pre-check with `SELECT org_id, count(*) FROM profiles WHERE role IN ('lead','admin') GROUP BY org_id HAVING count(*) > 1;` before deploy. At current scale this should return 0 rows; if not, the collapse-multi-owner step may surface unexpected conflicts.
 
 ---
 
@@ -207,10 +271,10 @@ If Item 14 compresses 30%, that's ~7 hours of slack across the plan — consider
 
 **Budget:** 15 hours. **Planned:** ~15 hours GTM prep.
 
-**[STRICT: after Week 7 exit state AND Week 7.5 user flow foundation]** Week 7 must be production-ready AND Week 7.5's signup-to-workspace flow must be implemented and verified before any Week 8 item starts. The ordering is deliberate — shipping GTM before users can actually sign up risks a landing page that leads nowhere.
+**[STRICT: after Week 7 exit state AND Week 7.5d F5 checkmark]** Week 7 must be production-ready AND Week 7.5's full four-phase build must be shipped, QA'd, and deployed to production before any Week 8 item starts. The ordering is deliberate — shipping GTM before users can actually sign up (and sign up correctly, per the enterprise-grade foundation) risks a landing page that leads nowhere. Do not start Week 8 just because Week 7.5a or 7.5b landed — the gate is F5.
 
-- [ ] **Landing page live** — Ship the public landing page with "Request access" form per onboarding-spec section 2. Waitlist + manual approval for first 90 days. Copy: problem statement, 4-phase model visual, "Built for design teams" positioning. No feature screenshots yet — philosophy-first.
-- [ ] **Waitlist pipeline** — Form submissions → Resend notification to you → manual review → invite email. Simple, no automation beyond email notification.
+- [ ] **Landing page live** — Ship the public landing page with direct signup CTA ("Start your workspace" → `/signup`). Signup is open with auto-approval per user-flows-spec §5.2. Founder gets notification email on every new signup for manual follow-up. Copy: problem statement, 4-phase model visual, "Built for design teams" positioning. No feature screenshots yet — philosophy-first.
+- [ ] **Founder notification pipeline** — Every signup triggers a Resend email to you with the signup details (email, workspace name, timestamp). You reach out personally within 24 hours of each signup for the first 50 users. If signup volume spikes or abuse appears, flip `LANE_SIGNUP_AUTO_APPROVE=false` to gate — infrastructure is already in place per user-flows-spec §4.7.
 - [ ] **Demo recording** — 3-minute Loom showing: onboarding flow → intake check (the killer beat) → Request moving through Sense/Frame/Diverge → Converge Decision Log → Prove sign-offs → weekly digest. For sharing in DMs after "DM me CHAOS" leads engage.
 - [ ] **LinkedIn launch post** — First public announcement. Frame: "I built the tool I wished existed as a Head of Design. Here's what it does differently." Link to waitlist. No feature list — story-first.
 - [ ] **Chaos Calculator update** — Update the lead magnet spreadsheet to reference Lane by name and link to the waitlist. The calculator quantifies the problem; Lane is the solution.
@@ -301,7 +365,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 19, 2026 — Weeks 1-7 complete. P0 blocker found: no signup-to-workspace flow. Week 7.5 inserted before GTM. Next: Week 7.5 spec session.*
+*Last updated: April 19, 2026 — Weeks 1-7 complete. Week 7.5 spec session shipped (docs/user-flows-spec.md v2). Week 7.5 expanded to four phased sub-weeks (7.5a-d) totaling ~50-54 hours. Next: Week 7.5a A1 (pg-tap harness setup).*
 
 ---
 
