@@ -35,39 +35,39 @@ export function selectRateLimiterConfig(env: {
   return { enabled: false };
 }
 
-const rateLimiterConfig = selectRateLimiterConfig(process.env);
+// Lazy init: selectRateLimiterConfig throws in production if env vars are
+// missing, which would break the Next.js build (NODE_ENV=production during
+// `next build`). Deferring until first use means the throw fires on the
+// first real request in prod, not at build time in CI.
+let _aiLimiter: Ratelimit | null = null;
+let _generalLimiter: Ratelimit | null = null;
+let _initialized = false;
 
-const redis = rateLimiterConfig.enabled
-  ? new Redis({
-      url: rateLimiterConfig.url,
-      token: rateLimiterConfig.token,
-    })
-  : null;
-
-// AI routes: 10 requests per minute per user
-const aiLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(10, "1 m"),
-      prefix: "lane:ai",
-    })
-  : null;
-
-// General API routes: 60 requests per minute per user
-const generalLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(60, "1 m"),
-      prefix: "lane:api",
-    })
-  : null;
+function ensureLimiters(): void {
+  if (_initialized) return;
+  _initialized = true;
+  const config = selectRateLimiterConfig(process.env);
+  if (!config.enabled) return;
+  const redis = new Redis({ url: config.url, token: config.token });
+  _aiLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "1 m"),
+    prefix: "lane:ai",
+  });
+  _generalLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(60, "1 m"),
+    prefix: "lane:api",
+  });
+}
 
 export async function checkAiRateLimit(
   userId: string,
 ): Promise<NextResponse | null> {
-  if (!aiLimiter) return null; // Dev/test only — production throws at module init above
+  ensureLimiters();
+  if (!_aiLimiter) return null; // Dev/test only — production throws in ensureLimiters above
 
-  const { success, limit, remaining, reset } = await aiLimiter.limit(userId);
+  const { success, limit, remaining, reset } = await _aiLimiter.limit(userId);
 
   if (!success) {
     return NextResponse.json(
@@ -90,10 +90,11 @@ export async function checkAiRateLimit(
 export async function checkGeneralRateLimit(
   userId: string,
 ): Promise<NextResponse | null> {
-  if (!generalLimiter) return null;
+  ensureLimiters();
+  if (!_generalLimiter) return null;
 
   const { success, limit, remaining, reset } =
-    await generalLimiter.limit(userId);
+    await _generalLimiter.limit(userId);
 
   if (!success) {
     return NextResponse.json(
