@@ -4,10 +4,10 @@ import { db } from "@/db";
 import { profiles, morningBriefings } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { generateMorningBriefing } from "@/lib/ai/morning-briefing";
+import { isCronRequestAuthorized } from "@/lib/cron/auth";
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequestAuthorized(req.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

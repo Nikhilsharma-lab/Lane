@@ -1,9 +1,10 @@
 import { db } from "@/db";
-import { publishedViews, requests } from "@/db/schema";
+import { publishedViews, requests, profiles } from "@/db/schema";
 import type { ViewFilters } from "@/db/schema/published_views";
 import { eq, and } from "drizzle-orm";
 import { PublishedViewPage } from "@/components/published/published-view-page";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { canAccessAuthenticatedView } from "@/lib/views/access";
 
 export default async function ViewPage({
   params,
@@ -35,8 +36,16 @@ export default async function ViewPage({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      const { redirect } = await import("next/navigation");
       redirect("/login");
+    }
+
+    const [profile] = await db
+      .select({ orgId: profiles.orgId })
+      .from(profiles)
+      .where(eq(profiles.id, user.id));
+
+    if (!canAccessAuthenticatedView(view.orgId, profile?.orgId)) {
+      notFound();
     }
   }
 

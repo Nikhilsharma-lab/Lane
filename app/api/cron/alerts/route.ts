@@ -8,12 +8,10 @@ import {
   detectFigmaDrift,
 } from "@/lib/alerts/detect";
 import { generateAlertCopy, type AlertInput } from "@/lib/ai/proactive-alerts";
+import { isCronRequestAuthorized } from "@/lib/cron/auth";
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronRequestAuthorized(req.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

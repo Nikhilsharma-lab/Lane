@@ -10,6 +10,7 @@ import { organizations, weeklyDigests, profiles, notifications } from "@/db/sche
 import { and, eq, or } from "drizzle-orm";
 import { generateDigestForOrg } from "@/lib/digest";
 import { sendWeeklyDigestEmail } from "@/lib/email";
+import { isCronRequestAuthorized } from "@/lib/cron/auth";
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   let lastErr: unknown;
@@ -37,10 +38,7 @@ function getMondayOfThisWeek(): string {
 }
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronRequestAuthorized(req.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
