@@ -60,8 +60,12 @@ export async function POST(req: NextRequest) {
       .orderBy(requests.createdAt)
       .limit(40);
 
-    let triageResult: Awaited<ReturnType<typeof triageRequest>> | null = null;
-    let triageError: string | null = null;
+    // --- Server-side triage (runs BEFORE insert) ---
+    // Fail closed: if triage fails, the intake gate cannot be enforced, so we
+    // refuse the request rather than fall back to client-provided AI fields.
+    // Client-controlled classifier values are untrusted — a malicious client
+    // could send `aiClassifierResult: "problem_framed"` to bypass the gate.
+    let triageResult: Awaited<ReturnType<typeof triageRequest>>;
     try {
       triageResult = await triageRequest({
         title: title.trim(),
@@ -72,15 +76,22 @@ export async function POST(req: NextRequest) {
         existingRequests,
       });
     } catch (err) {
-      // Fail-open: skip gate check, proceed with client-provided AI fields only.
-      triageError = err instanceof Error ? err.message : "Unknown triage error";
-      console.error("[requests/POST] Triage failed, proceeding without gate check:", err);
+      console.error("[requests/POST] Triage failed; refusing request to preserve intake gate:", err);
+      return NextResponse.json(
+        {
+          error: "triage_unavailable",
+          message:
+            "Request classification is temporarily unavailable. Please retry in a moment.",
+        },
+        { status: 503 }
+      );
     }
 
     // --- Server-side intake gate enforcement ---
-    const serverClassification = triageResult?.classification || aiClassifierResult || null;
+    // Use only the server-computed classification. Client-provided AI fields
+    // are persisted below for display, but NEVER used for gate decisions.
+    const serverClassification = triageResult.classification;
     if (
-      serverClassification &&
       (serverClassification === "solution_specific" || serverClassification === "hybrid") &&
       (!submitJustification || !submitJustification.trim())
     ) {
@@ -159,8 +170,7 @@ export async function POST(req: NextRequest) {
       {
         request,
         triage,
-        triageStatus: triageResult ? "ok" : "failed",
-        ...(triageError ? { triageError } : {}),
+        triageStatus: "ok",
       },
       { status: 201 }
     );
