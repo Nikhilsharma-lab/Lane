@@ -123,7 +123,9 @@ Every query that branches on role must be explicit about which role it is readin
 
 ## 4. Schema changes
 
-### 4.1 Migration: `0006_populate_workspace_members.sql`
+> **Migration numbering note.** Migration numbers 0006-0009 were initially planned in spec v2 but conflict with migrations already committed to db/migrations/ (0006_alert_rls_tighten, 0007_fancy_wild_pack, 0008_ordinary_warbird, and 0009_rls_coverage_0007 which landed as PR #40 during pre-A1 work). Numbers below start at 0010 to use the next available slots.
+
+### 4.1 Migration: `0010_populate_workspace_members.sql`
 
 This is the core fix. The existing RPCs (`bootstrap_organization_membership`, `accept_invite_membership`) currently create `workspaces` and `profiles` rows but never touch `workspace_members`. This migration updates both RPCs to also insert a `workspace_members` row, and backfills existing users.
 
@@ -229,7 +231,7 @@ SET accepted_at = now(), accepted_by = target_user_id
 WHERE id = invite_row.id;
 ```
 
-Note the new `invites.accepted_by uuid` column — added in migration 0006. Captures who actually accepted (not just "was accepted") which matters for audit trails when an invite email gets forwarded.
+Note the new `invites.accepted_by uuid` column — added in migration 0010. Captures who actually accepted (not just "was accepted") which matters for audit trails when an invite email gets forwarded.
 
 #### 4.1.3 Backfill for existing users — batched, safe
 
@@ -328,7 +330,7 @@ WHERE role = 'owner' GROUP BY workspace_id HAVING count(*) != 1;
 
 Include these invariant checks as post-deploy smoke tests.
 
-### 4.2 Migration: `0007_invite_team_scoping.sql`
+### 4.2 Migration: `0011_invite_team_scoping.sql`
 
 The `invites` table currently carries functional role (`pm`, `designer`, etc.) but not team_id or team-scoped role. Add:
 
@@ -340,7 +342,7 @@ ALTER TABLE public.invites
 
 `team_id` and `team_role` are optional. If both are null, the invite creates a workspace-level membership only (user joins the workspace but not any team). If both are present, the acceptance RPC also creates a `team_memberships` row.
 
-### 4.3 Migration: `0008_ownership_transfer.sql`
+### 4.3 Migration: `0012_ownership_transfer.sql`
 
 New RPC for ownership transfer. See §9 for the full flow.
 
@@ -433,9 +435,9 @@ These are the invariants Lane maintains. Not schema-enforced (no UNIQUE constrai
 | `team_memberships.team_id` | `projects.id` | CASCADE |
 | `invites.org_id` | `organizations.id` | CASCADE |
 
-The missing FK on `profiles.id → auth.users.id` is a separate bug discovered during this spec. Include it in the 0006 migration.
+The missing FK on `profiles.id → auth.users.id` is a separate bug discovered during this spec. Include it in the 0010 migration.
 
-### 4.6 Audit log (new table, migration 0006)
+### 4.6 Audit log (new table, migration 0010)
 
 Every state-changing event in the signup/invite/membership surface writes to `audit_log`. Immutable, queryable, retention-policy-ready. This is table stakes for enterprise SaaS — compliance audits, security incident response, customer support debugging all depend on having a record of "what happened and who did it."
 
@@ -477,7 +479,7 @@ CREATE INDEX audit_log_event_type ON public.audit_log (event_type, created_at DE
 
 Downstream features (Request changes, PM calibration, etc.) can add their own event types without schema changes.
 
-### 4.7 Waitlist / approval gate (new table, migration 0006)
+### 4.7 Waitlist / approval gate (new table, migration 0010)
 
 Per the decision in §5.2, Lane ships with infrastructure for approval-gating but defaults to auto-approve. This means we can turn gating on without a migration when we ever need to (regional restrictions, enterprise pilots, abuse response).
 
@@ -920,7 +922,7 @@ A member visits `/settings/profile` → "Leave workspace" → confirms.
 `workspace_members` — DELETE the caller's row
 `team_memberships` — DELETE all rows where `user_id = caller`
 `profiles` — **KEEP.** Deleting the profile would orphan historical Requests, comments, decision log entries, etc. Instead, mark the profile as "departed":
-  - Add `profiles.left_at timestamptz` column (new, add in migration 0009)
+  - Add `profiles.left_at timestamptz` column (new, add in migration 0013)
   - Set `left_at = now()`
   - All UI surfaces should show a departed user's name with a subtle "(no longer on team)" marker
 
@@ -1248,16 +1250,20 @@ Phase A total: ~8 hours. One-time. Every subsequent step depends on this existin
 
 Every migration gets its own pg-tap test file. Test file is written *before* the migration runs — a failing test that passes only after the migration is applied is the right pattern. If the test can't be written first (e.g., table doesn't exist yet), write it after the schema but before the behavioral changes.
 
-- **B1.** Migration 0006 — populate workspace_members + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel test: `test/sql/test_migration_0006.sql` — 12 pg-tap assertions covering: idempotency of bootstrap (call twice, no second workspace), idempotency of accept (call twice with same invite, second is no-op), audit rows emitted on every event, workspace_members created with correct role, backfill invariants hold. **STOP: review migration + test together.** (~3 hours build + ~1.5 hours test = 4.5 hours)
-- **B2.** Migration 0007 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0007.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
-- **B3.** Migration 0008 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_transfer_ownership.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_user_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
-- **B4.** Migration 0009 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_orphan_view.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
+- **B1.** Migration 0010 — populate workspace_members + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel test: `test/sql/test_migration_0010.sql` — 12 pg-tap assertions covering: idempotency of bootstrap (call twice, no second workspace), idempotency of accept (call twice with same invite, second is no-op), audit rows emitted on every event, workspace_members created with correct role, backfill invariants hold. **STOP: review migration + test together.** (~3 hours build + ~1.5 hours test = 4.5 hours)
+- **B2.** Migration 0011 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0011.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
+- **B3.** Migration 0012 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_transfer_ownership.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_user_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
+- **B4.** Migration 0013 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_orphan_view.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
 
 Phase B total: ~8.75 hours. After Phase B, the database layer is correct and proven. Every later step can assume the DB does the right thing.
 
 ### Phase C — Server actions, each with integration tests
 
 Server actions call RPCs and handle errors. Each action gets an integration test that exercises it against the real DB (via the test harness) without going through the browser. These are Vitest tests, not Playwright — faster than e2e, slower than pg-tap, right layer for action-level logic.
+
+> **ESLint constraint (PR #44):** Server actions must use `withUserSession` / `withUserDb` from `@/db/user` rather than direct `@/db` imports. The ESLint rule introduced in PR #44 warns on direct `@/db` imports in user-facing code (`app/actions`, `app/api` non-cron routes). All four action files (auth, invites, ownership, members) need to follow this convention.
+
+> **Vitest pattern for pure helpers:** Pure helper functions (validation logic, classifier output shaping, URL selection) should have Vitest unit tests matching the pattern established by `test/user-session-url.test.ts`, `test/rate-limit-config.test.ts`, and `test/request-permissions.test.ts`. These sit alongside the integration tests already planned in Phase C. Test harness already exists — no setup needed beyond writing the test files.
 
 - **C1.** Update `app/actions/auth.ts` with idempotent signup + recovery path per §5.6. Parallel test: `test/actions/auth.test.ts` — signup creates 4 rows (auth user, organization, profile, workspace_members), signup with pre-existing profile returns existing workspace, signup with partial state (profile exists, workspace_members missing) heals. Include rate limit tests (6th signup from same IP within hour returns 429). **STOP.** (~1 hour build + ~1.5 hours test = 2.5 hours)
 - **C2.** Update `app/actions/invites.ts` with team payload and idempotent accept. Parallel test: team-scoped invite creates team_memberships row, accepting twice returns success second time, accepting after revoke fails, wrong-email acceptance blocked. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
@@ -1291,7 +1297,7 @@ Phase E total: ~6 hours.
 
 - **F1.** Manual QA against all 10 flows in §5-§11 on dev environment. Use a checklist derived from the spec. Log every issue found. (~2 hours)
 - **F2.** Fix any issues found in F1. If >2 issues, stop and run a retro — something about the spec or the build missed a case. (~1-4 hours, estimate generously)
-- **F3.** Production deploy. Run migration 0006 backfill verification queries (§4.1.3) immediately after deploy. If any invariant query returns rows, roll back. (~1 hour)
+- **F3.** Production deploy. Run migration 0010 backfill verification queries (§4.1.3) immediately after deploy. If any invariant query returns rows, roll back. (~1 hour)
 - **F4.** Smoke test in production: sign up with a test email, invite a second test email, accept, transfer ownership, leave. (~30 min)
 - **F5.** Update ROADMAP.md. Mark Week 7.5 complete. Unblock Week 8 GTM. (~30 min)
 
@@ -1407,10 +1413,10 @@ Week 7.5a — Test harness + database foundation (~17 hours)
 - [ ] A1. pg-tap harness setup + smoke test
 - [ ] A2. Playwright harness setup + smoke test
 - [ ] A3. Test fixtures (supabase/test-seed.sql)
-- [ ] B1. Migration 0006 (workspace_members + FK + audit_log + waitlist + idempotent RPCs) + pg-tap
-- [ ] B2. Migration 0007 (invite team scoping + unique pending index) + pg-tap
-- [ ] B3. Migration 0008 (transfer_workspace_ownership RPC) + pg-tap
-- [ ] B4. Migration 0009 (profiles.left_at + orphan view) + pg-tap
+- [ ] B1. Migration 0010 (workspace_members + FK + audit_log + waitlist + idempotent RPCs) + pg-tap
+- [ ] B2. Migration 0011 (invite team scoping + unique pending index) + pg-tap
+- [ ] B3. Migration 0012 (transfer_workspace_ownership RPC) + pg-tap
+- [ ] B4. Migration 0013 (profiles.left_at + orphan view) + pg-tap
 
 Week 7.5b — Server actions + first UI surfaces (~12 hours)
 - [ ] C1. app/actions/auth.ts (idempotent signup + recovery) + integration tests

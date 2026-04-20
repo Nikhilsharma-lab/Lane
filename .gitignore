@@ -7,6 +7,7 @@ dist/
 .worktrees/
 TODO.md
 .claude/launch.json
+.claude/settings.local.json
 
 # Internal working documents — not for public repo
 CLAUDE.local.md
@@ -19,7 +20,6 @@ STORY.md
 lane docs/
 UI reference/
 Misc/
-.claude/launch.json
 .vercel
 .env*.local
 .gstack/
