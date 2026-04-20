@@ -1,15 +1,15 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { Request } from "@/db/schema";
+import type { ShellRequest } from "@/lib/dashboard/shell-data";
 
-const RequestsContext = createContext<Request[]>([]);
+const RequestsContext = createContext<ShellRequest[]>([]);
 
 export function RequestsProvider({
   requests,
   children,
 }: {
-  requests: Request[];
+  requests: ShellRequest[];
   children: React.ReactNode;
 }) {
   return (
@@ -19,6 +19,6 @@ export function RequestsProvider({
   );
 }
 
-export function useRequests(): Request[] {
+export function useRequests(): ShellRequest[] {
   return useContext(RequestsContext);
 }

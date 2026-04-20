@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:sql": "dotenv -e .env.local -o -- node scripts/run-sql-tests.mjs",
-    "test:e2e": "dotenv -e .env.local -o -- playwright test"
+    "test:e2e": "dotenv -e .env.local -o -- playwright test",
+    "db:access-inventory": "npx tsx scripts/db-access-inventory.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
