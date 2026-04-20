@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** Week 7.5a — Phase A test harness setup (A1: pg-tap harness). The spec session completed April 19; see docs/user-flows-spec.md v2. Week 7.5 has expanded to four sub-weeks (7.5a-d) of build work at ~50-54 hours total. Phase A harnesses must ship before Phase B migrations.
+> **Next session:** Week 7.5a — Phase A3 (test fixtures: `supabase/test-seed.sql`). A1 (pg-tap), A2a (Playwright auth+smoke), and A2b (email capture) are shipped. A3 is the last Phase A item before Phase B migrations begin. ~1 hour estimated.
 
 ---
 
@@ -194,7 +194,7 @@ Phase A — harnesses first, prerequisite for everything below:
 
 - [x] **A1.** pg-tap harness setup — install extension, wire `npm run test:sql`, GitHub Actions CI step, one trivial assertion smoke test. (~3 hours estimate, actual ~1.5 hours — under budget; pre-A1 cleanup absorbed most overhead, see commits e1db32e + 0d843cf)
 - [x] **A2a.** Playwright harness setup — auth fixtures (Supabase admin API + storageState scaffolding), smoke test (homepage status + /login renders), CI-safe env-gating in globalSetup. (~45 min actual vs 4 hour spec estimate for full A2; massive compression because existing playwright.config.ts + CI e2e job already in place from prior work)
-- [ ] **A2b.** Test email capture harness — dev_only_sent_emails.sql migration, lib/email capture branch with module-load production safety check, e2e/helpers/email.ts test helpers. (~2-3 hours estimated; deferred to next session for fatigue management — see parking lot for context)
+- [x] **A2b.** Test email capture harness — dev_only_sent_emails.sql migration, lib/email capture branch with module-load production safety check, e2e/helpers/email.ts test helpers. (~2-3 hours estimated, actual ~1.25 hours — under budget; existing lib/email chokepoint pattern + A1's dev_only migration template compressed the work)
 - [ ] **A3.** Test fixtures — `supabase/test-seed.sql` creates deterministic baseline used by both harnesses. (~1 hour)
 
 Phase B — schema + RPCs, each migration shipped with its pg-tap test:
@@ -456,6 +456,8 @@ Items that come up mid-execution but aren't yet sequenced. Add anything here the
 - [2026-04-19] npm run test:e2e requires Chromium binary install (one-time: npx playwright install chromium). Fresh clones and new collaborators will hit "browser not found" on first run. Fix options: (a) add a postinstall script to package.json (automatic, adds ~80MB download time to every npm install), (b) add an explicit "e2e:install" script + document in e2e/README.md (explicit, faster npm install), (c) rely on CI's existing Playwright browser cache and document the local setup step. Lean: (b) + (c). ~15 min to implement + document.
 - [2026-04-19] Formalize dotenv-cli wrapper pattern. Three scripts now use it: test:sql, test:e2e, script. Pattern is "dotenv -e .env.local -o -- <command>". Consider: (a) a shared npm script shim, (b) a WORKING-RULES note documenting the pattern, (c) standardize on it for any new script that needs .env.local. Low priority — pattern works as-is — but worth noting for onboarding docs.
 - [2026-04-19] Transient SSL error on Supabase admin listUsers() during A2a pre-flight (ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC). One occurrence, didn't recur within the same session. Possible causes: TLS handshake edge case, Supabase regional flakiness, local network hiccup. Not actionable yet. Watch for recurrence across sessions — if pattern emerges, investigate retries or connection pooling on the admin client.
+- [2026-04-20] sendFigmaDriftEmail and sendWeeklyDigestEmail have !resend early-returns that bypass sendEmail() in dev/CI without RESEND_API_KEY. Means ENABLE_TEST_EMAIL_CAPTURE doesn't capture emails sent through these wrappers. Invite emails (which call sendEmail directly from app/actions/invites.ts) are unaffected and work correctly with capture. Fix when first Phase D test needs to verify a wrapper-flow email. Options: (i) remove !resend early-return from wrappers, letting sendEmail handle no-op uniformly, (ii) set RESEND_API_KEY=dummy in test env. Lean: (i) — it's the structural fix. Budget: 15 min when triggered.
+- [2026-04-20] CI e2e job needs email-capture setup before Phase D tests that verify invite/email flows can run in CI. Required: (a) apply db/migrations/dev_only_sent_emails.sql to CI Postgres container (same pattern as dev_only_pgtap.sql in the sql job), (b) set ENABLE_TEST_EMAIL_CAPTURE=true at job or step level, (c) decide whether e2e job reuses the sql job's Postgres service or spins up its own. A2b ships only the harness; A2b alone doesn't break CI because smoke tests don't consume email helpers. First Phase D test that calls getLastSentEmail() or sendEmail-triggering code forces the decision. Budget: 30-45 min. Trigger: D1 or D4 (invite accept flow).
 
 **Review cadence:**
 - **End of week 4 re-scope:** read the full parking lot. For each item, decide: sequence it into weeks 5-7, keep it in the parking lot, or delete it.
