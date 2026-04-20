@@ -8,6 +8,10 @@ dist/
 TODO.md
 .claude/launch.json
 .claude/settings.local.json
+e2e/.auth/*
+!e2e/.auth/.gitkeep
+playwright-report/
+test-results/
 
 # Internal working documents — not for public repo
 CLAUDE.local.md

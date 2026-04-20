@@ -1,0 +1,4 @@
+# Placeholder so e2e/.auth/ commits even before any storageState files exist.
+# Playwright will write per-user authenticated session files here in A2b
+# (or later, when Phase D needs authenticated test scenarios).
+# The directory itself is gitignored — only this .gitkeep is tracked.
