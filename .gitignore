@@ -24,6 +24,7 @@ STORY.md
 lane docs/
 UI reference/
 Misc/
+DOCS BIG/
 .vercel
 .env*.local
 .gstack/
