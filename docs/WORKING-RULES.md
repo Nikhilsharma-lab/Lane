@@ -106,6 +106,7 @@ Prompt patterns that work:
 - Pre-flight checks that report only, don't fix
 - Numbered steps with explicit STOP between each
 - Literal STOP markers before irreversible actions — any rebase, commit, push, delete, or destructive SQL must have an explicit "STOP" or "wait for approval" line in the prompt. Implicit stop gates ("then we decide") are ambiguous and have failed in practice
+- Success doesn't unlock the next gate; the human does. When a prompt specifies STOPs between steps, those STOPs hold even when each preceding step completes cleanly. "Nothing failed" is not approval. (Two recurrences — April 19 rebase pipeline, April 20 bootstrap Step 3 — both now in the parking lot.)
 - "Propose, don't implement" for decisions with real consequences
 - Success criteria at the end
 - Rollback plan called out separately
