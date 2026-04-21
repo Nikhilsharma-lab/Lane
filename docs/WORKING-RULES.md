@@ -84,6 +84,8 @@ Current workaround (April 19, 2026): both `DATABASE_URL` and `DIRECT_DATABASE_UR
 
 **After `vercel env pull`:** the pull can overwrite manually-set `DIRECT_DATABASE_URL`. Re-add it after every pull. Consider this a known friction until Vercel supports ignore-patterns for env pull.
 
+**First-time lane dev setup:** see `docs/lane-dev-bootstrap.md` for the canonical ordering (Drizzle-managed schema first, dev-only migrations on top) to populate an empty lane dev project. Applies after creating a fresh Supabase project or a schema reset.
+
 ## Claude.ai ↔ Claude Code loop
 
 Lane development uses two Claude surfaces in a disciplined loop:
