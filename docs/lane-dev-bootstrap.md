@@ -5,10 +5,13 @@ schema + dev-only test infrastructure. Used for first-time setup of a
 fresh `lane dev` project and after a schema reset.
 
 > Procedure written against commit `fed633e` (A3 shipped, Phase A
-> complete). If Lane's schema files (`db/schema/`) or dev-only
-> migrations (`db/migrations/dev_only_*.sql`) change materially, this
-> doc needs review. **Last verified:** 2026-04-20 (first successful
-> bootstrap run — commit `fed633e` schema state).
+> complete). **Revised 2026-04-21:** Step 1 uses `drizzle-kit migrate`
+> (was push); new Step 0 (Reset) added. If Lane's schema files
+> (`db/schema/`) or dev-only migrations (`db/migrations/dev_only_*.sql`)
+> change materially, this doc needs review.
+> **Last verified:** 2026-04-21 (corrected procedure: schema install
+> via migrate + reset procedure verified end-to-end against commit
+> `c171f5e` schema state).
 
 **NOT for production.** This procedure applies dev-only migrations
 (`dev_only_pgtap.sql`, `dev_only_sent_emails.sql`) that must never
@@ -18,23 +21,26 @@ pointing at the `lane dev` project ref (`clbtrqaazyurnnupiasc`).
 ## When to use this procedure
 
 - First-time setup of `lane dev` (schema has never been pushed)
-- After a schema reset (`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`)
+- After a schema reset (run Step 0 first; see Step 0.3 for why explicit drops)
 - Onboarding a new collaborator who created their own `lane dev`-equivalent
   project
 
 Do NOT use this procedure on production (`lane app`, ref
 `dsivjzwalqqpojopcmyb`). Production schema is applied via raw SQL in the
-Supabase dashboard per the existing Lane workflow. The `drizzle-kit push`
-step here is explicitly a dev-only pattern.
+Supabase dashboard per the existing Lane workflow. This procedure is a
+dev-only pattern.
 
 ## Canonical ordering
 
 The order matters. **Drizzle-managed schema first, dev-only
-infrastructure on top.** Reversing the order causes `drizzle-kit push`
-to see dev-only tables as "extra" and propose to drop them.
+infrastructure on top.** Reversing the order causes Drizzle to see
+dev-only tables as "extra" and complicate subsequent migrations.
 
-1. **Apply Lane's schema** via `drizzle-kit push` (creates all Lane tables
-   per `db/schema/*.ts`)
+0. **(Only if bootstrapping onto non-empty state)** Reset to known-good
+   empty state per Step 0 below
+1. **Apply Lane's schema** via `drizzle-kit migrate` (applies tables +
+   enums + RPCs + RLS policies + helper functions per
+   `db/migrations/0000-NNNN_*.sql`)
 2. **Install pg-tap** via `db/migrations/dev_only_pgtap.sql` (SQL-level
    testing, A1 harness)
 3. **Install sent_emails capture** via `db/migrations/dev_only_sent_emails.sql`
@@ -61,20 +67,154 @@ if (ref !== 'clbtrqaazyurnnupiasc') {
 
 Expected output: `project ref: clbtrqaazyurnnupiasc` then exit 0.
 
+## Step 0 (only if bootstrapping onto non-empty state) — Reset
+
+Skip this section for fresh Supabase projects. Required only when lane
+dev already contains tables, enums, or other Lane application objects
+from a prior bootstrap.
+
+### 0.1 Pre-reset safety check
+
+Verify lane dev contains no application data worth preserving before any
+DROP fires:
+
+```bash
+npx dotenv-cli -e .env.local -o -- node -e "
+import('postgres').then(async ({default: postgres}) => {
+  const url = process.env.DIRECT_DATABASE_URL;
+  if (url.includes('dsivjzwalqqpojopcmyb')) { console.error('PRODUCTION REF — REFUSING'); process.exit(2); }
+  const sql = postgres(url, { max: 1 });
+  const tables = await sql\`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename\`;
+  let totalRows = 0;
+  for (const t of tables) {
+    const cnt = await sql.unsafe('SELECT count(*)::int AS n FROM public.\"' + t.tablename + '\"');
+    totalRows += cnt[0].n;
+    if (cnt[0].n > 0) console.log('  ' + t.tablename + ': ' + cnt[0].n + ' rows');
+  }
+  console.log('Total rows across public tables:', totalRows);
+  if (totalRows > 0) { console.error('FAIL: tables contain data — investigate before reset'); process.exit(1); }
+  console.log('Safe to reset.');
+  await sql.end();
+});
+"
+```
+
+Expected: `Total rows across public tables: 0` and `Safe to reset.` If
+any table reports data, **STOP** and investigate before proceeding.
+
+### 0.2 Drop tables, enums, and pgtap
+
+PostgreSQL DROP semantics: enums are independent of tables, so
+`DROP TABLE CASCADE` does not remove them. Dropping just the tables
+leaves orphan enums that block subsequent `CREATE TYPE` in migrations.
+Composite types, domains, and standalone sequences behave the same way.
+The enumeration below catches all Lane-application objects while
+preserving Supabase platform infrastructure (see preservation note in
+Step 0.3).
+
+```bash
+npx dotenv-cli -e .env.local -o -- node -e "
+import('postgres').then(async ({default: postgres}) => {
+  const url = process.env.DIRECT_DATABASE_URL;
+  if (url.includes('dsivjzwalqqpojopcmyb')) { console.error('PRODUCTION REF — REFUSING'); process.exit(2); }
+  const sql = postgres(url, { max: 1, onnotice: () => {} });
+
+  // Drop tables (one DROP TABLE per table — see preservation note for why not DROP SCHEMA)
+  const tables = await sql\`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename\`;
+  for (const t of tables) {
+    await sql.unsafe('DROP TABLE IF EXISTS public.\"' + t.tablename + '\" CASCADE');
+  }
+  console.log('dropped ' + tables.length + ' tables');
+
+  // Drop enums (dynamically generated — never hand-typed)
+  const enumDrop = await sql\`
+    SELECT string_agg('DROP TYPE IF EXISTS public.' || quote_ident(typname) || ' CASCADE', '; ') AS sql
+    FROM pg_type
+    WHERE typnamespace = (SELECT oid FROM pg_namespace WHERE nspname='public') AND typtype = 'e'
+  \`;
+  if (enumDrop[0].sql) {
+    await sql.unsafe(enumDrop[0].sql);
+    console.log('dropped enums');
+  }
+
+  // Drop pgtap (re-installed in Step 2)
+  await sql.unsafe('DROP EXTENSION IF EXISTS pgtap CASCADE');
+  console.log('dropped pgtap extension');
+
+  await sql.end();
+});
+"
+```
+
+If lane dev has composite types, domains, or standalone sequences
+(uncommon for Lane's schema), enumerate and drop them similarly:
+- composites: `pg_type` filter `typtype='c'` (only standalone — table-row composites auto-vanish with their tables)
+- domains: `pg_type` filter `typtype='d'`
+- sequences: `pg_class` filter `relkind='S'` (only standalone — SERIAL-column sequences auto-vanish with their tables)
+
+### 0.3 Preservation note — DO NOT DROP
+
+**Do NOT drop functions in `public` schema indiscriminately.** Supabase
+provisions `rls_auto_enable`, an event trigger that fires on every
+`CREATE TABLE` in the public schema and automatically runs
+`ALTER TABLE ... ENABLE ROW LEVEL SECURITY` on the new table. This is
+why Lane's tables have RLS enabled even without explicit `ENABLE`
+statements in most migrations. Dropping it silently disables auto-RLS
+for all future tables on the project.
+
+**Do NOT use `DROP SCHEMA public CASCADE`** on Supabase projects. It
+removes platform-provided event triggers, helper functions, and extensions
+along with Lane's application objects. Always use the explicit
+`DROP TABLE` and `DROP TYPE` enumeration in Step 0.2.
+
+### 0.4 Verify reset state
+
+```bash
+npx dotenv-cli -e .env.local -o -- node -e "
+import('postgres').then(async ({default: postgres}) => {
+  const sql = postgres(process.env.DIRECT_DATABASE_URL, { max: 1 });
+  const tables = await sql\`SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'\`;
+  const enums = await sql\`SELECT count(*)::int AS n FROM pg_type WHERE typnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public') AND typtype='e'\`;
+  const fns = await sql\`SELECT count(*)::int AS n FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'\`;
+  const pgtap = await sql\`SELECT extversion FROM pg_extension WHERE extname='pgtap'\`;
+  console.log('tables:', tables[0].n, '(expect 0)');
+  console.log('enums:', enums[0].n, '(expect 0)');
+  console.log('functions:', fns[0].n, '(expect 1+ — at minimum rls_auto_enable)');
+  console.log('pgtap:', pgtap.length ? pgtap[0].extversion : '<not installed>');
+  if (tables[0].n !== 0 || enums[0].n !== 0 || fns[0].n < 1 || pgtap.length !== 0) {
+    console.error('FAIL: reset incomplete'); process.exit(1);
+  }
+  console.log('reset verified');
+  await sql.end();
+});
+"
+```
+
+Expected: `tables: 0`, `enums: 0`, `functions: 1+` (1 or more —
+`rls_auto_enable` always; Supabase may add others over time as the
+platform evolves), `pgtap: <not installed>`, `reset verified`. The
+remaining function(s) are Supabase platform infrastructure — preserved
+by design per 0.3.
+
+After verification passes, proceed to Step 1.
+
 ## Step 1 — Apply Lane schema via Drizzle
 
 ```bash
-npx dotenv-cli -e .env.local -o -- npx drizzle-kit push
+npx dotenv-cli -e .env.local -o -- npx drizzle-kit migrate
 ```
 
-Drizzle Kit reads `drizzle.config.ts` (which points at `DIRECT_DATABASE_URL`)
-and prompts interactively before applying. For a truly empty public schema,
-expect a list of `CREATE TABLE` statements per file in `db/schema/`. No
-`DROP` statements should appear. Confirm to apply.
+`drizzle-kit migrate` walks `db/migrations/_journal.json` and applies every
+numbered migration not yet recorded in `drizzle.__drizzle_migrations`. This
+is the canonical install path: it produces tables + enums + RPCs + RLS
+policies + helper functions, matching production's structure.
 
-If `DROP` appears: **abort** (Ctrl-C at the prompt). This means the public
-schema has pre-existing tables outside Drizzle's managed set — investigate
-before proceeding.
+(`drizzle-kit push` applies schema files only — tables and enums — and is
+NOT used for bootstrap. Push misses RPCs and RLS policies that Lane
+depends on.)
+
+Expected: 10 migrations apply (0000 through 0009 as of 2026-04-21), under
+30 seconds. Final line: `[✓] migrations applied successfully!`
 
 **Verify (required — silent-success failures are the most dangerous):**
 
@@ -82,19 +222,26 @@ before proceeding.
 npx dotenv-cli -e .env.local -o -- node -e "
 import('postgres').then(async ({default: postgres}) => {
   const sql = postgres(process.env.DIRECT_DATABASE_URL, { max: 1 });
-  const r = await sql\`SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'\`;
-  console.log('public base tables:', r[0].n);
-  if (r[0].n < 20) { console.error('FAIL: expected 20+ Lane tables, got', r[0].n); process.exit(1); }
+  const tables = await sql\`SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'\`;
+  const migs = await sql\`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations\`;
+  const rpcs = await sql\`SELECT count(*)::int AS n FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN ('accept_invite_membership','bootstrap_organization_membership')\`;
+  console.log('public base tables:', tables[0].n);
+  console.log('__drizzle_migrations rows:', migs[0].n);
+  console.log('Lane RPCs present:', rpcs[0].n, '/ 2');
+  if (tables[0].n < 20) { console.error('FAIL: expected 20+ Lane tables, got', tables[0].n); process.exit(1); }
+  if (migs[0].n === 0) { console.error('FAIL: __drizzle_migrations empty — migrate did not run'); process.exit(1); }
+  if (rpcs[0].n !== 2) { console.error('FAIL: expected 2 Lane RPCs, got', rpcs[0].n); process.exit(1); }
   await sql.end();
 });
 "
 ```
 
-Expected: `public base tables: 20+` (matches `db/schema/*.ts` file count), exit 0.
+Expected: `public base tables: 34+`, `__drizzle_migrations rows: 10+`,
+`Lane RPCs present: 2 / 2`, exit 0.
 
-If count < 20: `drizzle-kit push` did not fully apply. **Stop here
-and diagnose** (check the push output for errors, verify no CREATE
-TABLE was rejected) before proceeding to Step 2.
+If any check fails: `drizzle-kit migrate` did not fully apply. **Stop
+here and diagnose** (check migrate output for errors, verify no migration
+was rejected) before proceeding to Step 2.
 
 ## Step 2 — Install pg-tap
 
@@ -217,15 +364,9 @@ the apply output, compare against A3 commit `fed633e`).
 
 ## If the bootstrap gets wedged
 
-Emergency reset — wipes ALL data on lane dev (harmless for dev, NEVER for prod):
-
-```sql
--- Run via psql or node-script against DIRECT_DATABASE_URL (lane dev only)
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-```
-
-Then re-run this procedure from Step 1.
+Run Step 0 (Reset) to clear lane dev to a known-good empty state, then
+re-run this procedure from Step 1. **Do not use `DROP SCHEMA public
+CASCADE`** — see Step 0.3 for why.
 
 ## Future improvements (parking lot candidates)
 
