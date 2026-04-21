@@ -728,7 +728,7 @@ If you find yourself updating this table, you're probably doing it wrong — upd
 
 - Run tests: `npm test`
 - Test directory: `test/` (unit + integration), `e2e/` (Playwright)
-- See TESTING.md for full conventions
+- See `DOCS BIG/TESTING.md` for full conventions
 
 Test expectations:
 - 100% coverage is the goal — tests make vibe coding safe
