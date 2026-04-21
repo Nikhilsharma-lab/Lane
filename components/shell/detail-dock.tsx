@@ -4,7 +4,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useRequests } from "@/context/requests-context";
 import { X, Activity } from "lucide-react";
 import { ActivityTimeline } from "@/components/timeline/activity-timeline";
 import { PredesignPanel } from "@/components/requests/predesign-panel";
@@ -88,7 +87,6 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const requests = useRequests();
 
   const dockId = searchParams.get("dock");
 
@@ -110,17 +108,7 @@ export function DetailDock({ profileRole = "member", isTestUser = false }: { pro
   // ── Memoized derivations (must come before early returns so hook order
   //    stays stable across render branches) ─────────────────────────────────
 
-  // Array search: stable across re-renders when dockId/requests don't change.
-  const contextRequest = useMemo(
-    () => (dockId ? requests.find((r) => r.id === dockId) : null),
-    [dockId, requests]
-  );
-
-  // Unified request source.
-  const request = useMemo(
-    () => contextRequest ?? enriched?.request ?? null,
-    [contextRequest, enriched?.request]
-  );
+  const request = enriched?.request ?? null;
 
   // Stable close handler — reference doesn't change across re-renders
   // when search/router/pathname are stable.

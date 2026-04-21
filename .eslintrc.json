@@ -49,6 +49,7 @@
         "lib/figma/sync.ts",
         "lib/analytics/**",
         "lib/onboarding/**",
+        "lib/dashboard/**",
         "db/**",
         "scripts/**"
       ],
