@@ -11,6 +11,8 @@ export const invites = pgTable("invites", {
   role: text("role").notNull().default("designer"), // pm | designer | developer | lead | admin
   invitedBy: uuid("invited_by").references(() => profiles.id),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  // FK to auth.users applied in raw SQL (cross-schema).
+  acceptedBy: uuid("accepted_by"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
