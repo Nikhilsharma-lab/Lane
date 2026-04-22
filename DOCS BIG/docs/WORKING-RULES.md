@@ -14,6 +14,23 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
 - Before writing any fix, grep for the full scope of what needs changing. The first grep always misses something.
 - Run `npx tsc --noEmit` after every code change. TypeScript catches what grep misses.
 - After every rename or refactor, run a verification grep to confirm zero stale references remain.
+- **Success signals are not proof of effect.** A command exiting 0, a
+  spinner showing "complete", a flag labeled "minor" — none of these
+  prove the work achieved its goal. Verify the end state independently,
+  not the return code. Examples:
+  - Commands succeeding without doing what was intended — always verify
+    the outcome against what you actually wanted, not against the tool's
+    own success message.
+  - `drizzle-kit migrate` exits 0 and prints "migrations applied
+    successfully!" even when zero migrations were applied (silent skip
+    via journal `when` timestamp comparison). Post-apply DB state
+    verification is required, not optional.
+  - "Minor, not blocking" flags dismissed without verification have
+    caused real bugs (April 22 timestamp-inversion finding). Verify
+    first; downgrade to "not blocking" only after verification.
+  - Count-based verification can false-positive when a column name
+    appears on multiple tables or pre-exists on the target. Use
+    `(table_name, column_name)` pair matching, not `IN (list)` counts.
 
 ## Commit discipline
 - Claude Code does NOT commit. Every commit is manual after human review.
@@ -21,6 +38,12 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
 - One logical change per commit. Don't bundle unrelated fixes.
 - Commit messages describe what changed AND why (reference the roadmap item or bug).
 - Don't push until the end of the session or until a logical block of work is complete.
+- **Fetch before committing mid-session if a collaborator might have
+  pushed.** Observed recurrences April 19 (rebase pipeline) and
+  April 21 (bootstrap integration). `git fetch origin` is cheap;
+  discovering the collision after staging is not. If the local and
+  remote branches have diverged, stop and handle as an integration
+  scenario — do not rebase or merge without explicit direction.
 
 ## Stop-point discipline
 - Claude Code prompts include explicit STOP points between steps.
@@ -86,6 +109,36 @@ Current workaround (April 19, 2026): both `DATABASE_URL` and `DIRECT_DATABASE_UR
 
 **First-time lane dev setup:** see `docs/lane-dev-bootstrap.md` for the canonical ordering (Drizzle-managed schema first, dev-only migrations on top) to populate an empty lane dev project. Applies after creating a fresh Supabase project or a schema reset.
 
+**Before destructive platform operations:** enumerate Supabase
+platform infrastructure before dropping, truncating, or resetting
+anything. Supabase projects carry auth schema, realtime subscriptions,
+storage buckets, cron jobs, and edge functions that are not visible
+in `public` schema inspection. A reset that looks clean in Drizzle-
+world can silently break platform-level integrations. Dashboard
+review (Auth → Providers, Realtime → Inspector, Storage → Buckets,
+Database → Extensions, Database → Cron) before irreversible ops.
+
+## Migration discipline
+
+- **"Migrations as canonical" is aspirational from April 22, 2026
+  forward.** Prior migrations (pre-0010) were generated against
+  partially-drifted schema snapshots; `drizzle-kit generate` diffs
+  against the last Drizzle snapshot, not the live DB. Going forward:
+  schema files describe intent, migrations describe what shipped,
+  database state is authoritative. Discrepancies are resolved by
+  writing a catch-up migration, not by editing either source.
+- **After `drizzle-kit generate`, verify the new journal entry's
+  `when` value exceeds `MAX(when)` across all existing entries.**
+  `drizzle-orm`'s migrator skips entries whose `when` is not
+  strictly greater than `MAX(created_at)` in
+  `drizzle.__drizzle_migrations`. Manually-rounded `when` values
+  from past PR integrations can push the max past `Date.now()`,
+  causing silent skip. If the new entry's `when` is not greater,
+  bump it to current epoch millis before committing.
+- For the general principle behind post-apply verification, see
+  "Success signals are not proof of effect" under **Verify before
+  acting** above.
+
 ## Claude.ai ↔ Claude Code loop
 
 Lane development uses two Claude surfaces in a disciplined loop:
@@ -132,6 +185,19 @@ Any document referenced as source of truth gets updated when reality changes. No
 - `docs/WORKING-RULES.md` — updated when a new working rule is discovered mid-build. Small follow-up commits, one rule per commit, kept short.
 
 - `CLAUDE.md` — updated rarely. Architecture-level changes only.
+
+- **Stored claims drift even when nothing changes.** A claim written
+  on day N is only known-true as of day N; by day N+30 it may be
+  stale even if the doc file wasn't touched. Three manifestations:
+  - Specs describe intent; reality may have diverged. Event-driven
+    updates (on known changes) catch most drift but miss silent
+    drift. A quarterly re-verification pass is the backstop.
+  - Parking lot items saying "doesn't block X" were true when written;
+    before each new work phase that would be blocked, re-verify those
+    items don't in fact block.
+  - "Last known good" counts and snapshots (table counts, migration
+    journal state, RLS policy counts) age out — re-snapshot at the
+    start of work that depends on them.
 
 The test of whether this rule is real: does a doc stay true after a session ends? If yes, the rule worked. If no, either the doc got updated and we drifted anyway (rare), or the doc didn't get updated and became fiction (common failure mode). Specs that don't match code are worse than no specs — they mislead future sessions into building on a false picture.
 
