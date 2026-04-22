@@ -6,7 +6,7 @@
 **Re-scope checkpoint:** End of week 4
 **Source:** Built collaboratively from Phases 1-4 of the April 14 roadmap session. See CLAUDE.md for full context on vocabulary lock and build rules.
 
-> **Next session:** B1 — Migration 0011 (workspace_members backfill + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC). Parallel pg-tap `test/sql/test_migration_0011.sql` (~12 assertions). ~4.5 hours estimated. Pre-B1 bootstrap shipped 2026-04-20 (commit `4ea1b4b`): lane dev now has the full Drizzle schema + pgtap + sent_emails, validated end-to-end.
+> **Next session:** B2 — Migration 0013 (was 0012 before post-B1 renumber) — invite team scoping (`invites.team_id`, `invites.team_role`) + unique pending invite index. Parallel pg-tap `test/sql/test_migration_0013.sql`. (~1.25 hours estimated). Prerequisites: none beyond B1 (which shipped 2026-04-22). See ROADMAP parking lot for `0013 audit_log reinstate team_id` follow-up that B2 must also address.
 
 ---
 
@@ -199,7 +199,7 @@ Phase A — harnesses first, prerequisite for everything below:
 
 Phase B — schema + RPCs, each migration shipped with its pg-tap test:
 
-- [ ] **B1.** Migration 0011 — workspace_members population + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel: `test/sql/test_migration_0011.sql` (~12 assertions). (~4.5 hours)
+- [x] **B1.** Migration 0011 — workspace_members population + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel: `test/sql/test_migration_0011.sql` (19 assertions, all passing on lane dev). (actual: ~10 hours, includes STOP F bug discovery + 0012 fix-up). Shipped across 3 commits: 9f3fbca (feat 0011) → 1724920 (fix 0012) → cc8e18f (docs sync). Applied to lane dev only; lane app apply deferred to separate production session.
 - [ ] **B2.** Migration 0013 — invite team scoping + unique pending invite index + pg-tap. (~1.25 hours)
 - [ ] **B3.** Migration 0014 — `transfer_workspace_ownership` RPC + pg-tap. (~2 hours)
 - [ ] **B4.** Migration 0015 — `profiles.left_at` + orphaned workspace admin view + pg-tap. (~1 hour)
@@ -366,7 +366,7 @@ This file is a living plan. The commit history of this file is the story of how 
 
 ---
 
-*Last updated: April 19, 2026 — Weeks 1-7 complete. Week 7.5 spec session shipped (docs/user-flows-spec.md v2). Week 7.5 expanded to four phased sub-weeks (7.5a-d) totaling ~50-54 hours. Next: Week 7.5a A1 (pg-tap harness setup).*
+*Last updated: April 22, 2026 — Week 7.5a Phase A complete (A1, A2a, A2b, A3) + Phase B step B1 shipped (migrations 0011 + 0012, pushed to origin). Next: B2 (migration 0013, invite team scoping).*
 
 ---
 
