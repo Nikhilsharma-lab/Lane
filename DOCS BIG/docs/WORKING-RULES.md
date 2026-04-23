@@ -63,6 +63,42 @@ lot made ad-hoc triage infeasible. Review cadence: re-read at end
 of week 4 and adjust if parking lot items are being discovered
 faster than they resolve (indicator of under-classification).
 
+### Column-name verification before raw SQL composition
+
+Raw SQL (migrations, RPCs, pg-tap tests, ad-hoc probes) must
+reference tables and columns by their SQL identifiers, not by
+Drizzle field/var names. The two often match (e.g., `profiles.id`),
+but diverge in three known instances where Lane uses a
+different Drizzle alias than the SQL table/column name:
+
+- workspaces (Drizzle) = organizations (SQL table)
+- teams (Drizzle) = projects (SQL table)
+- teamMemberships (Drizzle) = project_members (SQL table)
+- Columns: project_members.teamId (Drizzle) = project_id (SQL)
+
+Before composing raw SQL that references any table listed above
+(or any table where the author is unsure), query information_schema
+for the authoritative identifier reference:
+
+  SELECT table_name, column_name, data_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name IN (...);
+
+Compose SQL against the probe output, not against the Drizzle
+schema file. Information_schema reflects the live database state;
+Drizzle schema files reflect author intent, which can drift from
+the live state between edit-and-generate or between regenerate
+cycles.
+
+Observed in: B2 PART 3 (author wrote `project_members (team_id, ...)`
+based on the Drizzle field; caught pre-append by manual re-check;
+would have failed at test time with "column team_id does not
+exist"). Subsequently adopted pre-emptively in B2 PART 5 as
+step 5a; caught nothing because the discipline prevented the class.
+
+Rule established 2026-04-23 after two B2 encounters with the same
+class of bug.
+
 ## Commit discipline
 - Claude Code does NOT commit. Every commit is manual after human review.
 - Read the full `git diff` before committing. Don't skim.

@@ -2,7 +2,7 @@
 
 **Status:** Pre-launch, live GTM
 **Current Sprint:** Week 7.5 User Flow Foundation — test harnesses + DB migrations 0011-0014 (see `docs/ROADMAP.md`)
-**Last Updated:** April 22, 2026 — commit 663401c. Part 16 reflects git main; CHANGELOG + WORKING-RULES refile pending in this sync sweep.
+**Last Updated:** April 23, 2026 — B2 session commits 2936339 + affabd9 + 186ca28 (migration 0013 shipped). Part 16 reflects git main post-B2. WORKING-RULES adds column-name verification rule this session.
 
 > Business context, pricing, GTM, and founder details are in CLAUDE.local.md (gitignored).
 > For a chronological record of what shipped and when, see CHANGELOG.md.
@@ -704,6 +704,8 @@ backfill invariants).
 - [x] Pre-B1 bootstrap + spec corrections — lane dev seeded with Drizzle schema + pgtap + sent_emails, `user-flows-spec.md` §4 aligned (April 20-21)
 - [x] Migration 0010 — catch-up for 10 days of schema drift, applied to lane dev (April 21-22)
 - [x] drizzle-kit silent-skip fix + docs cascade renumber — B1-B4 migrations shifted 0010-0013 → 0011-0014 (April 22)
+- [x] Migration 0011 (B1) — workspace_members foundation: populated from profiles via backfill with multi-owner collapse; audit_log table (append-only, REVOKE UPDATE/DELETE enforcement); waitlist_approvals table with approval_source CHECK; 5 cross-schema FKs to auth.users (profiles.id, workspace_members.user_id, invites.accepted_by, audit_log.actor_user_id, waitlist_approvals.approved_by); idempotent bootstrap_organization_membership and accept_invite_membership RPCs; spec §4.1.1/§4.1.2 check-order fix in accept. Migration 0012 fix-up for PL/pgSQL column-vs-OUT-parameter ambiguity surfaced at first RPC execution; resolved with `profiles.org_id` qualification at 2 sites. 19 pg-tap assertions in test/sql/test_migration_0011.sql, all passing on lane dev (April 22, refactored to RETURNS SETOF TEXT pattern on April 22 in ccdf703).
+- [x] Migration 0013 (B2) — invite team scoping: invites.team_id + invites.team_role columns; unique pending partial index on (email, org_id) WHERE accepted_at IS NULL; accept_invite_membership extended with Path C (populate project_members.team_role on team-scoped invites, using SQL column project_id); audit_log event_data Pattern (ii) — includes team_id + team_role keys only on team-scoped accepts. 15 pg-tap assertions in test/sql/test_migration_0013.sql, all passing on lane dev (April 23).
 
 ---
 ### Known drift and deferred work (resolve in follow-up sessions)
