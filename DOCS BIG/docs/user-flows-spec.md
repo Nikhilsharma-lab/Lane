@@ -123,9 +123,9 @@ Every query that branches on role must be explicit about which role it is readin
 
 ## 4. Schema changes
 
-> **Migration numbering note.** Migration numbers 0006-0009 were initially planned in spec v2 but conflict with migrations already committed to db/migrations/ (0006_alert_rls_tighten, 0007_fancy_wild_pack, 0008_ordinary_warbird, and 0009_rls_coverage_0007 which landed as PR #40 during pre-A1 work). Originally this spec numbered B1-B4 as 0010-0013; after a catch-up migration `0010_catchup_orphan_schema` shipped on 2026-04-21 (commit b067d0e) to capture 10 days of schema drift, B1-B4 were renumbered to 0011-0014. Numbers below reflect the post-catch-up numbering.
+> **Migration numbering note.** Migration numbers 0006-0009 were initially planned in spec v2 but conflict with migrations already committed to db/migrations/ (0006_alert_rls_tighten, 0007_fancy_wild_pack, 0008_ordinary_warbird, and 0009_rls_coverage_0007 which landed as PR #40 during pre-A1 work). Originally this spec numbered B1-B4 as 0010-0013; after a catch-up migration `0010_catchup_orphan_schema` shipped on 2026-04-21 (commit b067d0e) to capture 10 days of schema drift, B1-B4 were renumbered to 0011-0014. Post-B1, migration 0012 was consumed by a fix-up for RPC column-name ambiguity (commit 186ca28), shifting B2-B4 to 0013-0015. Numbers below reflect the current post-fix-up numbering.
 
-### 4.1 Migration: `0011_populate_workspace_members.sql` (previously planned as 0010; see §4 numbering note)
+### 4.1 Migration: `0011_steady_fixer.sql` (previously planned as 0010; suffix is drizzle-kit auto-generated since no --name flag; see §4 numbering note)
 
 This is the core fix. The existing RPCs (`bootstrap_organization_membership`, `accept_invite_membership`) currently create `workspaces` and `profiles` rows but never touch `workspace_members`. This migration updates both RPCs to also insert a `workspace_members` row, and backfills existing users.
 
@@ -359,7 +359,7 @@ WHERE role = 'owner' GROUP BY workspace_id HAVING count(*) != 1;
 
 Include these invariant checks as post-deploy smoke tests.
 
-### 4.2 Migration: `0012_invite_team_scoping.sql`
+### 4.2 Migration: `0013_b2_invite_team_scoping.sql`
 
 The `invites` table currently carries functional role (`pm`, `designer`, etc.) but not team_id or team-scoped role. Add:
 
@@ -371,7 +371,7 @@ ALTER TABLE public.invites
 
 `team_id` and `team_role` are optional. If both are null, the invite creates a workspace-level membership only (user joins the workspace but not any team). If both are present, the acceptance RPC also creates a `project_members` row.
 
-### 4.3 Migration: `0013_ownership_transfer.sql`
+### 4.3 Migration: `0014_b3_ownership_transfer.sql`
 
 New RPC for ownership transfer. See §9 for the full flow.
 
@@ -430,9 +430,9 @@ BEGIN
   SET role = 'owner'
   WHERE workspace_id = target_workspace_id AND user_id = new_owner_user_id;
 
-  -- Mirror to workspaces.owner_user_id for any legacy code still reading it
+  -- Mirror to organizations.owner_id for any legacy code still reading it
   UPDATE public.organizations
-  SET owner_user_id = new_owner_user_id
+  SET owner_id = new_owner_user_id
   WHERE id = target_workspace_id;
 
   RETURN QUERY SELECT true, 'Ownership transferred successfully';
@@ -450,7 +450,7 @@ These are the invariants Lane maintains. Not schema-enforced (no UNIQUE constrai
 
 3. **Profiles and workspace_members are 1:1.** Every profile has a corresponding workspace_members row. Every workspace_members row has a corresponding profile. Creation and deletion happen together.
 
-4. **`organizations.owner_user_id` mirrors `workspace_members` where `role = 'owner'`.** Two sources, one truth. Updated together. Ownership transfer updates both. (Long-term cleanup: drop `organizations.owner_user_id` and make `workspace_members` the sole source. Deferred.)
+4. **`organizations.owner_id` mirrors `workspace_members` where `role = 'owner'`.** Two sources, one truth. Updated together. Ownership transfer updates both. (Long-term cleanup: drop `organizations.owner_id` and make `workspace_members` the sole source. Deferred.)
 
 ### 4.5 FK cascade behavior
 
@@ -561,7 +561,7 @@ export const inviteAcceptRateLimit = new Ratelimit({
 });
 ```
 
-Signup keyed by IP (no user yet). Invite create keyed by `owner_user_id` (prevents a compromised admin account from blasting invites). Invite accept keyed by IP (prevents token enumeration attacks).
+Signup keyed by IP (no user yet). Invite create keyed by `owner_id` (prevents a compromised admin account from blasting invites). Invite accept keyed by IP (prevents token enumeration attacks).
 
 All three return HTTP 429 with Retry-After header when exceeded. Logged to audit_log with event_type `rate_limit.exceeded` so we can spot attacks.
 
@@ -588,7 +588,7 @@ This replaces the "waitlist for first 90 days" claim in onboarding-spec.md secti
 ### 5.3 Database writes (in order, single transaction)
 
 1. `auth.users` — created by `supabase.auth.signUp()`, user_id returned
-2. `organizations` — new row with `name`, `slug` (derived from name, uniqueness-enforced), `owner_user_id = user_id`, `plan = 'trial'`
+2. `organizations` — new row with `name`, `slug` (derived from name, uniqueness-enforced), `owner_id = user_id`, `plan = 'trial'`
 3. `profiles` — new row with `id = user_id`, `org_id = organizations.id`, `full_name`, `email`, `role = 'lead'`
 4. `workspace_members` — new row with `workspace_id = organizations.id`, `user_id = user_id`, `role = 'owner'`, `invited_by = NULL`
 
@@ -896,7 +896,7 @@ Via `transfer_workspace_ownership` RPC (per §4.3). Atomic:
 
 1. `workspace_members` — current owner's row: `role = 'admin'` (or 'member' if `demote_current_owner_to = 'member'`)
 2. `workspace_members` — new owner's row: `role = 'owner'`
-3. `organizations` — `owner_user_id = new_owner_user_id`
+3. `organizations` — `owner_id = new_owner_user_id`
 
 ### 9.4 UI states
 
@@ -1203,7 +1203,7 @@ One test file per RPC: `test/sql/test_bootstrap_organization_membership.sql`, `t
 | Accept invite with team creates 3 rows | Plus a `project_members` row with the correct `role` |
 | Accept expired invite fails | RPC returns error, no rows inserted |
 | Accept already-accepted invite fails | RPC returns error |
-| Transfer ownership swaps rows atomically | Old owner → admin, new owner → owner, `organizations.owner_user_id` updated |
+| Transfer ownership swaps rows atomically | Old owner → admin, new owner → owner, `organizations.owner_id` updated |
 | Transfer to non-member fails | RPC returns error |
 | Transfer to self fails | RPC returns error |
 | Transfer when caller is not owner fails | RPC returns error |
@@ -1280,9 +1280,9 @@ Phase A total: ~8 hours. One-time. Every subsequent step depends on this existin
 Every migration gets its own pg-tap test file. Test file is written *before* the migration runs — a failing test that passes only after the migration is applied is the right pattern. If the test can't be written first (e.g., table doesn't exist yet), write it after the schema but before the behavioral changes.
 
 - **B1.** Migration 0011 — populate workspace_members + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel test: `test/sql/test_migration_0011.sql` — 12 pg-tap assertions covering: idempotency of bootstrap (call twice, no second workspace), idempotency of accept (call twice with same invite, second is no-op), audit rows emitted on every event, workspace_members created with correct role, backfill invariants hold. **STOP: review migration + test together.** (~3 hours build + ~1.5 hours test = 4.5 hours)
-- **B2.** Migration 0012 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0012.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
-- **B3.** Migration 0013 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_transfer_ownership.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_user_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
-- **B4.** Migration 0014 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_orphan_view.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
+- **B2.** Migration 0013 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0013.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
+- **B3.** Migration 0014 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_migration_0014.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
+- **B4.** Migration 0015 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_migration_0015.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
 
 Phase B total: ~8.75 hours. After Phase B, the database layer is correct and proven. Every later step can assume the DB does the right thing.
 
