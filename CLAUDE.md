@@ -612,6 +612,64 @@ npm run build
 npm run start
 ```
 
+### Testing pattern — pg-tap
+
+Lane uses pg-tap for SQL-level assertions on migrations and database
+invariants. Tests live under `test/sql/` and run via:
+
+```
+npm run test:sql
+```
+
+The runner (`scripts/run-sql-tests.mjs`) iterates all `test/sql/*.sql`
+files against `DIRECT_DATABASE_URL`. Each file runs in isolation
+(wrapped in `BEGIN; ... ROLLBACK;`). Production connection refs are
+rejected for safety.
+
+**Assertion pattern for complex multi-statement tests:**
+
+```sql
+CREATE OR REPLACE FUNCTION test_NN_name() RETURNS SETOF TEXT
+LANGUAGE plpgsql AS $$
+DECLARE
+  ... vars ...
+BEGIN
+  ... setup SQL (inserts into auth.users, fixtures, etc.) ...
+  RETURN NEXT ok(condition, 'description');
+END $$;
+
+SELECT * FROM test_NN_name();
+```
+
+For simple single-expression assertions (table/column existence, RLS
+state, FK checks, CHECK constraints), use pg-tap's direct helpers:
+`has_table`, `has_column`, `col_type_is`, `fk_ok`, `throws_ok`, `is`.
+
+**File-level structure:**
+
+```sql
+BEGIN;
+SELECT plan(N);   -- must match total assertion count across the file
+
+-- direct assertions (SELECT has_table(...), etc.)
+-- and/or function-wrapped assertions (CREATE FUNCTION + SELECT)
+
+SELECT * FROM finish();
+ROLLBACK;
+```
+
+Functions defined inside the `BEGIN/ROLLBACK` wrapper are
+transaction-local and auto-drop at rollback.
+
+(Seed invocation — running `supabase/test-seed.sql` outside of pg-tap
+tests — is not covered here; see the parking-lot entry "test-seed.sql
+invocation path discoverability" (2026-04-22) for the current
+reproducible path and scheduled fix.)
+
+**Canonical example:** `test/sql/test_migration_0011.sql` (19 assertions
+across tables, columns, RLS, FKs, CHECK, REVOKE, RPC behavior, and
+backfill invariants).
+
 ---
 
 ## Part 16: WHAT'S BUILT (As of April 22, 2026)

@@ -32,6 +32,37 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
     appears on multiple tables or pre-exists on the target. Use
     `(table_name, column_name)` pair matching, not `IN (list)` counts.
 
+### Blocker-gated cleanup before spine work
+
+Before starting any spine item (a checklist entry on the active
+roadmap), walk the full parking lot and classify each entry as
+blocker / partial-blocker / non-blocker against that specific
+spine item. A blocker is something that, left unfixed, will cause
+the spine item to fail, produce wrong results, or be un-verifiable.
+A partial-blocker is a multi-faceted item where some facets block
+the spine item and others don't.
+
+Rules:
+- Fix all full blockers completely before starting the spine item.
+- Fix partial blockers completely too — not just the slice that
+  unblocks the current item. Partial fixes create re-discovery
+  overhead for every future spine item that hits the same parking
+  lot entry.
+- Non-blockers stay parked until they become blockers for a later
+  item.
+- Classification is investigation, not pattern-matching. Don't
+  dismiss items as non-blocking based on surface read ("drift is
+  bad → fix now"); verify the specific block condition ("does
+  Date.now() today exceed prev_max? — yes → no block").
+- Docs updates for each cleared or newly discovered parking-lot
+  entry land within the same session, bundled per the docs-update
+  granularity rule under ## Commit discipline.
+
+Rule established 2026-04-22 after the B1 session's 74-item parking
+lot made ad-hoc triage infeasible. Review cadence: re-read at end
+of week 4 and adjust if parking lot items are being discovered
+faster than they resolve (indicator of under-classification).
+
 ## Commit discipline
 - Claude Code does NOT commit. Every commit is manual after human review.
 - Read the full `git diff` before committing. Don't skim.
@@ -44,6 +75,37 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
   discovering the collision after staging is not. If the local and
   remote branches have diverged, stop and handle as an integration
   scenario — do not rebase or merge without explicit direction.
+
+### Docs-update granularity
+
+Every code change that touches parking-lot state (resolves entry,
+adds entry, discovers bug/pattern worth logging) triggers doc
+updates within the same session. Granularity: option (b) from the
+2026-04-22 decision — code commits land individually, related doc
+updates bundle into a session-end docs commit covering all doc
+impact from the session.
+
+At session-end, check each of these for applicability and update
+any that are affected by the session's changes:
+- ROADMAP.md parking lot: strike through resolved entries (with
+  resolution commit SHA + one-line explanation), add new entries,
+  update active-items count.
+- ROADMAP.md checklist: flip [ ] → [x] for completed spine items
+  (with actual hours + commit SHA chain).
+- Next session pointer (if spine progress changes what's next).
+- CLAUDE.md: update Parts 6 (data model), 15 (commands), 16 (what's
+  built), 18 (what's not being built) when the code change affects
+  any of these.
+- WORKING-RULES.md: add any new discipline rule discovered.
+- Relevant spec files: patch specs in the same session as code
+  that reveals spec bugs or shifts spec scope. Do not commit code
+  without the spec patch, or the next reader inherits the bug.
+- CHANGELOG.md: add entry if the change is user-visible.
+
+Applicability is not optional — each item requires a deliberate
+check, not "I'll remember if it applied." The session-end docs
+commit is never deferred to "a future cleanup session." Deferring
+is how stored-claims drift enters the record.
 
 ## Stop-point discipline
 - Claude Code prompts include explicit STOP points between steps.
