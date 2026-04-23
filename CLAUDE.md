@@ -1,8 +1,8 @@
 # Lane — Technical & Product Reference
 
 **Status:** Pre-launch, live GTM
-**Current Sprint:** Weeks 1-4 MVP build (Foundation + AI Brain)
-**Last Updated:** April 7, 2026 — synced with CHANGELOG through PR #13
+**Current Sprint:** Week 7.5 User Flow Foundation — test harnesses + DB migrations 0011-0014 (see `docs/ROADMAP.md`)
+**Last Updated:** April 23, 2026 — B2 session commits 2936339 + affabd9 + 186ca28 (migration 0013 shipped). Part 16 reflects git main post-B2. WORKING-RULES adds column-name verification rule this session.
 
 > Business context, pricing, GTM, and founder details are in CLAUDE.local.md (gitignored).
 > For a chronological record of what shipped and when, see CHANGELOG.md.
@@ -462,7 +462,7 @@ if (request.phase === 'dev' && figma_updated) {
 |-------|-----------|
 | Framework | Next.js 14 (App Router) + TypeScript |
 | Database | Supabase (PostgreSQL) |
-| ORM | Drizzle ORM + pgvector (duplicate detection) |
+| ORM | Drizzle ORM (pgvector planned for duplicate detection — see Part 9.3 for current implementation) |
 | Auth | Supabase Auth + @supabase/ssr |
 | AI | Claude API via Vercel AI SDK |
 | Styling | Tailwind CSS + shadcn/ui |
@@ -573,6 +573,7 @@ lib/
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 DATABASE_URL=
+DIRECT_DATABASE_URL=   ← session-mode connection for migrations + set_config (bypasses transaction pooler)
 ANTHROPIC_API_KEY=
 FIGMA_TOKEN_ENCRYPTION_KEY=   ← 64 hex chars (32 bytes), AES-256-GCM
 
@@ -601,14 +602,77 @@ npm run dev
 npm run db:push
 npm run db:generate
 npm run db:studio
+npm run db:seed
+npx drizzle-kit migrate         ← applies pending migrations (verify __drizzle_migrations row count incremented afterward; exit 0 alone is not proof of apply)
+npm run test:sql
+npm run test:e2e
+npm run script -- path/to/script.ts
 npx tsc --noEmit
 npm run build
 npm run start
 ```
 
+### Testing pattern — pg-tap
+
+Lane uses pg-tap for SQL-level assertions on migrations and database
+invariants. Tests live under `test/sql/` and run via:
+
+```
+npm run test:sql
+```
+
+The runner (`scripts/run-sql-tests.mjs`) iterates all `test/sql/*.sql`
+files against `DIRECT_DATABASE_URL`. Each file runs in isolation
+(wrapped in `BEGIN; ... ROLLBACK;`). Production connection refs are
+rejected for safety.
+
+**Assertion pattern for complex multi-statement tests:**
+
+```sql
+CREATE OR REPLACE FUNCTION test_NN_name() RETURNS SETOF TEXT
+LANGUAGE plpgsql AS $$
+DECLARE
+  ... vars ...
+BEGIN
+  ... setup SQL (inserts into auth.users, fixtures, etc.) ...
+  RETURN NEXT ok(condition, 'description');
+END $$;
+
+SELECT * FROM test_NN_name();
+```
+
+For simple single-expression assertions (table/column existence, RLS
+state, FK checks, CHECK constraints), use pg-tap's direct helpers:
+`has_table`, `has_column`, `col_type_is`, `fk_ok`, `throws_ok`, `is`.
+
+**File-level structure:**
+
+```sql
+BEGIN;
+SELECT plan(N);   -- must match total assertion count across the file
+
+-- direct assertions (SELECT has_table(...), etc.)
+-- and/or function-wrapped assertions (CREATE FUNCTION + SELECT)
+
+SELECT * FROM finish();
+ROLLBACK;
+```
+
+Functions defined inside the `BEGIN/ROLLBACK` wrapper are
+transaction-local and auto-drop at rollback.
+
+(Seed invocation — running `supabase/test-seed.sql` outside of pg-tap
+tests — is not covered here; see the parking-lot entry "test-seed.sql
+invocation path discoverability" (2026-04-22) for the current
+reproducible path and scheduled fix.)
+
+**Canonical example:** `test/sql/test_migration_0011.sql` (19 assertions
+across tables, columns, RLS, FKs, CHECK, REVOKE, RPC behavior, and
+backfill invariants).
+
 ---
 
-## Part 16: WHAT'S BUILT (As of Session 3 — April 7, 2026)
+## Part 16: WHAT'S BUILT (As of April 22, 2026)
 
 - [x] Next.js 14 scaffolded, Vercel deployed
 - [x] Supabase auth + org scoping
@@ -625,6 +689,23 @@ npm run start
 - [x] Design Radar
 - [x] Insights page
 - [x] `designerOwnerId` column added to requests
+- [x] AI foundation verification + silent failure audit — 4 bugs fixed, 8 AI features verified end-to-end, error surfacing refactored across 13 files (April 14-15)
+- [x] Vocabulary cleanup Phase 2 — Sign-off → Prove rename (Item 1), `streams` → `active-requests` route (Item 3) (April 14-16)
+- [x] Item 4: Intake check UI — problem_framed / solution_specific / hybrid classifier live (April 16-17)
+- [x] Items 5 + 6: Real My requests + Submitted by me pages with phase filters (April 17)
+- [x] Item 12: Supabase RLS audit + migration plan (`docs/rls-audit.md`) — execution deferred to pre-customer (April 17)
+- [x] Item 8: Full onboarding build — 3-persona flow with intake-check payoff, progressive disclosure, sample team (April 17-18)
+- [x] Item 13: Upstash Redis rate limiting across all 11 AI routes (April 18)
+- [x] Item 14 parts 1+2: 5-stage design flow UI complete — Sense, Frame, Diverge, Converge, Prove panels (April 18)
+- [x] Item 15 suite (15a/b/c/d/e/f/g/h): handoff brief with accessibility gaps, nudge compliance (stall_escalation removed), morning briefing role fix + Item 14 signals, impact refinements, weekly digest cron + email, commitments view, perf + 11 hot-path indexes (April 18)
+- [x] active-requests page build — zero placeholder pages remain in the app (April 18)
+- [x] Pre-customer security sweep — Dependabot cleared, pool fix, API key fix, dev/staging Supabase split (April 19)
+- [x] Week 7.5a test harnesses — A1 pg-tap, A2a/b Playwright + email capture, A3 fixtures (April 19-20)
+- [x] Pre-B1 bootstrap + spec corrections — lane dev seeded with Drizzle schema + pgtap + sent_emails, `user-flows-spec.md` §4 aligned (April 20-21)
+- [x] Migration 0010 — catch-up for 10 days of schema drift, applied to lane dev (April 21-22)
+- [x] drizzle-kit silent-skip fix + docs cascade renumber — B1-B4 migrations shifted 0010-0013 → 0011-0014 (April 22)
+- [x] Migration 0011 (B1) — workspace_members foundation: populated from profiles via backfill with multi-owner collapse; audit_log table (append-only, REVOKE UPDATE/DELETE enforcement); waitlist_approvals table with approval_source CHECK; 5 cross-schema FKs to auth.users (profiles.id, workspace_members.user_id, invites.accepted_by, audit_log.actor_user_id, waitlist_approvals.approved_by); idempotent bootstrap_organization_membership and accept_invite_membership RPCs; spec §4.1.1/§4.1.2 check-order fix in accept. Migration 0012 fix-up for PL/pgSQL column-vs-OUT-parameter ambiguity surfaced at first RPC execution; resolved with `profiles.org_id` qualification at 2 sites. 19 pg-tap assertions in test/sql/test_migration_0011.sql, all passing on lane dev (April 22, refactored to RETURNS SETOF TEXT pattern on April 22 in ccdf703).
+- [x] Migration 0013 (B2) — invite team scoping: invites.team_id + invites.team_role columns; unique pending partial index on (email, org_id) WHERE accepted_at IS NULL; accept_invite_membership extended with Path C (populate project_members.team_role on team-scoped invites, using SQL column project_id); audit_log event_data Pattern (ii) — includes team_id + team_role keys only on team-scoped accepts. 15 pg-tap assertions in test/sql/test_migration_0013.sql, all passing on lane dev (April 23).
 
 ---
 ### Known drift and deferred work (resolve in follow-up sessions)
@@ -643,7 +724,7 @@ The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate,"
 - **Phase 1 (labels + docs):** User-visible strings in sidebar, page headings, comments, and CLAUDE.md. Status: **shipped April 13 evening.**
 - **Stage enum fix (P0 bug):** `DESIGN_STAGES` array and all `designStage` comparisons aligned to current DB enum. 11 files fixed. Status: **shipped April 13 evening.**
 
-**Phase 2 scope (pending, next session):**
+**Phase 2 scope (shipped April 16 in commit 73cfedb — all tasks complete; preserved below for archaeology):**
 - Rename `components/requests/validation-gate.tsx` → `prove-gate.tsx`
 - Rename export `ValidationGate` → `ProveGate`
 - Update all import sites
@@ -664,9 +745,9 @@ The Prove stage has accumulated mixed vocabulary: "Sign-off," "Validation gate,"
 
 **Deferred features (each is a separate session):**
 
-- **Onboarding build.** Full spec is in `docs/onboarding-spec.md`, vocabulary-aligned and ready to execute. Section 11 has the 13-step build order. Includes Design Head full flow (4 screens), Designer/PM lightweight variants, the intake check (the killer moment, aligns to CLAUDE.md Part 2 Stage 1 classifier), five progressive disclosure moments, sample team seed script, instrumentation. Budget a full day of focused work.
+- **Onboarding build. (STATUS: shipped April 17-18 as Item 8 across 7 phases — Phase A through Phase H. Phase I (first-digest email) absorbed into Item 15c weekly digest cron April 18.)** Full spec is in `docs/onboarding-spec.md`, vocabulary-aligned and ready to execute. Section 11 has the 13-step build order. Includes Design Head full flow (4 screens), Designer/PM lightweight variants, the intake check (the killer moment, aligns to CLAUDE.md Part 2 Stage 1 classifier), five progressive disclosure moments, sample team seed script, instrumentation. Budget a full day of focused work.
 
-- **Real implementations for placeholder pages.** `My requests` and `Submitted by me` currently render placeholder text. Each needs a real list view, queries, and empty states. The `Submitted by me` count needs a `requester_id` column on the requests table first. *(`Reflections` placeholder stays in-code but is deferred to post-v1 per April 15 S1 outcome — not surfaced in sidebar.)*
+- **Real implementations for placeholder pages. (STATUS: shipped April 17 — My requests as Item 5 (commit ea073d3), Submitted by me as Item 6 (commit 9135ece, requester_id column confirmed present from V2). Reflections permanently deferred per April 15 S1 outcome — placeholder route preserved in-code but not surfaced in sidebar.)**
 
 - **Command palette.** Deleted in the alignment session. Re-add when building Zone 3 team sections — wire `cmdk` to search Requests by title via pgvector, add an actions registry, re-add the `⌘K` chord hint to the sidebar search.
 
@@ -722,7 +803,7 @@ If you find yourself updating this table, you're probably doing it wrong — upd
 
 ---
 
-**Last updated: April 7, 2026 — synced with CHANGELOG through PR #13**
+**Last updated: April 22, 2026 — commit 663401c. Part 16 reflects git main; CHANGELOG + WORKING-RULES refile pending in this sync sweep.**
 
 ## Testing
 

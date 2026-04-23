@@ -59,7 +59,7 @@ This spec uses CLAUDE.md's canonical vocabulary. No new terms introduced. Terms 
 | **Profile** | The application-layer representation of a user within their workspace. Table: `profiles`. Stores functional role, name, timezone, etc. |
 | **Workspace member** | The access-control row linking a user to their workspace. Table: `workspace_members`. Stores access role (owner/admin/member/guest). |
 | **Team** | A group within a workspace. Table: `projects` in current schema (vocabulary drift to be cleaned up separately). A user can belong to multiple teams within their workspace. |
-| **Team membership** | A user's role within a specific team. Table: `team_memberships`. Stores team-scoped functional role. |
+| **Team membership** | A user's role within a specific team. Table: `project_members`. Stores team-scoped functional role. |
 | **Owner** | The single user with ultimate authority over a workspace. Every workspace has exactly one owner at all times. |
 | **Invite** | A pending grant allowing a specific email to join a workspace with a predetermined role. Table: `invites`. |
 
@@ -97,7 +97,7 @@ Lane has three role surfaces. Each has a distinct job. Do not collapse them.
 
 **Set by:** the signup RPC (always `owner` for self-signup) or the invite acceptance RPC (always `member` for v1).
 
-### 3.3 `team_memberships.role` — team-scoped functional role
+### 3.3 `project_members.role` — team-scoped functional role
 
 **Values:** `designer | pm` (extend as needed)
 
@@ -114,7 +114,7 @@ Lane has three role surfaces. Each has a distinct job. Do not collapse them.
 When Lane needs to decide how to treat a user in a given context:
 
 1. **Workspace-level access decisions** (invite, delete, billing) → read `workspace_members.role`
-2. **Team-level workflow decisions** (who can assign this Request, who fills intake) → read `team_memberships.role` first; fall back to `profiles.role` if no team membership exists
+2. **Team-level workflow decisions** (who can assign this Request, who fills intake) → read `project_members.role` first; fall back to `profiles.role` if no team membership exists
 3. **Global workflow decisions** (onboarding variant, morning briefing content) → read `profiles.role`
 
 Every query that branches on role must be explicit about which role it is reading. Never silently conflate the three.
@@ -123,9 +123,9 @@ Every query that branches on role must be explicit about which role it is readin
 
 ## 4. Schema changes
 
-> **Migration numbering note.** Migration numbers 0006-0009 were initially planned in spec v2 but conflict with migrations already committed to db/migrations/ (0006_alert_rls_tighten, 0007_fancy_wild_pack, 0008_ordinary_warbird, and 0009_rls_coverage_0007 which landed as PR #40 during pre-A1 work). Numbers below start at 0010 to use the next available slots.
+> **Migration numbering note.** Migration numbers 0006-0009 were initially planned in spec v2 but conflict with migrations already committed to db/migrations/ (0006_alert_rls_tighten, 0007_fancy_wild_pack, 0008_ordinary_warbird, and 0009_rls_coverage_0007 which landed as PR #40 during pre-A1 work). Originally this spec numbered B1-B4 as 0010-0013; after a catch-up migration `0010_catchup_orphan_schema` shipped on 2026-04-21 (commit b067d0e) to capture 10 days of schema drift, B1-B4 were renumbered to 0011-0014. Post-B1, migration 0012 was consumed by a fix-up for RPC column-name ambiguity (commit 186ca28), shifting B2-B4 to 0013-0015. Numbers below reflect the current post-fix-up numbering.
 
-### 4.1 Migration: `0010_populate_workspace_members.sql`
+### 4.1 Migration: `0011_steady_fixer.sql` (previously planned as 0010; suffix is drizzle-kit auto-generated since no --name flag; see §4 numbering note)
 
 This is the core fix. The existing RPCs (`bootstrap_organization_membership`, `accept_invite_membership`) currently create `workspaces` and `profiles` rows but never touch `workspace_members`. This migration updates both RPCs to also insert a `workspace_members` row, and backfills existing users.
 
@@ -136,8 +136,14 @@ The RPC must be safe to call twice. If the auth.users row exists but the profile
 Structure:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.bootstrap_organization_membership(...)
-RETURNS TABLE (workspace_id uuid, created boolean, message text)
+CREATE OR REPLACE FUNCTION public.bootstrap_organization_membership(
+  target_user_id uuid,
+  target_org_name text,
+  target_org_slug text,
+  target_full_name text,
+  target_email text
+)
+RETURNS TABLE (org_id uuid, profile_created boolean)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -147,7 +153,7 @@ DECLARE
   created_org public.organizations;
 BEGIN
   -- Idempotency guard: if profile already exists, return its workspace_id
-  SELECT org_id INTO existing_workspace_id
+  SELECT profiles.org_id INTO existing_workspace_id   -- qualified to disambiguate from OUT param
   FROM public.profiles
   WHERE id = target_user_id;
 
@@ -157,13 +163,13 @@ BEGIN
     VALUES (existing_workspace_id, target_user_id, 'owner', NULL, now())
     ON CONFLICT (workspace_id, user_id) DO NOTHING;
 
-    RETURN QUERY SELECT existing_workspace_id, false, 'already_bootstrapped';
+    RETURN QUERY SELECT existing_workspace_id, false;
     RETURN;
   END IF;
 
   -- Fresh bootstrap path
   INSERT INTO public.organizations (name, slug)
-  VALUES (target_org_name, target_slug)
+  VALUES (target_org_name, target_org_slug)
   RETURNING * INTO created_org;
 
   INSERT INTO public.profiles (id, org_id, full_name, email, role)
@@ -175,12 +181,24 @@ BEGIN
   -- Audit log (see §4.6)
   INSERT INTO public.audit_log (workspace_id, actor_user_id, event_type, event_data)
   VALUES (created_org.id, target_user_id, 'workspace.created',
-    jsonb_build_object('workspace_name', target_org_name, 'slug', target_slug));
+    jsonb_build_object('workspace_name', target_org_name, 'slug', target_org_slug));
 
-  RETURN QUERY SELECT created_org.id, true, 'bootstrapped';
+  RETURN QUERY SELECT created_org.id, true;
 END;
 $$;
 ```
+
+> **PL/pgSQL qualification note:** Functions declared with
+> `RETURNS TABLE (org_id uuid, ...)` get implicit OUT parameters
+> named for each column. Inside the function body, any bare
+> reference to `org_id` is ambiguous between the OUT parameter
+> and any column named `org_id` in a FROM-clause relation. Postgres
+> rejects the ambiguity at first execution (not at function
+> creation — plpgsql compiles function bodies lazily). The
+> qualifier `profiles.org_id` disambiguates to the column. This
+> applies to any RPC using `RETURNS TABLE` with column-name-matching
+> OUT parameters. When authoring future RPCs with this shape, audit
+> bare column references in function bodies before merging.
 
 All writes happen in a single transaction. The `ON CONFLICT DO NOTHING` on workspace_members handles the rare case where profile exists but workspace_members row is missing (e.g., partial failure in a previous attempt).
 
@@ -197,11 +215,12 @@ Key additions to the existing RPC:
 IF invite_row.accepted_at IS NOT NULL THEN
   -- Check if the acceptor matches
   IF EXISTS (SELECT 1 FROM public.profiles
-             WHERE id = target_user_id AND org_id = invite_row.org_id) THEN
-    RETURN QUERY SELECT invite_row.org_id, false, 'already_accepted';
+             WHERE profiles.id = target_user_id     -- qualified for consistency
+               AND profiles.org_id = invite_row.org_id) THEN  -- qualified to disambiguate from OUT param
+    RETURN QUERY SELECT invite_row.org_id, false;
     RETURN;
   ELSE
-    RETURN QUERY SELECT NULL::uuid, false, 'invite_already_used_by_another_user';
+    RETURN QUERY SELECT NULL::uuid, false;
     RETURN;
   END IF;
 END IF;
@@ -210,9 +229,9 @@ END IF;
 
 -- Optional team membership
 IF invite_row.team_id IS NOT NULL THEN
-  INSERT INTO public.team_memberships (team_id, user_id, role, created_at)
+  INSERT INTO public.project_members (project_id, user_id, role, joined_at)
   VALUES (invite_row.team_id, target_user_id, invite_row.team_role::public.team_role, now())
-  ON CONFLICT (team_id, user_id) DO NOTHING;
+  ON CONFLICT (project_id, user_id) DO NOTHING;
 END IF;
 
 -- Audit log
@@ -220,7 +239,7 @@ INSERT INTO public.audit_log (workspace_id, actor_user_id, event_type, event_dat
 VALUES (invite_row.org_id, target_user_id, 'member.joined',
   jsonb_build_object(
     'invite_id', invite_row.id,
-    'invited_by', invite_row.created_by,
+    'invited_by', invite_row.invited_by,
     'role', invite_row.role,
     'team_id', invite_row.team_id
   ));
@@ -231,7 +250,17 @@ SET accepted_at = now(), accepted_by = target_user_id
 WHERE id = invite_row.id;
 ```
 
-Note the new `invites.accepted_by uuid` column — added in migration 0010. Captures who actually accepted (not just "was accepted") which matters for audit trails when an invite email gets forwarded.
+> See the PL/pgSQL qualification note in §4.1.1. The bare-column
+> references here (`profiles.org_id` in the EXISTS subquery) are
+> qualified for the same reason.
+
+**Order of checks in migration 0011:** expiry first, then email match, then idempotency (the snippet above). The pre-existing `NOT FOUND` check stays at the very top, before any of these.
+
+Note the new `invites.accepted_by uuid` column — added in migration 0011. Captures who actually accepted (not just "was accepted") which matters for audit trails when an invite email gets forwarded.
+
+**Deferral note (Path C):** the team-scoping INSERT into `project_members` shown above is deferred to migration 0012 (B2). The `invites.team_id` and `invites.team_role` columns it reads from do not exist until migration 0012 adds them (see §4.2). B1's `accept_invite_membership` update will leave a SQL comment placeholder at this location instead of executing the INSERT.
+
+Semantic questions about `role` / `team_role` / `is_team_admin` column population in `project_members` are also deferred to B2 alongside the INSERT itself.
 
 #### 4.1.3 Backfill for existing users — batched, safe
 
@@ -245,8 +274,8 @@ SELECT
   p.org_id,
   p.id,
   CASE
-    WHEN p.role IN ('lead', 'admin') THEN 'owner'::workspace_member_role
-    ELSE 'member'::workspace_member_role
+    WHEN p.role IN ('lead', 'admin') THEN 'owner'::workspace_role
+    ELSE 'member'::workspace_role
   END,
   NULL,
   p.created_at
@@ -279,8 +308,8 @@ BEGIN
     INSERT INTO public.workspace_members (workspace_id, user_id, role, invited_by, created_at)
     SELECT
       org_id, id,
-      CASE WHEN role IN ('lead','admin') THEN 'owner'::workspace_member_role
-           ELSE 'member'::workspace_member_role END,
+      CASE WHEN role IN ('lead','admin') THEN 'owner'::workspace_role
+           ELSE 'member'::workspace_role END,
       NULL, created_at
     FROM to_backfill
     ON CONFLICT (workspace_id, user_id) DO NOTHING;
@@ -330,7 +359,7 @@ WHERE role = 'owner' GROUP BY workspace_id HAVING count(*) != 1;
 
 Include these invariant checks as post-deploy smoke tests.
 
-### 4.2 Migration: `0011_invite_team_scoping.sql`
+### 4.2 Migration: `0013_b2_invite_team_scoping.sql`
 
 The `invites` table currently carries functional role (`pm`, `designer`, etc.) but not team_id or team-scoped role. Add:
 
@@ -340,9 +369,9 @@ ALTER TABLE public.invites
   ADD COLUMN team_role public.team_role;
 ```
 
-`team_id` and `team_role` are optional. If both are null, the invite creates a workspace-level membership only (user joins the workspace but not any team). If both are present, the acceptance RPC also creates a `team_memberships` row.
+`team_id` and `team_role` are optional. If both are null, the invite creates a workspace-level membership only (user joins the workspace but not any team). If both are present, the acceptance RPC also creates a `project_members` row.
 
-### 4.3 Migration: `0012_ownership_transfer.sql`
+### 4.3 Migration: `0014_b3_ownership_transfer.sql`
 
 New RPC for ownership transfer. See §9 for the full flow.
 
@@ -394,16 +423,16 @@ BEGIN
 
   -- Atomic swap
   UPDATE public.workspace_members
-  SET role = demote_current_owner_to::workspace_member_role
+  SET role = demote_current_owner_to::workspace_role
   WHERE workspace_id = target_workspace_id AND user_id = current_owner_id;
 
   UPDATE public.workspace_members
   SET role = 'owner'
   WHERE workspace_id = target_workspace_id AND user_id = new_owner_user_id;
 
-  -- Mirror to workspaces.owner_user_id for any legacy code still reading it
+  -- Mirror to organizations.owner_id for any legacy code still reading it
   UPDATE public.organizations
-  SET owner_user_id = new_owner_user_id
+  SET owner_id = new_owner_user_id
   WHERE id = target_workspace_id;
 
   RETURN QUERY SELECT true, 'Ownership transferred successfully';
@@ -421,23 +450,23 @@ These are the invariants Lane maintains. Not schema-enforced (no UNIQUE constrai
 
 3. **Profiles and workspace_members are 1:1.** Every profile has a corresponding workspace_members row. Every workspace_members row has a corresponding profile. Creation and deletion happen together.
 
-4. **`organizations.owner_user_id` mirrors `workspace_members` where `role = 'owner'`.** Two sources, one truth. Updated together. Ownership transfer updates both. (Long-term cleanup: drop `organizations.owner_user_id` and make `workspace_members` the sole source. Deferred.)
+4. **`organizations.owner_id` mirrors `workspace_members` where `role = 'owner'`.** Two sources, one truth. Updated together. Ownership transfer updates both. (Long-term cleanup: drop `organizations.owner_id` and make `workspace_members` the sole source. Deferred.)
 
 ### 4.5 FK cascade behavior
 
 | From | To | On delete |
 |---|---|---|
 | `workspace_members.workspace_id` | `organizations.id` | CASCADE — deleting a workspace removes all memberships |
-| `workspace_members.user_id` | `auth.users.id` | CASCADE — deleting a user removes their memberships |
+| `workspace_members.user_id` | `auth.users.id` | **NEEDS TO BE ADDED**. Currently no FK. Add `REFERENCES auth.users(id) ON DELETE CASCADE` in a migration. (Once added: deleting a user removes their memberships.) |
 | `profiles.id` | `auth.users.id` | **NEEDS TO BE ADDED**. Currently no FK. Add `REFERENCES auth.users(id) ON DELETE CASCADE` in a migration. |
 | `profiles.org_id` | `organizations.id` | CASCADE — deleting a workspace removes all profiles |
-| `team_memberships.user_id` | `auth.users.id` | CASCADE |
-| `team_memberships.team_id` | `projects.id` | CASCADE |
+| `project_members.user_id` | `profiles.id` | CASCADE — deleting a profile (and by extension the user) removes their team memberships |
+| `project_members.project_id` | `projects.id` | CASCADE |
 | `invites.org_id` | `organizations.id` | CASCADE |
 
-The missing FK on `profiles.id → auth.users.id` is a separate bug discovered during this spec. Include it in the 0010 migration.
+The missing FKs on `profiles.id → auth.users.id` and `workspace_members.user_id → auth.users.id` are separate bugs discovered during this spec. Include both in the 0011 migration.
 
-### 4.6 Audit log (new table, migration 0010)
+### 4.6 Audit log (new table, migration 0011)
 
 Every state-changing event in the signup/invite/membership surface writes to `audit_log`. Immutable, queryable, retention-policy-ready. This is table stakes for enterprise SaaS — compliance audits, security incident response, customer support debugging all depend on having a record of "what happened and who did it."
 
@@ -479,7 +508,7 @@ CREATE INDEX audit_log_event_type ON public.audit_log (event_type, created_at DE
 
 Downstream features (Request changes, PM calibration, etc.) can add their own event types without schema changes.
 
-### 4.7 Waitlist / approval gate (new table, migration 0010)
+### 4.7 Waitlist / approval gate (new table, migration 0011)
 
 Per the decision in §5.2, Lane ships with infrastructure for approval-gating but defaults to auto-approve. This means we can turn gating on without a migration when we ever need to (regional restrictions, enterprise pilots, abuse response).
 
@@ -532,7 +561,7 @@ export const inviteAcceptRateLimit = new Ratelimit({
 });
 ```
 
-Signup keyed by IP (no user yet). Invite create keyed by `owner_user_id` (prevents a compromised admin account from blasting invites). Invite accept keyed by IP (prevents token enumeration attacks).
+Signup keyed by IP (no user yet). Invite create keyed by `owner_id` (prevents a compromised admin account from blasting invites). Invite accept keyed by IP (prevents token enumeration attacks).
 
 All three return HTTP 429 with Retry-After header when exceeded. Logged to audit_log with event_type `rate_limit.exceeded` so we can spot attacks.
 
@@ -559,7 +588,7 @@ This replaces the "waitlist for first 90 days" claim in onboarding-spec.md secti
 ### 5.3 Database writes (in order, single transaction)
 
 1. `auth.users` — created by `supabase.auth.signUp()`, user_id returned
-2. `organizations` — new row with `name`, `slug` (derived from name, uniqueness-enforced), `owner_user_id = user_id`, `plan = 'trial'`
+2. `organizations` — new row with `name`, `slug` (derived from name, uniqueness-enforced), `owner_id = user_id`, `plan = 'trial'`
 3. `profiles` — new row with `id = user_id`, `org_id = organizations.id`, `full_name`, `email`, `role = 'lead'`
 4. `workspace_members` — new row with `workspace_id = organizations.id`, `user_id = user_id`, `role = 'owner'`, `invited_by = NULL`
 
@@ -606,7 +635,7 @@ export async function signup(input: SignupInput) {
   const { data, error } = await supabase.rpc('bootstrap_organization_membership', {
     target_user_id: authData.user.id,
     target_org_name: input.orgName,
-    target_slug: slugify(input.orgName),
+    target_org_slug: slugify(input.orgName),
     target_full_name: input.fullName,
     target_email: input.email,
   });
@@ -663,7 +692,7 @@ export async function ensureBootstrapped(userId: string) {
   const { data, error } = await supabase.rpc('bootstrap_organization_membership', {
     target_user_id: userId,
     target_org_name: orgName,
-    target_slug: slugify(orgName),
+    target_org_slug: slugify(orgName),
     target_full_name: fullName,
     target_email: user.user.email,
   });
@@ -785,14 +814,14 @@ This is the default case for new users.
 1. `/invite/accept?token={token}` — server loads the invite, renders a confirmation page:
    > "{inviter_name} invited you to join {workspace_name} as a {functional_role}. Create your account to accept."
 2. Form: full name, password (email is pre-filled and non-editable, pulled from invite)
-3. Submit → create auth.users + profile + workspace_members + optional team_memberships → log in → redirect to `/dashboard`
+3. Submit → create auth.users + profile + workspace_members + optional project_members → log in → redirect to `/dashboard`
 
 #### Database writes (in order, single transaction on the RPC side)
 
 1. `auth.users` — created by `supabase.auth.signUp()` with email from invite
-2. `profiles` — `id = user_id`, `org_id = invite.workspace_id`, `full_name`, `email`, `role = invite.role`
-3. `workspace_members` — `workspace_id = invite.workspace_id`, `user_id = user_id`, `role = 'member'`, `invited_by = invite.created_by`
-4. `team_memberships` — if `invite.team_id` is not null: `team_id, user_id, role = invite.team_role`
+2. `profiles` — `id = user_id`, `org_id = invite.org_id`, `full_name`, `email`, `role = invite.role`
+3. `workspace_members` — `workspace_id = invite.org_id`, `user_id = user_id`, `role = 'member'`, `invited_by = invite.invited_by`
+4. `project_members` — if `invite.team_id` is not null: `project_id, user_id, role = invite.team_role`
 5. `invites` — UPDATE `accepted_at = now()`
 
 Steps 2-5 happen inside `accept_invite_membership` RPC (updated per §4.1.2). The RPC takes token as input and validates it server-side — never trust client-side validation.
@@ -867,7 +896,7 @@ Via `transfer_workspace_ownership` RPC (per §4.3). Atomic:
 
 1. `workspace_members` — current owner's row: `role = 'admin'` (or 'member' if `demote_current_owner_to = 'member'`)
 2. `workspace_members` — new owner's row: `role = 'owner'`
-3. `organizations` — `owner_user_id = new_owner_user_id`
+3. `organizations` — `owner_id = new_owner_user_id`
 
 ### 9.4 UI states
 
@@ -920,9 +949,9 @@ A member visits `/settings/profile` → "Leave workspace" → confirms.
 ### 10.3 Database writes
 
 `workspace_members` — DELETE the caller's row
-`team_memberships` — DELETE all rows where `user_id = caller`
+`project_members` — DELETE all rows where `user_id = caller`
 `profiles` — **KEEP.** Deleting the profile would orphan historical Requests, comments, decision log entries, etc. Instead, mark the profile as "departed":
-  - Add `profiles.left_at timestamptz` column (new, add in migration 0013)
+  - Add `profiles.left_at timestamptz` column (new, add in migration 0014)
   - Set `left_at = now()`
   - All UI surfaces should show a departed user's name with a subtle "(no longer on team)" marker
 
@@ -1032,7 +1061,7 @@ The invite row stays in the database with `accepted_at = NULL` and `expires_at` 
 
 - `profiles` — deleted (after FK added per §4.5)
 - `workspace_members` — deleted
-- `team_memberships` — deleted
+- `project_members` — deleted
 - Their historical activity (Requests they created, comments they wrote) — untouched because those tables reference `profiles.id` which is now gone — **this would break FK constraints on those tables.** Need to either (a) make those FKs nullable with ON DELETE SET NULL, or (b) keep a `deleted_users` shadow table.
 
 **Recommendation for v1:** migrate FKs on historical content tables to `ON DELETE SET NULL` where the column becomes `created_by_id`. UI shows "(deleted user)" wherever the reference resolves to null. This is a separate migration, flagged in parking lot. **Not in scope for Week 7.5 build** — just documented here so we know the state.
@@ -1171,16 +1200,16 @@ One test file per RPC: `test/sql/test_bootstrap_organization_membership.sql`, `t
 | Bootstrap is transactional | If profile insert fails (simulated), no workspace or workspace_member row remains |
 | Bootstrap idempotency | Calling twice with the same `user_id` does not create a second workspace (via explicit check) |
 | Accept invite creates 2 rows | After RPC: 1 row in `profiles`, 1 in `workspace_members` with `role = 'member'`, invite row updated |
-| Accept invite with team creates 3 rows | Plus a `team_memberships` row with the correct `role` |
+| Accept invite with team creates 3 rows | Plus a `project_members` row with the correct `role` |
 | Accept expired invite fails | RPC returns error, no rows inserted |
 | Accept already-accepted invite fails | RPC returns error |
-| Transfer ownership swaps rows atomically | Old owner → admin, new owner → owner, `organizations.owner_user_id` updated |
+| Transfer ownership swaps rows atomically | Old owner → admin, new owner → owner, `organizations.owner_id` updated |
 | Transfer to non-member fails | RPC returns error |
 | Transfer to self fails | RPC returns error |
 | Transfer when caller is not owner fails | RPC returns error |
 | Backfill creates workspace_members for existing profiles | Before: profiles exist without workspace_members. After: every profile has a matching workspace_members row. |
 | Backfill elects single owner per workspace | No workspace has >1 row with `role = 'owner'` after backfill |
-| CASCADE on user delete | Deleting auth.users row removes profile, workspace_members, team_memberships |
+| CASCADE on user delete | Deleting auth.users row removes profile, workspace_members, project_members |
 | Invariant: one owner per workspace | Query `SELECT workspace_id FROM workspace_members WHERE role = 'owner' GROUP BY workspace_id HAVING count(*) > 1` returns 0 rows after any RPC |
 
 ~20 test cases total. Target: all pass in under 5 seconds.
@@ -1250,10 +1279,10 @@ Phase A total: ~8 hours. One-time. Every subsequent step depends on this existin
 
 Every migration gets its own pg-tap test file. Test file is written *before* the migration runs — a failing test that passes only after the migration is applied is the right pattern. If the test can't be written first (e.g., table doesn't exist yet), write it after the schema but before the behavioral changes.
 
-- **B1.** Migration 0010 — populate workspace_members + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel test: `test/sql/test_migration_0010.sql` — 12 pg-tap assertions covering: idempotency of bootstrap (call twice, no second workspace), idempotency of accept (call twice with same invite, second is no-op), audit rows emitted on every event, workspace_members created with correct role, backfill invariants hold. **STOP: review migration + test together.** (~3 hours build + ~1.5 hours test = 4.5 hours)
-- **B2.** Migration 0011 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0011.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
-- **B3.** Migration 0012 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_transfer_ownership.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_user_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
-- **B4.** Migration 0013 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_orphan_view.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
+- **B1.** Migration 0011 — populate workspace_members + `profiles.id → auth.users(id)` FK + `invites.accepted_by` column + `audit_log` table + `waitlist_approvals` table + idempotent bootstrap RPC + idempotent accept RPC. Parallel test: `test/sql/test_migration_0011.sql` — 12 pg-tap assertions covering: idempotency of bootstrap (call twice, no second workspace), idempotency of accept (call twice with same invite, second is no-op), audit rows emitted on every event, workspace_members created with correct role, backfill invariants hold. **STOP: review migration + test together.** (~3 hours build + ~1.5 hours test = 4.5 hours)
+- **B2.** Migration 0013 — `invites.team_id`, `invites.team_role`, partial unique index on pending invites. Parallel test: `test/sql/test_migration_0013.sql` — duplicate pending invite rejected, team_id + team_role required together. **STOP.** (~45 min build + ~30 min test = 1.25 hours)
+- **B3.** Migration 0014 — `transfer_workspace_ownership` RPC. Parallel test: `test/sql/test_migration_0014.sql` — atomic swap, non-owner caller rejected, non-member target rejected, self-transfer rejected, `organizations.owner_id` mirrored correctly. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
+- **B4.** Migration 0015 — `profiles.left_at`, orphaned workspace admin view. Parallel test: `test/sql/test_migration_0015.sql` — view returns workspaces with no owner, view excludes healthy workspaces. **STOP.** (~30 min build + ~30 min test = 1 hour)
 
 Phase B total: ~8.75 hours. After Phase B, the database layer is correct and proven. Every later step can assume the DB does the right thing.
 
@@ -1266,7 +1295,7 @@ Server actions call RPCs and handle errors. Each action gets an integration test
 > **Vitest pattern for pure helpers:** Pure helper functions (validation logic, classifier output shaping, URL selection) should have Vitest unit tests matching the pattern established by `test/user-session-url.test.ts`, `test/rate-limit-config.test.ts`, and `test/request-permissions.test.ts`. These sit alongside the integration tests already planned in Phase C. Test harness already exists — no setup needed beyond writing the test files.
 
 - **C1.** Update `app/actions/auth.ts` with idempotent signup + recovery path per §5.6. Parallel test: `test/actions/auth.test.ts` — signup creates 4 rows (auth user, organization, profile, workspace_members), signup with pre-existing profile returns existing workspace, signup with partial state (profile exists, workspace_members missing) heals. Include rate limit tests (6th signup from same IP within hour returns 429). **STOP.** (~1 hour build + ~1.5 hours test = 2.5 hours)
-- **C2.** Update `app/actions/invites.ts` with team payload and idempotent accept. Parallel test: team-scoped invite creates team_memberships row, accepting twice returns success second time, accepting after revoke fails, wrong-email acceptance blocked. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
+- **C2.** Update `app/actions/invites.ts` with team payload and idempotent accept. Parallel test: team-scoped invite creates project_members row, accepting twice returns success second time, accepting after revoke fails, wrong-email acceptance blocked. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
 - **C3.** New `app/actions/ownership.ts` — `transferOwnership`. Parallel test: happy path, only-member rejected, self-transfer rejected, non-owner caller rejected. **STOP.** (~45 min build + ~45 min test = 1.5 hours)
 - **C4.** New `app/actions/members.ts` — `leaveWorkspace`, `removeMember`. Parallel test: owner cannot leave, member can leave, admin cannot remove owner, admin can remove admin, profile marked `left_at`. **STOP.** (~1 hour build + ~1 hour test = 2 hours)
 
@@ -1297,7 +1326,7 @@ Phase E total: ~6 hours.
 
 - **F1.** Manual QA against all 10 flows in §5-§11 on dev environment. Use a checklist derived from the spec. Log every issue found. (~2 hours)
 - **F2.** Fix any issues found in F1. If >2 issues, stop and run a retro — something about the spec or the build missed a case. (~1-4 hours, estimate generously)
-- **F3.** Production deploy. Run migration 0010 backfill verification queries (§4.1.3) immediately after deploy. If any invariant query returns rows, roll back. (~1 hour)
+- **F3.** Production deploy. Run migration 0011 backfill verification queries (§4.1.3) immediately after deploy. If any invariant query returns rows, roll back. (~1 hour)
 - **F4.** Smoke test in production: sign up with a test email, invite a second test email, accept, transfer ownership, leave. (~30 min)
 - **F5.** Update ROADMAP.md. Mark Week 7.5 complete. Unblock Week 8 GTM. (~30 min)
 
@@ -1413,10 +1442,10 @@ Week 7.5a — Test harness + database foundation (~17 hours)
 - [ ] A1. pg-tap harness setup + smoke test
 - [ ] A2. Playwright harness setup + smoke test
 - [ ] A3. Test fixtures (supabase/test-seed.sql)
-- [ ] B1. Migration 0010 (workspace_members + FK + audit_log + waitlist + idempotent RPCs) + pg-tap
-- [ ] B2. Migration 0011 (invite team scoping + unique pending index) + pg-tap
-- [ ] B3. Migration 0012 (transfer_workspace_ownership RPC) + pg-tap
-- [ ] B4. Migration 0013 (profiles.left_at + orphan view) + pg-tap
+- [ ] B1. Migration 0011 (workspace_members + FK + audit_log + waitlist + idempotent RPCs) + pg-tap
+- [ ] B2. Migration 0012 (invite team scoping + unique pending index) + pg-tap
+- [ ] B3. Migration 0013 (transfer_workspace_ownership RPC) + pg-tap
+- [ ] B4. Migration 0014 (profiles.left_at + orphan view) + pg-tap
 
 Week 7.5b — Server actions + first UI surfaces (~12 hours)
 - [ ] C1. app/actions/auth.ts (idempotent signup + recovery) + integration tests

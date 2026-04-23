@@ -28,3 +28,5 @@ export * from "./notifications";
 export * from "./workspace-members";
 export * from "./stream-guests";
 export * from "./analytics-events";
+export * from "./audit_log";
+export * from "./waitlist_approvals";

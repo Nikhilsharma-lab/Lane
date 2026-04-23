@@ -13,12 +13,14 @@ fresh `lane dev` project and after a schema reset.
 
 > Procedure written against commit `fed633e` (A3 shipped, Phase A
 > complete). **Revised 2026-04-21:** Step 1 uses `drizzle-kit migrate`
-> (was push); new Step 0 (Reset) added. If Lane's schema files
-> (`db/schema/`) or dev-only migrations (`db/migrations/dev_only_*.sql`)
-> change materially, this doc needs review.
-> **Last verified:** 2026-04-21 (corrected procedure: schema install
-> via migrate + reset procedure verified end-to-end against commit
-> `c171f5e` schema state).
+> (was push); new Step 0 (Reset) added. **Further revised 2026-04-22:**
+> expected counts updated to reflect migration 0010 catch-up applied to
+> lane dev (commits b067d0e → b0e98d3 chain; see CHANGELOG). If Lane's
+> schema files (`db/schema/`) or dev-only migrations
+> (`db/migrations/dev_only_*.sql`) change materially, this doc needs
+> review.
+> **Last verified:** 2026-04-22 (migration 0010 applied to lane dev
+> cleanly; journal `when` invariant confirmed via commit b0e98d3 fix).
 
 **NOT for production.** This procedure applies dev-only migrations
 (`dev_only_pgtap.sql`, `dev_only_sent_emails.sql`) that must never
@@ -220,7 +222,7 @@ policies + helper functions, matching production's structure.
 NOT used for bootstrap. Push misses RPCs and RLS policies that Lane
 depends on.)
 
-Expected: 10 migrations apply (0000 through 0009 as of 2026-04-21), under
+Expected: 11 migrations apply (0000 through 0010 as of 2026-04-22), under
 30 seconds. Final line: `[✓] migrations applied successfully!`
 
 **Verify (required — silent-success failures are the most dangerous):**
@@ -243,7 +245,7 @@ import('postgres').then(async ({default: postgres}) => {
 "
 ```
 
-Expected: `public base tables: 34+`, `__drizzle_migrations rows: 10+`,
+Expected: `public base tables: 40+`, `__drizzle_migrations rows: 11+`,
 `Lane RPCs present: 2 / 2`, exit 0.
 
 If any check fails: `drizzle-kit migrate` did not fully apply. **Stop

@@ -24,6 +24,7 @@ Deferred items migrated from DEFERRED.md on 2026-04-12.
 ---
 
 ### [3] withAuthAction helper
+**Status: ⚠️ VERIFIED STILL OPEN 2026-04-22** — helper was never built; 8 action files still carry copy-paste auth block.
 
 **What:** Create `lib/actions.ts` with a `withAuthAction(fn)` wrapper that handles Supabase session lookup, profile fetch, and `withUserDb` setup in one place. Replace the copy-pasted block in `app/actions/requests.ts`, `app/actions/cycles.ts`, `app/actions/initiatives.ts`, `app/actions/stickies.ts`, `app/actions/reflections.ts`, `app/actions/activity-log.ts`, `app/actions/assignments.ts`, and `app/actions/ideas.ts`.
 
@@ -39,6 +40,7 @@ Deferred items migrated from DEFERRED.md on 2026-04-12.
 ---
 
 ### [4] Dashboard query parallelization
+**Status: partial progress 2026-04-18 in Item 15g (commit f16a2da)** — split aggregate + focus queries. The 8+ sequential → `Promise.all` refactor still outstanding.
 
 **What:** `app/(dashboard)/dashboard/page.tsx` runs 8+ sequential DB queries. Wrap independent fetches in `Promise.all()`.
 
@@ -54,6 +56,7 @@ Deferred items migrated from DEFERRED.md on 2026-04-12.
 ---
 
 ### [2] AI triage eval harness
+**Status: confirmed still open 2026-04-22.**
 
 **What:** A standalone eval suite at `tests/evals/triage-classification.eval.ts` that runs curated test cases through `triageRequest()` and asserts the `classification` field matches expected values.
 
@@ -83,8 +86,8 @@ Agreed 2026-04-02. No hard deadline — launch when all 7 are done.
 - [x] **Impact Intelligence** — prediction confidence score before committing, Design ROI by type, "what we learned" retrospective brief ✅ Built 2026-04-04
 
 ### Approach 2 — AI Does the Work (build third)
-- [ ] **Proactive Alerts** — AI-decided push alerts for Design Head (stalls, overdue sign-offs, blocked designers)
-- [ ] **AI Pre-flight Check** — PM impact prediction rated by AI before submission, quality score before triage
+- [x] ✅ Built 2026-04-18 (partial) — **Proactive Alerts** — AI-decided push alerts for Design Head. stall_nudge with hourly cron shipped; stall_escalation explicitly REMOVED per anti-surveillance principle (Item 15d — commit c884eda)
+- [x] ✅ Built 2026-04-17 — **AI Pre-flight Check** — PM impact prediction rated by AI before submission, quality score before triage (Item 4 — commits 5c3ac55, 7fe00ad, 5cca8e8, 4295443, 7eef16b)
 
 ### Additional (added post-roadmap, now built)
 - [x] **Dev Board (KF8)** — `/dashboard/dev`, full dev kanban with drag-and-drop, slide-over detail, Design QA gate ✅ Built
@@ -116,6 +119,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 ## Priority 0 — Build Immediately (before first customer)
 
 ### Fix Cron Auth Bypass (Security — BLOCKING)
+**Status: ✅ SHIPPED 2026-04-19 (PR #34)** — original blocker detail preserved below as archaeology.
+
 **Why urgent:** `app/api/cron/alerts/route.ts:16-17` and `app/api/insights/digest/generate/route.ts` both use the pattern `if (cronSecret && authHeader !== ...)`. If `CRON_SECRET` is not set in the environment, `cronSecret` is `undefined`, the condition short-circuits, and the auth check is **completely skipped** — anyone can hit these endpoints. The alerts cron writes `proactiveAlerts` rows to the DB; the digest cron calls Claude and writes `morningBriefings`. Both are exploitable for free AI credit abuse.
 
 **What to build:**
@@ -128,6 +133,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 ---
 
 ### Fix Cross-Org Data Leak in Published Views (Security — BLOCKING)
+**Status: ✅ SHIPPED 2026-04-19 (PR #34)** — original blocker detail preserved below as archaeology.
+
 **Why urgent:** `app/views/[id]/page.tsx:31-43` authenticated view mode checks only that the viewer is logged in, then loads all requests from `view.orgId` without verifying the viewer belongs to that org. A user from Org A can access Org B's published view (and see Org B's request list) by guessing or enumerating view IDs.
 
 **What to build:**
@@ -139,6 +146,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 ---
 
 ### Fix getActivityLog Org Scoping (Security — BLOCKING)
+**Status: ⚠️ VERIFIED STILL OPEN 2026-04-22** — elevated to pre-customer security sweep in `DOCS BIG/docs/ROADMAP.md` parking lot. `app/actions/activity-log.ts` still uses `systemDb` with only `requestId` filter (verified 2026-04-22). Original detail preserved below.
+
 **Why urgent:** `app/actions/activity-log.ts` uses `systemDb` with no org filter. `getActivityLog(requestId)` returns activity log rows for any requestId regardless of which org the caller belongs to. An authenticated user can enumerate activity log entries for requests they have no access to by passing arbitrary request UUIDs.
 
 **What to build:**
@@ -151,6 +160,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 ---
 
 ### Fix withUserSession Pooler Mismatch (Security / Data Correctness — BLOCKING)
+**Status: ✅ SHIPPED 2026-04-19** — PR #36 added fail-closed behavior when `DIRECT_DATABASE_URL` is missing in production; commit e1db32e migrated session-mode code paths to use `DIRECT_URL`. Note: env var landed as `DIRECT_DATABASE_URL`, not `SESSION_DATABASE_URL` as originally proposed below. Original blocker detail preserved as archaeology.
+
 **Why urgent:** `db/user.ts` `withUserSession` sets `app.current_user_id` with `set_config('app.current_user_id', userId, false)` — the `false` flag means session-level (persistent across transactions). But `DATABASE_URL` points to Supabase's transaction pooler on port 5432 (PgBouncer). On the transaction pooler, session-level config does NOT persist between statements. RLS policies that rely on `auth.uid()` via `current_setting('app.current_user_id')` will read `null` on every query that doesn't re-set it. The net effect: `withUserSession` thinks it is enforcing RLS but is not.
 
 **What to build:**
@@ -164,6 +175,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 ---
 
 ### RLS Policies (Security — BLOCKING)
+**Status: ⚠️ PARTIAL** — PR #40 added RLS for 11 tables introduced in migration 0007. Full route inventory + migration plan in `docs/rls-audit.md` (Item 12 — commit d3b78ab). Remaining execution deferred to pre-customer security sweep.
+
 **Why urgent:** All data is org-scoped in app code, but there's no DB-level enforcement. A crafted request could leak cross-org data. Must ship before any real user touches the product.
 
 **What to build:**
@@ -175,6 +188,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 - Test: create two test orgs, verify cross-org queries return empty
 
 ### Redis Rate Limiting (AI abuse prevention — BLOCKING)
+**Status: ✅ SHIPPED 2026-04-18 (Item 13 — commit 006cf4c)** — all 11 AI routes covered. Original blocker detail preserved below as archaeology.
+
 **Why urgent:** AI routes call Claude API which costs money. No rate limiting = one bad actor burns through your Anthropic credits.
 
 **What to build:**
@@ -185,6 +200,8 @@ Nothing here is abandoned — it's queued. Pick up items in priority order.
 - Return 429 with friendly message when rate limited
 
 ### Design Frame Creation (Week 5-6 gap)
+**Status: ✅ SHIPPED 2026-04-18 (Item 14 part 1 — commit d5f15cf)** — Frame panel with 4 structured fields + PM-brief comparison. Original scope detail preserved below as archaeology.
+
 **Why:** The Frame stage in the design phase has no dedicated UI yet. Designers need a structured form to articulate the problem, success criteria, and constraints — this is the "north star" referenced in all subsequent stages.
 
 **What to build:**
@@ -253,6 +270,8 @@ This is a one-time setup. One OAuth app for all customers — each customer auth
 ---
 
 ### Weekly Digest — Stored Per Org (Cron Pre-generation)
+**Status: ✅ SHIPPED 2026-04-18 (Item 15c — commit f87c157)** — historical archive, retry, email delivery all wired. Original deferral detail preserved below as archaeology.
+
 **Why deferred:** Current digest is on-demand (user clicks "Generate"). For the Friday auto-delivery vision, the cron needs to generate and store digests per org so they're pre-loaded when users open Insights on Monday.
 
 **What to build:**
@@ -374,17 +393,17 @@ Steps:
 | Item | Status | What's needed |
 |------|--------|---------------|
 | Email notifications | Built ✅ | 3 Vercel env vars (see Priority 2 above) |
-| Weekly digest cron | Cron configured ✅ | `CRON_SECRET` in Vercel + per-org storage (Priority 1) |
+| Weekly digest cron | Built ✅ | Item 15c wired historical archive + email delivery (commit f87c157, 2026-04-18) |
 | Figma sync | UI built ✅ | Figma OAuth flow (Priority 1) |
-| RLS policies | Schema ready ✅ | Write + enable RLS on all tables (Priority 0) |
-| Redis rate limiting | Not started | Add Upstash Redis + rate limit AI routes (Priority 0) |
+| RLS policies | Partial ⚠️ | 11 tables covered by PR #40; full plan in `docs/rls-audit.md`; remaining execution deferred to pre-customer sweep |
+| Redis rate limiting | Built ✅ | Item 13 covers all 11 AI routes (commit 006cf4c, 2026-04-18) |
 | Snooze resurface cron | Cron configured ✅ | `CRON_SECRET` in Vercel (shares with other crons) |
 | Notification preferences | Built ✅ | Email channel needs Resend env vars (see Priority 2) |
 | Published views (public) | Built ✅ | Needs RLS policy for anonymous SELECT with token |
-| withUserSession RLS enforcement | Broken silently ⚠️ | `SESSION_DATABASE_URL` on port 6543 (Priority 0) |
-| Cron auth | Bypassed if env missing ⚠️ | Hard-fail on missing `CRON_SECRET` (Priority 0) |
-| Published views auth check | Cross-org leak ⚠️ | Add `viewer.orgId === view.orgId` check (Priority 0) |
-| Activity log scoping | Unscoped ⚠️ | Add org filter to `getActivityLog` (Priority 0) |
+| withUserSession RLS enforcement | Fixed ✅ | `DIRECT_DATABASE_URL` fail-closed in PR #36 (2026-04-19) |
+| Cron auth | Fixed ✅ | PR #34 (2026-04-19) enforces Bearer `CRON_SECRET` |
+| Published views auth check | Fixed ✅ | PR #34 (2026-04-19) added `viewer.orgId === view.orgId` check |
+| Activity log scoping | ⚠️ UNSCOPED — Priority 0 verified still open 2026-04-22 | Elevated to ROADMAP parking lot; see "Fix getActivityLog Org Scoping" above |
 
 ---
 

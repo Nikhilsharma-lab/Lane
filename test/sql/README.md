@@ -8,13 +8,13 @@ before they reach app code.
 
 ## Scope
 
-Tests in this directory cover migrations 0010-0013 (per
+Tests in this directory cover migrations 0011-0014 (per
 `docs/user-flows-spec.md` §15 Phase B) and the RPCs they introduce:
 
-- `0010_populate_workspace_members.sql` — workspace_members + audit_log + waitlist_approvals + idempotent bootstrap/accept RPCs
-- `0011_invite_team_scoping.sql` — invite team_id/team_role + unique pending invite index
-- `0012_ownership_transfer.sql` — transfer_workspace_ownership RPC
-- `0013_profiles_left_at.sql` — profiles.left_at + orphaned workspace admin view
+- `0011_populate_workspace_members.sql` — workspace_members + audit_log + waitlist_approvals + idempotent bootstrap/accept RPCs
+- `0012_invite_team_scoping.sql` — invite team_id/team_role + unique pending invite index
+- `0013_ownership_transfer.sql` — transfer_workspace_ownership RPC
+- `0014_profiles_left_at.sql` — profiles.left_at + orphaned workspace admin view
 
 See `docs/user-flows-spec.md` §14 for the full test matrix
 (~20 pg-tap test cases across these migrations).
@@ -45,8 +45,8 @@ the connection-URL contract.
 `test_<target>.sql` where `<target>` describes what's under test:
 
 - `test_smoke.sql` — sanity check that the harness itself works
-- `test_migration_0010.sql` — assertions for migration 0010 schema + RPCs
-- `test_migration_0011.sql` — etc.
+- `test_migration_0011.sql` — assertions for migration 0011 schema + RPCs
+- `test_migration_0012.sql` — etc.
 - `test_transfer_ownership.sql` — RPC-specific test outside a migration
 - `test_orphan_view.sql` — view-specific test
 

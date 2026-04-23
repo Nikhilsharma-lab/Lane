@@ -65,6 +65,26 @@ DELETE FROM profiles
 
 DELETE FROM organizations WHERE id = '00000000-0000-0000-0000-000000000001';
 
+-- ── auth.users rows required by 0011's FK ──────────────────────────
+-- profiles.id → auth.users(id) CASCADE FK landed in migration 0011.
+-- The 4 fixture profiles need matching auth.users rows to satisfy
+-- the FK at INSERT time. Minimal required columns: id + email; other
+-- columns have defaults (is_sso_user=false, is_anonymous=false).
+--
+-- ON CONFLICT (id) DO NOTHING handles normal re-runs (the DELETE
+-- block above doesn't remove auth.users rows — platform data). The
+-- target column is intentional: if a row exists with matching email
+-- but different id (e.g., manual Supabase dashboard intervention),
+-- we want the INSERT to error, not silently skip. Seed drift should
+-- surface, not be papered over.
+
+INSERT INTO auth.users (id, email) VALUES
+  ('00000000-0000-0000-0000-000000000002', 'owner@e2e.lane.test'),
+  ('00000000-0000-0000-0000-000000000003', 'admin@e2e.lane.test'),
+  ('00000000-0000-0000-0000-000000000004', 'member1@e2e.lane.test'),
+  ('00000000-0000-0000-0000-000000000005', 'member2@e2e.lane.test')
+ON CONFLICT (id) DO NOTHING;
+
 -- ── Insert fixture (FK-respecting order) ───────────────────────────
 
 -- Workspace. owner_id mirrors the owner's profile id so that joins

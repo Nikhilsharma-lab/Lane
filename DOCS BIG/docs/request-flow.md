@@ -1,7 +1,12 @@
 # Request Flow — Full Lifecycle Flowchart
 
-> Last updated: April 11, 2026
 > Legend: [BUILT] = working end-to-end | [PARTIAL] = UI or API exists but incomplete | [MISSING] = not implemented
+>
+> Last substantive sync: 2026-04-22. This pass updated flagship feature markers
+> (Phase 1 intake gate, Phase 2 design stages, handoff, core AI capabilities)
+> and Top 5 Critical Gaps; minor sub-flow markers may still reflect earlier
+> snapshots. See `CHANGELOG.md` for the full April 14-22 shipped-work trail.
+> Originally dated April 11, 2026.
 
 ---
 
@@ -38,9 +43,9 @@
     |  | - Complexity (S/M/L/XL)  | |
     |  |                          | |
     |  | Solution-specific block: | |
-    |  | -------> [MISSING]       | |
-    |  | (AI classifies but does  | |
-    |  |  NOT block bad requests) | |
+    |  | -------> [BUILT]         | |
+    |  | (AI classifies + blocks  | |
+    |  |  per Item 4 — Apr 2026)  | |
     |  +-----------+--------------+ |
     |              |                |
     |              v                |
@@ -110,10 +115,10 @@
     |  | "Understand before       | |
     |  |  proposing"              | |
     |  |                          | |
-    |  | Stage marker only:       | |
-    |  | -------> [PARTIAL]       | |
-    |  | (no Sensing Summary UI,  | |
-    |  |  no AI research sidebar) | |
+    |  | Sensing Summary +        | |
+    |  | AI research sidebar:     | |
+    |  | -------> [BUILT]         | |
+    |  | (Item 14 part 1)         | |
     |  +-----------+--------------+ |
     |              |                |
     |              v                |
@@ -122,9 +127,9 @@
     |  | "Define the real problem" | |
     |  |                          | |
     |  | Design Frame form:       | |
-    |  | -------> [MISSING]       | |
-    |  | (no problem articulation | |
-    |  |  or PM brief comparison) | |
+    |  | -------> [BUILT]         | |
+    |  | (4 structured fields +   | |
+    |  |  PM-brief — Item 14 p1)  | |
     |  +-----------+--------------+ |
     |              |                |
     |              v                |
@@ -137,7 +142,8 @@
     |  | figma link, comments     | |
     |  |                          | |
     |  | AI iteration summary:    | |
-    |  | -------> [MISSING]       | |
+    |  | -------> [BUILT]         | |
+    |  | (Item 14 part 2)         | |
     |  +-----------+--------------+ |
     |              |                |
     |              v                |
@@ -148,13 +154,14 @@
     |  | Iteration cards: [BUILT] | |
     |  |                          | |
     |  | Decision log:            | |
-    |  | -------> [MISSING]       | |
+    |  | -------> [BUILT]         | |
     |  |                          | |
     |  | AI edge case generator:  | |
-    |  | -------> [MISSING]       | |
+    |  | -------> [BUILT]         | |
     |  |                          | |
     |  | Completeness scoring:    | |
-    |  | -------> [MISSING]       | |
+    |  | -------> [BUILT]         | |
+    |  | (all — Item 14 part 2)   | |
     |  +-----------+--------------+ |
     |              |                |
     |     Requires Figma URL        |
@@ -183,7 +190,7 @@
     +===============+===============+
                     |
           Figma LOCKED [BUILT]
-          Handoff doc generated [PARTIAL]
+          Handoff doc generated [BUILT]
           Email to devs [BUILT]
           In-app notif [MISSING]
                     |
@@ -292,20 +299,20 @@
 +-------------------------------------------------------------------+
 |                     AI CAPABILITIES                                |
 +-------------------------------------------------------------------+
-| Intake classification:        [BUILT] (classifies, doesn't block) |
+| Intake classification:        [BUILT] (classifies + blocks — Item 4) |
 | Auto-triage (P/C/Type):      [BUILT]                              |
-| Duplicate detection:          [BUILT] (semantic search)            |
+| Duplicate detection:          [BUILT] (LLM-based; pgvector planned) |
 | Request quality scoring:      [BUILT]                              |
 | Context brief generation:     [BUILT] (design phase only)         |
 | Handoff brief generation:     [BUILT]                              |
 | Idea validation scoring:      [BUILT]                              |
 | Impact retrospective:         [BUILT] (API exists)                 |
 | Smart assignment:             [MISSING]                            |
-| Private designer nudges:      [MISSING] (nudge API exists but     |
-|                                not triggered automatically)        |
-| Weekly digest:                [MISSING] (no cron)                  |
-| Morning briefing:             [MISSING]                            |
-| Edge case generator:          [MISSING]                            |
+| Private designer nudges:      [PARTIAL] (stall_nudge auto-triggered;|
+|                                stall_escalation removed — Item 15d) |
+| Weekly digest:                [BUILT] (Item 15c — cron + email)    |
+| Morning briefing:             [BUILT] (Item 15e — 6 fixes)         |
+| Edge case generator:          [BUILT] (Item 14 part 2)             |
 +-------------------------------------------------------------------+
 
 +-------------------------------------------------------------------+
@@ -341,9 +348,9 @@
 | # | Gap | Impact | Fix Effort |
 |---|-----|--------|------------|
 | 1 | **Notifications never auto-created** | Inbox is always empty. All the triage inbox work is useless without this. | Medium — add `insertNotification()` calls at each event trigger point (assign, comment, signoff, stage change, etc.) |
-| 2 | **Intake gate doesn't block** | Solution-specific requests pass through freely, defeating the core product thesis. | Small — wire AI classification result to a blocking UI step |
+| 2 | **[RESOLVED 2026-04-17 via Item 4]** ~~Intake gate doesn't block~~ — server-side gate enforcement blocks `solution_specific` without justification | — | Done |
 | 3 | **Idea approval doesn't create request** | Approved ideas sit in limbo — no auto-conversion to request. | Small — add request creation in idea approval handler |
-| 4 | **No Shape/Frame/Sense artifacts** | Design stages are just markers with advance buttons — no actual design work is captured per stage. | Medium — add structured forms for each stage |
+| 4 | **[PARTIAL 2026-04-18]** **No Shape/Frame/Sense artifacts** — Item 14 shipped Sense + Frame + Diverge + Converge panels; Shape stage still lacks structured artifacts | Design stages are just markers with advance buttons — no actual design work is captured per stage. | Sense/Frame/Diverge/Converge: Done. Shape: Medium |
 | 5 | **No Bet ceremony** | Bet stage has no appetite capture, no kill/defer decision recording, no cycle assignment. | Small-Medium |
 
 ---

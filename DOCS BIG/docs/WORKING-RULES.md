@@ -14,6 +14,90 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
 - Before writing any fix, grep for the full scope of what needs changing. The first grep always misses something.
 - Run `npx tsc --noEmit` after every code change. TypeScript catches what grep misses.
 - After every rename or refactor, run a verification grep to confirm zero stale references remain.
+- **Success signals are not proof of effect.** A command exiting 0, a
+  spinner showing "complete", a flag labeled "minor" — none of these
+  prove the work achieved its goal. Verify the end state independently,
+  not the return code. Examples:
+  - Commands succeeding without doing what was intended — always verify
+    the outcome against what you actually wanted, not against the tool's
+    own success message.
+  - `drizzle-kit migrate` exits 0 and prints "migrations applied
+    successfully!" even when zero migrations were applied (silent skip
+    via journal `when` timestamp comparison). Post-apply DB state
+    verification is required, not optional.
+  - "Minor, not blocking" flags dismissed without verification have
+    caused real bugs (April 22 timestamp-inversion finding). Verify
+    first; downgrade to "not blocking" only after verification.
+  - Count-based verification can false-positive when a column name
+    appears on multiple tables or pre-exists on the target. Use
+    `(table_name, column_name)` pair matching, not `IN (list)` counts.
+
+### Blocker-gated cleanup before spine work
+
+Before starting any spine item (a checklist entry on the active
+roadmap), walk the full parking lot and classify each entry as
+blocker / partial-blocker / non-blocker against that specific
+spine item. A blocker is something that, left unfixed, will cause
+the spine item to fail, produce wrong results, or be un-verifiable.
+A partial-blocker is a multi-faceted item where some facets block
+the spine item and others don't.
+
+Rules:
+- Fix all full blockers completely before starting the spine item.
+- Fix partial blockers completely too — not just the slice that
+  unblocks the current item. Partial fixes create re-discovery
+  overhead for every future spine item that hits the same parking
+  lot entry.
+- Non-blockers stay parked until they become blockers for a later
+  item.
+- Classification is investigation, not pattern-matching. Don't
+  dismiss items as non-blocking based on surface read ("drift is
+  bad → fix now"); verify the specific block condition ("does
+  Date.now() today exceed prev_max? — yes → no block").
+- Docs updates for each cleared or newly discovered parking-lot
+  entry land within the same session, bundled per the docs-update
+  granularity rule under ## Commit discipline.
+
+Rule established 2026-04-22 after the B1 session's 74-item parking
+lot made ad-hoc triage infeasible. Review cadence: re-read at end
+of week 4 and adjust if parking lot items are being discovered
+faster than they resolve (indicator of under-classification).
+
+### Column-name verification before raw SQL composition
+
+Raw SQL (migrations, RPCs, pg-tap tests, ad-hoc probes) must
+reference tables and columns by their SQL identifiers, not by
+Drizzle field/var names. The two often match (e.g., `profiles.id`),
+but diverge in three known instances where Lane uses a
+different Drizzle alias than the SQL table/column name:
+
+- workspaces (Drizzle) = organizations (SQL table)
+- teams (Drizzle) = projects (SQL table)
+- teamMemberships (Drizzle) = project_members (SQL table)
+- Columns: project_members.teamId (Drizzle) = project_id (SQL)
+
+Before composing raw SQL that references any table listed above
+(or any table where the author is unsure), query information_schema
+for the authoritative identifier reference:
+
+  SELECT table_name, column_name, data_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name IN (...);
+
+Compose SQL against the probe output, not against the Drizzle
+schema file. Information_schema reflects the live database state;
+Drizzle schema files reflect author intent, which can drift from
+the live state between edit-and-generate or between regenerate
+cycles.
+
+Observed in: B2 PART 3 (author wrote `project_members (team_id, ...)`
+based on the Drizzle field; caught pre-append by manual re-check;
+would have failed at test time with "column team_id does not
+exist"). Subsequently adopted pre-emptively in B2 PART 5 as
+step 5a; caught nothing because the discipline prevented the class.
+
+Rule established 2026-04-23 after two B2 encounters with the same
+class of bug.
 
 ## Commit discipline
 - Claude Code does NOT commit. Every commit is manual after human review.
@@ -21,6 +105,43 @@ These rules were developed across the April 14-16, 2026 sessions. They exist bec
 - One logical change per commit. Don't bundle unrelated fixes.
 - Commit messages describe what changed AND why (reference the roadmap item or bug).
 - Don't push until the end of the session or until a logical block of work is complete.
+- **Fetch before committing mid-session if a collaborator might have
+  pushed.** Observed recurrences April 19 (rebase pipeline) and
+  April 21 (bootstrap integration). `git fetch origin` is cheap;
+  discovering the collision after staging is not. If the local and
+  remote branches have diverged, stop and handle as an integration
+  scenario — do not rebase or merge without explicit direction.
+
+### Docs-update granularity
+
+Every code change that touches parking-lot state (resolves entry,
+adds entry, discovers bug/pattern worth logging) triggers doc
+updates within the same session. Granularity: option (b) from the
+2026-04-22 decision — code commits land individually, related doc
+updates bundle into a session-end docs commit covering all doc
+impact from the session.
+
+At session-end, check each of these for applicability and update
+any that are affected by the session's changes:
+- ROADMAP.md parking lot: strike through resolved entries (with
+  resolution commit SHA + one-line explanation), add new entries,
+  update active-items count.
+- ROADMAP.md checklist: flip [ ] → [x] for completed spine items
+  (with actual hours + commit SHA chain).
+- Next session pointer (if spine progress changes what's next).
+- CLAUDE.md: update Parts 6 (data model), 15 (commands), 16 (what's
+  built), 18 (what's not being built) when the code change affects
+  any of these.
+- WORKING-RULES.md: add any new discipline rule discovered.
+- Relevant spec files: patch specs in the same session as code
+  that reveals spec bugs or shifts spec scope. Do not commit code
+  without the spec patch, or the next reader inherits the bug.
+- CHANGELOG.md: add entry if the change is user-visible.
+
+Applicability is not optional — each item requires a deliberate
+check, not "I'll remember if it applied." The session-end docs
+commit is never deferred to "a future cleanup session." Deferring
+is how stored-claims drift enters the record.
 
 ## Stop-point discipline
 - Claude Code prompts include explicit STOP points between steps.
@@ -86,6 +207,36 @@ Current workaround (April 19, 2026): both `DATABASE_URL` and `DIRECT_DATABASE_UR
 
 **First-time lane dev setup:** see `docs/lane-dev-bootstrap.md` for the canonical ordering (Drizzle-managed schema first, dev-only migrations on top) to populate an empty lane dev project. Applies after creating a fresh Supabase project or a schema reset.
 
+**Before destructive platform operations:** enumerate Supabase
+platform infrastructure before dropping, truncating, or resetting
+anything. Supabase projects carry auth schema, realtime subscriptions,
+storage buckets, cron jobs, and edge functions that are not visible
+in `public` schema inspection. A reset that looks clean in Drizzle-
+world can silently break platform-level integrations. Dashboard
+review (Auth → Providers, Realtime → Inspector, Storage → Buckets,
+Database → Extensions, Database → Cron) before irreversible ops.
+
+## Migration discipline
+
+- **"Migrations as canonical" is aspirational from April 22, 2026
+  forward.** Prior migrations (pre-0010) were generated against
+  partially-drifted schema snapshots; `drizzle-kit generate` diffs
+  against the last Drizzle snapshot, not the live DB. Going forward:
+  schema files describe intent, migrations describe what shipped,
+  database state is authoritative. Discrepancies are resolved by
+  writing a catch-up migration, not by editing either source.
+- **After `drizzle-kit generate`, verify the new journal entry's
+  `when` value exceeds `MAX(when)` across all existing entries.**
+  `drizzle-orm`'s migrator skips entries whose `when` is not
+  strictly greater than `MAX(created_at)` in
+  `drizzle.__drizzle_migrations`. Manually-rounded `when` values
+  from past PR integrations can push the max past `Date.now()`,
+  causing silent skip. If the new entry's `when` is not greater,
+  bump it to current epoch millis before committing.
+- For the general principle behind post-apply verification, see
+  "Success signals are not proof of effect" under **Verify before
+  acting** above.
+
 ## Claude.ai ↔ Claude Code loop
 
 Lane development uses two Claude surfaces in a disciplined loop:
@@ -132,6 +283,19 @@ Any document referenced as source of truth gets updated when reality changes. No
 - `docs/WORKING-RULES.md` — updated when a new working rule is discovered mid-build. Small follow-up commits, one rule per commit, kept short.
 
 - `CLAUDE.md` — updated rarely. Architecture-level changes only.
+
+- **Stored claims drift even when nothing changes.** A claim written
+  on day N is only known-true as of day N; by day N+30 it may be
+  stale even if the doc file wasn't touched. Three manifestations:
+  - Specs describe intent; reality may have diverged. Event-driven
+    updates (on known changes) catch most drift but miss silent
+    drift. A quarterly re-verification pass is the backstop.
+  - Parking lot items saying "doesn't block X" were true when written;
+    before each new work phase that would be blocked, re-verify those
+    items don't in fact block.
+  - "Last known good" counts and snapshots (table counts, migration
+    journal state, RLS policy counts) age out — re-snapshot at the
+    start of work that depends on them.
 
 The test of whether this rule is real: does a doc stay true after a session ends? If yes, the rule worked. If no, either the doc got updated and we drifted anyway (rare), or the doc didn't get updated and became fiction (common failure mode). Specs that don't match code are worse than no specs — they mislead future sessions into building on a false picture.
 
