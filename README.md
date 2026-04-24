@@ -1,307 +1,309 @@
-<p align="center">
-  <img src="assets/lane-logo.png" alt="Lane Logo" width="80" height="80" />
-</p>
+<div align="center">
 
-<h1 align="center">Lane</h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/lane-logo-dark.svg">
+  <img alt="Lane" src="assets/lane-logo.svg" width="220">
+</picture>
 
-<p align="center">
-  <strong>Own your lane.</strong>
-  <br /><br />
-  Engineering teams have Linear.<br />
-  Marketing teams have HubSpot.<br />
-  Product teams have Jira.<br />
-  Design teams have been borrowing tools ever since.
-  <br /><br />
-  Not because the tools are bad. Because design work is different.<br />
-  Design is iterative, non-linear, and deeply human. It doesn't move in sprints. It doesn't close tickets. It explores, backtracks, versions, and validates — and then it ships something that either moves a metric or it doesn't.
-  <br /><br />
-  No existing tool was built for that reality. <strong>Lane is.</strong>
-  <br /><br />
-  An AI-native operating system built specifically for design teams — from the moment a PM has an idea to the moment you measure whether it actually worked. The AI handles the coordination. You handle the design.
-</p>
+**The operating system for design teams.**
 
-<p align="center">
-  <a href="#-the-problem"><strong>The Problem</strong></a> ·
-  <a href="#-how-lane-works"><strong>How It Works</strong></a> ·
-  <a href="#-features"><strong>Features</strong></a> ·
-  <a href="#-quickstart"><strong>Quickstart</strong></a> ·
-  <a href="#%EF%B8%8F-architecture"><strong>Architecture</strong></a>
-</p>
+AI-native design ops — intake, exploration, sign-off, and impact tracking, built specifically for how design actually works.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/status-beta-6366f1" alt="Status: Beta" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
-  <img src="https://img.shields.io/badge/built%20with-Next.js%20%2B%20Supabase-000" alt="Built with Next.js + Supabase" />
-  <img src="https://img.shields.io/badge/AI-Claude%20API-D97706" alt="AI: Claude API" />
-</p>
+[**Live app**](https://app.uselane.app) · [**Marketing**](https://uselane.app) · [**Philosophy**](#philosophy-support-not-surveillance) · [**Roadmap**](#roadmap) · [**Quickstart**](#quickstart)
+
+![Status: Private beta](https://img.shields.io/badge/status-private%20beta-6366f1)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Stack: Next.js 15 + Supabase](https://img.shields.io/badge/stack-Next.js%2015%20%2B%20Supabase-000)
+![AI: Claude](https://img.shields.io/badge/AI-Claude-D97706)
+
+</div>
 
 ---
 
-## The Problem
+## Why Lane exists
 
-Design teams at growing companies are drowning in operational chaos:
+Engineering has Linear. Marketing has HubSpot. Product has Jira. **Design has been borrowing tools ever since** — not because the tools are bad, but because design doesn't move the way engineering does.
 
-- Requests arrive from 5+ channels — Slack DMs, emails, hallway conversations, "quick favors"
-- ~45% of design team time goes to coordination, not design work
-- Existing tools (Jira, Linear, Notion) are built for engineering. None understand design workflows — intake gates, exploration phases, stakeholder review loops, or design-specific handoff
-- Design leaders have no visibility into what's actually happening — only what people remember to update
+Design is iterative, non-linear, and deeply human. It explores, backtracks, versions, and validates. It doesn't close tickets and it doesn't run in sprints.
 
-Lane fixes this. It's not project management with AI sprinkled on. It's a structured operating model for design teams, with AI running the operations layer so humans can focus on the work.
+The existing stack forces designers to pretend otherwise. So:
 
----
+- **~45% of design team time** goes to coordination, not design
+- Requests arrive from 5+ channels with no structure
+- Leaders see what people remember to update — not what's happening
+- AI has mostly been sprinkled on top of the wrong workflow
 
-## How Lane Works
+Lane is not project management with AI. It's a **structured operating model for design teams**, with AI running the operations layer so humans can focus on the work.
 
-Lane organizes every design request through four phases:
+## How Lane works
 
-```
-PREDESIGN → DESIGN → BUILD → TRACK
-```
-
-### Phase 1 — Predesign (PM + Org)
-PMs submit requests through a single intake form. Lane's AI gate **blocks solution-specific requests** — requests must be problem-framed before entering the pipeline. From there, requests move through Context → Shape → Bet before a Design Head approves them for design work.
+Every design request moves through four phases:
 
 ```
-INTAKE GATE → CONTEXT → SHAPE → BET
+PREDESIGN  →  DESIGN  →  BUILD  →  TRACK
 ```
 
-### Phase 2 — Design (Designers)
-Designers explore the problem through five non-linear stages. No due dates. No utilization tracking. Progress is captured through reflections, not forced status updates.
+### Phase 1 — Predesign (PM + org)
+
+PMs submit through a single intake form. **Lane's AI gate blocks solution-specific requests** — requests must be problem-framed before entering the pipeline. From there work moves through:
 
 ```
-SENSE → FRAME → DIVERGE → CONVERGE → PROVE
+INTAKE GATE  →  CONTEXT  →  SHAPE  →  BET
 ```
 
-A 3-sign-off validation gate (designer + PM + design head) is required before any work moves to dev.
+A Design Head approves each bet before it enters the design phase.
 
-### Phase 3 — Build (Developers)
-When design is approved, the Figma file is locked and a dev kanban opens. Post-handoff Figma changes trigger alerts automatically. Dev cannot ship without designer sign-off on a Design QA step.
+### Phase 2 — Design (designers)
+
+Designers explore through five non-linear stages. No due dates, no utilization tracking. Progress surfaces through designer reflection, not forced status updates.
+
+```
+SENSE  →  FRAME  →  DIVERGE  →  CONVERGE  →  PROVE
+```
+
+**3-sign-off gate** — designer, PM, and design head must all approve before work reaches dev. Figma version locks at approval.
+
+### Phase 3 — Build (developers)
+
+Dev kanban opens. Post-handoff Figma edits trigger alerts automatically. Dev cannot ship without a Design QA sign-off from the original designer.
 
 ### Phase 4 — Track (PMs)
-PMs log actual impact after shipping. Lane compares predicted vs. actual outcomes and builds a PM calibration score over time — framed as calibration, not performance management.
 
----
+PMs log actual impact after shipping. Lane compares predicted vs. actual and builds a PM **calibration score** over time — framed as learning, not performance.
 
-## Our Philosophy: Support, Not Surveillance
+## Philosophy: Support, not surveillance
 
-Most DesignOps tools are surveillance tools in disguise. Lane is built on the opposite principle.
+Most DesignOps tools are surveillance tools in disguise. Lane is the opposite.
 
-**We will never build:**
+**Lane will never build:**
+
 - Individual utilization percentages
 - "Last active" timestamps
 - Per-designer speed comparisons or velocity rankings
-- Automatic escalation of designer silence to leads
-- Leaderboards ranking individual designers
+- Automatic escalation of designer silence to managers
+- Designer leaderboards
 
-**We always build:**
+**Lane always builds:**
+
 - AI nudges go to the designer privately first — never to their manager
-- Leads see team health signals, not individual surveillance
+- Leads see team-level health signals, not individual activity feeds
 - Designers set their own capacity preferences
-- Every AI recommendation includes its reasoning — no black boxes
+- Every AI recommendation shows its reasoning — no black boxes
 - Every AI suggestion is overridable by humans
 
-*Surveillance produces performance. Support produces truth. Lane optimizes for truth.*
+> *Surveillance produces performance. Support produces truth. Lane optimizes for truth.*
 
----
+## Features
 
-## ✨ Features
+**AI-powered intake gate** — Classifies each request as `problem_framed`, `solution_specific`, or `hybrid`. Solution-specific requests are blocked at submission with a reframe prompt. The single most important feature.
 
-### AI-Powered Intake Gate
-The single most important feature. Requests that describe a solution ("add a button", "make it like Stripe") are blocked at the gate. Lane's AI classifies requests as `problem_framed`, `solution_specific`, or `hybrid` — and prompts PMs to reframe before the work enters the pipeline.
+**5-stage design flow** — Sense / Frame / Diverge / Converge / Prove. Each stage has its own panel with tailored UI: sensing summary textarea, structured design frame, iteration cards with rationale, decision log, completeness meter, and a 3-way Prove gate that auto-advances to dev when all three roles sign off.
 
-### Predesign Workflow
-Structured stages move requests from raw problem → shaped bet → approved for design. Each stage has clear exit criteria enforced by AI gates. Design Heads approve bets before design begins.
+**Smart AI agents**
+- **Auto-triage** sets priority, complexity, and type — all with visible reasoning
+- **Handoff brief** generator synthesizes designer sensing, frame, iterations, decisions, and engineering feasibility into a single artifact
+- **Morning briefing** — daily 30-second role-specific brief, pushed at 8am UTC
+- **Weekly digest** — Friday narrative summary of team health, shipped work, and recommendations
 
-### 3-Sign-Off Validation
-Before any design moves to dev, it needs sign-off from three roles: designer, PM, and design head. Rejections loop back with structured feedback. The Figma version is locked at the moment all three approve.
+**Figma integration** — OAuth with AES-256-GCM token encryption at rest. Post-handoff file changes trigger dev alerts automatically.
 
-### Figma OAuth Integration
-Connect your Figma account directly. Lane reads your files, locks the approved version at handoff, and detects post-handoff changes automatically — alerting dev when the design has changed after they started building.
+**Role-based access**
 
-### Token Encryption at Rest
-Figma OAuth tokens are encrypted using AES-256-GCM before being stored in the database. Your credentials are never stored in plaintext.
-
-### System Comment Timeline
-Every phase transition, sign-off, and stage change is recorded as a system comment on the request — creating a full audit trail of how the work evolved.
-
-### Role-Based Access
-Five roles with strictly enforced visibility rules:
-
-| Role | Key Access |
-|------|-----------|
+| Role | Access |
+|---|---|
 | **Admin** | Full org access, all settings |
 | **Lead (Design Head)** | Team health signals, bet approval, org-level reporting |
-| **Designer** | Own work, reflections, capacity preferences |
+| **Designer** | Own work, reflections, private capacity preferences |
 | **PM** | Their requests, impact logging, calibration score |
-| **Developer** | Dev kanban, design specs, handoff details |
+| **Developer** | Dev kanban, design specs, handoff docs |
 
----
+Strictly enforced — no individual surveillance data is ever visible across role boundaries.
 
-## 🚀 Quickstart
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 15 (App Router) + TypeScript |
+| Database | Supabase (PostgreSQL) |
+| ORM | Drizzle ORM |
+| Auth | Supabase Auth + `@supabase/ssr` |
+| AI | Anthropic Claude via Vercel AI SDK |
+| Styling | Tailwind CSS + shadcn/ui |
+| Rate limiting | Upstash Redis |
+| Email | Resend |
+| Hosting | Vercel (production at [app.uselane.app](https://app.uselane.app)) |
+| Testing | Vitest (unit), Playwright (e2e), pg-tap (SQL) |
+
+## Quickstart
 
 ### Prerequisites
 
-- **Node.js** ≥ 18.x
-- **Supabase** account — [supabase.com](https://supabase.com)
-- **Anthropic API key** — [console.anthropic.com](https://console.anthropic.com)
+- Node.js ≥ 18
+- Supabase account ([supabase.com](https://supabase.com))
+- Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
 
-### 1. Clone the Repository
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/Nikhilsharma-lab/Lane.git
 cd Lane
-```
-
-### 2. Install Dependencies
-
-```bash
 npm install
 ```
 
-### 3. Set Up Environment Variables
+### 2. Environment variables
 
-Create a `.env.local` file in the project root:
+Create `.env.local`:
 
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-DATABASE_URL=your_supabase_database_url
+# Supabase (get from supabase.com → project settings)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+DATABASE_URL=              # Transaction pooler (port 6543)
+DIRECT_DATABASE_URL=       # Session pooler (port 5432) — for withUserSession routes
+SUPABASE_SERVICE_ROLE_KEY=
 
-# Anthropic (AI)
-ANTHROPIC_API_KEY=your_anthropic_api_key
+# AI
+ANTHROPIC_API_KEY=
 
-# Email (Resend) — optional in dev
-RESEND_API_KEY=your_resend_api_key
-EMAIL_FROM=Lane <notifications@yourdomain.com>
+# Rate limiting (Upstash Redis)
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 
-# Figma OAuth — required for Figma integration
-FIGMA_CLIENT_ID=your_figma_client_id
-FIGMA_CLIENT_SECRET=your_figma_client_secret
-FIGMA_TOKEN_ENCRYPTION_KEY=   # 64 hex chars — generate with:
+# Figma OAuth
+FIGMA_CLIENT_ID=
+FIGMA_CLIENT_SECRET=
+FIGMA_TOKEN_ENCRYPTION_KEY=   # 64 hex chars:
                                # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Email
+RESEND_API_KEY=
+EMAIL_FROM=Lane <hello@yourdomain.com>
+
+# Cron
+CRON_SECRET=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Dev only — enables solo multi-role validation sign-off for local testing
-# Never add this to production environment variables
-ENABLE_MULTI_ROLE_TESTING=true
 ```
 
-### 4. Push the Database Schema
+### 3. Database
 
 ```bash
-npm run db:push
+npm run db:push        # install schema
+npm run db:seed        # optional — seed a sample workspace
 ```
 
-### 5. Run the Development Server
+### 4. Run
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Opens at [http://localhost:3000](http://localhost:3000).
 
----
+### Tests
 
-## 🏗️ Architecture
+```bash
+npm test               # unit + integration (Vitest)
+npm run test:sql       # SQL migration tests (pg-tap)
+npm run test:e2e       # end-to-end (Playwright)
+```
 
-### Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | Next.js 14 (App Router) + TypeScript |
-| **Database** | Supabase (PostgreSQL) |
-| **ORM** | Drizzle ORM |
-| **Auth** | Supabase Auth + `@supabase/ssr` |
-| **AI** | Anthropic Claude API via Vercel AI SDK |
-| **Styling** | Tailwind CSS + shadcn/ui |
-| **Hosting** | Vercel |
-| **Email** | Resend |
-| **Figma** | Figma OAuth API |
-
-### Project Structure
+## Project structure
 
 ```
 app/
-  (auth)/                     # Login, signup
-  (dashboard)/
-    dashboard/requests/[id]/  # Request detail — full timeline
-    requests/new/             # Create request (intake gate)
-    idea-board/
-    commitments/
-  actions/                    # Server actions (mutations)
+  (auth)/                      ← login, signup
+  auth/callback/               ← Supabase auth redirect handler
+  (onboarding)/                ← 3-persona onboarding flow
+  (dashboard)/                 ← main app shell
+    dashboard/requests/[id]/   ← request detail + timeline
+    dashboard/teams/[slug]/    ← team-scoped views
+  actions/                     ← server actions (mutations)
   api/
-    requests/[id]/
-      advance-phase/          # Phase transition logic
-      validate/               # 3-sign-off validation
-    figma/oauth/              # Figma OAuth flow
-    ai/                       # AI triage, classify, digest
+    requests/[id]/             ← triage, advance-phase, validate, etc.
+    cron/                      ← scheduled jobs (digest, briefing, alerts)
+    figma/oauth/               ← Figma OAuth flow
 
 components/
-  requests/                   # Request cards, forms
-  shell/                      # Sidebar, layout shell
-  ui/                         # shadcn/ui base components
+  requests/                    ← panels per design stage
+  shell/                       ← sidebar, layout, detail-dock
+  ui/                          ← shadcn/ui primitives
 
 db/
-  schema/                     # Drizzle ORM table definitions
+  schema/                      ← Drizzle table definitions
+  migrations/                  ← drizzle-kit migrations
 
 lib/
-  ai/                         # AI agent logic
-  email/                      # Email templates (Resend)
-  encrypt.ts                  # AES-256-GCM token encryption
-  supabase/                   # Supabase client (server + browser)
+  ai/                          ← agent prompts + clients
+  alerts/                      ← detection (stall nudges, signoff overdue, figma drift)
+  email/                       ← Resend templates
+  encrypt.ts                   ← AES-256-GCM (Figma token encryption)
+  rate-limit.ts                ← Upstash Redis rate limiting
+  supabase/                    ← client (server + browser)
+
+docs/                          ← specs (nav-spec, onboarding-spec, user-flows-spec)
+DOCS BIG/                      ← roadmap, plans, working rules
 ```
 
----
+See [`CLAUDE.md`](./CLAUDE.md) for the full architectural reference — vocabulary lock, build rules, anti-surveillance invariants, role-based visibility table, infra gotchas.
 
-## 🗺️ Roadmap
+## Roadmap
 
-### Foundation ✅
-- [x] 4-phase request model (Predesign → Design → Build → Track)
-- [x] AI intake gate (problem vs. solution classification)
-- [x] Role-based access control (admin, lead, designer, PM, dev)
-- [x] 3-sign-off validation gate
-- [x] Figma OAuth integration with token encryption at rest
-- [x] System comment timeline
-- [x] Email notifications (stage transitions, validation requests, handoff alerts)
-- [x] Org invites with role-based privilege controls
+**Shipped** — foundation is complete. Details in [CHANGELOG.md](./CHANGELOG.md).
 
-### Foundation ✅ (continued)
-- [x] AI auto-triage (priority, complexity, type with reasoning)
-- [x] Idea Board (anyone submits, org votes, top ideas auto-create requests)
-- [x] PM calibration dashboard (predicted vs. actual impact over time)
-- [x] Design Radar (designer status, phase heat map, risk panel, shipped this week)
-- [x] Figma token encryption at rest (AES-256-GCM)
+- 4-phase request model
+- AI intake gate with problem/solution classification
+- Role-based access + anti-surveillance invariants
+- 5-stage design flow (Sense → Frame → Diverge → Converge → Prove)
+- 3-sign-off Prove gate
+- Figma OAuth with AES-256-GCM token encryption
+- Dev kanban + post-handoff change detection
+- Impact tracking + PM calibration
+- Idea board with voting and AI validation
+- System comment timeline (full audit trail)
+- Weekly digest + daily morning briefing
+- Upstash Redis rate limiting on all AI routes
+- pg-tap SQL migration tests
+- Design Radar (team-level health, phase heat map, risk panel)
+- Onboarding flow (3 personas — Design Head / Designer / PM)
 
-### In Progress
-- [ ] Duplicate detection (pgvector semantic search)
-- [ ] Smart assignment recommendations
-- [ ] Request quality scoring
-- [ ] RLS policies (Supabase row-level security, required before first customer)
+**In progress**
 
-### Upcoming
-- [ ] 5-stage design flow UI (Sense → Frame → Diverge → Converge → Prove)
-- [ ] Weekly AI digest (cron pre-generation, stored per org)
-- [ ] Daily morning briefing (role-specific, pushed not pulled)
-- [ ] Upstash Redis rate limiting on AI routes
-- [ ] Stripe billing
+- Production schema drift reconciliation ([#64](https://github.com/Nikhilsharma-lab/Lane/issues/64))
+- Dev / prod Supabase environment split ([#59](https://github.com/Nikhilsharma-lab/Lane/issues/59))
+- Migrating all routes off bare `@/db` to RLS-aware `withUserDb` / `withUserSession` ([#42](https://github.com/Nikhilsharma-lab/Lane/issues/42))
+- Week 7.5 auth/workspace foundation (migrations 0014, 0015)
+- Stripe billing
 
----
+**Deferred**
 
-## 📄 License
+- pgvector duplicate detection (current: LLM-based; sufficient at current scale)
+- Command palette / global search
+- Reflections feature (awaiting beta user signal)
+
+## Contributing
+
+Lane is in private beta, not currently accepting external contributions. If you're interested as the app goes public, watch this repo or reach out.
+
+Contributors touching production or database:
+
+- Read [`CLAUDE.md`](./CLAUDE.md) Part 19 — **INFRA GOTCHAS** — before editing env vars, Supabase settings, or migrations
+- Follow the CHANGELOG workflow (documented in Part 19)
+- Verify via CLI before dictating dashboard paths
+- Never run `vercel env pull` (dumps plaintext secrets)
+- See [`DOCS BIG/docs/WORKING-RULES.md`](DOCS%20BIG/docs/WORKING-RULES.md) for session discipline
+
+## License
 
 [MIT](LICENSE)
 
 ---
 
-## 🔗 Links
+<div align="center">
 
-- **Issues**: [GitHub Issues](../../issues)
+**[uselane.app](https://uselane.app)** · **[app.uselane.app](https://app.uselane.app)**
 
----
+*Design teams deserve better ops.*
 
-<p align="center">
-  <em>Design teams deserve better ops.</em>
-</p>
+</div>
