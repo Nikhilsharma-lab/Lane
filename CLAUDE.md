@@ -818,6 +818,89 @@ Test expectations:
 - When adding a conditional (if/else, switch), test both paths
 - Never commit code that makes existing tests fail
 
+## Part 19: INFRA GOTCHAS (Discovered April 2026)
+
+Things future sessions should know before touching infra. Discovered the hard way.
+
+### Production deployment targets
+
+- **App URL:** `https://app.uselane.app` (Vercel project `lane-app`)
+- **Marketing URL:** `https://uselane.app` (Vercel project `lane-website`)
+- **Production Supabase:** `Lane App` (AWS ap-southeast-2)
+- **Dev Supabase:** `Lane Dev` (AWS ap-southeast-1)
+
+Never confuse these. Every env-var and migration task starts by naming which project you're targeting.
+
+### Vercel env var scope rules
+
+- **Sensitive env vars** (passwords, tokens, secrets — anything with credential content) are **blocked from the Development scope by Vercel**. The UI shows a locked padlock and a tooltip: "Sensitive environment variables cannot be created in the Development environment."
+- For sensitive vars (including `DIRECT_DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `ANTHROPIC_API_KEY`, etc.): **Production + Preview only.**
+- For non-sensitive vars (`NEXT_PUBLIC_*`, `EMAIL_FROM`, etc.): all three scopes are fine.
+- Never tell a user to "check all three" without verifying — doing so on a sensitive var is a visible UI error that damages trust.
+
+### Redeploy behavior — env var changes
+
+When env vars change, a "Redeploy" from Vercel UI requires:
+- **UNCHECK "Use existing Build Cache"** — otherwise new values are not picked up
+- **UNCHECK "Use project's Ignore Build Step"** — the `vercel.json` ignore command filters deploys where only docs changed, and env-var-only changes (no git commit) get cancelled without this uncheck
+
+Multiple production redeploy attempts may show as "Canceled" in the deployment list — that's the ignore step firing, not a failure. Use the Redeploy modal and uncheck both boxes to force through.
+
+### Supabase Auth callback routing
+
+Lane has `app/auth/callback/route.ts` (added April 2026 per PR #65) to handle Supabase auth redirects: password recovery, magic link, email verification. Before that route existed, all those flows silently broke — the tokens landed in URL fragments on `/login`, which has no handler for them.
+
+If you add a new auth flow (email verification, OAuth, etc.), verify `app/auth/callback/route.ts` handles the code exchange correctly. Don't assume Supabase's client-side helpers do the work — the SSR setup requires a dedicated route.
+
+### Supabase Site URL + Redirect URLs
+
+The Site URL and Redirect URLs in **Supabase → Authentication → URL Configuration** must point at production:
+- Site URL: `https://app.uselane.app`
+- Redirect URLs (minimum): `https://app.uselane.app/**`, `https://app.uselane.app/auth/callback`, `http://localhost:3000/**` (keep for local dev)
+
+If Site URL is wrong (e.g., stale `http://localhost:3000` on production), every password recovery / magic link email will link to localhost, breaking silently for every user. Check this before shipping any user-facing auth feature.
+
+### Production DB schema drift (open: issue #64)
+
+As of April 2026, production `drizzle.__drizzle_migrations` is empty. Production has 39 tables but no migration history. Parts of migration 0011 are applied (`workspace_members`) but not others (`audit_log`, `waitlist_approvals`), and 0013 is entirely missing (`invites.team_id` etc.).
+
+**Do not run `drizzle-kit migrate` against production** without first reconciling. It will fail immediately with "relation already exists" on all 39 tables. Read #64 for reconciliation options before any migration-apply work on production.
+
+### profiles.role vs workspace_members.role enum mismatch
+
+Two distinct enums:
+- `profiles.role` → enum `role` with values including `'lead'`
+- `workspace_members.role` → enum `workspace_role` with values `('owner', 'admin', 'member', 'guest')` — NO `'lead'`
+
+When inserting `workspace_members` rows manually (e.g., backfilling a missing row), map `lead → admin`. Cast required: `'admin'::workspace_role`. A straight `p.role::text::workspace_role` cast will fail with "invalid input value for enum workspace_role: lead".
+
+### Before giving dashboard click-paths
+
+Always verify Vercel/Supabase UI behavior with CLI or docs before instructing a user. Guessing produces wrong click counts, wrong checkbox combinations, and wrong button labels. Three errors of this kind in one April 2026 session cost visible trust. CLI-first, UI-second.
+
+### Secret-handling rules
+
+These apply to any automated/AI session touching Lane infrastructure.
+
+**Never run commands that dump plaintext secrets:**
+- `vercel env pull` — downloads all env values as plaintext (USE `vercel env ls` INSTEAD — names only)
+- `cat .env.local` or any `.env*` file
+- `psql` queries reading `auth.users.encrypted_password`, token columns, or `*_key`/`*_secret` columns
+- `supabase secrets list --plain`
+- `printenv` / `env | grep` in shells where production secrets are loaded
+
+If a command *might* expose secrets, STOP and confirm with the user before running.
+
+**Never type a secret back in any message:**
+Even if the secret was seen during the session (by legitimate CLI use or accident), it does not belong in output. Instruction phrasing is always "use your password" — never the literal value. This rule covers messages, tool inputs, commit messages, issue bodies, PR descriptions.
+
+**If a secret is exposed accidentally:**
+1. Tell the user immediately what was exposed and how
+2. Recommend rotation (DB password, API key, JWT, whatever it was)
+3. Do not continue using the exposed secret — have the user rotate first, then resume with the new value
+
+**Why this exists:** On 2026-04-24 I ran `vercel env pull` to check `DIRECT_DATABASE_URL`, which dumped the Supabase DB password and service role key into my session context. I then typed the password back in a later message. No external leak happened, but the exposure-then-re-emit pattern is exactly what credential-rotation discipline is designed to prevent. This rule exists so no future session repeats that flow.
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill
