@@ -878,6 +878,37 @@ When inserting `workspace_members` rows manually (e.g., backfilling a missing ro
 
 Always verify Vercel/Supabase UI behavior with CLI or docs before instructing a user. Guessing produces wrong click counts, wrong checkbox combinations, and wrong button labels. Three errors of this kind in one April 2026 session cost visible trust. CLI-first, UI-second.
 
+### CHANGELOG + ROADMAP update workflow
+
+**When to update:**
+
+| Trigger | Action |
+|---|---|
+| A PR merges to `main` | Add entry under today's date in `CHANGELOG.md`, categorized Added/Fixed/Changed/Security/Docs, with PR number |
+| An issue closes (real-world impact) | Add mention to the day's entry with closing reason |
+| A production incident happened | Document under `### Incidents` — root cause + resolution |
+| A P0 finding is filed (e.g. schema drift) | Note under `### Filed — P0` with issue number + consequences |
+| A roadmap item ships or is deferred | Update `DOCS BIG/docs/ROADMAP.md` — check off or add parking-lot note |
+
+**When NOT to update:**
+
+- Opening a PR that hasn't merged yet
+- Filing a non-P0 issue
+- Internal branch cleanup, worktree housekeeping
+- Memory/agent-only changes (scars, preference files)
+
+**At session end, ALWAYS check:**
+
+```bash
+git log main --since="1 day ago" --format="%h %s"
+gh pr list --repo Nikhilsharma-lab/Lane --state merged --search "merged:>$(date -u +%Y-%m-%d)"
+gh issue list --repo Nikhilsharma-lab/Lane --state closed --search "closed:>$(date -u +%Y-%m-%d)"
+```
+
+If any of these return work not yet in CHANGELOG — update before closing the session. This is a common workflow for Lane and not optional.
+
+**Format note:** CHANGELOG entries are organized by date (one entry per day of meaningful activity), not by PR. Multiple PRs from the same day go under one date heading.
+
 ### Secret-handling rules
 
 These apply to any automated/AI session touching Lane infrastructure.

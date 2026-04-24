@@ -7,6 +7,45 @@ All notable changes are documented here. Update this file with every PR before m
 
 ---
 
+## 2026-04-24 — Production env var recovery + CI pg-tap unblock + 4 PRs merged
+
+### Fixed
+- **Production deploy blocker #37 resolved** — `DIRECT_DATABASE_URL` was never actually set in Vercel Production despite UI claims. Pulled via `vercel env ls`, verified absence, re-added scoped to Production + Preview with Session-mode pooler URL (port 5432). Confirmed working end-to-end via smoke test. (closes #37)
+- **CI pg-tap failing on every PR** — `postgres:16` service container was missing Supabase-provisioned dependencies. PR #63 adds 3 stub steps before `drizzle-kit migrate`: (1) enable `pgcrypto` extension for `gen_random_bytes()` in `waitlist_approvals.approval_token` default; (2) stub `auth` schema + `auth.users` table with Supabase-compatible columns (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at); (3) create Supabase roles (authenticated, anon, service_role) as idempotent NOLOGIN roles. All future pg-tap runs now pass. (PR #63, closes #61)
+- **Supabase Auth Site URL misconfigured on production** — was `http://localhost:3000`, meaning every password recovery / magic link / email verification link would point at localhost for every user. Corrected to `https://app.uselane.app` in Supabase → Authentication → URL Configuration. Redirect URLs list expanded to include production paths.
+
+### Added
+- **PR #65: `/auth/callback` route** — first Supabase auth callback handler in Lane. Previously password recovery, magic link, and email verification links landed on `/login` with no handler, producing `otp_expired` errors or silent bounces. New `app/auth/callback/route.ts` calls `supabase.auth.exchangeCodeForSession()` on the `?code=xxx` query param, sets the session cookie, redirects to `/dashboard` on success or `/login?message=…` on failure. Standard `@supabase/ssr` pattern, 27 lines. (PR #65)
+- **PR #60: my-requests page migrated to `withUserDb`** — first route migrated as template for umbrella issue #42. Uses RLS-aware session pool instead of `systemDb`, keeps query scoped to `designerOwnerId = profile.id AND orgId = profile.orgId`. (PR #60, first step of #42)
+- **PR #66: CLAUDE.md Part 19 — INFRA GOTCHAS** — production URLs, Supabase/Vercel project names, Vercel sensitive env var scope rule (Production + Preview only for secrets), redeploy behavior (uncheck Build Cache + Ignore Build Step for env var changes), auth callback requirements, Supabase URL configuration gotchas, production DB schema drift warning (#64), `profiles.role` vs `workspace_members.role` enum mismatch (`lead` → `admin` cast required), secret-handling rules. (PR #66)
+
+### Security
+- Rotated production Supabase DB password after accidental exposure in session transcript. Updated `DATABASE_URL` + `DIRECT_DATABASE_URL` in Vercel with new password.
+- Disabled `claude-pr-review` workflow — was failing on every PR with invalid API key, requiring admin override for merges. Rather than rotate secret, workflow disabled via GitHub API (PR reviews still covered by Greptile). (closes #38)
+- Captured secret-handling rules in global `~/.claude/CLAUDE.md` SCARS + Lane CLAUDE.md Part 19: never run `vercel env pull` (dumps plaintext), never type credentials back in messages, warn before commands that could expose secrets.
+
+### Incidents
+- **Production went down twice** during #37 remediation: (1) bad `DIRECT_DATABASE_URL` value after initial save, (2) Supabase pooler circuit breaker after ill-advised "pause project" attempt. Both recovered. Root cause of circuit breaker: pausing the project while pooler had cached connections confused state; dashboard → Database → Settings → Restart project path is the correct recovery for pooler issues.
+
+### Filed — P0
+- **#64: Production schema drift** — `drizzle.__drizzle_migrations` is empty on production despite 39 tables existing. `workspace_members` exists but `audit_log`, `waitlist_approvals`, `invites.team_id` do not — partial application of migration 0011. Running `drizzle-kit migrate` against production will fail on "relation already exists" for all 39 tables. Blocks B3 + B4. Needs Nikhil's reconciliation strategy before any future migration work on production.
+
+### Filed
+- **#61: CI pg-tap failing** — resolved by PR #63 (same session).
+- **Comments on #35, #59, #61** with deferred-session runbooks so future sessions pick up cold.
+
+### Docs
+- Memory scars saved for Claude Code sessions: never expose plaintext secrets, verify dashboard paths before dictating, update CHANGELOG + ROADMAP after every merge.
+- Lane CLAUDE.md now has Part 19 INFRA GOTCHAS (via PR #66).
+
+### PRs merged today
+- #63 fix(ci): enable pgcrypto + stub auth schema for pg-tap job
+- #60 refactor(my-requests): migrate to withUserDb
+- #65 feat(auth): add /auth/callback route for Supabase auth redirects
+- #66 docs(claude): Part 19 — infra gotchas + secret handling runbook
+
+---
+
 ## 2026-04-22 — Docs sync sweep + migration 0010 applied
 
 ### Fixed
