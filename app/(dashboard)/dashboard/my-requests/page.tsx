@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
+import { withUserDb } from "@/db/user";
 import { profiles, requests } from "@/db/schema";
 import type { Phase } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -29,33 +29,45 @@ export default async function MyRequestsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Profile (provides org scope)
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.id, user.id));
-  if (!profile) redirect("/login");
-
   // Phase filter from URL
   const resolvedParams = await searchParams;
   const rawPhase =
     typeof resolvedParams.phase === "string" ? resolvedParams.phase : undefined;
   const activePhase = VALID_PHASES.find((p) => p === rawPhase) ?? null;
 
-  // Query: requests where I'm the designer owner, within my org, newest update first
-  const conditions = [
-    eq(requests.designerOwnerId, profile.id),
-    eq(requests.orgId, profile.orgId),
-  ];
-  if (activePhase) {
-    conditions.push(eq(requests.phase, activePhase));
-  }
+  // All DB access runs inside a user-scoped session so RLS policies apply.
+  // App-layer org/owner filters remain as defense-in-depth per rls-audit.md.
+  const { profile, myRequests } = await withUserDb(user.id, async (db) => {
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, user.id));
 
-  const myRequests = await db
-    .select()
-    .from(requests)
-    .where(and(...conditions))
-    .orderBy(desc(requests.updatedAt));
+    if (!profile) {
+      return {
+        profile: null as typeof profiles.$inferSelect | null,
+        myRequests: [] as (typeof requests.$inferSelect)[],
+      };
+    }
+
+    const conditions = [
+      eq(requests.designerOwnerId, profile.id),
+      eq(requests.orgId, profile.orgId),
+    ];
+    if (activePhase) {
+      conditions.push(eq(requests.phase, activePhase));
+    }
+
+    const myRequests = await db
+      .select()
+      .from(requests)
+      .where(and(...conditions))
+      .orderBy(desc(requests.updatedAt));
+
+    return { profile, myRequests };
+  });
+
+  if (!profile) redirect("/login");
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
