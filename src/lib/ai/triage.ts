@@ -1,6 +1,10 @@
 import { generateText, Output } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+
+const anthropic = createAnthropic({
+  baseURL: "https://api.anthropic.com/v1",
+});
 
 /**
  * MVP triage schema — trimmed from the archive version per SALVAGE.md.
