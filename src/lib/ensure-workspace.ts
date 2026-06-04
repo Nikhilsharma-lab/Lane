@@ -1,11 +1,11 @@
-"use server";
-
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * Ensures the signed-in user has a profile + workspace.
  * If not, calls the bootstrap_organization_membership RPC to create defaults.
- * Returns the user's org_id, or null if not authenticated.
+ *
+ * NOT a server action — plain server-side utility. Called once from pages,
+ * result passed to actions that need orgId/userId.
  */
 export async function ensureWorkspace(): Promise<{
   userId: string;

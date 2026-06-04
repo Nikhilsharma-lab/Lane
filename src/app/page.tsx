@@ -18,7 +18,18 @@ export default async function Home() {
   }
 
   // Ensure the user has a profile + workspace (creates defaults on first visit)
-  await ensureWorkspace();
+  const workspace = await ensureWorkspace();
+
+  if (!workspace) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-destructive">
+          Something went wrong setting up your workspace. Please try logging out
+          and back in.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">

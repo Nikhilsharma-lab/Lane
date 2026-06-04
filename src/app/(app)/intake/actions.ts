@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { triageRequest, type TriageResult } from "@/lib/ai/triage";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { ensureWorkspace } from "@/lib/ensure-workspace";
+import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { db, requests } from "@/db";
 
 const requestSchema = z.object({
@@ -13,7 +12,7 @@ const requestSchema = z.object({
 });
 
 export type TriageResponse =
-  | { success: true; triage: TriageResult }
+  | { success: true; triage: TriageResult; token: string }
   | { success: false; error: string };
 
 export type SaveResponse =
@@ -22,23 +21,19 @@ export type SaveResponse =
 
 /**
  * Step 1: Run AI triage on the request — classify and possibly reframe.
- * Does NOT save to the database. The user must confirm first.
+ * Returns a signed token containing the trusted classification. The client
+ * displays the triage result but cannot forge the classification on save.
  */
-export async function runTriage(formData: {
-  title: string;
-  description: string;
-}): Promise<TriageResponse> {
+export async function runTriage(
+  formData: { title: string; description: string },
+  context: { userId: string; orgId: string }
+): Promise<TriageResponse> {
   const parsed = requestSchema.safeParse(formData);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const workspace = await ensureWorkspace();
-  if (!workspace) {
-    return { success: false, error: "You must be signed in." };
-  }
-
-  const rateCheck = checkAiRateLimit(workspace.userId);
+  const rateCheck = checkAiRateLimit(context.userId);
   if (!rateCheck.allowed) {
     const seconds = Math.ceil(rateCheck.retryAfterMs / 1000);
     return {
@@ -52,8 +47,19 @@ export async function runTriage(formData: {
       title: parsed.data.title,
       description: parsed.data.description,
     });
-    return { success: true, triage };
+
+    // Sign the trusted triage result into a token
+    const token = createTriageToken(
+      parsed.data.title,
+      parsed.data.description,
+      triage
+    );
+
+    return { success: true, triage, token };
   } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { success: false, error: "AI analysis took too long. Please try again." };
+    }
     console.error("[intake] triage failed:", err);
     return { success: false, error: "AI analysis failed. Please try again." };
   }
@@ -61,33 +67,37 @@ export async function runTriage(formData: {
 
 /**
  * Step 2: Save the confirmed request to the database.
- * Called after the user accepts the AI classification/reframing.
+ * Accepts ONLY the signed token + the user's edited problem text.
+ * Classification and extractedSolution come from the verified token,
+ * NEVER from the client.
  */
-export async function saveRequest(data: {
-  title: string;
-  description: string;
-  classification: "problem" | "solution" | "hybrid";
-  reframedProblem: string | null;
-  extractedSolution: string | null;
-}): Promise<SaveResponse> {
-  const workspace = await ensureWorkspace();
-  if (!workspace) {
-    return { success: false, error: "You must be signed in." };
+export async function saveRequest(
+  data: { token: string; editedProblemText: string | null },
+  context: { userId: string; orgId: string }
+): Promise<SaveResponse> {
+  // Verify the signed token — this is the gate enforcement
+  const payload = verifyTriageToken(data.token);
+  if (!payload) {
+    return { success: false, error: "Invalid or expired triage token. Please resubmit." };
   }
+
+  // Classification and extractedSolution come from the VERIFIED token
+  const reframedProblem =
+    payload.classification !== "problem" ? (data.editedProblemText || null) : null;
 
   try {
     const [created] = await db
       .insert(requests)
       .values({
-        orgId: workspace.orgId,
-        title: data.title,
-        description: data.description,
-        classification: data.classification,
-        reframedProblem: data.reframedProblem,
-        extractedSolution: data.extractedSolution,
+        orgId: context.orgId,
+        title: payload.title,
+        description: payload.description,
+        classification: payload.classification,
+        reframedProblem,
+        extractedSolution: payload.extractedSolution,
         status: "open",
         assignedTo: null,
-        createdBy: workspace.userId,
+        createdBy: context.userId,
       })
       .returning({ id: requests.id });
 
