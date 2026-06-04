@@ -1,19 +1,18 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { db, requests, profiles } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, requests, profiles, comments } from "@/db";
+import { eq, asc } from "drizzle-orm";
 import { ensureWorkspace } from "@/lib/ensure-workspace";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { LifecycleButtons } from "./lifecycle-buttons";
+import { CommentForm } from "./comment-form";
 
 function statusLabel(status: string) {
   switch (status) {
@@ -167,7 +166,52 @@ export default async function RequestDetailPage({
           <p>Submitted by {creator?.fullName ?? "Unknown"} · {new Date(req.createdAt).toLocaleDateString()}</p>
           {assigneeName && <p>Assigned to {assigneeName}</p>}
         </div>
+
+        {/* Comments */}
+        <Separator className="my-8" />
+        <CommentsSection requestId={req.id} />
       </main>
+    </div>
+  );
+}
+
+async function CommentsSection({ requestId }: { requestId: string }) {
+  const allComments = await db
+    .select({
+      id: comments.id,
+      body: comments.body,
+      createdAt: comments.createdAt,
+      authorName: profiles.fullName,
+    })
+    .from(comments)
+    .leftJoin(profiles, eq(comments.authorId, profiles.id))
+    .where(eq(comments.requestId, requestId))
+    .orderBy(asc(comments.createdAt));
+
+  return (
+    <div>
+      <h3 className="mb-4 text-sm font-medium">
+        Comments ({allComments.length})
+      </h3>
+
+      {allComments.length > 0 && (
+        <div className="mb-6 space-y-4">
+          {allComments.map((c) => (
+            <div key={c.id} className="rounded-lg border p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {c.authorName ?? "Unknown"}
+                </span>
+                <span>·</span>
+                <span>{new Date(c.createdAt).toLocaleString()}</span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <CommentForm requestId={requestId} />
     </div>
   );
 }
