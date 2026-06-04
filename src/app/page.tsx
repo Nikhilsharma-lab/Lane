@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { ensureWorkspace } from "@/lib/ensure-workspace";
 import { logout } from "./(auth)/actions";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +17,9 @@ export default async function Home() {
     redirect("/login");
   }
 
+  // Ensure the user has a profile + workspace (creates defaults on first visit)
+  await ensureWorkspace();
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
@@ -29,9 +34,14 @@ export default async function Home() {
         </div>
       </header>
       <main className="flex flex-1 items-center justify-center">
-        <p className="text-muted-foreground">
-          You&apos;re signed in. Nothing here yet.
-        </p>
+        <div className="text-center">
+          <p className="mb-4 text-muted-foreground">
+            You&apos;re signed in. Submit a design request to get started.
+          </p>
+          <Link href="/intake">
+            <Button>New request</Button>
+          </Link>
+        </div>
       </main>
     </div>
   );
