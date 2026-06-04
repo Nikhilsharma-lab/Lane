@@ -9,6 +9,8 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Defense-in-depth: proxy already redirects, but getUser() is the secure
+  // server-side check recommended by Supabase (proxy tokens can be stale).
   if (!user) {
     redirect("/login");
   }
