@@ -2,6 +2,9 @@ import { generateText, Output } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 
+// Explicit baseURL because Claude Desktop sets ANTHROPIC_BASE_URL to
+// https://api.anthropic.com (missing /v1). The override in next.config.ts
+// handles the empty ANTHROPIC_API_KEY system var.
 const anthropic = createAnthropic({
   baseURL: "https://api.anthropic.com/v1",
 });
