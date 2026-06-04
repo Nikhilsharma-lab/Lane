@@ -8,9 +8,11 @@ import { pickUpRequest, markDone } from "./actions";
 export function LifecycleButtons({
   requestId,
   status,
+  context,
 }: {
   requestId: string;
   status: string;
+  context: { userId: string; orgId: string };
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function LifecycleButtons({
   async function handlePickUp() {
     setPending(true);
     setError(null);
-    const result = await pickUpRequest(requestId);
+    const result = await pickUpRequest(requestId, context);
     setPending(false);
     if ("error" in result && result.error) {
       setError(result.error);
@@ -31,7 +33,7 @@ export function LifecycleButtons({
   async function handleMarkDone() {
     setPending(true);
     setError(null);
-    const result = await markDone(requestId);
+    const result = await markDone(requestId, context);
     setPending(false);
     if ("error" in result && result.error) {
       setError(result.error);

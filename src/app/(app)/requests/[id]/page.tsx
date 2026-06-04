@@ -48,8 +48,15 @@ export default async function RequestDetailPage({
 }) {
   const { id } = await params;
 
+  // Validate UUID before querying — avoids Postgres cast errors on bad URLs
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    notFound();
+  }
+
   const workspace = await ensureWorkspace();
   if (!workspace) redirect("/login");
+
+  const context = { userId: workspace.userId, orgId: workspace.orgId };
 
   // Fetch request with creator and assignee names
   const [req] = await db
@@ -118,7 +125,7 @@ export default async function RequestDetailPage({
               <span className="text-xs text-muted-foreground">{clLabel}</span>
             )}
           </div>
-          <LifecycleButtons requestId={req.id} status={req.status} />
+          <LifecycleButtons requestId={req.id} status={req.status} context={context} />
         </div>
 
         {/* Reframed problem (if solution/hybrid) */}
@@ -169,13 +176,13 @@ export default async function RequestDetailPage({
 
         {/* Comments */}
         <Separator className="my-8" />
-        <CommentsSection requestId={req.id} />
+        <CommentsSection requestId={req.id} context={context} />
       </main>
     </div>
   );
 }
 
-async function CommentsSection({ requestId }: { requestId: string }) {
+async function CommentsSection({ requestId, context }: { requestId: string; context: { userId: string; orgId: string } }) {
   const allComments = await db
     .select({
       id: comments.id,
@@ -211,7 +218,7 @@ async function CommentsSection({ requestId }: { requestId: string }) {
         </div>
       )}
 
-      <CommentForm requestId={requestId} />
+      <CommentForm requestId={requestId} context={context} />
     </div>
   );
 }

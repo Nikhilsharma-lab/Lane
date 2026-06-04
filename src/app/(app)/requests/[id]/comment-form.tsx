@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { addComment } from "./actions";
 
-export function CommentForm({ requestId }: { requestId: string }) {
+export function CommentForm({
+  requestId,
+  context,
+}: {
+  requestId: string;
+  context: { userId: string; orgId: string };
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -15,7 +21,7 @@ export function CommentForm({ requestId }: { requestId: string }) {
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
-    const result = await addComment(requestId, formData);
+    const result = await addComment(requestId, formData, context);
     setPending(false);
     if ("error" in result && result.error) {
       setError(result.error);

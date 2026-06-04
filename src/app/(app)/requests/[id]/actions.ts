@@ -4,25 +4,27 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments } from "@/db";
 import { eq } from "drizzle-orm";
-import { ensureWorkspace } from "@/lib/ensure-workspace";
 
-export async function pickUpRequest(requestId: string) {
-  const workspace = await ensureWorkspace();
-  if (!workspace) return { error: "Not signed in" };
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  // Verify the request belongs to this workspace and is open
+export async function pickUpRequest(
+  requestId: string,
+  context: { userId: string; orgId: string }
+) {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+
   const [req] = await db
     .select({ status: requests.status, orgId: requests.orgId })
     .from(requests)
     .where(eq(requests.id, requestId));
 
   if (!req) return { error: "Request not found" };
-  if (req.orgId !== workspace.orgId) return { error: "Not found" };
+  if (req.orgId !== context.orgId) return { error: "Not found" };
   if (req.status !== "open") return { error: "Only open requests can be picked up" };
 
   await db
     .update(requests)
-    .set({ status: "in_progress", assignedTo: workspace.userId })
+    .set({ status: "in_progress", assignedTo: context.userId })
     .where(eq(requests.id, requestId));
 
   revalidatePath("/");
@@ -30,9 +32,11 @@ export async function pickUpRequest(requestId: string) {
   return { success: true };
 }
 
-export async function markDone(requestId: string) {
-  const workspace = await ensureWorkspace();
-  if (!workspace) return { error: "Not signed in" };
+export async function markDone(
+  requestId: string,
+  context: { userId: string; orgId: string }
+) {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
 
   const [req] = await db
     .select({ status: requests.status, orgId: requests.orgId })
@@ -40,7 +44,7 @@ export async function markDone(requestId: string) {
     .where(eq(requests.id, requestId));
 
   if (!req) return { error: "Request not found" };
-  if (req.orgId !== workspace.orgId) return { error: "Not found" };
+  if (req.orgId !== context.orgId) return { error: "Not found" };
   if (req.status !== "in_progress") return { error: "Only in-progress requests can be marked done" };
 
   await db
@@ -57,28 +61,30 @@ const commentSchema = z.object({
   body: z.string().min(1, "Comment cannot be empty").max(5000),
 });
 
-export async function addComment(requestId: string, formData: FormData) {
-  const workspace = await ensureWorkspace();
-  if (!workspace) return { error: "Not signed in" };
+export async function addComment(
+  requestId: string,
+  formData: FormData,
+  context: { userId: string; orgId: string }
+) {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
 
   const parsed = commentSchema.safeParse({ body: formData.get("body") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
-  // Verify request belongs to workspace
   const [req] = await db
     .select({ orgId: requests.orgId })
     .from(requests)
     .where(eq(requests.id, requestId));
 
-  if (!req || req.orgId !== workspace.orgId) {
+  if (!req || req.orgId !== context.orgId) {
     return { error: "Request not found" };
   }
 
   await db.insert(comments).values({
     requestId,
-    authorId: workspace.userId,
+    authorId: context.userId,
     body: parsed.data.body,
   });
 

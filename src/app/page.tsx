@@ -58,7 +58,7 @@ export default async function Home() {
     );
   }
 
-  // Fetch all requests for this workspace with creator and assignee names
+  // Fetch requests for this workspace — all Open/In Progress, last 25 Done
   const allRequests = await db
     .select({
       id: requests.id,
@@ -74,12 +74,13 @@ export default async function Home() {
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))
     .where(eq(requests.orgId, workspace.orgId))
-    .orderBy(desc(requests.createdAt));
+    .orderBy(desc(requests.createdAt))
+    .limit(200);
 
-  // Group by status
+  // Group by status — cap Done to 25 most recent
   const open = allRequests.filter((r) => r.status === "open");
   const inProgress = allRequests.filter((r) => r.status === "in_progress");
-  const done = allRequests.filter((r) => r.status === "done");
+  const done = allRequests.filter((r) => r.status === "done").slice(0, 25);
 
   const groups = [
     { label: "Open", requests: open, emptyText: "No open requests" },
