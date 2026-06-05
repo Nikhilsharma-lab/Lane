@@ -87,6 +87,11 @@ export default async function Home() {
         <h1 className="text-lg font-semibold tracking-tight">Lane</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">{user.email}</span>
+          <Link href="/settings/members">
+            <Button variant="ghost" size="sm">
+              Members
+            </Button>
+          </Link>
           <form action={logout}>
             <Button variant="outline" size="sm" type="submit">
               Log out

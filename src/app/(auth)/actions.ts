@@ -41,7 +41,7 @@ export async function login(formData: FormData) {
   redirect("/");
 }
 
-export async function signup(formData: FormData) {
+export async function signup(formData: FormData, redirectTo?: string) {
   const parsed = signupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -67,8 +67,14 @@ export async function signup(formData: FormData) {
     return { error: error.message };
   }
 
+  // Validate redirect target (same open-redirect protection as auth/callback)
+  let target = "/";
+  if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    target = redirectTo;
+  }
+
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(target);
 }
 
 export async function logout() {
