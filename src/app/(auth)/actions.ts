@@ -16,7 +16,7 @@ const signupSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(200),
 });
 
-export async function login(formData: FormData) {
+export async function login(formData: FormData, redirectTo?: string) {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -37,8 +37,14 @@ export async function login(formData: FormData) {
     return { error: error.message };
   }
 
+  // Validate redirect target (same open-redirect protection as auth/callback)
+  let target = "/";
+  if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    target = redirectTo;
+  }
+
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(target);
 }
 
 export async function signup(formData: FormData, redirectTo?: string) {

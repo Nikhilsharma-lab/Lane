@@ -20,6 +20,7 @@ function SignupForm() {
   const [pending, setPending] = useState(false);
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,7 +91,7 @@ function SignupForm() {
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href={loginHref}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Sign in
