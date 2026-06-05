@@ -1,17 +1,27 @@
 import { createClient } from "@/lib/supabase/server";
+import { db, profiles } from "@/db";
+import { eq } from "drizzle-orm";
 
-/**
- * Ensures the signed-in user has a profile + workspace.
- * If not, calls the bootstrap_organization_membership RPC to create defaults.
- *
- * NOT a server action — plain server-side utility. Called once from pages,
- * result passed to actions that need orgId/userId.
- */
-export async function ensureWorkspace(): Promise<{
+export type WorkspaceContext = {
   userId: string;
   orgId: string;
   fullName: string;
-} | null> {
+};
+
+/**
+ * Checks if the signed-in user has a profile + workspace.
+ * Returns the context if they do, null if not authenticated,
+ * or { needsOnboarding: true } if authenticated but no profile.
+ *
+ * Uses Drizzle for the profile query (direct DB, no RLS) because
+ * the Supabase PostgREST client's JWT isn't reliably attached to
+ * server-side queries, causing RLS to block profile reads.
+ */
+export async function getWorkspace(): Promise<
+  | (WorkspaceContext & { needsOnboarding: false })
+  | { needsOnboarding: true; userId: string; fullName: string; email: string }
+  | null
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,49 +29,26 @@ export async function ensureWorkspace(): Promise<{
 
   if (!user) return null;
 
-  // Check if profile already exists
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("org_id, full_name")
-    .eq("id", user.id)
-    .single();
+  // Query profile directly via Drizzle (bypasses RLS — safe because
+  // we already verified the user's identity via supabase.auth.getUser)
+  const [profile] = await db
+    .select({ orgId: profiles.orgId, fullName: profiles.fullName })
+    .from(profiles)
+    .where(eq(profiles.id, user.id));
 
   if (profile) {
     return {
+      needsOnboarding: false,
       userId: user.id,
-      orgId: profile.org_id,
-      fullName: profile.full_name,
+      orgId: profile.orgId,
+      fullName: profile.fullName,
     };
   }
 
-  // No profile — bootstrap a default workspace
-  const fullName =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
-  const email = user.email || "";
-  const slug = email.split("@")[0]?.replace(/[^a-z0-9-]/gi, "-").toLowerCase() || `workspace-${Date.now()}`;
-  const orgName = `${fullName}'s Workspace`;
-
-  const { data: bootstrapResult, error } = await supabase.rpc(
-    "bootstrap_organization_membership",
-    {
-      target_user_id: user.id,
-      target_org_name: orgName,
-      target_org_slug: slug,
-      target_full_name: fullName,
-      target_email: email,
-    }
-  );
-
-  if (error) {
-    console.error("[ensure-workspace] bootstrap failed:", error.message);
-    return null;
-  }
-
-  const row = bootstrapResult?.[0];
-  if (!row) {
-    console.error("[ensure-workspace] bootstrap returned no data");
-    return null;
-  }
-
-  return { userId: user.id, orgId: row.org_id, fullName };
+  return {
+    needsOnboarding: true,
+    userId: user.id,
+    fullName: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+    email: user.email || "",
+  };
 }

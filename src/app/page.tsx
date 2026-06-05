@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ensureWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace } from "@/lib/ensure-workspace";
 import { logout } from "./(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,17 +46,10 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const workspace = await ensureWorkspace();
-  if (!workspace) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-destructive">
-          Something went wrong setting up your workspace. Please try logging out
-          and back in.
-        </p>
-      </div>
-    );
-  }
+  const result = await getWorkspace();
+  if (!result) redirect("/login");
+  if (result.needsOnboarding) redirect("/onboarding");
+  const workspace = result;
 
   // Fetch requests for this workspace — all Open/In Progress, last 25 Done
   const allRequests = await db

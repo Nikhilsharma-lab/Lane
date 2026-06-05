@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db, requests, profiles, comments } from "@/db";
 import { eq, asc } from "drizzle-orm";
-import { ensureWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace } from "@/lib/ensure-workspace";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -53,10 +53,11 @@ export default async function RequestDetailPage({
     notFound();
   }
 
-  const workspace = await ensureWorkspace();
-  if (!workspace) redirect("/login");
+  const result = await getWorkspace();
+  if (!result) redirect("/login");
+  if (result.needsOnboarding) redirect("/onboarding");
 
-  const context = { userId: workspace.userId, orgId: workspace.orgId };
+  const context = { userId: result.userId, orgId: result.orgId };
 
   // Fetch request with creator and assignee names
   const [req] = await db
@@ -76,7 +77,7 @@ export default async function RequestDetailPage({
     .from(requests)
     .where(eq(requests.id, id));
 
-  if (!req || req.orgId !== workspace.orgId) {
+  if (!req || req.orgId !== context.orgId) {
     notFound();
   }
 

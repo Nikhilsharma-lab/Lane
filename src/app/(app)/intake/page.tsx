@@ -1,17 +1,16 @@
 import { redirect } from "next/navigation";
-import { ensureWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace } from "@/lib/ensure-workspace";
 import IntakeForm from "./intake-form";
 
 export default async function IntakePage() {
-  const workspace = await ensureWorkspace();
+  const result = await getWorkspace();
 
-  if (!workspace) {
-    redirect("/login");
-  }
+  if (!result) redirect("/login");
+  if (result.needsOnboarding) redirect("/onboarding");
 
   return (
     <IntakeForm
-      context={{ userId: workspace.userId, orgId: workspace.orgId }}
+      context={{ userId: result.userId, orgId: result.orgId }}
     />
   );
 }
