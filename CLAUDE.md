@@ -70,3 +70,15 @@ the 5 design stages (Sense/Frame/Diverge/Converge/Prove) and all phase/kanban/tr
 - [ ] **Vercel Pro** — Hobby prohibits commercial use; you cannot legally charge on it.
 - [ ] **Custom domain** — point app.uselane.app at the prod Vercel project.
 - [ ] Confirm RLS isolation holds with a fresh second account before anyone real signs up.
+
+
+## Roadmap & phases
+- **Current phase: Phase 0** (foundation + the Requests app). Full sequence + the thesis filter
+  (adopt / reconceive / refuse) live in `lane-roadmap.md`.
+- **Canonical planning docs** (re-read at the start of a new phase): `lane-roadmap.md` (sequence),
+  `conventions-plan.md` (IA / roles / invites wiring, grounded in Plane source), `phase-0-ux-skeleton.md`
+  (journeys / screens / states), `PLANE-MAP.md` (reference terrain).
+- **Phase checkpoint (so later phases aren't forgotten):** a phase is done only when it ships AND real design
+  leads are using it. At that point — not on a date — re-read `lane-roadmap.md`, confirm validation, let usage
+  pull the next increment, and update "Current phase" above. Phase 2+ is a hypothesis until Phase 0/1 is in
+  real use; the four design leads are the instrument that decides the order.
