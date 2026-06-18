@@ -20,7 +20,11 @@ function SignupForm() {
   const [pending, setPending] = useState(false);
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
-  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+  const prefillEmail = searchParams.get("email") || "";
+  const loginParams = new URLSearchParams();
+  if (next) loginParams.set("next", next);
+  if (prefillEmail) loginParams.set("email", prefillEmail);
+  const loginHref = loginParams.size ? `/login?${loginParams}` : "/login";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,6 +68,7 @@ function SignupForm() {
               name="email"
               type="email"
               placeholder="you@example.com"
+              defaultValue={prefillEmail}
               required
               autoComplete="email"
             />

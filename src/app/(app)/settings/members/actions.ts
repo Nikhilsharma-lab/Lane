@@ -4,67 +4,250 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { db, invites, workspaceMembers, profiles } from "@/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { requireOwnerOrAdmin } from "@/lib/auth-guard";
+
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10 };
 
 const inviteSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  role: z.enum(["pm", "designer", "developer"]).default("designer"),
+  role: z.enum(["member", "admin"]).default("member"),
 });
+
+function inviteUrl(token: string) {
+  return `${process.env.NEXT_PUBLIC_APP_URL || ""}/invite/${token}`;
+}
 
 export async function createInvite(
   formData: { email: string; role?: string },
-  context: { userId: string; orgId: string }
+  context: { orgId: string }
 ) {
   const parsed = inviteSchema.safeParse(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) {
+    return { error: "Only owners and admins can invite members." };
   }
 
-  // Check caller is owner or admin of this workspace
-  const [membership] = await db
-    .select({ role: workspaceMembers.role })
-    .from(workspaceMembers)
-    .where(
+  const email = parsed.data.email.toLowerCase();
+
+  const [existingMember] = await db
+    .select({ userId: profiles.id })
+    .from(profiles)
+    .innerJoin(
+      workspaceMembers,
       and(
-        eq(workspaceMembers.workspaceId, context.orgId),
-        eq(workspaceMembers.userId, context.userId)
+        eq(profiles.id, workspaceMembers.userId),
+        eq(workspaceMembers.workspaceId, auth.orgId)
       )
-    );
+    )
+    .where(eq(profiles.email, email));
 
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    return { error: "Only workspace owners can invite members." };
+  if (existingMember) {
+    return { error: "This person is already a member." };
   }
 
-  // Check if there's already a pending invite for this email
   const [existing] = await db
-    .select({ id: invites.id })
+    .select({ id: invites.id, token: invites.token })
     .from(invites)
     .where(
       and(
-        eq(invites.orgId, context.orgId),
-        eq(invites.email, parsed.data.email.toLowerCase()),
-        isNull(invites.acceptedAt)
+        eq(invites.orgId, auth.orgId),
+        eq(invites.email, email),
+        eq(invites.status, "pending")
       )
     );
 
   if (existing) {
-    return { error: "An invite for this email is already pending." };
+    await db
+      .update(invites)
+      .set({ expiresAt: new Date(Date.now() + INVITE_TTL_MS) })
+      .where(eq(invites.id, existing.id));
+    revalidatePath("/settings/members");
+    return {
+      success: true,
+      inviteUrl: inviteUrl(existing.token),
+      refreshed: true,
+    };
   }
 
   const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
   await db.insert(invites).values({
-    orgId: context.orgId,
-    email: parsed.data.email.toLowerCase(),
+    orgId: auth.orgId,
+    email,
     token,
-    role: parsed.data.role || "designer",
-    invitedBy: context.userId,
-    expiresAt,
+    role: parsed.data.role as "member" | "admin",
+    status: "pending",
+    invitedBy: auth.userId,
+    expiresAt: new Date(Date.now() + INVITE_TTL_MS),
   });
 
-  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`;
+  revalidatePath("/settings/members");
+  return { success: true, inviteUrl: inviteUrl(token) };
+}
+
+export async function revokeInvite(
+  inviteId: string,
+  context: { orgId: string }
+) {
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) {
+    return { error: "Only owners and admins can revoke invites." };
+  }
+
+  await db
+    .update(invites)
+    .set({ status: "revoked" })
+    .where(
+      and(
+        eq(invites.id, inviteId),
+        eq(invites.orgId, auth.orgId),
+        eq(invites.status, "pending")
+      )
+    );
 
   revalidatePath("/settings/members");
-  return { success: true, inviteUrl };
+  return { success: true };
+}
+
+export async function resendInvite(
+  inviteId: string,
+  context: { orgId: string }
+) {
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) {
+    return { error: "Only owners and admins can resend invites." };
+  }
+
+  const [invite] = await db
+    .select({ id: invites.id, token: invites.token })
+    .from(invites)
+    .where(
+      and(
+        eq(invites.id, inviteId),
+        eq(invites.orgId, auth.orgId),
+        eq(invites.status, "pending")
+      )
+    );
+
+  if (!invite) return { error: "Invite not found or already used." };
+
+  await db
+    .update(invites)
+    .set({ expiresAt: new Date(Date.now() + INVITE_TTL_MS) })
+    .where(eq(invites.id, invite.id));
+
+  revalidatePath("/settings/members");
+  return { success: true, inviteUrl: inviteUrl(invite.token) };
+}
+
+const updateRoleSchema = z.object({
+  targetUserId: z.string().uuid(),
+  newRole: z.enum(["member", "admin"]),
+});
+
+export async function updateMemberRole(
+  data: { targetUserId: string; newRole: string },
+  context: { orgId: string }
+) {
+  const parsed = updateRoleSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) return { error: "Only owners and admins can change roles." };
+
+  if (parsed.data.targetUserId === auth.userId) {
+    return { error: "You cannot change your own role." };
+  }
+
+  const [target] = await db
+    .select({ role: workspaceMembers.role })
+    .from(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, auth.orgId),
+        eq(workspaceMembers.userId, parsed.data.targetUserId),
+        eq(workspaceMembers.isActive, true)
+      )
+    );
+
+  if (!target) return { error: "Member not found." };
+
+  if (target.role === "owner") {
+    return { error: "The workspace owner's role cannot be changed." };
+  }
+
+  if (ROLE_LEVEL[target.role] >= ROLE_LEVEL[auth.role]) {
+    return { error: "You cannot change the role of someone with an equal or higher role." };
+  }
+
+  if (ROLE_LEVEL[parsed.data.newRole] > ROLE_LEVEL[auth.role]) {
+    return { error: "You cannot assign a role higher than your own." };
+  }
+
+  await db
+    .update(workspaceMembers)
+    .set({ role: parsed.data.newRole as "member" | "admin" })
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, auth.orgId),
+        eq(workspaceMembers.userId, parsed.data.targetUserId)
+      )
+    );
+
+  revalidatePath("/settings/members");
+  return { success: true };
+}
+
+export async function removeMember(
+  targetUserId: string,
+  context: { orgId: string }
+) {
+  if (!targetUserId || typeof targetUserId !== "string") {
+    return { error: "Invalid member ID." };
+  }
+
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) return { error: "Only owners and admins can remove members." };
+
+  if (targetUserId === auth.userId) {
+    return { error: "You cannot remove yourself." };
+  }
+
+  const [target] = await db
+    .select({ role: workspaceMembers.role })
+    .from(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, auth.orgId),
+        eq(workspaceMembers.userId, targetUserId),
+        eq(workspaceMembers.isActive, true)
+      )
+    );
+
+  if (!target) return { error: "Member not found." };
+
+  if (target.role === "owner") {
+    return { error: "The workspace owner cannot be removed." };
+  }
+
+  if (ROLE_LEVEL[target.role] >= ROLE_LEVEL[auth.role]) {
+    return { error: "You cannot remove someone with an equal or higher role." };
+  }
+
+  await db
+    .update(workspaceMembers)
+    .set({ isActive: false })
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, auth.orgId),
+        eq(workspaceMembers.userId, targetUserId)
+      )
+    );
+
+  revalidatePath("/settings/members");
+  return { success: true };
 }

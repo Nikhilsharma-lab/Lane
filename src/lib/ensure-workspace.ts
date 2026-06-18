@@ -1,23 +1,17 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { db, profiles } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, profiles, workspaces, workspaceMembers } from "@/db";
+import { eq, and } from "drizzle-orm";
 
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
   fullName: string;
+  email: string;
+  workspaceName: string;
 };
 
-/**
- * Checks if the signed-in user has a profile + workspace.
- * Returns the context if they do, null if not authenticated,
- * or { needsOnboarding: true } if authenticated but no profile.
- *
- * Uses Drizzle for the profile query (direct DB, no RLS) because
- * the Supabase PostgREST client's JWT isn't reliably attached to
- * server-side queries, causing RLS to block profile reads.
- */
-export async function getWorkspace(): Promise<
+export const getWorkspace = cache(async function getWorkspace(): Promise<
   | (WorkspaceContext & { needsOnboarding: false })
   | { needsOnboarding: true; userId: string; fullName: string; email: string }
   | null
@@ -29,19 +23,33 @@ export async function getWorkspace(): Promise<
 
   if (!user) return null;
 
-  // Query profile directly via Drizzle (bypasses RLS — safe because
-  // we already verified the user's identity via supabase.auth.getUser)
-  const [profile] = await db
-    .select({ orgId: profiles.orgId, fullName: profiles.fullName })
+  const [row] = await db
+    .select({
+      orgId: profiles.orgId,
+      fullName: profiles.fullName,
+      email: profiles.email,
+      workspaceName: workspaces.name,
+    })
     .from(profiles)
+    .innerJoin(workspaces, eq(profiles.orgId, workspaces.id))
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, profiles.orgId),
+        eq(workspaceMembers.userId, profiles.id),
+        eq(workspaceMembers.isActive, true)
+      )
+    )
     .where(eq(profiles.id, user.id));
 
-  if (profile) {
+  if (row) {
     return {
       needsOnboarding: false,
       userId: user.id,
-      orgId: profile.orgId,
-      fullName: profile.fullName,
+      orgId: row.orgId,
+      fullName: row.fullName,
+      email: row.email,
+      workspaceName: row.workspaceName,
     };
   }
 
@@ -51,4 +59,4 @@ export async function getWorkspace(): Promise<
     fullName: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
     email: user.email || "",
   };
-}
+});
