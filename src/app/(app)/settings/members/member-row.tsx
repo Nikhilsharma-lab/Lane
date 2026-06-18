@@ -68,29 +68,29 @@ export function MemberRow({
             {member.profileRole}
           </Badge>
         )}
-        {canManage ? (
-          <>
-            <select
-              value={member.role}
-              onChange={(e) => handleRoleChange(e.target.value)}
-              disabled={isPending}
-              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs capitalize"
-            >
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button
-              onClick={handleRemove}
-              disabled={isPending}
-              className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-            >
-              Remove
-            </button>
-          </>
+        {canManage && (member.role === "member" || member.role === "admin") ? (
+          <select
+            value={member.role}
+            onChange={(e) => handleRoleChange(e.target.value)}
+            disabled={isPending}
+            className="h-7 rounded-md border border-input bg-transparent px-2 text-xs capitalize"
+          >
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
         ) : (
           <Badge variant="secondary" className="capitalize">
             {member.role}
           </Badge>
+        )}
+        {canManage && (
+          <button
+            onClick={handleRemove}
+            disabled={isPending}
+            className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+          >
+            Remove
+          </button>
         )}
       </div>
     </div>
