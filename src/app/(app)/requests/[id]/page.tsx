@@ -81,6 +81,11 @@ export default async function RequestDetailPage({
     notFound();
   }
 
+  const isGuest = result.role === "guest";
+  if (isGuest && req.createdBy !== context.userId) {
+    notFound();
+  }
+
   // Get creator name
   const [creator] = await db
     .select({ fullName: profiles.fullName })
@@ -126,7 +131,7 @@ export default async function RequestDetailPage({
               <span className="text-xs text-muted-foreground">{clLabel}</span>
             )}
           </div>
-          <LifecycleButtons requestId={req.id} status={req.status} context={context} />
+          {!isGuest && <LifecycleButtons requestId={req.id} status={req.status} context={context} />}
         </div>
 
         {/* Reframed problem (if solution/hybrid) */}
@@ -172,7 +177,7 @@ export default async function RequestDetailPage({
         {/* Metadata */}
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Submitted by {creator?.fullName ?? "Unknown"} · {new Date(req.createdAt).toLocaleDateString()}</p>
-          {assigneeName && <p>Assigned to {assigneeName}</p>}
+          {!isGuest && assigneeName && <p>Assigned to {assigneeName}</p>}
         </div>
 
         {/* Comments */}

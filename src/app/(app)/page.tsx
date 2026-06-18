@@ -4,7 +4,7 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { db, requests, profiles } from "@/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 const MAX_REQUESTS_QUERY = 200;
 const MAX_DONE_VISIBLE = 25;
@@ -40,6 +40,8 @@ export default async function RequestsBoard() {
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
 
+  const isGuest = workspace.role === "guest";
+
   const allRequests = await db
     .select({
       id: requests.id,
@@ -52,7 +54,11 @@ export default async function RequestsBoard() {
     })
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))
-    .where(eq(requests.orgId, workspace.orgId))
+    .where(
+      isGuest
+        ? and(eq(requests.orgId, workspace.orgId), eq(requests.createdBy, workspace.userId))
+        : eq(requests.orgId, workspace.orgId)
+    )
     .orderBy(desc(requests.createdAt))
     .limit(MAX_REQUESTS_QUERY);
 
@@ -69,7 +75,9 @@ export default async function RequestsBoard() {
   return (
     <main className="flex-1 overflow-y-auto px-6 py-6">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold tracking-tight">Requests</h2>
+        <h2 className="text-xl font-semibold tracking-tight">
+          {isGuest ? "My Requests" : "Requests"}
+        </h2>
         <Link href="/intake" className={buttonVariants({ size: "sm" })}>
           New request
         </Link>
