@@ -12,6 +12,7 @@ export default async function MembersPage() {
   const result = await getWorkspace();
   if (!result) redirect("/login");
   if (result.needsOnboarding) redirect("/onboarding");
+  if (result.role === "guest") redirect("/");
 
   const context = { userId: result.userId, orgId: result.orgId };
 
