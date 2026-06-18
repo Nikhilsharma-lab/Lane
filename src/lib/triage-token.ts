@@ -29,11 +29,9 @@ interface TokenPayload {
 const TOKEN_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
 
 function getSecret(): string {
-  // Use SUPABASE_SECRET_KEY as the HMAC secret — it's already server-only
-  // and avoids adding yet another env var for MVP.
-  const secret = process.env.SUPABASE_SECRET_KEY;
+  const secret = process.env.TRIAGE_TOKEN_SECRET;
   if (!secret) {
-    throw new Error("[triage-token] SUPABASE_SECRET_KEY is required for signing triage tokens");
+    throw new Error("[triage-token] TRIAGE_TOKEN_SECRET is required for signing triage tokens");
   }
   return secret;
 }
