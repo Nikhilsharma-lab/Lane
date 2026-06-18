@@ -53,6 +53,13 @@ Each item: what · why deferred · source review.
 > Infra pre-launch items (staging/prod split, Supabase Pro, Vercel Pro, custom domain, cross-workspace RLS
 > verification) live in CLAUDE.md's "BEFORE FIRST PAYING CUSTOMER" section. Same gate governs both lists.
 
+## GUEST ROLE-CHANGE — when assignment cleanup is needed
+
+- **Demoting an assigned member to guest leaves in-progress assignments dangling.** No security issue (guest can't
+  pick up or mark done), but the request stays assigned to someone who can no longer act on it. Owner can manually
+  reassign. Auto-unassign on demotion-to-guest is the clean fix — build when real usage surfaces the gap.
+  — Guest role-change increment.
+
 ## GUEST INTAKE INCREMENT — when external requesters are added
 
 - **`saveRequest`/`runTriage` sit behind `requireActiveMember`** (members only). Guest external requesters won't

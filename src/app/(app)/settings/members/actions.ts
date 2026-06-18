@@ -147,7 +147,7 @@ export async function resendInvite(
 
 const updateRoleSchema = z.object({
   targetUserId: z.string().uuid(),
-  newRole: z.enum(["member", "admin"]),
+  newRole: z.enum(["member", "admin", "guest"]),
 });
 
 export async function updateMemberRole(
@@ -191,7 +191,7 @@ export async function updateMemberRole(
 
   await db
     .update(workspaceMembers)
-    .set({ role: parsed.data.newRole as "member" | "admin" })
+    .set({ role: parsed.data.newRole as "member" | "admin" | "guest" })
     .where(
       and(
         eq(workspaceMembers.workspaceId, auth.orgId),
