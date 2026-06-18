@@ -84,12 +84,16 @@ export async function addComment(
   }
 
   const [req] = await db
-    .select({ orgId: requests.orgId })
+    .select({ orgId: requests.orgId, createdBy: requests.createdBy })
     .from(requests)
     .where(eq(requests.id, requestId));
 
   if (!req || req.orgId !== auth.orgId) {
     return { error: "Request not found" };
+  }
+
+  if (auth.role === "guest" && req.createdBy !== auth.userId) {
+    return { error: "Not found" };
   }
 
   await db.insert(comments).values({

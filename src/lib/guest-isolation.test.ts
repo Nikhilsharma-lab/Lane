@@ -31,6 +31,7 @@ vi.mock("@/lib/supabase/server", () => ({
 const WORKSPACE_A = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
 const USER_A_OWNER = "7c683bdd-43ce-42c4-847a-3fb5663b2926";
 const GUEST_USER = "00000000-0000-4000-a000-000000000099";
+const GUEST_OWN_REQ = "00000000-0000-4000-a000-000000000100";
 const REQUEST_A_OPEN = "de7fe180-b51b-4714-8e82-42b775fe53d4";
 
 let originalRequestStatus: Request["status"];
@@ -61,6 +62,15 @@ beforeAll(async () => {
       set: { role: "guest", isActive: true },
     });
 
+  await db.insert(requests).values({
+    id: GUEST_OWN_REQ,
+    orgId: WORKSPACE_A,
+    title: "Guest-owned request for isolation test",
+    description: "Created by guest — addComment target",
+    status: "open",
+    createdBy: GUEST_USER,
+  }).onConflictDoNothing();
+
   const [req] = await db
     .select({ status: requests.status, assignedTo: requests.assignedTo })
     .from(requests)
@@ -86,6 +96,7 @@ afterAll(async () => {
       )
     );
 
+  await db.delete(requests).where(eq(requests.id, GUEST_OWN_REQ));
   await db.delete(profiles).where(eq(profiles.id, GUEST_USER));
 
   await db
@@ -116,13 +127,13 @@ describe("Guest blocked from management actions", () => {
   });
 });
 
-describe("Guest CAN still submit (requireActiveMember passes)", () => {
-  it("guest → addComment → ALLOWED (requireActiveMember passes guests)", async () => {
+describe("Guest CAN comment on own request", () => {
+  it("guest → addComment on own request → ALLOWED", async () => {
     mockSessionUser = { id: GUEST_USER };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "guest isolation probe — should succeed");
-    const result = await addComment(REQUEST_A_OPEN, formData, {
+    const result = await addComment(GUEST_OWN_REQ, formData, {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("success", true);

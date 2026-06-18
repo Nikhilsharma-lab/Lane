@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db, workspaceMembers } from "@/db";
 import { eq, and } from "drizzle-orm";
 
-export type MemberAuth = { userId: string; orgId: string };
+export type MemberAuth = { userId: string; orgId: string; role: string };
 export type AdminAuth = MemberAuth & { role: string };
 
 export async function requireActiveMember(
@@ -15,7 +15,7 @@ export async function requireActiveMember(
   if (!user) return null;
 
   const [row] = await db
-    .select({ userId: workspaceMembers.userId })
+    .select({ role: workspaceMembers.role })
     .from(workspaceMembers)
     .where(
       and(
@@ -25,7 +25,7 @@ export async function requireActiveMember(
       )
     );
   if (!row) return null;
-  return { userId: user.id, orgId };
+  return { userId: user.id, orgId, role: row.role };
 }
 
 export async function requireMemberOrAbove(
@@ -48,7 +48,7 @@ export async function requireMemberOrAbove(
       )
     );
   if (!row || row.role === "guest") return null;
-  return { userId: user.id, orgId };
+  return { userId: user.id, orgId, role: row.role };
 }
 
 export async function requireOwnerOrAdmin(
