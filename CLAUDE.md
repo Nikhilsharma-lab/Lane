@@ -44,9 +44,13 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui ·
 - **No new tables, routes, AI calls, or cron jobs without explicit written approval.** Default answer to "should we also build X" is no.
 - **Same view for everyone.** PM/Designer/Developer is a label, not a UI or permission gate. No role-based
   view differences, per-role dashboards, or hidden actions. (Workspace owner-vs-member is the only permission tier.)
-- **Actions receive context, never re-derive it.** Server actions take `{userId, orgId}` from the page
-  render; they must NOT call `ensureWorkspace`/`getUser` to re-derive workspace context. (This bug has
-  recurred three times — it lives here now so it stops.)
+- **Actions receive context for workspace, derive identity from the session.** Server actions take
+  `{orgId}` from the page render; they must NOT call `ensureWorkspace`/`getWorkspace` to re-derive which
+  workspace they're in. (This bug recurred three times — it lives here now so it stops.) **However,
+  `userId` must NEVER come from client-passed arguments.** Server action arguments travel over HTTP and
+  are forgeable. Identity is derived inside the shared guards (`requireActiveMember` / `requireOwnerOrAdmin`
+  in `src/lib/auth-guard.ts`) via `auth.getUser()` — the httpOnly session cookie is unforgeable. Actions
+  use the guard's returned `auth.userId` for every identity field (assignedTo, authorId, createdBy, invitedBy).
 - **Deferred work is tracked in DEFERRED.md**, by trigger. Daily reviews feed it. Nothing deferred may
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
@@ -70,3 +74,15 @@ the 5 design stages (Sense/Frame/Diverge/Converge/Prove) and all phase/kanban/tr
 - [ ] **Vercel Pro** — Hobby prohibits commercial use; you cannot legally charge on it.
 - [ ] **Custom domain** — point app.uselane.app at the prod Vercel project.
 - [ ] Confirm RLS isolation holds with a fresh second account before anyone real signs up.
+
+
+## Roadmap & phases
+- **Current phase: Phase 0** (foundation + the Requests app). Full sequence + the thesis filter
+  (adopt / reconceive / refuse) live in `lane-roadmap.md`.
+- **Canonical planning docs** (re-read at the start of a new phase): `lane-roadmap.md` (sequence),
+  `conventions-plan.md` (IA / roles / invites wiring, grounded in Plane source), `phase-0-ux-skeleton.md`
+  (journeys / screens / states), `PLANE-MAP.md` (reference terrain).
+- **Phase checkpoint (so later phases aren't forgotten):** a phase is done only when it ships AND real design
+  leads are using it. At that point — not on a date — re-read `lane-roadmap.md`, confirm validation, let usage
+  pull the next increment, and update "Current phase" above. Phase 2+ is a hypothesis until Phase 0/1 is in
+  real use; the four design leads are the instrument that decides the order.

@@ -1,26 +1,120 @@
 "use server";
 
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { db, invites, profiles, workspaceMembers } from "@/db";
+import { eq, and } from "drizzle-orm";
 
-export async function acceptInvite(data: {
-  token: string;
-  userId: string;
-  fullName: string;
-  email: string;
-}) {
-  const supabase = await createClient();
-
-  const { error } = await supabase.rpc("accept_invite_membership", {
-    invite_token: data.token,
-    target_user_id: data.userId,
-    target_full_name: data.fullName,
-    target_email: data.email,
-  });
-
-  if (error) {
-    console.error("[invite] accept failed:", error.message);
-    return { error: error.message };
+export async function acceptInvite(token: string) {
+  if (!token || typeof token !== "string") {
+    return { error: "Invalid invite token." };
   }
 
-  return { success: true };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not signed in." };
+
+  const [invite] = await db
+    .select({
+      id: invites.id,
+      orgId: invites.orgId,
+      email: invites.email,
+      role: invites.role,
+      status: invites.status,
+      expiresAt: invites.expiresAt,
+      invitedBy: invites.invitedBy,
+    })
+    .from(invites)
+    .where(eq(invites.token, token));
+
+  if (!invite) return { error: "Invalid invite." };
+  if (invite.status !== "pending") return { error: "This invite is no longer valid." };
+  if (new Date(invite.expiresAt) < new Date()) return { error: "This invite has expired." };
+
+  const userEmail = (user.email || "").toLowerCase();
+  if (userEmail !== invite.email.toLowerCase()) {
+    return { error: "This invite was sent to a different email address." };
+  }
+
+  const [activeMembership] = await db
+    .select({ workspaceId: workspaceMembers.workspaceId })
+    .from(workspaceMembers)
+    .where(
+      and(eq(workspaceMembers.userId, user.id), eq(workspaceMembers.isActive, true))
+    );
+
+  if (activeMembership) {
+    if (activeMembership.workspaceId === invite.orgId) {
+      revalidatePath("/", "layout");
+      redirect("/");
+    }
+    return { error: "You're already in a workspace." };
+  }
+
+  const [existingProfile] = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.id, user.id));
+
+  const fullName =
+    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+
+  await db.transaction(async (tx) => {
+    if (existingProfile) {
+      await tx
+        .update(profiles)
+        .set({ orgId: invite.orgId })
+        .where(eq(profiles.id, user.id));
+    } else {
+      await tx.insert(profiles).values({
+        id: user.id,
+        orgId: invite.orgId,
+        fullName,
+        email: user.email || "",
+        role: "designer",
+      });
+    }
+
+    const [existingMembership] = await tx
+      .select({ isActive: workspaceMembers.isActive })
+      .from(workspaceMembers)
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, invite.orgId),
+          eq(workspaceMembers.userId, user.id)
+        )
+      );
+
+    if (existingMembership) {
+      await tx
+        .update(workspaceMembers)
+        .set({ isActive: true, role: invite.role })
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, invite.orgId),
+            eq(workspaceMembers.userId, user.id)
+          )
+        );
+    } else {
+      await tx.insert(workspaceMembers).values({
+        workspaceId: invite.orgId,
+        userId: user.id,
+        role: invite.role,
+        isActive: true,
+        invitedBy: invite.invitedBy,
+      });
+    }
+
+    await tx
+      .update(invites)
+      .set({ status: "accepted", acceptedAt: new Date() })
+      .where(eq(invites.id, invite.id));
+  });
+
+  revalidatePath("/", "layout");
+  redirect("/");
 }

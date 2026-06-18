@@ -11,10 +11,12 @@ export function InviteForm({
   context: { userId: string; orgId: string };
 }) {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"member" | "admin">("member");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,14 +24,16 @@ export function InviteForm({
     setError(null);
     setInviteUrl(null);
     setCopied(false);
+    setRefreshed(false);
 
-    const result = await createInvite({ email }, context);
+    const result = await createInvite({ email, role }, context);
     setPending(false);
 
     if ("error" in result && result.error) {
       setError(result.error);
     } else if ("inviteUrl" in result && result.inviteUrl) {
       setInviteUrl(result.inviteUrl);
+      setRefreshed(!!result.refreshed);
       setEmail("");
     }
   }
@@ -53,6 +57,15 @@ export function InviteForm({
           disabled={pending}
           className="flex-1"
         />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "member" | "admin")}
+          disabled={pending}
+          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+        >
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? "Inviting..." : "Invite"}
         </Button>
@@ -63,7 +76,9 @@ export function InviteForm({
       {inviteUrl && (
         <div className="rounded-lg border bg-muted/50 p-3">
           <p className="mb-2 text-sm font-medium">
-            Invite link created — share it with your teammate:
+            {refreshed
+              ? "Invite refreshed — share the link:"
+              : "Invite link created — share it with your teammate:"}
           </p>
           <div className="flex gap-2">
             <Input

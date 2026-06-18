@@ -1,34 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { acceptInvite } from "./actions";
 
-export function AcceptInviteButton({
-  token,
-  userId,
-  fullName,
-  email,
-}: {
-  token: string;
-  userId: string;
-  fullName: string;
-  email: string;
-}) {
+export function AcceptInviteButton({ token }: { token: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   async function handleAccept() {
     setPending(true);
     setError(null);
-    const result = await acceptInvite({ token, userId, fullName, email });
+    const result = await acceptInvite(token);
     if (result?.error) {
       setError(result.error);
       setPending(false);
-    } else {
-      router.push("/");
     }
   }
 
