@@ -19,35 +19,39 @@ many). Anything that is a *permission or visibility* concept is treated as a dec
 Plane's real model (`packages/constants/src/user.ts`, `packages/utils/src/permission/role.ts`): **three roles
 as ordered integers** — `ADMIN = 20`, `MEMBER = 15`, `GUEST = 5` — with permission checks comparing numbers
 (`userRole >= requiredLevel`, via `getHighestRole`). There is **no separate "Owner" role**; the workspace
-creator is an Admin carrying an owner/creator flag used only for irreversible actions (delete workspace,
-billing, sole-owner-can't-leave). My earlier draft invented an Owner role — corrected here.
+creator is an Admin carrying an owner/creator flag.
 
-Lane adopts this exactly, keeping the **functional label** (PM/Designer/Developer) on a separate axis that
-gates nothing.
+**Lane diverges intentionally:** owner is a **distinct top-level role**, not a flag on an admin. This is
+cleaner — no special-case flag logic, the role column alone determines authority. Guest is deferred (see
+Section 6).
+
+Lane's implemented hierarchy: **`owner(30) | admin(20) | member(10)`** — three roles as ordered integers,
+permission checks compare levels (`ROLE_LEVEL[callerRole] >= ROLE_LEVEL[targetRole]`). The **functional label**
+(PM/Designer/Developer) remains on a separate axis that gates nothing.
 
 **Two independent axes (never consult one for the other's job — recurring bug class):**
-- `workspace_members.role` = **permission**, ordered int: `guest(5) | member(15) | admin(20)`, plus an
-  `is_owner` boolean on the creator's membership.
+- `workspace_members.role` = **permission**, ordered int: `owner(30) | admin(20) | member(10)`.
+  Enum: `workspaceRoleEnum = ["owner", "admin", "member"]`. No `is_owner` flag — owner is a full role.
 - `profiles.role` = **functional label**: `pm | designer | developer`. No permissions, ever.
 
 **Permission matrix (by role):**
 
-| Action | Admin | Member | Guest |
-|---|:---:|:---:|:---:|
-| Submit a request (through the gate) | ✓ | ✓ | ✓ |
-| See the full board | ✓ | ✓ | ✗ (own only) |
-| Pick up / mark done | ✓ | ✓ | ✗ |
-| Comment | ✓ | ✓ | own requests only |
-| See members list | ✓ | ✓ | ✗ |
-| Invite / remove / change roles | ✓ | ✗ | ✗ |
-| Workspace settings | ✓ | ✗ | ✗ |
-| Delete workspace / billing | owner-flag Admin only | ✗ | ✗ |
+| Action | Owner | Admin | Member | Guest (deferred) |
+|---|:---:|:---:|:---:|:---:|
+| Submit a request (through the gate) | ✓ | ✓ | ✓ | ✓ |
+| See the full board | ✓ | ✓ | ✓ | ✗ (own only) |
+| Pick up / mark done | ✓ | ✓ | ✓ | ✗ |
+| Comment | ✓ | ✓ | ✓ | own requests only |
+| See members list | ✓ | ✓ | ✓ | ✗ |
+| Invite / remove / change roles | ✓ | ✓ | ✗ | ✗ |
+| Workspace settings | ✓ | ✓ | ✗ | ✗ |
+| Delete workspace / billing | ✓ | ✗ | ✗ | ✗ |
 
-Admin/Member — your team — see the same board (no functional-role gating). Guest is an outsider who only
-touches their own request, which still passes the gate. Ethos intact.
+Owner/Admin/Member — your team — see the same board (no functional-role gating). Guest (when built) is an
+outsider who only touches their own request, which still passes the gate. Ethos intact.
 
-**Schema note:** role column = the three ordered ints (or enum `guest|member|admin`) + `is_owner` flag. Check
-permissions by level (`>=`), never string equality, so hierarchy holds.
+**Schema note:** role column = enum `owner|admin|member`. Check permissions by level (`>=`), never string
+equality, so hierarchy holds. Guest role will be added to the enum when Section 6 ships.
 
 ## 2. App shell + top bar
 

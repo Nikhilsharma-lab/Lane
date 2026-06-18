@@ -21,6 +21,10 @@ describe("initials", () => {
   it("returns empty string for empty input", () => {
     expect(initials("")).toBe("");
   });
+
+  it("handles extra whitespace", () => {
+    expect(initials("  Nikhil  Sharma  ")).toBe("NS");
+  });
 });
 
 describe("NAV_MATCHERS.requests", () => {

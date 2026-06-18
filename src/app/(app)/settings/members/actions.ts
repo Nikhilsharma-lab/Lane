@@ -40,7 +40,8 @@ export async function createInvite(
       workspaceMembers,
       and(
         eq(profiles.id, workspaceMembers.userId),
-        eq(workspaceMembers.workspaceId, auth.orgId)
+        eq(workspaceMembers.workspaceId, auth.orgId),
+        eq(workspaceMembers.isActive, true)
       )
     )
     .where(eq(profiles.email, email));

@@ -30,7 +30,8 @@ export default async function MembersPage() {
         eq(workspaceMembers.workspaceId, context.orgId),
         eq(workspaceMembers.isActive, true)
       )
-    );
+    )
+    .orderBy(profiles.fullName);
 
   const pendingInvites = await db
     .select({
