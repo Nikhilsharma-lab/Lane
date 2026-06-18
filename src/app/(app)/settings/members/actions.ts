@@ -8,11 +8,11 @@ import { eq, and } from "drizzle-orm";
 import { requireOwnerOrAdmin } from "@/lib/auth-guard";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10 };
+const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
 
 const inviteSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  role: z.enum(["member", "admin"]).default("member"),
+  role: z.enum(["member", "admin", "guest"]).default("member"),
 });
 
 function inviteUrl(token: string) {
@@ -80,7 +80,7 @@ export async function createInvite(
     orgId: auth.orgId,
     email,
     token,
-    role: parsed.data.role as "member" | "admin",
+    role: parsed.data.role as "member" | "admin" | "guest",
     status: "pending",
     invitedBy: auth.userId,
     expiresAt: new Date(Date.now() + INVITE_TTL_MS),

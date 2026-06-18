@@ -11,7 +11,7 @@ export function InviteForm({
   context: { userId: string; orgId: string };
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"member" | "admin">("member");
+  const [role, setRole] = useState<"member" | "admin" | "guest">("member");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -59,12 +59,13 @@ export function InviteForm({
         />
         <select
           value={role}
-          onChange={(e) => setRole(e.target.value as "member" | "admin")}
+          onChange={(e) => setRole(e.target.value as "member" | "admin" | "guest")}
           disabled={pending}
           className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
         >
           <option value="member">Member</option>
           <option value="admin">Admin</option>
+          <option value="guest">Guest</option>
         </select>
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? "Inviting..." : "Invite"}
