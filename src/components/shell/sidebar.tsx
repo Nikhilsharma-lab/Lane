@@ -15,19 +15,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const NAV_ITEMS = [
+const MEMBER_NAV = [
   { label: "Requests", href: "/", icon: Inbox, match: NAV_MATCHERS.requests },
   { label: "Settings", href: "/settings/members", icon: SettingsIcon, match: NAV_MATCHERS.settings },
+];
+
+const GUEST_NAV = [
+  { label: "My Requests", href: "/", icon: Inbox, match: NAV_MATCHERS.requests },
 ];
 
 export function Sidebar({
   workspaceName,
   fullName,
   email,
+  role,
 }: {
   workspaceName: string;
   fullName: string;
   email: string;
+  role: string;
 }) {
   const pathname = usePathname();
 
@@ -41,7 +47,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 px-2 py-2">
-        {NAV_ITEMS.map((item) => {
+        {(role === "guest" ? GUEST_NAV : MEMBER_NAV).map((item) => {
           const active = item.match(pathname);
           return (
             <Link
