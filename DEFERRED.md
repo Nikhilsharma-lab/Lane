@@ -40,9 +40,39 @@ Each item: what · why deferred · source review.
   concerns. — Day 2 gate-fix note.
 - **Duplicate client/server validation** can drift. Point the client form at the same zod schema. — Day 2 #10.
 - **Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email. — Day 1 setup.
+- **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
+  The PostgREST path blanket-denies all queries because `current_app_user_id()` uses the deprecated
+  `request.jwt.claim.sub` (should be `request.jwt.claims::json->>'sub'`). Action-level guards
+  (`requireActiveMember` / `requireOwnerOrAdmin`) are the **sole** tenant-isolation defense today. Task: fix
+  the claim path and verify RLS policies scope every table by workspace, restoring defense-in-depth.
+  — Danger-day isolation audit.
+- **`completeOnboarding` one-workspace invariant.** Nothing prevents it from minting a second workspace for a
+  user who already has one. `acceptInvite` enforces the one-workspace-per-user check; onboarding should too.
+  Non-security (creates orphan data, not a leak). — Danger-day action inventory.
 
 > Infra pre-launch items (staging/prod split, Supabase Pro, Vercel Pro, custom domain, cross-workspace RLS
 > verification) live in CLAUDE.md's "BEFORE FIRST PAYING CUSTOMER" section. Same gate governs both lists.
+
+## GUEST INTAKE INCREMENT — when external requesters are added
+
+- **`saveRequest`/`runTriage` sit behind `requireActiveMember`** (members only). Guest external requesters won't
+  be workspace members — guest intake needs its own token-scoped or public auth path, not the membership guard.
+  Don't forget or guests can't submit. — Danger-day action inventory.
+
+## COMMENT PAGINATION / READ ACTION — when comments get a standalone fetch
+
+- **Comment reads are by `requestId` alone, org-gated only transitively** through the request-detail page's
+  `notFound()` boundary (request.orgId !== session orgId → 404). Secure today because there is no standalone
+  comment read path. A future `getComments` action or pagination endpoint **must** scope by org (join through
+  request, `WHERE request.org_id = session orgId`) — do not rely on the page gate alone.
+  — Danger-day read-scoping audit.
+
+## AUTH SURFACE TOUCH — next time auth routes are modified
+
+- **`auth/callback/route.ts` open-redirect check.** `safeRedirectPath` currently validates the `next` param
+  (`startsWith("/")` and not `startsWith("//")`) — same check in `login`/`signup` actions for `redirectTo`.
+  Verify this remains sufficient (no `javascript:`, no protocol-relative, no backslash tricks) next time the
+  auth surface is touched. — Danger-day entry-point inventory.
 
 ## LOW PRIORITY / maybe never
 
