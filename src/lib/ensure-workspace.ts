@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
+  role: "owner" | "admin" | "member" | "guest";
   fullName: string;
   email: string;
   workspaceName: string;
@@ -29,6 +30,7 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
       fullName: profiles.fullName,
       email: profiles.email,
       workspaceName: workspaces.name,
+      role: workspaceMembers.role,
     })
     .from(profiles)
     .innerJoin(workspaces, eq(profiles.orgId, workspaces.id))
@@ -47,6 +49,7 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
       needsOnboarding: false,
       userId: user.id,
       orgId: row.orgId,
+      role: row.role,
       fullName: row.fullName,
       email: row.email,
       workspaceName: row.workspaceName,
