@@ -8,7 +8,7 @@
  * Same real-session, real-action pattern as auth-guard.test.ts.
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { db, workspaceMembers, requests, profiles } from "@/db";
+import { db, workspaceMembers, requests, profiles, type Request } from "@/db";
 import { eq, and } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
@@ -33,7 +33,7 @@ const USER_A_OWNER = "7c683bdd-43ce-42c4-847a-3fb5663b2926";
 const GUEST_USER = "00000000-0000-4000-a000-000000000099";
 const REQUEST_A_OPEN = "de7fe180-b51b-4714-8e82-42b775fe53d4";
 
-let originalRequestStatus: string;
+let originalRequestStatus: Request["status"];
 let originalRequestAssignee: string | null;
 
 beforeAll(async () => {
@@ -90,7 +90,7 @@ afterAll(async () => {
 
   await db
     .update(requests)
-    .set({ status: originalRequestStatus as any, assignedTo: originalRequestAssignee })
+    .set({ status: originalRequestStatus, assignedTo: originalRequestAssignee })
     .where(eq(requests.id, REQUEST_A_OPEN));
 });
 
@@ -104,7 +104,7 @@ describe("Guest blocked from management actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
-    expect((result as any).success).toBeUndefined();
+    expect(result).not.toHaveProperty("success");
   });
 
   it("guest → markDone → REJECTED", async () => {
@@ -112,7 +112,7 @@ describe("Guest blocked from management actions", () => {
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
     const result = await markDone(REQUEST_A_OPEN, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("error");
-    expect((result as any).success).toBeUndefined();
+    expect(result).not.toHaveProperty("success");
   });
 });
 
