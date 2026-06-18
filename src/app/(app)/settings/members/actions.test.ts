@@ -1,6 +1,19 @@
-import { describe, it, expect, vi, afterAll } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+
+let mockSessionUser: { id: string; email?: string } | null = null;
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: mockSessionUser },
+        error: mockSessionUser ? null : { message: "Not authenticated" },
+      }),
+    },
+  })),
+}));
 
 import { updateMemberRole, removeMember, createInvite } from "./actions";
 
@@ -13,6 +26,7 @@ const memberCtx = { userId: MEMBER_ID, orgId: ORG_ID };
 
 describe("forged-call permission tests (real actions, real DB)", () => {
   it("2a: self-role-change is blocked", async () => {
+    mockSessionUser = { id: OWNER_ID };
     const result = await updateMemberRole(
       { targetUserId: OWNER_ID, newRole: "admin" },
       ownerCtx
@@ -22,18 +36,21 @@ describe("forged-call permission tests (real actions, real DB)", () => {
   });
 
   it("2b: removing the owner is blocked", async () => {
+    mockSessionUser = { id: OWNER_ID };
     const result = await removeMember(OWNER_ID, ownerCtx);
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/cannot remove yourself/i);
   });
 
   it("2b-alt: member cannot remove the owner", async () => {
+    mockSessionUser = { id: MEMBER_ID };
     const result = await removeMember(OWNER_ID, memberCtx);
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/only owners and admins/i);
   });
 
   it("2c: member cannot change anyone's role", async () => {
+    mockSessionUser = { id: MEMBER_ID };
     const result = await updateMemberRole(
       { targetUserId: OWNER_ID, newRole: "admin" },
       memberCtx
@@ -43,6 +60,7 @@ describe("forged-call permission tests (real actions, real DB)", () => {
   });
 
   it("2d: member cannot create an invite", async () => {
+    mockSessionUser = { id: MEMBER_ID };
     const result = await createInvite(
       { email: "forged@evil.com", role: "admin" },
       memberCtx
