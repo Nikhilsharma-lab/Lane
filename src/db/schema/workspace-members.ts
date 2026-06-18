@@ -12,6 +12,7 @@ export const workspaceRoleEnum = pgEnum("workspace_role", [
   "owner",
   "admin",
   "member",
+  "guest",
 ]);
 
 export const workspaceMembers = pgTable(
