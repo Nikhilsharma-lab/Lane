@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { updateMemberRole, removeMember } from "./actions";
 
-const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10 };
+const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
 
 export function MemberRow({
   member,
@@ -17,10 +17,10 @@ export function MemberRow({
     fullName: string | null;
     email: string | null;
     profileRole: string | null;
-    role: "owner" | "admin" | "member";
+    role: "owner" | "admin" | "member" | "guest";
   };
   context: { userId: string; orgId: string };
-  callerRole: "owner" | "admin" | "member";
+  callerRole: "owner" | "admin" | "member" | "guest";
   isCurrentUser: boolean;
 }) {
   const [isPending, startTransition] = useTransition();

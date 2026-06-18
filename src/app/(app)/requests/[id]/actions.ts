@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments } from "@/db";
 import { eq } from "drizzle-orm";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,7 +14,7 @@ export async function pickUpRequest(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
+  const auth = await requireMemberOrAbove(context.orgId);
   if (!auth) return { error: "Not found" };
 
   const [req] = await db
@@ -42,7 +42,7 @@ export async function markDone(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
+  const auth = await requireMemberOrAbove(context.orgId);
   if (!auth) return { error: "Not found" };
 
   const [req] = await db
