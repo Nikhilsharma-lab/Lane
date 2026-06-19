@@ -157,6 +157,7 @@ describe("Guardrails hold for guest values", () => {
     const { updateMemberRole } = await import("@/app/(app)/settings/members/actions");
     const result = await updateMemberRole({ targetUserId: OWNER_ID, newRole: "guest" }, { orgId: WS_ID });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/owner.*role cannot be changed/i);
   });
 });
 
@@ -166,6 +167,7 @@ describe("Negative control — invalid role rejected", () => {
     const { updateMemberRole } = await import("@/app/(app)/settings/members/actions");
     const result = await updateMemberRole({ targetUserId: GUEST_ID, newRole: "superadmin" }, { orgId: WS_ID });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/invalid option/i);
     expect(await getRole(GUEST_ID)).toBe("guest");
   });
 });

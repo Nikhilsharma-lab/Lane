@@ -105,6 +105,7 @@ describe("Guest blocked from management actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result).not.toHaveProperty("success");
   });
 
@@ -113,6 +114,7 @@ describe("Guest blocked from management actions", () => {
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
     const result = await markDone(REQUEST_A_OPEN, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result).not.toHaveProperty("success");
   });
 });

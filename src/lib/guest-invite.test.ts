@@ -167,6 +167,7 @@ describe("Negative control — invalid role rejected", () => {
     );
 
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/invalid option/i);
 
     const rows = await db
       .select({ id: invites.id })
