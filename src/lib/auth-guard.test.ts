@@ -112,30 +112,22 @@ describe("orgId forge blocked — session=B, no userId, orgId=A", () => {
   });
 });
 
-describe("Identity binding — assignedTo = session user, not forged id", () => {
-  let originalStatus: "open" | "in_progress" | "done";
-  let originalAssignee: string | null;
+const IDENTITY_REQ = "00000000-0000-4000-a000-000000000b01";
 
+describe("Identity binding — assignedTo = session user, not forged id", () => {
   beforeAll(async () => {
-    const [req] = await db
-      .select({ status: requests.status, assignedTo: requests.assignedTo })
-      .from(requests)
-      .where(eq(requests.id, REQUEST_A_OPEN));
-    originalStatus = (req?.status as "open" | "in_progress" | "done") ?? "open";
-    originalAssignee = req?.assignedTo ?? null;
-    if (originalStatus !== "open") {
-      await db
-        .update(requests)
-        .set({ status: "open", assignedTo: null })
-        .where(eq(requests.id, REQUEST_A_OPEN));
-    }
+    await db.insert(requests).values({
+      id: IDENTITY_REQ,
+      orgId: WORKSPACE_A,
+      title: "Identity-binding test request",
+      description: "Self-seeded for auth-guard identity test",
+      status: "open",
+      createdBy: USER_A_OWNER,
+    }).onConflictDoNothing();
   });
 
   afterAll(async () => {
-    await db
-      .update(requests)
-      .set({ status: originalStatus, assignedTo: originalAssignee })
-      .where(eq(requests.id, REQUEST_A_OPEN));
+    await db.delete(requests).where(eq(requests.id, IDENTITY_REQ));
   });
 
   it("pickUpRequest: session=A_OWNER → assignedTo = A_OWNER (from session)", async () => {
@@ -143,7 +135,7 @@ describe("Identity binding — assignedTo = session user, not forged id", () => 
     const { pickUpRequest } = await import(
       "@/app/(app)/requests/[id]/actions"
     );
-    const result = await pickUpRequest(REQUEST_A_OPEN, {
+    const result = await pickUpRequest(IDENTITY_REQ, {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("success", true);
@@ -151,7 +143,7 @@ describe("Identity binding — assignedTo = session user, not forged id", () => 
     const [req] = await db
       .select({ assignedTo: requests.assignedTo })
       .from(requests)
-      .where(eq(requests.id, REQUEST_A_OPEN));
+      .where(eq(requests.id, IDENTITY_REQ));
     expect(req.assignedTo).toBe(USER_A_OWNER);
   });
 });
