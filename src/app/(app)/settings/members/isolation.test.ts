@@ -48,6 +48,7 @@ describe("Cross-workspace isolation — forged actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -59,6 +60,7 @@ describe("Cross-workspace isolation — forged actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -71,6 +73,7 @@ describe("Cross-workspace isolation — forged actions", () => {
       { orgId: WORKSPACE_A }
     );
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can change roles/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -82,6 +85,7 @@ describe("Cross-workspace isolation — forged actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can remove members/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -94,6 +98,7 @@ describe("Cross-workspace isolation — forged actions", () => {
       { orgId: WORKSPACE_A }
     );
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can invite members/i);
     expect(result.success).toBeUndefined();
   });
 });

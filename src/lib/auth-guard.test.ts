@@ -49,6 +49,7 @@ describe("Impersonation blocked — forged userId ignored", () => {
       orgId: WORKSPACE_A,
     } as any);
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -62,6 +63,7 @@ describe("Impersonation blocked — forged userId ignored", () => {
       orgId: WORKSPACE_A,
     } as any);
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
   });
 
@@ -75,6 +77,7 @@ describe("Impersonation blocked — forged userId ignored", () => {
       { userId: USER_A_OWNER, orgId: WORKSPACE_A } as any
     );
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can change roles/i);
   });
 
   it("createInvite: session=B, forged userId=A_OWNER → rejected", async () => {
@@ -87,6 +90,7 @@ describe("Impersonation blocked — forged userId ignored", () => {
       { userId: USER_A_OWNER, orgId: WORKSPACE_A } as any
     );
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can invite members/i);
   });
 });
 
@@ -100,6 +104,7 @@ describe("orgId forge blocked — session=B, no userId, orgId=A", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/not found/i);
   });
 
   it("removeMember: rejected (B not in A)", async () => {
@@ -109,6 +114,7 @@ describe("orgId forge blocked — session=B, no userId, orgId=A", () => {
     );
     const result = await removeMember(USER_A_OWNER, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/only owners and admins can remove members/i);
   });
 });
 
