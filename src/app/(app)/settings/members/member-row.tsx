@@ -68,13 +68,14 @@ export function MemberRow({
             {member.profileRole}
           </Badge>
         )}
-        {canManage && (member.role === "member" || member.role === "admin") ? (
+        {canManage ? (
           <select
             value={member.role}
             onChange={(e) => handleRoleChange(e.target.value)}
             disabled={isPending}
             className="h-7 rounded-md border border-input bg-transparent px-2 text-xs capitalize"
           >
+            <option value="guest">Guest</option>
             <option value="member">Member</option>
             <option value="admin">Admin</option>
           </select>
