@@ -37,6 +37,7 @@ vi.mock("@/lib/supabase/server", () => ({
 const WS_ID = "00000000-0000-4000-a000-000000000e01";
 const OWNER_ID = "00000000-0000-4000-a000-000000000e10";
 const ADMIN_ID = "00000000-0000-4000-a000-000000000e20";
+const PEER_ADMIN_ID = "00000000-0000-4000-a000-000000000e21";
 const MEMBER_ID = "00000000-0000-4000-a000-000000000e30";
 const GUEST_ID = "00000000-0000-4000-a000-000000000e40";
 
@@ -50,6 +51,7 @@ beforeAll(async () => {
   await db.insert(profiles).values([
     { id: OWNER_ID, orgId: WS_ID, fullName: "RC Owner", email: "rc-owner@forge.test", role: "pm" },
     { id: ADMIN_ID, orgId: WS_ID, fullName: "RC Admin", email: "rc-admin@forge.test", role: "designer" },
+    { id: PEER_ADMIN_ID, orgId: WS_ID, fullName: "RC Peer Admin", email: "rc-peer-admin@forge.test", role: "developer" },
     { id: MEMBER_ID, orgId: WS_ID, fullName: "RC Member", email: "rc-member@forge.test", role: "developer" },
     { id: GUEST_ID, orgId: WS_ID, fullName: "RC Guest", email: "rc-guest@forge.test", role: "designer" },
   ]).onConflictDoNothing();
@@ -57,6 +59,7 @@ beforeAll(async () => {
   await db.insert(workspaceMembers).values([
     { workspaceId: WS_ID, userId: OWNER_ID, role: "owner", isActive: true },
     { workspaceId: WS_ID, userId: ADMIN_ID, role: "admin", isActive: true },
+    { workspaceId: WS_ID, userId: PEER_ADMIN_ID, role: "admin", isActive: true },
     { workspaceId: WS_ID, userId: MEMBER_ID, role: "member", isActive: true },
     { workspaceId: WS_ID, userId: GUEST_ID, role: "guest", isActive: true },
   ]).onConflictDoNothing();
@@ -73,7 +76,8 @@ async function getRole(userId: string): Promise<string> {
     .select({ role: workspaceMembers.role })
     .from(workspaceMembers)
     .where(and(eq(workspaceMembers.workspaceId, WS_ID), eq(workspaceMembers.userId, userId)));
-  return row.role;
+  expect(row, `Expected workspace member row for user ${userId}`).toBeDefined();
+  return row!.role;
 }
 
 describe("Promote guest", () => {
@@ -134,8 +138,9 @@ describe("Guardrails hold for guest values", () => {
   it("admin demotes peer admin → REJECTED (rule 4a, equal level)", async () => {
     mockSessionUser = { id: ADMIN_ID };
     const { updateMemberRole } = await import("@/app/(app)/settings/members/actions");
-    const result = await updateMemberRole({ targetUserId: OWNER_ID, newRole: "guest" }, { orgId: WS_ID });
+    const result = await updateMemberRole({ targetUserId: PEER_ADMIN_ID, newRole: "guest" }, { orgId: WS_ID });
     expect(result).toHaveProperty("error");
+    expect(result.error).toMatch(/equal or higher role/i);
   });
 
   it("self-change to guest → REJECTED (rule 2)", async () => {
