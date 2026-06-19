@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db, requests, comments } from "@/db";
 import { eq } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
+import { createNotification, createNotifications } from "@/lib/notify";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,7 +19,7 @@ export async function pickUpRequest(
   if (!auth) return { error: "Not found" };
 
   const [req] = await db
-    .select({ status: requests.status, orgId: requests.orgId })
+    .select({ status: requests.status, orgId: requests.orgId, createdBy: requests.createdBy })
     .from(requests)
     .where(eq(requests.id, requestId));
 
@@ -31,6 +32,14 @@ export async function pickUpRequest(
     .update(requests)
     .set({ status: "in_progress", assignedTo: auth.userId })
     .where(eq(requests.id, requestId));
+
+  await createNotification({
+    userId: req.createdBy,
+    orgId: auth.orgId,
+    type: "request_picked_up",
+    requestId,
+    actorId: auth.userId,
+  });
 
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
@@ -46,7 +55,7 @@ export async function markDone(
   if (!auth) return { error: "Not found" };
 
   const [req] = await db
-    .select({ status: requests.status, orgId: requests.orgId })
+    .select({ status: requests.status, orgId: requests.orgId, createdBy: requests.createdBy })
     .from(requests)
     .where(eq(requests.id, requestId));
 
@@ -59,6 +68,14 @@ export async function markDone(
     .update(requests)
     .set({ status: "done" })
     .where(eq(requests.id, requestId));
+
+  await createNotification({
+    userId: req.createdBy,
+    orgId: auth.orgId,
+    type: "request_done",
+    requestId,
+    actorId: auth.userId,
+  });
 
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
@@ -84,7 +101,7 @@ export async function addComment(
   }
 
   const [req] = await db
-    .select({ orgId: requests.orgId, createdBy: requests.createdBy })
+    .select({ orgId: requests.orgId, createdBy: requests.createdBy, assignedTo: requests.assignedTo })
     .from(requests)
     .where(eq(requests.id, requestId));
 
@@ -101,6 +118,26 @@ export async function addComment(
     authorId: auth.userId,
     body: parsed.data.body,
   });
+
+  const recipients: string[] = [];
+  if (auth.userId === req.createdBy) {
+    if (req.assignedTo) recipients.push(req.assignedTo);
+  } else if (auth.userId === req.assignedTo) {
+    recipients.push(req.createdBy);
+  } else {
+    recipients.push(req.createdBy);
+    if (req.assignedTo) recipients.push(req.assignedTo);
+  }
+
+  await createNotifications(
+    recipients.map((userId) => ({
+      userId,
+      orgId: auth.orgId,
+      type: "comment_added" as const,
+      requestId,
+      actorId: auth.userId,
+    }))
+  );
 
   revalidatePath(`/requests/${requestId}`);
   return { success: true };

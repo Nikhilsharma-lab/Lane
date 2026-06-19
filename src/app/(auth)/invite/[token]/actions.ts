@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db, invites, profiles, workspaceMembers } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { createNotification } from "@/lib/notify";
 
 export async function acceptInvite(token: string) {
   if (!token || typeof token !== "string") {
@@ -114,6 +115,16 @@ export async function acceptInvite(token: string) {
       .set({ status: "accepted", acceptedAt: new Date() })
       .where(eq(invites.id, invite.id));
   });
+
+  if (invite.invitedBy) {
+    await createNotification({
+      userId: invite.invitedBy,
+      orgId: invite.orgId,
+      type: "invite_accepted",
+      requestId: null,
+      actorId: user.id,
+    });
+  }
 
   revalidatePath("/", "layout");
   redirect("/");
