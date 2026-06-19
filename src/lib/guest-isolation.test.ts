@@ -8,7 +8,7 @@
  * Same real-session, real-action pattern as auth-guard.test.ts.
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { db, workspaceMembers, requests, profiles, type Request } from "@/db";
+import { db, workspaceMembers, requests, profiles } from "@/db";
 import { eq, and } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
@@ -34,8 +34,7 @@ const GUEST_USER = "00000000-0000-4000-a000-000000000099";
 const GUEST_OWN_REQ = "00000000-0000-4000-a000-000000000100";
 const REQUEST_A_OPEN = "de7fe180-b51b-4714-8e82-42b775fe53d4";
 
-let originalRequestStatus: Request["status"];
-let originalRequestAssignee: string | null;
+const CONTROL_REQ = "00000000-0000-4000-a000-000000000c01";
 
 beforeAll(async () => {
   await db
@@ -71,19 +70,14 @@ beforeAll(async () => {
     createdBy: GUEST_USER,
   }).onConflictDoNothing();
 
-  const [req] = await db
-    .select({ status: requests.status, assignedTo: requests.assignedTo })
-    .from(requests)
-    .where(eq(requests.id, REQUEST_A_OPEN));
-  originalRequestStatus = req?.status ?? "open";
-  originalRequestAssignee = req?.assignedTo ?? null;
-
-  if (originalRequestStatus !== "open") {
-    await db
-      .update(requests)
-      .set({ status: "open", assignedTo: null })
-      .where(eq(requests.id, REQUEST_A_OPEN));
-  }
+  await db.insert(requests).values({
+    id: CONTROL_REQ,
+    orgId: WORKSPACE_A,
+    title: "Positive-control request for guest-isolation",
+    description: "Self-seeded for owner pickup/done test",
+    status: "open",
+    createdBy: USER_A_OWNER,
+  }).onConflictDoNothing();
 });
 
 afterAll(async () => {
@@ -97,12 +91,8 @@ afterAll(async () => {
     );
 
   await db.delete(requests).where(eq(requests.id, GUEST_OWN_REQ));
+  await db.delete(requests).where(eq(requests.id, CONTROL_REQ));
   await db.delete(profiles).where(eq(profiles.id, GUEST_USER));
-
-  await db
-    .update(requests)
-    .set({ status: originalRequestStatus, assignedTo: originalRequestAssignee })
-    .where(eq(requests.id, REQUEST_A_OPEN));
 });
 
 describe("Guest blocked from management actions", () => {
@@ -148,19 +138,12 @@ describe("Guest CAN comment on own request", () => {
 });
 
 describe("Positive control — member+ CAN manage", () => {
-  afterAll(async () => {
-    await db
-      .update(requests)
-      .set({ status: "open", assignedTo: null })
-      .where(eq(requests.id, REQUEST_A_OPEN));
-  });
-
   it("owner → pickUpRequest → ALLOWED", async () => {
     mockSessionUser = { id: USER_A_OWNER };
     const { pickUpRequest } = await import(
       "@/app/(app)/requests/[id]/actions"
     );
-    const result = await pickUpRequest(REQUEST_A_OPEN, {
+    const result = await pickUpRequest(CONTROL_REQ, {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("success", true);
@@ -169,7 +152,7 @@ describe("Positive control — member+ CAN manage", () => {
   it("owner → markDone → ALLOWED", async () => {
     mockSessionUser = { id: USER_A_OWNER };
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
-    const result = await markDone(REQUEST_A_OPEN, { orgId: WORKSPACE_A });
+    const result = await markDone(CONTROL_REQ, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("success", true);
   });
 });

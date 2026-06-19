@@ -17,12 +17,15 @@ function getDb(): DbClient {
       );
     }
 
+    const url = new URL(process.env.DATABASE_URL);
+    const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+
     globalForDb._sql = postgres(process.env.DATABASE_URL, {
       prepare: false,
       max: 3,
       idle_timeout: 20,
       connect_timeout: 10,
-      ssl: "require",
+      ssl: isLocal ? false : "require",
     });
 
     globalForDb._db = drizzle(globalForDb._sql, { schema });

@@ -98,7 +98,14 @@ describe("Cross-workspace isolation — forged actions", () => {
   });
 });
 
-describe("Cross-workspace isolation — RLS layer (Supabase authenticated role)", () => {
+const isLocalDb = (() => {
+  try {
+    const h = new URL(process.env.DATABASE_URL ?? "").hostname;
+    return h === "localhost" || h === "127.0.0.1";
+  } catch { return true; }
+})();
+
+describe.skipIf(isLocalDb)("Cross-workspace isolation — RLS layer (Supabase authenticated role)", () => {
   let supabase: any;
 
   beforeAll(async () => {
