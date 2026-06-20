@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { db, workspaces, profiles, workspaceMembers } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 const onboardingSchema = z.object({
   workspaceName: z
@@ -48,6 +48,22 @@ export async function completeOnboarding(formData: {
     .where(eq(profiles.id, user.id));
 
   if (existingProfile) {
+    redirect("/");
+  }
+
+  // One-workspace guard: if user already has an active membership
+  // (e.g. accepted an invite), don't mint a second workspace
+  const [activeMembership] = await db
+    .select({ workspaceId: workspaceMembers.workspaceId })
+    .from(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.userId, user.id),
+        eq(workspaceMembers.isActive, true)
+      )
+    );
+
+  if (activeMembership) {
     redirect("/");
   }
 
