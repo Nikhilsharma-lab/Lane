@@ -61,6 +61,15 @@ test.describe("onboarding e2e", () => {
         .locator('button[type="submit"]', { hasText: "Get started" })
         .click();
 
+      // Invite step appears after create
+      await expect(
+        page.locator("text=Invite a teammate")
+      ).toBeVisible({ timeout: 10_000 });
+
+      await page
+        .locator("button", { hasText: "Skip for now" })
+        .click();
+
       await expect(page).toHaveURL("/", { timeout: 15_000 });
       await expect(
         page.locator("h1", { hasText: "Requests" })
@@ -69,6 +78,51 @@ test.describe("onboarding e2e", () => {
       // Verify the custom fullName persisted
       const storedName = await getProfileFullName(user.id);
       expect(storedName).toBe("E2E Custom Name");
+    } finally {
+      await cleanupTestWorkspace(user.id);
+      await deleteTestUser(user.id);
+    }
+  });
+
+  test("create workspace → invite step → send invite → continue to board", async ({
+    page,
+  }) => {
+    const user = await createTestUser("invite-send");
+
+    try {
+      await loginAs(page, user.email, user.password);
+      await page.waitForURL("**/onboarding", { timeout: 15_000 });
+
+      const fullNameInput = page.locator("#fullName");
+      await fullNameInput.clear();
+      await fullNameInput.fill("Invite Sender");
+
+      await page.locator("#workspaceName").clear();
+      await page.locator("#workspaceName").fill("Invite Test Workspace");
+      await page.locator("button", { hasText: "Designer" }).click();
+      await page
+        .locator('button[type="submit"]', { hasText: "Get started" })
+        .click();
+
+      // Invite step
+      await expect(
+        page.locator("text=Invite a teammate")
+      ).toBeVisible({ timeout: 10_000 });
+
+      await page.locator("#inviteEmail").fill("invited-colleague@example.com");
+      await page.locator("button", { hasText: "Send invite" }).click();
+
+      // Success: invite URL shown
+      await expect(
+        page.locator("text=Invite sent!")
+      ).toBeVisible({ timeout: 10_000 });
+
+      await page.locator("button", { hasText: "Continue" }).click();
+
+      await expect(page).toHaveURL("/", { timeout: 15_000 });
+      await expect(
+        page.locator("h1", { hasText: "Requests" })
+      ).toBeVisible({ timeout: 5_000 });
     } finally {
       await cleanupTestWorkspace(user.id);
       await deleteTestUser(user.id);

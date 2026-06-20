@@ -14,6 +14,7 @@ export async function cleanupTestWorkspace(
       SELECT org_id FROM profiles WHERE id = ${userId}
     `;
 
+    await sql`DELETE FROM invites WHERE invited_by = ${userId}`;
     await sql`DELETE FROM workspace_members WHERE user_id = ${userId}`;
     await sql`DELETE FROM profiles WHERE id = ${userId}`;
 
@@ -23,6 +24,7 @@ export async function cleanupTestWorkspace(
         WHERE workspace_id = ${profile.org_id}
       `;
       if (remaining.c === 0) {
+        await sql`DELETE FROM invites WHERE org_id = ${profile.org_id}`;
         await sql`DELETE FROM organizations WHERE id = ${profile.org_id}`;
       }
     }

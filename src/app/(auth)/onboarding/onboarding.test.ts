@@ -81,11 +81,15 @@ describe("completeOnboarding — function-via-Drizzle", () => {
       "@/app/(auth)/onboarding/actions"
     );
 
-    await expect(
-      completeOnboarding({ fullName: "Fresh User", workspaceName: "Fresh Workspace", role: "pm" })
-    ).rejects.toThrow("NEXT_REDIRECT");
+    const result = await completeOnboarding({
+      fullName: "Fresh User",
+      workspaceName: "Fresh Workspace",
+      role: "pm",
+    });
 
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    expect(result).toHaveProperty("success", true);
+    expect(result).toHaveProperty("orgId");
+    const orgId = (result as { orgId: string }).orgId;
 
     const [profile] = await db
       .select({
@@ -118,7 +122,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
     expect(member.role).toBe("owner");
   });
 
-  it("idempotent: existing profile → redirect, no duplicate workspace", async () => {
+  it("idempotent: existing profile → returns orgId, no duplicate workspace", async () => {
     mockSessionUser = {
       id: IDEM_USER,
       email: "idem@test.local",
@@ -128,9 +132,12 @@ describe("completeOnboarding — function-via-Drizzle", () => {
       "@/app/(auth)/onboarding/actions"
     );
 
-    await expect(
-      completeOnboarding({ fullName: "Idem User", workspaceName: "Idem Workspace", role: "designer" })
-    ).rejects.toThrow("NEXT_REDIRECT");
+    const first = await completeOnboarding({
+      fullName: "Idem User",
+      workspaceName: "Idem Workspace",
+      role: "designer",
+    });
+    expect(first).toHaveProperty("success", true);
 
     const [profileBefore] = await db
       .select({ orgId: profiles.orgId })
@@ -138,16 +145,12 @@ describe("completeOnboarding — function-via-Drizzle", () => {
       .where(eq(profiles.id, IDEM_USER));
     const orgIdBefore = profileBefore.orgId;
 
-    redirectMock.mockClear();
-
-    await expect(
-      completeOnboarding({
-        fullName: "Idem User",
-        workspaceName: "Should Not Exist",
-        role: "developer",
-      })
-    ).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    const second = await completeOnboarding({
+      fullName: "Idem User",
+      workspaceName: "Should Not Exist",
+      role: "developer",
+    });
+    expect(second).toHaveProperty("success", true);
 
     const [profileAfter] = await db
       .select({ orgId: profiles.orgId })
@@ -177,11 +180,12 @@ describe("completeOnboarding — function-via-Drizzle", () => {
       "@/app/(auth)/onboarding/actions"
     );
 
-    await expect(
-      completeOnboarding({ fullName: "Slug User", workspaceName: "Collision Test", role: "developer" })
-    ).rejects.toThrow("NEXT_REDIRECT");
-
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    const result = await completeOnboarding({
+      fullName: "Slug User",
+      workspaceName: "Collision Test",
+      role: "developer",
+    });
+    expect(result).toHaveProperty("success", true);
 
     const [profile] = await db
       .select({ orgId: profiles.orgId })
@@ -228,11 +232,12 @@ describe("completeOnboarding — function-via-Drizzle", () => {
       "@/app/(auth)/onboarding/actions"
     );
 
-    await expect(
-      completeOnboarding({ fullName: "Guarded User", workspaceName: "Should Not Exist", role: "pm" })
-    ).rejects.toThrow("NEXT_REDIRECT");
-
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    const result = await completeOnboarding({
+      fullName: "Guarded User",
+      workspaceName: "Should Not Exist",
+      role: "pm",
+    });
+    expect(result).toHaveProperty("success", true);
 
     const [ws] = await db
       .select({ id: workspaces.id })
