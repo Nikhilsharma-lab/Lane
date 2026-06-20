@@ -1,7 +1,7 @@
 "use server";
 
 import { db, notifications, profiles, requests } from "@/db";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, count } from "drizzle-orm";
 import { requireActiveMember } from "@/lib/auth-guard";
 
 const NOTIFICATIONS_LIMIT = 30;
@@ -40,8 +40,8 @@ export async function getUnreadCount(context: { orgId: string }) {
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { error: "Not found" };
 
-  const rows = await db
-    .select({ id: notifications.id })
+  const [row] = await db
+    .select({ value: count() })
     .from(notifications)
     .where(
       and(
@@ -51,7 +51,7 @@ export async function getUnreadCount(context: { orgId: string }) {
       )
     );
 
-  return { success: true, count: rows.length };
+  return { success: true, count: row?.value ?? 0 };
 }
 
 export async function markNotificationRead(
@@ -67,7 +67,8 @@ export async function markNotificationRead(
     .where(
       and(
         eq(notifications.id, notificationId),
-        eq(notifications.userId, auth.userId)
+        eq(notifications.userId, auth.userId),
+        eq(notifications.orgId, auth.orgId)
       )
     );
 
