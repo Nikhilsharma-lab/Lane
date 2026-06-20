@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -48,8 +47,9 @@ export async function completeOnboarding(formData: {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || `workspace-${user.id.slice(0, 8)}`;
 
+  let orgId: string;
   try {
-    await db.execute(
+    const result = await db.execute(
       sql`SELECT * FROM bootstrap_organization_membership(
         ${user.id}::uuid,
         ${parsed.data.workspaceName},
@@ -59,6 +59,8 @@ export async function completeOnboarding(formData: {
         ${parsed.data.role}
       )`
     );
+    orgId = (result as unknown as Array<{ org_id: string }>)[0]?.org_id;
+    if (!orgId) throw new Error("bootstrap returned no org_id");
   } catch (err) {
     console.error("[onboarding] bootstrap failed:", err);
     return {
@@ -67,6 +69,5 @@ export async function completeOnboarding(formData: {
   }
 
   revalidatePath("/");
-  revalidatePath("/onboarding");
-  redirect("/");
+  return { success: true as const, orgId };
 }

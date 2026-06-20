@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { completeOnboarding } from "./actions";
 import { acceptInvite } from "@/app/(auth)/invite/[token]/actions";
+import { createInvite } from "@/app/(app)/settings/members/actions";
 import type { PendingInvite } from "./get-pending-invites";
 
 const ROLES = [
@@ -32,6 +34,8 @@ export function OnboardingForm({
   fullName: string;
   pendingInvites?: PendingInvite[];
 }) {
+  const router = useRouter();
+
   const [showCreateForm, setShowCreateForm] = useState(
     pendingInvites.length === 0
   );
@@ -45,6 +49,15 @@ export function OnboardingForm({
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Post-create invite step
+  const [step, setStep] = useState<"create" | "invite">("create");
+  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [invitePending, setInvitePending] = useState(false);
+  const [inviteSendError, setInviteSendError] = useState<string | null>(null);
+  const [sentInviteUrl, setSentInviteUrl] = useState<string | null>(null);
 
   async function handleAcceptInvite(token: string) {
     setAcceptingToken(token);
@@ -81,7 +94,122 @@ export function OnboardingForm({
     if (result?.error) {
       setError(result.error);
       setPending(false);
+    } else if ("success" in result && result.orgId) {
+      setCreatedOrgId(result.orgId);
+      setStep("invite");
+      setPending(false);
     }
+  }
+
+  async function handleSendInvite() {
+    if (!createdOrgId || !inviteEmail.trim()) return;
+    setInvitePending(true);
+    setInviteSendError(null);
+    const result = await createInvite(
+      { email: inviteEmail.trim(), role: inviteRole },
+      { orgId: createdOrgId }
+    );
+    if (result.error) {
+      setInviteSendError(result.error);
+      setInvitePending(false);
+    } else {
+      setSentInviteUrl(result.inviteUrl ?? null);
+      setInvitePending(false);
+    }
+  }
+
+  function handleSkipInvite() {
+    router.push("/");
+  }
+
+  if (step === "invite" && createdOrgId) {
+    if (sentInviteUrl) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <p className="font-medium">Invite sent!</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Share this link with your teammate:
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border-2 border-border bg-muted/50 p-3">
+            <code className="flex-1 truncate text-sm">{sentInviteUrl}</code>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigator.clipboard.writeText(sentInviteUrl)}
+            >
+              Copy
+            </Button>
+          </div>
+          <Button className="w-full" onClick={() => router.push("/")}>
+            Continue
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="font-medium">Invite a teammate</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You can always invite more people from Settings later.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="inviteEmail">Email</Label>
+            <Input
+              id="inviteEmail"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="teammate@company.com"
+              disabled={invitePending}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="inviteRole">Role</Label>
+            <select
+              id="inviteRole"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              disabled={invitePending}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+              <option value="guest">Guest</option>
+            </select>
+          </div>
+        </div>
+
+        {inviteSendError && (
+          <p className="text-sm text-destructive">{inviteSendError}</p>
+        )}
+
+        <Button
+          className="w-full"
+          onClick={handleSendInvite}
+          disabled={invitePending || !inviteEmail.trim()}
+        >
+          {invitePending ? "Sending..." : "Send invite"}
+        </Button>
+
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={handleSkipInvite}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Skip for now
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!showCreateForm && pendingInvites.length > 0) {
