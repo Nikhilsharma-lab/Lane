@@ -62,3 +62,20 @@ banned per CLAUDE.md" in a refuse list. CLAUDE.md contains no such ban — the c
 inference from the MVP screen whitelist, presented as a quoted rule. The error would have
 permanently closed a deferral (the notification inbox-pane form, which depends on peek) that
 is actually ungated. Fabricated authority closes doors that should stay open.
+
+---
+
+## SESSION-HYGIENE (clean-tree gate)
+
+At the start of any work session — whether in this track's prompts or a parallel Claude Code
+session — run `git status` and verify a clean tree before making new edits. If uncommitted or
+untracked WIP exists, secure it first (commit to a dedicated branch or stash) and identify what
+it is. Never start new work on top of unexplained uncommitted changes.
+
+A session must not end leaving uncommitted work in the working tree.
+
+**Why this rule exists:** A parallel design session (impeccable skill) left a 687-line intake
+rework and an untracked PickUpButton in the working tree. A subsequent polish commit
+accidentally included the reworked `page.tsx`, which imported the untracked file — Vercel
+deployed, failed, and the contaminated commit had to be reverted. The root cause was starting
+new edits in a dirty tree without first identifying and securing the existing WIP.
