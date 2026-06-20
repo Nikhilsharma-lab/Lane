@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { revokeInvite, resendInvite } from "./actions";
 
 export function InviteRow({
@@ -22,6 +34,7 @@ export function InviteRow({
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [revokeOpen, setRevokeOpen] = useState(false);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(invite.inviteUrl);
@@ -44,6 +57,7 @@ export function InviteRow({
   function handleRevoke() {
     startTransition(async () => {
       await revokeInvite(invite.id, context);
+      setRevokeOpen(false);
     });
   }
 
@@ -85,13 +99,40 @@ export function InviteRow({
             >
               Resend
             </button>
-            <button
-              onClick={handleRevoke}
-              className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-              disabled={isPending}
-            >
-              Revoke
-            </button>
+            <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+              <button
+                onClick={() => setRevokeOpen(true)}
+                className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                disabled={isPending}
+              >
+                Revoke
+              </button>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogMedia className="bg-destructive/10">
+                    <AlertTriangle className="size-5 text-destructive" />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>
+                    Revoke invite to {invite.email}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    They will need a new invite to join this workspace.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isPending}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={handleRevoke}
+                    disabled={isPending}
+                  >
+                    {isPending ? "Revoking…" : "Revoke"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <Badge variant="outline">Pending</Badge>
