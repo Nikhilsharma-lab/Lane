@@ -44,3 +44,21 @@ in DEFERRED.md. Items without a trigger rot — every entry gets one.
 **Why this rule exists:** Deferred items from daily reviews and recons lived only in chat context
 and were lost across sessions. DEFERRED.md existed but wasn't used consistently as the single
 source of truth for what's been intentionally postponed.
+
+---
+
+## RECON-QUOTE
+
+Any recon or summary that asserts a rule ("banned per CLAUDE.md", "required by spec §X",
+"Plane does Y") must back it with a verbatim quote + file:line reference. Never paraphrase a
+source as if it were a quoted rule; never state an inference about what a source says as fact.
+If it isn't quoted, it's an inference — label it one.
+
+**Any claim that gates a build or a refusal must be verified against the actual source before
+it's acted on.**
+
+**Why this rule exists:** The polish recon (2025-06-20) stated "Detail-page peek/modal modes —
+banned per CLAUDE.md" in a refuse list. CLAUDE.md contains no such ban — the claim was an
+inference from the MVP screen whitelist, presented as a quoted rule. The error would have
+permanently closed a deferral (the notification inbox-pane form, which depends on peek) that
+is actually ungated. Fabricated authority closes doors that should stay open.
