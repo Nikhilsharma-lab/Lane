@@ -82,6 +82,20 @@ Each item: what · why deferred · source review.
   Verify this remains sufficient (no `javascript:`, no protocol-relative, no backslash tricks) next time the
   auth surface is touched. — Danger-day entry-point inventory.
 
+## REQUEST PEEK/PREVIEW — when board-context viewing is needed
+
+- **Detail-page peek/preview.** What: view a request's detail while staying in board/list context
+  (Plane's issue peek), instead of full-page nav to `/requests/{id}`. Status: **UNGATED, not banned.**
+  Not on the MVP screen whitelist (CLAUDE.md lines 17–26) → needs Nikhil's explicit written decision
+  before building. Deliberately unbuilt; full-page detail nav is sufficient at current scale. Why
+  deferred: not on the GTM path. Its main payoff for Lane — the notification inbox-pane form (see
+  NOTIFICATION AT-SCALE section below) — is already covered by the popover. No demonstrated need to
+  stay in board context while viewing a request at small scale. Plane ref: issue peek-overview
+  (`apps/web/core/components/issues/peek-overview/`), plus the notifications route that depends on it
+  (`NotificationsRoot` renders `IssuePeekOverview` in the right pane). Trigger: a real need to view a
+  request without losing board/list place, OR the inbox-pane notification form becomes wanted (peek is
+  its prerequisite) — either fires a Nikhil decision.
+
 ## NOTIFICATION AT-SCALE — Plane-sourced deferrals (notification recon, 2025-06-20)
 
 Items identified by comparing Lane's notification system against Plane's (`makeplane/plane`).
