@@ -50,7 +50,6 @@
 
   /* Fonts — wired in layout.tsx (see the apply note) */
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif, ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace, ui-monospace, monospace;
 }
 
@@ -112,7 +111,6 @@
   --color-ring: var(--ring);
 
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-serif);
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -130,13 +128,5 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-  }
-  /* Display serif for hero headings ONLY — the gate, page titles, empty states.
-     Use the `font-display` class sparingly; never on body or UI chrome. */
-  .font-display {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    line-height: 1.05;
   }
 }
