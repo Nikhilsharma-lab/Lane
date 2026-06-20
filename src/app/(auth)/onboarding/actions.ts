@@ -8,6 +8,10 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 
 const onboardingSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, "Full name is required")
+    .max(200),
   workspaceName: z
     .string()
     .min(2, "Workspace name must be at least 2 characters")
@@ -16,6 +20,7 @@ const onboardingSchema = z.object({
 });
 
 export async function completeOnboarding(formData: {
+  fullName: string;
   workspaceName: string;
   role: string;
 }) {
@@ -32,7 +37,10 @@ export async function completeOnboarding(formData: {
   if (!user) return { error: "Not signed in" };
 
   const fullName =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+    parsed.data.fullName ||
+    user.user_metadata?.full_name ||
+    user.email?.split("@")[0] ||
+    "User";
   const email = user.email || "";
   const baseSlug =
     parsed.data.workspaceName

@@ -6,6 +6,7 @@ import {
   cleanupTestInvite,
   createTestWorkspace,
   deleteTestWorkspace,
+  getProfileFullName,
 } from "./helpers/cleanup";
 
 const INVITE_TOKEN = `e2e-invite-${Date.now()}`;
@@ -22,7 +23,7 @@ async function loginAs(
 }
 
 test.describe("onboarding e2e", () => {
-  test("signup → create workspace → board renders immediately", async ({
+  test("signup → create workspace → board renders immediately, fullName persists", async ({
     page,
   }) => {
     const user = await createTestUser("create");
@@ -31,6 +32,23 @@ test.describe("onboarding e2e", () => {
       await loginAs(page, user.email, user.password);
 
       await page.waitForURL("**/onboarding", { timeout: 15_000 });
+
+      // fullName field exists and is editable
+      const fullNameInput = page.locator("#fullName");
+      await expect(fullNameInput).toBeVisible();
+      await fullNameInput.clear();
+      await fullNameInput.fill("E2E Custom Name");
+
+      // Role helpers are neutral (no action-implying copy)
+      await expect(
+        page.locator("text=Strategy and prioritisation")
+      ).toBeVisible();
+      await expect(
+        page.locator("text=Research, UI, and visual craft")
+      ).toBeVisible();
+      await expect(
+        page.locator("text=Engineering and implementation")
+      ).toBeVisible();
 
       await page.locator("#workspaceName").clear();
       await page.locator("#workspaceName").fill("E2E Test Workspace");
@@ -47,6 +65,10 @@ test.describe("onboarding e2e", () => {
       await expect(
         page.locator("h1", { hasText: "Requests" })
       ).toBeVisible({ timeout: 5_000 });
+
+      // Verify the custom fullName persisted
+      const storedName = await getProfileFullName(user.id);
+      expect(storedName).toBe("E2E Custom Name");
     } finally {
       await cleanupTestWorkspace(user.id);
       await deleteTestUser(user.id);
