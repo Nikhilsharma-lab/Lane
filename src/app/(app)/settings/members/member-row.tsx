@@ -92,7 +92,7 @@ export function MemberRow({
         {canManage ? (
           <Select
             value={member.role}
-            onValueChange={handleRoleChange}
+            onValueChange={(v) => { if (v) handleRoleChange(v); }}
             disabled={isPending}
           >
             <SelectTrigger size="sm" className="w-24 text-xs capitalize">

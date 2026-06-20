@@ -66,7 +66,7 @@ export function InviteForm({
         />
         <Select
           value={role}
-          onValueChange={(v: string) => setRole(v as "member" | "admin" | "guest")}
+          onValueChange={(v) => { if (v) setRole(v as "member" | "admin" | "guest"); }}
           disabled={pending}
         >
           <SelectTrigger className="w-28 text-sm">
