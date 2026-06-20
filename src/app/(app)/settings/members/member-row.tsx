@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { updateMemberRole, removeMember } from "./actions";
 
 const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
@@ -25,6 +37,7 @@ export function MemberRow({
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const canManage =
     (callerRole === "owner" || callerRole === "admin") &&
@@ -46,6 +59,7 @@ export function MemberRow({
     setError(null);
     startTransition(async () => {
       const result = await removeMember(member.userId, context);
+      setConfirmOpen(false);
       if ("error" in result && result.error) setError(result.error);
     });
   }
@@ -85,13 +99,41 @@ export function MemberRow({
           </Badge>
         )}
         {canManage && (
-          <button
-            onClick={handleRemove}
-            disabled={isPending}
-            className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-          >
-            Remove
-          </button>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <button
+              onClick={() => setConfirmOpen(true)}
+              disabled={isPending}
+              className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+            >
+              Remove
+            </button>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogMedia className="bg-destructive/10">
+                  <AlertTriangle className="size-5 text-destructive" />
+                </AlertDialogMedia>
+                <AlertDialogTitle>
+                  Remove {member.fullName ?? "this member"}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  They will no longer have access to this workspace.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={handleRemove}
+                  disabled={isPending}
+                >
+                  {isPending ? "Removing…" : "Remove"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>
