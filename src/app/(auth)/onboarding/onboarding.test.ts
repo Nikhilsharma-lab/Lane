@@ -61,7 +61,7 @@ afterAll(async () => {
     .catch(() => {});
 });
 
-describe("completeOnboarding — Drizzle bootstrap", () => {
+describe("completeOnboarding — function-via-Drizzle", () => {
   beforeEach(() => {
     redirectMock.mockClear();
   });
@@ -192,7 +192,17 @@ describe("completeOnboarding — Drizzle bootstrap", () => {
     await db.delete(workspaces).where(eq(workspaces.id, blocker.id));
   });
 
-  it("one-workspace guard: active membership → redirect, no second workspace", async () => {
+  it("idempotent guard: existing profile → redirect, no second workspace", async () => {
+    await db
+      .insert(profiles)
+      .values({
+        id: GUARDED_USER,
+        orgId: WORKSPACE_A,
+        fullName: "Guarded User",
+        email: "guarded@test.local",
+        role: "designer",
+      })
+      .onConflictDoNothing();
     await db
       .insert(workspaceMembers)
       .values({
@@ -225,9 +235,9 @@ describe("completeOnboarding — Drizzle bootstrap", () => {
     expect(ws).toBeUndefined();
 
     const [profile] = await db
-      .select({ id: profiles.id })
+      .select({ orgId: profiles.orgId })
       .from(profiles)
       .where(eq(profiles.id, GUARDED_USER));
-    expect(profile).toBeUndefined();
+    expect(profile.orgId).toBe(WORKSPACE_A);
   });
 });
