@@ -133,6 +133,18 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   `ENotificationLoader.PAGINATION_LOADER`, `NotificationCardListRoot` "load more" UI.
   Trigger: teams regularly hit the 30-notification cap.
 
+- **Notification panel form (inbox pane / dedicated route).** What: Lane uses a popover; Plane uses
+  a dedicated `/notifications` route with a master-detail two-pane layout (notification list 3/12 +
+  issue peek 9/12, side by side). Why deferred: Plane's PRIMARY driver is peek coexistence — read a
+  request beside the notification list without navigating away. Lane lacks this interaction: clicking
+  a notification navigates to `/requests/{id}` as a full page. The popover is the correct form for a
+  flat list with no coexisting detail pane. Plane ref: `notifications/layout.tsx` (two-pane flex),
+  `notifications/page.tsx` → `NotificationsRoot` (renders `IssuePeekOverview` in the right pane),
+  `NotificationsSidebarRoot` (`w-3/12` sidebar that persists alongside peek). Trigger (primary): a
+  request peek/preview interaction exists (read a request without leaving the current page). Trigger
+  (secondary): notification surface gains tabs/filters/snooze needing dedicated vertical room.
+  Reassess to route-based two-pane when either trigger lands.
+
 ## RLS BACKSTOP (PATH 1) — when onboarding/first-run is built
 
 - **Migrate `bootstrap_organization_membership` RPC → Drizzle transaction behind the guard.**
