@@ -82,7 +82,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
     );
 
     await expect(
-      completeOnboarding({ workspaceName: "Fresh Workspace", role: "pm" })
+      completeOnboarding({ fullName: "Fresh User", workspaceName: "Fresh Workspace", role: "pm" })
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith("/");
@@ -129,7 +129,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
     );
 
     await expect(
-      completeOnboarding({ workspaceName: "Idem Workspace", role: "designer" })
+      completeOnboarding({ fullName: "Idem User", workspaceName: "Idem Workspace", role: "designer" })
     ).rejects.toThrow("NEXT_REDIRECT");
 
     const [profileBefore] = await db
@@ -142,6 +142,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
 
     await expect(
       completeOnboarding({
+        fullName: "Idem User",
         workspaceName: "Should Not Exist",
         role: "developer",
       })
@@ -177,7 +178,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
     );
 
     await expect(
-      completeOnboarding({ workspaceName: "Collision Test", role: "developer" })
+      completeOnboarding({ fullName: "Slug User", workspaceName: "Collision Test", role: "developer" })
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith("/");
@@ -228,7 +229,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
     );
 
     await expect(
-      completeOnboarding({ workspaceName: "Should Not Exist", role: "pm" })
+      completeOnboarding({ fullName: "Guarded User", workspaceName: "Should Not Exist", role: "pm" })
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith("/");

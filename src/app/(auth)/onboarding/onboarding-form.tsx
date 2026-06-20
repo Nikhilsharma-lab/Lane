@@ -9,12 +9,12 @@ import { acceptInvite } from "@/app/(auth)/invite/[token]/actions";
 import type { PendingInvite } from "./get-pending-invites";
 
 const ROLES = [
-  { value: "pm", label: "Product Manager", helper: "Creates requests" },
-  { value: "designer", label: "Designer", helper: "Picks up requests" },
+  { value: "pm", label: "Product Manager", helper: "Strategy and prioritisation" },
+  { value: "designer", label: "Designer", helper: "Research, UI, and visual craft" },
   {
     value: "developer",
     label: "Developer",
-    helper: "Collaborates on requests",
+    helper: "Engineering and implementation",
   },
 ] as const;
 
@@ -26,7 +26,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function OnboardingForm({
-  fullName,
+  fullName: initialFullName,
   pendingInvites = [],
 }: {
   fullName: string;
@@ -38,8 +38,11 @@ export function OnboardingForm({
   const [acceptingToken, setAcceptingToken] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
+  const [fullName, setFullName] = useState(initialFullName);
   const [role, setRole] = useState<string | null>(null);
-  const [workspaceName, setWorkspaceName] = useState(`${fullName}'s Workspace`);
+  const [workspaceName, setWorkspaceName] = useState(
+    `${initialFullName}'s Workspace`
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +58,10 @@ export function OnboardingForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!fullName.trim()) {
+      setError("Full name is required.");
+      return;
+    }
     if (!role) {
       setError("Pick a role to continue.");
       return;
@@ -67,6 +74,7 @@ export function OnboardingForm({
     setPending(true);
     setError(null);
     const result = await completeOnboarding({
+      fullName: fullName.trim(),
       workspaceName: workspaceName.trim(),
       role,
     });
@@ -121,6 +129,18 @@ export function OnboardingForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Full name */}
+      <div className="space-y-2">
+        <Label htmlFor="fullName">Your name</Label>
+        <Input
+          id="fullName"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Jane Smith"
+          disabled={pending}
+        />
+      </div>
+
       {/* Role picker */}
       <div className="space-y-2">
         <Label>What best describes your role?</Label>
