@@ -14,6 +14,13 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { updateMemberRole, removeMember } from "./actions";
 
 const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
@@ -83,16 +90,20 @@ export function MemberRow({
           </Badge>
         )}
         {canManage ? (
-          <select
+          <Select
             value={member.role}
-            onChange={(e) => handleRoleChange(e.target.value)}
+            onValueChange={(v) => { if (v) handleRoleChange(v); }}
             disabled={isPending}
-            className="h-7 rounded-md border border-input bg-transparent px-2 text-xs capitalize"
           >
-            <option value="guest">Guest</option>
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
+            <SelectTrigger size="sm" className="w-24 text-xs capitalize">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="guest">Guest</SelectItem>
+              <SelectItem value="member">Member</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
         ) : (
           <Badge variant="secondary" className="capitalize">
             {member.role}

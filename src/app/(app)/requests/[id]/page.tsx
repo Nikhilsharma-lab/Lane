@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db, requests, profiles, comments } from "@/db";
 import { eq, asc } from "drizzle-orm";
 import { getWorkspace } from "@/lib/ensure-workspace";
+import { relativeTime } from "@/lib/relative-time";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -176,7 +177,7 @@ export default async function RequestDetailPage({
 
         {/* Metadata */}
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>Submitted by {creator?.fullName ?? "Unknown"} · {new Date(req.createdAt).toLocaleDateString()}</p>
+          <p>Submitted by {creator?.fullName ?? "Unknown"} · {relativeTime(req.createdAt)}</p>
           {!isGuest && assigneeName && <p>Assigned to {assigneeName}</p>}
         </div>
 
@@ -216,7 +217,7 @@ async function CommentsSection({ requestId, context }: { requestId: string; cont
                   {c.authorName ?? "Unknown"}
                 </span>
                 <span>·</span>
-                <span>{new Date(c.createdAt).toLocaleString()}</span>
+                <span>{relativeTime(c.createdAt)}</span>
               </div>
               <p className="text-sm whitespace-pre-wrap">{c.body}</p>
             </div>

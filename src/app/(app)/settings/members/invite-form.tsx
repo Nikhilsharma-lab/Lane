@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createInvite } from "./actions";
 
 export function InviteForm({
@@ -57,16 +64,20 @@ export function InviteForm({
           disabled={pending}
           className="flex-1"
         />
-        <select
+        <Select
           value={role}
-          onChange={(e) => setRole(e.target.value as "member" | "admin" | "guest")}
+          onValueChange={(v) => { if (v) setRole(v as "member" | "admin" | "guest"); }}
           disabled={pending}
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
         >
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-          <option value="guest">Guest</option>
-        </select>
+          <SelectTrigger className="w-28 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="member">Member</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="guest">Guest</SelectItem>
+          </SelectContent>
+        </Select>
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? "Inviting..." : "Invite"}
         </Button>
