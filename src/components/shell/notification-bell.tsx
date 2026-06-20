@@ -186,7 +186,15 @@ export function NotificationBell({ orgId }: { orgId: string }) {
             items.map((item) => (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleClickNotification(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleClickNotification(item);
+                  }
+                }}
                 className={cn(
                   "group relative flex cursor-pointer gap-3 border-b px-4 py-3 transition-colors last:border-b-0 hover:bg-accent/50",
                   !item.readAt && "bg-primary/[0.03]"
@@ -211,7 +219,8 @@ export function NotificationBell({ orgId }: { orgId: string }) {
 
                 <button
                   onClick={(e) => handleToggleRead(e, item)}
-                  className="hidden shrink-0 self-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground group-hover:block"
+                  className="shrink-0 self-center rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                  aria-label={item.readAt ? "Mark notification as unread" : "Mark notification as read"}
                   title={item.readAt ? "Mark unread" : "Mark read"}
                 >
                   {item.readAt ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
