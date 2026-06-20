@@ -92,3 +92,24 @@ export async function markAllNotificationsRead(context: { orgId: string }) {
 
   return { success: true };
 }
+
+export async function markNotificationUnread(
+  notificationId: string,
+  context: { orgId: string }
+) {
+  const auth = await requireActiveMember(context.orgId);
+  if (!auth) return { error: "Not found" };
+
+  await db
+    .update(notifications)
+    .set({ readAt: null })
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, auth.userId),
+        eq(notifications.orgId, auth.orgId)
+      )
+    );
+
+  return { success: true };
+}

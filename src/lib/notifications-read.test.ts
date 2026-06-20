@@ -204,3 +204,52 @@ describe("markAllNotificationsRead", () => {
     expect(row.readAt).toBeNull();
   });
 });
+
+describe("markNotificationUnread — own-scoped writes", () => {
+  it("user A marks own read notification as unread", async () => {
+    mockSessionUser = { id: USER_A };
+    const { markNotificationUnread, getUnreadCount } = await import("@/app/(app)/notifications/actions");
+
+    const [before] = await db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(eq(notifications.id, NOTIF_A1));
+    expect(before.readAt).not.toBeNull();
+
+    const result = await markNotificationUnread(NOTIF_A1, { orgId: WS_ID });
+    expect(result).toHaveProperty("success", true);
+
+    const [after] = await db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(eq(notifications.id, NOTIF_A1));
+    expect(after.readAt).toBeNull();
+
+    const count = await getUnreadCount({ orgId: WS_ID });
+    if (!("count" in count)) throw new Error("missing count");
+    expect(count.count).toBe(1);
+  });
+
+  it("user A CANNOT mark user B's notification as unread (security boundary)", async () => {
+    mockSessionUser = { id: USER_B };
+    const { markNotificationRead } = await import("@/app/(app)/notifications/actions");
+    await markNotificationRead(NOTIF_B1, { orgId: WS_ID });
+
+    const [confirm] = await db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(eq(notifications.id, NOTIF_B1));
+    expect(confirm.readAt).not.toBeNull();
+
+    mockSessionUser = { id: USER_A };
+    const { markNotificationUnread } = await import("@/app/(app)/notifications/actions");
+    const result = await markNotificationUnread(NOTIF_B1, { orgId: WS_ID });
+    expect(result).toHaveProperty("success", true);
+
+    const [after] = await db
+      .select({ readAt: notifications.readAt })
+      .from(notifications)
+      .where(eq(notifications.id, NOTIF_B1));
+    expect(after.readAt).not.toBeNull();
+  });
+});
