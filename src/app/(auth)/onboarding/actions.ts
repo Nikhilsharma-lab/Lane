@@ -3,11 +3,18 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { db, workspaces, profiles, workspaceMembers } from "@/db";
+import { eq, and } from "drizzle-orm";
 
 const onboardingSchema = z.object({
-  workspaceName: z.string().min(2, "Workspace name must be at least 2 characters").max(100),
+  workspaceName: z
+    .string()
+    .min(2, "Workspace name must be at least 2 characters")
+    .max(100),
   role: z.enum(["pm", "designer", "developer"]),
 });
+
+const MAX_SLUG_ATTEMPTS = 10;
 
 export async function completeOnboarding(formData: {
   workspaceName: string;
@@ -28,25 +35,80 @@ export async function completeOnboarding(formData: {
   const fullName =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
   const email = user.email || "";
-  const slug = parsed.data.workspaceName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    || `workspace-${user.id.slice(0, 8)}`;
+  const baseSlug =
+    parsed.data.workspaceName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || `workspace-${user.id.slice(0, 8)}`;
 
-  const { error } = await supabase.rpc("bootstrap_organization_membership", {
-    target_user_id: user.id,
-    target_org_name: parsed.data.workspaceName,
-    target_org_slug: slug,
-    target_full_name: fullName,
-    target_email: email,
-    target_role: parsed.data.role,
-  });
+  // Idempotent: if profile already exists, user already onboarded
+  const [existingProfile] = await db
+    .select({ orgId: profiles.orgId })
+    .from(profiles)
+    .where(eq(profiles.id, user.id));
 
-  if (error) {
-    console.error("[onboarding] bootstrap failed:", error.message);
-    return { error: "Failed to create workspace. Please try again." };
+  if (existingProfile) {
+    redirect("/");
   }
 
-  redirect("/");
+  // One-workspace guard: if user already has an active membership
+  // (e.g. accepted an invite), don't mint a second workspace
+  const [activeMembership] = await db
+    .select({ workspaceId: workspaceMembers.workspaceId })
+    .from(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.userId, user.id),
+        eq(workspaceMembers.isActive, true)
+      )
+    );
+
+  if (activeMembership) {
+    redirect("/");
+  }
+
+  // Slug retry loop — retries the full transaction on slug collision
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt}`;
+    try {
+      await db.transaction(async (tx) => {
+        const [org] = await tx
+          .insert(workspaces)
+          .values({ name: parsed.data.workspaceName, slug })
+          .returning({ id: workspaces.id });
+
+        await tx.insert(profiles).values({
+          id: user.id,
+          orgId: org.id,
+          fullName,
+          email,
+          role: parsed.data.role as "pm" | "designer" | "developer",
+        });
+
+        await tx.insert(workspaceMembers).values({
+          workspaceId: org.id,
+          userId: user.id,
+          role: "owner",
+        });
+      });
+
+      redirect("/");
+    } catch (err: unknown) {
+      const cause =
+        err instanceof Error && err.cause instanceof Error ? err.cause : err;
+      if (
+        typeof cause === "object" &&
+        cause !== null &&
+        "code" in cause &&
+        (cause as Record<string, unknown>).code === "23505"
+      ) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  return {
+    error: "Could not generate unique workspace slug. Please try a different name.",
+  };
 }
