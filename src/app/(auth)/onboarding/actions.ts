@@ -94,10 +94,13 @@ export async function completeOnboarding(formData: {
 
       redirect("/");
     } catch (err: unknown) {
+      const cause =
+        err instanceof Error && err.cause instanceof Error ? err.cause : err;
       if (
-        err instanceof Error &&
-        "code" in err &&
-        (err as Record<string, unknown>).code === "23505"
+        typeof cause === "object" &&
+        cause !== null &&
+        "code" in cause &&
+        (cause as Record<string, unknown>).code === "23505"
       ) {
         continue;
       }

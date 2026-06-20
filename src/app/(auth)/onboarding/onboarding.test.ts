@@ -1,0 +1,233 @@
+import { describe, it, expect, vi, afterAll, beforeEach } from "vitest";
+import { db, workspaces, profiles, workspaceMembers } from "@/db";
+import { eq, and } from "drizzle-orm";
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+const redirectMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  redirect: (...args: unknown[]) => {
+    redirectMock(...args);
+    const err = new Error("NEXT_REDIRECT");
+    (err as any).digest = "NEXT_REDIRECT";
+    throw err;
+  },
+}));
+
+let mockSessionUser: {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+} | null = null;
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: mockSessionUser },
+        error: mockSessionUser ? null : { message: "Not authenticated" },
+      }),
+    },
+  })),
+}));
+
+const FRESH_USER = "00000000-0000-4000-a000-000000000c01";
+const SLUG_USER = "00000000-0000-4000-a000-000000000c02";
+const GUARDED_USER = "00000000-0000-4000-a000-000000000c03";
+const IDEM_USER = "00000000-0000-4000-a000-000000000c04";
+const WORKSPACE_A = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
+
+const FIXTURE_ORGS = [WORKSPACE_A, "649ace1d-14d8-40d1-9603-c91514f827cc"];
+
+afterAll(async () => {
+  for (const uid of [FRESH_USER, SLUG_USER, GUARDED_USER, IDEM_USER]) {
+    const [p] = await db
+      .select({ orgId: profiles.orgId })
+      .from(profiles)
+      .where(eq(profiles.id, uid));
+    await db
+      .delete(workspaceMembers)
+      .where(eq(workspaceMembers.userId, uid));
+    await db.delete(profiles).where(eq(profiles.id, uid));
+    if (p && !FIXTURE_ORGS.includes(p.orgId)) {
+      await db.delete(workspaces).where(eq(workspaces.id, p.orgId));
+    }
+  }
+  await db
+    .delete(workspaces)
+    .where(eq(workspaces.slug, "collision-test"))
+    .catch(() => {});
+});
+
+describe("completeOnboarding — Drizzle bootstrap", () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+  });
+
+  it("creates workspace + profile + owner membership", async () => {
+    mockSessionUser = {
+      id: FRESH_USER,
+      email: "fresh@test.local",
+      user_metadata: { full_name: "Fresh User" },
+    };
+    const { completeOnboarding } = await import(
+      "@/app/(auth)/onboarding/actions"
+    );
+
+    await expect(
+      completeOnboarding({ workspaceName: "Fresh Workspace", role: "pm" })
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/");
+
+    const [profile] = await db
+      .select({
+        orgId: profiles.orgId,
+        fullName: profiles.fullName,
+        role: profiles.role,
+      })
+      .from(profiles)
+      .where(eq(profiles.id, FRESH_USER));
+    expect(profile).toBeDefined();
+    expect(profile.fullName).toBe("Fresh User");
+    expect(profile.role).toBe("pm");
+
+    const [ws] = await db
+      .select({ name: workspaces.name, slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.id, profile.orgId));
+    expect(ws.name).toBe("Fresh Workspace");
+    expect(ws.slug).toBe("fresh-workspace");
+
+    const [member] = await db
+      .select({ role: workspaceMembers.role })
+      .from(workspaceMembers)
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, profile.orgId),
+          eq(workspaceMembers.userId, FRESH_USER)
+        )
+      );
+    expect(member.role).toBe("owner");
+  });
+
+  it("idempotent: existing profile → redirect, no duplicate workspace", async () => {
+    mockSessionUser = {
+      id: IDEM_USER,
+      email: "idem@test.local",
+      user_metadata: { full_name: "Idem User" },
+    };
+    const { completeOnboarding } = await import(
+      "@/app/(auth)/onboarding/actions"
+    );
+
+    await expect(
+      completeOnboarding({ workspaceName: "Idem Workspace", role: "designer" })
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    const [profileBefore] = await db
+      .select({ orgId: profiles.orgId })
+      .from(profiles)
+      .where(eq(profiles.id, IDEM_USER));
+    const orgIdBefore = profileBefore.orgId;
+
+    redirectMock.mockClear();
+
+    await expect(
+      completeOnboarding({
+        workspaceName: "Should Not Exist",
+        role: "developer",
+      })
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirectMock).toHaveBeenCalledWith("/");
+
+    const [profileAfter] = await db
+      .select({ orgId: profiles.orgId })
+      .from(profiles)
+      .where(eq(profiles.id, IDEM_USER));
+    expect(profileAfter.orgId).toBe(orgIdBefore);
+
+    const [dup] = await db
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.name, "Should Not Exist"));
+    expect(dup).toBeUndefined();
+  });
+
+  it("slug collision: retries with numeric suffix", async () => {
+    const [blocker] = await db
+      .insert(workspaces)
+      .values({ name: "Collision Blocker", slug: "collision-test" })
+      .returning({ id: workspaces.id });
+
+    mockSessionUser = {
+      id: SLUG_USER,
+      email: "slug@test.local",
+      user_metadata: { full_name: "Slug User" },
+    };
+    const { completeOnboarding } = await import(
+      "@/app/(auth)/onboarding/actions"
+    );
+
+    await expect(
+      completeOnboarding({ workspaceName: "Collision Test", role: "developer" })
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/");
+
+    const [profile] = await db
+      .select({ orgId: profiles.orgId })
+      .from(profiles)
+      .where(eq(profiles.id, SLUG_USER));
+
+    const [ws] = await db
+      .select({ slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.id, profile.orgId));
+
+    expect(ws.slug).toBe("collision-test-1");
+
+    await db.delete(workspaces).where(eq(workspaces.id, blocker.id));
+  });
+
+  it("one-workspace guard: active membership → redirect, no second workspace", async () => {
+    await db
+      .insert(workspaceMembers)
+      .values({
+        workspaceId: WORKSPACE_A,
+        userId: GUARDED_USER,
+        role: "member",
+        isActive: true,
+      })
+      .onConflictDoNothing();
+
+    mockSessionUser = {
+      id: GUARDED_USER,
+      email: "guarded@test.local",
+      user_metadata: { full_name: "Guarded User" },
+    };
+    const { completeOnboarding } = await import(
+      "@/app/(auth)/onboarding/actions"
+    );
+
+    await expect(
+      completeOnboarding({ workspaceName: "Should Not Exist", role: "pm" })
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/");
+
+    const [ws] = await db
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.name, "Should Not Exist"));
+    expect(ws).toBeUndefined();
+
+    const [profile] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.id, GUARDED_USER));
+    expect(profile).toBeUndefined();
+  });
+});
