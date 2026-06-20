@@ -75,6 +75,11 @@ test.describe("onboarding e2e", () => {
         page.locator("h1", { hasText: "Requests" })
       ).toBeVisible({ timeout: 5_000 });
 
+      // Empty board shows problem-framed guidance
+      await expect(
+        page.locator("text=problem you're trying to solve")
+      ).toBeVisible();
+
       // Verify the custom fullName persisted
       const storedName = await getProfileFullName(user.id);
       expect(storedName).toBe("E2E Custom Name");

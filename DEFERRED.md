@@ -159,22 +159,19 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (secondary): notification surface gains tabs/filters/snooze needing dedicated vertical room.
   Reassess to route-based two-pane when either trigger lands.
 
-## RLS BACKSTOP (PATH 1) — when onboarding/first-run is built
+## RLS BACKSTOP (PATH 1) — pre-GTM hardening pass
 
-- **Migrate `bootstrap_organization_membership` RPC → Drizzle transaction behind the guard.**
-  What: the Supabase RPC is the last piece using PostgREST directly; moving it to a Drizzle
-  transaction lets us disable the PostgREST data API entirely, eliminating the surface. The RLS
-  claim path is broken (`request.jwt.claim.sub` vs `request.jwt.claims::json->>'sub'`), but
-  disabling PostgREST makes fixing it moot. Why: action-level guards are the sole defense today
-  and are proven; the RPC migration is cleanup, not urgent. Plane ref: n/a.
-  Trigger: building onboarding/first-run (which reworks workspace creation anyway).
+- ~~**Migrate `bootstrap_organization_membership` RPC → Drizzle transaction behind the guard.**~~
+  **DONE** (PR #27, `completeOnboarding` calls bootstrap via Drizzle `sql` tag). Zero PostgREST
+  app consumers remain (`grep -r "supabase.*from\|\.rpc(" src/app` — clean).
 
-- **6 RLS/GoTrue tests (`isolation.test.ts`, `skipIf local`) sit outside the CI gate.**
-  What: these tests verify RLS policies via Supabase client paths but are skipped in CI because
-  they need a running GoTrue instance. Why: the PostgREST blanket-deny makes them advisory, not
-  load-bearing. Plane ref: n/a. Trigger: the RLS backstop above is completed (PostgREST
-  re-enabled with fixed claim path, or disabled entirely) — at that point these tests become
-  load-bearing and must enter CI.
+- **Disable the PostgREST data API entirely + delete the 6 skipped RLS tests.**
+  What: flip the Supabase dashboard toggle to disable the data API (zero app consumers confirmed),
+  then delete `isolation.test.ts` (6 tests, all `skipIf local`, all verify RLS via PostgREST paths
+  that are about to be disabled). Why deferred: pure hardening — the data API already blanket-denies
+  all queries (broken claim path), action-level guards are the sole and proven defense, and zero app
+  code uses PostgREST. Not user-facing. Precondition: bootstrap on Drizzle (met, PR #27).
+  Trigger: pre-GTM hardening pass (must be done before GTM per the CLAUDE.md hard gate).
 
 ## GUEST / EXTERNAL INTAKE — when external requesters are added
 

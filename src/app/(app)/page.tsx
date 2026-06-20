@@ -82,8 +82,9 @@ export default async function RequestsBoard() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <p className="text-base font-medium">No requests yet</p>
           <p className="mt-1 max-w-sm text-sm text-pretty text-muted-foreground">
-            Lane starts when someone submits the first request. Describe a
-            problem and anyone on the team can pick it up.
+            Lane starts when someone submits the first request. Describe the
+            problem you're trying to solve, not a ready-made solution — the
+            team will figure out the how.
           </p>
           <Link
             href="/intake"
