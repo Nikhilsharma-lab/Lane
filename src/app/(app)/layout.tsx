@@ -18,6 +18,7 @@ export default async function AppLayout({
         fullName={result.fullName}
         email={result.email}
         role={result.role}
+        orgId={result.orgId}
       />
       <div className="flex flex-1 flex-col overflow-y-auto">
         {children}

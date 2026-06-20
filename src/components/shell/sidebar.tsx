@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationBell } from "./notification-bell";
 
 const MEMBER_NAV = [
   { label: "Requests", href: "/", icon: Inbox, match: NAV_MATCHERS.requests },
@@ -29,11 +30,13 @@ export function Sidebar({
   fullName,
   email,
   role,
+  orgId,
 }: {
   workspaceName: string;
   fullName: string;
   email: string;
   role: string;
+  orgId: string;
 }) {
   const pathname = usePathname();
 
@@ -60,6 +63,7 @@ export function Sidebar({
             </Link>
           );
         })}
+        <NotificationBell orgId={orgId} />
       </nav>
 
       <div className="border-t px-2 py-2">
