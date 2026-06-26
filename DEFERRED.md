@@ -8,13 +8,6 @@ Each item: what · why deferred · source review.
 
 ---
 
-## PRE-GTM MUST-BUILD — slug collision
-
-- **Slug collision in workspace bootstrap.** `bootstrap_organization_membership` generates the slug from
-  `email.split("@")[0]`, which collides for two-tab races AND for different users with the same email
-  local-part (alice@x.com + alice@y.com → both "alice"). Add ON CONFLICT handling / suffix retry when
-  reworking workspace creation. *Will hit real users.* — Day 1 #9, Day 2 #4.
-
 ## PRE-GTM MUST-BUILD — board polish
 
 - **Status label/variant duplicated** across board and detail pages. Extract to one shared util so status
@@ -192,6 +185,15 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
   (password reset) is added. Until then, two small files is fine. — Day 1 #6.
 
+## SLUG ROUTING — when workspace slugs enter URLs
+
+- **Reserved-slug guard.** What: block workspace names that slugify to reserved app paths (`app`, `api`,
+  `login`, `signup`, `settings`, `onboarding`, `auth`, `intake`, `requests`, `invite`). Why deferred:
+  workspace slugs are NOT used in URLs today — routing is by org UUID, not slug — so no collision is
+  possible. Plane ref: Plane validates slugs against restricted URLs at workspace creation
+  (`RESTRICTED_WORKSPACE_SLUGS`). Trigger: when workspace slugs are introduced into routing
+  (e.g. `/{slug}/requests`). — slug-collision recon, 2026-06-26.
+
 ---
 
 ## Resolved (kept for the trail)
@@ -201,3 +203,7 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
 - Prompt-injection surface. Fixed Day 3 morning (XML-tag wrapping). — Day 2 #6.
 - Open redirect, input validation, cookie options, updatedAt trigger. Fixed Day 2 morning. — Day 1 #1/#2/#4/#5/#10.
 - UUID validation (500 on bad URL), board limit. Fixed Day 4 morning. — Day 3 #1/#6.
+- Slug collision in workspace bootstrap. Original entry described email-derived slugs + missing retry (Day 1 #9,
+  Day 2 #4). Resolved by the bootstrap rework: slug now derives from workspace name (`actions.ts:44-48`), retry
+  loop with numeric suffix + RAISE after 10 attempts (`migration 0005:39-55`), `organizations_slug_unique`
+  constraint, forge test covers the `-1` case. The email-local-part derivation the entry described no longer exists.
