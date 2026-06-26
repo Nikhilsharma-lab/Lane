@@ -8,25 +8,31 @@ Each item: what · why deferred · source review.
 
 ---
 
-## NEXT BUILD — Day 4 (onboarding / invites)
+## PRE-GTM MUST-BUILD — slug collision
 
 - **Slug collision in workspace bootstrap.** `bootstrap_organization_membership` generates the slug from
   `email.split("@")[0]`, which collides for two-tab races AND for different users with the same email
   local-part (alice@x.com + alice@y.com → both "alice"). Add ON CONFLICT handling / suffix retry when
   reworking workspace creation. *Will hit real users.* — Day 1 #9, Day 2 #4.
 
-## DAY 5 — polish pass
+## PRE-GTM MUST-BUILD — board polish
 
-- **Status label/variant duplicated** across board and detail pages. Extract to one shared util — do it
-  *as part of* the green-badge restyle below, so status styling lives in one place. — Day 3 #4.
-- **Green is absent on the board.** The signature color appears nowhere; status badges are its home
-  (e.g. In Progress = the active/green state). — board design review.
+- **Status label/variant duplicated** across board and detail pages. Extract to one shared util so status
+  styling lives in one place. — Day 3 #4. Verdict: BUILD (small dedupe, prevents drift).
+- **Card hierarchy → reframed problem leads.** The card currently leads with the solution *title* and buries
+  the reframed *problem*. For a problem-first board, the problem leads; title is secondary. — board design
+  review. Verdict: BUILD (on-thesis — the problem is the unit of work).
+
+> **Removed** (2026-06-26 build-or-delete verdicts):
+> - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; evergreen is reserved for the gate.
+> - ~~Redundant per-card status badge~~ — DELETED. Section header already states the status.
+
+## POST-GTM — optimistic UI on lifecycle transitions
+
 - **Optimistic UI on lifecycle transitions.** Pick-up / mark-done wait for the full round-trip. useOptimistic
-  (React 19) flips state instantly. On-brand "considered" feel. — Day 3 #7.
-- **Redundant per-card status badge** inside grouped sections (an "Open" badge under the "Open" header).
-  Drop per-card badges in grouped view. — board design review.
-- **Card hierarchy decision (product call, Nikhil's):** the card leads with the solution *title* and buries
-  the reframed *problem*. For a problem-first board, consider leading with the problem. — board design review.
+  (React 19) flips state instantly. On-brand "considered" feel. — Day 3 #7. Verdict: DEFER (rollback flicker
+  would be visible against Tokyo latency; complexity over correctness at this stage).
+  Trigger: after Tokyo co-location, if transitions still feel slow.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 

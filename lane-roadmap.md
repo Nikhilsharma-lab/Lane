@@ -65,15 +65,64 @@ Two-tier app-switcher rail (per conventions-plan) holds these; it appears once a
 
 ## 3. The incremental sequence
 
-**Phase 0 — Foundation (now, in flight).** App shell + two-tier nav (rail ready, single app shown);
-roles/members/invites (per conventions-plan + the map's two-sided wiring); settings IA (workspace vs account);
-the **Requests** app complete — board, detail, lifecycle, comments, guest; auth + onboarding rebuilt on the
-`invitations.length` create-or-join branch. *This is the full single-team loop.*
+**Phase 0 — Foundation. COMPLETE.** App shell + two-tier nav (rail ready, single app shown);
+roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
+comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
+All merged. *The full single-team loop is live.*
+
+**What's next:** the **pre-GTM gate** (see §3a below) — the concrete list of hardening, infra, and product
+decisions that must be done before real users. Then Phase 1.
 
 **Phase 1 — Make Requests excellent; make the gate the star.** Harden the gate (it's the differentiator —
 it deserves the most polish); request-detail layout; notifications (someone picked up your request, commented);
 search / command palette; saved filters. **Validation gate:** the four committed design leads actually using
 it daily. Phase 2+ is a hypothesis until they pull for more.
+
+### 3a. Pre-GTM launch list
+
+Everything standing between Phase 0 (complete) and real users. Source: DEFERRED.md pre-launch gate,
+CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. Nothing ships to real users
+until every must-build is done and every must-decide is resolved (built or deleted).
+
+**Must-build (18 items):**
+
+DEFERRED.md PRE-LAUNCH hard gate (9):
+- [ ] Rate limiter → Upstash (in-memory leaks, resets on deploy)
+- [ ] N+1 queries on detail page → single JOIN query
+- [ ] Board pagination (only `.limit(100)` safety cap)
+- [ ] Date hydration mismatch (server/client locale divergence)
+- [ ] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY)
+- [ ] Duplicate client/server validation → shared zod schema
+- [ ] Email-confirmation decision (on/off for real users)
+- [ ] RLS inert as defense — verify action guards sufficient
+- [ ] `completeOnboarding` one-workspace invariant
+
+DEFERRED.md PRE-GTM must-build (2):
+- [ ] Slug collision in workspace bootstrap (will hit real users)
+- [ ] Disable PostgREST data API + delete 6 skipped RLS tests (precondition met, PR #27)
+
+Board polish — verdicts from build-or-delete review (2):
+- [ ] Status label/variant → shared util (small dedupe, prevents drift)
+- [ ] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work)
+
+CLAUDE.md infra (5):
+- [ ] Split prod / staging (second Vercel project + second Supabase DB)
+- [ ] Supabase Pro (backups / point-in-time restore)
+- [ ] Vercel Pro (Hobby prohibits commercial use)
+- [ ] Custom domain (app.uselane.app → prod Vercel project)
+- [ ] Confirm RLS isolation with fresh second account
+
+**Resolved — build-or-delete verdicts (2026-06-26):**
+- Green badge on board → DELETED (violates one-signal rule; evergreen reserved for the gate)
+- Redundant per-card status badge → DELETED (section header already states status)
+- Optimistic UI on lifecycle → DEFERRED post-GTM (trigger: after Tokyo co-location, if transitions still feel slow)
+
+**Already parked (16 items):** guest role-change, guest intake increment, comment pagination, auth
+surface touch, request peek/preview, 9 notification-at-scale items, public/anonymous intake, auth form
+DRY, optimistic UI on lifecycle. All carry explicit post-GTM triggers in DEFERRED.md. No action needed
+before launch.
+
+---
 
 **Phase 2 — App #2: Ideas.** Reveal the app-switcher rail (now there are two apps). First: *define what Ideas
 is* — a product decision, not a copy (Plane has no clean analog). Lightweight problem/idea capture, distinct

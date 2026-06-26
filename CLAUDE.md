@@ -77,8 +77,9 @@ the 5 design stages (Sense/Frame/Diverge/Converge/Prove) and all phase/kanban/tr
 
 
 ## Roadmap & phases
-- **Current phase: Phase 0** (foundation + the Requests app). Full sequence + the thesis filter
-  (adopt / reconceive / refuse) live in `lane-roadmap.md`.
+- **Current phase: Phase 0 COMPLETE → pre-GTM gate.** Foundation + Requests app built and merged.
+  The pre-GTM launch list (16 must-build + 5 must-decide) lives in `lane-roadmap.md` §3a.
+  Full sequence + the thesis filter (adopt / reconceive / refuse) live in `lane-roadmap.md`.
 - **Canonical planning docs** (re-read at the start of a new phase): `lane-roadmap.md` (sequence),
   `conventions-plan.md` (IA / roles / invites wiring, grounded in Plane source), `phase-0-ux-skeleton.md`
   (journeys / screens / states), `PLANE-MAP.md` (reference terrain).
