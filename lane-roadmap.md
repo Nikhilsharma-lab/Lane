@@ -84,7 +84,7 @@ Everything standing between Phase 0 (complete) and real users. Source: DEFERRED.
 CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. Nothing ships to real users
 until every must-build is done and every must-decide is resolved (built or deleted).
 
-**Must-build (18 items):**
+**Must-build (17 items):**
 
 DEFERRED.md PRE-LAUNCH hard gate (9):
 - [ ] Rate limiter → Upstash (in-memory leaks, resets on deploy)
@@ -97,8 +97,7 @@ DEFERRED.md PRE-LAUNCH hard gate (9):
 - [ ] RLS inert as defense — verify action guards sufficient
 - [ ] `completeOnboarding` one-workspace invariant
 
-DEFERRED.md PRE-GTM must-build (2):
-- [ ] Slug collision in workspace bootstrap (will hit real users)
+DEFERRED.md PRE-GTM must-build (1):
 - [ ] Disable PostgREST data API + delete 6 skipped RLS tests (precondition met, PR #27)
 
 Board polish — verdicts from build-or-delete review (2):
@@ -112,15 +111,16 @@ CLAUDE.md infra (5):
 - [ ] Custom domain (app.uselane.app → prod Vercel project)
 - [ ] Confirm RLS isolation with fresh second account
 
-**Resolved — build-or-delete verdicts (2026-06-26):**
+**Resolved (2026-06-26):**
+- Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)
 - Green badge on board → DELETED (violates one-signal rule; evergreen reserved for the gate)
 - Redundant per-card status badge → DELETED (section header already states status)
 - Optimistic UI on lifecycle → DEFERRED post-GTM (trigger: after Tokyo co-location, if transitions still feel slow)
 
-**Already parked (16 items):** guest role-change, guest intake increment, comment pagination, auth
+**Already parked (17 items):** guest role-change, guest intake increment, comment pagination, auth
 surface touch, request peek/preview, 9 notification-at-scale items, public/anonymous intake, auth form
-DRY, optimistic UI on lifecycle. All carry explicit post-GTM triggers in DEFERRED.md. No action needed
-before launch.
+DRY, optimistic UI on lifecycle, reserved-slug guard. All carry explicit post-GTM triggers in DEFERRED.md.
+No action needed before launch.
 
 ---
 
