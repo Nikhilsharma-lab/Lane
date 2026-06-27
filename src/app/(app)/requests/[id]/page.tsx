@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db, requests, profiles, comments } from "@/db";
+import { alias } from "drizzle-orm/pg-core";
 import { eq, asc } from "drizzle-orm";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { relativeTime } from "@/lib/relative-time";
@@ -60,7 +61,9 @@ export default async function RequestDetailPage({
 
   const context = { userId: result.userId, orgId: result.orgId };
 
-  // Fetch request with creator and assignee names
+  const creator = alias(profiles, "creator");
+  const assignee = alias(profiles, "assignee");
+
   const [req] = await db
     .select({
       id: requests.id,
@@ -74,8 +77,12 @@ export default async function RequestDetailPage({
       createdBy: requests.createdBy,
       createdAt: requests.createdAt,
       orgId: requests.orgId,
+      creatorName: creator.fullName,
+      assigneeName: assignee.fullName,
     })
     .from(requests)
+    .leftJoin(creator, eq(requests.createdBy, creator.id))
+    .leftJoin(assignee, eq(requests.assignedTo, assignee.id))
     .where(eq(requests.id, id));
 
   if (!req || req.orgId !== context.orgId) {
@@ -85,22 +92,6 @@ export default async function RequestDetailPage({
   const isGuest = result.role === "guest";
   if (isGuest && req.createdBy !== context.userId) {
     notFound();
-  }
-
-  // Get creator name
-  const [creator] = await db
-    .select({ fullName: profiles.fullName })
-    .from(profiles)
-    .where(eq(profiles.id, req.createdBy));
-
-  // Get assignee name if assigned
-  let assigneeName: string | null = null;
-  if (req.assignedTo) {
-    const [assignee] = await db
-      .select({ fullName: profiles.fullName })
-      .from(profiles)
-      .where(eq(profiles.id, req.assignedTo));
-    assigneeName = assignee?.fullName ?? null;
   }
 
   const clLabel = classificationLabel(req.classification);
@@ -177,8 +168,8 @@ export default async function RequestDetailPage({
 
         {/* Metadata */}
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>Submitted by {creator?.fullName ?? "Unknown"} · {relativeTime(req.createdAt)}</p>
-          {!isGuest && assigneeName && <p>Assigned to {assigneeName}</p>}
+          <p>Submitted by {req.creatorName ?? "Unknown"} · {relativeTime(req.createdAt)}</p>
+          {!isGuest && req.assigneeName && <p>Assigned to {req.assigneeName}</p>}
         </div>
 
         {/* Comments */}

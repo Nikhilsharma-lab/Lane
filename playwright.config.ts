@@ -11,7 +11,7 @@ export default defineConfig({
   retries: 0,
   expect: { timeout: 15_000 },
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.E2E_BASE_URL || "http://localhost:3100",
     headless: true,
     navigationTimeout: 30_000,
     actionTimeout: 15_000,
@@ -25,8 +25,8 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "pnpm dev",
-        port: 3000,
+        command: "PORT=3100 pnpm dev",
+        port: 3100,
         reuseExistingServer: true,
         timeout: 30_000,
       },
