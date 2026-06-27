@@ -45,9 +45,13 @@ Each item: what · why deferred · source review.
   (`requireActiveMember` / `requireOwnerOrAdmin`) are the **sole** tenant-isolation defense today.
   See also: **RLS BACKSTOP (PATH 1)** section below for the actionable migration plan.
   — Danger-day isolation audit.
-- **`completeOnboarding` one-workspace invariant.** Nothing prevents it from minting a second workspace for a
-  user who already has one. `acceptInvite` enforces the one-workspace-per-user check; onboarding should too.
-  Non-security (creates orphan data, not a leak). — Danger-day action inventory.
+- ~~**`completeOnboarding` one-workspace invariant.**~~ RESOLVED: closed by the bootstrap rework (PR #27).
+  Two independent guards enforce the invariant: (1) bootstrap `IF FOUND THEN RETURN` early-return
+  (`0005:28–37`) — if a profile exists, returns existing org_id, no workspace created (forge-tested:
+  `onboarding.test.ts:125` + `:205`); (2) `profiles.id` PRIMARY KEY — concurrent race (two tabs submitting
+  before either writes) hits a PK violation on the second INSERT, which is uncaught (the slug loop is the
+  only EXCEPTION handler), aborting the entire function and rolling back the transaction including the org
+  INSERT — no orphan workspace. The original entry predated the rework. — Danger-day action inventory.
 
 > Infra pre-launch items (staging/prod split, Supabase Pro, Vercel Pro, custom domain, cross-workspace RLS
 > verification) live in CLAUDE.md's "BEFORE FIRST PAYING CUSTOMER" section. Same gate governs both lists.
