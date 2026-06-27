@@ -8,5 +8,5 @@ export function relativeTime(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(date).toLocaleDateString();
+  return new Date(date).toLocaleDateString("en-US");
 }
