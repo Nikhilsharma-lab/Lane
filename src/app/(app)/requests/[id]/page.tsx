@@ -12,26 +12,9 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { statusLabel, statusVariant } from "@/lib/request-status";
 import { LifecycleButtons } from "./lifecycle-buttons";
 import { CommentForm } from "./comment-form";
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "open": return "Open";
-    case "in_progress": return "In Progress";
-    case "done": return "Done";
-    default: return status;
-  }
-}
-
-function statusVariant(status: string) {
-  switch (status) {
-    case "open": return "secondary" as const;
-    case "in_progress": return "default" as const;
-    case "done": return "outline" as const;
-    default: return "secondary" as const;
-  }
-}
 
 function classificationLabel(c: string | null) {
   switch (c) {

@@ -7,6 +7,7 @@ import { relativeTime } from "@/lib/relative-time";
 import { db, requests, profiles } from "@/db";
 import { alias } from "drizzle-orm/pg-core";
 import { eq, and, desc } from "drizzle-orm";
+import { statusLabel } from "@/lib/request-status";
 import { PickUpButton } from "./pick-up-button";
 
 const MAX_REQUESTS_QUERY = 200;
@@ -51,16 +52,16 @@ export default async function RequestsBoard() {
   const done = doneAll.slice(0, MAX_DONE_VISIBLE);
 
   const groups = [
-    { key: "open", label: "Open", requests: open, emptyText: "No open requests" },
+    { key: "open", label: statusLabel("open"), requests: open, emptyText: "No open requests" },
     {
       key: "in_progress",
-      label: "In Progress",
+      label: statusLabel("in_progress"),
       requests: inProgress,
       emptyText: "Nothing in progress",
     },
     {
       key: "done",
-      label: "Done",
+      label: statusLabel("done"),
       requests: done,
       emptyText: "Nothing completed yet",
       truncatedFrom: doneAll.length > done.length ? doneAll.length : null,
@@ -136,15 +137,26 @@ export default async function RequestsBoard() {
                         </>
                       )}
                       <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/requests/${req.id}`}
-                          className="font-medium break-words after:absolute after:inset-0 hover:underline focus-visible:outline-none"
-                        >
-                          {req.title}
-                        </Link>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                          {req.reframedProblem || req.description}
-                        </p>
+                        {req.reframedProblem ? (
+                          <>
+                            <Link
+                              href={`/requests/${req.id}`}
+                              className="font-medium break-words after:absolute after:inset-0 hover:underline focus-visible:outline-none"
+                            >
+                              {req.reframedProblem}
+                            </Link>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {req.title}
+                            </p>
+                          </>
+                        ) : (
+                          <Link
+                            href={`/requests/${req.id}`}
+                            className="font-medium break-words after:absolute after:inset-0 hover:underline focus-visible:outline-none"
+                          >
+                            {req.title}
+                          </Link>
+                        )}
                         <p className="mt-2 text-xs text-muted-foreground/80">
                           {req.reframedProblem ? "Reframed · " : ""}
                           by {req.creatorName || "Unknown"} ·{" "}
