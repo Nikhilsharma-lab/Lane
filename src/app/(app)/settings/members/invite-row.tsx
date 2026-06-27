@@ -71,7 +71,7 @@ export function InviteRow({
           {expired ? (
             <span className="text-destructive/70">Expired</span>
           ) : (
-            <>Expires {new Date(invite.expiresAt).toLocaleDateString()}</>
+            <>Expires {new Date(invite.expiresAt).toLocaleDateString("en-US")}</>
           )}
           {invite.role === "admin" && (
             <>
