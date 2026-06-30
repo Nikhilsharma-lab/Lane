@@ -32,7 +32,7 @@ export async function runTriage(
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const rateCheck = checkAiRateLimit(auth.userId);
+  const rateCheck = await checkAiRateLimit(auth.userId);
   if (!rateCheck.allowed) {
     const seconds = Math.ceil(rateCheck.retryAfterMs / 1000);
     return {
