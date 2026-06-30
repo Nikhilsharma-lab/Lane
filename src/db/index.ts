@@ -22,7 +22,7 @@ function getDb(): DbClient {
 
     globalForDb._sql = postgres(process.env.DATABASE_URL, {
       prepare: false,
-      max: 3,
+      max: 4,
       idle_timeout: 20,
       connect_timeout: 10,
       ssl: isLocal ? false : "require",
