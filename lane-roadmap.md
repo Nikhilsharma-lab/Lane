@@ -93,7 +93,7 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [ ] Date hydration mismatch (server/client locale divergence)
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
-- [x] Email-confirmation decision (on/off for real users) → RESOLVED (decision: not required, invite-only launch; code+project MATCH confirmed; self-signup trigger filed in DEFERRED.md)
+- [ ] Email-confirmation decision (on/off for real users) → REOPENED 2026-07-12: signup stays open ⇒ confirmation required for self-signup, invited users exempt; app-logic build, blocked on SMTP — see DEFERRED.md (prior not-required close was premised on invite-only and is superseded)
 - [ ] RLS inert as defense — verify action guards sufficient
 
 DEFERRED.md PRE-GTM must-build (1):

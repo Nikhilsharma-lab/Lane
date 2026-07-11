@@ -65,20 +65,31 @@ Each item: what · why deferred · source review.
   5000 cap — a forgeable-endpoint hole, closed in the same build (`editedProblemSchema.safeParse` before
   the insert). So this was build-plus-bugfix, not mere consolidation. 8 forge tests
   (`request-schema.test.ts`). Commits 4f52bae (build) + 25885dc (copy) + d6aba11 (merge). — Day 2 #10.
-- ~~**Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email.~~
-  RESOLVED BY DECISION (2026-07-11): confirmation NOT required at launch. Lane launches invite-only —
-  invited emails are vouched for by the inviter (enterprise provisioning model: invite-provisioning now,
-  SSO later in Cluster 3); confirmation is a consumer/open-signup pattern and never becomes a required
-  gate. Reconcile verdict: MATCH — code assumes a live session right after signUp
-  (`(auth)/actions.ts:63-83`, immediate redirect, no confirmed-vs-pending branch) and the project has
-  auto-confirm on (`/auth/v1/settings` probe: `mailer_autoconfirm: true`). No code or dashboard change
-  needed. NOTE for honesty: "invite-only" is currently GTM posture, not an enforced gate — the probe
-  also showed `disable_signup: false` and /signup is public, so self-signup is technically live today
-  (see trigger below). — Day 1 setup.
-- **IF open self-signup is ever added (or formally embraced): require email confirmation on the
-  self-signup path only** — invited users stay ungated (the enterprise self-serve pattern).
-  Trigger: any change that lets non-invited users create accounts as a supported path.
-  — email-confirmation decision, 2026-07-11.
+- **Email confirmation — OPEN build item, blocked on SMTP.** Decision chain, kept for the trail:
+  (1) Original: turned OFF for dev speed, decide before real users (Day 1 setup). (2) 2026-07-11:
+  RESOLVED BY DECISION as not-required, premised on invite-only launch — code+project MATCH confirmed
+  (`(auth)/actions.ts:63-83` immediate-redirect signup; `/auth/v1/settings` probe `mailer_autoconfirm:
+  true`). (3) 2026-07-12: **SUPERSEDED** — signup stays OPEN (invite-only not enforced; probe showed
+  `disable_signup: false`, /signup public), so the "if self-signup added" trigger below has FIRED and
+  confirmation IS required for self-signup, with invited users exempt (vouched-for by the inviter).
+  **Build shape** (from the (b) NEEDS-APP-LOGIC diagnosis — both creation paths are the same signUp
+  today, `invite/[token]/page.tsx:82-86` funnels invitees into public /signup):
+  - Invited path: `admin.createUser({ email_confirm: true })` after SERVER-SIDE invite verification
+    against the invites table (pending / unexpired / email-match) — never trust the redirect param.
+  - Self-signup path: pending-confirmation screen + `auth.resend()` (today's blind redirect would
+    bounce an unconfirmed user to /login unexplained — `middleware.ts:47-51`).
+  - Dashboard: enable "Confirm email" (flips `mailer_autoconfirm` off). Forge tests for the
+    invite-verify branch.
+  - Security note: requires importing the service client into app code, which `admin.ts:5-6`
+    currently forbids ("NEVER import this from app or client code") — that guard must be consciously
+    revisited at build time, not silently overridden.
+  **HARD DEPENDENCY: custom SMTP** (see next item) — the built-in mailer is dev-grade (few emails/
+  hour); confirmation without reliable delivery is worse than none. Trigger: build after SMTP is
+  provisioned. — email-confirmation reopen, 2026-07-12.
+- **OPERATIONAL — provision custom SMTP (Resend or similar).** Account, API key, DNS/sender
+  verification, wire into Supabase Auth SMTP settings. Blocks: the email-confirmation build above;
+  also improves invite/notification deliverability generally (may serve more than confirmation).
+  Trigger: pre-launch, before enabling confirmation. — email-confirmation reopen, 2026-07-12.
 - **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
   The PostgREST path blanket-denies all queries because `current_app_user_id()` uses the deprecated
   `request.jwt.claim.sub` (should be `request.jwt.claims::json->>'sub'`). Action-level guards
