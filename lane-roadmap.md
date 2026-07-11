@@ -87,8 +87,8 @@ until every must-build is done and every must-decide is resolved (built or delet
 **Must-build (16 items):**
 
 DEFERRED.md PRE-LAUNCH hard gate (8):
-- [ ] Rate limiter → Upstash (in-memory leaks, resets on deploy)
-- [ ] N+1 queries on detail page → single JOIN query
+- [x] Rate limiter → Upstash (in-memory leaks, resets on deploy) → RESOLVED (sliding window 10/60s, fail-open; 3ad18fa, merged e368edc)
+- [x] N+1 queries on detail page → single JOIN query → RESOLVED (aliased self-joins + 6 forge tests; merge 879b484)
 - [ ] Board pagination (only `.limit(100)` safety cap)
 - [ ] Date hydration mismatch (server/client locale divergence)
 - [ ] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY)

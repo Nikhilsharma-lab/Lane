@@ -29,9 +29,17 @@ Each item: what · why deferred · source review.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 
-- **Rate limiter is in-memory** (`Map`, leaks, resets on deploy). Swap to Upstash. — Day 2 #5.
-- **N+1 queries on the detail page** (request + creator + assignee as 3 serial round-trips). Collapse to one
-  query with LEFT JOINs. Perf — bites as request counts grow. — Day 3 #3.
+- ~~**Rate limiter is in-memory** (`Map`, leaks, resets on deploy). Swap to Upstash.~~ RESOLVED: swapped to
+  Upstash Redis sliding window — 10 req/60s per user, fail-open on Redis error or missing KV env
+  (`Ratelimit.slidingWindow(10, "60 s")` + prefix `lane:ratelimit:ai`, `src/lib/rate-limit.ts:22-23`;
+  fail-open `rate-limit.ts:29-31,42-45`). Mocked-Redis forge tests: `src/lib/rate-limit.test.ts` (3 tests).
+  Commits 3ad18fa, merged e368edc. — Day 2 #5.
+- ~~**N+1 queries on the detail page** (request + creator + assignee as 3 serial round-trips). Collapse to one
+  query with LEFT JOINs. Perf — bites as request counts grow.~~ RESOLVED: collapsed to one aliased self-join
+  query — `alias(profiles, "creator")` / `alias(profiles, "assignee")` + two `leftJoin`s
+  (`src/app/(app)/requests/[id]/page.tsx:47-48,67-68`); the serial `// Get creator name` /
+  `// Get assignee name` blocks are gone (grep: absent). Forge tests: `detail-query.test.ts` (6 tests).
+  Merge 879b484 (branch feat/detail-nplus1). — Day 3 #3.
 - **Board has no real pagination** (only a `.limit(100)` safety cap). Add proper pagination / group limits. — Day 3 #6.
 - **Date hydration mismatch.** `toLocaleDateString()` renders in server locale on SSR, client locale after
   hydration → mismatch warning + date flash for cross-timezone teams. Format consistently or client-only. — Day 3 #8.
