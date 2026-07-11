@@ -228,3 +228,11 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   Day 2 #4). Resolved by the bootstrap rework: slug now derives from workspace name (`actions.ts:44-48`), retry
   loop with numeric suffix + RAISE after 10 attempts (`migration 0005:39-55`), `organizations_slug_unique`
   constraint, forge test covers the `-1` case. The email-local-part derivation the entry described no longer exists.
+- feat/board-per-group — connection-pool max 3→4 bump (acb8777). CLOSED STALE, not merged. The bump was sized
+  "for parallel board queries", but main's board is a single query with in-memory grouping
+  (`src/app/(app)/page.tsx:25-52`: one select with joins → per-status `filter` → done-cap `slice`) and
+  `grep Promise.all src/app` → zero hits — the parallel workload the bump targeted was superseded and never
+  landed. Pool tuning for a nonexistent workload → not needed (CLAUDE.md: default to no on unneeded change).
+  Source: branch diff `src/db/index.ts` (`- max: 3` / `+ max: 4`) vs current main `src/db/index.ts:25`
+  (`max: 3`). If pool sizing ever needs revisiting, do it against real observed load as a fresh decision —
+  not by resurrecting this branch. — branch-backlog drain, 2026-07-01.
