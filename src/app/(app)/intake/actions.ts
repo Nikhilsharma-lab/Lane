@@ -1,16 +1,11 @@
 "use server";
 
-import { z } from "zod";
 import { triageRequest, type TriageResult } from "@/lib/ai/triage";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { db, requests } from "@/db";
 import { requireActiveMember } from "@/lib/auth-guard";
-
-const requestSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(200),
-  description: z.string().min(10, "Description must be at least 10 characters").max(5000),
-});
+import { requestSchema, editedProblemSchema } from "@/lib/request-schema";
 
 export type TriageResponse =
   | { success: true; triage: TriageResult; token: string }
@@ -75,8 +70,15 @@ export async function saveRequest(
     return { success: false, error: "Invalid or expired triage token. Please resubmit." };
   }
 
+  // The token locks classification, but editedProblemText arrives raw from the
+  // client — enforce the same cap the form's textarea shows.
+  const parsedEdit = editedProblemSchema.safeParse(data.editedProblemText);
+  if (!parsedEdit.success) {
+    return { success: false, error: parsedEdit.error.issues[0].message };
+  }
+
   const reframedProblem =
-    payload.classification !== "problem" ? (data.editedProblemText || null) : null;
+    payload.classification !== "problem" ? (parsedEdit.data || null) : null;
 
   try {
     const [created] = await db

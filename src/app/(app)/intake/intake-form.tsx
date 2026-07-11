@@ -8,6 +8,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  requestSchema,
+  TITLE_MAX,
+  DESCRIPTION_MAX,
+  type RequestInput,
+} from "@/lib/request-schema";
 import { Loader2Icon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,14 +35,9 @@ import {
 } from "./actions";
 import type { TriageResult } from "@/lib/ai/triage";
 
-type FormData = { title: string; description: string };
+type FormData = RequestInput;
 
 type Stage = "form" | "analyzing" | "gate" | "saving" | "done";
-
-// Client mirrors of the server's zod limits (actions.ts) so users can't
-// overshoot and learn about it only on submit.
-const TITLE_MAX = 200;
-const DESCRIPTION_MAX = 5000;
 
 // The verdict reveal — one entrance, gated behind motion-safe so reduced-motion
 // users get the content instantly with no transition.
@@ -60,6 +62,7 @@ export default function IntakePage({
     formState: { errors },
     reset,
   } = useForm<FormData>({
+    resolver: zodResolver(requestSchema),
     defaultValues: { title: "", description: "" },
   });
 
@@ -246,14 +249,7 @@ export default function IntakePage({
                 maxLength={TITLE_MAX}
                 aria-invalid={!!errors.title}
                 aria-describedby={errors.title ? "title-error" : undefined}
-                {...register("title", {
-                  required: "Title is required",
-                  minLength: { value: 3, message: "At least 3 characters" },
-                  maxLength: {
-                    value: TITLE_MAX,
-                    message: `At most ${TITLE_MAX} characters`,
-                  },
-                })}
+                {...register("title")}
                 disabled={analyzing}
               />
               {errors.title && (
@@ -278,17 +274,7 @@ export default function IntakePage({
                 aria-describedby={
                   errors.description ? "description-error" : undefined
                 }
-                {...register("description", {
-                  required: "Description is required",
-                  minLength: {
-                    value: 10,
-                    message: "Tell us a bit more — at least 10 characters",
-                  },
-                  maxLength: {
-                    value: DESCRIPTION_MAX,
-                    message: `At most ${DESCRIPTION_MAX.toLocaleString()} characters`,
-                  },
-                })}
+                {...register("description")}
                 disabled={analyzing}
               />
               {errors.description && (
