@@ -89,7 +89,7 @@ until every must-build is done and every must-decide is resolved (built or delet
 DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] Rate limiter → Upstash (in-memory leaks, resets on deploy) → RESOLVED (sliding window 10/60s, fail-open; 3ad18fa, merged e368edc)
 - [x] N+1 queries on detail page → single JOIN query → RESOLVED (aliased self-joins + 6 forge tests; merge 879b484)
-- [ ] Board pagination (only `.limit(100)` safety cap)
+- [ ] Board pagination → DEFERRED post-GTM 2026-07-12, exempt from the hard gate (main already has 200-cap + Done-25 with count affordance; cursor pagination is a scale problem invite-only launch won't hit; data-based trigger — ~120 active requests in any workspace — filed in DEFERRED.md)
 - [x] Date hydration mismatch (server/client locale divergence) → RESOLVED (en-US pinned, relative-time.ts:11 + invite-row.tsx:74; 5f9dee1/6f49888 — checkbox caught up 2026-07-12)
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)

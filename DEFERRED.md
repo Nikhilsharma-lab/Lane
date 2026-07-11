@@ -44,7 +44,18 @@ Each item: what · why deferred · source review.
   (`src/app/(app)/requests/[id]/page.tsx:47-48,67-68`); the serial `// Get creator name` /
   `// Get assignee name` blocks are gone (grep: absent). Forge tests: `detail-query.test.ts` (6 tests).
   Merge 879b484 (branch feat/detail-nplus1). — Day 3 #3.
-- **Board has no real pagination** (only a `.limit(100)` safety cap). Add proper pagination / group limits. — Day 3 #6.
+- **Board pagination — OPEN, DEFERRED POST-GTM (trigger below → exempt from the hard GTM gate).**
+  Re-scoped 2026-07-12; the original text ("only a `.limit(100)` safety cap") was stale. Current state
+  on main: query capped at 200 (`MAX_REQUESTS_QUERY`, `src/app/(app)/page.tsx:13`), Done group capped
+  at 25 with a count affordance ("Showing the latest 25 of N completed." — `page.tsx:14,52,181-184`) —
+  partial mitigation already shipped. What's absent: cursor/offset "load more" pagination (grep: no
+  pagination code in the board path). Decision: DEFER — Lane launches invite-only to early design
+  teams whose active boards are dozens, not hundreds; the failure mode at the cap is graceful (oldest
+  items stop displaying, no crash) on a board where stale requests get closed; building cursor
+  pagination now solves a scale problem that only appears at customer volume launch won't have (YAGNI).
+  Trigger: any workspace exceeds ~120 active (Open + In-Progress) requests, OR the first
+  enterprise-scale customer — whichever first (a threshold visible in advance, not a surprise at 200).
+  — Day 3 #6; re-scoped + deferred 2026-07-12.
 - ~~**Date hydration mismatch.** `toLocaleDateString()` renders in server locale on SSR, client locale after
   hydration → mismatch warning + date flash for cross-timezone teams. Format consistently or client-only.~~
   RESOLVED: locale pinned to `"en-US"` at `src/lib/relative-time.ts:11` and
