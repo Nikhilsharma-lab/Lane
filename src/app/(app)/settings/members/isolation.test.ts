@@ -28,12 +28,9 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 const WORKSPACE_A = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
-const WORKSPACE_B = "649ace1d-14d8-40d1-9603-c91514f827cc";
 const USER_B = "121fe28c-ae3f-4fc7-92c2-ccb195f3b97c"; // test3
-const USER_A_OWNER = "7c683bdd-43ce-42c4-847a-3fb5663b2926";
 const USER_A_MEMBER = "b0784525-9e27-46c7-9bdd-066ceb776674";
 const REQUEST_A_OPEN = "de7fe180-b51b-4714-8e82-42b775fe53d4";
-const COMMENT_A = "f76914f7-4726-4fcf-97b5-f8d5031723f4";
 
 describe("Cross-workspace isolation — forged actions", () => {
   beforeAll(() => {
