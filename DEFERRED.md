@@ -90,12 +90,21 @@ Each item: what · why deferred · source review.
   verification, wire into Supabase Auth SMTP settings. Blocks: the email-confirmation build above;
   also improves invite/notification deliverability generally (may serve more than confirmation).
   Trigger: pre-launch, before enabling confirmation. — email-confirmation reopen, 2026-07-12.
-- **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
+- ~~**RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
   The PostgREST path blanket-denies all queries because `current_app_user_id()` uses the deprecated
   `request.jwt.claim.sub` (should be `request.jwt.claims::json->>'sub'`). Action-level guards
-  (`requireActiveMember` / `requireOwnerOrAdmin`) are the **sole** tenant-isolation defense today.
-  See also: **RLS BACKSTOP (PATH 1)** section below for the actionable migration plan.
-  — Danger-day isolation audit.
+  (`requireActiveMember` / `requireOwnerOrAdmin`) are the **sole** tenant-isolation defense today.~~
+  RESOLVED as verified-sufficient (2026-07-12): app-layer guards are now the sole — and only
+  possible — defense, and the full sweep found them airtight. Evidence: (1) the app role literally
+  bypasses RLS (`current_user = postgres`, `rolbypassrls = t` — catalog query), so RLS never engaged
+  on app traffic; (2) with the Data API now disabled (see entry above), RLS has NO reachable surface
+  at all; (3) every data path is guarded and org-scoped — identity from `auth.getUser()` inside the
+  guards (`auth-guard.ts:8-75`), inserts stamp `auth.orgId`/`auth.userId`, mutations fetch-then-check
+  (`requests/[id]/actions.ts:27`), notifications triple-scope (id+userId+orgId), pages scope or 404 —
+  ZERO unscoped paths found; (4) 5 forged-orgId isolation tests run green in the suite. REMAINING
+  (separate launch-gate item, CLAUDE.md "confirm RLS isolation with fresh second account"): the live
+  two-account UI check — auth.users is empty post-restore, so it needs the A/B account setup first.
+  — Danger-day isolation audit; verified-sufficient 2026-07-12.
 - ~~**`completeOnboarding` one-workspace invariant.**~~ RESOLVED: closed by the bootstrap rework (PR #27).
   Two independent guards enforce the invariant: (1) bootstrap `IF FOUND THEN RETURN` early-return
   (`0005:28–37`) — if a profile exists, returns existing org_id, no workspace created (forge-tested:
@@ -228,13 +237,16 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   **DONE** (PR #27, `completeOnboarding` calls bootstrap via Drizzle `sql` tag). Zero PostgREST
   app consumers remain (`grep -r "supabase.*from\|\.rpc(" src/app` — clean).
 
-- **Disable the PostgREST data API entirely + delete the 6 skipped RLS tests.**
-  What: flip the Supabase dashboard toggle to disable the data API (zero app consumers confirmed),
-  then delete `isolation.test.ts` (6 tests, all `skipIf local`, all verify RLS via PostgREST paths
-  that are about to be disabled). Why deferred: pure hardening — the data API already blanket-denies
-  all queries (broken claim path), action-level guards are the sole and proven defense, and zero app
-  code uses PostgREST. Not user-facing. Precondition: bootstrap on Drizzle (met, PR #27).
-  Trigger: pre-GTM hardening pass (must be done before GTM per the CLAUDE.md hard gate).
+- ~~**Disable the PostgREST data API entirely + delete the 6 skipped RLS tests.**~~
+  RESOLVED (2026-07-12): Data API disabled via dashboard and verified HARD-CLOSED by live probe —
+  every `/rest/v1/*` endpoint returns 503 PGRST002 (schema-cache access revoked), including the REST
+  root with the SECRET key, which had served the full OpenAPI table listing the same day. App
+  unaffected: zero REST consumers in src (grep clean), all data access is Drizzle + pooler
+  (`src/db/index.ts:14-30`); pooler sanity SELECT unchanged post-toggle. The 6 `skipIf(isLocalDb)`
+  tests (former `isolation.test.ts:113-181`) deleted on branch feat/close-postgrest-rls — they
+  exercised the now-nonexistent anon-key REST surface — purging the hardcoded test credentials that
+  lived at :123-124 with them. Suite: 108 passed / 0 skipped. The 5 running forged-orgId tests are
+  untouched. — pre-GTM hardening, 2026-07-12.
 
 ## GUEST / EXTERNAL INTAKE — when external requesters are added
 

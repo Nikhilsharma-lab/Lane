@@ -94,10 +94,10 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
 - [ ] Email-confirmation decision (on/off for real users) → REOPENED 2026-07-12: signup stays open ⇒ confirmation required for self-signup, invited users exempt; app-logic build, blocked on SMTP — see DEFERRED.md (prior not-required close was premised on invite-only and is superseded)
-- [ ] RLS inert as defense — verify action guards sufficient
+- [x] RLS inert as defense — verify action guards sufficient → RESOLVED (guards verified airtight by sweep + 5 forged-orgId tests; RLS has no reachable surface post-Data-API-disable; live two-account check remains as the CLAUDE.md infra item below)
 
 DEFERRED.md PRE-GTM must-build (1):
-- [ ] Disable PostgREST data API + delete 6 skipped RLS tests (precondition met, PR #27)
+- [x] Disable PostgREST data API + delete 6 skipped RLS tests (precondition met, PR #27) → RESOLVED (dashboard-disabled + probe-verified 503 incl. secret-key root, 2026-07-12; 6 tests + hardcoded creds deleted on feat/close-postgrest-rls; suite 108/0)
 
 Board polish — verdicts from build-or-delete review (2):
 - [ ] Status label/variant → shared util (small dedupe, prevents drift)
