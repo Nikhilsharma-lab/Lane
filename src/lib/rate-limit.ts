@@ -1,35 +1,46 @@
-/**
- * Simple in-memory rate limiter for MVP.
- * No Upstash dependency — works everywhere, resets on deploy/restart.
- * Good enough until there's a paying customer; swap to Upstash later.
- */
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-const hits = new Map<string, { count: number; resetAt: number }>();
+type RateLimitResult = { allowed: boolean; retryAfterMs: number };
 
-export function checkRateLimit(
-  key: string,
-  opts: { maxRequests: number; windowMs: number }
-): { allowed: boolean; retryAfterMs: number } {
-  const now = Date.now();
-  const entry = hits.get(key);
+const MISSING_ENV =
+  !process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN;
 
-  if (!entry || now > entry.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + opts.windowMs });
+if (MISSING_ENV && process.env.NODE_ENV === "production") {
+  console.warn(
+    "[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN not set — rate limiting disabled"
+  );
+}
+
+const ratelimit = MISSING_ENV
+  ? null
+  : new Ratelimit({
+      redis: new Redis({
+        url: process.env.KV_REST_API_URL!,
+        token: process.env.KV_REST_API_TOKEN!,
+      }),
+      limiter: Ratelimit.slidingWindow(10, "60 s"),
+      prefix: "lane:ratelimit:ai",
+    });
+
+export async function checkAiRateLimit(
+  userId: string
+): Promise<RateLimitResult> {
+  if (!ratelimit) {
     return { allowed: true, retryAfterMs: 0 };
   }
 
-  if (entry.count >= opts.maxRequests) {
-    return { allowed: false, retryAfterMs: entry.resetAt - now };
+  try {
+    const result = await ratelimit.limit(userId);
+    if (result.success) {
+      return { allowed: true, retryAfterMs: 0 };
+    }
+    return {
+      allowed: false,
+      retryAfterMs: Math.max(0, result.reset - Date.now()),
+    };
+  } catch (err) {
+    console.error("[rate-limit] Redis error — failing open:", err);
+    return { allowed: true, retryAfterMs: 0 };
   }
-
-  entry.count++;
-  return { allowed: true, retryAfterMs: 0 };
-}
-
-/** 10 AI triage calls per minute per user */
-export function checkAiRateLimit(userId: string) {
-  return checkRateLimit(`ai:${userId}`, {
-    maxRequests: 10,
-    windowMs: 60_000,
-  });
 }
