@@ -65,7 +65,20 @@ Each item: what · why deferred · source review.
   5000 cap — a forgeable-endpoint hole, closed in the same build (`editedProblemSchema.safeParse` before
   the insert). So this was build-plus-bugfix, not mere consolidation. 8 forge tests
   (`request-schema.test.ts`). Commits 4f52bae (build) + 25885dc (copy) + d6aba11 (merge). — Day 2 #10.
-- **Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email. — Day 1 setup.
+- ~~**Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email.~~
+  RESOLVED BY DECISION (2026-07-11): confirmation NOT required at launch. Lane launches invite-only —
+  invited emails are vouched for by the inviter (enterprise provisioning model: invite-provisioning now,
+  SSO later in Cluster 3); confirmation is a consumer/open-signup pattern and never becomes a required
+  gate. Reconcile verdict: MATCH — code assumes a live session right after signUp
+  (`(auth)/actions.ts:63-83`, immediate redirect, no confirmed-vs-pending branch) and the project has
+  auto-confirm on (`/auth/v1/settings` probe: `mailer_autoconfirm: true`). No code or dashboard change
+  needed. NOTE for honesty: "invite-only" is currently GTM posture, not an enforced gate — the probe
+  also showed `disable_signup: false` and /signup is public, so self-signup is technically live today
+  (see trigger below). — Day 1 setup.
+- **IF open self-signup is ever added (or formally embraced): require email confirmation on the
+  self-signup path only** — invited users stay ungated (the enterprise self-serve pattern).
+  Trigger: any change that lets non-invited users create accounts as a supported path.
+  — email-confirmation decision, 2026-07-11.
 - **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
   The PostgREST path blanket-denies all queries because `current_app_user_id()` uses the deprecated
   `request.jwt.claim.sub` (should be `request.jwt.claims::json->>'sub'`). Action-level guards
