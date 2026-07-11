@@ -43,8 +43,20 @@ Each item: what · why deferred · source review.
 - **Board has no real pagination** (only a `.limit(100)` safety cap). Add proper pagination / group limits. — Day 3 #6.
 - **Date hydration mismatch.** `toLocaleDateString()` renders in server locale on SSR, client locale after
   hydration → mismatch warning + date flash for cross-timezone teams. Format consistently or client-only. — Day 3 #8.
-- **HMAC signing reuses `SUPABASE_SECRET_KEY`.** Works (server-only) but a dedicated signing secret isolates
-  concerns. — Day 2 gate-fix note.
+- ~~**HMAC signing reuses `SUPABASE_SECRET_KEY`.** Works (server-only) but a dedicated signing secret isolates
+  concerns.~~ RESOLVED in code: commit 5819295 (2026-06-18, "security: decouple triage token signing from
+  service-role key") — sign and verify both read the dedicated secret (`process.env.TRIAGE_TOKEN_SECRET`,
+  `src/lib/triage-token.ts:32`), no fallback, loud throw on absence (`triage-token.ts:33-35`), forge-tested
+  (`triage-token.test.ts:53-59` asserts the unset-throw). The entry predated the fix. Two operational
+  residues filed below as OPEN items. — Day 2 gate-fix note.
+- **OPERATIONAL — generate `TRIAGE_TOKEN_SECRET` value into `.env.local`** (currently blank on the only
+  machine; name-only check 2026-07-01). Intake-gate signing throws until it's set (`triage-token.ts:31-35`),
+  so local intake/e2e can't run without it. Trigger: the one-sitting Supabase-creds env fill.
+  — HMAC close-out recon, 2026-07-01.
+- **OPERATIONAL — verify `TRIAGE_TOKEN_SECRET` is set in Vercel Production + Preview.** Commit 5819295's
+  body ordered it set on 2026-06-18, but the repo cannot confirm dashboard state (INFERENCE only). Missing
+  in prod = triage throws on the first real request post-deploy. Trigger: pre-launch dashboard-verification
+  pass (alongside Vercel Pro / prod-staging split, Cluster 3). — HMAC close-out recon, 2026-07-01.
 - **Duplicate client/server validation** can drift. Point the client form at the same zod schema. — Day 2 #10.
 - **Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email. — Day 1 setup.
 - **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
