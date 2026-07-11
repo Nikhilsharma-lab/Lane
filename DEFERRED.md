@@ -10,11 +10,15 @@ Each item: what · why deferred · source review.
 
 ## PRE-GTM MUST-BUILD — board polish
 
-- **Status label/variant duplicated** across board and detail pages. Extract to one shared util so status
-  styling lives in one place. — Day 3 #4. Verdict: BUILD (small dedupe, prevents drift).
-- **Card hierarchy → reframed problem leads.** The card currently leads with the solution *title* and buries
-  the reframed *problem*. For a problem-first board, the problem leads; title is secondary. — board design
-  review. Verdict: BUILD (on-thesis — the problem is the unit of work).
+- ~~**Status label/variant duplicated** across board and detail pages. Extract to one shared util so status
+  styling lives in one place.~~ RESOLVED: `src/lib/request-status.ts` (`statusLabel`:1, `statusVariant`:10),
+  imported by both board and detail pages (grep re-verified 2026-07-12). Commit f7df09e, merged dce3359 —
+  "launch list items 6+7". Checkbox was never ticked; ledger caught up 2026-07-12. — Day 3 #4.
+- ~~**Card hierarchy → reframed problem leads.** The card currently leads with the solution *title* and buries
+  the reframed *problem*. For a problem-first board, the problem leads; title is secondary.~~ RESOLVED:
+  board card renders `req.reframedProblem` as the `font-medium` lead link with title secondary
+  (`src/app/(app)/page.tsx:140-149`, "Reframed · " marker :161; re-verified 2026-07-12). Same commit
+  f7df09e. Checkbox never ticked; ledger caught up 2026-07-12. — board design review.
 
 > **Removed** (2026-06-26 build-or-delete verdicts):
 > - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; evergreen is reserved for the gate.
@@ -41,18 +45,22 @@ Each item: what · why deferred · source review.
   `// Get assignee name` blocks are gone (grep: absent). Forge tests: `detail-query.test.ts` (6 tests).
   Merge 879b484 (branch feat/detail-nplus1). — Day 3 #3.
 - **Board has no real pagination** (only a `.limit(100)` safety cap). Add proper pagination / group limits. — Day 3 #6.
-- **Date hydration mismatch.** `toLocaleDateString()` renders in server locale on SSR, client locale after
-  hydration → mismatch warning + date flash for cross-timezone teams. Format consistently or client-only. — Day 3 #8.
+- ~~**Date hydration mismatch.** `toLocaleDateString()` renders in server locale on SSR, client locale after
+  hydration → mismatch warning + date flash for cross-timezone teams. Format consistently or client-only.~~
+  RESOLVED: locale pinned to `"en-US"` at `src/lib/relative-time.ts:11` and
+  `settings/members/invite-row.tsx:74` (re-verified 2026-07-12). Commit 5f9dee1, merged 6f49888 —
+  "launch list item 4". Checkbox never ticked; ledger caught up 2026-07-12. — Day 3 #8.
 - ~~**HMAC signing reuses `SUPABASE_SECRET_KEY`.** Works (server-only) but a dedicated signing secret isolates
   concerns.~~ RESOLVED in code: commit 5819295 (2026-06-18, "security: decouple triage token signing from
   service-role key") — sign and verify both read the dedicated secret (`process.env.TRIAGE_TOKEN_SECRET`,
   `src/lib/triage-token.ts:32`), no fallback, loud throw on absence (`triage-token.ts:33-35`), forge-tested
   (`triage-token.test.ts:53-59` asserts the unset-throw). The entry predated the fix. Two operational
   residues filed below as OPEN items. — Day 2 gate-fix note.
-- **OPERATIONAL — generate `TRIAGE_TOKEN_SECRET` value into `.env.local`** (currently blank on the only
+- ~~**OPERATIONAL — generate `TRIAGE_TOKEN_SECRET` value into `.env.local`** (currently blank on the only
   machine; name-only check 2026-07-01). Intake-gate signing throws until it's set (`triage-token.ts:31-35`),
-  so local intake/e2e can't run without it. Trigger: the one-sitting Supabase-creds env fill.
-  — HMAC close-out recon, 2026-07-01.
+  so local intake/e2e can't run without it.~~ DONE at the 2026-07-11 env-fill sitting: 64-hex value
+  generated (`openssl rand -hex 32`) and written; FILLED re-confirmed by name-only check 2026-07-12.
+  — HMAC close-out recon, 2026-07-01; done 2026-07-11.
 - **OPERATIONAL — verify `TRIAGE_TOKEN_SECRET` is set in Vercel Production + Preview.** Commit 5819295's
   body ordered it set on 2026-06-18, but the repo cannot confirm dashboard state (INFERENCE only). Missing
   in prod = triage throws on the first real request post-deploy. Trigger: pre-launch dashboard-verification

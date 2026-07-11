@@ -90,7 +90,7 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] Rate limiter → Upstash (in-memory leaks, resets on deploy) → RESOLVED (sliding window 10/60s, fail-open; 3ad18fa, merged e368edc)
 - [x] N+1 queries on detail page → single JOIN query → RESOLVED (aliased self-joins + 6 forge tests; merge 879b484)
 - [ ] Board pagination (only `.limit(100)` safety cap)
-- [ ] Date hydration mismatch (server/client locale divergence)
+- [x] Date hydration mismatch (server/client locale divergence) → RESOLVED (en-US pinned, relative-time.ts:11 + invite-row.tsx:74; 5f9dee1/6f49888 — checkbox caught up 2026-07-12)
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
 - [ ] Email-confirmation decision (on/off for real users) → REOPENED 2026-07-12: signup stays open ⇒ confirmation required for self-signup, invited users exempt; app-logic build, blocked on SMTP — see DEFERRED.md (prior not-required close was premised on invite-only and is superseded)
@@ -100,8 +100,8 @@ DEFERRED.md PRE-GTM must-build (1):
 - [x] Disable PostgREST data API + delete 6 skipped RLS tests (precondition met, PR #27) → RESOLVED (dashboard-disabled + probe-verified 503 incl. secret-key root, 2026-07-12; 6 tests + hardcoded creds deleted on feat/close-postgrest-rls; suite 108/0)
 
 Board polish — verdicts from build-or-delete review (2):
-- [ ] Status label/variant → shared util (small dedupe, prevents drift)
-- [ ] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work)
+- [x] Status label/variant → shared util (small dedupe, prevents drift) → RESOLVED (request-status.ts, imported by board + detail; f7df09e — checkbox caught up 2026-07-12)
+- [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
 CLAUDE.md infra (5):
 - [ ] Split prod / staging (second Vercel project + second Supabase DB)
