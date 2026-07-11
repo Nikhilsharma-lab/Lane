@@ -85,6 +85,15 @@ Each item: what · why deferred · source review.
   Verify this remains sufficient (no `javascript:`, no protocol-relative, no backslash tricks) next time the
   auth surface is touched. — Danger-day entry-point inventory.
 
+## E2E BRING-UP — first e2e run after Supabase creds are filled
+
+- **Verify e2e port alignment.** What: playwright now runs the app on port 3100 (`playwright.config.ts` —
+  `baseURL … localhost:3100`, `command: "PORT=3100 pnpm dev"`) while `NEXT_PUBLIC_APP_URL` in `.env.local`
+  stays `localhost:3000`. Why deferred: unverified whether any e2e spec depends on the two matching
+  (`NEXT_PUBLIC_APP_URL` feeds invite links and auth redirects); can't test until Supabase creds are filled
+  and e2e is brought up. Source: feat/detail-nplus1's e2e-port hardening (3000→3100) vs `.env.local`
+  `NEXT_PUBLIC_APP_URL` (3000). Trigger: first e2e bring-up after Supabase creds are filled.
+
 ## REQUEST PEEK/PREVIEW — when board-context viewing is needed
 
 - **Detail-page peek/preview.** What: view a request's detail while staying in board/list context
