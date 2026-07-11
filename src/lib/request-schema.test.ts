@@ -25,7 +25,7 @@ describe("requestSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe(
-        `Title must be at least ${TITLE_MIN} characters`
+        `Please give this a short title — at least ${TITLE_MIN} characters`
       );
     }
   });

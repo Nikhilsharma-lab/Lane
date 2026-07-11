@@ -17,12 +17,12 @@ export const requestSchema = z.object({
   title: z
     .string()
     .min(1, "Title is required")
-    .min(TITLE_MIN, `Title must be at least ${TITLE_MIN} characters`)
+    .min(TITLE_MIN, `Please give this a short title — at least ${TITLE_MIN} characters`)
     .max(TITLE_MAX, `Title must be at most ${TITLE_MAX} characters`),
   description: z
     .string()
     .min(1, "Description is required")
-    .min(DESCRIPTION_MIN, `Description must be at least ${DESCRIPTION_MIN} characters`)
+    .min(DESCRIPTION_MIN, `Tell us a bit more — at least ${DESCRIPTION_MIN} characters`)
     .max(DESCRIPTION_MAX, `Description must be at most ${DESCRIPTION_MAX} characters`),
 });
 
