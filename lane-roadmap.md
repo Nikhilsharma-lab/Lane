@@ -92,7 +92,7 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [ ] Board pagination (only `.limit(100)` safety cap)
 - [ ] Date hydration mismatch (server/client locale divergence)
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
-- [ ] Duplicate client/server validation → shared zod schema
+- [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
 - [ ] Email-confirmation decision (on/off for real users)
 - [ ] RLS inert as defense — verify action guards sufficient
 

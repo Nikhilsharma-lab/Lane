@@ -57,7 +57,14 @@ Each item: what · why deferred · source review.
   body ordered it set on 2026-06-18, but the repo cannot confirm dashboard state (INFERENCE only). Missing
   in prod = triage throws on the first real request post-deploy. Trigger: pre-launch dashboard-verification
   pass (alongside Vercel Pro / prod-staging split, Cluster 3). — HMAC close-out recon, 2026-07-01.
-- **Duplicate client/server validation** can drift. Point the client form at the same zod schema. — Day 2 #10.
+- ~~**Duplicate client/server validation** can drift. Point the client form at the same zod schema.~~
+  RESOLVED: shared schema `src/lib/request-schema.ts` (zod only, client-importable) is now the single
+  source for the intake form — server actions import it (`intake/actions.ts`), the client form wires it
+  via `zodResolver` (`intake-form.tsx`), limits live in exported constants. And it WAS drifting: diagnosis
+  found `saveRequest` inserted `editedProblemText` with NO server validation while the client showed a
+  5000 cap — a forgeable-endpoint hole, closed in the same build (`editedProblemSchema.safeParse` before
+  the insert). So this was build-plus-bugfix, not mere consolidation. 8 forge tests
+  (`request-schema.test.ts`). Commits 4f52bae (build) + 25885dc (copy) + d6aba11 (merge). — Day 2 #10.
 - **Email-confirmation decision.** Turned OFF for dev speed; decide whether real users must confirm email. — Day 1 setup.
 - **RLS is currently INERT as a defense.** Drizzle uses DATABASE_URL (postgres role) which bypasses RLS entirely.
   The PostgREST path blanket-denies all queries because `current_app_user_id()` uses the deprecated
