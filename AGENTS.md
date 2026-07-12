@@ -67,17 +67,20 @@ the 5 design stages (Sense/Frame/Diverge/Converge/Prove) and all phase/kanban/tr
 
 Long-term outcome learning and agentic design operations are product vision only. They add no current build authority. PM calibration scores and rankings are permanently refused.
 
-## BEFORE FIRST PAYING CUSTOMER — do not skip
+## FREE PILOT → FIRST PAYMENT — do not skip
 
-> Trigger: the first paying customer, OR the first time there are users whose data you'd be upset to lose —
-> whichever comes first. When that's on the horizon, every item here must be done. This list is why it
-> lives in the file you read every session, not in your head.
+> Decision (2026-07-12): run a non-commercial pilot with up to 20–30 free users on the free tiers. No payment
+> may be accepted on Vercel Hobby. Upgrade before the first payment, or earlier if pilot data becomes valuable
+> enough that losing it would materially hurt. Until managed backups exist, take and verify a manual database
+> export before every migration; avoid risky schema changes against the one live database.
 
-- [ ] **Split prod / staging.** Second Vercel project + a second Supabase database for staging.
+- [ ] **Split prod / staging.** Use a second free Supabase project if an active-project slot is available;
+      otherwise this is required before the first payment/data-value trigger. Second Vercel project for staging.
       Rule that broke v1 last time: migrations run on STAGING first, verified, THEN promoted to prod. Never reverse.
-- [ ] **Supabase Pro** — for backups / point-in-time restore. (Free tier has no real backup.)
-- [ ] **Vercel Pro** — Hobby prohibits commercial use; you cannot legally charge on it.
-- [ ] **Custom domain** — point app.uselane.app at the prod Vercel project.
+- [ ] **Supabase Pro** — required at the trigger for managed daily backups. PITR is a separate paid add-on and
+      requires its own explicit cost decision; do not describe it as included in Pro.
+- [ ] **Vercel Pro** — required before accepting the first payment; Hobby remains free-pilot/non-commercial only.
+- [x] **Custom domain** — `app.uselane.app` is production; `www.uselane.app` permanently redirects to it.
 - [x] Confirm workspace isolation with fresh second accounts before anyone real signs up. Verified by the
       live browser E2E in `e2e/workspace-isolation.spec.ts` (own board visible; cross-workspace board/detail denied).
 

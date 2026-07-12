@@ -85,9 +85,11 @@ in real work. Phase 2 remains unselected until their usage pulls for a specific 
 
 ### 3a. Pre-GTM launch list
 
-Everything standing between Phase 0 (complete) and real users. Source: DEFERRED.md pre-launch gate,
-CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. Nothing ships to real users
-until every must-build is done and every must-decide is resolved (built or deleted).
+Everything standing between Phase 0 (complete) and paid launch. Source: DEFERRED.md pre-launch gate,
+CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. No payment is accepted until
+every must-build is done and every must-decide is resolved (built or deleted). A 20–30-person free,
+non-commercial pilot is explicitly approved on free tiers; it exists to validate Requests, not bypass the
+paid-launch gate.
 
 **Must-build (16 items):**
 
@@ -99,7 +101,7 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
 - [x] Email confirmation → RESOLVED 2026-07-12: Resend SMTP + SPF/DKIM/DMARC configured; production URL
-  corrected to `https://www.uselane.app`; Confirm email enabled; live self-signup reached the persistent
+  is `https://app.uselane.app`; Confirm email enabled; live self-signup reached the persistent
   check-email screen, delivered and confirmed into onboarding; a server-verified invite bypassed confirmation,
   accepted successfully, and reached the correct shared board. Forge/unit and browser regression coverage pass.
 - [x] RLS inert as defense — verify action guards sufficient → RESOLVED (guards verified airtight by sweep + 5 forged-orgId tests; RLS has no reachable surface post-Data-API-disable; live two-account check remains as the CLAUDE.md infra item below)
@@ -112,10 +114,13 @@ Board polish — verdicts from build-or-delete review (2):
 - [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
 CLAUDE.md infra (5):
-- [ ] Split prod / staging (second Vercel project + second Supabase DB)
-- [ ] Supabase Pro (backups / point-in-time restore)
-- [ ] Vercel Pro (Hobby prohibits commercial use)
-- [ ] Custom domain (app.uselane.app → prod Vercel project)
+- [ ] Split prod / staging → use a second free Supabase slot if available; otherwise required at the first
+  payment/data-value trigger. Until then: manual verified export before every migration and no risky live-DB changes.
+- [ ] Supabase Pro → deferred during the 20–30-person free pilot; required at the first payment/data-value trigger
+  for managed daily backups. PITR is a separate paid add-on requiring an explicit cost decision.
+- [ ] Vercel Pro → deferred during the free, non-commercial pilot; required before accepting the first payment.
+- [x] Custom domain → RESOLVED 2026-07-12: `app.uselane.app` is production; `www.uselane.app` returns a
+  path-preserving permanent 308 redirect; Vercel app URL and Supabase Site URL/callback allowlist use `app`.
 - [x] Confirm workspace isolation with fresh second accounts → RESOLVED (live browser E2E creates two users
   and workspaces, proves A sees its seeded Request while B sees neither the board card nor direct detail;
   `e2e/workspace-isolation.spec.ts`)
