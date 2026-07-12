@@ -65,6 +65,10 @@ test.describe("onboarding e2e", () => {
       await expect(
         page.locator("text=Invite a teammate")
       ).toBeVisible({ timeout: 10_000 });
+      // Creating the workspace must not revalidate onboarding out from under
+      // the client-side post-create invite step.
+      await page.waitForTimeout(1_500);
+      await expect(page.locator("text=Invite a teammate")).toBeVisible();
 
       await page
         .locator("button", { hasText: "Skip for now" })

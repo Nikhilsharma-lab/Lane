@@ -84,7 +84,7 @@ Each item: what · why deferred · source review.
   5000 cap — a forgeable-endpoint hole, closed in the same build (`editedProblemSchema.safeParse` before
   the insert). So this was build-plus-bugfix, not mere consolidation. 8 forge tests
   (`request-schema.test.ts`). Commits 4f52bae (build) + 25885dc (copy) + d6aba11 (merge). — Day 2 #10.
-- **Email confirmation — APP CODE READY; ACTIVATION + LIVE CHECK OPEN.** Decision chain, kept for the trail:
+- ~~**Email confirmation — APP CODE READY; ACTIVATION + LIVE CHECK OPEN.**~~ RESOLVED 2026-07-12. Decision chain, kept for the trail:
   (1) Original: turned OFF for dev speed, decide before real users (Day 1 setup). (2) 2026-07-11:
   RESOLVED BY DECISION as not-required, premised on invite-only launch — code+project MATCH confirmed
   (`(auth)/actions.ts:63-83` immediate-redirect signup; `/auth/v1/settings` probe `mailer_autoconfirm:
@@ -106,8 +106,10 @@ Each item: what · why deferred · source review.
   cooldown, callback destinations use the hardened internal-path validator, and only a pending,
   unexpired, server-verified invite with matching email can create a pre-confirmed account. Unit/forge
   coverage includes normal, transitional autoconfirm, valid invite, mismatched email, expired invite,
-  resend, and encoded open-redirect cases. Remaining operational step: enable Confirm email in Supabase,
-  then verify one real self-signup and one invited signup before closing this entry.
+  resend, and encoded open-redirect cases. **LIVE VERIFIED:** production app URL corrected from the placeholder
+  to `https://www.uselane.app` and redeployed; Supabase Site URL + callback allowlist confirmed; Confirm email
+  enabled; real self-signup delivered and confirmed into onboarding; real server-verified invite bypassed
+  confirmation, accepted, and reached the correct board.
 - ~~**OPERATIONAL — provision custom SMTP (Resend or similar).**~~ RESOLVED 2026-07-12: Resend is connected
   to Supabase custom SMTP as `Lane <auth@uselane.app>`; delivery appears in Resend logs. SPF and DKIM are
   verified, `_dmarc.uselane.app` publicly resolves to `v=DMARC1; p=none;`, and tracking was not configured.
