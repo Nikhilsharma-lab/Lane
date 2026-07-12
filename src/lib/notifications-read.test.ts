@@ -17,7 +17,7 @@ import {
   requests,
   notifications,
 } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -106,7 +106,7 @@ describe("getNotifications — own-scoped reads", () => {
     const { getNotifications } = await import("@/app/(app)/notifications/actions");
     const result = await getNotifications({ orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
-    if (!("notifications" in result)) throw new Error("missing notifications");
+    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(2);
     expect(result.notifications.every((n) => n.actorName === "User B")).toBe(true);
     expect(result.notifications[0].requestTitle).toBe("Read test request");
@@ -117,7 +117,7 @@ describe("getNotifications — own-scoped reads", () => {
     const { getNotifications } = await import("@/app/(app)/notifications/actions");
     const result = await getNotifications({ orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
-    if (!("notifications" in result)) throw new Error("missing notifications");
+    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(1);
     expect(result.notifications[0].actorName).toBe("User A");
   });
@@ -127,7 +127,7 @@ describe("getNotifications — own-scoped reads", () => {
     const { getNotifications } = await import("@/app/(app)/notifications/actions");
     const result = await getNotifications({ orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
-    if (!("notifications" in result)) throw new Error("missing notifications");
+    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(1);
     expect(result.notifications[0].requestTitle).toBe("Guest request");
   });

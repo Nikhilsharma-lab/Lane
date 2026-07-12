@@ -10,8 +10,8 @@ const redirectMock = vi.fn();
 vi.mock("next/navigation", () => ({
   redirect: (...args: unknown[]) => {
     redirectMock(...args);
-    const err = new Error("NEXT_REDIRECT");
-    (err as any).digest = "NEXT_REDIRECT";
+    const err = new Error("NEXT_REDIRECT") as Error & { digest: string };
+    err.digest = "NEXT_REDIRECT";
     throw err;
   },
 }));
@@ -89,8 +89,6 @@ describe("completeOnboarding — function-via-Drizzle", () => {
 
     expect(result).toHaveProperty("success", true);
     expect(result).toHaveProperty("orgId");
-    const orgId = (result as { orgId: string }).orgId;
-
     const [profile] = await db
       .select({
         orgId: profiles.orgId,

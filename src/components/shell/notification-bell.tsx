@@ -67,14 +67,27 @@ export function NotificationBell({ orgId }: { orgId: string }) {
   }, [orgId]);
 
   useEffect(() => {
-    refreshCount();
-  }, [refreshCount]);
+    let active = true;
+    void getUnreadCount({ orgId }).then((result) => {
+      if (active && "count" in result) setUnread(result.count ?? 0);
+    });
+    return () => {
+      active = false;
+    };
+  }, [orgId]);
 
   useEffect(() => {
-    if (open && !loaded) {
-      refreshList();
-    }
-  }, [open, loaded, refreshList]);
+    if (!open || loaded) return;
+    let active = true;
+    void getNotifications({ orgId }).then((result) => {
+      if (!active) return;
+      if ("notifications" in result) setItems(result.notifications ?? []);
+      setLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, loaded, orgId]);
 
   const handleClickNotification = (item: Notification) => {
     startTransition(async () => {

@@ -44,10 +44,11 @@ describe("Impersonation blocked — forged userId ignored", () => {
     const { pickUpRequest } = await import(
       "@/app/(app)/requests/[id]/actions"
     );
-    const result = await pickUpRequest(REQUEST_A_OPEN, {
+    const forgedContext = {
       userId: USER_A_OWNER,
       orgId: WORKSPACE_A,
-    } as any);
+    };
+    const result = await pickUpRequest(REQUEST_A_OPEN, forgedContext);
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
@@ -58,10 +59,11 @@ describe("Impersonation blocked — forged userId ignored", () => {
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "impersonation probe");
-    const result = await addComment(REQUEST_A_OPEN, formData, {
+    const forgedContext = {
       userId: USER_A_OWNER,
       orgId: WORKSPACE_A,
-    } as any);
+    };
+    const result = await addComment(REQUEST_A_OPEN, formData, forgedContext);
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/not found/i);
     expect(result.success).toBeUndefined();
@@ -72,9 +74,10 @@ describe("Impersonation blocked — forged userId ignored", () => {
     const { updateMemberRole } = await import(
       "@/app/(app)/settings/members/actions"
     );
+    const forgedContext = { userId: USER_A_OWNER, orgId: WORKSPACE_A };
     const result = await updateMemberRole(
       { targetUserId: USER_A_OWNER, newRole: "admin" },
-      { userId: USER_A_OWNER, orgId: WORKSPACE_A } as any
+      forgedContext
     );
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/only owners and admins can change roles/i);
@@ -85,9 +88,10 @@ describe("Impersonation blocked — forged userId ignored", () => {
     const { createInvite } = await import(
       "@/app/(app)/settings/members/actions"
     );
+    const forgedContext = { userId: USER_A_OWNER, orgId: WORKSPACE_A };
     const result = await createInvite(
       { email: "forge-probe@example.com", role: "member" },
-      { userId: USER_A_OWNER, orgId: WORKSPACE_A } as any
+      forgedContext
     );
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/only owners and admins can invite members/i);

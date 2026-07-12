@@ -84,7 +84,7 @@ export default async function RequestsBoard() {
           <p className="text-base font-medium">No requests yet</p>
           <p className="mt-1 max-w-sm text-sm text-pretty text-muted-foreground">
             Lane starts when someone submits the first request. Describe the
-            problem you're trying to solve, not a ready-made solution — the
+            problem you&apos;re trying to solve, not a ready-made solution — the
             team will figure out the how.
           </p>
           <Link
