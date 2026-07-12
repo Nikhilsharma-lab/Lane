@@ -1,6 +1,6 @@
 # LANE ROADMAP — the path through the terrain
 
-> **STATUS: Phase 0 functional loop shipped — Profile gap + pre-GTM gate.** Phase 2 is unselected and gated on real design-lead usage.
+> **STATUS: Phase 0 functional loop shipped — pre-GTM gate.** Phase 2 is unselected and gated on real design-lead usage.
 
 `PLANE-MAP.md` is the terrain: what a mature product in this space looks like. This is **Lane's chosen path
 through it**, filtered by the thesis (anti-surveillance, problem-first, design teams). The map shows
@@ -113,7 +113,9 @@ CLAUDE.md infra (5):
 - [ ] Supabase Pro (backups / point-in-time restore)
 - [ ] Vercel Pro (Hobby prohibits commercial use)
 - [ ] Custom domain (app.uselane.app → prod Vercel project)
-- [ ] Confirm RLS isolation with fresh second account
+- [x] Confirm workspace isolation with fresh second accounts → RESOLVED (live browser E2E creates two users
+  and workspaces, proves A sees its seeded Request while B sees neither the board card nor direct detail;
+  `e2e/workspace-isolation.spec.ts`)
 
 **Resolved (2026-06-26 / 2026-06-27):**
 - Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)

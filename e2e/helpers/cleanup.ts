@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { randomUUID } from "node:crypto";
 
 export async function cleanupTestWorkspace(
   userId: string
@@ -13,6 +14,16 @@ export async function cleanupTestWorkspace(
     const [profile] = await sql`
       SELECT org_id FROM profiles WHERE id = ${userId}
     `;
+
+    if (profile?.org_id) {
+      await sql`
+        DELETE FROM notifications
+        WHERE user_id = ${userId} OR actor_id = ${userId}
+      `;
+      await sql`DELETE FROM comments WHERE author_id = ${userId}`;
+      await sql`UPDATE requests SET assigned_to = NULL WHERE assigned_to = ${userId}`;
+      await sql`DELETE FROM requests WHERE created_by = ${userId}`;
+    }
 
     await sql`DELETE FROM invites WHERE invited_by = ${userId}`;
     await sql`DELETE FROM workspace_members WHERE user_id = ${userId}`;
@@ -123,6 +134,34 @@ export async function getProfileRole(userId: string): Promise<string | null> {
       SELECT role FROM profiles WHERE id = ${userId}
     `;
     return row?.role ?? null;
+  } finally {
+    await sql.end();
+  }
+}
+
+export async function seedTestRequest(
+  userId: string,
+  title: string
+): Promise<{ id: string; orgId: string }> {
+  const sql = postgres(process.env.DATABASE_URL!, {
+    ssl: "require",
+    max: 1,
+    idle_timeout: 5,
+  });
+
+  try {
+    const [profile] = await sql`
+      SELECT org_id FROM profiles WHERE id = ${userId}
+    `;
+    if (!profile?.org_id) throw new Error("[e2e] profile workspace not found");
+
+    const id = randomUUID();
+    await sql`
+      INSERT INTO requests (id, org_id, title, description, status, created_by)
+      VALUES (${id}, ${profile.org_id}, ${title},
+              'Only members of workspace A may read this request.', 'open', ${userId})
+    `;
+    return { id, orgId: profile.org_id };
   } finally {
     await sql.end();
   }

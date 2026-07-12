@@ -78,7 +78,8 @@ Long-term outcome learning and agentic design operations are product vision only
 - [ ] **Supabase Pro** — for backups / point-in-time restore. (Free tier has no real backup.)
 - [ ] **Vercel Pro** — Hobby prohibits commercial use; you cannot legally charge on it.
 - [ ] **Custom domain** — point app.uselane.app at the prod Vercel project.
-- [ ] Confirm RLS isolation holds with a fresh second account before anyone real signs up.
+- [x] Confirm workspace isolation with fresh second accounts before anyone real signs up. Verified by the
+      live browser E2E in `e2e/workspace-isolation.spec.ts` (own board visible; cross-workspace board/detail denied).
 
 
 ## Roadmap & phases

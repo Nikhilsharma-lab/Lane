@@ -121,8 +121,9 @@ Each item: what · why deferred · source review.
   guards (`auth-guard.ts:8-75`), inserts stamp `auth.orgId`/`auth.userId`, mutations fetch-then-check
   (`requests/[id]/actions.ts:27`), notifications triple-scope (id+userId+orgId), pages scope or 404 —
   ZERO unscoped paths found; (4) 5 forged-orgId isolation tests run green in the suite. REMAINING
-  (separate launch-gate item, CLAUDE.md "confirm RLS isolation with fresh second account"): the live
-  two-account UI check — auth.users is empty post-restore, so it needs the A/B account setup first.
+  The separate live two-account UI check is now RESOLVED: `e2e/workspace-isolation.spec.ts` creates fresh
+  A/B accounts and workspaces, proves A can read its Request, and proves B cannot see it on the board or at
+  its direct detail URL.
   — Danger-day isolation audit; verified-sufficient 2026-07-12.
 - ~~**`completeOnboarding` one-workspace invariant.**~~ RESOLVED: closed by the bootstrap rework (PR #27).
   Two independent guards enforce the invariant: (1) bootstrap `IF FOUND THEN RETURN` early-return
