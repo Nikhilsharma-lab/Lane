@@ -1,6 +1,6 @@
 # LANE ROADMAP — the path through the terrain
 
-> **STATUS: Phase 0 — foundation + Requests.** Update on phase advance. Phase 2+ gated on real design-lead usage.
+> **STATUS: Phase 0 functional loop shipped — Profile gap + pre-GTM gate.** Phase 2 is unselected and gated on real design-lead usage.
 
 `PLANE-MAP.md` is the terrain: what a mature product in this space looks like. This is **Lane's chosen path
 through it**, filtered by the thesis (anti-surveillance, problem-first, design teams). The map shows
@@ -47,36 +47,41 @@ Refusing the REFUSE bucket is not deferral. It's positioning. These don't come b
 
 ---
 
-## 2. The destination — Lane as a suite
+## 2. The destination — Requests first, expansion pulled by evidence
 
-From your app-suite call: **Requests, Ideas, Docs, Insights.** Each maps to a proven Plane implementation, with
-Lane's twist:
+**Requests is Lane's only committed product.** Ideas, Docs, Insights, outcome learning, and agentic design
+operations are an unranked hypothesis pool — product possibilities, not scheduled apps or build promises.
+Real Requests usage decides which problem, if any, deserves to become Phase 2.
 
-| Lane app | Plane analog (proven impl) | Lane's twist |
+| Hypothesis | Plane analog / source | Lane's unresolved question |
 |---|---|---|
-| **Requests** | Work Items + Intake | The gate reframes solutions → problems before they land |
-| **Ideas** | (no clean analog — closest is Drafts/Stickies) | Lighter capture; *needs its own definition vs Requests* |
-| **Docs** | Pages / Wiki (TipTap editor) | Problem-context docs, not generic wiki |
-| **Insights** | Analytics | Problem-pattern, never people-metrics |
+| **Ideas** | No clean analog; closest is Drafts/Stickies | Is lighter capture genuinely distinct from a Request? |
+| **Docs** | Pages / Wiki | Do teams need problem-context documents inside Lane? |
+| **Insights** | Analytics | Can problem-pattern insight help without measuring people? |
+| **Outcome learning** | Lane-specific | Does predicted-versus-actual reflection improve decisions without becoming a scorecard? |
+| **Agentic design operations** | Lane-specific | Which bounded procedural task helps designers while preserving human judgment and craft? |
 
-Two-tier app-switcher rail (per conventions-plan) holds these; it appears once app #2 ships.
+The two-tier app-switcher remains an architectural option from `conventions-plan.md`; it appears only if a
+second app earns its place through validation. Nothing is shown merely to signal a suite vision.
 
 ---
 
 ## 3. The incremental sequence
 
-**Phase 0 — Foundation. COMPLETE.** App shell + two-tier nav (rail ready, single app shown);
+**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED; ONE DECLARED SCREEN GAP.** App shell + two-tier-ready nav;
 roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
 comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
-All merged. *The full single-team loop is live.*
+All merged. Invited Guest is shipped as a limited workspace member. **Settings → Profile is still absent even
+though it is declared MVP scope; Phase 0 is not fully complete until a person can change their functional label.**
 
-**What's next:** the **pre-GTM gate** (see §3a below) — the concrete list of hardening, infra, and product
-decisions that must be done before real users. Then Phase 1.
+**What's next:** close Settings → Profile and the **pre-GTM gate** (see §3a below) — the concrete screen gap,
+hardening, infra, and product decisions that must be done before real users. Then Phase 1.
 
 **Phase 1 — Make Requests excellent; make the gate the star.** Harden the gate (it's the differentiator —
-it deserves the most polish); request-detail layout; notifications (someone picked up your request, commented);
-search / command palette; saved filters. **Validation gate:** the four committed design leads actually using
-it daily. Phase 2+ is a hypothesis until they pull for more.
+it deserves the most polish); request-detail layout; search / command palette; saved filters. Lightweight
+in-app notifications for pick-up, comments, completion, and invite acceptance are already shipped; expansion
+stays trigger-gated in `DEFERRED.md`. **Validation gate:** the four committed design leads actually using Lane
+in real work. Phase 2 remains unselected until their usage pulls for a specific problem.
 
 ### 3a. Pre-GTM launch list
 
@@ -124,17 +129,21 @@ No action needed before launch.
 
 ---
 
-**Phase 2 — App #2: Ideas.** Reveal the app-switcher rail (now there are two apps). First: *define what Ideas
-is* — a product decision, not a copy (Plane has no clean analog). Lightweight problem/idea capture, distinct
-from a Request.
+**Phase 2 — UNSELECTED.** Choose one hypothesis only after Requests is in sustained real use and evidence
+identifies the next problem. Definition and validation precede implementation. No current hypothesis has
+priority merely because it appeared in an earlier roadmap.
 
-**Phase 3 — App #3: Docs.** Pages/wiki on TipTap (the map's `editor` package pattern). Realtime collab is a
-later luxury, not a Phase-3 requirement.
+**Woven in only when usage pulls:** favorites, archives (soft-delete), exports, and preferences.
 
-**Phase 4 — App #4: Insights.** Problem-pattern analytics — the anti-surveillance reconception. Lock the
-definition (problems, not people) before a line is written.
+### Validation gates
 
-**Woven in as needed, not as phases:** favorites, archives (soft-delete), exports, profile/preferences.
+1. **Operational readiness:** pre-GTM auth, isolation, recovery, deployment, and live verification are done.
+2. **Intake value:** real teams repeatedly use the gate and designers prefer the resulting problem frames.
+3. **Requests workflow value:** the board becomes part of real work rather than a second source of truth.
+4. **Requests excellence:** demonstrated friction is addressed before adding another product layer.
+5. **Next-problem evidence:** Phase 2 is selected only when usage identifies a specific unmet need.
+
+Dates do not advance phases. Evidence does.
 
 ---
 

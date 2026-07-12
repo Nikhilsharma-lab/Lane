@@ -38,7 +38,7 @@ refreshes, no dupe. Revoke → link dies.
 **J7 · Change your role label**
 Settings → Account/Profile → role dropdown → persists; board/actions unchanged (label ≠ permission).
 
-**J8 · Guest submits a request** *(next increment, not Phase 0 core)*
+**J8 · Invited Guest submits a request** *(shipped)*
 Guest invite → join as guest → sees only a "my requests" view → submit (through the gate) → sees own request
 + status. No board, no pickup, no members.
 
@@ -56,6 +56,7 @@ Each screen, with the states that must exist (so none ships as a blank panel or 
 | Onboarding: profile + label | `/onboarding` | default · saving |
 | Onboarding: create-or-join | `/onboarding` | CREATE (no invites) · JOIN (invites>0, w/ "create instead") |
 | App shell (top bar + sidebar) | wraps all | single-app (rail hidden) · later: multi-app (rail shown) |
+| Notifications popover | shell | unread count · loading · empty · list · read/unread |
 | Requests board | `/` | empty ("first request" CTA) · populated · loading |
 | Intake / gate | `/intake` | input · classifying · reframed (editable) · looks-good · error/timeout |
 | Request detail | `/requests/[id]` | open · in-progress · done · not-found (bad id) · loading |
@@ -64,8 +65,8 @@ Each screen, with the states that must exist (so none ships as a blank panel or 
 | Invite modal | — | default · multi-email · already-member · refreshed |
 | Invite accept | `/invite/[token]` | not-signed-in · join-prompt · email-mismatch · expired · revoked · already-member |
 | Settings: workspace | `/settings` | general · members |
-| Settings: account/profile | `/settings/profile` | label dropdown · name · saving |
-| Guest "my requests" *(next)* | `/my-requests` | empty · own-only list |
+| Settings: account/profile *(required gap)* | `/settings/profile` | label dropdown · name · saving |
+| Guest "my requests" *(shipped at `/` for guests)* | `/` | empty · own-only list |
 
 **States that are easy to forget and must not be:** empty (every list), loading (every fetch), error
 (every action — especially the gate timeout and bad-UUID 404), and the invite-accept branches (the spec's
@@ -78,6 +79,6 @@ edge-case table maps to real screens here).
 - **Not visual design.** No colors, type, spacing, motion — those are your system, applied on top. This says
   *what's on each screen and what states exist*, not what it looks like.
 - **Not the whole suite.** Ideas / Docs / Insights journeys are deliberately absent until those phases are
-  real and validated.
+  selected by real usage. Outcome learning and agentic design operations are also vision, not Phase-0 screens.
 - **Not a substitute for per-screen review.** Screen-level UX detail still gets nailed down in each gated
   build prompt and refined through your design eye — this is the shared skeleton, not the final pixels.

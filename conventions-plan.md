@@ -22,21 +22,21 @@ as ordered integers** — `ADMIN = 20`, `MEMBER = 15`, `GUEST = 5` — with perm
 creator is an Admin carrying an owner/creator flag.
 
 **Lane diverges intentionally:** owner is a **distinct top-level role**, not a flag on an admin. This is
-cleaner — no special-case flag logic, the role column alone determines authority. Guest is deferred (see
-Section 6).
+cleaner — no special-case flag logic, the role column alone determines authority. Invited Guest is shipped
+as the limited external-requester role described in Section 6.
 
-Lane's implemented hierarchy: **`owner(30) | admin(20) | member(10)`** — three roles as ordered integers,
-permission checks compare levels (`ROLE_LEVEL[callerRole] >= ROLE_LEVEL[targetRole]`). The **functional label**
+Lane's implemented hierarchy: **`owner(30) | admin(20) | member(10) | guest(0)`** — permission checks compare
+levels (`ROLE_LEVEL[callerRole] >= ROLE_LEVEL[targetRole]`). The **functional label**
 (PM/Designer/Developer) remains on a separate axis that gates nothing.
 
 **Two independent axes (never consult one for the other's job — recurring bug class):**
-- `workspace_members.role` = **permission**, ordered int: `owner(30) | admin(20) | member(10)`.
-  Enum: `workspaceRoleEnum = ["owner", "admin", "member"]`. No `is_owner` flag — owner is a full role.
+- `workspace_members.role` = **permission**, ordered int: `owner(30) | admin(20) | member(10) | guest(0)`.
+  Enum: `workspaceRoleEnum = ["owner", "admin", "member", "guest"]`. No `is_owner` flag — owner is a full role.
 - `profiles.role` = **functional label**: `pm | designer | developer`. No permissions, ever.
 
 **Permission matrix (by role):**
 
-| Action | Owner | Admin | Member | Guest (deferred) |
+| Action | Owner | Admin | Member | Guest |
 |---|:---:|:---:|:---:|:---:|
 | Submit a request (through the gate) | ✓ | ✓ | ✓ | ✓ |
 | See the full board | ✓ | ✓ | ✓ | ✗ (own only) |
@@ -47,11 +47,11 @@ permission checks compare levels (`ROLE_LEVEL[callerRole] >= ROLE_LEVEL[targetRo
 | Workspace settings | ✓ | ✓ | ✗ | ✗ |
 | Delete workspace / billing | ✓ | ✗ | ✗ | ✗ |
 
-Owner/Admin/Member — your team — see the same board (no functional-role gating). Guest (when built) is an
-outsider who only touches their own request, which still passes the gate. Ethos intact.
+Owner/Admin/Member — your team — see the same board (no functional-role gating). Guest is an outsider who
+only touches their own request, which still passes the gate. Ethos intact.
 
-**Schema note:** role column = enum `owner|admin|member`. Check permissions by level (`>=`), never string
-equality, so hierarchy holds. Guest role will be added to the enum when Section 6 ships.
+**Schema note:** role column = enum `owner|admin|member|guest`. Check permissions by level (`>=`), never
+functional label, so the two axes stay separate.
 
 ## 2. App shell + top bar
 
@@ -116,8 +116,9 @@ pending invites. Owner/Admin can change a member's role via dropdown and remove 
 be removed; if you're the sole Owner you can't leave. Audit trail = nice-to-have, defer (note it, don't
 build week one).
 
-**Data/permission:** role change and remove are Owner/Admin-only server actions, workspace-scoped, receiving
-`{userId, orgId}` (never re-derived). Guard: Admin can't change/remove the Owner.
+**Data/permission:** role change and remove are Owner/Admin-only server actions receiving `{orgId}` from the
+page render. Identity is derived from the session inside the shared guard; `userId` is never client-passed.
+Guard: Admin can't change/remove the Owner.
 
 **Build note:** Week: now (part of the Day-4 membership work).
 
@@ -150,14 +151,13 @@ submissions; cannot see the broader board.
 anyone) and see a minimal "my requests" view — their own submissions and statuses only. No team board, no
 pick-up, no members list. Comments only on their own requests.
 
-**Data/permission:** RLS must scope guests to `created_by = self` for reads — this is a real isolation
-boundary, verify it the same way as cross-workspace isolation. A guest's "board" is just their own requests.
+**Data/permission:** application queries and actions scope guests to `created_by = self`; the disabled Data
+API means app-layer guards are the active boundary. Verify it the same way as cross-workspace isolation. A
+guest's "board" is just their own requests.
 
-**Build note:** Week: **next** (immediately after the team membership ships). It's on-thesis and
-differentiating — external asks getting problem-reframed is a great story — but it's a distinct RLS + UI
-surface, so it's its own increment, not tangled into the member flow. Invite dropdown can offer Guest from
-day one even if the guest *experience* lands a week later (they just can't accept until it's live, or hold
-Guest out of the dropdown until then — your call).
+**Status:** SHIPPED for invited guests. Guest invitations, own-only Requests, Intake, detail, and comments are
+implemented; guests cannot see the team board, pick up work, or access Members. Public / anonymous Intake is
+a separate deferred decision.
 
 ---
 
@@ -173,7 +173,8 @@ Profile** (personal). Don't merge them.
 
 The "change your role" dropdown you deferred lives here, in Account → Profile. Trivial, one control.
 
-**Build note:** Week: now (Profile) + now (Workspace→Members). Billing/delete = pre-launch.
+**Status:** Workspace → Members is shipped. Account → Profile is required MVP scope but remains unimplemented.
+Billing/delete remain outside this screen set.
 
 ---
 
@@ -216,37 +217,25 @@ polish (folds in with the card-hierarchy decision already in DEFERRED.md).
 ## 10. Later-tier (named now, built later)
 
 - **Command palette / keyboard nav** (⌘K). Table-stakes for this category; real polish lever. → a later week.
-- **Notifications / Inbox.** Convention exists (a unified inbox); Lane has no notification events worth it
-  yet. → defer until there's something to notify about (assignment, comment on your request).
+- **Notifications / Inbox.** A lightweight popover is shipped for pick-up, comments, completion, and invite
+  acceptance. Archive, snooze, preferences, filters, pagination, email, and a dedicated inbox remain
+  trigger-gated in `DEFERRED.md`.
 - **Global search.** → later week, once there's enough volume to search.
 
 These are in the plan so they're not "forgotten," but none is week-one.
 
 ---
 
-## Build sequence
+## Current implementation status
 
-**This week (current Day-4/5 work):**
-1. App shell + sidebar (Section 2–3) — foundational, do first.
-2. Roles enum + permission matrix wiring (Section 1).
-3. Members management (Section 4) + Invites updated to Plane (Section 5).
-4. Settings IA: Workspace→Members + Account→Profile (Section 7).
-5. Onboarding (Section 8, in flight).
-
-**Next increment:**
-6. Guest / external requester (Section 6) — its own RLS + UI surface.
-
-**Day-5 polish pass (→ DEFERRED.md):**
-7. Request-detail layout + card hierarchy (Section 9). Empty-state polish (Section 8).
-
-**Later weeks:** command palette, notifications, search (Section 10).
+App shell, permission roles, members, invites, onboarding, Requests, invited Guest, and lightweight
+notifications are shipped. Account → Profile is the remaining declared Phase-0 screen gap. Request-detail
+layout, command palette, search, and saved filters stay sequenced by `lane-roadmap.md` and `DEFERRED.md`.
 
 ---
 
-## Open decisions
+## Resolved decisions
 
-1. **Guest in the invite dropdown from day one, or hold it until the guest experience ships next increment?**
-   (Default: hold it out of the dropdown until the experience is live, so no one accepts into a half-built role.)
-2. **Owner + Admin both, or Owner + Member only for the MVP UI?** Schema carries all four regardless; this is
-   only about which the invite dropdown offers now. (Default: offer Member + Admin; Owner is the creator.)
-3. **Audit trail for role changes/removals — build now or defer?** (Default: defer to pre-launch.)
+1. Guest is offered only with its shipped limited experience; public / anonymous Intake is separate.
+2. Owner is the creator; the membership UI supports Admin, Member, and Guest within hierarchy constraints.
+3. An audit-trail product surface is not part of the MVP and requires a future explicit decision.

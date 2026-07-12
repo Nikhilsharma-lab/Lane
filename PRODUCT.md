@@ -24,6 +24,43 @@ lifecycle (Open → In Progress → Done) that looks identical for every role. S
 design lead trusting the board enough to stop running a side spreadsheet — and a team that tells
 the truth about its work because nothing here is watching them.
 
+## Current Product Promise
+
+Lane helps a team turn an unclear or solution-shaped design request into an accepted,
+problem-framed **Request**, then move it transparently from Open → In Progress → Done. The
+current product is Requests: auth, onboarding, the Intake gate, one shared board, request detail,
+comments, invited guests, lightweight in-app notifications, members, and Profile settings. Profile
+settings remains an MVP gap until a person can change their PM / Designer / Developer label there.
+
+PM / Designer / Developer is always a functional label, never a permission tier. Invited guests
+are limited workspace members who see and discuss only their own Requests. Public or anonymous
+Intake is a different, deferred product decision.
+
+## Product Vision — not current build scope
+
+**Outcome learning.** Lane may eventually let a requester state an expected measurable outcome,
+then record what actually happened after shipping. The comparison belongs to the Request and its
+retrospective, not to an individual score. Request `Done` and outcome-learning completion remain
+separate: evidence can be delayed, unavailable, inconclusive, or impossible to attribute. The
+requester owns the inputs; the PM label does not gate the action. PRDs may be optional supporting
+context, never a universal Intake requirement. PM calibration scores, rankings, and performance
+profiles are permanently refused.
+
+**Agentic design operations.** Lane may eventually use agents for bounded procedural work: organize
+context, structure research, surface gaps and edge cases, and compose from an approved design
+system. Humans retain interpretation, direction, ethics, taste, craft, and final decisions. Agent
+reasoning must be inspectable and every output reviewable and overridable. This vision does not
+authorize agent workflows in the current product.
+
+## Enterprise-grade
+
+For Lane, enterprise-grade means trustworthy operation: tenant isolation, session-derived identity,
+safe membership controls, reliable auth, recoverable data, staged migrations, observable failures,
+predictable performance, accessibility, complete states, controlled releases, and maintainable
+boundaries. It does not automatically mean SSO, custom roles, custom workflows, integrations,
+analytics suites, approval chains, or administrative surface area. Those require evidence and an
+explicit product decision.
+
 ## Brand Personality
 
 Precise, minimal, fast. The voice is a calm senior operator: confident, never chatty, never

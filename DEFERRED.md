@@ -142,12 +142,14 @@ Each item: what · why deferred · source review.
   reassign. Auto-unassign on demotion-to-guest is the clean fix — build when real usage surfaces the gap.
   — Guest role-change increment.
 
-## GUEST INTAKE INCREMENT — when external requesters are added
+## GUEST INTAKE — invited shipped; public / anonymous deferred
 
-- **`saveRequest`/`runTriage` sit behind `requireActiveMember`** (members only). Guest external requesters won't
-  be workspace members — guest intake needs its own token-scoped or public auth path, not the membership guard.
-  Don't forget or guests can't submit. See also: **GUEST / EXTERNAL INTAKE** section below for the public/
-  anonymous intake decision (Plane deploy-board style). — Danger-day action inventory.
+- **Invited Guest is shipped.** A Guest is an active limited workspace member, so `requireActiveMember`
+  correctly permits `runTriage` / `saveRequest`; own-only board, detail, and comment scoping are implemented.
+  The prior claim that Guest requesters would not be workspace members was stale.
+- **Public / anonymous Intake remains deferred.** A requester with no invited workspace membership would
+  need a separate token-scoped or public auth path. Trigger and Plane reference live in **GUEST / EXTERNAL
+  INTAKE** below.
 
 ## COMMENT PAGINATION / READ ACTION — when comments get a standalone fetch
 

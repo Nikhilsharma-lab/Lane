@@ -74,7 +74,7 @@ components:
     padding: "0 10px"
     height: "32px"
   button-destructive:
-    backgroundColor: "{colors.alert-clay}"
+    backgroundColor: "color-mix(in oklch, {colors.alert-clay} 10%, transparent)"
     textColor: "{colors.alert-clay}"
     rounded: "{rounded.lg}"
     padding: "0 10px"
@@ -114,7 +114,7 @@ Depth is conveyed by **tonal layering and hairline rings, never by shadow**. The
 - Flat by default — hairline `ring-1` borders and tonal steps stand in for elevation.
 - One typeface, Geist, across everything; hierarchy comes from size and weight, never a second family. No serifs.
 - Compact, keyboard-fast controls (32px default height); visible evergreen focus ring everywhere.
-- Light is the default; dark is a full, first-class mode, not an afterthought.
+- Light is the only active MVP mode. Dark tokens are reserved for a future explicit theme decision.
 
 ## 2. Colors
 
@@ -158,6 +158,8 @@ A cool-slate grayscale (hue ~250–255) carrying the whole interface, interrupte
 
 ### Named Rules
 **The One-Family Rule.** Geist carries everything. There are no serifs and no second sans anywhere in Lane; if a heading needs more presence, reach for size, weight, or tracking — never another typeface.
+
+**The Source-Owned Component Rule.** Files under `src/components/ui` are Lane-owned source after installation. Check the official shadcn Base UI registry before adding or updating a primitive, review the diff, and never overwrite local source blindly.
 
 ## 4. Elevation
 

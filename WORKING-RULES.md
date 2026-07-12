@@ -20,6 +20,11 @@ Plane's actual code (`makeplane/plane`) via a Claude Code recon.
 No from-scratch design. No theory-first design. Plane is the authority on project-management
 grammar; Lane's thesis decides what to keep and what to refuse.
 
+For frontend work, the recon must cover Plane's information architecture, page composition,
+interaction pattern, component hierarchy, loading/empty/error/permission states, responsive behaviour,
+and keyboard behaviour. Implement the filtered pattern independently with Lane's shadcn/Base UI/Tailwind
+system; do not copy Plane code or import Plane's product breadth.
+
 **Why this rule exists:** The notification system (increments 1–2a) was designed from standard
 patterns instead of reading Plane first. The post-hoc recon revealed no critical misses, but
 that was luck — the rule prevents a future feature from shipping with a fundamentally wrong
