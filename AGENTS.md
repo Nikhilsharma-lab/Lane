@@ -23,7 +23,7 @@ No time tracking, no "last active," no utilization percentages. Ever. This is a 
 5. **Request detail** — view one request; anyone can pick it up, mark it Done, and comment. No role-gated actions.
 6. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role). Nothing else under settings.
 
-Settings → Profile is required MVP scope but is not implemented yet. Invited Guest is shipped: guests are limited workspace members who see and comment on only their own Requests, and cannot pick up work or access Members. Public / anonymous Intake is separate and deferred.
+Settings → Profile is shipped. Invited Guest is shipped: guests are limited workspace members who see and comment on only their own Requests, and cannot pick up work or access Members. Public / anonymous Intake is separate and deferred.
 
 If a screen isn't on this list, it does not get built without an explicit written decision from Nikhil first.
 
@@ -82,7 +82,7 @@ Long-term outcome learning and agentic design operations are product vision only
 
 
 ## Roadmap & phases
-- **Current phase: Phase 0 functional loop shipped → Profile gap + pre-GTM gate.** Foundation + Requests app built and merged; Settings → Profile remains required.
+- **Current phase: Phase 0 functional loop shipped → pre-GTM gate.** Foundation + Requests app, including Settings → Profile, is built and merged.
   The pre-GTM launch list (16 must-build + 5 must-decide) lives in `lane-roadmap.md` §3a.
   Full sequence + the thesis filter (adopt / reconceive / refuse) live in `lane-roadmap.md`.
 - **Canonical planning docs** (re-read at the start of a new phase): `lane-roadmap.md` (sequence),

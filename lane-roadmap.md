@@ -68,14 +68,14 @@ second app earns its place through validation. Nothing is shown merely to signal
 
 ## 3. The incremental sequence
 
-**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED; ONE DECLARED SCREEN GAP.** App shell + two-tier-ready nav;
+**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED.** App shell + two-tier-ready nav;
 roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
 comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
-All merged. Invited Guest is shipped as a limited workspace member. **Settings → Profile is still absent even
-though it is declared MVP scope; Phase 0 is not fully complete until a person can change their functional label.**
+All merged. Invited Guest is shipped as a limited workspace member. Settings → Profile is shipped; changing
+the PM / Designer / Developer label does not change access or permissions.
 
-**What's next:** close Settings → Profile and the **pre-GTM gate** (see §3a below) — the concrete screen gap,
-hardening, infra, and product decisions that must be done before real users. Then Phase 1.
+**What's next:** close the **pre-GTM gate** (see §3a below) — the hardening, infra, and product decisions that
+must be done before real users. Then Phase 1.
 
 **Phase 1 — Make Requests excellent; make the gate the star.** Harden the gate (it's the differentiator —
 it deserves the most polish); request-detail layout; search / command palette; saved filters. Lightweight

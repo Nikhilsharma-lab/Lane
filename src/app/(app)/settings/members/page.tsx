@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { db, workspaceMembers, profiles, invites } from "@/db";
 import { eq, and, desc } from "drizzle-orm";
-import { Separator } from "@/components/ui/separator";
 import { InviteForm } from "./invite-form";
 import { InviteRow } from "./invite-row";
 import { MemberRow } from "./member-row";
+import { SettingsNav } from "../settings-nav";
 
 export default async function MembersPage() {
   const result = await getWorkspace();
@@ -56,16 +55,10 @@ export default async function MembersPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center gap-4 border-b px-6 py-4">
-        <Link
-          href="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          &larr; Back
-        </Link>
-        <Separator orientation="vertical" className="h-4" />
-        <h1 className="text-lg font-semibold tracking-tight">Members</h1>
+      <header className="border-b px-6 py-4">
+        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
       </header>
+      <SettingsNav isGuest={false} />
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         {canInvite && (

@@ -29,8 +29,8 @@ the truth about its work because nothing here is watching them.
 Lane helps a team turn an unclear or solution-shaped design request into an accepted,
 problem-framed **Request**, then move it transparently from Open → In Progress → Done. The
 current product is Requests: auth, onboarding, the Intake gate, one shared board, request detail,
-comments, invited guests, lightweight in-app notifications, members, and Profile settings. Profile
-settings remains an MVP gap until a person can change their PM / Designer / Developer label there.
+comments, invited guests, lightweight in-app notifications, members, and Profile settings. A person
+can change their PM / Designer / Developer label in Profile without changing access or permissions.
 
 PM / Designer / Developer is always a functional label, never a permission tier. Invited guests
 are limited workspace members who see and discuss only their own Requests. Public or anonymous

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Inbox, Settings as SettingsIcon, ChevronsUpDown } from "lucide-react";
+import { LogOut, Inbox, Settings as SettingsIcon, ChevronsUpDown, UserRound } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 import { initials, NAV_MATCHERS, NAV_ITEM_BASE, NAV_ITEM_ACTIVE, NAV_ITEM_INACTIVE } from "./sidebar-utils";
@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -82,6 +83,11 @@ export function Sidebar({
             <DropdownMenuGroup>
               <DropdownMenuLabel>{email}</DropdownMenuLabel>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/settings/profile" />}>
+              <UserRound className="size-4" />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <form action={logout}>
               <button

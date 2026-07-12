@@ -111,6 +111,23 @@ export async function getProfileFullName(
   }
 }
 
+export async function getProfileRole(userId: string): Promise<string | null> {
+  const sql = postgres(process.env.DATABASE_URL!, {
+    ssl: "require",
+    max: 1,
+    idle_timeout: 5,
+  });
+
+  try {
+    const [row] = await sql`
+      SELECT role FROM profiles WHERE id = ${userId}
+    `;
+    return row?.role ?? null;
+  } finally {
+    await sql.end();
+  }
+}
+
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
   const sql = postgres(process.env.DATABASE_URL!, {
     ssl: "require",
