@@ -98,7 +98,10 @@ DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] Date hydration mismatch (server/client locale divergence) → RESOLVED (en-US pinned, relative-time.ts:11 + invite-row.tsx:74; 5f9dee1/6f49888 — checkbox caught up 2026-07-12)
 - [x] HMAC signing → dedicated secret (not SUPABASE_SECRET_KEY) → RESOLVED in code (dedicated TRIAGE_TOKEN_SECRET, no fallback, loud throw; 5819295 — predated this list. Operational residues: secret value in .env.local + Vercel presence, filed in DEFERRED.md)
 - [x] Duplicate client/server validation → shared zod schema → RESOLVED (shared request-schema.ts, both sides wired, + editedProblemText server-gap fix found in diagnosis; 4f52bae/25885dc/d6aba11)
-- [ ] Email-confirmation decision (on/off for real users) → REOPENED 2026-07-12: signup stays open ⇒ confirmation required for self-signup, invited users exempt; app-logic build, blocked on SMTP — see DEFERRED.md (prior not-required close was premised on invite-only and is superseded)
+- [ ] Email confirmation → APP CODE READY 2026-07-12: self-signup confirmation screen + resend cooldown,
+  safe callback redirect, and server-verified invited-user exemption are built and tested. Resend SMTP,
+  SPF, DKIM, and DMARC are configured. Remaining: enable Confirm email in Supabase, then run the live
+  self-signup + invited-signup verification before checking this item complete.
 - [x] RLS inert as defense — verify action guards sufficient → RESOLVED (guards verified airtight by sweep + 5 forged-orgId tests; RLS has no reachable surface post-Data-API-disable; live two-account check remains as the CLAUDE.md infra item below)
 
 DEFERRED.md PRE-GTM must-build (1):

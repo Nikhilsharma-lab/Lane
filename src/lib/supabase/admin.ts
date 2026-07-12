@@ -2,7 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Service-role Supabase client — bypasses RLS, has auth.admin access.
- * Server/test-only. NEVER import this from app or client code.
+ * Server/test-only. May be imported only by audited server-side auth flows and tests.
+ * NEVER import this from client code.
  */
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
