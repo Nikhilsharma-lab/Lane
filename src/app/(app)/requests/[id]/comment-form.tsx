@@ -34,6 +34,7 @@ export function CommentForm({
   return (
     <form ref={formRef} action={handleSubmit} className="space-y-3">
       <Textarea
+        aria-label="Comment"
         name="body"
         placeholder="Add a comment..."
         rows={3}

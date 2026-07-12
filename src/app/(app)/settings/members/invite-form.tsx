@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -55,7 +56,9 @@ export function InviteForm({
   return (
     <div className="space-y-3">
       <form onSubmit={handleSubmit} className="flex gap-2">
+        <Label htmlFor="invite-email" className="sr-only">Email address</Label>
         <Input
+          id="invite-email"
           type="email"
           placeholder="teammate@company.com"
           value={email}
@@ -69,7 +72,7 @@ export function InviteForm({
           onValueChange={(v) => { if (v) setRole(v as "member" | "admin" | "guest"); }}
           disabled={pending}
         >
-          <SelectTrigger className="w-28 text-sm">
+          <SelectTrigger className="w-28 text-sm" aria-label="Workspace role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -94,6 +97,7 @@ export function InviteForm({
           </p>
           <div className="flex gap-2">
             <Input
+              aria-label="Invite link"
               value={inviteUrl}
               readOnly
               className="flex-1 bg-background text-xs"

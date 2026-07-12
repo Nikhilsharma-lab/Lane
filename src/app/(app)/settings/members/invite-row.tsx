@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { revokeInvite, resendInvite } from "./actions";
 
@@ -85,28 +87,33 @@ export function InviteRow({
       <div className="flex items-center gap-1">
         {canManage ? (
           <>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
               onClick={handleCopy}
-              className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="text-muted-foreground"
               disabled={isPending}
             >
               {copied ? "Copied!" : "Copy link"}
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
               onClick={handleResend}
-              className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="text-muted-foreground"
               disabled={isPending}
             >
               Resend
-            </button>
+            </Button>
             <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
-              <button
-                onClick={() => setRevokeOpen(true)}
-                className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+              <AlertDialogTrigger
+                render={<Button type="button" variant="destructive" size="xs" />}
                 disabled={isPending}
               >
                 Revoke
-              </button>
+              </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogMedia className="bg-destructive/10">

@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { completeOnboarding } from "./actions";
 import { acceptInvite } from "@/app/(auth)/invite/[token]/actions";
 import { createInvite } from "@/app/(app)/settings/members/actions";
@@ -173,17 +180,22 @@ export function OnboardingForm({
 
           <div className="space-y-2">
             <Label htmlFor="inviteRole">Role</Label>
-            <select
-              id="inviteRole"
+            <Select
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
+              onValueChange={(value) => {
+                if (value) setInviteRole(value);
+              }}
               disabled={invitePending}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-              <option value="guest">Guest</option>
-            </select>
+              <SelectTrigger id="inviteRole" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="guest">Guest</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -200,13 +212,15 @@ export function OnboardingForm({
         </Button>
 
         <div className="text-center">
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             onClick={handleSkipInvite}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="text-muted-foreground"
           >
             Skip for now
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -243,13 +257,15 @@ export function OnboardingForm({
         )}
 
         <div className="text-center">
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             onClick={() => setShowCreateForm(true)}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="text-muted-foreground"
           >
             Create your own workspace instead
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -271,8 +287,8 @@ export function OnboardingForm({
 
       {/* Role picker */}
       <div className="space-y-2">
-        <Label>What best describes your role?</Label>
-        <div className="space-y-2">
+        <Label id="role-label">What best describes your role?</Label>
+        <div className="space-y-2" role="radiogroup" aria-labelledby="role-label">
           {ROLES.map((r) => (
             <button
               key={r.value}
@@ -281,6 +297,8 @@ export function OnboardingForm({
                 setRole(r.value);
                 setError(null);
               }}
+              role="radio"
+              aria-checked={role === r.value}
               className={`w-full rounded-lg border-2 p-4 text-left transition-all ${
                 role === r.value
                   ? "border-foreground bg-muted"
@@ -317,13 +335,15 @@ export function OnboardingForm({
 
       {pendingInvites.length > 0 && (
         <div className="text-center">
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             onClick={() => setShowCreateForm(false)}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="text-muted-foreground"
           >
             Join an existing workspace instead
-          </button>
+          </Button>
         </div>
       )}
     </form>

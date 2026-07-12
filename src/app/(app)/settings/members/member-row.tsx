@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Select,
@@ -95,7 +97,11 @@ export function MemberRow({
             onValueChange={(v) => { if (v) handleRoleChange(v); }}
             disabled={isPending}
           >
-            <SelectTrigger size="sm" className="w-24 text-xs capitalize">
+            <SelectTrigger
+              size="sm"
+              className="w-24 text-xs capitalize"
+              aria-label={`Workspace role for ${member.fullName ?? member.email ?? "member"}`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -111,13 +117,12 @@ export function MemberRow({
         )}
         {canManage && (
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <button
-              onClick={() => setConfirmOpen(true)}
+            <AlertDialogTrigger
+              render={<Button type="button" variant="destructive" size="xs" />}
               disabled={isPending}
-              className="rounded px-2 py-1 text-xs text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
             >
               Remove
-            </button>
+            </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogMedia className="bg-destructive/10">
