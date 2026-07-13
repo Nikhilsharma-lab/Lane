@@ -36,7 +36,7 @@ design stages are DEFERRED, not built now.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase (production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate staging project still pending) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase (production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate production + staging projects) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
 
 ## Working rules (the part that actually matters)
 
@@ -74,9 +74,11 @@ Long-term outcome learning and agentic design operations are product vision only
 > enough that losing it would materially hurt. Until managed backups exist, take and verify a manual database
 > export before every migration; run and verify migrations on staging before production.
 
-- [ ] **Split prod / staging.** Supabase side completed 2026-07-13: free `Lane Staging` project created in
-      Tokyo and initialized from canonical migrations. Second Vercel project for staging remains. Rule that
-      broke v1 last time: migrations run on STAGING first, verified, THEN promoted to prod. Never reverse.
+- [x] **Split prod / staging.** Completed 2026-07-13: free `Lane Staging` Supabase project in Tokyo,
+      initialized from canonical migrations, plus a separate `lane-staging` Vercel Hobby project at
+      `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding,
+      the persistent invite step, invite acceptance, membership creation, and the shared Requests board.
+      Migrations run on STAGING first, are verified there, and only then may be promoted to production.
 - [ ] **Supabase Pro** — required at the trigger for managed daily backups. PITR is a separate paid add-on and
       requires its own explicit cost decision; do not describe it as included in Pro.
 - [ ] **Vercel Pro** — required before accepting the first payment; Hobby remains free-pilot/non-commercial only.

@@ -113,10 +113,12 @@ Board polish — verdicts from build-or-delete review (2):
 - [x] Status label/variant → shared util (small dedupe, prevents drift) → RESOLVED (request-status.ts, imported by board + detail; f7df09e — checkbox caught up 2026-07-12)
 - [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
-CLAUDE.md infra (5):
-- [ ] Split prod / staging → Supabase side completed 2026-07-13: the free `Lane Staging` Tokyo project was
-  initialized from the canonical migration chain and smoke-verified empty. The separate Vercel staging project
-  remains. Until managed backups exist: manual verified export before every migration; staging first, then production.
+AGENTS.md infra (5):
+- [x] Split prod / staging → RESOLVED 2026-07-13: the free `Lane Staging` Tokyo Supabase project was
+  initialized from the canonical migration chain and paired with the separate `lane-staging` Vercel Hobby project
+  at `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding, the
+  persistent invite step, invite acceptance, membership creation, and the shared Requests board. Until managed
+  backups exist: manual verified export before every migration; staging first, then production.
 - [ ] Supabase Pro → deferred during the 20–30-person free pilot; required at the first payment/data-value trigger
   for managed daily backups. PITR is a separate paid add-on requiring an explicit cost decision.
 - [ ] Vercel Pro → deferred during the free, non-commercial pilot; required before accepting the first payment.
