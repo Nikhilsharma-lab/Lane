@@ -36,7 +36,7 @@ design stages are DEFERRED, not built now.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase (ONE environment for now — no prod/staging split until the trigger below) · Drizzle ORM · Vercel (Hobby, preview deploys = staging for now) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase (production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate staging project still pending) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
 
 ## Working rules (the part that actually matters)
 
@@ -72,11 +72,11 @@ Long-term outcome learning and agentic design operations are product vision only
 > Decision (2026-07-12): run a non-commercial pilot with up to 20–30 free users on the free tiers. No payment
 > may be accepted on Vercel Hobby. Upgrade before the first payment, or earlier if pilot data becomes valuable
 > enough that losing it would materially hurt. Until managed backups exist, take and verify a manual database
-> export before every migration; avoid risky schema changes against the one live database.
+> export before every migration; run and verify migrations on staging before production.
 
-- [ ] **Split prod / staging.** Use a second free Supabase project if an active-project slot is available;
-      otherwise this is required before the first payment/data-value trigger. Second Vercel project for staging.
-      Rule that broke v1 last time: migrations run on STAGING first, verified, THEN promoted to prod. Never reverse.
+- [ ] **Split prod / staging.** Supabase side completed 2026-07-13: free `Lane Staging` project created in
+      Tokyo and initialized from canonical migrations. Second Vercel project for staging remains. Rule that
+      broke v1 last time: migrations run on STAGING first, verified, THEN promoted to prod. Never reverse.
 - [ ] **Supabase Pro** — required at the trigger for managed daily backups. PITR is a separate paid add-on and
       requires its own explicit cost decision; do not describe it as included in Pro.
 - [ ] **Vercel Pro** — required before accepting the first payment; Hobby remains free-pilot/non-commercial only.
