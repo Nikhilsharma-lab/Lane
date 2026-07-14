@@ -72,7 +72,8 @@ second app earns its place through validation. Nothing is shown merely to signal
 roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
 comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
 All merged. Invited Guest is shipped as a limited workspace member. Settings → Profile is shipped; changing
-the PM / Designer / Developer label does not change access or permissions.
+the PM / Designer / Developer label does not change access or permissions. Workspace invitation email delivery
+with a durable copy-link fallback shipped and was live-verified on staging and production on 2026-07-14.
 
 **What's next:** close the **pre-GTM gate** (see §3a below) — the hardening, infra, and product decisions that
 must be done before real users. Then Phase 1.

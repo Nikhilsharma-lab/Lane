@@ -222,13 +222,14 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   assignee/commenter) proves insufficient for real teams. The bar is "people are missing things they
   need to act on," not "people want to watch everything."
 
-- **Email notifications.** What: transactional email alongside in-app notifications. Why: no email
-  provider configured, in-app-first is the correct MVP path. Plane ref: `EmailNotificationLog` model,
-  email sending in `notification_task.py`. Trigger: add a transactional email provider (Resend or
-  similar).
+- **Email notifications beyond authentication and workspace invitations.** What: transactional email alongside
+  in-app notifications for request activity. Why: Resend is configured for auth and invitation delivery, but
+  broader notification email is not part of the current MVP and would add preference/noise concerns.
+  Plane ref: `EmailNotificationLog` model, email sending in `notification_task.py`. Trigger: real pilot users
+  repeatedly miss request activity that the in-app surface should have made actionable.
 
 - **Notification preferences.** What: per-user booleans controlling which notification types generate
-  email. Why: meaningless without email notifications. Plane ref: `UserNotificationPreference` model
+  email. Why: meaningless without request-activity email notifications. Plane ref: `UserNotificationPreference` model
   (`property_change`, `state_change`, `comment`, `mention`, `issue_completed` booleans).
   Trigger: email notifications exist.
 

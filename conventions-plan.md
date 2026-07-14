@@ -132,15 +132,23 @@ Plane's invite service (`packages/services/src/workspace/invitation.service.ts`)
 - **Invitee side:** `userInvitations()` (my pending invites), `join(slug, id, …)` (accept one).
 - **Uniqueness:** DB enforces `unique_together (email, workspace)` — one invite row per email per workspace.
 
-This **supersedes parts of `invites-membership-spec.md`.** Keep from the spec: email-bound, copy-link delivery
-(no email yet), the one-workspace block. Adopt from Plane's real shape:
-- **Bulk invite with a per-email role** (mirror the `invite()` bulk form) — dialog takes multiple emails, each a role.
+This **supersedes parts of `invites-membership-spec.md`.** Keep from the spec: email-bound invitations,
+copy-link fallback, and the one-workspace block. Adopt from Plane's real shape:
+- **Single-recipient invite with a role** for the current MVP. Plane's bulk form is reference terrain, not current
+  build authority.
 - **Two-sided actions:** owner manages the workspace's pending invites (list / update / revoke); invitee sees
   their own pending invites and joins one. Model your server actions on these two sides.
 - **`(email, workspace)` uniqueness** as the DB constraint (this is the spec's one-per-email, confirmed).
 
-Plane *sends* invite emails (`workspace_invitation_task` + templates); Lane defers email and uses copy-link —
-but the action/service **shape** is identical, so the deferral costs nothing structurally.
+Plane *sends* invite emails (`workspace_invitation_task` + templates). Lane independently implements the same
+delivery expectation through Resend: create/refresh/resend attempts email, while the persisted invitation and
+copyable link remain usable if delivery fails. HTML and plain-text versions include inviter, workspace, expiry,
+and the production invite URL. Staging and production were live-verified on 2026-07-14, including inbox delivery,
+wrong-account recovery, invited-account creation, acceptance, and membership creation.
+
+**Paper visual specification:** [Workspace invitations](https://app.paper.design/file/01KXFHK7TT3KA6F64NRFH7QHMS/2-0)
+contains desktop and mobile states for creation, delivery outcomes, pending-invite lifecycle, onboarding,
+transactional email, acceptance, expiry/revocation, wrong-account recovery, and workspace-limit handling.
 
 ## 6. Guests (external requester)
 
@@ -228,9 +236,9 @@ These are in the plan so they're not "forgotten," but none is week-one.
 
 ## Current implementation status
 
-App shell, permission roles, members, invites, onboarding, Requests, invited Guest, and lightweight
-notifications are shipped. Account → Profile is the remaining declared Phase-0 screen gap. Request-detail
-layout, command palette, search, and saved filters stay sequenced by `lane-roadmap.md` and `DEFERRED.md`.
+App shell, permission roles, members, emailed invitations with copy-link fallback, onboarding, Requests,
+invited Guest, lightweight notifications, and Account → Profile are shipped. Request-detail layout, command
+palette, search, and saved filters stay sequenced by `lane-roadmap.md` and `DEFERRED.md`.
 
 ---
 
