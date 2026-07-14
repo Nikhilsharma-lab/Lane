@@ -25,6 +25,7 @@ export function InviteForm({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshed, setRefreshed] = useState(false);
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +34,7 @@ export function InviteForm({
     setInviteUrl(null);
     setCopied(false);
     setRefreshed(false);
+    setEmailSent(null);
 
     const result = await createInvite({ email, role }, context);
     setPending(false);
@@ -42,6 +44,7 @@ export function InviteForm({
     } else if ("inviteUrl" in result && result.inviteUrl) {
       setInviteUrl(result.inviteUrl);
       setRefreshed(!!result.refreshed);
+      setEmailSent(result.emailSent === true);
       setEmail("");
     }
   }
@@ -55,7 +58,7 @@ export function InviteForm({
 
   return (
     <div className="space-y-3">
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
         <Label htmlFor="invite-email" className="sr-only">Email address</Label>
         <Input
           id="invite-email"
@@ -65,14 +68,14 @@ export function InviteForm({
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={pending}
-          className="flex-1"
+          className="min-w-0 flex-1"
         />
         <Select
           value={role}
           onValueChange={(v) => { if (v) setRole(v as "member" | "admin" | "guest"); }}
           disabled={pending}
         >
-          <SelectTrigger className="w-28 text-sm" aria-label="Workspace role">
+          <SelectTrigger className="w-full text-sm sm:w-28" aria-label="Workspace role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -82,25 +85,32 @@ export function InviteForm({
           </SelectContent>
         </Select>
         <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Inviting..." : "Invite"}
+          {pending ? "Sending…" : "Send invite"}
         </Button>
       </form>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
       {inviteUrl && (
-        <div className="rounded-lg border bg-muted/50 p-3">
+        <div className="rounded-lg border bg-muted/50 p-3" aria-live="polite">
           <p className="mb-2 text-sm font-medium">
-            {refreshed
-              ? "Invite refreshed — share the link:"
-              : "Invite link created — share it with your teammate:"}
+            {emailSent
+              ? refreshed
+                ? "Invitation emailed again"
+                : "Invitation emailed"
+              : "Invite created; email could not be sent"}
           </p>
-          <div className="flex gap-2">
+          <p className="mb-2 text-xs text-muted-foreground">
+            {emailSent
+              ? "They can join from the email or this link."
+              : "The invitation is still ready. Share this link instead."}
+          </p>
+          <div className="flex min-w-0 gap-2">
             <Input
               aria-label="Invite link"
               value={inviteUrl}
               readOnly
-              className="flex-1 bg-background text-xs"
+              className="min-w-0 flex-1 bg-background text-xs"
             />
             <Button size="sm" variant="outline" onClick={handleCopy}>
               {copied ? "Copied!" : "Copy"}

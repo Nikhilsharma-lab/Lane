@@ -35,7 +35,10 @@ export function InviteRow({
 }) {
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    error?: boolean;
+  } | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
 
   async function handleCopy() {
@@ -48,9 +51,14 @@ export function InviteRow({
     startTransition(async () => {
       const result = await resendInvite(invite.id, context);
       if ("error" in result && result.error) {
-        setFeedback(result.error);
+        setFeedback({ message: result.error, error: true });
+      } else if (result.emailSent) {
+        setFeedback({ message: "Invitation emailed" });
       } else {
-        setFeedback("Refreshed!");
+        setFeedback({
+          message: "Email could not be sent · link is still active",
+          error: true,
+        });
       }
       setTimeout(() => setFeedback(null), 3000);
     });
@@ -66,8 +74,8 @@ export function InviteRow({
   const expired = new Date(invite.expiresAt) < new Date();
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
-      <div>
+    <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
         <p className="text-sm font-medium">{invite.email}</p>
         <p className="text-xs text-muted-foreground">
           {expired ? (
@@ -82,9 +90,16 @@ export function InviteRow({
             </>
           )}
         </p>
-        {feedback && <p className="mt-1 text-xs text-brand">{feedback}</p>}
+        {feedback && (
+          <p
+            aria-live="polite"
+            className={`mt-1 text-xs ${feedback.error ? "text-destructive" : "text-brand"}`}
+          >
+            {feedback.message}
+          </p>
+        )}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1 sm:justify-end">
         {canManage ? (
           <>
             <Button
@@ -105,7 +120,7 @@ export function InviteRow({
               className="text-muted-foreground"
               disabled={isPending}
             >
-              Resend
+              {isPending ? "Sending…" : "Resend email"}
             </Button>
             <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
               <AlertDialogTrigger

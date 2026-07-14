@@ -65,6 +65,8 @@ export function OnboardingForm({
   const [invitePending, setInvitePending] = useState(false);
   const [inviteSendError, setInviteSendError] = useState<string | null>(null);
   const [sentInviteUrl, setSentInviteUrl] = useState<string | null>(null);
+  const [inviteEmailSent, setInviteEmailSent] = useState<boolean | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   async function handleAcceptInvite(token: string) {
     setAcceptingToken(token);
@@ -112,6 +114,8 @@ export function OnboardingForm({
     if (!createdOrgId || !inviteEmail.trim()) return;
     setInvitePending(true);
     setInviteSendError(null);
+    setInviteEmailSent(null);
+    setInviteCopied(false);
     const result = await createInvite(
       { email: inviteEmail.trim(), role: inviteRole },
       { orgId: createdOrgId }
@@ -121,6 +125,7 @@ export function OnboardingForm({
       setInvitePending(false);
     } else {
       setSentInviteUrl(result.inviteUrl ?? null);
+      setInviteEmailSent(result.emailSent === true);
       setInvitePending(false);
     }
   }
@@ -134,23 +139,39 @@ export function OnboardingForm({
       return (
         <div className="space-y-6">
           <div>
-            <p className="font-medium">Invite sent!</p>
+            <p className="font-medium">
+              {inviteEmailSent ? "Invitation emailed" : "Invite created"}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Share this link with your teammate:
+              {inviteEmailSent
+                ? `Sent to ${inviteEmail}. They can join from the email or this link.`
+                : "Email could not be sent, but the invitation is ready. Share this link instead."}
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border-2 border-border bg-muted/50 p-3">
+          <div
+            className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 p-3"
+            aria-live="polite"
+          >
             <code className="flex-1 truncate text-sm">{sentInviteUrl}</code>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigator.clipboard.writeText(sentInviteUrl)}
+              onClick={async () => {
+                await navigator.clipboard.writeText(sentInviteUrl);
+                setInviteCopied(true);
+                setTimeout(() => setInviteCopied(false), 2000);
+              }}
             >
-              Copy
+              {inviteCopied ? "Copied" : "Copy"}
             </Button>
           </div>
+          {!inviteEmailSent && (
+            <p className="text-sm text-destructive">
+              You can resend the email from Settings → Members.
+            </p>
+          )}
           <Button className="w-full" onClick={() => router.push("/")}>
-            Continue
+            Continue to Requests
           </Button>
         </div>
       );
@@ -208,7 +229,7 @@ export function OnboardingForm({
           onClick={handleSendInvite}
           disabled={invitePending || !inviteEmail.trim()}
         >
-          {invitePending ? "Sending..." : "Send invite"}
+          {invitePending ? "Sending…" : "Send invite"}
         </Button>
 
         <div className="text-center">

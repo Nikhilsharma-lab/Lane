@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { randomBytes } from "crypto";
-import { db, invites, workspaceMembers, profiles } from "@/db";
+import { db, invites, workspaceMembers, profiles, workspaces } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { requireOwnerOrAdmin } from "@/lib/auth-guard";
+import { sendWorkspaceInvitationEmail } from "@/lib/email/workspace-invitation";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
@@ -17,6 +18,39 @@ const inviteSchema = z.object({
 
 function inviteUrl(token: string) {
   return `${process.env.NEXT_PUBLIC_APP_URL || ""}/invite/${token}`;
+}
+
+async function deliverInviteEmail({
+  email,
+  token,
+  orgId,
+  inviterId,
+  expiresAt,
+}: {
+  email: string;
+  token: string;
+  orgId: string;
+  inviterId: string;
+  expiresAt: Date;
+}) {
+  const [[workspace], [inviter]] = await Promise.all([
+    db
+      .select({ name: workspaces.name })
+      .from(workspaces)
+      .where(eq(workspaces.id, orgId)),
+    db
+      .select({ fullName: profiles.fullName })
+      .from(profiles)
+      .where(eq(profiles.id, inviterId)),
+  ]);
+
+  return sendWorkspaceInvitationEmail({
+    to: email,
+    inviteUrl: inviteUrl(token),
+    workspaceName: workspace?.name ?? "your workspace",
+    inviterName: inviter?.fullName ?? "A teammate",
+    expiresAt,
+  });
 }
 
 export async function createInvite(
@@ -62,19 +96,29 @@ export async function createInvite(
     );
 
   if (existing) {
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     await db
       .update(invites)
-      .set({ expiresAt: new Date(Date.now() + INVITE_TTL_MS) })
+      .set({ expiresAt })
       .where(eq(invites.id, existing.id));
+    const delivery = await deliverInviteEmail({
+      email,
+      token: existing.token,
+      orgId: auth.orgId,
+      inviterId: auth.userId,
+      expiresAt,
+    });
     revalidatePath("/settings/members");
     return {
       success: true,
       inviteUrl: inviteUrl(existing.token),
       refreshed: true,
+      emailSent: delivery.sent,
     };
   }
 
   const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
   await db.insert(invites).values({
     orgId: auth.orgId,
@@ -83,11 +127,23 @@ export async function createInvite(
     role: parsed.data.role as "member" | "admin" | "guest",
     status: "pending",
     invitedBy: auth.userId,
-    expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+    expiresAt,
+  });
+
+  const delivery = await deliverInviteEmail({
+    email,
+    token,
+    orgId: auth.orgId,
+    inviterId: auth.userId,
+    expiresAt,
   });
 
   revalidatePath("/settings/members");
-  return { success: true, inviteUrl: inviteUrl(token) };
+  return {
+    success: true,
+    inviteUrl: inviteUrl(token),
+    emailSent: delivery.sent,
+  };
 }
 
 export async function revokeInvite(
@@ -124,7 +180,11 @@ export async function resendInvite(
   }
 
   const [invite] = await db
-    .select({ id: invites.id, token: invites.token })
+    .select({
+      id: invites.id,
+      token: invites.token,
+      email: invites.email,
+    })
     .from(invites)
     .where(
       and(
@@ -136,13 +196,26 @@ export async function resendInvite(
 
   if (!invite) return { error: "Invite not found or already used." };
 
+  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
   await db
     .update(invites)
-    .set({ expiresAt: new Date(Date.now() + INVITE_TTL_MS) })
+    .set({ expiresAt })
     .where(eq(invites.id, invite.id));
 
+  const delivery = await deliverInviteEmail({
+    email: invite.email,
+    token: invite.token,
+    orgId: auth.orgId,
+    inviterId: auth.userId,
+    expiresAt,
+  });
+
   revalidatePath("/settings/members");
-  return { success: true, inviteUrl: inviteUrl(invite.token) };
+  return {
+    success: true,
+    inviteUrl: inviteUrl(invite.token),
+    emailSent: delivery.sent,
+  };
 }
 
 const updateRoleSchema = z.object({
