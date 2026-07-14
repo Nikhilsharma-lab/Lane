@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
   resend: vi.fn(),
+  signOut: vi.fn(),
   createUser: vi.fn(),
   redirect: vi.fn((target: string) => {
     throw new Error(`REDIRECT:${target}`);
@@ -20,6 +21,7 @@ vi.mock("@/lib/supabase/server", () => ({
       signUp: mocks.signUp,
       signInWithPassword: mocks.signInWithPassword,
       resend: mocks.resend,
+      signOut: mocks.signOut,
     },
   })),
 }));
@@ -29,7 +31,11 @@ vi.mock("@/lib/supabase/admin", () => ({
   })),
 }));
 
-import { resendSignupConfirmation, signup } from "./actions";
+import {
+  logoutAndRedirect,
+  resendSignupConfirmation,
+  signup,
+} from "./actions";
 
 const ORG_ID = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
 const VALID_TOKEN = "auth-confirm-valid-invite";
@@ -75,6 +81,7 @@ beforeEach(() => {
   mocks.signUp.mockResolvedValue({ data: { session: null }, error: null });
   mocks.signInWithPassword.mockResolvedValue({ data: {}, error: null });
   mocks.resend.mockResolvedValue({ data: {}, error: null });
+  mocks.signOut.mockResolvedValue({ error: null });
   mocks.createUser.mockResolvedValue({ data: { user: { id: "new-user" } }, error: null });
 });
 
@@ -164,5 +171,21 @@ describe("resendSignupConfirmation", () => {
         ),
       },
     });
+  });
+});
+
+describe("logoutAndRedirect", () => {
+  it("signs out and returns to a safe invite path", async () => {
+    await expect(
+      logoutAndRedirect(`/invite/${VALID_TOKEN}`)
+    ).rejects.toThrow(`REDIRECT:/invite/${VALID_TOKEN}`);
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an external post-logout destination", async () => {
+    await expect(
+      logoutAndRedirect("https://attacker.example/invite")
+    ).rejects.toThrow("REDIRECT:/");
   });
 });

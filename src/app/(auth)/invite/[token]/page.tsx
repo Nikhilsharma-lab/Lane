@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { db, invites, workspaces, profiles, workspaceMembers } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { AcceptInviteButton } from "./accept-button";
+import { Button } from "@/components/ui/button";
+import { logoutAndRedirect } from "@/app/(auth)/actions";
 
 export default async function InviteAcceptPage({
   params,
@@ -91,6 +93,7 @@ export default async function InviteAcceptPage({
       <InviteMessage
         title="Email mismatch"
         message={`This invite is for ${invite.email}. You're signed in as ${userEmail} — log out and use the invited email.`}
+        logoutRedirectTo={`/invite/${token}`}
       />
     );
   }
@@ -137,11 +140,13 @@ function InviteMessage({
   message,
   linkHref,
   linkText,
+  logoutRedirectTo,
 }: {
   title: string;
   message: string;
   linkHref?: string;
   linkText?: string;
+  logoutRedirectTo?: string;
 }) {
   return (
     <div className="flex min-h-full flex-1 items-center justify-center px-4">
@@ -155,6 +160,16 @@ function InviteMessage({
           >
             {linkText}
           </a>
+        )}
+        {logoutRedirectTo && (
+          <form
+            action={logoutAndRedirect.bind(null, logoutRedirectTo)}
+            className="mt-6"
+          >
+            <Button type="submit" className="w-full">
+              Sign out and continue
+            </Button>
+          </form>
         )}
       </div>
     </div>

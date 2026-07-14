@@ -158,3 +158,10 @@ export async function logout() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+export async function logoutAndRedirect(redirectTo: string) {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect(safeRedirectPath(redirectTo));
+}
