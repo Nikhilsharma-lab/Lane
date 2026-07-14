@@ -43,6 +43,15 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui ·
 - **Pace to comprehension, not output.** v1 was 873 commits in two months — ~13/day. That pace is how the mess happened. If Nikhil can't explain in plain English what shipped, it shipped too fast.
 - **One user-touchable thing per week.** "Real" = a person could open the app and use it. Refactors and plumbing don't count.
 - **Read before writing.** Never change a file without reading it first.
+- **Frontend reference chain.** Before every frontend change, inspect the matching Plane source and its loading,
+  empty, success, failure, keyboard, and responsive states; then read Lane's local `src/components/ui` source.
+  Use the official shadcn MCP registry for missing or uncertain primitives. Lane is `base-nova` + Base UI, not
+  assumed Radix: never overwrite local components blindly, use semantic Tailwind tokens, and verify focus,
+  accessible names, keyboard behavior, responsive behavior, and relevant edge states. Plane supplies patterns,
+  not product scope, vocabulary, code, visual identity, or surveillance features. For material screen work,
+  use Paper MCP after the Plane/local/shadcn audit to create reviewable state and breakpoint artboards before
+  implementation. Paper is an intermediate visual specification, not a code or component source: never paste its
+  JSX blindly, and skip it for backend-only or visually trivial changes.
 - **No new tables, routes, AI calls, or cron jobs without explicit written approval.** Default answer to "should we also build X" is no.
 - **Same view for everyone.** PM/Designer/Developer is a label, not a UI or permission gate. No role-based
   view differences, per-role dashboards, or hidden actions. (Workspace owner-vs-member is the only permission tier.)
