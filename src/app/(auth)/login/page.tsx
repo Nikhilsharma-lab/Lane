@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { LockKeyholeIcon } from "lucide-react";
 import { login } from "../actions";
 import { AuthAction } from "@/components/auth/auth-action";
+import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
 import {
   AuthInputField,
   AuthPasswordField,
@@ -20,7 +21,7 @@ import { Feedback } from "@/components/ui/feedback";
 
 function LoginForm() {
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useRecoverableAction();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
   const prefillEmail = searchParams.get("email") || "";
@@ -42,16 +43,22 @@ function LoginForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setPending(true);
 
-    const result = await login(
-      new FormData(event.currentTarget),
-      next || undefined
+    const outcome = await run(() =>
+      login(new FormData(event.currentTarget), next || undefined)
     );
 
+    if (outcome.status === "failed") {
+      setError(
+        "Lane couldn’t sign you in. Your details are still here—check your connection and try again."
+      );
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    const result = outcome.value;
     if (result?.error) {
       setError(result.error);
-      setPending(false);
     }
   }
 

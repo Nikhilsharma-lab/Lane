@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LockKeyholeIcon } from "lucide-react";
 import { signup } from "../actions";
 import { AuthAction } from "@/components/auth/auth-action";
+import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
 import {
   AuthInputField,
   AuthPasswordField,
@@ -26,7 +27,9 @@ export function SignupForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useRecoverableAction();
+  const [isNavigating, startNavigation] = useTransition();
+  const busy = pending || isNavigating;
 
   const loginParams = new URLSearchParams();
   if (next !== "/") loginParams.set("next", next);
@@ -36,12 +39,21 @@ export function SignupForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setPending(true);
 
-    const result = await signup(new FormData(event.currentTarget), next);
+    const outcome = await run(() =>
+      signup(new FormData(event.currentTarget), next)
+    );
+    if (outcome.status === "failed") {
+      setError(
+        "Lane couldn’t create your account. Your details are still here—check your connection and try again."
+      );
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    const result = outcome.value;
     if (result?.error) {
       setError(result.error);
-      setPending(false);
       return;
     }
     if (result?.confirmationRequired) {
@@ -49,7 +61,9 @@ export function SignupForm({
         email: result.email,
         next: result.next,
       });
-      router.push(`/signup/check-email?${params}`);
+      startNavigation(() => {
+        router.push(`/signup/check-email?${params}`);
+      });
     }
   }
 
@@ -83,7 +97,7 @@ export function SignupForm({
       <form
         onSubmit={handleSubmit}
         className="space-y-4"
-        aria-busy={pending}
+        aria-busy={busy}
       >
         <AuthInputField
           id="fullName"
@@ -134,8 +148,10 @@ export function SignupForm({
 
         <AuthAction
           type="submit"
-          loading={pending}
-          loadingLabel="Creating account…"
+          loading={busy}
+          loadingLabel={
+            isNavigating ? "Opening email instructions…" : "Creating account…"
+          }
         >
           {emailLocked ? "Create account and continue" : "Create account"}
         </AuthAction>

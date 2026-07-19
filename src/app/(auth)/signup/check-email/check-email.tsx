@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MailCheckIcon } from "lucide-react";
 import { resendSignupConfirmation } from "../../actions";
 import { AuthAction } from "@/components/auth/auth-action";
+import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
 import { AuthHeading, AuthKicker } from "@/components/auth/auth-shell";
 import { Feedback, type FeedbackKind } from "@/components/ui/feedback";
 
@@ -17,7 +18,7 @@ export function CheckEmail({ email, next }: { email: string; next: string }) {
     title: string;
     message: string;
   } | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { pending, run } = useRecoverableAction();
 
   useEffect(() => {
     if (remaining <= 0) return;
@@ -27,25 +28,37 @@ export function CheckEmail({ email, next }: { email: string; next: string }) {
     return () => window.clearInterval(timer);
   }, [remaining]);
 
-  function handleResend() {
+  async function handleResend() {
     if (!email || remaining > 0) return;
     setFeedback(null);
-    startTransition(async () => {
-      const result = await resendSignupConfirmation(email, next);
-      if (result.error) {
-        setFeedback({
-          kind: "error",
-          title: "Couldn’t resend",
-          message: "Try again in a minute.",
-        });
-        return;
-      }
-      setRemaining(RESEND_COOLDOWN_SECONDS);
+
+    const outcome = await run(() =>
+      resendSignupConfirmation(email, next)
+    );
+    if (outcome.status === "failed") {
       setFeedback({
-        kind: "success",
-        title: "Email sent again",
-        message: "A new confirmation link is on its way.",
+        kind: "error",
+        title: "Couldn’t resend",
+        message: "Check your connection and try again.",
       });
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    if (outcome.value.error) {
+      setFeedback({
+        kind: "error",
+        title: "Couldn’t resend",
+        message: "Try again in a minute.",
+      });
+      return;
+    }
+
+    setRemaining(RESEND_COOLDOWN_SECONDS);
+    setFeedback({
+      kind: "success",
+      title: "Email sent again",
+      message: "A new confirmation link is on its way.",
     });
   }
 
@@ -88,8 +101,8 @@ export function CheckEmail({ email, next }: { email: string; next: string }) {
             type="button"
             kind="secondary"
             onClick={handleResend}
-            disabled={isPending || remaining > 0}
-            loading={isPending}
+            disabled={pending || remaining > 0}
+            loading={pending}
             loadingLabel="Sending…"
           >
             {remaining > 0

@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useTransition,
   type FormEvent,
   type ReactNode,
 } from "react";
@@ -21,6 +22,7 @@ import {
 import { AuthAction } from "@/components/auth/auth-action";
 import { AuthInputField } from "@/components/auth/auth-field";
 import { LaneMark } from "@/components/auth/auth-shell";
+import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
 import { Feedback } from "@/components/ui/feedback";
 import { IdentityMark } from "@/components/ui/identity-mark";
 import { Label } from "@/components/ui/label";
@@ -180,14 +182,25 @@ export function OnboardingForm({
   const [workspaceName, setWorkspaceName] = useState(
     initialFullName ? `${initialFullName}’s workspace` : "My workspace"
   );
-  const [workspacePending, setWorkspacePending] = useState(false);
+  const {
+    pending: workspacePending,
+    run: runWorkspaceAction,
+  } = useRecoverableAction();
+  const {
+    pending: inviteAcceptPending,
+    run: runInviteAcceptAction,
+  } = useRecoverableAction();
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [acceptingToken, setAcceptingToken] = useState<string | null>(null);
 
   const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
-  const [invitePending, setInvitePending] = useState(false);
+  const {
+    pending: invitePending,
+    run: runInviteAction,
+  } = useRecoverableAction();
+  const [isNavigating, startNavigation] = useTransition();
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [sentInviteUrl, setSentInviteUrl] = useState<string | null>(null);
   const [inviteEmailSent, setInviteEmailSent] = useState<boolean | null>(null);
@@ -239,63 +252,92 @@ export function OnboardingForm({
       return;
     }
 
-    setWorkspacePending(true);
     setWorkspaceError(null);
-    const result = await completeOnboarding({
-      fullName: fullName.trim(),
-      workspaceName: workspaceName.trim(),
-      role,
-    });
+    const outcome = await runWorkspaceAction(() =>
+      completeOnboarding({
+        fullName: fullName.trim(),
+        workspaceName: workspaceName.trim(),
+        role,
+      })
+    );
 
+    if (outcome.status === "failed") {
+      setWorkspaceError(
+        "Lane couldn’t create the workspace. Your details are still here—check your connection and try again."
+      );
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    const result = outcome.value;
     if (result?.error || !result?.orgId) {
       setWorkspaceError(
         result?.error ?? "Lane could not finish creating the workspace. Try again."
       );
-      setWorkspacePending(false);
       return;
     }
 
     setCreatedOrgId(result.orgId);
-    setWorkspacePending(false);
     setStage("invite");
   }
 
   async function handleAcceptInvite(token: string) {
     if (!role) return;
-    setAcceptingToken(token);
     setWorkspaceError(null);
-    const result = await acceptInvite(token, {
-      fullName: fullName.trim(),
-      role,
+    const outcome = await runInviteAcceptAction(async () => {
+      setAcceptingToken(token);
+      try {
+        return await acceptInvite(token, {
+          fullName: fullName.trim(),
+          role,
+        });
+      } finally {
+        setAcceptingToken(null);
+      }
     });
+    if (outcome.status === "failed") {
+      setWorkspaceError(
+        "Lane couldn’t join this workspace. Check your connection and try again."
+      );
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    const result = outcome.value;
     if (result?.error) {
       setWorkspaceError(result.error);
-      setAcceptingToken(null);
     }
   }
 
   async function handleSendInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!createdOrgId || !inviteEmail.trim()) return;
-    setInvitePending(true);
     setInviteError(null);
     setInviteEmailSent(null);
     setInviteCopied(false);
 
-    const result = await createInvite(
-      { email: inviteEmail.trim(), role: inviteRole },
-      { orgId: createdOrgId }
+    const outcome = await runInviteAction(() =>
+      createInvite(
+        { email: inviteEmail.trim(), role: inviteRole },
+        { orgId: createdOrgId }
+      )
     );
+    if (outcome.status === "failed") {
+      setInviteError(
+        "Lane couldn’t create the invitation. Your details are still here—check your connection and try again."
+      );
+      return;
+    }
+    if (outcome.status !== "completed") return;
 
+    const result = outcome.value;
     if (result.error) {
       setInviteError(result.error);
-      setInvitePending(false);
       return;
     }
 
     setSentInviteUrl(result.inviteUrl ?? null);
     setInviteEmailSent(result.emailSent === true);
-    setInvitePending(false);
   }
 
   async function handleCopyInvite() {
@@ -316,6 +358,12 @@ export function OnboardingForm({
     setInviteEmailSent(null);
     setInviteCopied(false);
     setInviteError(null);
+  }
+
+  function continueToRequests() {
+    startNavigation(() => {
+      router.push("/");
+    });
   }
 
   if (stage === "profile") {
@@ -430,7 +478,8 @@ export function OnboardingForm({
 
           <RowGroup>
             {pendingInvites.map((invite) => {
-              const joining = acceptingToken === invite.token;
+              const joining =
+                inviteAcceptPending && acceptingToken === invite.token;
               return (
                 <Row
                   key={invite.token}
@@ -453,7 +502,7 @@ export function OnboardingForm({
                   <RowActions className="w-[76px]">
                     <AuthAction
                       kind="utility"
-                      disabled={acceptingToken !== null}
+                      disabled={inviteAcceptPending}
                       loading={joining}
                       loadingLabel="Joining…"
                       onClick={() => handleAcceptInvite(invite.token)}
@@ -477,7 +526,7 @@ export function OnboardingForm({
               type="button"
               kind="tertiary"
               icon={PlusIcon}
-              disabled={acceptingToken !== null}
+              disabled={inviteAcceptPending}
               onClick={() => setWorkspaceMode("create")}
             >
               Create my own workspace instead
@@ -614,12 +663,18 @@ export function OnboardingForm({
           )}
 
           <div className="flex flex-col gap-3">
-            <AuthAction type="button" onClick={() => router.push("/")}>
+            <AuthAction
+              type="button"
+              loading={isNavigating}
+              loadingLabel="Opening Requests…"
+              onClick={continueToRequests}
+            >
               Continue to Requests
             </AuthAction>
             <AuthAction
               type="button"
               kind="tertiary"
+              disabled={isNavigating}
               onClick={resetInviteForm}
             >
               Invite someone else
@@ -636,7 +691,7 @@ export function OnboardingForm({
         onSubmit={handleSendInvite}
         className="flex flex-col gap-8"
         noValidate
-        aria-busy={invitePending}
+        aria-busy={invitePending || isNavigating}
       >
         <StepHeading
           title="Bring one teammate"
@@ -722,7 +777,7 @@ export function OnboardingForm({
         <div className="flex flex-col gap-3">
           <AuthAction
             type="submit"
-            disabled={invitePending || !inviteEmail.trim()}
+            disabled={invitePending || isNavigating || !inviteEmail.trim()}
             loading={invitePending}
             loadingLabel="Sending invite…"
             icon={SendIcon}
@@ -732,8 +787,10 @@ export function OnboardingForm({
           <AuthAction
             type="button"
             kind="tertiary"
-            disabled={invitePending}
-            onClick={() => router.push("/")}
+            disabled={invitePending || isNavigating}
+            loading={isNavigating}
+            loadingLabel="Opening Requests…"
+            onClick={continueToRequests}
           >
             Skip for now
           </AuthAction>

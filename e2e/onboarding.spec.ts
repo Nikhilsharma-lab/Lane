@@ -82,7 +82,9 @@ test.describe("onboarding e2e", () => {
 
       // Empty board shows problem-framed guidance
       await expect(
-        page.locator("text=problem you're trying to solve")
+        page.getByText(
+          "Lane starts when someone describes the first problem worth solving."
+        )
       ).toBeVisible();
 
       // Verify the custom fullName persisted
