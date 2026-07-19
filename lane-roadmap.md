@@ -131,7 +131,7 @@ AGENTS.md infra (5):
 
 **Resolved (2026-06-26 / 2026-06-27):**
 - Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)
-- Green badge on board → DELETED (violates one-signal rule; evergreen reserved for the gate)
+- Green badge on board → DELETED (violates the one-signal rule; the former evergreen signal was reserved for the gate at the time, and the current interaction signature is raspberry)
 - Redundant per-card status badge → DELETED (section header already states status)
 - Optimistic UI on lifecycle → DEFERRED post-GTM (trigger: after Tokyo co-location, if transitions still feel slow)
 - `completeOnboarding` one-workspace invariant → RESOLVED (bootstrap IF FOUND early-return + profiles.id PK covers concurrent race; forge-tested)

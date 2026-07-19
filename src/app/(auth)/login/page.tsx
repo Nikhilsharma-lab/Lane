@@ -3,17 +3,20 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { LockKeyholeIcon } from "lucide-react";
 import { login } from "../actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AuthAction } from "@/components/auth/auth-action";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AuthInputField,
+  AuthPasswordField,
+} from "@/components/auth/auth-field";
+import {
+  AuthHeading,
+  AuthHeaderLink,
+  AuthShell,
+  AuthTrust,
+} from "@/components/auth/auth-shell";
+import { Feedback } from "@/components/ui/feedback";
 
 function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +24,30 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
   const prefillEmail = searchParams.get("email") || "";
+  const resetComplete = searchParams.get("reset") === "success";
+  const callbackError = searchParams.get("error") === "auth";
+
   const signupParams = new URLSearchParams();
   if (next) signupParams.set("next", next);
   if (prefillEmail) signupParams.set("email", prefillEmail);
   const signupHref = signupParams.size ? `/signup?${signupParams}` : "/signup";
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const recoveryParams = new URLSearchParams();
+  if (prefillEmail) recoveryParams.set("email", prefillEmail);
+  if (next) recoveryParams.set("next", next);
+  const recoveryHref = recoveryParams.size
+    ? `/forgot-password?${recoveryParams}`
+    : "/forgot-password";
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     setPending(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await login(formData, next || undefined);
+    const result = await login(
+      new FormData(event.currentTarget),
+      next || undefined
+    );
 
     if (result?.error) {
       setError(result.error);
@@ -40,68 +55,122 @@ function LoginForm() {
     }
   }
 
+  const visibleError =
+    error ||
+    (callbackError
+      ? "That sign-in link is invalid or has expired. Sign in to continue."
+      : null);
+
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold tracking-tight">
-          Lane
-        </CardTitle>
-        <CardDescription>Sign in to your account</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              defaultValue={prefillEmail}
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="Your password"
-              required
-              autoComplete="current-password"
-              minLength={6}
-            />
-          </div>
+    <AuthShell
+      headerAction={
+        <AuthHeaderLink
+          prompt="New to Lane?"
+          href={signupHref}
+          label="Create account"
+        />
+      }
+      footer={
+        <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">
+          Private to your workspace. Lane never tracks activity.
+        </AuthTrust>
+      }
+    >
+      <div className="space-y-8">
+      <AuthHeading
+        title="Welcome back"
+        description="Sign in to return to your Lane workspace."
+      />
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+      {resetComplete && (
+        <Feedback kind="success">
+          Your password was updated. Sign in with your new password.
+        </Feedback>
+      )}
 
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
+      <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>
+        <AuthInputField
+          id="email"
+          label="Email"
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          defaultValue={prefillEmail}
+          required
+          autoComplete="email"
+          autoFocus
+        />
 
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          No account?{" "}
-          <Link
-            href={signupHref}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+        <AuthPasswordField
+          id="password"
+          label="Password"
+          trailing={
+            <Link
+              href={recoveryHref}
+              className="rounded-sm text-type-label text-muted-foreground outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Forgot password?
+            </Link>
+          }
+          name="password"
+          placeholder="Your password"
+          required
+          autoComplete="current-password"
+          minLength={6}
+        />
+
+        {visibleError && (
+          <Feedback kind="error" variant="inline">
+            {visibleError}
+          </Feedback>
+        )}
+
+        <AuthAction
+          type="submit"
+          loading={pending}
+          loadingLabel="Signing in…"
+        >
+          Sign in
+        </AuthAction>
+      </form>
+
+      <p className="text-center text-type-support text-muted-foreground sm:hidden">
+        New to Lane?{" "}
+        <Link
+          href={signupHref}
+          className="rounded-sm font-medium text-foreground outline-none underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          Create an account
+        </Link>
+      </p>
+      </div>
+    </AuthShell>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="space-y-8" aria-label="Loading sign in">
+      <div className="space-y-2">
+        <div className="h-8 w-48 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
+        <div className="h-5 w-72 max-w-full animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
+      </div>
+      <div className="h-control-form-touch animate-pulse rounded-lg bg-muted motion-reduce:animate-none sm:h-control-form" />
+      <div className="h-control-form-touch animate-pulse rounded-lg bg-muted motion-reduce:animate-none sm:h-control-form" />
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center px-4">
-      <Suspense fallback={<div className="text-muted-foreground">Loading...</div>}>
-        <LoginForm />
-      </Suspense>
-    </div>
+    <Suspense
+      fallback={
+        <AuthShell>
+          <LoginFallback />
+        </AuthShell>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,60 +1,133 @@
 "use server";
 
-import { triageRequest, type TriageResult } from "@/lib/ai/triage";
-import { checkAiRateLimit } from "@/lib/rate-limit";
-import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
+import { and, eq } from "drizzle-orm";
+
 import { db, requests } from "@/db";
+import {
+  classifyTriageFailure,
+  triageRequest,
+  type TriageFailureKind,
+  type TriageResult,
+} from "@/lib/ai/triage";
 import { requireActiveMember } from "@/lib/auth-guard";
-import { requestSchema, editedProblemSchema } from "@/lib/request-schema";
+import { checkAiRateLimit } from "@/lib/rate-limit";
+import { editedProblemSchema, requestSchema } from "@/lib/request-schema";
+import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
+
+export type IntakeFailureCode =
+  | "validation"
+  | "session_expired"
+  | "rate_limited"
+  | "timeout"
+  | "network"
+  | "provider"
+  | "malformed"
+  | "review_expired"
+  | "save_failed";
+
+export type IntakeFailure = {
+  code: IntakeFailureCode;
+  message: string;
+  field?: "title" | "description" | "editedProblemText";
+  retryAfterSeconds?: number;
+};
 
 export type TriageResponse =
   | { success: true; triage: TriageResult; token: string }
-  | { success: false; error: string };
+  | { success: false; error: IntakeFailure };
 
 export type SaveResponse =
   | { success: true; requestId: string }
-  | { success: false; error: string };
+  | { success: false; error: IntakeFailure };
+
+const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
+  timeout: {
+    code: "timeout",
+    message:
+      "The framing check took longer than expected. Your request is still here. Try again.",
+  },
+  rate_limited: {
+    code: "rate_limited",
+    message:
+      "The framing service is receiving too many requests. Wait a moment, then try again.",
+  },
+  malformed: {
+    code: "malformed",
+    message:
+      "Lane could not read the framing result safely. Your request is still here. Run the check again.",
+  },
+  network: {
+    code: "network",
+    message:
+      "Lane could not reach the framing service. Your request is still here. Try again.",
+  },
+  provider: {
+    code: "provider",
+    message:
+      "The framing service is unavailable right now. Your request is still here. Try again shortly.",
+  },
+};
+
+function sessionFailure(): IntakeFailure {
+  return {
+    code: "session_expired",
+    message: "Your session ended. Sign in again to continue this Request.",
+  };
+}
 
 export async function runTriage(
   formData: { title: string; description: string },
   context: { orgId: string }
 ): Promise<TriageResponse> {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: "Not found" };
+  if (!auth) return { success: false, error: sessionFailure() };
 
   const parsed = requestSchema.safeParse(formData);
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0].message };
+    const issue = parsed.error.issues[0];
+    const field =
+      issue.path[0] === "title" || issue.path[0] === "description"
+        ? issue.path[0]
+        : undefined;
+
+    return {
+      success: false,
+      error: {
+        code: "validation",
+        message: issue.message,
+        field,
+      },
+    };
   }
 
   const rateCheck = await checkAiRateLimit(auth.userId);
   if (!rateCheck.allowed) {
-    const seconds = Math.ceil(rateCheck.retryAfterMs / 1000);
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil(rateCheck.retryAfterMs / 1000)
+    );
     return {
       success: false,
-      error: `Too many requests. Try again in ${seconds} seconds.`,
+      error: {
+        code: "rate_limited",
+        message: `You have checked several Requests quickly. Try again in ${retryAfterSeconds} seconds.`,
+        retryAfterSeconds,
+      },
     };
   }
 
   try {
-    const triage = await triageRequest({
-      title: parsed.data.title,
-      description: parsed.data.description,
+    const triage = await triageRequest(parsed.data);
+    const token = createTriageToken(parsed.data, triage, {
+      orgId: auth.orgId,
+      userId: auth.userId,
     });
 
-    const token = createTriageToken(
-      parsed.data.title,
-      parsed.data.description,
-      triage
-    );
-
     return { success: true, triage, token };
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return { success: false, error: "AI analysis took too long. Please try again." };
-    }
-    console.error("[intake] triage failed:", err);
-    return { success: false, error: "AI analysis failed. Please try again." };
+  } catch (error) {
+    const kind = classifyTriageFailure(error);
+    console.error("[intake] triage failed:", { kind, error });
+    return { success: false, error: TRIAGE_FAILURES[kind] };
   }
 }
 
@@ -63,27 +136,55 @@ export async function saveRequest(
   context: { orgId: string }
 ): Promise<SaveResponse> {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: "Not found" };
+  if (!auth) return { success: false, error: sessionFailure() };
 
-  const payload = verifyTriageToken(data.token);
-  if (!payload) {
-    return { success: false, error: "Invalid or expired triage token. Please resubmit." };
+  const verification = verifyTriageToken(data.token, {
+    orgId: auth.orgId,
+    userId: auth.userId,
+  });
+  if (!verification.valid) {
+    return {
+      success: false,
+      error: {
+        code: "review_expired",
+        message:
+          "This framing review has expired. Your original Request is still here. Review the framing again.",
+      },
+    };
   }
 
-  // The token locks classification, but editedProblemText arrives raw from the
-  // client — enforce the same cap the form's textarea shows.
+  const payload = verification.payload;
   const parsedEdit = editedProblemSchema.safeParse(data.editedProblemText);
   if (!parsedEdit.success) {
-    return { success: false, error: parsedEdit.error.issues[0].message };
+    return {
+      success: false,
+      error: {
+        code: "validation",
+        message: parsedEdit.error.issues[0].message,
+        field: "editedProblemText",
+      },
+    };
+  }
+
+  if (payload.classification !== "problem" && parsedEdit.data === null) {
+    return {
+      success: false,
+      error: {
+        code: "validation",
+        message: "Add a problem framing before creating this Request.",
+        field: "editedProblemText",
+      },
+    };
   }
 
   const reframedProblem =
-    payload.classification !== "problem" ? (parsedEdit.data || null) : null;
+    payload.classification === "problem" ? null : parsedEdit.data;
 
   try {
     const [created] = await db
       .insert(requests)
       .values({
+        id: payload.requestId,
         orgId: auth.orgId,
         title: payload.title,
         description: payload.description,
@@ -94,11 +195,42 @@ export async function saveRequest(
         assignedTo: null,
         createdBy: auth.userId,
       })
+      .onConflictDoNothing({ target: requests.id })
       .returning({ id: requests.id });
 
-    return { success: true, requestId: created.id };
-  } catch (err) {
-    console.error("[intake] save failed:", err);
-    return { success: false, error: "Failed to save request. Please try again." };
+    if (created) return { success: true, requestId: created.id };
+
+    const [existing] = await db
+      .select({ id: requests.id })
+      .from(requests)
+      .where(
+        and(
+          eq(requests.id, payload.requestId),
+          eq(requests.orgId, auth.orgId),
+          eq(requests.createdBy, auth.userId)
+        )
+      )
+      .limit(1);
+
+    if (existing) return { success: true, requestId: existing.id };
+
+    return {
+      success: false,
+      error: {
+        code: "save_failed",
+        message:
+          "Lane could not create this Request. Your confirmed framing is still here. Try again.",
+      },
+    };
+  } catch (error) {
+    console.error("[intake] save failed:", error);
+    return {
+      success: false,
+      error: {
+        code: "save_failed",
+        message:
+          "Lane could not create this Request. Your confirmed framing is still here. Try again.",
+      },
+    };
   }
 }

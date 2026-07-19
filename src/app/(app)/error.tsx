@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/typography";
 
 export default function AppError({
   reset,
@@ -10,10 +11,10 @@ export default function AppError({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12">
-      <h2 className="text-lg font-semibold">Something went wrong</h2>
-      <p className="text-sm text-muted-foreground">
+      <Typography as="h2" role="sectionTitle">Something went wrong</Typography>
+      <Typography as="p" role="ui" className="text-muted-foreground">
         An error occurred while loading this page.
-      </p>
+      </Typography>
       <Button variant="outline" size="sm" onClick={reset}>
         Try again
       </Button>

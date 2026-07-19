@@ -5,6 +5,8 @@ import { eq, and, desc } from "drizzle-orm";
 import { InviteForm } from "./invite-form";
 import { InviteRow } from "./invite-row";
 import { MemberRow } from "./member-row";
+import { RowGroup } from "@/components/ui/row";
+import { Typography } from "@/components/ui/typography";
 import { SettingsNav } from "../settings-nav";
 
 export default async function MembersPage() {
@@ -55,24 +57,24 @@ export default async function MembersPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
+      <header className="border-b px-4 py-4 sm:px-6">
+        <Typography as="h1" role="pageTitle">Settings</Typography>
       </header>
       <SettingsNav isGuest={false} />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {canInvite && (
           <div className="mb-8">
-            <h2 className="mb-3 text-sm font-medium">Invite a teammate</h2>
+            <Typography as="h2" role="sectionTitle" className="mb-3">Invite a teammate</Typography>
             <InviteForm context={context} />
           </div>
         )}
 
         <div className="mb-8">
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+          <Typography as="h2" role="sectionTitle" className="mb-3 text-muted-foreground">
             Members ({members.length})
-          </h2>
-          <div className="space-y-2">
+          </Typography>
+          <RowGroup aria-label="Workspace members">
             {members.map((m) => (
               <MemberRow
                 key={m.userId}
@@ -82,15 +84,15 @@ export default async function MembersPage() {
                 isCurrentUser={m.userId === context.userId}
               />
             ))}
-          </div>
+          </RowGroup>
         </div>
 
         {pendingInvites.length > 0 && (
           <div>
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+            <Typography as="h2" role="sectionTitle" className="mb-3 text-muted-foreground">
               Pending invites ({pendingInvites.length})
-            </h2>
-            <div className="space-y-2">
+            </Typography>
+            <RowGroup aria-label="Pending invitations">
               {pendingInvites.map((inv) => (
                 <InviteRow
                   key={inv.id}
@@ -105,7 +107,7 @@ export default async function MembersPage() {
                   canManage={canInvite}
                 />
               ))}
-            </div>
+            </RowGroup>
           </div>
         )}
       </main>

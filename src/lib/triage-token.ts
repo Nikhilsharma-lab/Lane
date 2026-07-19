@@ -1,89 +1,123 @@
-import { createHmac } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+
 import type { TriageResult } from "@/lib/ai/triage";
+import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/request-schema";
 
 /**
- * Server-side signed token for triage results.
+ * Server-signed review state for the Intake gate.
  *
- * After the AI classifies a request, the server encodes the trusted
- * classification + extractedSolution into an HMAC-signed token. The client
- * receives this token alongside the triage result for display, but on save
- * the server only trusts what's in the verified token — never the client's
- * classification field. The client MAY supply an edited reframedProblem
- * (the user can tweak the AI's reframing), but classification and
- * extractedSolution are locked.
+ * The browser may display the AI result and edit only the problem framing.
+ * Classification, source content, preserved solution, request identity,
+ * workspace, and person remain locked inside this token. The deterministic
+ * request ID makes a repeated save idempotent.
  */
 
-interface TokenPayload {
-  /** Original title (to bind the token to a specific submission) */
-  title: string;
-  /** Original description */
-  description: string;
-  /** AI classification — trusted, not client-editable */
-  classification: "problem" | "solution" | "hybrid";
-  /** AI-extracted solution for hybrid — trusted, not client-editable */
-  extractedSolution: string | null;
-  /** Timestamp to expire tokens */
-  issuedAt: number;
-}
+const tokenPayloadSchema = z.object({
+  requestId: z.string().uuid(),
+  orgId: z.string().uuid(),
+  userId: z.string().uuid(),
+  title: z.string().min(1).max(TITLE_MAX),
+  description: z.string().min(1).max(DESCRIPTION_MAX),
+  classification: z.enum(["problem", "solution", "hybrid"]),
+  extractedSolution: z.string().max(DESCRIPTION_MAX).nullable(),
+  issuedAt: z.number().int().nonnegative(),
+});
 
-const TOKEN_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+export type TriageTokenPayload = z.infer<typeof tokenPayloadSchema>;
+
+export type TriageTokenVerification =
+  | { valid: true; payload: TriageTokenPayload }
+  | { valid: false; reason: "invalid" | "expired" | "context_mismatch" };
+
+const TOKEN_MAX_AGE_MS = 10 * 60 * 1000;
+const CLOCK_SKEW_MS = 60 * 1000;
 
 function getSecret(): string {
   const secret = process.env.TRIAGE_TOKEN_SECRET;
   if (!secret) {
-    throw new Error("[triage-token] TRIAGE_TOKEN_SECRET is required for signing triage tokens");
+    throw new Error(
+      "[triage-token] TRIAGE_TOKEN_SECRET is required for signing triage tokens"
+    );
   }
   return secret;
 }
 
-function sign(payload: TokenPayload): string {
-  const data = JSON.stringify(payload);
-  const encoded = Buffer.from(data).toString("base64url");
-  const hmac = createHmac("sha256", getSecret()).update(encoded).digest("base64url");
-  return `${encoded}.${hmac}`;
+function encode(payload: TriageTokenPayload): string {
+  return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 
-function verify(token: string): TokenPayload | null {
-  const parts = token.split(".");
-  if (parts.length !== 2) return null;
+function signature(encoded: string): Buffer {
+  return createHmac("sha256", getSecret()).update(encoded).digest();
+}
 
-  const [encoded, hmac] = parts;
-  const expected = createHmac("sha256", getSecret()).update(encoded).digest("base64url");
-
-  // Constant-time comparison
-  if (hmac.length !== expected.length) return null;
-  let mismatch = 0;
-  for (let i = 0; i < hmac.length; i++) {
-    mismatch |= hmac.charCodeAt(i) ^ expected.charCodeAt(i);
-  }
-  if (mismatch !== 0) return null;
-
-  try {
-    const payload: TokenPayload = JSON.parse(Buffer.from(encoded, "base64url").toString());
-
-    // Check expiry
-    if (Date.now() - payload.issuedAt > TOKEN_MAX_AGE_MS) return null;
-
-    return payload;
-  } catch {
-    return null;
-  }
+function sign(payload: TriageTokenPayload): string {
+  const encoded = encode(payload);
+  return `${encoded}.${signature(encoded).toString("base64url")}`;
 }
 
 export function createTriageToken(
-  title: string,
-  description: string,
-  triage: TriageResult
+  input: { title: string; description: string },
+  triage: TriageResult,
+  context: { orgId: string; userId: string }
 ): string {
   return sign({
-    title,
-    description,
+    requestId: randomUUID(),
+    orgId: context.orgId,
+    userId: context.userId,
+    title: input.title,
+    description: input.description,
     classification: triage.classification,
     extractedSolution: triage.extractedSolution,
     issuedAt: Date.now(),
   });
 }
 
-export function verifyTriageToken(token: string): TokenPayload | null {
-  return verify(token);
+export function verifyTriageToken(
+  token: string,
+  context: { orgId: string; userId: string }
+): TriageTokenVerification {
+  const [encoded, suppliedSignature, ...extra] = token.split(".");
+  if (!encoded || !suppliedSignature || extra.length > 0) {
+    return { valid: false, reason: "invalid" };
+  }
+
+  let supplied: Buffer;
+  try {
+    supplied = Buffer.from(suppliedSignature, "base64url");
+  } catch {
+    return { valid: false, reason: "invalid" };
+  }
+
+  const expected = signature(encoded);
+  if (
+    supplied.length !== expected.length ||
+    !timingSafeEqual(supplied, expected)
+  ) {
+    return { valid: false, reason: "invalid" };
+  }
+
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(encoded, "base64url").toString("utf8")
+    );
+    const parsed = tokenPayloadSchema.safeParse(decoded);
+    if (!parsed.success) return { valid: false, reason: "invalid" };
+
+    const age = Date.now() - parsed.data.issuedAt;
+    if (age > TOKEN_MAX_AGE_MS || age < -CLOCK_SKEW_MS) {
+      return { valid: false, reason: "expired" };
+    }
+
+    if (
+      parsed.data.orgId !== context.orgId ||
+      parsed.data.userId !== context.userId
+    ) {
+      return { valid: false, reason: "context_mismatch" };
+    }
+
+    return { valid: true, payload: parsed.data };
+  } catch {
+    return { valid: false, reason: "invalid" };
+  }
 }

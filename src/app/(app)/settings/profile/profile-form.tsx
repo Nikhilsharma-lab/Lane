@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Feedback, type FeedbackKind } from "@/components/ui/feedback";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,7 +24,10 @@ export function ProfileForm({
 }) {
   const [role, setRole] = useState<ProductRole>(initialRole);
   const [savedRole, setSavedRole] = useState<ProductRole>(initialRole);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    kind: Extract<FeedbackKind, "error" | "success">;
+    message: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -32,11 +36,11 @@ export function ProfileForm({
     startTransition(async () => {
       const result = await updateProfileRole({ role }, { orgId });
       if ("error" in result && result.error) {
-        setFeedback(result.error);
+        setFeedback({ kind: "error", message: result.error });
         return;
       }
       setSavedRole(role);
-      setFeedback("Profile updated.");
+      setFeedback({ kind: "success", message: "Profile updated." });
     });
   }
 
@@ -54,7 +58,10 @@ export function ProfileForm({
           }}
           disabled={isPending}
         >
-          <SelectTrigger id="product-role" className="w-full sm:w-72">
+          <SelectTrigger
+            id="product-role"
+            className="w-full sm:w-72"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -63,22 +70,23 @@ export function ProfileForm({
             <SelectItem value="developer">Developer</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-type-support text-muted-foreground">
           This is a profile label only. It does not change what you can see or do.
         </p>
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending || role === savedRole}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={isPending || role === savedRole}
+        >
           {isPending ? "Saving…" : "Save changes"}
         </Button>
         {feedback && (
-          <p
-            role="status"
-            className={feedback === "Profile updated." ? "text-sm text-muted-foreground" : "text-sm text-destructive"}
-          >
-            {feedback}
-          </p>
+          <Feedback kind={feedback.kind} variant="inline">
+            {feedback.message}
+          </Feedback>
         )}
       </div>
     </form>

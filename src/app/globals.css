@@ -1,8 +1,6 @@
-/* Lane — design tokens. Tailwind v4 + shadcn.
-   Direction: cool-slate neutrals, near-black primary (monochrome-forward),
-   ONE deep evergreen signature reserved for the gate moment, focus, and active states.
-   Light is the active MVP mode; dark tokens are reserved for a future explicit decision.
-   LOCK THIS. Don't re-tweak the palette daily — that's the rabbit hole. */
+/* Lane — approved global colour foundation.
+   Gallery-neutral materials carry the product. Interaction, semantic feedback,
+   and identity colours are separate layers with one job per token. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -11,42 +9,83 @@
 
 :root {
   --radius: 0.625rem;
+  color-scheme: light;
 
-  /* Cool-slate surfaces */
-  --background: oklch(0.988 0.003 250);
-  --foreground: oklch(0.20 0.012 255);
+  /* Material */
+  --background: oklch(0.9839 0.0025 345.2);
+  --foreground: oklch(0.2087 0.0111 346.5);
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.012 255);
+  --card: oklch(0.9978 0.0011 17.2);
+  --card-foreground: var(--foreground);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.012 255);
+  --recessed: oklch(0.9648 0.005 345.3);
+  --raised: oklch(0.9798 0.005 345.3);
+  --popover: var(--raised);
+  --popover-foreground: var(--foreground);
 
-  /* Monochrome-forward: primary is near-black, the default for most actions */
-  --primary: oklch(0.21 0.015 255);
-  --primary-foreground: oklch(0.988 0.003 250);
+  --primary: var(--foreground);
+  --primary-foreground: var(--card);
 
-  --secondary: oklch(0.96 0.006 250);
-  --secondary-foreground: oklch(0.24 0.015 255);
+  --secondary: var(--recessed);
+  --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.965 0.005 250);
-  --muted-foreground: oklch(0.51 0.012 255);
+  --muted: var(--recessed);
+  --muted-foreground: oklch(0.4798 0.0113 352.7);
 
-  /* shadcn 'accent' stays a subtle cool-neutral hover/selected surface */
-  --accent: oklch(0.95 0.008 250);
-  --accent-foreground: oklch(0.24 0.015 255);
+  --disabled: oklch(0.9407 0.005 345.3);
+  --disabled-foreground: oklch(0.5001 0.01 349.5);
 
-  /* The ONE signature — deep evergreen. Reserve for the gate moment,
-     active/selected states, and links. NOT every button. */
-  --brand: oklch(0.50 0.115 160);
-  --brand-foreground: oklch(0.985 0.01 160);
+  --accent: var(--recessed);
+  --accent-foreground: var(--foreground);
 
-  --destructive: oklch(0.58 0.18 25);
-  --destructive-foreground: oklch(0.985 0.003 250);
+  /* Interaction. Focus is a UI boundary; brand is readable action ink. */
+  --focus: oklch(0.6009 0.1506 350);
+  --brand: oklch(0.4795 0.1193 349.8);
+  --brand-soft: oklch(0.9501 0.0292 350.5);
+  --brand-foreground: var(--card);
 
-  --border: oklch(0.91 0.006 250);
-  --input: oklch(0.91 0.006 250);
-  --ring: oklch(0.50 0.115 160); /* focus ring carries the signature */
+  --border: oklch(0.8794 0.0087 349.3);
+  --control: oklch(0.621 0.0145 353.4);
+  --input: var(--control);
+  --ring: var(--focus);
+
+  /* Desk tabs communicate state, never decoration or identity. */
+  --persimmon: oklch(0.5011 0.1384 47.1);
+  --persimmon-soft: oklch(0.9502 0.0296 56);
+  --chartreuse: oklch(0.4493 0.0992 124.6);
+  --chartreuse-soft: oklch(0.959 0.0346 124.9);
+  --raspberry: var(--focus);
+  --raspberry-soft: var(--brand-soft);
+
+  /* Identity colour is not semantic status colour. These physical tab fills
+     keep one graphite ink in both themes and each pair exceeds 8:1 contrast. */
+  --identity-ink: oklch(0.2294 0.0181 62.9);
+  --identity-raspberry: oklch(0.7802 0.1194 350.1);
+  --identity-persimmon: oklch(0.7973 0.1229 43.4);
+  --identity-chartreuse: oklch(0.84 0.1295 118);
+
+  /* Semantic feedback. Every foreground, soft surface, boundary, and icon tile
+     is authored explicitly; routes never manufacture contrast with opacity. */
+  --destructive: oklch(0.5098 0.1597 25.2);
+  --destructive-foreground: var(--card);
+  --destructive-soft: oklch(0.9533 0.0231 24.1);
+  --destructive-border: oklch(0.7591 0.0757 21);
+  --destructive-icon: oklch(0.8792 0.042 21.6);
+
+  --success: var(--chartreuse);
+  --success-soft: var(--chartreuse-soft);
+  --success-border: oklch(0.7537 0.0638 122);
+  --success-icon: oklch(0.8827 0.046 123.6);
+
+  --warning: var(--persimmon);
+  --warning-soft: var(--persimmon-soft);
+  --warning-border: oklch(0.7575 0.0778 56.5);
+  --warning-icon: oklch(0.8767 0.0476 55.7);
+
+  --info: var(--muted-foreground);
+  --info-soft: var(--recessed);
+  --info-border: oklch(0.7714 0.0063 350.9);
+  --info-icon: oklch(0.8921 0.0051 345.3);
 
   /* Fonts — supplied by next/font variables on <html> in layout.tsx */
   --font-sans: var(--font-geist-sans);
@@ -54,37 +93,70 @@
 }
 
 .dark {
-  --background: oklch(0.17 0.008 255);
-  --foreground: oklch(0.96 0.004 250);
+  color-scheme: dark;
+  --background: oklch(0.1491 0.0056 355.7);
+  --foreground: oklch(0.9397 0.0035 354.7);
 
-  --card: oklch(0.20 0.009 255);
-  --card-foreground: oklch(0.96 0.004 250);
+  --card: oklch(0.1908 0.0052 355.4);
+  --card-foreground: var(--foreground);
 
-  --popover: oklch(0.20 0.009 255);
-  --popover-foreground: oklch(0.96 0.004 250);
+  --recessed: oklch(0.2357 0.0064 0.6);
+  --raised: var(--recessed);
+  --popover: var(--raised);
+  --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.96 0.004 250);
-  --primary-foreground: oklch(0.20 0.012 255);
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
 
-  --secondary: oklch(0.26 0.010 255);
-  --secondary-foreground: oklch(0.96 0.004 250);
+  --secondary: var(--recessed);
+  --secondary-foreground: var(--foreground);
 
-  --muted: oklch(0.255 0.010 255);
-  --muted-foreground: oklch(0.70 0.010 255);
+  --muted: var(--recessed);
+  --muted-foreground: oklch(0.7211 0.0075 354.9);
 
-  --accent: oklch(0.27 0.011 255);
-  --accent-foreground: oklch(0.96 0.004 250);
+  --disabled: oklch(0.2357 0.0064 0.6);
+  --disabled-foreground: oklch(0.6304 0.0094 349.4);
 
-  /* Evergreen brightened so it stays luminous on charcoal */
-  --brand: oklch(0.64 0.13 162);
-  --brand-foreground: oklch(0.16 0.02 160);
+  --accent: var(--recessed);
+  --accent-foreground: var(--foreground);
 
-  --destructive: oklch(0.62 0.17 25);
-  --destructive-foreground: oklch(0.98 0.004 250);
+  --focus: oklch(0.7391 0.1108 349.5);
+  --brand: oklch(0.7391 0.1108 349.5);
+  --brand-soft: oklch(0.2703 0.0446 351.4);
+  --brand-foreground: var(--background);
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.64 0.13 162);
+  --border: oklch(0.2992 0.008 351.4);
+  --control: oklch(0.5011 0.0112 352.7);
+  --input: var(--control);
+  --ring: var(--focus);
+
+  --persimmon: oklch(0.7511 0.1205 48.4);
+  --persimmon-soft: oklch(0.2607 0.0404 48.9);
+  --chartreuse: oklch(0.7805 0.1002 124.8);
+  --chartreuse-soft: oklch(0.2599 0.0348 125.2);
+  --raspberry: var(--focus);
+  --raspberry-soft: var(--brand-soft);
+
+  --destructive: oklch(0.7202 0.1302 24.8);
+  --destructive-foreground: var(--background);
+  --destructive-soft: oklch(0.2592 0.0351 25.4);
+  --destructive-border: oklch(0.4654 0.0788 24.8);
+  --destructive-icon: oklch(0.3407 0.0523 25.4);
+
+  --success: var(--chartreuse);
+  --success-soft: var(--chartreuse-soft);
+  --success-border: oklch(0.497 0.0652 124.7);
+  --success-icon: oklch(0.3543 0.0472 124.8);
+
+  --warning: var(--persimmon);
+  --warning-soft: var(--persimmon-soft);
+  --warning-border: oklch(0.4809 0.0767 48.2);
+  --warning-icon: oklch(0.3481 0.0543 48.3);
+
+  --info: var(--muted-foreground);
+  --info-soft: var(--recessed);
+  --info-border: oklch(0.4549 0.0072 351.1);
+  --info-icon: oklch(0.3231 0.0079 351.3);
 }
 
 @theme inline {
@@ -94,24 +166,117 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-recessed: var(--recessed);
+  --color-raised: var(--raised);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-disabled: var(--disabled);
+  --color-disabled-foreground: var(--disabled-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --color-brand-foreground: var(--brand-foreground);
+  --color-focus: var(--focus);
+  --color-persimmon: var(--persimmon);
+  --color-persimmon-soft: var(--persimmon-soft);
+  --color-chartreuse: var(--chartreuse);
+  --color-chartreuse-soft: var(--chartreuse-soft);
+  --color-raspberry: var(--raspberry);
+  --color-raspberry-soft: var(--raspberry-soft);
+  --color-identity-ink: var(--identity-ink);
+  --color-identity-raspberry: var(--identity-raspberry);
+  --color-identity-persimmon: var(--identity-persimmon);
+  --color-identity-chartreuse: var(--identity-chartreuse);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-border: var(--destructive-border);
+  --color-destructive-icon: var(--destructive-icon);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-success-icon: var(--success-icon);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-warning-icon: var(--warning-icon);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-border: var(--info-border);
+  --color-info-icon: var(--info-icon);
   --color-border: var(--border);
+  --color-control: var(--control);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Semantic typography. Product routes consume roles, never raw sizes. */
+  --text-type-display: 2.25rem;
+  --text-type-display--line-height: 2.625rem;
+  --text-type-display--letter-spacing: -0.025em;
+  --text-type-display--font-weight: 600;
+  --text-type-auth-title: 1.875rem;
+  --text-type-auth-title--line-height: 2.25rem;
+  --text-type-auth-title--letter-spacing: -0.025em;
+  --text-type-auth-title--font-weight: 600;
+  --text-type-auth-title-mobile: 1.75rem;
+  --text-type-auth-title-mobile--line-height: 2.125rem;
+  --text-type-auth-title-mobile--letter-spacing: -0.025em;
+  --text-type-auth-title-mobile--font-weight: 600;
+  --text-type-page-title: 1.5rem;
+  --text-type-page-title--line-height: 1.875rem;
+  --text-type-page-title--letter-spacing: -0.02em;
+  --text-type-page-title--font-weight: 600;
+  --text-type-page-title-mobile: 1.375rem;
+  --text-type-page-title-mobile--line-height: 1.75rem;
+  --text-type-page-title-mobile--letter-spacing: -0.02em;
+  --text-type-page-title-mobile--font-weight: 600;
+  --text-type-section-title: 1rem;
+  --text-type-section-title--line-height: 1.5rem;
+  --text-type-section-title--font-weight: 600;
+  --text-type-prose: 1rem;
+  --text-type-prose--line-height: 1.5625rem;
+  --text-type-prose--font-weight: 400;
+  --text-type-ui: 0.875rem;
+  --text-type-ui--line-height: 1.3125rem;
+  --text-type-ui--font-weight: 400;
+  --text-type-control: 0.875rem;
+  --text-type-control--line-height: 1.25rem;
+  --text-type-control--font-weight: 500;
+  --text-type-label: 0.8125rem;
+  --text-type-label--line-height: 1.125rem;
+  --text-type-label--font-weight: 500;
+  --text-type-support: 0.8125rem;
+  --text-type-support--line-height: 1.1875rem;
+  --text-type-support--font-weight: 400;
+  --text-type-meta: 0.75rem;
+  --text-type-meta--line-height: 1.0625rem;
+  --text-type-meta--font-weight: 400;
+  --text-type-micro: 0.6875rem;
+  --text-type-micro--line-height: 1rem;
+  --text-type-micro--font-weight: 500;
+  --text-type-wordmark: 0.9375rem;
+  --text-type-wordmark--line-height: 1.25rem;
+  --text-type-wordmark--letter-spacing: -0.02em;
+  --text-type-wordmark--font-weight: 600;
+
+  /* Semantic density. Mobile touch targets collapse to compact desktop
+     controls at the small breakpoint; form controls keep their own rhythm. */
+  --spacing-control-utility: 2rem;
+  --spacing-control-product: 2.25rem;
+  --spacing-control-form: 2.75rem;
+  --spacing-control-form-touch: 3rem;
+  --spacing-touch-target: 2.75rem;
+  --spacing-row-identity: 3.25rem;
+  --spacing-row-identity-touch: 3.75rem;
+  --spacing-row-leading: 2rem;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -129,6 +294,20 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+}
+
+[data-slot="radio-option"]:has(
+    [data-slot="radio-group-item"]:focus-visible
+  ) {
+  z-index: 10;
+  border-color: var(--ring);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 3px
+    color-mix(in oklch, var(--ring) 50%, transparent);
+}
+
+[data-slot="select-trigger"][aria-expanded="true"] [data-icon="chevron"] {
+  transform: rotate(180deg);
 }
 
 @media (prefers-reduced-motion: reduce) {

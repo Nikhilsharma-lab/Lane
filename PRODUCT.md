@@ -95,7 +95,7 @@ should feel like a sharp, helpful colleague, not a wizard.
 
 WCAG 2.2 **AA is the floor**, pushed to **AAA where feasible** (notably text contrast on primary
 surfaces). **Keyboard-first**: every action — submit, pick up, mark Done, comment, navigate the
-board — must be fully operable from the keyboard with a visible focus ring (the evergreen signature
+board — must be fully operable from the keyboard with a visible focus ring (the raspberry interaction signature
 already carries focus). Honor `prefers-reduced-motion` with a crossfade/instant alternative for
 every animation. Don't rely on color alone to convey lifecycle state (Open/In Progress/Done need a
 label or shape, not just a hue). Placeholder and muted text must still meet body-contrast targets.

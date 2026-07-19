@@ -5,7 +5,18 @@ import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
-import { initials } from "./sidebar-utils";
+import { Button } from "@/components/ui/button";
+import { IdentityMark } from "@/components/ui/identity-mark";
+import {
+  Row,
+  RowActions,
+  RowContent,
+  RowDescription,
+  RowGroup,
+  RowLeading,
+  RowTitle,
+} from "@/components/ui/row";
+import { Typography } from "@/components/ui/typography";
 import {
   Popover,
   PopoverContent,
@@ -33,11 +44,11 @@ type Notification = {
 function notificationSentence(type: string, actorName: string, requestTitle: string | null): string {
   switch (type) {
     case "request_picked_up":
-      return `${actorName} picked up your request '${requestTitle}'`;
+      return `${actorName} picked up your Request “${requestTitle}”`;
     case "comment_added":
-      return `${actorName} commented on '${requestTitle}'`;
+      return `${actorName} commented on “${requestTitle}”`;
     case "request_done":
-      return `${actorName} marked '${requestTitle}' done`;
+      return `${actorName} marked “${requestTitle}” done`;
     case "invite_accepted":
       return `${actorName} accepted your invite`;
     default:
@@ -45,7 +56,13 @@ function notificationSentence(type: string, actorName: string, requestTitle: str
   }
 }
 
-export function NotificationBell({ orgId }: { orgId: string }) {
+export function NotificationBell({
+  orgId,
+  compact = false,
+}: {
+  orgId: string;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -137,96 +154,121 @@ export function NotificationBell({ orgId }: { orgId: string }) {
       }}
     >
       <PopoverTrigger
+        aria-label={compact ? "Notifications" : undefined}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+          "flex items-center rounded-md text-type-control transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          compact
+            ? "relative size-11 justify-center"
+            : "w-full gap-2.5 px-2.5 py-1.5",
           "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           open && "bg-accent text-accent-foreground"
         )}
       >
         <Bell className="size-4" />
-        <span className="flex-1 text-left">Notifications</span>
+        <span className={compact ? "sr-only" : "flex-1 text-left"}>
+          Notifications
+        </span>
         {unread > 0 && (
-          <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+          <span
+            className={cn(
+              "flex size-5 items-center justify-center rounded-full bg-primary font-mono text-type-micro text-primary-foreground",
+              compact && "absolute top-1 right-1"
+            )}
+          >
             {unread > 99 ? "99+" : unread}
           </span>
         )}
       </PopoverTrigger>
 
       <PopoverContent
-        side="right"
-        sideOffset={12}
-        align="start"
-        className="w-[380px] p-0"
+        side={compact ? "bottom" : "right"}
+        sideOffset={compact ? 8 : 12}
+        align={compact ? "end" : "start"}
+        className="w-[calc(100vw-2rem)] p-0 sm:w-[380px]"
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Notifications</h3>
+          <Typography as="h3" role="sectionTitle">Notifications</Typography>
           {unread > 0 && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
               onClick={handleMarkAllRead}
               disabled={isPending}
-              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              className="text-muted-foreground"
             >
               <CheckCheck className="size-3.5" />
               Mark all read
-            </button>
+            </Button>
           )}
         </div>
 
         <div className="max-h-[400px] overflow-y-auto">
           {!loaded ? (
-            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center py-8 text-type-ui text-muted-foreground">
               Loading…
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Bell className="mb-2 size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No notifications yet</p>
+              <p className="text-type-ui text-muted-foreground">No notifications yet</p>
             </div>
           ) : (
-            items.map((item) => (
-              <div
-                key={item.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleClickNotification(item)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleClickNotification(item);
-                  }
-                }}
-                className={cn(
-                  "group relative flex cursor-pointer gap-3 border-b px-4 py-3 transition-colors last:border-b-0 hover:bg-accent/50",
-                  !item.readAt && "bg-primary/[0.03]"
-                )}
-              >
-                {!item.readAt && (
-                  <div className="absolute top-1/2 left-1.5 size-1.5 -translate-y-1/2 rounded-full bg-primary" />
-                )}
+            <RowGroup className="border-0">
+              {items.map((item) => {
+                const sentence = notificationSentence(
+                  item.type,
+                  item.actorName || "Someone",
+                  item.requestTitle
+                );
 
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                  {initials(item.actorName || "?")}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug">
-                    {notificationSentence(item.type, item.actorName || "Someone", item.requestTitle)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {relativeTime(item.createdAt)}
-                  </p>
-                </div>
-
-                <button
-                  onClick={(e) => handleToggleRead(e, item)}
-                  className="shrink-0 self-center rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-                  aria-label={item.readAt ? "Mark notification as unread" : "Mark notification as read"}
-                  title={item.readAt ? "Mark unread" : "Mark read"}
-                >
-                  {item.readAt ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                </button>
-              </div>
-            ))
+                return (
+                  <Row
+                    key={item.id}
+                    interactive
+                    className={cn(
+                      "min-h-[72px] px-3 py-3 has-[button[data-notification-link]:focus-visible]:ring-3 has-[button[data-notification-link]:focus-visible]:ring-ring/50 has-[button[data-notification-link]:focus-visible]:ring-inset",
+                      !item.readAt && "bg-brand-soft/50 hover:bg-brand-soft/70"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      data-notification-link=""
+                      onClick={() => handleClickNotification(item)}
+                      className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none"
+                      aria-label={`${sentence}. ${relativeTime(item.createdAt)}`}
+                    />
+                    <RowLeading className="pointer-events-none relative z-10">
+                      <IdentityMark
+                        label={item.actorName}
+                        kind={item.actorName ? "person" : "unknown"}
+                        unread={!item.readAt}
+                      />
+                    </RowLeading>
+                    <RowContent className="pointer-events-none relative z-10">
+                      <RowTitle className="font-medium">
+                        {sentence}
+                      </RowTitle>
+                      <RowDescription>
+                        {relativeTime(item.createdAt)}
+                      </RowDescription>
+                    </RowContent>
+                    <RowActions className="relative z-20 w-8">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => handleToggleRead(e, item)}
+                        aria-label={item.readAt ? "Mark notification as unread" : "Mark notification as read"}
+                        title={item.readAt ? "Mark unread" : "Mark read"}
+                      >
+                        {item.readAt ? <EyeOff /> : <Eye />}
+                      </Button>
+                    </RowActions>
+                  </Row>
+                );
+              })}
+            </RowGroup>
           )}
         </div>
       </PopoverContent>

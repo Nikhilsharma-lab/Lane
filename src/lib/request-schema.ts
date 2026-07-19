@@ -16,11 +16,13 @@ export const DESCRIPTION_MAX = 5000;
 export const requestSchema = z.object({
   title: z
     .string()
+    .trim()
     .min(1, "Title is required")
     .min(TITLE_MIN, `Please give this a short title — at least ${TITLE_MIN} characters`)
     .max(TITLE_MAX, `Title must be at most ${TITLE_MAX} characters`),
   description: z
     .string()
+    .trim()
     .min(1, "Description is required")
     .min(DESCRIPTION_MIN, `Tell us a bit more — at least ${DESCRIPTION_MIN} characters`)
     .max(DESCRIPTION_MAX, `Description must be at most ${DESCRIPTION_MAX} characters`),
@@ -29,11 +31,21 @@ export const requestSchema = z.object({
 export type RequestInput = z.infer<typeof requestSchema>;
 
 /**
- * The user-editable reframed problem submitted at save time. Nullable: null
- * means "problem-classified, nothing to edit". Same cap as description —
- * the server must enforce this; the client textarea maxLength is UX only.
+ * The user-editable problem framing submitted at save time. Nullable: null
+ * means "problem-classified, nothing to edit". Solution and hybrid outcomes
+ * parse through problemFramingSchema before save, so a forged action cannot
+ * insert an empty or whitespace-only framing.
  */
-export const editedProblemSchema = z
+export const problemFramingSchema = z
   .string()
-  .max(DESCRIPTION_MAX, `Problem statement must be at most ${DESCRIPTION_MAX} characters`)
-  .nullable();
+  .trim()
+  .min(
+    DESCRIPTION_MIN,
+    `Problem framing needs at least ${DESCRIPTION_MIN} characters`
+  )
+  .max(
+    DESCRIPTION_MAX,
+    `Problem framing must be at most ${DESCRIPTION_MAX} characters`
+  );
+
+export const editedProblemSchema = problemFramingSchema.nullable();

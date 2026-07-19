@@ -8,9 +8,5 @@ export default async function IntakePage() {
   if (!result) redirect("/login");
   if (result.needsOnboarding) redirect("/onboarding");
 
-  return (
-    <IntakeForm
-      context={{ userId: result.userId, orgId: result.orgId }}
-    />
-  );
+  return <IntakeForm context={{ orgId: result.orgId }} />;
 }

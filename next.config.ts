@@ -8,7 +8,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: true });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: ["127.0.0.1"],
 };
 
 export default nextConfig;

@@ -16,10 +16,13 @@ async function onboard(
   await page.locator('button[type="submit"]').click();
   await page.waitForURL("**/onboarding");
   await page.locator("#fullName").fill(name);
+  await page.getByRole("radio", { name: /^Designer/ }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.locator("#workspaceName").fill(workspaceName);
-  await page.locator("button", { hasText: "Designer" }).click();
-  await page.locator('button[type="submit"]', { hasText: "Get started" }).click();
-  await expect(page.getByText("Invite a teammate")).toBeVisible();
+  await page.getByRole("button", { name: "Create workspace" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Bring one teammate" })
+  ).toBeVisible({ timeout: 10_000 });
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("heading", { name: "Requests" })).toBeVisible();
   return page;

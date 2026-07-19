@@ -19,7 +19,11 @@ export function PickUpButton({
   function onClick() {
     startTransition(async () => {
       const result = await pickUpRequest(requestId, { orgId });
-      if (result?.error) toast.error(result.error);
+      if (result?.error) {
+        toast.error("Couldn’t pick up request", {
+          description: result.error,
+        });
+      }
       // On success the action revalidates "/" and the row moves to In Progress.
     });
   }
@@ -31,12 +35,12 @@ export function PickUpButton({
       size="sm"
       // Sits above the row's stretched link so clicking it picks up
       // rather than navigating to the detail page.
-      className="relative z-10 shrink-0"
+      className="relative z-10 w-[88px] shrink-0"
       disabled={pending}
       onClick={onClick}
       aria-label={`Pick up request: ${title}`}
     >
-      {pending ? "Picking up…" : "Pick it up"}
+      {pending ? "Picking up…" : "Pick up"}
     </Button>
   );
 }

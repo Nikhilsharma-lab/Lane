@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db, invites } from "@/db";
+import { db, invites, workspaces } from "@/db";
 import { inviteTokenFromPath, safeRedirectPath } from "@/lib/safe-redirect";
 
 export async function getValidSignupInvite(
@@ -16,8 +16,10 @@ export async function getValidSignupInvite(
       email: invites.email,
       status: invites.status,
       expiresAt: invites.expiresAt,
+      workspaceName: workspaces.name,
     })
     .from(invites)
+    .innerJoin(workspaces, eq(invites.orgId, workspaces.id))
     .where(and(eq(invites.token, token), eq(invites.status, "pending")));
 
   if (!invite || new Date(invite.expiresAt) < new Date()) return null;
@@ -28,5 +30,10 @@ export async function getValidSignupInvite(
     return null;
   }
 
-  return { token: invite.token, email: invite.email, target };
+  return {
+    token: invite.token,
+    email: invite.email,
+    target,
+    workspaceName: invite.workspaceName,
+  };
 }

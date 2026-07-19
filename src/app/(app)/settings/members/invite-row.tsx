@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  CopyIcon,
+  MoreHorizontalIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Feedback, type FeedbackKind } from "@/components/ui/feedback";
+import { IdentityMark } from "@/components/ui/identity-mark";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,9 +22,29 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Row,
+  RowActions,
+  RowContent,
+  RowDescription,
+  RowLeading,
+  RowTitle,
+} from "@/components/ui/row";
 import { revokeInvite, resendInvite } from "./actions";
+
+const WORKSPACE_ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Member",
+  guest: "Guest",
+};
 
 export function InviteRow({
   invite,
@@ -34,30 +62,36 @@ export function InviteRow({
   canManage: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
-    error?: boolean;
+    kind: Extract<FeedbackKind, "error" | "success">;
   } | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(invite.inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(invite.inviteUrl);
+      setFeedback({ message: "Invite link copied", kind: "success" });
+    } catch {
+      setFeedback({
+        message: "Copy failed. Select and copy the link manually.",
+        kind: "error",
+      });
+    }
+    setTimeout(() => setFeedback(null), 3000);
   }
 
   function handleResend() {
     startTransition(async () => {
       const result = await resendInvite(invite.id, context);
       if ("error" in result && result.error) {
-        setFeedback({ message: result.error, error: true });
+        setFeedback({ message: result.error, kind: "error" });
       } else if (result.emailSent) {
-        setFeedback({ message: "Invitation emailed" });
+        setFeedback({ message: "Invitation emailed", kind: "success" });
       } else {
         setFeedback({
           message: "Email could not be sent · link is still active",
-          error: true,
+          kind: "error",
         });
       }
       setTimeout(() => setFeedback(null), 3000);
@@ -74,92 +108,99 @@ export function InviteRow({
   const expired = new Date(invite.expiresAt) < new Date();
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{invite.email}</p>
-        <p className="text-xs text-muted-foreground">
+    <Row className="items-start py-3">
+      <RowLeading className="self-start pt-0.5">
+        <IdentityMark label={invite.email} kind="invite" />
+      </RowLeading>
+      <RowContent>
+        <RowTitle className="truncate">{invite.email}</RowTitle>
+        <RowDescription>
+          {WORKSPACE_ROLE_LABELS[invite.role] ?? invite.role}
+          {" · "}
           {expired ? (
-            <span className="text-destructive/70">Expired</span>
+            <span className="font-medium text-destructive">Expired</span>
           ) : (
             <>Expires {new Date(invite.expiresAt).toLocaleDateString("en-US")}</>
           )}
-          {invite.role === "admin" && (
-            <>
-              {" · "}
-              <span className="font-medium">Admin</span>
-            </>
-          )}
-        </p>
+        </RowDescription>
         {feedback && (
-          <p
-            aria-live="polite"
-            className={`mt-1 text-xs ${feedback.error ? "text-destructive" : "text-brand"}`}
-          >
-            {feedback.message}
-          </p>
+          <div className="mt-1.5">
+            <Feedback kind={feedback.kind} variant="inline">
+              {feedback.message}
+            </Feedback>
+          </div>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-1 sm:justify-end">
+      </RowContent>
+      <RowActions className="w-32 self-start">
         {canManage ? (
           <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={handleCopy}
-              className="text-muted-foreground"
-              disabled={isPending}
-            >
-              {copied ? "Copied!" : "Copy link"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={handleResend}
-              className="text-muted-foreground"
-              disabled={isPending}
-            >
-              {isPending ? "Sending…" : "Resend email"}
-            </Button>
-            <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
-              <AlertDialogTrigger
-                render={<Button type="button" variant="destructive" size="xs" />}
+            <Badge variant="outline" className="tracking-[0.04em]">
+              {expired ? "EXPIRED" : "PENDING"}
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`More actions for invite to ${invite.email}`}
+                  />
+                }
                 disabled={isPending}
               >
-                Revoke
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogMedia className="bg-destructive/10">
-                    <AlertTriangle className="size-5 text-destructive" />
-                  </AlertDialogMedia>
-                  <AlertDialogTitle>
-                    Revoke invite to {invite.email}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    They will need a new invite to join this workspace.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isPending}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={handleRevoke}
-                    disabled={isPending}
-                  >
-                    {isPending ? "Revoking…" : "Revoke"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                <MoreHorizontalIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={6}>
+                <DropdownMenuItem onClick={() => void handleCopy()}>
+                  <CopyIcon aria-hidden="true" />
+                  Copy invite link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleResend}>
+                  <RefreshCwIcon aria-hidden="true" />
+                  Resend email
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setRevokeOpen(true)}
+                >
+                  <Trash2Icon aria-hidden="true" />
+                  Revoke invite
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         ) : (
           <Badge variant="outline">Pending</Badge>
         )}
-      </div>
-    </div>
+      </RowActions>
+      <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertTriangle className="size-5 text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Revoke invite to {invite.email}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will need a new invite to join this workspace.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRevoke}
+              disabled={isPending}
+            >
+              {isPending ? "Revoking…" : "Revoke"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Row>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Feedback } from "@/components/ui/feedback";
+import { IdentityMark } from "@/components/ui/identity-mark";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,8 +16,21 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Row,
+  RowActions,
+  RowContent,
+  RowDescription,
+  RowLeading,
+  RowTitle,
+} from "@/components/ui/row";
 import {
   Select,
   SelectContent,
@@ -26,6 +41,17 @@ import {
 import { updateMemberRole, removeMember } from "./actions";
 
 const ROLE_LEVEL: Record<string, number> = { owner: 30, admin: 20, member: 10, guest: 5 };
+const FUNCTIONAL_ROLE_LABELS: Record<string, string> = {
+  pm: "PM",
+  designer: "Designer",
+  developer: "Developer",
+};
+const WORKSPACE_ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Member",
+  guest: "Guest",
+};
 
 export function MemberRow({
   member,
@@ -52,6 +78,10 @@ export function MemberRow({
     (callerRole === "owner" || callerRole === "admin") &&
     !isCurrentUser &&
     ROLE_LEVEL[member.role] < ROLE_LEVEL[callerRole];
+  const displayName = member.fullName ?? member.email ?? "Unknown member";
+  const functionalRole = member.profileRole
+    ? FUNCTIONAL_ROLE_LABELS[member.profileRole] ?? member.profileRole
+    : null;
 
   function handleRoleChange(newRole: string) {
     setError(null);
@@ -74,84 +104,116 @@ export function MemberRow({
   }
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4">
-      <div>
-        <p className="font-medium">
-          {member.fullName ?? "Unknown"}
+    <Row className="items-start py-3">
+      <RowLeading className="self-start pt-0.5">
+        <IdentityMark
+          label={member.fullName ?? member.email}
+          kind={member.fullName || member.email ? "person" : "unknown"}
+        />
+      </RowLeading>
+      <RowContent>
+        <RowTitle className="flex items-center gap-2">
+          <span className="truncate">{displayName}</span>
           {isCurrentUser && (
-            <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+            <span className="shrink-0 font-mono text-type-micro tracking-[0.04em] text-brand">
+              YOU
+            </span>
           )}
-        </p>
-        <p className="text-sm text-muted-foreground">{member.email}</p>
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        {member.profileRole && (
-          <Badge variant="outline" className="capitalize">
-            {member.profileRole}
-          </Badge>
+        </RowTitle>
+        <RowDescription className="truncate">
+          {functionalRole && <>{functionalRole} · </>}
+          {member.email ?? "Email unavailable"}
+        </RowDescription>
+        {error && (
+          <div className="mt-1.5">
+            <Feedback kind="error" variant="inline">
+              {error}
+            </Feedback>
+          </div>
         )}
+      </RowContent>
+      <RowActions className="w-32 self-start">
         {canManage ? (
-          <Select
-            value={member.role}
-            onValueChange={(v) => { if (v) handleRoleChange(v); }}
-            disabled={isPending}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-24 text-xs capitalize"
-              aria-label={`Workspace role for ${member.fullName ?? member.email ?? "member"}`}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="guest">Guest</SelectItem>
-              <SelectItem value="member">Member</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : (
-          <Badge variant="secondary" className="capitalize">
-            {member.role}
-          </Badge>
-        )}
-        {canManage && (
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogTrigger
-              render={<Button type="button" variant="destructive" size="xs" />}
+          <>
+            <Select
+              value={member.role}
+              onValueChange={(v) => { if (v) handleRoleChange(v); }}
               disabled={isPending}
             >
-              Remove
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogMedia className="bg-destructive/10">
-                  <AlertTriangle className="size-5 text-destructive" />
-                </AlertDialogMedia>
-                <AlertDialogTitle>
-                  Remove {member.fullName ?? "this member"}?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  They will no longer have access to this workspace.
-                  This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isPending}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
+              <SelectTrigger
+                size="sm"
+                className="w-[92px] text-type-meta"
+                aria-label={`Workspace role for ${displayName}`}
+              >
+                <SelectValue>
+                  {(value) => WORKSPACE_ROLE_LABELS[value] ?? value}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="guest">Guest</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`More actions for ${displayName}`}
+                  />
+                }
+                disabled={isPending}
+              >
+                <MoreHorizontalIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={6}>
+                <DropdownMenuItem
                   variant="destructive"
-                  onClick={handleRemove}
-                  disabled={isPending}
+                  onClick={() => setConfirmOpen(true)}
                 >
-                  {isPending ? "Removing…" : "Remove"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2Icon aria-hidden="true" />
+                  Remove member
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <Badge variant="outline">
+            {WORKSPACE_ROLE_LABELS[member.role] ?? member.role}
+          </Badge>
         )}
-      </div>
-    </div>
+      </RowActions>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertTriangle className="size-5 text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Remove {member.fullName ?? "this member"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will no longer have access to this workspace.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={isPending}
+            >
+              {isPending ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Row>
   );
 }

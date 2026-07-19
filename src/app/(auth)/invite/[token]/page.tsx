@@ -1,10 +1,28 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  Building2Icon,
+  CheckCircle2Icon,
+  Clock3Icon,
+  LockKeyholeIcon,
+  MailIcon,
+  UserPlusIcon,
+  UserRoundIcon,
+  UserRoundXIcon,
+  XCircleIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { db, invites, workspaces, profiles, workspaceMembers } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { AcceptInviteButton } from "./accept-button";
-import { Button } from "@/components/ui/button";
 import { logoutAndRedirect } from "@/app/(auth)/actions";
+import { AuthAction } from "@/components/auth/auth-action";
+import {
+  AuthHeading,
+  AuthKicker,
+  AuthShell,
+} from "@/components/auth/auth-shell";
 
 export default async function InviteAcceptPage({
   params,
@@ -30,7 +48,13 @@ export default async function InviteAcceptPage({
     .where(eq(invites.token, token));
 
   if (!invite) {
-    return <InviteMessage title="Invalid invite" message="This invite link is no longer valid." />;
+    return (
+      <InviteMessage
+        icon={XCircleIcon}
+        title="This invite is not valid"
+        message="The link may be incomplete or may no longer exist. Ask the person who invited you to send a new one."
+      />
+    );
   }
 
   let inviterName: string | null = null;
@@ -43,7 +67,17 @@ export default async function InviteAcceptPage({
   }
 
   if (invite.status === "revoked") {
-    return <InviteMessage title="Invite revoked" message="This invite is no longer valid." />;
+    return (
+      <InviteMessage
+        icon={XCircleIcon}
+        title="This invite was withdrawn"
+        message={
+          inviterName
+            ? `Ask ${inviterName} if you still need access to ${invite.orgName}.`
+            : `Ask the team at ${invite.orgName} if you still need access.`
+        }
+      />
+    );
   }
 
   const supabase = await createClient();
@@ -65,17 +99,26 @@ export default async function InviteAcceptPage({
         );
       if (membership) redirect("/");
     }
-    return <InviteMessage title="Already accepted" message="This invite has already been used." />;
+    return (
+      <InviteMessage
+        icon={CheckCircle2Icon}
+        title="This invite was already accepted"
+        message={`Sign in with ${invite.email} to open ${invite.orgName}.`}
+        linkHref={`/login?email=${encodeURIComponent(invite.email)}`}
+        linkText="Sign in to Lane"
+      />
+    );
   }
 
   if (invite.status === "expired" || new Date(invite.expiresAt) < new Date()) {
     return (
       <InviteMessage
-        title="Invite expired"
+        icon={Clock3Icon}
+        title="This invite has expired"
         message={
           inviterName
-            ? `This invite has expired. Ask ${inviterName} for a new one.`
-            : "This invite has expired. Ask your team lead for a new one."
+            ? `Ask ${inviterName} to send a fresh invite to ${invite.email}.`
+            : `Ask the team at ${invite.orgName} to send a fresh invite to ${invite.email}.`
         }
       />
     );
@@ -91,8 +134,10 @@ export default async function InviteAcceptPage({
   if (userEmail !== invite.email.toLowerCase()) {
     return (
       <InviteMessage
-        title="Email mismatch"
-        message={`This invite is for ${invite.email}. You're signed in as ${userEmail} — log out and use the invited email.`}
+        icon={UserRoundXIcon}
+        title="Use the invited account"
+        message={`This invite is for ${invite.email}, but you’re signed in as ${userEmail}. Sign out, then continue with the invited email.`}
+        feedback={`Invited to ${invite.orgName} as ${invite.email}`}
         logoutRedirectTo={`/invite/${token}`}
       />
     );
@@ -109,69 +154,156 @@ export default async function InviteAcceptPage({
     if (activeMembership.workspaceId === invite.orgId) redirect("/");
     return (
       <InviteMessage
-        title="Already in a workspace"
-        message="You're already in a workspace. Joining a second is coming soon."
+        icon={Building2Icon}
+        title="You already have a workspace"
+        message={`Your account cannot join ${invite.orgName} while it belongs to another workspace.`}
         linkHref="/"
-        linkText="Go to your workspace"
+        linkText="Return to your workspace"
       />
     );
   }
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Join {invite.orgName}
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          {inviterName ? `${inviterName} invited you` : "You’ve been invited"}{" "}
-          to join this workspace on Lane.
-        </p>
-        <div className="mt-6">
-          <AcceptInviteButton token={token} />
+    <AuthShell
+      headerAction={
+        <form action={logoutAndRedirect.bind(null, `/invite/${token}`)}>
+          <div className="flex items-center gap-2 text-type-label">
+            <span className="text-muted-foreground">Not your account?</span>
+            <button
+              type="submit"
+              className="rounded-sm font-medium text-foreground outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Switch
+            </button>
+          </div>
+        </form>
+      }
+    >
+      <div className="space-y-8">
+        <AuthHeading
+          title={`Join ${invite.orgName}`}
+          description="Review the details, then join when you’re ready."
+          kicker={<AuthKicker icon={UserPlusIcon}>WORKSPACE INVITE</AuthKicker>}
+        />
+
+        <div className="divide-y divide-border border-y">
+          {inviterName && (
+            <InviteDetail icon={UserRoundIcon} label="Invited by" value={inviterName} />
+          )}
+          <InviteDetail icon={MailIcon} label="Your account" value={invite.email} />
+          <InviteDetail
+            icon={Building2Icon}
+            label="Access"
+            value={
+              invite.role === "guest"
+                ? "Invited guest · Own Requests"
+                : "Member · Shared Requests board"
+            }
+          />
+        </div>
+
+        <div className="space-y-3">
+          <AcceptInviteButton token={token} workspaceName={invite.orgName} />
+          <form
+            action={logoutAndRedirect.bind(null, `/invite/${token}`)}
+            className="sm:hidden"
+          >
+            <AuthAction
+              type="submit"
+              kind="tertiary"
+            >
+              Use another account
+            </AuthAction>
+          </form>
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
 function InviteMessage({
+  icon,
   title,
   message,
+  feedback,
   linkHref,
   linkText,
   logoutRedirectTo,
 }: {
+  icon: LucideIcon;
   title: string;
   message: string;
+  feedback?: string;
   linkHref?: string;
   linkText?: string;
   logoutRedirectTo?: string;
 }) {
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 text-muted-foreground">{message}</p>
+    <AuthShell>
+      <div className="space-y-8">
+        <AuthHeading
+          title={title}
+          description={message}
+          kicker={<AuthKicker icon={icon}>WORKSPACE INVITE</AuthKicker>}
+        />
+        {feedback && (
+          <div className="border-y py-3.5 text-type-support text-muted-foreground">
+            {feedback}
+          </div>
+        )}
         {linkHref && linkText && (
-          <a
-            href={linkHref}
-            className="mt-4 inline-block text-sm font-medium underline underline-offset-4"
+          <AuthAction
+            nativeButton={false}
+            render={<Link href={linkHref} />}
           >
             {linkText}
-          </a>
+          </AuthAction>
         )}
         {logoutRedirectTo && (
-          <form
-            action={logoutAndRedirect.bind(null, logoutRedirectTo)}
-            className="mt-6"
-          >
-            <Button type="submit" className="w-full">
+          <form action={logoutAndRedirect.bind(null, logoutRedirectTo)}>
+            <AuthAction type="submit">
               Sign out and continue
-            </Button>
+            </AuthAction>
           </form>
         )}
+        {!linkHref && !logoutRedirectTo && (
+          <AuthAction
+            nativeButton={false}
+            render={<Link href="/login" />}
+            kind="secondary"
+          >
+            Back to sign in
+          </AuthAction>
+        )}
       </div>
+    </AuthShell>
+  );
+}
+
+function InviteDetail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-h-row-identity-touch items-center gap-3 py-3 sm:min-h-row-identity">
+      <span className="flex w-5 shrink-0 items-center justify-center">
+        <Icon aria-hidden="true" className="size-4 text-muted-foreground" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-type-meta font-medium text-muted-foreground">{label}</p>
+        <p className="truncate text-type-control text-foreground">{value}</p>
+      </div>
+      {label.toLowerCase().includes("account") && (
+        <LockKeyholeIcon
+          aria-hidden="true"
+          className="ml-auto size-3.5 shrink-0 text-muted-foreground"
+        />
+      )}
     </div>
   );
 }

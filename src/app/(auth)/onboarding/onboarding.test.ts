@@ -251,7 +251,7 @@ describe("completeOnboarding — function-via-Drizzle", () => {
   });
 });
 
-describe("onboarding — invite-first", () => {
+describe("onboarding — invited workspace", () => {
   beforeEach(() => {
     redirectMock.mockClear();
   });
@@ -284,16 +284,25 @@ describe("onboarding — invite-first", () => {
     );
 
     await expect(
-      acceptInvite("test-invite-token-accept")
+      acceptInvite("test-invite-token-accept", {
+        fullName: "Nikhil Invited",
+        role: "developer",
+      })
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith("/");
 
     const [profile] = await db
-      .select({ orgId: profiles.orgId })
+      .select({
+        orgId: profiles.orgId,
+        fullName: profiles.fullName,
+        role: profiles.role,
+      })
       .from(profiles)
       .where(eq(profiles.id, INVITE_USER));
     expect(profile.orgId).toBe(WORKSPACE_A);
+    expect(profile.fullName).toBe("Nikhil Invited");
+    expect(profile.role).toBe("developer");
 
     const [member] = await db
       .select({

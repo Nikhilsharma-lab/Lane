@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   requestSchema,
   editedProblemSchema,
+  problemFramingSchema,
   TITLE_MIN,
   TITLE_MAX,
   DESCRIPTION_MIN,
@@ -61,6 +62,20 @@ describe("requestSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("trims source fields before they reach AI or storage", () => {
+    const result = requestSchema.safeParse({
+      title: "  Export flow  ",
+      description: "  People lose their filters during export.  ",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(result.data).toEqual({
+      title: "Export flow",
+      description: "People lose their filters during export.",
+    });
+  });
 });
 
 describe("editedProblemSchema", () => {
@@ -70,8 +85,8 @@ describe("editedProblemSchema", () => {
     if (result.success) expect(result.data).toBeNull();
   });
 
-  it("in-range string passes through unchanged", () => {
-    const result = editedProblemSchema.safeParse("A reframed problem.");
+  it("in-range string is trimmed before save", () => {
+    const result = editedProblemSchema.safeParse("  A reframed problem.  ");
     expect(result.success).toBe(true);
     if (result.success) expect(result.data).toBe("A reframed problem.");
   });
@@ -81,7 +96,17 @@ describe("editedProblemSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe(
-        `Problem statement must be at most ${DESCRIPTION_MAX} characters`
+        `Problem framing must be at most ${DESCRIPTION_MAX} characters`
+      );
+    }
+  });
+
+  it("rejects empty solution and hybrid framing", () => {
+    const result = problemFramingSchema.safeParse("   ");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        `Problem framing needs at least ${DESCRIPTION_MIN} characters`
       );
     }
   });

@@ -167,6 +167,105 @@ export async function seedTestRequest(
   }
 }
 
+export async function seedRowIdentityFixtures(
+  userId: string
+): Promise<{ requestId: string }> {
+  const sql = postgres(process.env.DATABASE_URL!, {
+    ssl: "require",
+    max: 1,
+    idle_timeout: 5,
+  });
+
+  try {
+    const [profile] = await sql`
+      SELECT org_id FROM profiles WHERE id = ${userId}
+    `;
+    if (!profile?.org_id) throw new Error("[e2e] profile workspace not found");
+
+    await sql`
+      UPDATE profiles
+      SET email = 'row.identity@lane-e2e-test.local'
+      WHERE id = ${userId}
+    `;
+
+    await sql`
+      INSERT INTO invites (
+        org_id, email, token, role, status, invited_by, expires_at
+      )
+      VALUES (
+        ${profile.org_id},
+        'maya.longlastname@northstar-studio.example',
+        ${`e2e-row-${randomUUID()}`},
+        'admin',
+        'pending',
+        ${userId},
+        '2030-07-24T12:00:00.000Z'
+      ), (
+        ${profile.org_id},
+        'maya1.longlastname@northstar-studio.example',
+        ${`e2e-row-${randomUUID()}`},
+        'member',
+        'pending',
+        ${userId},
+        '2030-07-24T12:00:00.000Z'
+      ), (
+        ${profile.org_id},
+        'maya2.longlastname@northstar-studio.example',
+        ${`e2e-row-${randomUUID()}`},
+        'member',
+        'pending',
+        ${userId},
+        '2030-07-24T12:00:00.000Z'
+      )
+    `;
+
+    const requestId = randomUUID();
+    await sql`
+      INSERT INTO requests (
+        id, org_id, title, description, classification, reframed_problem,
+        status, created_by
+      )
+      VALUES (
+        ${requestId},
+        ${profile.org_id},
+        'Add a changelog panel to every workspace',
+        'Customers cannot tell why a Request changed after it was submitted.',
+        'solution',
+        'Help customers understand why their Requests changed',
+        'open',
+        ${userId}
+      )
+    `;
+
+    await sql`
+      INSERT INTO comments (request_id, author_id, body)
+      VALUES (
+        ${requestId},
+        ${userId},
+        'The problem statement is clear. Could we add one customer example before pickup?'
+      )
+    `;
+
+    await sql`
+      INSERT INTO notifications (
+        user_id, org_id, type, request_id, actor_id, read_at
+      )
+      VALUES (
+        ${userId},
+        ${profile.org_id},
+        'comment_added',
+        ${requestId},
+        ${userId},
+        NULL
+      )
+    `;
+
+    return { requestId };
+  } finally {
+    await sql.end();
+  }
+}
+
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
   const sql = postgres(process.env.DATABASE_URL!, {
     ssl: "require",

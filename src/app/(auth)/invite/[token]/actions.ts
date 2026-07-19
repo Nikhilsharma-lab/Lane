@@ -2,14 +2,30 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { db, invites, profiles, workspaceMembers } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { createNotification } from "@/lib/notify";
 
-export async function acceptInvite(token: string) {
+const onboardingProfileSchema = z.object({
+  fullName: z.string().trim().min(1).max(200),
+  role: z.enum(["pm", "designer", "developer"]),
+});
+
+export async function acceptInvite(
+  token: string,
+  onboardingProfile?: { fullName: string; role: string }
+) {
   if (!token || typeof token !== "string") {
     return { error: "Invalid invite token." };
+  }
+
+  const parsedProfile = onboardingProfile
+    ? onboardingProfileSchema.safeParse(onboardingProfile)
+    : null;
+  if (parsedProfile && !parsedProfile.success) {
+    return { error: "Choose your name and role before joining." };
   }
 
   const supabase = await createClient();
@@ -62,13 +78,24 @@ export async function acceptInvite(token: string) {
     .where(eq(profiles.id, user.id));
 
   const fullName =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+    parsedProfile?.data.fullName ||
+    user.user_metadata?.full_name ||
+    user.email?.split("@")[0] ||
+    "User";
 
   await db.transaction(async (tx) => {
     if (existingProfile) {
       await tx
         .update(profiles)
-        .set({ orgId: invite.orgId })
+        .set({
+          orgId: invite.orgId,
+          ...(parsedProfile?.success
+            ? {
+                fullName: parsedProfile.data.fullName,
+                role: parsedProfile.data.role,
+              }
+            : {}),
+        })
         .where(eq(profiles.id, user.id));
     } else {
       await tx.insert(profiles).values({
@@ -76,7 +103,7 @@ export async function acceptInvite(token: string) {
         orgId: invite.orgId,
         fullName,
         email: user.email || "",
-        role: "designer",
+        role: parsedProfile?.success ? parsedProfile.data.role : "designer",
       });
     }
 

@@ -21,7 +21,7 @@ Each item: what · why deferred · source review.
   f7df09e. Checkbox never ticked; ledger caught up 2026-07-12. — board design review.
 
 > **Removed** (2026-06-26 build-or-delete verdicts):
-> - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; evergreen is reserved for the gate.
+> - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; the former evergreen signal was reserved for the gate at the time, and the current interaction signature is raspberry.
 > - ~~Redundant per-card status badge~~ — DELETED. Section header already states the status.
 
 ## POST-GTM — optimistic UI on lifecycle transitions

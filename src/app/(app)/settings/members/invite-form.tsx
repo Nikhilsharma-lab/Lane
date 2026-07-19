@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Feedback } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -75,7 +77,7 @@ export function InviteForm({
           onValueChange={(v) => { if (v) setRole(v as "member" | "admin" | "guest"); }}
           disabled={pending}
         >
-          <SelectTrigger className="w-full text-sm sm:w-28" aria-label="Workspace role">
+          <SelectTrigger className="w-full sm:w-28" aria-label="Workspace role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -89,30 +91,37 @@ export function InviteForm({
         </Button>
       </form>
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <Feedback kind="error" variant="inline">
+          {error}
+        </Feedback>
+      )}
 
       {inviteUrl && (
-        <div className="rounded-lg border bg-muted/50 p-3" aria-live="polite">
-          <p className="mb-2 text-sm font-medium">
-            {emailSent
-              ? refreshed
-                ? "Invitation emailed again"
-                : "Invitation emailed"
-              : "Invite created; email could not be sent"}
-          </p>
-          <p className="mb-2 text-xs text-muted-foreground">
+        <div className="space-y-2">
+          <Feedback
+            kind={emailSent ? "success" : "warning"}
+            title={
+              emailSent
+                ? refreshed
+                  ? "Invitation emailed again"
+                  : "Invitation emailed"
+                : "Invite created; email could not be sent"
+            }
+          >
             {emailSent
               ? "They can join from the email or this link."
               : "The invitation is still ready. Share this link instead."}
-          </p>
+          </Feedback>
           <div className="flex min-w-0 gap-2">
             <Input
               aria-label="Invite link"
               value={inviteUrl}
               readOnly
-              className="min-w-0 flex-1 bg-background text-xs"
+              className="min-w-0 flex-1 bg-background font-mono text-type-micro"
             />
-            <Button size="sm" variant="outline" onClick={handleCopy}>
+            <Button type="button" size="sm" variant="outline" onClick={handleCopy}>
+              <CopyIcon aria-hidden="true" data-icon="inline-start" />
               {copied ? "Copied!" : "Copy"}
             </Button>
           </div>

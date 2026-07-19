@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AuthAction } from "@/components/auth/auth-action";
+import { Feedback } from "@/components/ui/feedback";
 import { acceptInvite } from "./actions";
 
-export function AcceptInviteButton({ token }: { token: string }) {
+export function AcceptInviteButton({
+  token,
+  workspaceName,
+}: {
+  token: string;
+  workspaceName: string;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,11 +26,19 @@ export function AcceptInviteButton({ token }: { token: string }) {
   }
 
   return (
-    <div>
-      {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      <Button onClick={handleAccept} disabled={pending} className="w-full">
-        {pending ? "Joining..." : "Accept invite"}
-      </Button>
+    <div className="space-y-3" aria-busy={pending}>
+      {error && (
+        <Feedback kind="error" variant="inline">
+          {error}
+        </Feedback>
+      )}
+      <AuthAction
+        onClick={handleAccept}
+        loading={pending}
+        loadingLabel="Joining workspace…"
+      >
+        Join {workspaceName}
+      </AuthAction>
     </div>
   );
 }

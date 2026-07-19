@@ -1,21 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Feedback } from "@/components/ui/feedback";
+import {
+  requestListHref,
+  type RequestStatusFilter,
+} from "@/lib/request-workspace";
+import { cn } from "@/lib/utils";
 import { pickUpRequest, markDone } from "./actions";
 
 export function LifecycleButtons({
   requestId,
   status,
   context,
+  filter,
+  fullWidth = false,
 }: {
   requestId: string;
   status: string;
-  context: { userId: string; orgId: string };
+  context: { orgId: string };
+  filter: RequestStatusFilter;
+  fullWidth?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [movedTo, setMovedTo] = useState<
+    "in_progress" | "done" | null
+  >(null);
   const router = useRouter();
 
   async function handlePickUp() {
@@ -26,6 +40,7 @@ export function LifecycleButtons({
     if ("error" in result && result.error) {
       setError(result.error);
     } else {
+      setMovedTo("in_progress");
       router.refresh();
     }
   }
@@ -38,23 +53,55 @@ export function LifecycleButtons({
     if ("error" in result && result.error) {
       setError(result.error);
     } else {
+      setMovedTo("done");
       router.refresh();
     }
   }
 
+  if (status === "done" && !error && !movedTo) return null;
+
   return (
-    <div className="flex items-center gap-2">
-      {error && <p className="text-sm text-destructive">{error}</p>}
+    <div className={cn("flex flex-col items-start gap-2", fullWidth && "w-full")}>
+      {error && (
+        <Feedback kind="error" variant="inline">
+          {error}
+        </Feedback>
+      )}
+      {movedTo && (
+        <Feedback kind="success" variant="inline">
+          Moved to {movedTo === "done" ? "Done" : "In Progress"}.{" "}
+          {filter !== "all" && filter !== movedTo && (
+            <Link
+              href={requestListHref(movedTo)}
+              className="font-semibold underline underline-offset-4"
+            >
+              Show that list
+            </Link>
+          )}
+        </Feedback>
+      )}
 
       {status === "open" && (
-        <Button size="sm" onClick={handlePickUp} disabled={pending}>
-          {pending ? "Picking up..." : "Pick up"}
+        <Button
+          size="sm"
+          onClick={handlePickUp}
+          disabled={pending}
+          aria-busy={pending}
+          className={cn(fullWidth && "w-full")}
+        >
+          {pending ? "Picking up…" : "Pick up"}
         </Button>
       )}
 
       {status === "in_progress" && (
-        <Button size="sm" onClick={handleMarkDone} disabled={pending}>
-          {pending ? "Completing..." : "Mark done"}
+        <Button
+          size="sm"
+          onClick={handleMarkDone}
+          disabled={pending}
+          aria-busy={pending}
+          className={cn(fullWidth && "w-full")}
+        >
+          {pending ? "Completing…" : "Mark done"}
         </Button>
       )}
     </div>

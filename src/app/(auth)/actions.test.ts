@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
   resend: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
+  getUser: vi.fn(),
+  updateUser: vi.fn(),
   signOut: vi.fn(),
   createUser: vi.fn(),
   redirect: vi.fn((target: string) => {
@@ -21,6 +24,9 @@ vi.mock("@/lib/supabase/server", () => ({
       signUp: mocks.signUp,
       signInWithPassword: mocks.signInWithPassword,
       resend: mocks.resend,
+      resetPasswordForEmail: mocks.resetPasswordForEmail,
+      getUser: mocks.getUser,
+      updateUser: mocks.updateUser,
       signOut: mocks.signOut,
     },
   })),
@@ -33,8 +39,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 import {
   logoutAndRedirect,
+  requestPasswordReset,
   resendSignupConfirmation,
   signup,
+  updatePassword,
 } from "./actions";
 
 const ORG_ID = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
@@ -81,6 +89,12 @@ beforeEach(() => {
   mocks.signUp.mockResolvedValue({ data: { session: null }, error: null });
   mocks.signInWithPassword.mockResolvedValue({ data: {}, error: null });
   mocks.resend.mockResolvedValue({ data: {}, error: null });
+  mocks.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+  mocks.getUser.mockResolvedValue({
+    data: { user: { id: "recovering-user" } },
+    error: null,
+  });
+  mocks.updateUser.mockResolvedValue({ data: { user: {} }, error: null });
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.createUser.mockResolvedValue({ data: { user: { id: "new-user" } }, error: null });
 });
@@ -171,6 +185,100 @@ describe("resendSignupConfirmation", () => {
         ),
       },
     });
+  });
+});
+
+describe("password recovery", () => {
+  it("sends the reset email back through the secure auth callback", async () => {
+    const form = new FormData();
+    form.set("email", " Person@Test.Local ");
+
+    const result = await requestPasswordReset(form);
+
+    expect(result).toEqual({
+      success: true,
+      email: "person@test.local",
+    });
+    expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith(
+      "person@test.local",
+      {
+        redirectTo: expect.stringContaining(
+          "/auth/callback?next=%2Freset-password"
+        ),
+      }
+    );
+  });
+
+  it("returns the same public response when the provider rejects a request", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mocks.resetPasswordForEmail.mockResolvedValue({
+      data: {},
+      error: { code: "over_email_send_rate_limit", status: 429 },
+    });
+    const form = new FormData();
+    form.set("email", "person@test.local");
+
+    const result = await requestPasswordReset(form);
+
+    expect(result).toEqual({
+      success: true,
+      email: "person@test.local",
+    });
+    expect(warning).toHaveBeenCalledWith(
+      "Password reset email request failed",
+      { code: "over_email_send_rate_limit", status: 429 }
+    );
+    warning.mockRestore();
+  });
+
+  it("validates the email before calling the provider", async () => {
+    const form = new FormData();
+    form.set("email", "not-an-email");
+
+    const result = await requestPasswordReset(form);
+
+    expect(result).toEqual({ error: "Please enter a valid email address" });
+    expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects passwords that do not match", async () => {
+    const form = new FormData();
+    form.set("password", "LongEnough1!");
+    form.set("confirmPassword", "Different1!");
+
+    const result = await updatePassword(form);
+
+    expect(result).toEqual({ error: "Passwords do not match" });
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid or expired recovery session", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    const form = new FormData();
+    form.set("password", "LongEnough1!");
+    form.set("confirmPassword", "LongEnough1!");
+
+    const result = await updatePassword(form);
+
+    expect(result).toEqual({
+      error: "This reset link is invalid or has expired. Request a new one.",
+    });
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("updates the password, signs out, and returns to sign in", async () => {
+    const form = new FormData();
+    form.set("password", "LongEnough1!");
+    form.set("confirmPassword", "LongEnough1!");
+
+    await expect(updatePassword(form)).rejects.toThrow(
+      "REDIRECT:/login?reset=success"
+    );
+
+    expect(mocks.updateUser).toHaveBeenCalledWith({
+      password: "LongEnough1!",
+    });
+    expect(mocks.signOut).toHaveBeenCalledOnce();
   });
 });
 

@@ -12,7 +12,7 @@ export default async function AppLayout({
   if (result.needsOnboarding) redirect("/onboarding");
 
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-dvh flex-col xl:h-screen xl:flex-row">
       <Sidebar
         workspaceName={result.workspaceName}
         fullName={result.fullName}
@@ -20,7 +20,7 @@ export default async function AppLayout({
         role={result.role}
         orgId={result.orgId}
       />
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {children}
       </div>
     </div>
