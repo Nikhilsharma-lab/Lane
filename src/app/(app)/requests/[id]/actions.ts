@@ -83,7 +83,11 @@ export async function markDone(
 }
 
 const commentSchema = z.object({
-  body: z.string().min(1, "Comment cannot be empty").max(5000),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Comment cannot be empty")
+    .max(5000, "Comment must be 5,000 characters or fewer"),
 });
 
 export async function addComment(
