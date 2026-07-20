@@ -139,6 +139,26 @@ export async function getProfileRole(userId: string): Promise<string | null> {
   }
 }
 
+export async function getTestWorkspaceId(
+  userId: string
+): Promise<string> {
+  const sql = postgres(process.env.DATABASE_URL!, {
+    ssl: "require",
+    max: 1,
+    idle_timeout: 5,
+  });
+
+  try {
+    const [row] = await sql`
+      SELECT org_id FROM profiles WHERE id = ${userId}
+    `;
+    if (!row?.org_id) throw new Error("[e2e] profile workspace not found");
+    return row.org_id;
+  } finally {
+    await sql.end();
+  }
+}
+
 export async function seedTestRequest(
   userId: string,
   title: string

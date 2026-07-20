@@ -72,10 +72,12 @@ Each item: what · why deferred · source review.
   so local intake/e2e can't run without it.~~ DONE at the 2026-07-11 env-fill sitting: 64-hex value
   generated (`openssl rand -hex 32`) and written; FILLED re-confirmed by name-only check 2026-07-12.
   — HMAC close-out recon, 2026-07-01; done 2026-07-11.
-- **OPERATIONAL — verify `TRIAGE_TOKEN_SECRET` is set in Vercel Production + Preview.** Commit 5819295's
+- ~~**OPERATIONAL — verify `TRIAGE_TOKEN_SECRET` is set in Vercel Production + Preview.** Commit 5819295's
   body ordered it set on 2026-06-18, but the repo cannot confirm dashboard state (INFERENCE only). Missing
   in prod = triage throws on the first real request post-deploy. Trigger: pre-launch dashboard-verification
-  pass (alongside Vercel Pro / prod-staging split, Cluster 3). — HMAC close-out recon, 2026-07-01.
+  pass (alongside Vercel Pro / prod-staging split, Cluster 3).~~ VERIFIED 2026-07-20: Nikhil confirmed the
+  dedicated secret is present in both Vercel Production and Preview. — HMAC close-out recon, 2026-07-01;
+  closed 2026-07-20.
 - ~~**Duplicate client/server validation** can drift. Point the client form at the same zod schema.~~
   RESOLVED: shared schema `src/lib/request-schema.ts` (zod only, client-importable) is now the single
   source for the intake form — server actions import it (`intake/actions.ts`), the client form wires it

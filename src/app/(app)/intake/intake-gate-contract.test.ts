@@ -11,6 +11,7 @@ const FORM = source("src/app/(app)/intake/intake-form.tsx");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
 const TRIAGE = source("src/lib/ai/triage.ts");
 const TOKEN = source("src/lib/triage-token.ts");
+const DRAFT = source("src/lib/intake-draft.ts");
 
 describe("Intake Gate contract", () => {
   it("keeps the approved write, review, confirm, and deep-link journey", () => {
@@ -74,5 +75,20 @@ describe("Intake Gate contract", () => {
     expect(ACTIONS).toContain('"review_expired"');
     expect(ACTIONS).toContain('"save_failed"');
     expect(ACTIONS).toContain('"session_expired"');
+  });
+
+  it("restores session-scoped drafts without trusting them as identity", () => {
+    expect(PAGE).toContain("draftOwnerId={result.userId}");
+    expect(PAGE).toContain("context={{ orgId: result.orgId }}");
+    expect(FORM).toContain("window.sessionStorage");
+    expect(FORM).toContain("readIntakeDraft");
+    expect(FORM).toContain("writeIntakeDraft");
+    expect(FORM).toContain("clearIntakeDraft");
+    expect(FORM).toContain('href="/login?next=%2Fintake"');
+    expect(FORM).toContain("Your confirmed framing is back.");
+    expect(FORM).not.toContain("redirectTo=/intake");
+    expect(DRAFT).toContain("userId: string, orgId: string");
+    expect(DRAFT).toContain("24 * 60 * 60 * 1000");
+    expect(DRAFT).not.toContain("localStorage");
   });
 });

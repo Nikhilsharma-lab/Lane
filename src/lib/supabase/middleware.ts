@@ -1,5 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
+
+function postAuthTarget(value: string | null): string {
+  const target = safeRedirectPath(value);
+  const pathname = new URL(target, "https://lane.invalid").pathname;
+
+  if (pathname === "/login" || pathname.startsWith("/signup")) {
+    return "/";
+  }
+
+  return target;
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -48,16 +60,21 @@ export async function updateSession(request: NextRequest) {
   // Signed-out user hitting a protected route → redirect to login
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone();
+    const requestedPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     url.pathname = "/login";
+    url.search = "";
+    if (requestedPath !== "/") {
+      url.searchParams.set("next", requestedPath);
+    }
     return NextResponse.redirect(url);
   }
 
-  // Signed-in user on login/signup → redirect to home
+  // Signed-in user on login/signup → continue safely or return home.
   // (but NOT invite or onboarding — those need auth + no profile)
   if (user && isLoginSignupPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(
+      new URL(postAuthTarget(request.nextUrl.searchParams.get("next")), request.url)
+    );
   }
 
   return supabaseResponse;

@@ -9,7 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CircleCheckIcon,
@@ -35,6 +35,12 @@ import {
   typographyVariants,
 } from "@/components/ui/typography";
 import type { TriageResult } from "@/lib/ai/triage";
+import {
+  clearIntakeDraft,
+  intakeDraftScope,
+  readIntakeDraft,
+  writeIntakeDraft,
+} from "@/lib/intake-draft";
 import {
   DESCRIPTION_MAX,
   problemFramingSchema,
@@ -122,8 +128,10 @@ function ClassificationTag({
 
 export default function IntakeForm({
   context,
+  draftOwnerId,
 }: {
   context: { orgId: string };
+  draftOwnerId: string;
 }) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("form");
@@ -134,14 +142,21 @@ export default function IntakeForm({
   const [problemError, setProblemError] = useState<string | null>(null);
   const [failure, setFailure] = useState<IntakeFailure | null>(null);
   const [showSlowCue, setShowSlowCue] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
 
   const operationInFlight = useRef(false);
+  const draftCleared = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const problemRef = useRef<HTMLTextAreaElement>(null);
+  const draftScope = intakeDraftScope(draftOwnerId, context.orgId);
 
   const {
+    control,
     register,
     handleSubmit,
+    getValues,
+    reset,
     setError,
     setFocus,
     formState: { errors },
@@ -153,6 +168,8 @@ export default function IntakeForm({
   const checking = stage === "checking";
   const creating = stage === "creating";
   const view = stage === "form" || checking ? "form" : "review";
+  const watchedTitle = useWatch({ control, name: "title" });
+  const watchedDescription = useWatch({ control, name: "description" });
 
   const isMac = useSyncExternalStore(
     useCallback(() => () => {}, []),
@@ -163,6 +180,67 @@ export default function IntakeForm({
     () => false
   );
   const modKey = isMac ? "⌘" : "Ctrl";
+
+  useEffect(() => {
+    const draft = readIntakeDraft(window.sessionStorage, draftScope);
+    let focusTimer: number | undefined;
+    const restoreTimer = window.setTimeout(() => {
+      if (draft) {
+        reset(draft.source);
+        setSource(draft.source);
+        setFailure(null);
+        setProblemError(null);
+        setRestoredDraft(true);
+
+        if (draft.review) {
+          setTriage(draft.review.triage);
+          setToken(draft.review.token);
+          setEditedProblem(draft.review.editedProblem);
+          setStage("review");
+        } else {
+          setStage("form");
+        }
+
+        focusTimer = window.setTimeout(() => headingRef.current?.focus(), 0);
+      }
+
+      setDraftReady(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(restoreTimer);
+      if (focusTimer !== undefined) window.clearTimeout(focusTimer);
+    };
+  }, [draftScope, reset]);
+
+  useEffect(() => {
+    if (!draftReady || draftCleared.current) return;
+
+    const review =
+      view === "review" && triage && token
+        ? { triage, token, editedProblem }
+        : null;
+    writeIntakeDraft(window.sessionStorage, draftScope, {
+      source:
+        review && source
+          ? source
+          : {
+              title: watchedTitle ?? "",
+              description: watchedDescription ?? "",
+            },
+      review,
+    });
+  }, [
+    draftReady,
+    draftScope,
+    editedProblem,
+    source,
+    token,
+    triage,
+    view,
+    watchedDescription,
+    watchedTitle,
+  ]);
 
   const previousView = useRef(view);
   const firstRender = useRef(true);
@@ -187,7 +265,9 @@ export default function IntakeForm({
   }, [checking]);
 
   const liveStatus =
-    stage === "checking"
+    restoredDraft && !checking && !creating
+      ? "Your unsaved Request was restored after signing in."
+      : stage === "checking"
       ? "Checking the Request framing."
       : stage === "review" && triage
         ? `${classificationPresentation[triage.classification].label} result ready to review.`
@@ -198,6 +278,7 @@ export default function IntakeForm({
   async function checkFraming(data: RequestInput) {
     if (operationInFlight.current) return;
     operationInFlight.current = true;
+    setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
     setSource(data);
@@ -238,6 +319,7 @@ export default function IntakeForm({
 
   function onEditOriginal() {
     if (operationInFlight.current) return;
+    setRestoredDraft(false);
     setStage("form");
     setTriage(null);
     setToken(null);
@@ -261,6 +343,7 @@ export default function IntakeForm({
     }
 
     operationInFlight.current = true;
+    setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
     setStage("creating");
@@ -292,6 +375,8 @@ export default function IntakeForm({
       toast.success("Request created", {
         description: "Open and ready to be picked up.",
       });
+      draftCleared.current = true;
+      clearIntakeDraft(window.sessionStorage, draftScope);
       router.push(`/requests/${result.requestId}`);
     } catch {
       setFailure({
@@ -340,6 +425,18 @@ export default function IntakeForm({
     }
   }
 
+  function preserveDraftForSignIn() {
+    const review =
+      view === "review" && triage && token
+        ? { triage, token, editedProblem }
+        : null;
+
+    writeIntakeDraft(window.sessionStorage, draftScope, {
+      source: review && source ? source : getValues(),
+      review,
+    });
+  }
+
   return (
     <main
       className={cn(
@@ -372,6 +469,12 @@ export default function IntakeForm({
               Describe the need in your own words. Lane checks the framing
               before anything is saved.
             </Typography>
+            {restoredDraft && (
+              <Feedback kind="success" variant="inline">
+                Your unsaved Request is back. Nothing was submitted while you
+                signed in.
+              </Feedback>
+            )}
           </header>
 
           <form
@@ -434,7 +537,8 @@ export default function IntakeForm({
                   <>
                     {" "}
                     <Link
-                      href="/login?redirectTo=/intake"
+                      href="/login?next=%2Fintake"
+                      onClick={preserveDraftForSignIn}
                       className="font-medium text-foreground underline underline-offset-4"
                     >
                       Sign in again
@@ -534,6 +638,12 @@ export default function IntakeForm({
               >
                 {classificationPresentation[triage.classification].description}
               </Typography>
+              {restoredDraft && (
+                <Feedback kind="success" variant="inline">
+                  Your confirmed framing is back. Nothing was submitted while
+                  you signed in.
+                </Feedback>
+              )}
             </div>
           </header>
 
@@ -670,7 +780,8 @@ export default function IntakeForm({
                 <>
                   {" "}
                   <Link
-                    href="/login?redirectTo=/intake"
+                    href="/login?next=%2Fintake"
+                    onClick={preserveDraftForSignIn}
                     className="font-medium text-foreground underline underline-offset-4"
                   >
                     Sign in again
