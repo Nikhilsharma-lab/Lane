@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MailCheckIcon } from "lucide-react";
 import { resendSignupConfirmation } from "../../actions";
 import { AuthAction } from "@/components/auth/auth-action";
-import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
+import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
 import { AuthHeading, AuthKicker } from "@/components/auth/auth-shell";
 import { Feedback, type FeedbackKind } from "@/components/ui/feedback";
 

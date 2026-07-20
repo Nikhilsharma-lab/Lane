@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments } from "@/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { createNotification, createNotifications } from "@/lib/notify";
 
@@ -25,13 +25,31 @@ export async function pickUpRequest(
 
   if (!req) return { error: "Request not found" };
   if (req.orgId !== auth.orgId) return { error: "Not found" };
-  if (req.status !== "open")
-    return { error: "Only open requests can be picked up" };
+  if (req.status !== "open") {
+    return {
+      error:
+        "This Request is no longer Open. Refresh to see its current state.",
+    };
+  }
 
-  await db
+  const [updated] = await db
     .update(requests)
     .set({ status: "in_progress", assignedTo: auth.userId })
-    .where(eq(requests.id, requestId));
+    .where(
+      and(
+        eq(requests.id, requestId),
+        eq(requests.orgId, auth.orgId),
+        eq(requests.status, "open")
+      )
+    )
+    .returning({ id: requests.id });
+
+  if (!updated) {
+    return {
+      error:
+        "This Request changed before Lane could pick it up. Refresh and try again.",
+    };
+  }
 
   await createNotification({
     userId: req.createdBy,
@@ -61,13 +79,31 @@ export async function markDone(
 
   if (!req) return { error: "Request not found" };
   if (req.orgId !== auth.orgId) return { error: "Not found" };
-  if (req.status !== "in_progress")
-    return { error: "Only in-progress requests can be marked done" };
+  if (req.status !== "in_progress") {
+    return {
+      error:
+        "This Request is no longer In Progress. Refresh to see its current state.",
+    };
+  }
 
-  await db
+  const [updated] = await db
     .update(requests)
     .set({ status: "done" })
-    .where(eq(requests.id, requestId));
+    .where(
+      and(
+        eq(requests.id, requestId),
+        eq(requests.orgId, auth.orgId),
+        eq(requests.status, "in_progress")
+      )
+    )
+    .returning({ id: requests.id });
+
+  if (!updated) {
+    return {
+      error:
+        "This Request changed before Lane could mark it Done. Refresh and try again.",
+    };
+  }
 
   await createNotification({
     userId: req.createdBy,

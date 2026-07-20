@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Feedback } from "@/components/ui/feedback";
+import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
 import {
   requestListHref,
   type RequestStatusFilter,
@@ -25,43 +27,65 @@ export function LifecycleButtons({
   filter: RequestStatusFilter;
   fullWidth?: boolean;
 }) {
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useRecoverableAction();
   const [error, setError] = useState<string | null>(null);
   const [movedTo, setMovedTo] = useState<
     "in_progress" | "done" | null
   >(null);
   const router = useRouter();
 
-  async function handlePickUp() {
-    setPending(true);
+  async function runLifecycleAction(
+    action: () => Promise<{ error?: string; success?: boolean }>,
+    target: "in_progress" | "done",
+    networkError: string
+  ) {
     setError(null);
-    const result = await pickUpRequest(requestId, context);
-    setPending(false);
+    setMovedTo(null);
+
+    const outcome = await run(action);
+    if (outcome.status === "failed") {
+      setError(networkError);
+      router.refresh();
+      return;
+    }
+    if (outcome.status !== "completed") return;
+
+    const result = outcome.value;
     if ("error" in result && result.error) {
       setError(result.error);
+      router.refresh();
     } else {
-      setMovedTo("in_progress");
+      setMovedTo(target);
       router.refresh();
     }
   }
 
+  async function handlePickUp() {
+    await runLifecycleAction(
+      () => pickUpRequest(requestId, context),
+      "in_progress",
+      "Couldn’t confirm pickup. Refreshing now—try again if this Request remains Open."
+    );
+  }
+
   async function handleMarkDone() {
-    setPending(true);
-    setError(null);
-    const result = await markDone(requestId, context);
-    setPending(false);
-    if ("error" in result && result.error) {
-      setError(result.error);
-    } else {
-      setMovedTo("done");
-      router.refresh();
-    }
+    await runLifecycleAction(
+      () => markDone(requestId, context),
+      "done",
+      "Couldn’t confirm completion. Refreshing now—try again if this Request remains In Progress."
+    );
   }
 
   if (status === "done" && !error && !movedTo) return null;
 
   return (
-    <div className={cn("flex flex-col items-start gap-2", fullWidth && "w-full")}>
+    <div
+      data-slot="request-lifecycle-actions"
+      className={cn(
+        "flex flex-col gap-2",
+        fullWidth ? "w-full items-start" : "max-w-[320px] items-end"
+      )}
+    >
       {error && (
         <Feedback kind="error" variant="inline">
           {error}
@@ -86,9 +110,17 @@ export function LifecycleButtons({
           size="sm"
           onClick={handlePickUp}
           disabled={pending}
-          aria-busy={pending}
+          aria-busy={pending || undefined}
           className={cn(fullWidth && "w-full")}
         >
+          {pending && (
+            <LoaderCircleIcon
+              aria-hidden="true"
+              data-icon="inline-start"
+              className="animate-spin motion-reduce:animate-none"
+              strokeWidth={1.8}
+            />
+          )}
           {pending ? "Picking up…" : "Pick up"}
         </Button>
       )}
@@ -98,9 +130,17 @@ export function LifecycleButtons({
           size="sm"
           onClick={handleMarkDone}
           disabled={pending}
-          aria-busy={pending}
+          aria-busy={pending || undefined}
           className={cn(fullWidth && "w-full")}
         >
+          {pending && (
+            <LoaderCircleIcon
+              aria-hidden="true"
+              data-icon="inline-start"
+              className="animate-spin motion-reduce:animate-none"
+              strokeWidth={1.8}
+            />
+          )}
           {pending ? "Completing…" : "Mark done"}
         </Button>
       )}

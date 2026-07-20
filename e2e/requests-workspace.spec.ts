@@ -142,6 +142,16 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
         ).toBeVisible()
       }
 
+      const visibleNavigation = page.locator(
+        '[data-slot="global-navigation"]:visible, [data-slot="mobile-navigation"]:visible'
+      )
+      await expect(
+        visibleNavigation
+          .locator("svg.lucide-bell")
+          .locator("..")
+          .getByText("1", { exact: true })
+      ).toBeVisible()
+
       await expect(workspace).toHaveScreenshot(
         `requests-workspace-${surface.slug}.png`,
         { animations: "disabled" }

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const RECOVERY_HOOK = join(
   process.cwd(),
-  "src/components/auth/use-recoverable-action.ts"
+  "src/components/ui/use-recoverable-action.ts"
 );
 
 const FIRST_RUN_ACTION_SOURCES = [
@@ -37,7 +37,7 @@ describe("First-run action recovery contract", () => {
     for (const path of FIRST_RUN_ACTION_SOURCES) {
       const source = readSource(path);
       expect(source, path).toContain(
-        'from "@/components/auth/use-recoverable-action"'
+        'from "@/components/ui/use-recoverable-action"'
       );
       expect(source, path).toContain("useRecoverableAction()");
     }

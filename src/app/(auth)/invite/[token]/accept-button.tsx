@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AuthAction } from "@/components/auth/auth-action";
-import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
+import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
 import { Feedback } from "@/components/ui/feedback";
 import { acceptInvite } from "./actions";
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { LockKeyholeIcon } from "lucide-react";
 import { signup } from "../actions";
 import { AuthAction } from "@/components/auth/auth-action";
-import { useRecoverableAction } from "@/components/auth/use-recoverable-action";
+import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
 import {
   AuthInputField,
   AuthPasswordField,
