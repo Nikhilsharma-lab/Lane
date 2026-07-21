@@ -30,6 +30,18 @@ const SCOPE = intakeDraftScope(
   "00c80f80-693d-49c1-a9dd-dff0cebd660b"
 );
 
+function source(title: string, description: string) {
+  return {
+    title,
+    description,
+    affectedPeople: "",
+    desiredChange: "",
+    observedEvidence: "",
+    uncertainty: "",
+    usefulLink: "",
+  };
+}
+
 describe("Intake draft recovery", () => {
   it("round-trips an incomplete form without requiring valid submission data", () => {
     const storage = memoryStorage();
@@ -38,16 +50,16 @@ describe("Intake draft recovery", () => {
       storage,
       SCOPE,
       {
-        source: { title: "No", description: "Still shaping this" },
+        source: source("No", "Still shaping this"),
         review: null,
       },
       NOW
     );
 
     expect(readIntakeDraft(storage, SCOPE, NOW)).toEqual({
-      version: 1,
+      version: 2,
       savedAt: NOW,
-      source: { title: "No", description: "Still shaping this" },
+      source: source("No", "Still shaping this"),
       review: null,
     });
   });
@@ -70,11 +82,10 @@ describe("Intake draft recovery", () => {
       storage,
       SCOPE,
       {
-        source: {
-          title: "Show Request changes",
-          description:
-            "Customers need the original intent and later framing kept together.",
-        },
+        source: source(
+          "Show Request changes",
+          "Customers need the original intent and later framing kept together."
+        ),
         review,
       },
       NOW
@@ -92,7 +103,7 @@ describe("Intake draft recovery", () => {
         storage,
         SCOPE,
         {
-          source: { title: " ", description: "" },
+          source: source(" ", ""),
           review: null,
         },
         NOW
@@ -104,7 +115,7 @@ describe("Intake draft recovery", () => {
       storage,
       SCOPE,
       {
-        source: { title: "Expired", description: "Old draft" },
+        source: source("Expired", "Old draft"),
         review: null,
       },
       NOW - 24 * 60 * 60 * 1000 - 1
@@ -114,9 +125,9 @@ describe("Intake draft recovery", () => {
     storage.setItem(
       key,
       JSON.stringify({
-        version: 1,
+        version: 2,
         savedAt: NOW + 60_001,
-        source: { title: "Future", description: "Invalid clock" },
+        source: source("Future", "Invalid clock"),
         review: null,
       })
     );
@@ -137,7 +148,7 @@ describe("Intake draft recovery", () => {
       storage,
       SCOPE,
       {
-        source: { title: "Private draft", description: "Only for this person" },
+        source: source("Private draft", "Only for this person"),
         review: null,
       },
       NOW

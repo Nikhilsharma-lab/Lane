@@ -15,14 +15,16 @@ const DRAFT = source("src/lib/intake-draft.ts");
 
 describe("Intake Gate contract", () => {
   it("keeps the approved write, review, confirm, and deep-link journey", () => {
-    expect(FORM).toContain("Review framing");
-    expect(FORM).toContain("Nothing is saved until you confirm.");
+    expect(FORM).toContain("Tell us what’s happening.");
+    expect(FORM).toContain("Add any details that will help.");
+    expect(FORM).toContain("Check your Request.");
+    expect(FORM).toContain("Check Request");
     expect(FORM).toContain("The problem is clear");
     expect(FORM).toContain("Let’s make the problem clear");
     expect(FORM).toContain("Separate the problem from the idea");
     expect(FORM).toContain("Create Request");
-    expect(FORM).toContain("Edit original");
-    expect(FORM).toContain("router.push(`/requests/${result.requestId}`)");
+    expect(FORM).toContain("Edit Request");
+    expect(FORM).toContain("router.push(`/requests/${requestId}`)");
     expect(FORM).not.toContain("Submit request");
     expect(FORM).not.toContain("Accept reframing");
   });
@@ -67,7 +69,7 @@ describe("Intake Gate contract", () => {
   it("keeps loading and recovery states explicit and accessible", () => {
     expect(FORM).toContain("aria-busy");
     expect(FORM).toContain('role="status"');
-    expect(FORM).toContain("Checking framing…");
+    expect(FORM).toContain("Checking wording…");
     expect(FORM).toContain("Creating Request…");
     expect(ACTIONS).toContain('"timeout"');
     expect(ACTIONS).toContain('"rate_limited"');

@@ -5053,10 +5053,44 @@ CREATE EVENT TRIGGER pgrst_ddl_watch ON ddl_command_end
 CREATE EVENT TRIGGER pgrst_drop_watch ON sql_drop
    EXECUTE FUNCTION extensions.pgrst_drop_watch();
 
+--
+-- Evidence-rich Intake v0 (canonical migration 0012)
+--
+
+ALTER TABLE public.requests
+  ADD COLUMN affected_people text,
+  ADD COLUMN desired_change text,
+  ADD COLUMN observed_evidence text,
+  ADD COLUMN uncertainty text,
+  ADD COLUMN useful_link text;
+
+CREATE TABLE public.request_attachments (
+  id            uuid PRIMARY KEY,
+  org_id        uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  request_id    uuid NOT NULL REFERENCES public.requests(id) ON DELETE CASCADE,
+  uploaded_by   uuid NOT NULL REFERENCES public.profiles(id),
+  storage_path  text NOT NULL,
+  file_name     text NOT NULL,
+  mime_type     text NOT NULL,
+  size_bytes    integer NOT NULL,
+  uploaded_at   timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT request_attachments_size_check
+    CHECK (size_bytes > 0 AND size_bytes <= 10485760)
+);
+
+CREATE UNIQUE INDEX request_attachments_storage_path_unique
+  ON public.request_attachments (storage_path);
+CREATE INDEX request_attachments_request_id_idx
+  ON public.request_attachments (request_id);
+CREATE INDEX request_attachments_org_id_idx
+  ON public.request_attachments (org_id);
+
+ALTER TABLE public.request_attachments ENABLE ROW LEVEL SECURITY;
+
 
 --
 -- PostgreSQL database dump complete
 --
 
 \unrestrict c5ijSOmmGFHQcBjxHYyplgS3vzc7QtDIDvHaaZ16aL1xnTAntvakPFy20dn4oqj
-

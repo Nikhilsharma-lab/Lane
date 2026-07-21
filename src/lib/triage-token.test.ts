@@ -9,6 +9,11 @@ const OTHER_ORG_ID = "33333333-3333-4333-8333-333333333333";
 const input = {
   title: "Settings are hard to find",
   description: "People cannot find workspace settings when they need them.",
+  affectedPeople: "Workspace members",
+  desiredChange: "Settings should be easy to locate.",
+  observedEvidence: "Two pilot users asked where Settings moved.",
+  uncertainty: "A clearer navigation label may be enough.",
+  usefulLink: "https://docs.example.com/settings-research",
 };
 
 const triageResult = {
@@ -44,6 +49,10 @@ describe("triage-token signing", () => {
     );
     expect(verification.payload.title).toBe(input.title);
     expect(verification.payload.description).toBe(input.description);
+    expect(verification.payload.observedEvidence).toBe(
+      input.observedEvidence
+    );
+    expect(verification.payload.uncertainty).toBe(input.uncertainty);
     expect(verification.payload.classification).toBe("solution");
     expect(verification.payload.extractedSolution).toBeNull();
     expect(verification.payload.orgId).toBe(ORG_ID);

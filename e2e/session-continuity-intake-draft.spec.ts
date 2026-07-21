@@ -85,6 +85,11 @@ test("sign-in restores the exact confirmed Intake review without another framing
         title: `${surface.name}: preserve customer context`,
         description:
           "Customers lose confidence when the original need and later framing are separated.",
+        affectedPeople: "Customers reviewing reframed Requests",
+        desiredChange: "Keep the original need visible.",
+        observedEvidence: "Pilot users asked what had changed.",
+        uncertainty: "Showing both versions may improve trust.",
+        usefulLink: "",
       };
       const triage = {
         classification: "hybrid" as const,
@@ -100,7 +105,7 @@ test("sign-in restores the exact confirmed Intake review without another framing
         userId: user.id,
       });
       const draft: IntakeDraft = {
-        version: 1,
+        version: 2,
         savedAt: Date.now(),
         source,
         review: { triage, token, editedProblem },

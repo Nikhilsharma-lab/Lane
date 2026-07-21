@@ -22,8 +22,7 @@ const GENERATED_TEXT_MAX = 2_000;
  * Cross-field checks reject ambiguous or partially structured results instead
  * of guessing in the browser.
  */
-const triageSchema = z
-  .object({
+const modelTriageSchema = z.object({
     classification: z
       .enum(["problem", "solution", "hybrid"])
       .describe(
@@ -45,8 +44,9 @@ const triageSchema = z
       .describe(
         "The requester's proposed solution for hybrid. Null for problem and solution."
       ),
-  })
-  .superRefine((value, context) => {
+  });
+
+const triageSchema = modelTriageSchema.superRefine((value, context) => {
     if (
       value.classification === "problem" &&
       (value.reframedProblem !== null || value.extractedSolution !== null)
@@ -79,6 +79,7 @@ const triageSchema = z
   });
 
 export type TriageResult = z.infer<typeof triageSchema>;
+type ModelTriageResult = z.infer<typeof modelTriageSchema>;
 export type TriageFailureKind =
   | "timeout"
   | "rate_limited"
@@ -95,6 +96,25 @@ function escapeXml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+/**
+ * Problem-classified Requests keep the submitter's original wording, so an
+ * unnecessary model rewrite is safe to discard. Solution and hybrid results
+ * still pass the strict cross-field contract without repair or guessing.
+ */
+export function normalizeTriageOutput(
+  output: ModelTriageResult
+): TriageResult {
+  return triageSchema.parse(
+    output.classification === "problem"
+      ? {
+          ...output,
+          reframedProblem: null,
+          extractedSolution: null,
+        }
+      : output
+  );
 }
 
 export function classifyTriageFailure(error: unknown): TriageFailureKind {
@@ -129,7 +149,7 @@ export async function triageRequest(input: {
       model: anthropic("claude-haiku-4-5"),
       abortSignal: controller.signal,
       output: Output.object({
-        schema: triageSchema,
+        schema: modelTriageSchema,
       }),
       prompt: `You are a senior design operations lead at a product company. A teammate just submitted a design request. Analyze it and return structured triage data.
 
@@ -162,7 +182,7 @@ Return only the required structured result. Do not score the request, add sugges
       throw new Error("AI triage returned no structured output");
     }
 
-    return output;
+    return normalizeTriageOutput(output);
   } finally {
     clearTimeout(timer);
   }

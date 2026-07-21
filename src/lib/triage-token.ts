@@ -2,7 +2,13 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import type { TriageResult } from "@/lib/ai/triage";
-import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/request-schema";
+import {
+  CONTEXT_MAX,
+  DESCRIPTION_MAX,
+  TITLE_MAX,
+  USEFUL_LINK_MAX,
+  type RequestInput,
+} from "@/lib/request-schema";
 
 /**
  * Server-signed review state for the Intake gate.
@@ -19,6 +25,11 @@ const tokenPayloadSchema = z.object({
   userId: z.string().uuid(),
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().min(1).max(DESCRIPTION_MAX),
+  affectedPeople: z.string().max(CONTEXT_MAX),
+  desiredChange: z.string().max(CONTEXT_MAX),
+  observedEvidence: z.string().max(CONTEXT_MAX),
+  uncertainty: z.string().max(CONTEXT_MAX),
+  usefulLink: z.string().max(USEFUL_LINK_MAX),
   classification: z.enum(["problem", "solution", "hybrid"]),
   extractedSolution: z.string().max(DESCRIPTION_MAX).nullable(),
   issuedAt: z.number().int().nonnegative(),
@@ -57,7 +68,7 @@ function sign(payload: TriageTokenPayload): string {
 }
 
 export function createTriageToken(
-  input: { title: string; description: string },
+  input: RequestInput,
   triage: TriageResult,
   context: { orgId: string; userId: string }
 ): string {
@@ -67,6 +78,11 @@ export function createTriageToken(
     userId: context.userId,
     title: input.title,
     description: input.description,
+    affectedPeople: input.affectedPeople,
+    desiredChange: input.desiredChange,
+    observedEvidence: input.observedEvidence,
+    uncertainty: input.uncertainty,
+    usefulLink: input.usefulLink,
     classification: triage.classification,
     extractedSolution: triage.extractedSolution,
     issuedAt: Date.now(),

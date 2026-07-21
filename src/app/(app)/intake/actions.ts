@@ -28,7 +28,15 @@ export type IntakeFailureCode =
 export type IntakeFailure = {
   code: IntakeFailureCode;
   message: string;
-  field?: "title" | "description" | "editedProblemText";
+  field?:
+    | "title"
+    | "description"
+    | "affectedPeople"
+    | "desiredChange"
+    | "observedEvidence"
+    | "uncertainty"
+    | "usefulLink"
+    | "editedProblemText";
   retryAfterSeconds?: number;
 };
 
@@ -76,7 +84,15 @@ function sessionFailure(): IntakeFailure {
 }
 
 export async function runTriage(
-  formData: { title: string; description: string },
+  formData: {
+    title: string;
+    description: string;
+    affectedPeople?: string;
+    desiredChange?: string;
+    observedEvidence?: string;
+    uncertainty?: string;
+    usefulLink?: string;
+  },
   context: { orgId: string }
 ): Promise<TriageResponse> {
   const auth = await requireActiveMember(context.orgId);
@@ -86,8 +102,17 @@ export async function runTriage(
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field =
-      issue.path[0] === "title" || issue.path[0] === "description"
-        ? issue.path[0]
+      typeof issue.path[0] === "string" &&
+      [
+        "title",
+        "description",
+        "affectedPeople",
+        "desiredChange",
+        "observedEvidence",
+        "uncertainty",
+        "usefulLink",
+      ].includes(issue.path[0])
+        ? (issue.path[0] as IntakeFailure["field"])
         : undefined;
 
     return {
@@ -117,7 +142,10 @@ export async function runTriage(
   }
 
   try {
-    const triage = await triageRequest(parsed.data);
+    const triage = await triageRequest({
+      title: parsed.data.title,
+      description: parsed.data.description,
+    });
     const token = createTriageToken(parsed.data, triage, {
       orgId: auth.orgId,
       userId: auth.userId,
@@ -188,6 +216,11 @@ export async function saveRequest(
         orgId: auth.orgId,
         title: payload.title,
         description: payload.description,
+        affectedPeople: payload.affectedPeople || null,
+        desiredChange: payload.desiredChange || null,
+        observedEvidence: payload.observedEvidence || null,
+        uncertainty: payload.uncertainty || null,
+        usefulLink: payload.usefulLink || null,
         classification: payload.classification,
         reframedProblem,
         extractedSolution: payload.extractedSolution,

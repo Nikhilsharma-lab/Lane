@@ -12,6 +12,29 @@ export const TITLE_MIN = 3;
 export const TITLE_MAX = 200;
 export const DESCRIPTION_MIN = 10;
 export const DESCRIPTION_MAX = 5000;
+export const CONTEXT_MAX = 3000;
+export const USEFUL_LINK_MAX = 2048;
+
+const optionalContextSchema = z
+  .string()
+  .trim()
+  .max(
+    CONTEXT_MAX,
+    `Keep each optional detail under ${CONTEXT_MAX} characters`
+  );
+
+const usefulLinkSchema = z
+  .string()
+  .trim()
+  .max(USEFUL_LINK_MAX, "The useful link is too long")
+  .refine(
+    (value) => {
+      if (value.length === 0) return true;
+      if (!z.url().safeParse(value).success) return false;
+      return new URL(value).protocol === "https:";
+    },
+    "Enter a complete link, including https://"
+  );
 
 export const requestSchema = z.object({
   title: z
@@ -26,6 +49,11 @@ export const requestSchema = z.object({
     .min(1, "Description is required")
     .min(DESCRIPTION_MIN, `Tell us a bit more — at least ${DESCRIPTION_MIN} characters`)
     .max(DESCRIPTION_MAX, `Description must be at most ${DESCRIPTION_MAX} characters`),
+  affectedPeople: optionalContextSchema,
+  desiredChange: optionalContextSchema,
+  observedEvidence: optionalContextSchema,
+  uncertainty: optionalContextSchema,
+  usefulLink: usefulLinkSchema,
 });
 
 export type RequestInput = z.infer<typeof requestSchema>;

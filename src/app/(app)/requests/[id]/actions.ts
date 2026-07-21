@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db, requests, comments } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { db, requests, comments, requestAttachments } from "@/db";
+import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { createNotification, createNotifications } from "@/lib/notify";
+import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -181,4 +183,54 @@ export async function addComment(
 
   revalidatePath(`/requests/${requestId}`);
   return { success: true };
+}
+
+export async function getAttachmentDownloadUrl(
+  attachmentId: string,
+  context: { orgId: string }
+) {
+  if (!UUID_RE.test(attachmentId)) return { error: "File not found" };
+  const auth = await requireActiveMember(context.orgId);
+  if (!auth) return { error: "File not found" };
+
+  const [attachment] = await db
+    .select({
+      storagePath: requestAttachments.storagePath,
+      fileName: requestAttachments.fileName,
+      requestCreatedBy: requests.createdBy,
+    })
+    .from(requestAttachments)
+    .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
+    .where(
+      and(
+        eq(requestAttachments.id, attachmentId),
+        eq(requestAttachments.orgId, auth.orgId),
+        eq(requests.orgId, auth.orgId),
+        sql`${requestAttachments.uploadedAt} is not null`
+      )
+    )
+    .limit(1);
+
+  if (
+    !attachment ||
+    (auth.role === "guest" &&
+      attachment.requestCreatedBy !== auth.userId)
+  ) {
+    return { error: "File not found" };
+  }
+
+  const { data, error } = await createServiceClient()
+    .storage.from(REQUEST_ATTACHMENTS_BUCKET)
+    .createSignedUrl(attachment.storagePath, 60, {
+      download: attachment.fileName,
+    });
+
+  if (error || !data) {
+    console.error("[request/attachments] download signing failed:", error);
+    return {
+      error: "Lane could not prepare this download. Try again.",
+    };
+  }
+
+  return { success: true, url: data.signedUrl };
 }

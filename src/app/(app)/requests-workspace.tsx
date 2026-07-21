@@ -1,18 +1,29 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import {
   ArrowLeft,
   ChevronRight,
+  ExternalLink,
+  FileText,
+  Image as ImageIcon,
   Inbox,
+  Link as LinkIcon,
   MessageSquare,
+  Paperclip,
   Plus,
   UserRound,
   X,
 } from "lucide-react"
 
-import { db, comments, profiles, requests } from "@/db"
+import {
+  db,
+  comments,
+  profiles,
+  requestAttachments,
+  requests,
+} from "@/db"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { IdentityMark } from "@/components/ui/identity-mark"
@@ -29,6 +40,7 @@ import {
 import { Typography } from "@/components/ui/typography"
 import { getWorkspace } from "@/lib/ensure-workspace"
 import { relativeTime } from "@/lib/relative-time"
+import { formatAttachmentSize } from "@/lib/request-attachments"
 import {
   requestDetailHref,
   requestListHref,
@@ -41,6 +53,7 @@ import {
 } from "@/lib/request-status"
 import { cn } from "@/lib/utils"
 import { CommentForm } from "./requests/[id]/comment-form"
+import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { RequestStatusFilter as StatusFilter } from "./request-status-filter"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
@@ -66,6 +79,11 @@ type RequestDetail = {
   id: string
   title: string
   description: string
+  affectedPeople: string | null
+  desiredChange: string | null
+  observedEvidence: string | null
+  uncertainty: string | null
+  usefulLink: string | null
   reframedProblem: string | null
   extractedSolution: string | null
   classification: "problem" | "solution" | "hybrid" | null
@@ -82,6 +100,14 @@ type RequestComment = {
   body: string
   createdAt: Date
   authorName: string | null
+}
+
+type RequestAttachment = {
+  id: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  uploadedAt: Date | null
 }
 
 function classificationLabel(classification: RequestDetail["classification"]) {
@@ -536,12 +562,14 @@ function Comments({
 function RequestDetailPane({
   request,
   comments: requestComments,
+  attachments,
   filter,
   orgId,
   isGuest,
 }: {
   request: RequestDetail
   comments: RequestComment[]
+  attachments: RequestAttachment[]
   filter: RequestStatusFilter
   orgId: string
   isGuest: boolean
@@ -549,6 +577,13 @@ function RequestDetailPane({
   const returnHref = requestListHref(filter)
   const classification = classificationLabel(request.classification)
   const problem = request.reframedProblem ?? request.title
+  const hasContext = Boolean(
+    request.affectedPeople ||
+      request.desiredChange ||
+      request.observedEvidence ||
+      request.uncertainty ||
+      request.usefulLink
+  )
 
   return (
     <section
@@ -688,6 +723,200 @@ function RequestDetailPane({
             </section>
           )}
 
+          {hasContext && (
+            <section
+              aria-labelledby="request-context"
+              className="mt-8 border-t pt-8"
+            >
+              <Typography
+                as="h2"
+                role="sectionTitle"
+                id="request-context"
+              >
+                Helpful context
+              </Typography>
+              <Typography
+                as="p"
+                role="support"
+                className="mt-1 text-muted-foreground"
+              >
+                Details the submitter added to help the team understand
+                the Request.
+              </Typography>
+
+              <dl className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+                {request.affectedPeople && (
+                  <div className="min-w-0">
+                    <Typography
+                      as="dt"
+                      role="label"
+                      className="text-muted-foreground"
+                    >
+                      Who is affected
+                    </Typography>
+                    <Typography
+                      as="dd"
+                      role="ui"
+                      className="mt-1 whitespace-pre-wrap break-words"
+                    >
+                      {request.affectedPeople}
+                    </Typography>
+                  </div>
+                )}
+                {request.desiredChange && (
+                  <div className="min-w-0">
+                    <Typography
+                      as="dt"
+                      role="label"
+                      className="text-muted-foreground"
+                    >
+                      What should be better
+                    </Typography>
+                    <Typography
+                      as="dd"
+                      role="ui"
+                      className="mt-1 whitespace-pre-wrap break-words"
+                    >
+                      {request.desiredChange}
+                    </Typography>
+                  </div>
+                )}
+                {request.observedEvidence && (
+                  <div className="min-w-0">
+                    <Typography
+                      as="dt"
+                      role="label"
+                      className="text-brand"
+                    >
+                      What we know · observed
+                    </Typography>
+                    <Typography
+                      as="dd"
+                      role="ui"
+                      className="mt-1 whitespace-pre-wrap break-words"
+                    >
+                      {request.observedEvidence}
+                    </Typography>
+                  </div>
+                )}
+                {request.uncertainty && (
+                  <div className="min-w-0">
+                    <Typography
+                      as="dt"
+                      role="label"
+                      className="text-muted-foreground"
+                    >
+                      What we’re not sure about · unconfirmed
+                    </Typography>
+                    <Typography
+                      as="dd"
+                      role="ui"
+                      className="mt-1 whitespace-pre-wrap break-words"
+                    >
+                      {request.uncertainty}
+                    </Typography>
+                  </div>
+                )}
+              </dl>
+
+              {request.usefulLink && (
+                <a
+                  href={request.usefulLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 flex min-h-11 items-center gap-3 rounded-lg border bg-card px-3 text-type-ui font-medium outline-none transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <LinkIcon
+                      aria-hidden="true"
+                      className="size-4"
+                      strokeWidth={1.8}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {request.usefulLink}
+                  </span>
+                  <ExternalLink
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-muted-foreground"
+                    strokeWidth={1.8}
+                  />
+                </a>
+              )}
+            </section>
+          )}
+
+          {attachments.length > 0 && (
+            <section
+              aria-labelledby="request-files"
+              className="mt-8 border-t pt-8"
+            >
+              <div className="flex items-center gap-2">
+                <Paperclip
+                  aria-hidden="true"
+                  className="size-4 text-muted-foreground"
+                  strokeWidth={1.8}
+                />
+                <Typography
+                  as="h2"
+                  role="sectionTitle"
+                  id="request-files"
+                >
+                  Files
+                </Typography>
+                <Typography
+                  as="span"
+                  role="meta"
+                  className="text-muted-foreground"
+                >
+                  {attachments.length}
+                </Typography>
+              </div>
+
+              <RowGroup aria-label="Request files" className="mt-3">
+                {attachments.map((attachment) => (
+                  <Row key={attachment.id}>
+                    <RowLeading>
+                      <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        {attachment.mimeType.startsWith("image/") ? (
+                          <ImageIcon
+                            aria-hidden="true"
+                            className="size-4"
+                            strokeWidth={1.8}
+                          />
+                        ) : (
+                          <FileText
+                            aria-hidden="true"
+                            className="size-4"
+                            strokeWidth={1.8}
+                          />
+                        )}
+                      </span>
+                    </RowLeading>
+                    <RowContent>
+                      <RowTitle className="break-all">
+                        {attachment.fileName}
+                      </RowTitle>
+                      <RowDescription>
+                        {formatAttachmentSize(attachment.sizeBytes)} ·
+                        Added{" "}
+                        {attachment.uploadedAt
+                          ? relativeTime(attachment.uploadedAt)
+                          : "just now"}
+                      </RowDescription>
+                    </RowContent>
+                    <RowActions className="w-auto">
+                      <AttachmentDownload
+                        attachmentId={attachment.id}
+                        context={{ orgId }}
+                      />
+                    </RowActions>
+                  </Row>
+                ))}
+              </RowGroup>
+            </section>
+          )}
+
           <section
             aria-labelledby="request-people"
             className="mt-8 border-t pt-8"
@@ -816,6 +1045,7 @@ export async function RequestsWorkspace({
 
   let selectedRequest: RequestDetail | undefined
   let requestComments: RequestComment[] = []
+  let selectedAttachments: RequestAttachment[] = []
 
   if (selectedRequestId && UUID_RE.test(selectedRequestId)) {
     const creator = alias(profiles, "request_detail_creator")
@@ -825,6 +1055,11 @@ export async function RequestsWorkspace({
         id: requests.id,
         title: requests.title,
         description: requests.description,
+        affectedPeople: requests.affectedPeople,
+        desiredChange: requests.desiredChange,
+        observedEvidence: requests.observedEvidence,
+        uncertainty: requests.uncertainty,
+        usefulLink: requests.usefulLink,
         reframedProblem: requests.reframedProblem,
         extractedSolution: requests.extractedSolution,
         classification: requests.classification,
@@ -857,17 +1092,36 @@ export async function RequestsWorkspace({
     selectedRequest = request
 
     if (selectedRequest) {
-      requestComments = await db
-        .select({
-          id: comments.id,
-          body: comments.body,
-          createdAt: comments.createdAt,
-          authorName: profiles.fullName,
-        })
-        .from(comments)
-        .leftJoin(profiles, eq(comments.authorId, profiles.id))
-        .where(eq(comments.requestId, selectedRequest.id))
-        .orderBy(asc(comments.createdAt))
+      ;[requestComments, selectedAttachments] = await Promise.all([
+        db
+          .select({
+            id: comments.id,
+            body: comments.body,
+            createdAt: comments.createdAt,
+            authorName: profiles.fullName,
+          })
+          .from(comments)
+          .leftJoin(profiles, eq(comments.authorId, profiles.id))
+          .where(eq(comments.requestId, selectedRequest.id))
+          .orderBy(asc(comments.createdAt)),
+        db
+          .select({
+            id: requestAttachments.id,
+            fileName: requestAttachments.fileName,
+            mimeType: requestAttachments.mimeType,
+            sizeBytes: requestAttachments.sizeBytes,
+            uploadedAt: requestAttachments.uploadedAt,
+          })
+          .from(requestAttachments)
+          .where(
+            and(
+              eq(requestAttachments.requestId, selectedRequest.id),
+              eq(requestAttachments.orgId, workspace.orgId),
+              isNotNull(requestAttachments.uploadedAt)
+            )
+          )
+          .orderBy(asc(requestAttachments.createdAt)),
+      ])
     }
   }
 
@@ -892,6 +1146,7 @@ export async function RequestsWorkspace({
         <RequestDetailPane
           request={selectedRequest}
           comments={requestComments}
+          attachments={selectedAttachments}
           filter={filter}
           orgId={workspace.orgId}
           isGuest={isGuest}

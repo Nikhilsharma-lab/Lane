@@ -14,6 +14,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "Fix the export flow",
       description: "Users lose their filters when exporting the board.",
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(true);
   });
@@ -22,6 +27,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "ab",
       description: "A perfectly long enough description.",
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -35,6 +45,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "",
       description: "A perfectly long enough description.",
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -46,6 +61,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "Valid title",
       description: "x".repeat(DESCRIPTION_MAX + 1),
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -59,6 +79,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "x".repeat(TITLE_MAX),
       description: "x".repeat(DESCRIPTION_MIN),
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(true);
   });
@@ -67,6 +92,11 @@ describe("requestSchema", () => {
     const result = requestSchema.safeParse({
       title: "  Export flow  ",
       description: "  People lose their filters during export.  ",
+      affectedPeople: "  Design leads  ",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -74,7 +104,26 @@ describe("requestSchema", () => {
     expect(result.data).toEqual({
       title: "Export flow",
       description: "People lose their filters during export.",
+      affectedPeople: "Design leads",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "",
     });
+  });
+
+  it("requires useful links to use HTTPS", () => {
+    const result = requestSchema.safeParse({
+      title: "A valid title",
+      description: "A sufficiently detailed description",
+      affectedPeople: "",
+      desiredChange: "",
+      observedEvidence: "",
+      uncertainty: "",
+      usefulLink: "http://example.com/prd",
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

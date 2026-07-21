@@ -2,12 +2,14 @@ import { z } from "zod";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
+  CONTEXT_MAX,
   DESCRIPTION_MAX,
   TITLE_MAX,
+  USEFUL_LINK_MAX,
   type RequestInput,
 } from "@/lib/request-schema";
 
-const INTAKE_DRAFT_VERSION = 1;
+const INTAKE_DRAFT_VERSION = 2;
 const INTAKE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 
@@ -16,6 +18,11 @@ type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const sourceSchema = z.object({
   title: z.string().max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX),
+  affectedPeople: z.string().max(CONTEXT_MAX).default(""),
+  desiredChange: z.string().max(CONTEXT_MAX).default(""),
+  observedEvidence: z.string().max(CONTEXT_MAX).default(""),
+  uncertainty: z.string().max(CONTEXT_MAX).default(""),
+  usefulLink: z.string().max(USEFUL_LINK_MAX).default(""),
 });
 
 const triageDraftSchema = z
@@ -129,7 +136,12 @@ export function writeIntakeDraft(
   const key = intakeDraftStorageKey(scope);
   const hasSource =
     draft.source.title.trim().length > 0 ||
-    draft.source.description.trim().length > 0;
+    draft.source.description.trim().length > 0 ||
+    draft.source.affectedPeople.trim().length > 0 ||
+    draft.source.desiredChange.trim().length > 0 ||
+    draft.source.observedEvidence.trim().length > 0 ||
+    draft.source.uncertainty.trim().length > 0 ||
+    draft.source.usefulLink.trim().length > 0;
 
   try {
     if (!hasSource && draft.review === null) {
