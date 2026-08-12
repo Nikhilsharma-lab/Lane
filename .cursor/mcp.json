@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--caps=testing"
+      ]
+    },
+    "supabase-staging-readonly": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=jznepeqghjixcrpuddym&read_only=true&features=docs%2Cdatabase%2Cdebugging"
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    }
+  }
+}

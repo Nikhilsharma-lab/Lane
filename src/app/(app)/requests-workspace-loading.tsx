@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils"
+import { LoadingRegion } from "@/components/ui/loading-region"
 
 function ListSkeleton() {
   return (
-    <aside className="flex min-w-0 flex-1 flex-col bg-card lg:w-[360px] lg:flex-none lg:border-r xl:w-[400px]">
+    <div className="flex min-w-0 flex-1 flex-col bg-card lg:w-[360px] lg:flex-none lg:border-r xl:w-[400px]">
       <header className="shrink-0 border-b px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -36,13 +37,13 @@ function ListSkeleton() {
           </div>
         ))}
       </div>
-    </aside>
+    </div>
   )
 }
 
 function DetailSkeleton() {
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-background">
+    <div className="flex min-w-0 flex-1 flex-col bg-background">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
         <div className="size-control-product rounded-lg bg-muted" />
         <div className="h-5 w-20 rounded bg-muted" />
@@ -65,7 +66,7 @@ function DetailSkeleton() {
       <footer className="shrink-0 border-t bg-card px-4 py-3">
         <div className="mx-auto h-16 max-w-[760px] rounded-lg bg-muted" />
       </footer>
-    </section>
+    </div>
   )
 }
 
@@ -76,20 +77,24 @@ export function RequestsWorkspaceLoading({
 }) {
   return (
     <main
-      aria-hidden="true"
-      className="flex min-h-0 flex-1 animate-pulse bg-background lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden xl:h-screen"
+      className="flex min-h-0 flex-1 bg-background lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden xl:h-screen"
     >
-      <div className={cn("flex min-w-0 flex-1", selected && "hidden lg:flex")}>
-        <ListSkeleton />
-      </div>
-      <div
-        className={cn(
-          "min-w-0 flex-1",
-          selected ? "flex" : "hidden lg:flex"
-        )}
+      <LoadingRegion
+        label={selected ? "Loading selected Request" : "Loading Requests"}
+        className="flex min-w-0 flex-1"
       >
-        <DetailSkeleton />
-      </div>
+        <div className={cn("flex min-w-0 flex-1", selected && "hidden lg:flex")}>
+          <ListSkeleton />
+        </div>
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            selected ? "flex" : "hidden lg:flex"
+          )}
+        >
+          <DetailSkeleton />
+        </div>
+      </LoadingRegion>
     </main>
   )
 }

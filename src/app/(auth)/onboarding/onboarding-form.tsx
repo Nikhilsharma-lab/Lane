@@ -4,7 +4,6 @@ import {
   useState,
   useTransition,
   type FormEvent,
-  type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -12,7 +11,6 @@ import {
   ClipboardListIcon,
   Code2Icon,
   CopyIcon,
-  InfoIcon,
   LinkIcon,
   MailCheckIcon,
   PenToolIcon,
@@ -21,7 +19,10 @@ import {
 } from "lucide-react";
 import { AuthAction } from "@/components/auth/auth-action";
 import { AuthInputField } from "@/components/auth/auth-field";
-import { LaneMark } from "@/components/auth/auth-shell";
+import {
+  OnboardingChrome,
+  StepHeading,
+} from "@/components/auth/onboarding-chrome";
 import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
 import { Feedback } from "@/components/ui/feedback";
 import { IdentityMark } from "@/components/ui/identity-mark";
@@ -46,7 +47,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { completeOnboarding } from "./actions";
 import { acceptInvite } from "@/app/(auth)/invite/[token]/actions";
@@ -96,71 +96,6 @@ const ACCESS_HELPERS: Record<string, string> = {
   guest: "Guests only see and comment on Requests they submitted.",
 };
 
-function OnboardingChrome({
-  current,
-  total,
-  children,
-  wide = false,
-}: {
-  current: number;
-  total: number;
-  children: ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div className="flex min-h-dvh flex-1 flex-col bg-background text-foreground">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-6 sm:px-8">
-        <LaneMark />
-        <div
-          className="flex items-center gap-3"
-          aria-label={`Step ${current} of ${total}`}
-        >
-          <span className="font-mono text-type-meta text-muted-foreground">
-            {current} of {total}
-          </span>
-          <span className="hidden h-0.5 w-[72px] overflow-hidden bg-border sm:block">
-            <span
-              className="block h-full bg-brand transition-[width] duration-200 motion-reduce:transition-none"
-              style={{ width: `${(current / total) * 100}%` }}
-            />
-          </span>
-        </div>
-      </header>
-      <span className="h-0.5 w-full overflow-hidden bg-border sm:hidden">
-        <span
-          className="block h-full bg-brand transition-[width] duration-200 motion-reduce:transition-none"
-          style={{ width: `${(current / total) * 100}%` }}
-        />
-      </span>
-
-      <main className="flex min-h-0 flex-1 justify-center px-6 pb-10 pt-10 sm:items-center sm:px-8 sm:pb-20 sm:pt-12">
-        <div className={cn("w-full", wide ? "max-w-[430px]" : "max-w-[420px]")}>
-          {children}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function StepHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <Typography as="h1" role="authTitle">
-        {title}
-      </Typography>
-      <Typography as="div" role="ui" className="max-w-[400px] text-muted-foreground text-pretty">
-        {description}
-      </Typography>
-    </div>
-  );
-}
-
 export function OnboardingForm({
   fullName: initialFullName,
   pendingInvites = [],
@@ -192,6 +127,10 @@ export function OnboardingForm({
   } = useRecoverableAction();
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [acceptingToken, setAcceptingToken] = useState<string | null>(null);
+  const [joinedWorkspace, setJoinedWorkspace] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
 
   const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -281,16 +220,24 @@ export function OnboardingForm({
     setStage("invite");
   }
 
-  async function handleAcceptInvite(token: string) {
+  async function handleAcceptInvite(
+    token: string,
+    workspaceName: string,
+    workspaceRole: string
+  ) {
     if (!role) return;
     setWorkspaceError(null);
     const outcome = await runInviteAcceptAction(async () => {
       setAcceptingToken(token);
       try {
-        return await acceptInvite(token, {
-          fullName: fullName.trim(),
-          role,
-        });
+        return await acceptInvite(
+          token,
+          {
+            fullName: fullName.trim(),
+            role,
+          },
+          { redirectOnSuccess: false }
+        );
       } finally {
         setAcceptingToken(null);
       }
@@ -304,9 +251,16 @@ export function OnboardingForm({
     if (outcome.status !== "completed") return;
 
     const result = outcome.value;
-    if (result?.error) {
+    if (result && "error" in result && result.error) {
       setWorkspaceError(result.error);
+      return;
     }
+
+    setJoinedWorkspace({
+      name: workspaceName,
+      role: workspaceRole,
+    });
+    continueToRequests();
   }
 
   async function handleSendInvite(event: FormEvent<HTMLFormElement>) {
@@ -467,6 +421,55 @@ export function OnboardingForm({
     );
   }
 
+  if (stage === "workspace" && joinedWorkspace) {
+    return (
+      <OnboardingChrome current={2} total={2} wide>
+        <div
+          className="flex flex-col gap-8"
+          role="status"
+          aria-live="polite"
+          aria-busy={isNavigating || undefined}
+        >
+          <StepHeading
+            title="Workspace joined"
+            description={`${joinedWorkspace.name} is ready. Opening the shared Requests workspace.`}
+          />
+
+          <RowGroup>
+            <Row className="min-h-[70px]">
+              <RowLeading>
+                <IdentityMark
+                  label={joinedWorkspace.name}
+                  kind="workspace"
+                />
+              </RowLeading>
+              <RowContent>
+                <RowTitle className="truncate">
+                  {joinedWorkspace.name}
+                </RowTitle>
+                <RowDescription>
+                  {WORKSPACE_ROLE_LABELS[joinedWorkspace.role] ??
+                    joinedWorkspace.role}{" "}
+                  access
+                </RowDescription>
+              </RowContent>
+              <RowActions className="w-[104px]">
+                <AuthAction
+                  kind="utility"
+                  loading={isNavigating}
+                  loadingLabel="Opening…"
+                  onClick={continueToRequests}
+                >
+                  Open Requests
+                </AuthAction>
+              </RowActions>
+            </Row>
+          </RowGroup>
+        </div>
+      </OnboardingChrome>
+    );
+  }
+
   if (stage === "workspace" && workspaceMode === "join") {
     return (
       <OnboardingChrome current={2} total={2} wide>
@@ -505,7 +508,13 @@ export function OnboardingForm({
                       disabled={inviteAcceptPending}
                       loading={joining}
                       loadingLabel="Joining…"
-                      onClick={() => handleAcceptInvite(invite.token)}
+                      onClick={() =>
+                        handleAcceptInvite(
+                          invite.token,
+                          invite.workspaceName,
+                          invite.role
+                        )
+                      }
                     >
                       Join
                     </AuthAction>
@@ -531,10 +540,9 @@ export function OnboardingForm({
             >
               Create my own workspace instead
             </AuthAction>
-            <div className="flex items-center justify-center gap-2 border-y border-border py-3 text-type-meta text-muted-foreground sm:border-0 sm:py-0">
-              <InfoIcon aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={1.8} />
-              <span>Joining leaves other invitations pending.</span>
-            </div>
+            <p className="border-y border-border py-3 text-center text-type-meta text-muted-foreground sm:border-0 sm:py-0">
+              Other invitations stay available.
+            </p>
           </div>
         </div>
       </OnboardingChrome>

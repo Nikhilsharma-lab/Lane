@@ -1,6 +1,11 @@
+import { LoadingRegion } from "@/components/ui/loading-region";
+
 export default function MembersLoading() {
   return (
-    <div className="flex flex-1 flex-col animate-pulse">
+    <LoadingRegion
+      label="Loading Members"
+      className="flex flex-1 flex-col"
+    >
       {/* Header bar */}
       <header className="flex items-center gap-4 border-b px-6 py-4">
         <div className="h-4 w-12 rounded bg-muted" />
@@ -39,6 +44,6 @@ export default function MembersLoading() {
           </div>
         </div>
       </main>
-    </div>
+    </LoadingRegion>
   );
 }

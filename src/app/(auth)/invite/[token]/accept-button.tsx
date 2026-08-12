@@ -28,7 +28,7 @@ export function AcceptInviteButton({
     if (outcome.status !== "completed") return;
 
     const result = outcome.value;
-    if (result?.error) {
+    if (result && "error" in result && result.error) {
       setError(result.error);
     }
   }

@@ -78,7 +78,7 @@ export function SignupForm({
         description={
           emailLocked
             ? "Create your account to continue into your team’s shared Request workspace."
-            : "Create your account to join your team and start with clearer Requests."
+            : "Create your account. Next, confirm your email and set up your team workspace."
         }
       />
 

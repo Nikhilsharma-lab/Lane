@@ -15,7 +15,8 @@ const onboardingProfileSchema = z.object({
 
 export async function acceptInvite(
   token: string,
-  onboardingProfile?: { fullName: string; role: string }
+  onboardingProfile?: { fullName: string; role: string },
+  options?: { redirectOnSuccess?: boolean }
 ) {
   if (!token || typeof token !== "string") {
     return { error: "Invalid invite token." };
@@ -67,6 +68,9 @@ export async function acceptInvite(
   if (activeMembership) {
     if (activeMembership.workspaceId === invite.orgId) {
       revalidatePath("/", "layout");
+      if (options?.redirectOnSuccess === false) {
+        return { success: true as const };
+      }
       redirect("/");
     }
     return { error: "You're already in a workspace." };
@@ -154,5 +158,8 @@ export async function acceptInvite(
   }
 
   revalidatePath("/", "layout");
+  if (options?.redirectOnSuccess === false) {
+    return { success: true as const };
+  }
   redirect("/");
 }

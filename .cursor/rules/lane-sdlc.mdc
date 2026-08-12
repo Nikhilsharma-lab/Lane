@@ -1,0 +1,21 @@
+---
+description: Lane's permanent AI-native product and engineering delivery workflow
+alwaysApply: true
+---
+
+# Lane AI-native SDLC
+
+- Read `AGENTS.md` before taking task actions. It is the primary repository instruction file.
+- Use `PRODUCT.md` for the product contract, `lane-roadmap.md` for sequence, `phase-0-ux-skeleton.md` for journeys and states, and `DEFERRED.md` for deferred work. Do not create an overlapping source of truth.
+- Explain decisions and manual actions to Nikhil in plain English. Never ask for secrets in chat.
+- Preserve existing uncommitted work. Inspect the full diff and call out every file changed by the agent.
+- Deliver one user-touchable increment at a time. Before editing, state the user problem, scope, exclusions, acceptance criteria, risks, and verification plan; pause for approval when product scope or architecture changes.
+- Do not add database tables, migrations, routes, AI calls, dependencies, or product workflows without Nikhil's explicit written approval.
+- For material frontend work, follow the repository's required chain: Plane source and states -> Lane's local `src/components/ui` source -> official shadcn registry -> Paper state and breakpoint specification -> implementation.
+- Define the expected behaviour and failure cases before implementation. Capture a failing test or verified baseline, make the smallest change, and rerun the relevant checks.
+- Treat authentication, authorization, workspace isolation, RLS, migrations, and identity fields as security-critical. Passing agent-authored tests alone is not sufficient; review the implementation and full diff explicitly.
+- Use Supabase MCP only to inspect the read-only Lane Staging project. Schema changes must be canonical migration files, backed up and verified on staging before production.
+- Use Playwright MCP for staging exploration and reproduction. Convert important journeys and regressions into committed Playwright tests; an MCP walkthrough alone is not durable test evidence.
+- Use Vercel MCP to inspect documentation, staging deployments, build failures, and runtime logs. Never deploy or change production configuration without explicit approval.
+- Do not claim success without fresh evidence from the relevant tests, build, and live staging behaviour. Report what could not be verified.
+- Stop before production promotion. Summarize the change, tests, staging evidence, migration/rollback implications, and the exact production action awaiting approval.
