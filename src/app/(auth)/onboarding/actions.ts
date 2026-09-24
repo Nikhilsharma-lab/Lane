@@ -1,71 +1,54 @@
 "use server";
 
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
-import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
 
-const onboardingSchema = z.object({
-  fullName: z
-    .string()
-    .min(1, "Full name is required")
-    .max(200),
-  workspaceName: z
-    .string()
-    .min(2, "Workspace name must be at least 2 characters")
-    .max(100),
+import { db, profiles } from "@/db";
+import { clerkWorkspacePermission } from "@/lib/auth-guard";
+
+const onboardingRoleSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
 });
 
-export async function completeOnboarding(formData: {
-  fullName: string;
-  workspaceName: string;
-  role: string;
-}) {
-  const parsed = onboardingSchema.safeParse(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
+function userDisplayName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>) {
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
+}
+
+export async function saveOnboardingRole(data: { role: string }) {
+  const parsed = onboardingRoleSchema.safeParse(data);
+  if (!parsed.success) return { error: "Choose a valid role." };
+
+  const { userId, orgId, orgRole } = await auth();
+  if (!userId) return { error: "Sign in to continue." };
+  if (!orgId || !clerkWorkspacePermission(orgRole)) {
+    return { error: "Create or join a workspace before choosing your role." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
+  if (!user) return { error: "Lane could not load your Clerk profile." };
 
-  if (!user) return { error: "Not signed in" };
+  await db
+    .insert(profiles)
+    .values({
+      id: userId,
+      fullName: userDisplayName(user),
+      email: user.primaryEmailAddress?.emailAddress ?? "",
+      role: parsed.data.role,
+      avatarUrl: user.imageUrl,
+    })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: {
+        fullName: userDisplayName(user),
+        email: user.primaryEmailAddress?.emailAddress ?? "",
+        role: parsed.data.role,
+        avatarUrl: user.imageUrl,
+        updatedAt: new Date(),
+      },
+    });
 
-  const fullName =
-    parsed.data.fullName ||
-    user.user_metadata?.full_name ||
-    user.email?.split("@")[0] ||
-    "User";
-  const email = user.email || "";
-  const baseSlug =
-    parsed.data.workspaceName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || `workspace-${user.id.slice(0, 8)}`;
-
-  let orgId: string;
-  try {
-    const result = await db.execute(
-      sql`SELECT * FROM bootstrap_organization_membership(
-        ${user.id}::uuid,
-        ${parsed.data.workspaceName},
-        ${baseSlug},
-        ${fullName},
-        ${email},
-        ${parsed.data.role}
-      )`
-    );
-    orgId = (result as unknown as Array<{ org_id: string }>)[0]?.org_id;
-    if (!orgId) throw new Error("bootstrap returned no org_id");
-  } catch (err) {
-    console.error("[onboarding] bootstrap failed:", err);
-    return {
-      error: "Failed to create workspace. Please try again.",
-    };
-  }
-
-  return { success: true as const, orgId };
+  revalidatePath("/onboarding");
+  return { success: true as const };
 }

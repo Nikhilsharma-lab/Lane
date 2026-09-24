@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const GOOD_SECRET = "a".repeat(64);
 const WRONG_SECRET = "b".repeat(64);
-const ORG_ID = "11111111-1111-4111-8111-111111111111";
-const USER_ID = "22222222-2222-4222-8222-222222222222";
-const OTHER_ORG_ID = "33333333-3333-4333-8333-333333333333";
+const ORG_ID = "org_lane_test_a";
+const USER_ID = "user_lane_test_a";
+const OTHER_ORG_ID = "org_lane_test_b";
 
 const input = {
   title: "Settings are hard to find",
@@ -83,6 +83,29 @@ describe("triage-token signing", () => {
     ).toEqual({
       valid: false,
       reason: "context_mismatch",
+    });
+  });
+
+  it("rejects a valid token for another Clerk user in the same workspace", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, context);
+
+    expect(verifyTriageToken(token, { ...context, userId: "user_lane_test_b" })).toEqual({
+      valid: false,
+      reason: "context_mismatch",
+    });
+  });
+
+  it.each([
+    { orgId: "", userId: USER_ID },
+    { orgId: ORG_ID, userId: "" },
+  ])("rejects a signed review missing identity: %j", async (missingIdentity) => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, missingIdentity);
+
+    expect(verifyTriageToken(token, missingIdentity)).toEqual({
+      valid: false,
+      reason: "invalid",
     });
   });
 

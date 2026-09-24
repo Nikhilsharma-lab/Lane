@@ -1,65 +1,97 @@
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
-import { db, profiles, workspaces, workspaceMembers } from "@/db";
-import { eq, and } from "drizzle-orm";
+
+import { db, profiles, workspaces } from "@/db";
+import { clerkWorkspacePermission } from "@/lib/auth-guard";
 
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
-  role: "owner" | "admin" | "member" | "guest";
+  role: "admin" | "member" | "guest";
   fullName: string;
   email: string;
   workspaceName: string;
 };
 
+type OnboardingContext = {
+  needsOnboarding: true;
+  userId: string;
+  fullName: string;
+  email: string;
+};
+
+function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
+  if (!user) return "User";
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
+}
+
 export const getWorkspace = cache(async function getWorkspace(): Promise<
   | (WorkspaceContext & { needsOnboarding: false })
-  | { needsOnboarding: true; userId: string; fullName: string; email: string }
+  | OnboardingContext
   | null
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId, orgId, orgRole } = await auth();
+  const permission = clerkWorkspacePermission(orgRole);
+  if (!userId || !orgId || !permission) return null;
 
-  if (!user) return null;
-
-  const [row] = await db
+  const [profile] = await db
     .select({
-      orgId: profiles.orgId,
       fullName: profiles.fullName,
       email: profiles.email,
-      workspaceName: workspaces.name,
-      role: workspaceMembers.role,
+      role: profiles.role,
     })
     .from(profiles)
-    .innerJoin(workspaces, eq(profiles.orgId, workspaces.id))
-    .innerJoin(
-      workspaceMembers,
-      and(
-        eq(workspaceMembers.workspaceId, profiles.orgId),
-        eq(workspaceMembers.userId, profiles.id),
-        eq(workspaceMembers.isActive, true)
-      )
-    )
-    .where(eq(profiles.id, user.id));
+    .where(eq(profiles.id, userId));
 
-  if (row) {
+  if (!profile) {
+    const user = await currentUser();
     return {
-      needsOnboarding: false,
-      userId: user.id,
-      orgId: row.orgId,
-      role: row.role,
-      fullName: row.fullName,
-      email: row.email,
-      workspaceName: row.workspaceName,
+      needsOnboarding: true,
+      userId,
+      fullName: displayName(user),
+      email: user?.primaryEmailAddress?.emailAddress ?? "",
     };
   }
 
+  let [workspace] = await db
+    .select({ name: workspaces.name })
+    .from(workspaces)
+    .where(eq(workspaces.id, orgId));
+
+  if (!workspace) {
+    const client = await clerkClient();
+    const organization = await client.organizations.getOrganization({
+      organizationId: orgId,
+    });
+
+    [workspace] = await db
+      .insert(workspaces)
+      .values({
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug ?? organization.id,
+        ownerUserId: permission === "admin" ? userId : null,
+      })
+      .onConflictDoUpdate({
+        target: workspaces.id,
+        set: {
+          name: organization.name,
+          slug: organization.slug ?? organization.id,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({ name: workspaces.name });
+  }
+
   return {
-    needsOnboarding: true,
-    userId: user.id,
-    fullName: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-    email: user.email || "",
+    needsOnboarding: false,
+    userId,
+    orgId,
+    role: permission,
+    fullName: profile.fullName,
+    email: profile.email,
+    workspaceName: workspace.name,
   };
 });

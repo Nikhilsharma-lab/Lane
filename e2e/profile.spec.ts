@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { cleanupTestWorkspace, getProfileRole } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { provisionAndSignIn } from "./helpers/auth";
 
 test("a member can change their profile role without changing access", async ({
   page,
@@ -8,21 +9,10 @@ test("a member can change their profile role without changing access", async ({
   const user = await createTestUser("profile");
 
   try {
-    await page.goto("/login");
-    await page.locator("#email").fill(user.email);
-    await page.locator("#password").fill(user.password);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL("**/onboarding");
-
-    await page.locator("#fullName").fill("Profile Test User");
-    await page.getByRole("radio", { name: /^Designer/ }).click();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.locator("#workspaceName").fill("Profile Test Workspace");
-    await page.getByRole("button", { name: "Create workspace" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Bring one teammate" })
-    ).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("button", { name: "Skip for now" }).click();
+    await provisionAndSignIn(page, user, {
+      name: "Profile Test User",
+      workspaceName: "Profile Test Workspace",
+    });
 
     await page.goto("/settings/profile");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();

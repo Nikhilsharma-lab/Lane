@@ -9,13 +9,6 @@ const AUTH_ACTION = join(
 );
 const GLOBAL_STYLES = join(process.cwd(), "src/app/globals.css");
 
-const ALLOWED_RAW_BUTTONS = [
-  {
-    file: "src/app/(auth)/invite/[token]/page.tsx",
-    marker: "Switch",
-  },
-] as const;
-
 function getTsxFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
@@ -90,19 +83,7 @@ describe("Auth and Onboarding action contract", () => {
       })
       .sort((a, b) => a.file.localeCompare(b.file));
 
-    expect(rawButtons).toEqual(
-      ALLOWED_RAW_BUTTONS.map(({ file }) => ({ file, count: 1 })).sort(
-        (a, b) => a.file.localeCompare(b.file)
-      )
-    );
-
-    for (const exception of ALLOWED_RAW_BUTTONS) {
-      const source = readFileSync(
-        join(process.cwd(), exception.file),
-        "utf8"
-      );
-      expect(source).toContain(exception.marker);
-    }
+    expect(rawButtons).toEqual([]);
   });
 
   it("prevents route-level action geometry and color overrides", () => {

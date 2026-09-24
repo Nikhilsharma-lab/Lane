@@ -12,18 +12,8 @@ const SONNER = source("src/components/ui/sonner.tsx")
 const GLOBAL_STYLES = source("src/app/globals.css")
 const DESIGN = source("DESIGN.md")
 const FEEDBACK_CONSUMERS = [
-  "src/app/(auth)/login/page.tsx",
-  "src/app/(auth)/signup/signup-form.tsx",
-  "src/app/(auth)/signup/check-email/check-email.tsx",
-  "src/app/(auth)/forgot-password/recovery-form.tsx",
-  "src/app/(auth)/reset-password/page.tsx",
-  "src/app/(auth)/reset-password/reset-password-form.tsx",
-  "src/app/(auth)/invite/[token]/accept-button.tsx",
-  "src/app/(auth)/onboarding/onboarding-form.tsx",
+  "src/app/(auth)/onboarding/role-form.tsx",
   "src/app/(app)/settings/profile/profile-form.tsx",
-  "src/app/(app)/settings/members/invite-form.tsx",
-  "src/app/(app)/settings/members/invite-row.tsx",
-  "src/app/(app)/settings/members/member-row.tsx",
   "src/app/(app)/requests/[id]/comment-form.tsx",
   "src/app/(app)/requests/[id]/lifecycle-buttons.tsx",
   "src/app/(app)/intake/intake-form.tsx",

@@ -17,13 +17,13 @@ export const requestAttachments = pgTable(
   "request_attachments",
   {
     id: uuid("id").primaryKey(),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     requestId: uuid("request_id")
       .notNull()
       .references(() => requests.id, { onDelete: "cascade" }),
-    uploadedBy: uuid("uploaded_by")
+    uploadedBy: text("uploaded_by")
       .notNull()
       .references(() => profiles.id),
     storagePath: text("storage_path").notNull(),

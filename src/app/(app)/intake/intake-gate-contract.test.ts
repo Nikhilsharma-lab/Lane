@@ -86,7 +86,6 @@ describe("Intake Gate contract", () => {
     expect(FORM).toContain("readIntakeDraft");
     expect(FORM).toContain("writeIntakeDraft");
     expect(FORM).toContain("clearIntakeDraft");
-    expect(FORM).toContain('href="/login?next=%2Fintake"');
     expect(FORM).toContain("Your confirmed framing is back.");
     expect(FORM).not.toContain("redirectTo=/intake");
     expect(DRAFT).toContain("userId: string, orgId: string");

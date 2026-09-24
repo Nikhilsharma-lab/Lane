@@ -28,13 +28,17 @@ the truth about its work because nothing here is watching them.
 
 Lane helps a team turn an unclear or solution-shaped design request into an accepted,
 problem-framed **Request**, then move it transparently from Open → In Progress → Done. The
-current product is Requests: auth, onboarding, the Intake gate, one shared board, request detail,
-comments, invited guests, lightweight in-app notifications, members, and Profile settings. A person
-can change their PM / Designer / Developer label in Profile without changing access or permissions.
+current product is Requests: auth, onboarding, the Intake gate (with optional evidence fields
+and private attachments), one shared board (with an optional status filter), request detail,
+comments, invited guests, lightweight in-app notifications, members, and Profile settings
+(including browser-local theme preference). A person can change their PM / Designer / Developer
+label in Profile without changing access or permissions.
 
-PM / Designer / Developer is always a functional label, never a permission tier. Invited guests
-are limited workspace members who see and discuss only their own Requests. Public or anonymous
-Intake is a different, deferred product decision.
+PM / Designer / Developer is always a functional label, never a permission tier. Clerk is the sole
+authority for users, sessions, organizations, memberships, roles, and invitations. Lane recognizes
+Clerk **admin | member | guest** organization roles; invited guests are limited workspace members who
+see and discuss only their own Requests. Production guest invitations require Clerk Enhanced B2B, so
+free-plan production is Admin/Member only. Public or anonymous Intake is a different, deferred decision.
 
 ## Product Vision — not current build scope
 

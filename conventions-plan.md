@@ -197,16 +197,19 @@ if (invitations.length > 0)  → JOIN view   (accept an invite; with a "create i
 else                          → CREATE view (name + create a workspace)
 ```
 
-That is the exact wiring that was breaking. Drive create-vs-join off whether `userInvitations()` returns
-anything — don't reinvent the decision.
+This is reference terrain for create-versus-join intent, not a requirement to reproduce Plane's invitation
+lookup or account flow in Lane.
 
-**Lane adaptation:** multi-step onboarding = functional-label (role) → workspace (create-or-join, branched on
-pending invites). A user who followed an invite link lands in JOIN with that invite ready; a fresh signup with
-no invites lands in CREATE. Keep purposeful empty states on every list (you have this on the board; extend to
-Members and the guest's "my requests").
+**Lane adaptation — approved 2026-09-24:** sign up → create/join a Clerk workspace → functional label
+(PM/Designer/Developer) → Requests. Clerk Organizations stays **Membership required**. Clerk owns the pending
+`choose-organization` task, invitation acceptance, and organization activation; Lane does not maintain an
+invitation list or recreate that branching logic. Interrupted organization setup resumes at the existing
+`/login` route. The active organization is required before Lane offers or saves the label; pending or
+organization-less sessions cannot enter Requests. The label is not a permission and remains editable later.
 
-**Build note:** onboarding = now (in flight) — rewire the create-or-join branch to the `invitations.length`
-pattern. Empty-state polish = Day-5 (→ DEFERRED.md).
+**Build boundary:** `/onboarding` is Lane's functional-label step after Clerk organization setup. No new
+organization-setup route or parallel membership logic. Keep purposeful empty states on every list, including
+Members and the guest's own Requests.
 
 ## 9. Request-detail layout
 

@@ -8,11 +8,7 @@ const RECOVERY_HOOK = join(
 );
 
 const FIRST_RUN_ACTION_SOURCES = [
-  "src/app/(auth)/login/page.tsx",
-  "src/app/(auth)/signup/signup-form.tsx",
-  "src/app/(auth)/signup/check-email/check-email.tsx",
-  "src/app/(auth)/invite/[token]/accept-button.tsx",
-  "src/app/(auth)/onboarding/onboarding-form.tsx",
+  "src/app/(auth)/onboarding/role-form.tsx",
 ] as const;
 
 function readSource(path: (typeof FIRST_RUN_ACTION_SOURCES)[number]) {
@@ -50,39 +46,10 @@ describe("First-run action recovery contract", () => {
   });
 
   it("tells people when retained first-run details are safe to retry", () => {
-    const login = readSource("src/app/(auth)/login/page.tsx");
-    const signup = readSource("src/app/(auth)/signup/signup-form.tsx");
-    const invite = readSource(
-      "src/app/(auth)/invite/[token]/accept-button.tsx"
+    const roleForm = readSource("src/app/(auth)/onboarding/role-form.tsx");
+
+    expect(roleForm).toContain(
+      "Your role selection is still here. Check your connection and try again."
     );
-    const onboarding = readSource(
-      "src/app/(auth)/onboarding/onboarding-form.tsx"
-    );
-
-    expect(login).toContain("Your details are still here");
-    expect(signup).toContain("Your details are still here");
-    expect(invite).toContain("Check your connection and try again");
-    expect(onboarding.match(/Your details are still here/g)).toHaveLength(2);
-    expect(onboarding).toContain(
-      "Lane couldn’t join this workspace. Check your connection and try again."
-    );
-  });
-
-  it("shows progress while leaving onboarding for Requests", () => {
-    const source = readSource(
-      "src/app/(auth)/onboarding/onboarding-form.tsx"
-    );
-
-    expect(source).toContain("startNavigation");
-    expect(source.match(/loadingLabel="Opening Requests…"/g)).toHaveLength(2);
-    expect(source).not.toContain('onClick={() => router.push("/")}');
-  });
-
-  it("keeps Signup busy while opening confirmation instructions", () => {
-    const source = readSource("src/app/(auth)/signup/signup-form.tsx");
-
-    expect(source).toContain("startNavigation");
-    expect(source).toContain("const busy = pending || isNavigating");
-    expect(source).toContain("Opening email instructions…");
   });
 });

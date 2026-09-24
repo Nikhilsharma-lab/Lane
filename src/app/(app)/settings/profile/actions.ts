@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, profiles } from "@/db";
 import { requireActiveMember } from "@/lib/auth-guard";
@@ -23,9 +23,7 @@ export async function updateProfileRole(
   await db
     .update(profiles)
     .set({ role: parsed.data.role, updatedAt: new Date() })
-    .where(
-      and(eq(profiles.id, auth.userId), eq(profiles.orgId, auth.orgId))
-    );
+    .where(eq(profiles.id, auth.userId));
 
   revalidatePath("/settings/profile");
   revalidatePath("/settings/members");

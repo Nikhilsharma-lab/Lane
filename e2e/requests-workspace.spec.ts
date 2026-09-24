@@ -5,6 +5,7 @@ import {
   seedRowIdentityFixtures,
 } from "./helpers/cleanup"
 import { createTestUser, deleteTestUser } from "./helpers/test-user"
+import { provisionAndSignIn } from "./helpers/auth"
 
 const SURFACES = [
   {
@@ -53,29 +54,6 @@ async function applySurface(
   }
 }
 
-async function onboard(page: Page, email: string, password: string) {
-  await page.goto("/login")
-  await page.getByLabel("Email", { exact: true }).fill(email)
-  await page.getByLabel("Password", { exact: true }).fill(password)
-  await page.getByRole("button", { name: "Sign in", exact: true }).click()
-  await page.waitForURL("**/onboarding", { timeout: 20_000 })
-
-  await page.getByLabel("Your name", { exact: true }).fill("Request Workspace Test")
-  await page.getByRole("radio", { name: /^Designer/ }).click()
-  await page.getByRole("button", { name: "Continue", exact: true }).click()
-  await page
-    .getByLabel("Workspace name", { exact: true })
-    .fill("Request Workspace")
-  await page.getByRole("button", { name: "Create workspace" }).click()
-  await expect(
-    page.getByRole("heading", { name: "Bring one teammate" })
-  ).toBeVisible({ timeout: 15_000 })
-  await page.getByRole("button", { name: "Skip for now" }).click()
-  await expect(
-    page.getByRole("heading", { name: "Requests", exact: true })
-  ).toBeVisible({ timeout: 15_000 })
-}
-
 test("Requests workspace preserves selection, panes, and responsive routes", async ({
   page,
 }) => {
@@ -83,7 +61,10 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
   const user = await createTestUser("requests-workspace")
 
   try {
-    await onboard(page, user.email, user.password)
+    await provisionAndSignIn(page, user, {
+      name: "Request Workspace Test",
+      workspaceName: "Request Workspace",
+    })
     const { requestId } = await seedRowIdentityFixtures(user.id)
     const detailPath = `/requests/${requestId}`
 

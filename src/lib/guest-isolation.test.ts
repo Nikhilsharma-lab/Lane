@@ -8,58 +8,48 @@
  * Same real-session, real-action pattern as auth-guard.test.ts.
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { db, workspaceMembers, requests, profiles } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { db, requests, profiles, workspaces } from "@/db";
+import { eq } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-let mockSessionUser: { id: string; email?: string } | null = null;
+let mockSession = { userId: "", orgId: "", orgRole: "" };
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({
-    auth: {
-      getUser: async () => ({
-        data: { user: mockSessionUser },
-        error: mockSessionUser ? null : { message: "Not authenticated" },
-      }),
-    },
-  })),
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(async () => mockSession),
 }));
 
-const WORKSPACE_A = "e9e3b28e-f594-4ae1-85d9-bc85e66b5a19";
-const USER_A_OWNER = "7c683bdd-43ce-42c4-847a-3fb5663b2926";
+const WORKSPACE_A = "00000000-0000-4000-a000-000000000090";
+const USER_A_OWNER = "00000000-0000-4000-a000-000000000091";
 const GUEST_USER = "00000000-0000-4000-a000-000000000099";
 const GUEST_OWN_REQ = "00000000-0000-4000-a000-000000000100";
-const REQUEST_A_OPEN = "de7fe180-b51b-4714-8e82-42b775fe53d4";
-
 const CONTROL_REQ = "00000000-0000-4000-a000-000000000c01";
 
 beforeAll(async () => {
+  await db.insert(workspaces).values({
+    id: WORKSPACE_A,
+    name: "Guest Isolation",
+    slug: "guest-isolation",
+  }).onConflictDoNothing();
+
+  await db.insert(profiles).values({
+    id: USER_A_OWNER,
+    fullName: "Test Owner",
+    email: "test-owner@forge.test",
+    role: "pm",
+  }).onConflictDoNothing();
+
   await db
     .insert(profiles)
     .values({
       id: GUEST_USER,
-      orgId: WORKSPACE_A,
       fullName: "Test Guest",
       email: "test-guest@forge.test",
       role: "designer",
     })
     .onConflictDoNothing();
-
-  await db
-    .insert(workspaceMembers)
-    .values({
-      workspaceId: WORKSPACE_A,
-      userId: GUEST_USER,
-      role: "guest",
-      isActive: true,
-    })
-    .onConflictDoUpdate({
-      target: [workspaceMembers.workspaceId, workspaceMembers.userId],
-      set: { role: "guest", isActive: true },
-    });
 
   await db.insert(requests).values({
     id: GUEST_OWN_REQ,
@@ -81,27 +71,20 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db
-    .delete(workspaceMembers)
-    .where(
-      and(
-        eq(workspaceMembers.workspaceId, WORKSPACE_A),
-        eq(workspaceMembers.userId, GUEST_USER)
-      )
-    );
-
   await db.delete(requests).where(eq(requests.id, GUEST_OWN_REQ));
   await db.delete(requests).where(eq(requests.id, CONTROL_REQ));
   await db.delete(profiles).where(eq(profiles.id, GUEST_USER));
+  await db.delete(profiles).where(eq(profiles.id, USER_A_OWNER));
+  await db.delete(workspaces).where(eq(workspaces.id, WORKSPACE_A));
 });
 
 describe("Guest blocked from management actions", () => {
   it("guest → pickUpRequest → REJECTED", async () => {
-    mockSessionUser = { id: GUEST_USER };
+    mockSession = { userId: GUEST_USER, orgId: WORKSPACE_A, orgRole: "org:guest" };
     const { pickUpRequest } = await import(
       "@/app/(app)/requests/[id]/actions"
     );
-    const result = await pickUpRequest(REQUEST_A_OPEN, {
+    const result = await pickUpRequest(CONTROL_REQ, {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
@@ -110,9 +93,9 @@ describe("Guest blocked from management actions", () => {
   });
 
   it("guest → markDone → REJECTED", async () => {
-    mockSessionUser = { id: GUEST_USER };
+    mockSession = { userId: GUEST_USER, orgId: WORKSPACE_A, orgRole: "org:guest" };
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
-    const result = await markDone(REQUEST_A_OPEN, { orgId: WORKSPACE_A });
+    const result = await markDone(CONTROL_REQ, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("error");
     expect(result.error).toMatch(/not found/i);
     expect(result).not.toHaveProperty("success");
@@ -121,7 +104,7 @@ describe("Guest blocked from management actions", () => {
 
 describe("Guest CAN comment on own request", () => {
   it("guest → addComment on own request → ALLOWED", async () => {
-    mockSessionUser = { id: GUEST_USER };
+    mockSession = { userId: GUEST_USER, orgId: WORKSPACE_A, orgRole: "org:guest" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "guest isolation probe — should succeed");
@@ -141,7 +124,7 @@ describe("Guest CAN comment on own request", () => {
 
 describe("Positive control — member+ CAN manage", () => {
   it("owner → pickUpRequest → ALLOWED", async () => {
-    mockSessionUser = { id: USER_A_OWNER };
+    mockSession = { userId: USER_A_OWNER, orgId: WORKSPACE_A, orgRole: "org:admin" };
     const { pickUpRequest } = await import(
       "@/app/(app)/requests/[id]/actions"
     );
@@ -152,7 +135,7 @@ describe("Positive control — member+ CAN manage", () => {
   });
 
   it("owner → markDone → ALLOWED", async () => {
-    mockSessionUser = { id: USER_A_OWNER };
+    mockSession = { userId: USER_A_OWNER, orgId: WORKSPACE_A, orgRole: "org:admin" };
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
     const result = await markDone(CONTROL_REQ, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("success", true);

@@ -24,7 +24,7 @@ export const requests = pgTable(
   "requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
@@ -38,8 +38,8 @@ export const requests = pgTable(
     reframedProblem: text("reframed_problem"),
     extractedSolution: text("extracted_solution"),
     status: requestStatusEnum("status").notNull().default("open"),
-    assignedTo: uuid("assigned_to").references(() => profiles.id),
-    createdBy: uuid("created_by")
+    assignedTo: text("assigned_to").references(() => profiles.id),
+    createdBy: text("created_by")
       .notNull()
       .references(() => profiles.id),
     createdAt: timestamp("created_at", { withTimezone: true })

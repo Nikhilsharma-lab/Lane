@@ -1,56 +1,95 @@
-import { createServiceClient } from "../../src/lib/supabase/admin";
+import { clerkClient } from "@clerk/nextjs/server";
+import { clerk } from "@clerk/testing/playwright";
+import type { Page } from "@playwright/test";
 
-const TEST_EMAIL_DOMAIN = "lane-e2e-test.local";
+const TEST_EMAIL_DOMAIN = "example.com";
 
-let serviceClient: ReturnType<typeof createServiceClient> | null = null;
+export type TestUser = {
+  id: string;
+  email: string;
+  password: string;
+};
 
-function getAdmin() {
-  if (!serviceClient) serviceClient = createServiceClient();
-  return serviceClient;
+export async function createClerkTestOrganization(
+  userId: string,
+  name: string
+): Promise<string> {
+  const client = await clerkClient();
+  const organization = await client.organizations.createOrganization({
+    name,
+    createdBy: userId,
+  });
+  return organization.id;
 }
 
 export async function createTestUser(
   label: string,
-  password = "Test1234!"
-): Promise<{ id: string; email: string; password: string }> {
-  const email = `${label}-${Date.now()}@${TEST_EMAIL_DOMAIN}`;
-  const admin = getAdmin();
-
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
+  password = "LaneE2ETest1234!"
+): Promise<TestUser> {
+  const email = `lane-e2e-${label}-${Date.now()}+clerk_test@${TEST_EMAIL_DOMAIN}`;
+  const client = await clerkClient();
+  const user = await client.users.createUser({
+    emailAddress: [email],
     password,
-    email_confirm: true,
+    firstName: "Lane",
+    lastName: "E2E",
+    skipLegalChecks: true,
   });
-
-  if (error || !data.user) {
-    throw new Error(`[e2e] createTestUser failed: ${error?.message}`);
-  }
-
-  return { id: data.user.id, email, password };
+  return { id: user.id, email, password };
 }
 
 export async function deleteTestUser(id: string): Promise<void> {
-  const admin = getAdmin();
-  const { error } = await admin.auth.admin.deleteUser(id);
-  if (error) {
-    console.warn(`[e2e] deleteTestUser(${id}) failed: ${error.message}`);
+  const client = await clerkClient();
+  try {
+    const memberships = await client.users.getOrganizationMembershipList({
+      userId: id,
+      limit: 100,
+    });
+    for (const membership of memberships.data) {
+      if (membership.role === "org:admin") {
+        await client.organizations
+          .deleteOrganization(membership.organization.id)
+          .catch(() => undefined);
+      }
+    }
+    await client.users.deleteUser(id);
+  } catch (error) {
+    console.warn(
+      `[e2e] deleteTestUser(${id}) failed: ${error instanceof Error ? error.message : "unknown error"}`
+    );
   }
 }
 
 export async function cleanupTestUsers(): Promise<void> {
-  const admin = getAdmin();
-  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (!data?.users) return;
-
-  const testUsers = data.users.filter((u) =>
-    u.email?.endsWith(`@${TEST_EMAIL_DOMAIN}`)
+  const client = await clerkClient();
+  const users = await client.users.getUserList({ limit: 500 });
+  const testUsers = users.data.filter((user) =>
+    user.emailAddresses.some((email) =>
+      email.emailAddress.startsWith("lane-e2e-") &&
+      email.emailAddress.endsWith(`+clerk_test@${TEST_EMAIL_DOMAIN}`)
+    )
   );
 
   for (const user of testUsers) {
-    await admin.auth.admin.deleteUser(user.id);
+    await deleteTestUser(user.id);
   }
 
   if (testUsers.length > 0) {
     console.log(`[e2e] cleaned up ${testUsers.length} test user(s)`);
+  }
+}
+
+export async function signInTestUser(
+  page: Page,
+  user: Pick<TestUser, "email">,
+  organizationId?: string
+): Promise<void> {
+  await page.goto("/login");
+  await clerk.signIn({ page, emailAddress: user.email });
+
+  if (organizationId) {
+    await page.evaluate(async (orgId) => {
+      await window.Clerk.setActive({ organization: orgId });
+    }, organizationId);
   }
 }

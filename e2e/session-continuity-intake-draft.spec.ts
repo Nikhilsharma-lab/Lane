@@ -1,10 +1,14 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   cleanupTestWorkspace,
   getTestWorkspaceId,
 } from "./helpers/cleanup";
-import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import {
+  createTestUser,
+  deleteTestUser,
+} from "./helpers/test-user";
+import { provisionAndSignIn } from "./helpers/auth";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -35,44 +39,18 @@ const SURFACES = [
   },
 ] as const;
 
-async function signIn(page: Page, email: string, password: string) {
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-}
-
-async function onboard(page: Page, email: string, password: string) {
-  await page.goto("/login");
-  await signIn(page, email, password);
-  await page.waitForURL("**/onboarding", { timeout: 20_000 });
-
-  await page
-    .getByLabel("Your name", { exact: true })
-    .fill("Intake Recovery Test");
-  await page.getByRole("radio", { name: /^Designer/ }).click();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page
-    .getByLabel("Workspace name", { exact: true })
-    .fill("Intake Recovery");
-  await page.getByRole("button", { name: "Create workspace" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Bring one teammate" })
-  ).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Skip for now" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Requests", exact: true })
-  ).toBeVisible({ timeout: 20_000 });
-}
-
-test("sign-in restores the exact confirmed Intake review without another framing check", async ({
+test("the session-expiry link signs back in to the exact Intake review without another framing check", async ({
   page,
 }) => {
   test.setTimeout(180_000);
   const user = await createTestUser("intake-session-recovery");
 
   try {
-    await onboard(page, user.email, user.password);
-    const orgId = await getTestWorkspaceId(user.id);
+    const orgId = await provisionAndSignIn(page, user, {
+      name: "Intake Recovery Test",
+      workspaceName: "Intake Recovery",
+    });
+    expect(await getTestWorkspaceId(user.id)).toBe(orgId);
     const storageKey = intakeDraftStorageKey(
       intakeDraftScope(user.id, orgId)
     );
@@ -145,9 +123,27 @@ test("sign-in restores the exact confirmed Intake review without another framing
       );
 
       await page.context().clearCookies();
-      await page.goto("/login?next=%2Fintake");
-      await signIn(page, user.email, user.password);
-      await page.waitForURL("**/intake", { timeout: 20_000 });
+      await page
+        .getByRole("button", { name: "Create Request", exact: true })
+        .click();
+      const signInAgain = page.getByRole("link", { name: "Sign in again" });
+      await expect(signInAgain).toBeVisible();
+      await signInAgain.click();
+      await page.waitForURL((url) => url.pathname === "/login");
+
+      // Reload the recovery URL to discard the expired Clerk client session,
+      // while retaining the link's continuation and this tab's Intake draft.
+      await page.reload();
+      await page.locator('input[name="identifier"]').fill(user.email);
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.locator('input[name="password"]').fill(user.password);
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page
+        .getByRole("textbox", { name: "Enter verification code" })
+        .pressSequentially("424242");
+
+      // No helper or manual navigation may supply the missing return route.
+      await expect(page).toHaveURL("/intake");
 
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();

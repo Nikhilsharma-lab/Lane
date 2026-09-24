@@ -1,5 +1,8 @@
 allowBuilds:
+  bufferutil: false
+  core-js: false
   esbuild: true
   msw: true
   sharp: true
   unrs-resolver: true
+  utf-8-validate: false

@@ -1,189 +1,42 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { SignIn, TaskChooseOrganization, useSession } from "@clerk/nextjs";
 import { LockKeyholeIcon } from "lucide-react";
-import { login } from "../actions";
-import { AuthAction } from "@/components/auth/auth-action";
-import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
-import {
-  AuthInputField,
-  AuthPasswordField,
-} from "@/components/auth/auth-field";
-import {
-  AuthHeading,
-  AuthHeaderLink,
-  AuthShell,
-  AuthTrust,
-} from "@/components/auth/auth-shell";
-import { Feedback } from "@/components/ui/feedback";
-import { LoadingRegion } from "@/components/ui/loading-region";
 
-function LoginForm() {
-  const [error, setError] = useState<string | null>(null);
-  const { pending, run } = useRecoverableAction();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next");
-  const prefillEmail = searchParams.get("email") || "";
-  const resetComplete = searchParams.get("reset") === "success";
-  const callbackError = searchParams.get("error") === "auth";
+import { AuthShell, AuthTrust } from "@/components/auth/auth-shell";
 
-  const signupParams = new URLSearchParams();
-  if (next) signupParams.set("next", next);
-  if (prefillEmail) signupParams.set("email", prefillEmail);
-  const signupHref = signupParams.size ? `/signup?${signupParams}` : "/signup";
+const embeddedAppearance = {
+  elements: {
+    rootBox: "w-full",
+    cardBox: "w-full border-0 shadow-none bg-transparent",
+    card: "w-full border-0 shadow-none bg-transparent p-0",
+  },
+};
 
-  const recoveryParams = new URLSearchParams();
-  if (prefillEmail) recoveryParams.set("email", prefillEmail);
-  if (next) recoveryParams.set("next", next);
-  const recoveryHref = recoveryParams.size
-    ? `/forgot-password?${recoveryParams}`
-    : "/forgot-password";
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const outcome = await run(() =>
-      login(new FormData(event.currentTarget), next || undefined)
-    );
-
-    if (outcome.status === "failed") {
-      setError(
-        "Lane couldn’t sign you in. Your details are still here—check your connection and try again."
-      );
-      return;
-    }
-    if (outcome.status !== "completed") return;
-
-    const result = outcome.value;
-    if (result?.error) {
-      setError(result.error);
-    }
-  }
-
-  const visibleError =
-    error ||
-    (callbackError
-      ? "That sign-in link is invalid or has expired. Sign in to continue."
-      : null);
+export default function LoginPage() {
+  const { session } = useSession();
 
   return (
     <AuthShell
-      headerAction={
-        <AuthHeaderLink
-          prompt="New to Lane?"
-          href={signupHref}
-          label="Create account"
-        />
-      }
       footer={
         <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">
           Private to your workspace. Lane never tracks activity.
         </AuthTrust>
       }
     >
-      <div className="space-y-8">
-        <AuthHeading
-          title="Welcome back"
-          description="Sign in to return to your Lane workspace."
+      {session?.currentTask?.key === "choose-organization" ? (
+        <TaskChooseOrganization
+          redirectUrlComplete="/onboarding"
+          appearance={embeddedAppearance}
         />
-
-        {resetComplete && (
-          <Feedback kind="success">
-            Your password was updated. Sign in with your new password.
-          </Feedback>
-        )}
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4"
-          aria-busy={pending}
-        >
-          <AuthInputField
-            id="email"
-            label="Email"
-            name="email"
-            type="email"
-            placeholder="you@company.com"
-            defaultValue={prefillEmail}
-            required
-            autoComplete="email"
-            autoFocus
-          />
-
-          <AuthPasswordField
-            id="password"
-            label="Password"
-            trailing={
-              <Link
-                href={recoveryHref}
-                className="rounded-sm text-type-label text-muted-foreground outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                Forgot password?
-              </Link>
-            }
-            name="password"
-            placeholder="Your password"
-            required
-            autoComplete="current-password"
-            minLength={6}
-          />
-
-          {visibleError && (
-            <Feedback kind="error" variant="inline">
-              {visibleError}
-            </Feedback>
-          )}
-
-          <AuthAction
-            type="submit"
-            loading={pending}
-            loadingLabel="Signing in…"
-          >
-            Sign in
-          </AuthAction>
-        </form>
-
-        <p className="text-center text-type-support text-muted-foreground sm:hidden">
-          New to Lane?{" "}
-          <Link
-            href={signupHref}
-            className="rounded-sm font-medium text-foreground outline-none underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            Create an account
-          </Link>
-        </p>
-      </div>
+      ) : (
+        <SignIn
+          routing="hash"
+          signUpUrl="/signup"
+          fallbackRedirectUrl="/"
+          appearance={embeddedAppearance}
+        />
+      )}
     </AuthShell>
-  );
-}
-
-function LoginFallback() {
-  return (
-    <LoadingRegion label="Loading sign in" className="space-y-8">
-      <div className="space-y-2">
-        <div className="h-8 w-48 rounded-md bg-muted" />
-        <div className="h-5 w-72 max-w-full rounded-md bg-muted" />
-      </div>
-      <div className="h-control-form-touch rounded-lg bg-muted sm:h-control-form" />
-      <div className="h-control-form-touch rounded-lg bg-muted sm:h-control-form" />
-      <div className="h-control-form-touch rounded-lg bg-muted sm:h-control-form" />
-    </LoadingRegion>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <AuthShell>
-          <LoginFallback />
-        </AuthShell>
-      }
-    >
-      <LoginForm />
-    </Suspense>
   );
 }

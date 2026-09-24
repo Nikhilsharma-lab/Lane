@@ -1,103 +1,89 @@
-import postgres from "postgres";
+import { clerkClient } from "@clerk/nextjs/server";
 import { randomUUID } from "node:crypto";
+import postgres from "postgres";
 
-export async function cleanupTestWorkspace(
-  userId: string
-): Promise<void> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
+type FunctionalRole = "pm" | "designer" | "developer";
+
+function database() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("[e2e] DATABASE_URL is required");
+  }
+
+  return postgres(process.env.DATABASE_URL, {
+    ssl: process.env.DATABASE_URL.includes("localhost") ? false : "require",
     max: 1,
     idle_timeout: 5,
   });
+}
+
+export async function provisionTestWorkspace(options: {
+  userId: string;
+  email: string;
+  name: string;
+  workspaceName: string;
+  role?: FunctionalRole;
+}): Promise<string> {
+  const client = await clerkClient();
+  const organization = await client.organizations.createOrganization({
+    name: options.workspaceName,
+    createdBy: options.userId,
+  });
+  const sql = database();
 
   try {
-    const [profile] = await sql`
-      SELECT org_id FROM profiles WHERE id = ${userId}
+    await sql.begin(async (tx) => {
+      await tx`
+        INSERT INTO profiles (id, full_name, email, role)
+        VALUES (
+          ${options.userId},
+          ${options.name},
+          ${options.email},
+          ${options.role ?? "designer"}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          email = EXCLUDED.email,
+          role = EXCLUDED.role,
+          updated_at = now()
+      `;
+      await tx`
+        INSERT INTO organizations (id, name, slug, owner_id)
+        VALUES (
+          ${organization.id},
+          ${organization.name},
+          ${organization.slug ?? organization.id},
+          ${options.userId}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          slug = EXCLUDED.slug,
+          owner_id = EXCLUDED.owner_id,
+          updated_at = now()
+      `;
+    });
+    return organization.id;
+  } catch (error) {
+    await client.organizations
+      .deleteOrganization(organization.id)
+      .catch(() => undefined);
+    throw error;
+  } finally {
+    await sql.end();
+  }
+}
+
+export async function cleanupTestWorkspace(userId: string): Promise<void> {
+  const sql = database();
+
+  try {
+    const organizations = await sql<{ id: string }[]>`
+      SELECT id FROM organizations WHERE owner_id = ${userId}
     `;
 
-    if (profile?.org_id) {
-      await sql`
-        DELETE FROM notifications
-        WHERE user_id = ${userId} OR actor_id = ${userId}
-      `;
-      await sql`DELETE FROM comments WHERE author_id = ${userId}`;
-      await sql`UPDATE requests SET assigned_to = NULL WHERE assigned_to = ${userId}`;
-      await sql`DELETE FROM requests WHERE created_by = ${userId}`;
+    for (const organization of organizations) {
+      await sql`DELETE FROM organizations WHERE id = ${organization.id}`;
     }
-
-    await sql`DELETE FROM invites WHERE invited_by = ${userId}`;
-    await sql`DELETE FROM workspace_members WHERE user_id = ${userId}`;
     await sql`DELETE FROM profiles WHERE id = ${userId}`;
-
-    if (profile?.org_id) {
-      const [remaining] = await sql`
-        SELECT count(*)::int AS c FROM workspace_members
-        WHERE workspace_id = ${profile.org_id}
-      `;
-      if (remaining.c === 0) {
-        await sql`DELETE FROM invites WHERE org_id = ${profile.org_id}`;
-        await sql`DELETE FROM organizations WHERE id = ${profile.org_id}`;
-      }
-    }
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function cleanupTestInvite(token: string): Promise<void> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
-  try {
-    await sql`DELETE FROM invites WHERE token = ${token}`;
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function seedPendingInvite(
-  orgId: string,
-  email: string,
-  token: string,
-  role = "member"
-): Promise<void> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
-  try {
-    await sql`
-      INSERT INTO invites (org_id, email, token, role, status, expires_at)
-      VALUES (${orgId}, ${email}, ${token}, ${role}, 'pending',
-              now() + interval '24 hours')
-    `;
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function createTestWorkspace(
-  name: string,
-  slug: string
-): Promise<string> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
-  try {
-    const [row] = await sql`
-      INSERT INTO organizations (name, slug)
-      VALUES (${name}, ${slug})
-      RETURNING id
-    `;
-    return row.id;
   } finally {
     await sql.end();
   }
@@ -106,14 +92,9 @@ export async function createTestWorkspace(
 export async function getProfileFullName(
   userId: string
 ): Promise<string | null> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
+  const sql = database();
   try {
-    const [row] = await sql`
+    const [row] = await sql<{ full_name: string }[]>`
       SELECT full_name FROM profiles WHERE id = ${userId}
     `;
     return row?.full_name ?? null;
@@ -123,14 +104,9 @@ export async function getProfileFullName(
 }
 
 export async function getProfileRole(userId: string): Promise<string | null> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
+  const sql = database();
   try {
-    const [row] = await sql`
+    const [row] = await sql<{ role: string }[]>`
       SELECT role FROM profiles WHERE id = ${userId}
     `;
     return row?.role ?? null;
@@ -139,21 +115,16 @@ export async function getProfileRole(userId: string): Promise<string | null> {
   }
 }
 
-export async function getTestWorkspaceId(
-  userId: string
-): Promise<string> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
+export async function getTestWorkspaceId(userId: string): Promise<string> {
+  const sql = database();
   try {
-    const [row] = await sql`
-      SELECT org_id FROM profiles WHERE id = ${userId}
+    const [row] = await sql<{ id: string }[]>`
+      SELECT id FROM organizations WHERE owner_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT 1
     `;
-    if (!row?.org_id) throw new Error("[e2e] profile workspace not found");
-    return row.org_id;
+    if (!row?.id) throw new Error("[e2e] test workspace not found");
+    return row.id;
   } finally {
     await sql.end();
   }
@@ -163,25 +134,23 @@ export async function seedTestRequest(
   userId: string,
   title: string
 ): Promise<{ id: string; orgId: string }> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
+  const orgId = await getTestWorkspaceId(userId);
+  const sql = database();
 
   try {
-    const [profile] = await sql`
-      SELECT org_id FROM profiles WHERE id = ${userId}
-    `;
-    if (!profile?.org_id) throw new Error("[e2e] profile workspace not found");
-
     const id = randomUUID();
     await sql`
       INSERT INTO requests (id, org_id, title, description, status, created_by)
-      VALUES (${id}, ${profile.org_id}, ${title},
-              'Only members of workspace A may read this request.', 'open', ${userId})
+      VALUES (
+        ${id},
+        ${orgId},
+        ${title},
+        'Only members of workspace A may read this request.',
+        'open',
+        ${userId}
+      )
     `;
-    return { id, orgId: profile.org_id };
+    return { id, orgId };
   } finally {
     await sql.end();
   }
@@ -190,53 +159,14 @@ export async function seedTestRequest(
 export async function seedRowIdentityFixtures(
   userId: string
 ): Promise<{ requestId: string }> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
+  const orgId = await getTestWorkspaceId(userId);
+  const sql = database();
 
   try {
-    const [profile] = await sql`
-      SELECT org_id FROM profiles WHERE id = ${userId}
-    `;
-    if (!profile?.org_id) throw new Error("[e2e] profile workspace not found");
-
     await sql`
       UPDATE profiles
-      SET email = 'row.identity@lane-e2e-test.local'
+      SET email = 'row.identity+clerk_test@example.com'
       WHERE id = ${userId}
-    `;
-
-    await sql`
-      INSERT INTO invites (
-        org_id, email, token, role, status, invited_by, expires_at
-      )
-      VALUES (
-        ${profile.org_id},
-        'maya.longlastname@northstar-studio.example',
-        ${`e2e-row-${randomUUID()}`},
-        'admin',
-        'pending',
-        ${userId},
-        '2030-07-24T12:00:00.000Z'
-      ), (
-        ${profile.org_id},
-        'maya1.longlastname@northstar-studio.example',
-        ${`e2e-row-${randomUUID()}`},
-        'member',
-        'pending',
-        ${userId},
-        '2030-07-24T12:00:00.000Z'
-      ), (
-        ${profile.org_id},
-        'maya2.longlastname@northstar-studio.example',
-        ${`e2e-row-${randomUUID()}`},
-        'member',
-        'pending',
-        ${userId},
-        '2030-07-24T12:00:00.000Z'
-      )
     `;
 
     const requestId = randomUUID();
@@ -247,7 +177,7 @@ export async function seedRowIdentityFixtures(
       )
       VALUES (
         ${requestId},
-        ${profile.org_id},
+        ${orgId},
         'Add a changelog panel to every workspace',
         'Customers cannot tell why a Request changed after it was submitted.',
         'solution',
@@ -272,7 +202,7 @@ export async function seedRowIdentityFixtures(
       )
       VALUES (
         ${userId},
-        ${profile.org_id},
+        ${orgId},
         'comment_added',
         ${requestId},
         ${userId},
@@ -287,17 +217,13 @@ export async function seedRowIdentityFixtures(
 }
 
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
-  const sql = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
-    max: 1,
-    idle_timeout: 5,
-  });
-
+  const sql = database();
   try {
-    await sql`DELETE FROM workspace_members WHERE workspace_id = ${orgId}`;
-    await sql`DELETE FROM profiles WHERE org_id = ${orgId}`;
     await sql`DELETE FROM organizations WHERE id = ${orgId}`;
   } finally {
     await sql.end();
   }
+
+  const client = await clerkClient();
+  await client.organizations.deleteOrganization(orgId).catch(() => undefined);
 }

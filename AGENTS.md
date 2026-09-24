@@ -10,20 +10,20 @@ No time tracking, no "last active," no utilization percentages. Ever. This is a 
 
 ## The MVP — in three sentences
 
-1. On first login a person picks a role — **PM, Designer, or Developer** (a label, editable later in Settings; it does NOT change what they can see or do). Anyone can submit a design request through an intake form, and before a request can be saved, an AI gate classifies it as a **problem**, a **solution**, or a **hybrid**, reframing solution-shaped requests into a problem the submitter confirms.
+1. On first login a person creates or joins a Clerk workspace, then picks a role — **PM, Designer, or Developer** (a label, editable later in Settings; it does NOT change what they can see or do). Anyone can submit a design request through an intake form with optional evidence fields (who is affected, desired change, observed evidence, uncertainty, useful link) and private file attachments; before a request can be saved, an AI gate classifies it as a **problem**, a **solution**, or a **hybrid**, reframing solution-shaped requests into a problem the submitter confirms.
 2. Accepted requests land on a shared board the whole workspace sees with a dead-simple lifecycle — **Open → In Progress → Done**; anyone can pick up an Open request (it becomes In Progress, assigned to them) and mark it Done. The view and actions are identical for every role.
-3. That is the entire product — plus invited-guest isolation and lightweight in-app notifications already shipped to support this loop. No design stages, analytics, Figma, automation, email digests, or AI beyond the intake gate.
+3. That is the entire product — plus lightweight in-app notifications and guest isolation when the Clerk plan exposes `org:guest`. No design stages, analytics, Figma, automation, email digests, or AI beyond the intake gate.
 
 ## The only screens that exist in the MVP
 
-1. **Auth** — login / signup / accept-invite. (Built fresh, see SALVAGE.md.)
-2. **Onboarding** — pick a role (PM / Designer / Developer) and create or join a workspace. Role editable later in Settings.
-3. **Intake** — the request form + the AI gate. This is the whole point of the product.
-4. **Requests** — one workspace-wide board everyone sees, grouped Open / In Progress / Done. Same view for every role.
+1. **Auth** — login / signup / accept-invite.
+2. **Onboarding** — create/join a Clerk workspace → pick a role (PM / Designer / Developer) → Requests. Membership is required; interrupted Clerk organization tasks resume at `/login`. Role editable later in Settings.
+3. **Intake** — the request form (including optional evidence fields and private attachments) + the AI gate. This is the whole point of the product.
+4. **Requests** — one workspace-wide board everyone sees, grouped Open / In Progress / Done, with an optional `?status=` filter. Same view for every role.
 5. **Request detail** — view one request; anyone can pick it up, mark it Done, and comment. No role-gated actions.
-6. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role). Nothing else under settings.
+6. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role; includes browser-local theme preference). Nothing else under settings.
 
-Settings → Profile is shipped. Invited Guest is shipped: guests are limited workspace members who see and comment on only their own Requests, and cannot pick up work or access Members. Public / anonymous Intake is separate and deferred.
+Settings → Profile is shipped. Guest enforcement is implemented: a Clerk `org:guest` sees and comments on only their own Requests, and cannot pick up work or access Members. Clerk production custom roles require Enhanced B2B; until that plan is approved, production invitations are Admin or Member only. Public / anonymous Intake is separate and deferred.
 
 If a screen isn't on this list, it does not get built without an explicit written decision from Nikhil first.
 
@@ -36,7 +36,7 @@ design stages are DEFERRED, not built now.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase (production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate production + staging projects) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Clerk (users, sessions, organizations, memberships, roles, invitations) · Supabase (Postgres + private attachment storage only; production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate production + staging projects) · Anthropic via Vercel AI SDK (intake gate uses Codex-haiku-4-5).
 
 ## Working rules (the part that actually matters)
 
@@ -54,14 +54,16 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui ·
   JSX blindly, and skip it for backend-only or visually trivial changes.
 - **No new tables, routes, AI calls, or cron jobs without explicit written approval.** Default answer to "should we also build X" is no.
 - **Same view for everyone.** PM/Designer/Developer is a label, not a UI or permission gate. No role-based
-  view differences, per-role dashboards, or hidden actions. (Workspace owner-vs-member is the only permission tier.)
+  view differences, per-role dashboards, or hidden actions. Clerk organization membership is the only
+  tenancy authority. Lane recognizes **admin | member | guest** from Clerk; PM / Designer / Developer is never one of them.
 - **Actions receive context for workspace, derive identity from the session.** Server actions take
   `{orgId}` from the page render; they must NOT call `ensureWorkspace`/`getWorkspace` to re-derive which
   workspace they're in. (This bug recurred three times — it lives here now so it stops.) **However,
   `userId` must NEVER come from client-passed arguments.** Server action arguments travel over HTTP and
-  are forgeable. Identity is derived inside the shared guards (`requireActiveMember` / `requireOwnerOrAdmin`
-  in `src/lib/auth-guard.ts`) via `auth.getUser()` — the httpOnly session cookie is unforgeable. Actions
-  use the guard's returned `auth.userId` for every identity field (assignedTo, authorId, createdBy, invitedBy).
+  are forgeable. Identity, active organization, and organization role are derived inside the shared guards
+  (`requireActiveMember` / `requireOwnerOrAdmin` in `src/lib/auth-guard.ts`) from Clerk `auth()` — the
+  httpOnly session cookie is unforgeable. Actions use the guard's returned `auth.userId` for every identity
+  field (assignedTo, authorId, createdBy). Lane must never recreate local membership or invitation tables.
 - **Deferred work is tracked in DEFERRED.md**, by trigger. Daily reviews feed it. Nothing deferred may
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
@@ -83,24 +85,25 @@ Long-term outcome learning and agentic design operations are product vision only
 > enough that losing it would materially hurt. Until managed backups exist, take and verify a manual database
 > export before every migration; run and verify migrations on staging before production.
 
-- [x] **Split prod / staging.** Completed 2026-07-13: free `Lane Staging` Supabase project in Tokyo,
-      initialized from canonical migrations, plus a separate `lane-staging` Vercel Hobby project at
-      `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding,
-      the persistent invite step, invite acceptance, membership creation, and the shared Requests board.
+- [x] **Split prod / staging.** On 2026-09-24 the existing Lane Staging Supabase project was resumed (it was
+      paused, not deleted). The pre-Clerk export was verified and canonical migration `0013` applied there.
+      The separate `lane-staging` Vercel project remains at `https://lane-staging.vercel.app`; the Clerk build
+      still needs deployment and live acceptance checks before any production promotion.
       Migrations run on STAGING first, are verified there, and only then may be promoted to production.
 - [ ] **Supabase Pro** — required at the trigger for managed daily backups. PITR is a separate paid add-on and
       requires its own explicit cost decision; do not describe it as included in Pro.
 - [ ] **Vercel Pro** — required before accepting the first payment; Hobby remains free-pilot/non-commercial only.
 - [x] **Custom domain** — `app.uselane.app` is production; `www.uselane.app` permanently redirects to it.
-- [x] Confirm workspace isolation with fresh second accounts before anyone real signs up. Verified by the
-      live browser E2E in `e2e/workspace-isolation.spec.ts` (own board visible; cross-workspace board/detail denied).
+- [ ] Confirm deployed workspace isolation before anyone real signs up. Fresh Clerk-account browser tests
+      pass against the local Clerk build and Lane Staging database (2026-09-24); repeat on deployed staging.
 
 
 ## Roadmap & phases
 - **Current phase: Phase 0 functional loop shipped → pre-GTM gate.** Foundation + Requests app, including Settings → Profile, is built and merged.
-  The pre-GTM launch list (16 must-build + 5 must-decide) lives in `lane-roadmap.md` §3a.
+  The pre-GTM launch list (16 must-build items; deferred decisions resolved inline in §3a) lives in
+  `lane-roadmap.md` §3a.
   Full sequence + the thesis filter (adopt / reconceive / refuse) live in `lane-roadmap.md`.
-- **Canonical planning docs** (re-read at the start of a new phase): `lane-roadmap.md` (sequence),
+- **Canonical planning docs** (re-read at the start of a new phase): `REQUIREMENTS.md` (product behaviour and decision status), `lane-roadmap.md` (sequence),
   `conventions-plan.md` (IA / roles / invites wiring, grounded in Plane source), `phase-0-ux-skeleton.md`
   (journeys / screens / states), `PLANE-MAP.md` (reference terrain).
 - **Phase checkpoint (so later phases aren't forgotten):** a phase is done only when it ships AND real design

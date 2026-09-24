@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { db, profiles } from "@/db";
@@ -16,12 +16,7 @@ export default async function ProfilePage() {
   const [profile] = await db
     .select({ role: profiles.role })
     .from(profiles)
-    .where(
-      and(
-        eq(profiles.id, workspace.userId),
-        eq(profiles.orgId, workspace.orgId)
-      )
-    );
+    .where(eq(profiles.id, workspace.userId));
   if (!profile) redirect("/onboarding");
 
   return (

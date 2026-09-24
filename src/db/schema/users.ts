@@ -1,6 +1,5 @@
 import {
   pgTable,
-  uuid,
   text,
   timestamp,
   pgEnum,
@@ -10,10 +9,10 @@ export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer"]);
 
 export const workspaces = pgTable("organizations", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  ownerUserId: uuid("owner_id"),
+  ownerUserId: text("owner_id"),
   plan: planEnum("plan").notNull().default("free"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -27,10 +26,7 @@ export const workspaces = pgTable("organizations", {
 export const organizations = workspaces;
 
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey(),
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
   role: roleEnum("role").notNull().default("designer"),

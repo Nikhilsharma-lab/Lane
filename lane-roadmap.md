@@ -68,12 +68,11 @@ second app earns its place through validation. Nothing is shown merely to signal
 
 ## 3. The incremental sequence
 
-**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED.** App shell + two-tier-ready nav;
-roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
-comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
-All merged. Invited Guest is shipped as a limited workspace member. Settings → Profile is shipped; changing
-the PM / Designer / Developer label does not change access or permissions. Workspace invitation email delivery
-with a durable copy-link fallback shipped and was live-verified on staging and production on 2026-07-14.
+**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED; CLERK CUTOVER IN PROGRESS.** App shell +
+settings IA; the **Requests** app — board, detail, lifecycle, comments, guest enforcement, and Profile settings.
+Clerk now owns users, sessions, organizations, memberships, roles, and invitations; Lane keeps only the
+PM / Designer / Developer profile label and Clerk IDs on domain records. Local membership and invitation
+tables are removed. Production guest invitations remain unavailable until Clerk Enhanced B2B is approved.
 
 **What's next:** close the **pre-GTM gate** (see §3a below) — the hardening, infra, and product decisions that
 must be done before real users. Then Phase 1.
@@ -88,7 +87,8 @@ in real work. Phase 2 remains unselected until their usage pulls for a specific 
 
 Everything standing between Phase 0 (complete) and paid launch. Source: DEFERRED.md pre-launch gate,
 CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. No payment is accepted until
-every must-build is done and every must-decide is resolved (built or deleted). A 20–30-person free,
+every must-build is done and every inline deferred decision in §3a is explicit (built, deleted,
+or trigger-gated). A 20–30-person free,
 non-commercial pilot is explicitly approved on free tiers; it exists to validate Requests, not bypass the
 paid-launch gate.
 
@@ -115,6 +115,10 @@ Board polish — verdicts from build-or-delete review (2):
 - [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
 AGENTS.md infra (5):
+- [ ] Clerk clean cutover → code and destructive reset migration verified locally on 2026-09-24; staging
+  backup, staging migration, Clerk environment variables, redeploy, and fresh auth/organization/isolation E2E
+  remain required before any production change. The old Supabase Auth and Resend invite verification is
+  historical evidence only and does not satisfy this gate.
 - [x] Split prod / staging → RESOLVED 2026-07-13: the free `Lane Staging` Tokyo Supabase project was
   initialized from the canonical migration chain and paired with the separate `lane-staging` Vercel Hobby project
   at `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding, the
@@ -125,9 +129,9 @@ AGENTS.md infra (5):
 - [ ] Vercel Pro → deferred during the free, non-commercial pilot; required before accepting the first payment.
 - [x] Custom domain → RESOLVED 2026-07-12: `app.uselane.app` is production; `www.uselane.app` returns a
   path-preserving permanent 308 redirect; Vercel app URL and Supabase Site URL/callback allowlist use `app`.
-- [x] Confirm workspace isolation with fresh second accounts → RESOLVED (live browser E2E creates two users
-  and workspaces, proves A sees its seeded Request while B sees neither the board card nor direct detail;
-  `e2e/workspace-isolation.spec.ts`)
+- [ ] Confirm workspace isolation with fresh second Clerk accounts → the retained browser E2E creates two
+  Clerk users and organizations and asserts both board and direct-detail isolation. It passed against the
+  local Clerk build and resumed Lane Staging database on 2026-09-24; deployed-staging verification remains.
 
 **Resolved (2026-06-26 / 2026-06-27):**
 - Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)

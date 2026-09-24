@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Service-role Supabase client — bypasses RLS, has auth.admin access.
- * Server/test-only. May be imported only by audited server-side auth flows and tests.
- * NEVER import this from client code.
+ * Service-role Supabase client for private Storage operations.
+ * Clerk owns identity; this client must never be used as a second auth system.
+ * Server-only. NEVER import this from client code.
  */
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

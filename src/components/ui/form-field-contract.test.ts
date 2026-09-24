@@ -12,11 +12,7 @@ const AUTH_FIELD = source("src/components/auth/auth-field.tsx")
 const PASSWORD_FIELD = source("src/components/auth/password-field.tsx")
 const DESIGN = source("DESIGN.md")
 const AUTH_ROUTES = [
-  "src/app/(auth)/login/page.tsx",
-  "src/app/(auth)/signup/signup-form.tsx",
-  "src/app/(auth)/forgot-password/recovery-form.tsx",
-  "src/app/(auth)/reset-password/reset-password-form.tsx",
-  "src/app/(auth)/onboarding/onboarding-form.tsx",
+  "src/app/(app)/settings/profile/profile-form.tsx",
 ].map(source)
 
 describe("Form field contract", () => {
@@ -61,7 +57,7 @@ describe("Form field contract", () => {
     )
   })
 
-  it("prevents Auth and Onboarding routes from rebuilding text fields", () => {
+  it("prevents Lane-owned forms from rebuilding text fields", () => {
     for (const route of AUTH_ROUTES) {
       expect(route).not.toContain('from "@/components/ui/input"')
       expect(route).not.toContain(
@@ -69,10 +65,6 @@ describe("Form field contract", () => {
       )
       expect(route).not.toContain("md:h-11")
     }
-
-    expect(AUTH_ROUTES.join("\n")).toContain(
-      'from "@/components/auth/auth-field"'
-    )
   })
 
   it("records the same contract in the canonical design system", () => {

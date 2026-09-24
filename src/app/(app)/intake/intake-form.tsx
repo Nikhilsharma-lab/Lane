@@ -1502,7 +1502,7 @@ export default function IntakeForm({
                     <>
                       {" "}
                       <Link
-                        href="/login?next=%2Fintake"
+                        href="/login#/?redirect_url=%2Fintake"
                         onClick={preserveDraftForSignIn}
                         className="font-medium text-foreground underline underline-offset-4"
                       >
@@ -1748,7 +1748,7 @@ export default function IntakeForm({
                 <>
                   {" "}
                   <Link
-                    href="/login?next=%2Fintake"
+                    href="/login#/?redirect_url=%2Fintake"
                     onClick={preserveDraftForSignIn}
                     className="font-medium text-foreground underline underline-offset-4"
                   >

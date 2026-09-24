@@ -1,26 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { safeRedirectPath } from "@/lib/safe-redirect";
 
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
-  const next = safeRedirectPath(searchParams.get("next"));
-
-  if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
-    }
-  }
-
-  if (next === "/reset-password") {
-    return NextResponse.redirect(
-      `${origin}/reset-password?error=invalid-link`
-    );
-  }
-
-  // If no code or exchange failed, redirect to login with error.
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+export function GET(request: Request) {
+  return NextResponse.redirect(new URL("/", request.url));
 }

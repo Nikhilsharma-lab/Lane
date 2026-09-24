@@ -13,10 +13,7 @@ const GLOBALS = source("src/app/globals.css")
 const ROW = source("src/components/ui/row.tsx")
 const DESIGN = source("DESIGN.md")
 const CONSUMERS = [
-  "src/app/(auth)/onboarding/onboarding-form.tsx",
   "src/app/(app)/requests-workspace.tsx",
-  "src/app/(app)/settings/members/member-row.tsx",
-  "src/app/(app)/settings/members/invite-row.tsx",
   "src/components/shell/notification-bell.tsx",
 ].map(source)
 

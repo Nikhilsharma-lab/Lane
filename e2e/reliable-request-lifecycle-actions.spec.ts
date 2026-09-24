@@ -5,6 +5,7 @@ import {
   seedTestRequest,
 } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { provisionAndSignIn } from "./helpers/auth";
 
 const SURFACES = [
   {
@@ -28,31 +29,6 @@ const SURFACES = [
     viewport: { width: 390, height: 844 },
   },
 ] as const;
-
-async function onboard(page: Page, email: string, password: string) {
-  await page.goto("/login");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/onboarding", { timeout: 20_000 });
-
-  await page
-    .getByLabel("Your name", { exact: true })
-    .fill("Lifecycle Reliability Test");
-  await page.getByRole("radio", { name: /^Designer/ }).click();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page
-    .getByLabel("Workspace name", { exact: true })
-    .fill("Lifecycle Reliability");
-  await page.getByRole("button", { name: "Create workspace" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Bring one teammate" })
-  ).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Skip for now" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Requests", exact: true })
-  ).toBeVisible({ timeout: 20_000 });
-}
 
 async function holdAndFailNextAction(page: Page, path: string) {
   let releaseRequest: (() => void) | undefined;
@@ -105,7 +81,10 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
   const user = await createTestUser("reliable-lifecycle");
 
   try {
-    await onboard(page, user.email, user.password);
+    await provisionAndSignIn(page, user, {
+      name: "Lifecycle Reliability Test",
+      workspaceName: "Lifecycle Reliability",
+    });
 
     for (const surface of SURFACES) {
       await page.setViewportSize(surface.viewport);

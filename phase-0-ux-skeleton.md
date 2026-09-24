@@ -11,13 +11,17 @@ dresses every screen.** Scope: Phase 0 (foundation + the Requests app). Later ap
 The pieces assembled into the paths a real person walks.
 
 **J1 · New user → first workspace**
-Sign up → verify (deferred for dev) → onboarding: profile + functional label (PM/Designer/Developer) →
-workspace step: no pending invites, so CREATE → name workspace → land on empty Requests board.
+Clerk sign up → verify email → Clerk create/join workspace → activate organization → onboarding:
+functional label (PM/Designer/Developer) → land on empty Requests board.
+
+**Decision 2026-09-24:** Clerk Organizations uses **Membership required**. Clerk handles the pending
+`choose-organization` task in its authentication flow. Interrupted setup resumes through `/login`;
+organization-less or pending sessions cannot enter Requests or save a Lane functional label.
 
 **J2 · Invited user → joins a workspace**
-Open invite link → not signed in → sign up (email prefilled from invite) → onboarding profile + label →
-workspace step: pending invite exists, so JOIN view → "Join {workspace}?" → land on the shared board as member.
-*(Branch: already in a workspace → blocked "coming soon," invite stays pending.)*
+Open Clerk invitation → sign in or sign up with the invited address → Clerk activates the organization
+membership → onboarding functional label if missing → land on the shared board. Clerk owns mismatch,
+expired, revoked, and already-member outcomes.
 
 **J3 · Submit a request (the gate — the differentiator)**
 Board → New request → type a request → gate classifies → if solution-shaped: reframed problem shown
@@ -32,15 +36,15 @@ reflects each move.
 Detail → add a comment → appears in thread with name + time.
 
 **J6 · Invite a teammate**
-Settings → Members → Invite → enter email(s) + role → copy link → share manually. Re-invite same email →
-refreshes, no dupe. Revoke → link dies.
+Settings → Members → Clerk Organization Profile → invite by email as Admin or Member → Clerk sends and
+tracks the invitation. Resend, revoke, membership changes, and role changes stay inside Clerk.
 
 **J7 · Change your role label**
 Settings → Account/Profile → role dropdown → persists; board/actions unchanged (label ≠ permission).
 
-**J8 · Invited Guest submits a request** *(shipped)*
-Guest invite → join as guest → sees only a "my requests" view → submit (through the gate) → sees own request
-+ status. No board, no pickup, no members.
+**J8 · Invited Guest submits a request** *(implemented; paid Clerk role required in production)*
+Clerk `org:guest` invite → join as guest → sees only a "my requests" view → submit (through the gate) →
+sees own request + status. No full board, pickup, or Members access.
 
 ---
 
@@ -50,27 +54,26 @@ Each screen, with the states that must exist (so none ships as a blank panel or 
 
 | Screen | Route | Key states |
 |---|---|---|
-| Sign in | `/login` | default · invalid creds · loading |
-| Sign up | `/signup` | default · taken email · validation · loading |
+| Sign in | `/login` | default · invalid creds · loading · resume Clerk organization task |
+| Sign up | `/signup` | default · taken email · validation · loading · Clerk organization task |
 | Forgot / reset password | `/forgot-password` | request · sent · reset · invalid token |
-| Onboarding: profile + label | `/onboarding` | default · saving |
-| Onboarding: create-or-join | `/onboarding` | CREATE (no invites) · JOIN (invites>0, w/ "create instead") |
+| Onboarding: organization | Clerk auth flow at `/signup` or `/login` | pending create/join · invited organization activation · interrupted task recovery |
+| Onboarding: functional label | `/onboarding` | active organization required · default · saving · recoverable error · existing label skips to Requests |
 | App shell (top bar + sidebar) | wraps all | single-app (rail hidden) · later: multi-app (rail shown) |
 | Notifications popover | shell | unread count · loading · empty · list · read/unread |
-| Requests board | `/` | empty ("first request" CTA) · populated · loading |
-| Intake / gate | `/intake` | input · classifying · reframed (editable) · looks-good · error/timeout |
+| Requests board | `/` | empty ("first request" CTA) · populated · loading · optional `?status=` filter |
+| Intake / gate | `/intake` | input (title, description, optional evidence fields, attachments) · classifying · reframed (editable) · looks-good · error/timeout |
 | Request detail | `/requests/[id]` | open · in-progress · done · not-found (bad id) · loading |
 | Comments (in detail) | — | empty · thread · posting |
-| Members | `/settings/members` | members + pending invites · empty ("invite your team") |
-| Invite modal | — | default · multi-email · already-member · refreshed |
-| Invite accept | `/invite/[token]` | not-signed-in · join-prompt · email-mismatch · expired · revoked · already-member |
+| Members | `/settings/members` | Clerk Organization Profile: members · invitations · roles · leave organization |
+| Invite flow | Clerk-hosted route/email | not-signed-in · email verification · expired/revoked · already-member |
 | Settings: workspace | `/settings` | general · members |
-| Settings: account/profile *(required gap)* | `/settings/profile` | label dropdown · name · saving |
+| Settings: account/profile | `/settings/profile` | label dropdown · browser-local theme · saving |
 | Guest "my requests" *(shipped at `/` for guests)* | `/` | empty · own-only list |
 
 **States that are easy to forget and must not be:** empty (every list), loading (every fetch), error
-(every action — especially the gate timeout and bad-UUID 404), and the invite-accept branches (the spec's
-edge-case table maps to real screens here).
+(every action — especially the gate timeout and bad-UUID 404). Clerk owns and tests authentication,
+organization, membership, and invitation edge states; Lane tests its routing and authorization boundary.
 
 ---
 

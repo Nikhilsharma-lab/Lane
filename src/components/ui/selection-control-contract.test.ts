@@ -13,7 +13,7 @@ const SELECT = readFileSync(
 const ONBOARDING = readFileSync(
   join(
     process.cwd(),
-    "src/app/(auth)/onboarding/onboarding-form.tsx"
+    "src/app/(auth)/onboarding/role-form.tsx"
   ),
   "utf8"
 )
@@ -33,7 +33,6 @@ describe("Selection control contract", () => {
     expect(ONBOARDING).toContain("value={role}")
     expect(ONBOARDING).not.toContain("value={role ?? undefined}")
     expect(ONBOARDING).toContain("required")
-    expect(ONBOARDING).toContain('data-slot="radio-option"')
     expect(GLOBAL_STYLES).toContain(
       '[data-slot="radio-group-item"]:focus-visible'
     )
@@ -70,12 +69,13 @@ describe("Selection control contract", () => {
     expect(SELECT).not.toMatch(/(?:disabled|data-disabled):opacity-/)
   })
 
-  it("keeps onboarding labels, help, and meaningful option copy connected", () => {
+  it("keeps onboarding labels and functional-role option copy connected", () => {
     expect(ONBOARDING).toContain('aria-labelledby="role-label"')
-    expect(ONBOARDING).toContain('aria-describedby="invite-role-helper"')
-    expect(ONBOARDING).toContain('id="invite-role-helper"')
-    expect(ONBOARDING).toContain('label="Member"')
-    expect(ONBOARDING).toContain("Shared Requests and comments")
-    expect(ONBOARDING).toContain("Only Requests they submit")
+    expect(ONBOARDING).toContain('label: "PM"')
+    expect(ONBOARDING).toContain('label: "Designer"')
+    expect(ONBOARDING).toContain('label: "Developer"')
+    expect(ONBOARDING).toContain(
+      "it never changes what you can access"
+    )
   })
 })

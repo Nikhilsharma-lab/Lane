@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lane
 
-## Getting Started
+Lane is a problem-first product operating system for product teams. Its current product turns unclear or
+solution-shaped Intake into an accepted Request, then carries that Request through a shared
+Open → In Progress → Done workflow without surveillance or role-specific dashboards.
 
-First, run the development server:
+- Production: [app.uselane.app](https://app.uselane.app)
+- Staging: [lane-staging.vercel.app](https://lane-staging.vercel.app)
+
+## Start here
+
+- `AGENTS.md` — repository rules and current build authority.
+- `PRODUCT.md` — product thesis and permanent boundaries.
+- `REQUIREMENTS.md` — behavioural requirements and decision status.
+- `lane-roadmap.md` — validated sequence and phase gates.
+- `DESIGN.md` — Lane's visual and component system.
+- `phase-0-ux-skeleton.md` — current journeys, screens, and states.
+- `conventions-plan.md` — Plane-grounded information architecture and interaction conventions.
+- `PLANE-MAP.md` — read-only reference terrain from Plane.
+- `DEFERRED.md` — deliberate deferrals and their revisit triggers.
+
+## Local development
+
+Use Node.js 20 or newer and pnpm.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Link the repository to the Clerk development application and pull its local keys with `clerk init` followed
+by `clerk env pull`; keep the generated values only in the ignored `.env.local`. Open
+[http://localhost:3000](http://localhost:3000). Never paste secrets into documentation, source control, or chat.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Clerk owns identity and tenancy. Supabase supplies Postgres and private attachment storage only. Never add a
+parallel Lane membership or invitation model.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Verification
 
-## Learn More
+```bash
+pnpm lint
+pnpm test
+pnpm build
+pnpm test:e2e
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+End-to-end tests use Lane Staging configuration. Database migrations are verified on staging before
+production, with a verified manual export before every migration until managed backups are enabled.

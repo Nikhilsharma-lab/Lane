@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SignOutButton } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import {
   ChevronsUpDown,
@@ -10,7 +11,6 @@ import {
   Settings as SettingsIcon,
   UserRound,
 } from "lucide-react";
-import { logout } from "@/app/(auth)/actions";
 import { IdentityMark } from "@/components/ui/identity-mark";
 import { cn } from "@/lib/utils";
 import { NAV_MATCHERS, NAV_ITEM_BASE, NAV_ITEM_ACTIVE, NAV_ITEM_INACTIVE } from "./sidebar-utils";
@@ -108,15 +108,15 @@ export function Sidebar({
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <form action={logout}>
+              <SignOutButton redirectUrl="/login">
                 <button
-                  type="submit"
+                  type="button"
                   className="flex min-h-touch-target w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-type-control outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
                 >
                   <LogOut className="size-4" />
                   Log out
                 </button>
-              </form>
+              </SignOutButton>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -168,15 +168,15 @@ export function Sidebar({
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <form action={logout}>
+            <SignOutButton redirectUrl="/login">
               <button
-                type="submit"
+                type="button"
                 className="flex min-h-control-utility w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-type-control outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
               >
                 <LogOut className="size-4" />
                 Log out
               </button>
-            </form>
+            </SignOutButton>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

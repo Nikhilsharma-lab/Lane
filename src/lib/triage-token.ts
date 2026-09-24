@@ -21,8 +21,8 @@ import {
 
 const tokenPayloadSchema = z.object({
   requestId: z.string().uuid(),
-  orgId: z.string().uuid(),
-  userId: z.string().uuid(),
+  orgId: z.string().min(1),
+  userId: z.string().min(1),
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().min(1).max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX),

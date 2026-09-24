@@ -3,6 +3,10 @@ import path from "path";
 
 const DB_NAME = "lane_test";
 const BASELINE_PATH = path.resolve(__dirname, "../db/baseline.sql");
+const CLERK_CUTOVER_PATH = path.resolve(
+  __dirname,
+  "../db/migrations/0013_clerk_clean_cutover.sql"
+);
 const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
@@ -46,7 +50,12 @@ export async function setup() {
   execSync(`${pgBin}/dropdb --if-exists ${DB_NAME}`, { stdio: "pipe" });
   execSync(`${pgBin}/createdb ${DB_NAME}`, { stdio: "pipe" });
   execSync(`${pgBin}/psql -d ${DB_NAME} -f "${BASELINE_PATH}"`, { stdio: "pipe" });
+  execSync(`${pgBin}/psql -d ${DB_NAME} -f "${CLERK_CUTOVER_PATH}"`, {
+    stdio: "pipe",
+  });
   execSync(`${pgBin}/psql -d ${DB_NAME} -f "${FIXTURES_PATH}"`, { stdio: "pipe" });
 
-  console.log(`[test-setup] ${DB_NAME} reset from baseline.sql + test-fixtures.sql`);
+  console.log(
+    `[test-setup] ${DB_NAME} reset from baseline.sql + Clerk cutover + test fixtures`
+  );
 }
