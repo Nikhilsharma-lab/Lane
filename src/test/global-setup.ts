@@ -7,6 +7,10 @@ const CLERK_CUTOVER_PATH = path.resolve(
   __dirname,
   "../db/migrations/0013_clerk_clean_cutover.sql"
 );
+const CLERK_SAFEGUARDS_PATH = path.resolve(
+  __dirname,
+  "../db/migrations/0014_restore_clerk_table_safeguards.sql"
+);
 const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
@@ -50,12 +54,20 @@ export async function setup() {
   execSync(`${pgBin}/dropdb --if-exists ${DB_NAME}`, { stdio: "pipe" });
   execSync(`${pgBin}/createdb ${DB_NAME}`, { stdio: "pipe" });
   execSync(`${pgBin}/psql -d ${DB_NAME} -f "${BASELINE_PATH}"`, { stdio: "pipe" });
-  execSync(`${pgBin}/psql -d ${DB_NAME} -f "${CLERK_CUTOVER_PATH}"`, {
+  // Do not let a hosted-project convenience trigger hide missing RLS in the
+  // canonical migrations. Fresh databases must be protected by the SQL itself.
+  execSync(`${pgBin}/psql -v ON_ERROR_STOP=1 -d ${DB_NAME} -c "DROP EVENT TRIGGER IF EXISTS ensure_rls"`, {
+    stdio: "pipe",
+  });
+  execSync(`${pgBin}/psql -v ON_ERROR_STOP=1 -d ${DB_NAME} -f "${CLERK_CUTOVER_PATH}"`, {
+    stdio: "pipe",
+  });
+  execSync(`${pgBin}/psql -v ON_ERROR_STOP=1 -d ${DB_NAME} -f "${CLERK_SAFEGUARDS_PATH}"`, {
     stdio: "pipe",
   });
   execSync(`${pgBin}/psql -d ${DB_NAME} -f "${FIXTURES_PATH}"`, { stdio: "pipe" });
 
   console.log(
-    `[test-setup] ${DB_NAME} reset from baseline.sql + Clerk cutover + test fixtures`
+    `[test-setup] ${DB_NAME} reset from baseline.sql + Clerk cutover/safeguards + test fixtures`
   );
 }

@@ -116,3 +116,28 @@ Create one destructive canonical migration that:
 - **Next gate:** deploy this branch to staging, then verify actual signup, emailed invitation acceptance,
   and attachment authorization on the deployed application. The old staging deployment is not compatible
   with the migrated schema; redeploying old `main` is not a cutover. Production remains blocked on this gate.
+
+## Release attempt — 2026-09-24
+
+- The user authorized completing staging deployment/verification and then the production cutover.
+- Live Git inspection found commit `8490730` already pushed on `codex/clerk-clean-cutover`; `main` remains
+  `826e509`. Vercel has a Ready preview for that commit in the separate `lane-staging` project:
+  `dpl_BibXBgxWNZZc3Qmwz4dG7ky81aHw`. It has not been promoted to `lane-staging.vercel.app`.
+- Release review found the three timestamp triggers absent after 0013. Live staging inspection also
+  found RLS disabled on all six recreated tables (the local baseline's hosted auto-RLS helper had masked
+  that difference); table grants remained revoked. Added canonical, non-destructive migration
+  `0014_restore_clerk_table_safeguards.sql` and real database regressions.
+- Before applying 0014, exported staging's public schema/data to
+  `backups/lane-staging-pre-0014-2026-09-24T09-53-03-209Z.dump` (24,389 bytes, mode 0600).
+  Verified its archive listing and a full archive read. Applied 0014 only to staging; verified all six
+  RLS flags, denied anon/authenticated SELECT privileges, and all three restored timestamp triggers.
+- Fresh local verification passed: 34 files / 205 tests, TypeScript, full ESLint, and diff checks.
+  The production build passed before the database-only follow-up; no runtime application code changed.
+- Added `e2e/clerk-attachments.spec.ts` for real upload/finalization/exact-byte download plus anonymous,
+  foreign-workspace, forged-context, and public-storage denial. Its live deployed run is still pending.
+- Dashboard automation safety review blocked the staging project's action named **Promote to Production**.
+  Requested explicit confirmation that this is a staging-only promotion to `lane-staging.vercel.app`,
+  with staging credentials, and does not affect `app.uselane.app`. Do not work around that pending approval.
+- Production's Clerk live instance has not been created. The development instance has an unlimited-members
+  paid feature selected; do not clone that into production or purchase an add-on without approval. Production
+  requires its own live keys/domain configuration after staging gates pass. No production changes were made.
