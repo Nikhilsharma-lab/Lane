@@ -115,10 +115,16 @@ Board polish — verdicts from build-or-delete review (2):
 - [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
 AGENTS.md infra (5):
-- [ ] Clerk clean cutover → code and destructive reset migration verified locally on 2026-09-24; staging
-  backup, staging migration, Clerk environment variables, redeploy, and fresh auth/organization/isolation E2E
-  remain required before any production change. The old Supabase Auth and Resend invite verification is
-  historical evidence only and does not satisfy this gate.
+- [ ] Clerk clean cutover → on 2026-09-24, verified backups preceded staging migrations `0013` and `0014`,
+  both verified; Clerk runtime `8490730` is Ready at `https://lane-staging.vercel.app`. Fresh release checks:
+  205 tests across 34 files, typecheck, lint, and build passed. Live private attachment upload/finalization,
+  exact-byte download, and anonymous/cross-workspace denial passed. Live email/password signup → test OTP →
+  required workspace → PM label → Requests passed, with no profile created before membership. Existing-org
+  role onboarding, required-org interruption/reload, and two-workspace board/detail isolation passed live
+  (4 tests including setup, 1.9m, exit 0); actual emailed invitation acceptance
+  remains pending. Production is untouched and still needs
+  its backup, migration, deployment, and live verification after staging passes. The old Supabase Auth and
+  Resend invite verification is historical evidence only and does not satisfy the Clerk gate.
 - [x] Split prod / staging → RESOLVED 2026-07-13: the free `Lane Staging` Tokyo Supabase project was
   initialized from the canonical migration chain and paired with the separate `lane-staging` Vercel Hobby project
   at `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding, the
@@ -131,7 +137,8 @@ AGENTS.md infra (5):
   path-preserving permanent 308 redirect; Vercel app URL and Supabase Site URL/callback allowlist use `app`.
 - [ ] Confirm workspace isolation with fresh second Clerk accounts → the retained browser E2E creates two
   Clerk users and organizations and asserts both board and direct-detail isolation. It passed against the
-  local Clerk build and resumed Lane Staging database on 2026-09-24; deployed-staging verification remains.
+  local Clerk build and deployed staging on 2026-09-24. Live attachment anonymous/cross-workspace denial
+  also passed, including forged organization context. Production verification remains pending.
 
 **Resolved (2026-06-26 / 2026-06-27):**
 - Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)

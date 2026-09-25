@@ -85,17 +85,17 @@ Long-term outcome learning and agentic design operations are product vision only
 > enough that losing it would materially hurt. Until managed backups exist, take and verify a manual database
 > export before every migration; run and verify migrations on staging before production.
 
-- [x] **Split prod / staging.** On 2026-09-24 the existing Lane Staging Supabase project was resumed (it was
-      paused, not deleted). The pre-Clerk export was verified and canonical migration `0013` applied there.
-      The separate `lane-staging` Vercel project remains at `https://lane-staging.vercel.app`; the Clerk build
-      still needs deployment and live acceptance checks before any production promotion.
+- [x] **Split prod / staging.** Clerk runtime `8490730` is Ready at `https://lane-staging.vercel.app`;
+      staging migrations `0013`/`0014` and live signup, onboarding, isolation, and attachments passed after
+      verified backups. Emailed invite acceptance is pending; production is untouched. Evidence and remaining
+      gates: [Clerk cutover plan](docs/superpowers/plans/2026-09-24-clerk-clean-cutover.md).
       Migrations run on STAGING first, are verified there, and only then may be promoted to production.
 - [ ] **Supabase Pro** — required at the trigger for managed daily backups. PITR is a separate paid add-on and
       requires its own explicit cost decision; do not describe it as included in Pro.
 - [ ] **Vercel Pro** — required before accepting the first payment; Hobby remains free-pilot/non-commercial only.
 - [x] **Custom domain** — `app.uselane.app` is production; `www.uselane.app` permanently redirects to it.
-- [ ] Confirm deployed workspace isolation before anyone real signs up. Fresh Clerk-account browser tests
-      pass against the local Clerk build and Lane Staging database (2026-09-24); repeat on deployed staging.
+- [ ] Confirm deployed workspace isolation before anyone real signs up. Fresh Clerk-account board/detail
+      and private attachment isolation passed on deployed staging (2026-09-24); production verification is pending.
 
 
 ## Roadmap & phases

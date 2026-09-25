@@ -141,3 +141,51 @@ Create one destructive canonical migration that:
 - Production's Clerk live instance has not been created. The development instance has an unlimited-members
   paid feature selected; do not clone that into production or purchase an add-on without approval. Production
   requires its own live keys/domain configuration after staging gates pass. No production changes were made.
+
+## Staging-only promotion — 2026-09-24
+
+- The user explicitly approved **staging-only promotion**. The Vercel confirmation listed only
+  `lane-staging.vercel.app`; the separate `lane` project and `app.uselane.app` were not changed.
+- Deployment `dpl_2CbhmNwtWKgeQoyMWVgtaoai2dtd` is **Ready** on the stable staging domain, built from
+  `codex/clerk-clean-cutover` commit `8490730`. Clerk login and signup render there.
+- Follow-up commit `28259f5` was pushed on the same branch. It contains migration 0014, database
+  regression checks, attachment E2E coverage, and this release record; runtime application source is
+  unchanged from the promoted commit. `main` remains `826e509`.
+- Fresh release checks passed: 34 files / 205 unit tests, TypeScript, full ESLint, production build,
+  and `git diff --check`.
+- Live staging attachment verification passed (2 tests including Clerk setup): real Intake review,
+  Request creation, private upload/finalization, exact-byte download, anonymous and cross-workspace
+  denial, forged organization-context denial, and unsigned public-storage denial. Disposable fixtures
+  were cleaned up.
+- Live staging signup verification passed (2 tests including Clerk setup): visible email/password
+  signup, test email OTP, required organization creation, PM label selection, and Requests. No API-created
+  user shortcut was used; Lane had no profile before membership. Disposable fixtures were cleaned up.
+  The first run exposed only an overly strict test selector; the corrected accessible-name selector
+  passed without changing application code.
+- Live staging onboarding/isolation verification passed (4 tests including Clerk setup, 1.9 minutes):
+  existing-organization role selection, organization-first interrupted-sign-in and refresh recovery,
+  and two-workspace board/detail isolation. No application or test-harness changes were needed.
+- The user approved one real invitation to their test alias. Clerk's development Backend API created a
+  Member invitation without a custom redirect, matching the shipped OrganizationProfile invitation
+  defaults. The Members button itself was not exercised by this backend send.
+- Gmail verified delivery on 2026-09-24 at 10:50 UTC, but classified the message as **Spam**, not Inbox.
+  Subject: `[Development] Invitation to join Lane Staging Invite Test`. SPF, DKIM, and DMARC passed;
+  no cause of the spam classification is established. Sender branding is still
+  `My Application <invitations@accounts.dev>` and needs review before production.
+- The disposable `Lane Staging Invite Test` workspace remains available for acceptance verification:
+  organization `org_3JlsYOqN0uI0uKzYHtmZqAZZ9Rt`, invitation `orginv_3JlsYR9yx0beWPDmkDrihWWafBF`,
+  test inviter `user_3JlsYJ4IAnmSXgDUxgBtsGhksor`. No invitation token or password is recorded here.
+- The user accepted the emailed invitation. A fresh Clerk Backend API read verified status `accepted`
+  and the invited alias's membership in the expected organization with role `org:member`.
+- The end-to-end return to Lane failed: after organization selection the hosted portal displayed
+  `Clerk cannot redirect to your application`. Live dashboard inspection found **Fallback development
+  host blank** under Configure → Paths; Account Portal sign-in/sign-up fallbacks use `$DEVHOST` with
+  empty relative paths. Lane's embedded component props do not supply this separately hosted fallback.
+- The user explicitly approved the minimal staging-only correction. Saved the development instance's
+  fallback development host as `https://lane-staging.vercel.app` and verified the value persisted after
+  reloading Clerk's Paths page. Existing root paths, password settings, and production were unchanged.
+  Lane's existing root guard sends members without a profile to `/onboarding`.
+- The real invited session's automatic return to Lane, role-label step, and Requests still require
+  verification after this setting change. No full-browser-suite or Inbox-placement claim is made.
+- **Production is still untouched.** Do not merge `main` or cut over production before the staging
+  gates pass and production-specific Clerk configuration is ready.

@@ -177,10 +177,15 @@ Each item: what · why deferred · source review.
 
 ## E2E BRING-UP — Playwright uses Lane Staging
 
-- **DATABASE RESTORED (2026-09-24):** the existing Lane Staging project was paused, not deleted. It was
-  resumed; `backups/lane-staging-pre-clerk-2026-09-24.dump` was verified before canonical migration `0013`.
-  Local-app browser checks now use that migrated staging database. Deploying the Clerk build to Vercel
-  staging and verifying the deployed signup/invitation journey remain open before production promotion.
+- **STAGING DEPLOYED; CUTOVER OPEN (2026-09-24):** the existing Lane Staging project was paused, not deleted.
+  It was resumed; verified backups preceded canonical migrations `0013` and `0014`, and both were verified.
+  Clerk runtime `8490730` is Ready at `https://lane-staging.vercel.app`. Fresh release checks passed:
+  205 tests across 34 files, typecheck, lint, and build. Live private attachment upload/finalization,
+  exact-byte download, and anonymous/cross-workspace denial passed. Live signup → test OTP → required
+  workspace → PM label → Requests passed, with no profile before membership. Existing-org role onboarding,
+  required-org interruption/reload, and two-workspace board/detail isolation passed live (4 tests including
+  setup, 1.9m, exit 0). Actual emailed invitation acceptance remains pending. Production is untouched; its
+  backup, migration, deployment, and live verification remain open after the staging gate passes.
 - `playwright.config.ts` loads ignored Clerk Development keys from `.env.local`, overlays
   `.env.staging.local`, and unconditionally maps `STAGING_DATABASE_URL` to `DATABASE_URL` so production cannot
   leak into E2E. Clerk's official testing token and Backend API helpers now create disposable users and
