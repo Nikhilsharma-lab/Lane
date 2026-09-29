@@ -1,19 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { SignOutButton } from "@clerk/nextjs";
-import { usePathname } from "next/navigation";
+import { SignOutButton, useOrganization } from "@clerk/nextjs";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ChevronsUpDown,
   Inbox,
+  Plus,
+  Circle,
+  CircleCheck,
+  Timer,
+  Users,
   LogOut,
   Menu,
   Settings as SettingsIcon,
   UserRound,
 } from "lucide-react";
 import { IdentityMark } from "@/components/ui/identity-mark";
-import { cn } from "@/lib/utils";
-import { NAV_MATCHERS, NAV_ITEM_BASE, NAV_ITEM_ACTIVE, NAV_ITEM_INACTIVE } from "./sidebar-utils";
+import { Sidebar as LibrarySidebar, SidebarProvider, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
+import { parseRequestStatusFilter, requestListHref } from "@/lib/request-workspace";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,14 +30,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "./notification-bell";
 
-const MEMBER_NAV = [
-  { label: "Requests", href: "/", icon: Inbox, match: NAV_MATCHERS.requests },
-  { label: "Settings", href: "/settings/members", icon: SettingsIcon, match: NAV_MATCHERS.settings },
-];
-
-const GUEST_NAV = [
-  { label: "My Requests", href: "/", icon: Inbox, match: NAV_MATCHERS.requests },
-];
+const STATUS_NAV = [
+  { label: "Open", status: "open", icon: Circle },
+  { label: "In Progress", status: "in_progress", icon: Timer },
+  { label: "Done", status: "done", icon: CircleCheck },
+] as const;
 
 export function Sidebar({
   workspaceName,
@@ -48,20 +50,34 @@ export function Sidebar({
   orgId: string;
 }) {
   const pathname = usePathname();
-  const navItems = role === "guest" ? GUEST_NAV : MEMBER_NAV;
+  const searchParams = useSearchParams();
+  const filter = parseRequestStatusFilter(searchParams.get("status") ?? undefined);
+  const isRequests = pathname === "/" || pathname.startsWith("/requests/");
+  const { isLoaded, organization } = useOrganization();
+  // Clerk owns the current name. The server's local projection is only a fallback
+  // while the matching resource is unavailable; it never selects the workspace.
+  const displayedWorkspaceName =
+    isLoaded && organization?.id === orgId && organization.name.trim()
+      ? organization.name
+      : workspaceName;
+  const navItems = [
+    { label: "New Request", href: "/intake", icon: Plus, active: pathname === "/intake" },
+    { label: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: Inbox, active: isRequests && filter === "all" },
+    ...STATUS_NAV.map(item => ({ ...item, href: requestListHref(item.status), active: isRequests && filter === item.status })),
+  ];
 
   return (
     <>
       <header
         data-slot="mobile-navigation"
-        className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-3 xl:hidden"
+        className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-3 sm:hidden"
       >
         <Link
           href="/"
           className="flex min-w-0 items-center gap-2.5 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <IdentityMark label={workspaceName} kind="workspace" />
-          <span className="truncate text-type-control font-semibold">{workspaceName}</span>
+          <IdentityMark label={displayedWorkspaceName} kind="workspace" />
+          <span className="truncate text-type-control font-semibold">{displayedWorkspaceName}</span>
         </Link>
 
         <div className="flex items-center gap-1">
@@ -75,14 +91,14 @@ export function Sidebar({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={8} className="w-64">
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="truncate">{workspaceName}</DropdownMenuLabel>
+                <DropdownMenuLabel className="truncate">{displayedWorkspaceName}</DropdownMenuLabel>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 {navItems.map((item) => (
                   <DropdownMenuItem
                     key={item.href}
-                    render={<Link href={item.href} />}
+                    render={<Link href={item.href} aria-current={item.active ? "page" : undefined} />}
                     className="min-h-touch-target"
                   >
                     <item.icon className="size-4" />
@@ -91,6 +107,7 @@ export function Sidebar({
                 ))}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
+              {role !== "guest" && <DropdownMenuItem render={<Link href="/settings/members" />} className="min-h-touch-target"><Users className="size-4" />Members</DropdownMenuItem>}
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="flex min-w-0 items-center gap-3 py-2 font-normal">
                   <IdentityMark label={fullName} />
@@ -122,33 +139,62 @@ export function Sidebar({
         </div>
       </header>
 
-      <aside
-        data-slot="global-navigation"
-        className="hidden w-[240px] shrink-0 flex-col border-r bg-card xl:flex"
-      >
-      <div className="flex items-center gap-2.5 border-b px-4 py-3.5">
-        <IdentityMark label={workspaceName} kind="workspace" />
-        <span className="truncate text-type-control font-semibold">{workspaceName}</span>
-      </div>
+      <aside data-slot="global-navigation" aria-label="Workspace sidebar" className="hidden h-dvh w-[184px] shrink-0 border-r bg-card sm:sticky sm:top-0 sm:flex lg:w-[232px]">
+      <SidebarProvider className="min-h-0" style={{ "--sidebar-width": "232px" } as React.CSSProperties}>
+      <LibrarySidebar collapsible="none" className="w-full">
+      <SidebarHeader className="flex-row items-center gap-2.5 border-b px-4 py-5">
+        <IdentityMark label={displayedWorkspaceName} kind="workspace" />
+        <span className="truncate text-type-control font-semibold">{displayedWorkspaceName}</span>
+      </SidebarHeader>
 
-      <nav className="flex-1 px-2 py-2">
-        {navItems.map((item) => {
-          const active = item.match(pathname);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(NAV_ITEM_BASE, active ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE)}
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Requests</SidebarGroupLabel>
+          <nav aria-label="Primary navigation">
+            <SidebarMenu>
+              {navItems.slice(0, 2).map(item => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton render={<Link href={item.href} aria-current={item.active ? "page" : undefined} />} isActive={item.active} className="h-11 sm:h-8">
+                    <item.icon aria-hidden="true" /><span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </nav>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Status</SidebarGroupLabel>
+          <nav aria-label="Request status filters">
+            <SidebarMenu>
+              {navItems.slice(2).map(item => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton render={<Link href={item.href} aria-current={item.active ? "page" : undefined} />} isActive={item.active} className="h-11 sm:h-8">
+                    <item.icon aria-hidden="true" /><span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </nav>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t px-2 py-3">
         <NotificationBell orgId={orgId} />
-      </nav>
-
-      <div className="border-t px-2 py-2">
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel><SettingsIcon aria-hidden="true" className="mr-2 size-3.5" />Settings</SidebarGroupLabel>
+          <SidebarMenu>
+            {role !== "guest" && <SidebarMenuItem>
+              <SidebarMenuButton render={<Link href="/settings/members" aria-current={pathname === "/settings/members" ? "page" : undefined} />} isActive={pathname === "/settings/members"}>
+                <Users aria-hidden="true" /><span>Members</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>}
+            <SidebarMenuItem>
+              <SidebarMenuButton render={<Link href="/settings/profile" aria-current={pathname === "/settings/profile" ? "page" : undefined} />} isActive={pathname === "/settings/profile"}>
+                <UserRound aria-hidden="true" /><span>Profile</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-h-control-product w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-type-control transition-colors outline-none hover:bg-accent">
             <IdentityMark label={fullName} />
@@ -179,7 +225,9 @@ export function Sidebar({
             </SignOutButton>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </SidebarFooter>
+      </LibrarySidebar>
+      </SidebarProvider>
       </aside>
     </>
   );

@@ -16,9 +16,11 @@ function isTypingTarget(target: EventTarget | null) {
 export function RequestWorkspaceKeyboard({
   selectedRequestId,
   returnHref,
+  onRestoreRequest,
 }: {
   selectedRequestId?: string
   returnHref: string
+  onRestoreRequest?: (id: string) => void
 }) {
   const router = useRouter()
   const markerRef = useRef<HTMLSpanElement>(null)
@@ -32,6 +34,8 @@ export function RequestWorkspaceKeyboard({
 
     const requestId = window.sessionStorage.getItem(RETURN_FOCUS_KEY)
     if (!requestId) return
+
+    onRestoreRequest?.(requestId)
 
     let frame = 0
     let attempts = 0
@@ -52,7 +56,7 @@ export function RequestWorkspaceKeyboard({
 
     restoreFocus()
     return () => window.cancelAnimationFrame(frame)
-  }, [selectedRequestId])
+  }, [selectedRequestId, onRestoreRequest])
 
   useEffect(() => {
     if (!selectedRequestId) return

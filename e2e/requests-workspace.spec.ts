@@ -95,7 +95,7 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
 
       await expect(workspace).toBeVisible()
       await expect(detail).toBeVisible()
-      if (surface.viewport.width >= 1280) {
+      if (surface.viewport.width >= 640) {
         await expect(globalNavigation).toBeVisible()
         await expect(mobileNavigation).toBeHidden()
       } else {
@@ -147,13 +147,22 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
         await page.addStyleTag({
           content: "nextjs-portal { display: none !important; }",
         })
-        await expect(requestList).toBeVisible()
+        await expect(page.getByRole("table", { name: "Requests", exact: true })).toBeVisible()
         await expect(detail).toHaveCount(0)
         await expect(
-          page.getByRole("combobox", {
+          page.getByRole("button", {
             name: "Filter Requests by status",
           })
         ).toBeVisible()
+        const searchHeight = await page.getByRole("textbox", { name: "Filter Requests", exact: true }).evaluate(el => el.getBoundingClientRect().height)
+        const statusHeight = await page.getByRole("button", { name: "Filter Requests by status", exact: true }).evaluate(el => el.getBoundingClientRect().height)
+        expect(searchHeight).toBe(statusHeight)
+        expect(searchHeight).toBe(surface.viewport.width < 640 ? 44 : 32)
+        if (surface.viewport.width >= 640) {
+          await expect(globalNavigation.getByRole("link", { name: "New Request", exact: true })).toBeVisible()
+          await expect(globalNavigation.getByRole("link", { name: "In Progress", exact: true })).toHaveAttribute("href", "/?status=in_progress")
+          await expect(globalNavigation.locator('[data-slot="sidebar-footer"]').getByRole("link", { name: "Members", exact: true })).toBeVisible()
+        }
         await expect(workspace).toHaveScreenshot(
           `requests-list-${surface.slug}.png`,
           { animations: "disabled" }

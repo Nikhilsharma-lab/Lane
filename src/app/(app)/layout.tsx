@@ -12,7 +12,7 @@ export default async function AppLayout({
   if (result.needsOnboarding) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-dvh flex-col xl:h-screen xl:flex-row">
+    <div className="flex min-h-dvh flex-col sm:h-screen sm:flex-row">
       <Sidebar
         workspaceName={result.workspaceName}
         fullName={result.fullName}

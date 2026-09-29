@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { LoadingRegion } from "@/components/ui/loading-region"
 
@@ -75,9 +76,26 @@ export function RequestsWorkspaceLoading({
 }: {
   selected?: boolean
 }) {
+  if (!selected) {
+    return (
+      <main className="flex min-w-0 flex-1 flex-col bg-background p-4 lg:p-8">
+        <LoadingRegion label="Loading Requests" className="w-full space-y-8">
+          <div className="space-y-2"><Skeleton className="h-8 w-32" /><Skeleton className="h-5 w-64 max-w-full" /></div>
+          <div className="space-y-4">
+            <div className="flex gap-2"><Skeleton className="h-11 w-40 sm:h-8" /><Skeleton className="h-11 w-20 sm:h-8" /></div>
+            <div className="overflow-hidden rounded-md border">
+              <Skeleton className="h-10 rounded-none" />
+              {[0, 1, 2, 3, 4, 5].map(row => <div key={row} className="border-t p-3"><Skeleton className="h-4 w-3/4" /></div>)}
+            </div>
+          </div>
+        </LoadingRegion>
+      </main>
+    )
+  }
+
   return (
     <main
-      className="flex min-h-0 flex-1 bg-background lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden xl:h-screen"
+      className="flex min-h-0 flex-1 bg-background sm:h-full sm:overflow-hidden"
     >
       <LoadingRegion
         label={selected ? "Loading selected Request" : "Loading Requests"}

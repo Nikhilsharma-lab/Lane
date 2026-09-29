@@ -57,6 +57,8 @@ import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { RequestStatusFilter as StatusFilter } from "./request-status-filter"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
+import { RequestsWelcome } from "./requests-welcome"
+import { RequestsOverview } from "./requests-overview"
 
 const MAX_REQUESTS_QUERY = 200
 const MAX_DONE_VISIBLE = 25
@@ -1127,10 +1129,18 @@ export async function RequestsWorkspace({
 
   const returnHref = requestListHref(filter)
 
+  if (allRequests.length === 0 && !selectedRequestId) {
+    return <RequestsWelcome role={workspace.role} />
+  }
+
+  if (!selectedRequestId) {
+    return <RequestsOverview requests={allRequests.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))} filter={filter} isGuest={isGuest} />
+  }
+
   return (
     <main
       data-slot="requests-workspace"
-      className="flex min-h-0 flex-1 bg-background lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden xl:h-screen"
+      className="flex min-h-0 flex-1 bg-background sm:h-full sm:overflow-hidden"
     >
       <RequestWorkspaceKeyboard
         selectedRequestId={selectedRequestId}
