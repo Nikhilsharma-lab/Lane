@@ -19,11 +19,11 @@
 
 ## Tasks and acceptance
 
-- [ ] Domain and persistence: `src/lib/request-review.ts`, behavioral tests, canonical `0018_request_design_reviews.sql`, Request/notification schemas and the exact local `lane_test` migration harness. Cover validation, retained response history, stale rounds, withdrawal authority and real database defaults/constraints.
-- [ ] Guarded actions: `requests/[id]/review-actions.ts`, `request-review-members.ts` and integration tests. Cover real saved state, live-membership selection, tenant/guest/unnamed-reviewer denial, stale version, parallel saves, notification atomicity and unchanged Request lifecycle.
-- [ ] Arc panel and stories: `design-review-panel.tsx`, `design-review.stories.tsx`. Test ask → selected reviewer responds → concern remains visible → corrected response → new round/history; preserve drafts on failure; test guest/read-only, keyboard, mobile, dark and reduced motion.
-- [ ] Wire production detail: client action adapter and optional detail slot, selected Request projection only, no list redesign. Show a full Request-detail preview with clearly labeled fixture identities.
-- [ ] Verify focused and existing regressions, TypeScript, ESLint, Arc source checks, production build and rendered preview. Record exact evidence below. Hosted deployment and real multi-user delivery remain unverified until staging release checks.
+- [x] Domain and persistence: `src/lib/request-review.ts`, behavioral tests, canonical `0018_request_design_reviews.sql`, Request/notification schemas and the exact local `lane_test` migration harness. Cover validation, retained response history, stale rounds, withdrawal authority and real database defaults/constraints.
+- [x] Guarded actions: `requests/[id]/review-actions.ts`, `request-review-members.ts` and integration tests. Cover real saved state, live-membership selection, tenant/guest/unnamed-reviewer denial, stale version, parallel saves, notification atomicity and unchanged Request lifecycle.
+- [x] Arc panel and stories: `design-review-panel.tsx`, `design-review.stories.tsx`. Test ask → selected reviewer responds → concern remains visible → corrected response → new round/history; preserve drafts on failure; test guest/read-only, keyboard, mobile, dark and reduced motion.
+- [x] Wire production detail: client action adapter and optional detail slot, selected Request projection only, no list redesign. Show a full Request-detail preview with clearly labeled fixture identities. (`requests/[id]/design-review.tsx` is rendered by `requests-workspace.tsx` into the detail view's `designReview` slot.)
+- [ ] Verify focused and existing regressions, TypeScript, ESLint, Arc source checks, production build and rendered preview. Record exact evidence below. Hosted deployment and real multi-user delivery remain unverified until staging release checks. (Partly done, see Evidence: the automated checks pass; a rendered review round with real people has not been exercised.)
 
 ## Public interfaces
 
@@ -33,4 +33,4 @@ Actions receive `(requestId, input, {orgId})` and return `{state}` or `{error}`.
 
 ## Evidence
 
-Implementation and verification in progress. No hosted migration has run.
+2026-10-09 (committed as `e489bd5`, verified on the branch): TypeScript, ESLint (0 errors), Arc source check (63 files, 29 adaptations) and the production build pass; `pnpm test` passes 63 files / 538 tests including `request-review.test.ts`, `review-actions.test.ts` and `request-review-schema.test.ts`. The local `lane_test` harness applies `0018`. **Hosted:** `0018` was applied to Lane Staging on 2026-10-09 together with `0017` and `0019`, after a verified export and a local rehearsal (see the saved-request-codes plan). A real multi-person review round on staging and production delivery remain unverified.

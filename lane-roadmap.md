@@ -93,7 +93,7 @@ planning can proceed separately; no feature release bypasses operational verific
 **Current bounded increment — Saved Request codes (feature-first selection 2026-10-08).** Nikhil chose
 Request features first when offered codes/priority versus trio agreement. Implement stable workspace-local
 codes, copy and existing workspace-search retrieval as one local slice; priority remains a separate decision.
-See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Hosted migration/release gates remain open.
+See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Staging now has `0017`–`0019` (applied 2026-10-09 after a verified export and a local rehearsal); production migration and release gates remain open.
 This selection changes the immediate sequence without removing the alignment and outcome contract below.
 
 **Next foundational increment — Trio alignment inside Requests (planning selected 2026-09-28).** Define named
