@@ -5,8 +5,18 @@ import {
   timestamp,
   pgEnum,
   index,
+  foreignKey,
+  jsonb,
+  integer,
+  check,
+  unique,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organizations, profiles } from "./users";
+import { projects } from "./projects";
+import type { ExpectedImpact } from "@/lib/request-impact";
+
+export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
 
 export const classificationEnum = pgEnum("classification", [
   "problem",
@@ -27,6 +37,11 @@ export const requests = pgTable(
     orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    // The database allocator replaces the insert-only zero sentinel before save.
+    requestNumber: integer("request_number").notNull().default(0),
+    projectId: uuid("project_id"),
+    requestType: requestTypeEnum("request_type"),
+    expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
     title: text("title").notNull(),
     description: text("description").notNull(),
     affectedPeople: text("affected_people"),
@@ -50,6 +65,10 @@ export const requests = pgTable(
       .defaultNow(),
   },
   (table) => ({
+    requestNumberCheck: check("requests_request_number_check", sql`${table.requestNumber} > 0`),
+    orgRequestNumberUnique: unique("requests_org_request_number_unique").on(table.orgId, table.requestNumber),
+    projectFk: foreignKey({ name: "requests_project_workspace_fk", columns: [table.orgId, table.projectId], foreignColumns: [projects.orgId, projects.id] }),
+    projectIdIdx: index("requests_project_id_idx").on(table.projectId),
     orgIdIdx: index("requests_org_id_idx").on(table.orgId),
     createdByIdx: index("requests_created_by_idx").on(table.createdBy),
   })

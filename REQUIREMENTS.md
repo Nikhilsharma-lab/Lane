@@ -1,11 +1,25 @@
 # Lane Master Product Requirements
 
-> **Status:** Working product contract, created 2026-08-14.
+> **Status:** Product contract, created 2026-08-14; inception-to-closure contract confirmed 2026-09-28.
 > **Purpose:** Define what Lane must do, what it must never do, what is already shipped, and which future
 > requirements still need approval before implementation.
 > **Scope rule:** A requirement marked **Approved — current** is build authority within the current roadmap
-> gate. A requirement marked **Approved — future contract** is a locked product rule but is not permission to
+> gate. A requirement marked **Approved — target** or **future contract** is a locked rule but not permission to
 > build it before the roadmap gate changes. **Proposed** and **Unresolved** items are never build authority.
+> **2026-09-28 authority:** Nikhil confirmed the pipeline and documentation reconciliation. Alignment inside
+> Requests is the first increment to plan. Confirmation does not authorize application code, new schema/routes,
+> integrations, extra AI calls, migrations, deployment, or the whole pipeline in one build.
+> **2026-10-06 foundation clarification:** the shared product/journey record, impact prediction at Request
+> creation, requester-owned actual-result closure, quarterly/yearly outcome summaries and three-party
+> alignment are confirmed product requirements. Documented exception outcomes may close but are excluded
+> from measured-impact totals. This strengthens the target; it does not claim those capabilities are live.
+> **2026-10-06 implementation status:** Expected impact creation (Metric or Verified result), signed review
+> and read-only saved detail are implemented and locally verified. Named trio agreement, launch,
+> actual-result closure and quarterly/yearly totals remain target only.
+> **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
+> The current bounded local increment is saved Request codes for list copying and workspace search;
+> see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
+> Priority remains separate. Hosted migration/release and the broader target pipeline are not implied.
 
 This is the product-behaviour master, not a monolithic implementation plan. `AGENTS.md` remains the primary
 repository instruction file. `lane-roadmap.md` controls sequence, `DESIGN.md` controls the visual system,
@@ -19,6 +33,20 @@ plans control code changes. If those documents disagree, work stops until the co
 Lane is a problem-first product operating system for product teams. It helps a team turn an unclear or
 solution-shaped request into an understood problem, carry that problem through design and delivery, and learn
 what happened after release.
+
+**Two foundations, confirmed 2026-10-06:**
+
+1. **One source of truth for the product and its journeys.** Requests, agreed decisions, current journey
+   context, design/development references, release history and outcomes must connect in a shared record.
+   A disconnected list of Requests does not fulfil this principle. The maintained journey representation
+   and linking model still need a bounded design decision (§7).
+2. **Expected impact compared with actual results.** Capture predicted impact when creating a Request,
+   agree it before work advances, measure after launch over the decided window, and retain the comparison
+   and learning. Show Request-level results and cumulative quarterly/yearly product results (§9).
+
+Named PM, Designer and Developer agreement governs progression across this chain. The submitter owns
+recording results and closing the Request, even when a different person is its named PM. The comparison
+supports understanding team/product effectiveness; it is not a prediction-accuracy or employee score.
 
 Lane is built on one belief: **surveillance produces performance; support produces truth.** It may measure the
 health of a Request and the effectiveness of a workflow, but it must never rank, score, time, or profile an
@@ -77,52 +105,71 @@ plan that exposes a production `org:guest` custom role.
 
 ### Responsibility versus permission
 
-Responsibilities may belong to a Request creator, current assignee, or explicitly transferred owner. That
-does not create a new global role. For example, only the Request creator owns outcome closure, but PM is not a
-permission gate.
+Responsibilities belong to a Request creator, named PM / Designer / Developer participants, current assignee,
+or explicitly transferred outcome owner. These are Request-scoped responsibilities, not new global roles.
+Changing a profile label never grants an alignment seat or closure authority. Only the creator (or an
+explicitly transferred outcome owner) closes the outcome; PM is not a permission gate.
 
 ---
 
 ## 3. Product scope and authority
 
-### Approved — current and shipped
+### Approved — current implementation scope
 
-The current product is the Requests loop:
+The current implementation is the Requests loop. This inventory is not a production-readiness claim: the
+Clerk cutover record still requires hosted invitation-return and production verification. Read
+`docs/superpowers/plans/2026-09-24-clerk-clean-cutover.md` for environment-specific release evidence.
 
 1. Clerk authentication: sign up, email verification, sign in, password recovery, and invite acceptance.
 2. Onboarding: Clerk organization creation or invited-organization activation → functional label → Requests.
-3. Intake: title, description, optional evidence fields, private attachments, and the AI problem gate.
+3. Intake: title, freeform description, Expected impact (Metric or Verified result), optional Project, Request
+   type, related link, private attachments, and the AI problem gate. Expected impact is implemented locally
+   through signed review and save; local checks passed.
 4. Requests board: one shared workspace board grouped Open / In Progress / Done, with an optional status
    filter.
-5. Request detail: problem, supporting context, assignment, lifecycle actions, attachments, and comments.
+5. Request detail: problem, supporting context, saved Expected impact, assignment, lifecycle actions,
+   attachments, and comments. The Expected impact summary is implemented and locally verified.
 6. Members and invitations: Clerk Organization Profile owns invitations, delivery, resend, revoke, roles,
    and membership changes. Lane supplies no parallel invite tokens or membership mutations.
 7. Profile settings: editable functional label and browser-local System / Light / Dark preference.
 8. Invited-guest isolation and lightweight in-app notifications supporting the Requests loop.
 
-### Approved — future product contract, not current build authority
+### Approved — target contract, confirmed 2026-09-28; not fully implemented
 
-The following direction is approved conceptually but remains gated by the roadmap and the current
-`AGENTS.md` restrictions:
+The confirmed journey is:
 
-- A Request can carry an expected impact and later record the actual outcome.
-- Delivery completion and outcome closure are separate.
-- Design work is nonlinear and artifact-led.
-- A future Request workspace may organize information as Overview / Work / Build / Outcome without turning
-  those views into mandatory stages.
-- Future agents may perform bounded procedural design-operations work under human control.
+**Create and name participants → Align → Schedule and explore as needed → Confirm build readiness → Build →
+Confirm release readiness → Release → Measure → Creator closes → Follow-up Request if further work is needed.**
+
+- Named PM, Designer and Developer participants must align before prioritization or execution. A recorded
+  disagreement blocks progression; neither the creator nor an administrator may override it.
+- Discovery and delivery are different commitments; exploration is nonlinear and requires no design diary.
+- Assignment is separate from alignment and authorization to start.
+- Expected impact is recorded at creation and forms part of the trio's agreement. One primary success
+  criterion, relevant guardrails, complete build/release readiness and evidence support delivery. Numeric
+  impact is not compulsory where an observable acceptance criterion is more appropriate.
+- Active-work completion and outcome closure remain separate. The creator owns closure, including truthful
+  exceptions. Closed never reopens; further work uses a linked follow-up with fresh alignment and ownership.
+- Overview / Work / Build / Outcome may organize information without becoming mandatory workflow stages.
+- Quarterly/yearly outcome summaries are confirmed target scope, derived from Request records with
+  compatible metrics and no duplicate attribution (§9); no separate reporting route is selected yet.
+
+Expected impact creation/review/detail is the current bounded local implementation, with validation in
+progress. Alignment inside existing Requests remains a separately scoped target; its bounded design, schema
+proposal, acceptance tests and implementation plan must be approved before coding. Later parts of this target are
+sequenced in `lane-roadmap.md`, not independently authorized by this contract.
 
 ### Explicitly not authorized yet
 
-- New impact-prediction storage or screens.
-- New outcome storage or screens.
+- Any alignment, readiness, outcome, amendment or follow-up storage/screens, or success-criterion work beyond
+  the approved Expected impact creation/review/detail increment, before the relevant focused plan is approved.
 - Handoff briefs, iteration summaries, prediction confidence, or individual calibration.
 - Figma, analytics, GitHub, Linear, or other product integrations.
 - Agent workflows beyond the shipped Intake gate.
 - New design-stage, phase, track, initiative, epic, or custom-workflow systems.
 
-These items require an explicit scope-gate change after validation. This document preserves their intended
-behaviour so later planning does not restart from zero.
+The target contract replaces the older claim that Request-level outcomes are merely an unselected idea.
+It does not lift unrelated feature bans or authorize agent workflows. Validate each increment before the next.
 
 ---
 
@@ -136,15 +183,30 @@ a prescribed interface or implementation.
 Current Intake supports:
 
 - A short title.
-- A description of the need or observed problem.
-- Optional affected audience.
-- Optional desired change.
-- Optional observed evidence.
-- Optional uncertainty.
-- Optional useful link.
+- A freeform description of the need or observed problem, including any useful context or feedback.
+- Expected impact as Metric or Verified result, preserved through signed review and saved detail; locally
+  implemented and locally verified. Current value may remain unknown; drafts may remain incomplete.
+- Optional Project and Request type.
+- An optional **Add link** control revealing the **Related link** field.
 - Optional private attachments.
 
+**Compact New Request decision — 2026-10-06:** the new form does not ask for affected people, desired
+change, observed evidence or uncertainty in separate inputs, and has no Details or Feedback & links pills.
+People can include that context in their description. Existing saved Request context and the four legacy
+data keys, draft schema and signed-review tokens remain intact; nonempty earlier draft values appear in a
+read-only **Details from your earlier draft** section during composition and review. This is a form
+simplification, not a deletion of the target alignment/readiness/evidence contract or a backend migration.
+
 A PRD, research file, design brief, or other document may support a Request but is never universally required.
+
+**Approved bounded increment — 2026-10-05:** Projects are persistent workspace work areas such as B2B App,
+B2C App, Website or Marketing. Anyone in the active workspace can create one from the Request composer.
+Each Request may have one Project and one Request type (Bug, Improvement or New feature), both optional and
+unset initially. Project grouping does not assign people, set priority or start work. Request type does not
+replace or predetermine the AI framing classification. Preserve guest own-Request access when exposing
+Project options. The approved implementation covers persistence, composer selection/creation and display/
+filtering in existing Requests views; no separate Project management page. See
+`docs/superpowers/plans/2026-10-05-request-projects-and-types.md` for implementation and verification status.
 
 ### 4.2 Pass the AI gate — Approved current
 
@@ -158,41 +220,112 @@ For a solution or hybrid, Lane proposes a problem-framed version and explains wh
 reframe and must confirm it before saving. The gate must preserve the submitter's meaning, expose uncertainty,
 and fail recoverably. It must not fabricate user evidence.
 
-### 4.3 Define expected impact — Proposed contract; decision incomplete
-
-The creator is expected to state what measurable change they predict. AI may help clarify the expression but
-must not own or invent the prediction.
-
-The proposed minimum contract is:
-
-- One primary metric.
-- Current baseline, or an explicit “baseline unknown.”
-- Predicted change.
-- Measurement window.
-- Data source.
-- Optional reasoning and evidence.
-
-Still unresolved:
-
-- Whether exactly one primary metric is mandatory for the first outcome-learning increment.
-- When the prediction becomes immutable.
-- Whether amendments are allowed and how the original prediction remains visible.
-- Which qualitative impact formulations are acceptable when a numeric baseline is unavailable.
-
-No impact-contract implementation may begin until these decisions are approved.
-
-### 4.4 Accept and expose the Request — Approved current
+### 4.3 Save and expose the Request — Current implementation; target constraint added
 
 An accepted Request appears on the shared board. Every non-guest member sees the same board and may open the
-same Request. A guest sees only Requests they created or are otherwise explicitly entitled to see under the
-guest contract.
+same Request. A guest sees only Requests they created; no broader guest entitlement is approved.
 
-### 4.5 Pick up the work — Approved current
+Saving does not authorize execution under the confirmed target. A Request may remain Open while waiting
+for alignment or, once aligned, while waiting for capacity. Naming participants before agreement is allowed;
+commitment to roadmap work, formal discovery and delivery execution are blocked until alignment.
 
-An eligible member may pick up an Open Request. Lane assigns it to that authenticated person and moves it to
-In Progress. The action is not restricted by functional label.
+### 4.4 Name the trio and align — Approved target
 
-### 4.6 Explore and converge — Approved future contract
+Every team Request has a named PM, Designer and Developer. A creator representing one discipline names the
+other two people for this Request. The three participate upstream, not as reviewers of finished design.
+Workspace membership remains the access boundary; Request participation is not inferred from profile labels.
+The exact guest-created Request sponsorship path must be resolved before that path enters implementation.
+
+Use one compact shared agreement, reusing Intake and existing evidence rather than requiring separate briefs:
+
+| Subject | What the team agrees |
+|---|---|
+| Problem and audience | Who is affected, what is happening and why it matters. |
+| Scope | What the Request covers and explicitly excludes. |
+| Success and guardrails | Expected result, evidence and relevant things that must not deteriorate (§4.5). |
+| Timing | Discovery timebox or delivery commitment, why it matters and any dependencies. |
+| Complexity | Added user decisions/settings, technical maintenance, support burden and opportunities to simplify. |
+| Unknowns | Uncertainty that matters and how it will be resolved. |
+
+These are content requirements, not six mandatory essays or a fixed field layout. Links and existing artifacts
+may supply context. Complexity has no mandatory numerical score.
+
+Two valid commitments:
+
+- **Discovery:** align on the problem, boundaries, questions, timebox and evidence that would justify building.
+  No speculative delivery date may be presented as an agreed discovery commitment.
+- **Delivery:** align on a sufficiently understood direction, scope, success criteria and timing. Existing
+  evidence may make a separate discovery period unnecessary. Build readiness still applies (§4.8).
+
+The creator's confirmed submission records their agreement to that version; the other two must explicitly
+align. All three must agree to material subsequent versions. Final control labels are a UX decision.
+
+**Disagreement is a hard guard:**
+
+- A dissenter records a short, specific reason explaining what must change before they can align.
+- Discussion, clarification and amendments remain possible; progression to the next commitment does not.
+- Silence, elapsed time, assignment, creator status and administrator status cannot supply agreement.
+- No administrator override, automatic timeout approval or creator bypass is permitted. Enforce on the server.
+- The team revises the agreement and obtains fresh alignment; preserve the original concern and resolution.
+- Departure or unavailability may require attributable participant replacement. The replacement must align;
+  replacement never erases an unresolved concern or acts as a way to evade it. Recovery details remain scoped
+  implementation decisions.
+- The creator may withdraw/stop a Request with a recorded reason. Agreement to proceed is not required to
+  stop pursuing it; creator-owned truthful exception closure remains available.
+
+### 4.5 Define success and preserve expectations — Approved target
+
+**2026-10-06 timing clarification:** expected impact belongs in Request creation, including feature and
+improvement submissions; it is not first collected after design or launch. The PM supplies the product
+prediction when involved in submission. The submitter remains accountable for its recording and follow-through;
+being a named PM or having a PM profile label does not transfer closure ownership. Drafts may remain incomplete.
+The compact form now implements Metric or Verified result, source/method and days after launch, with an
+optional unknown numeric baseline. The same snapshot is preserved through signed review and shown read-only
+on saved detail. This bounded code is implemented and locally verified. Trio agreement, launch,
+actual-result collection/closure and period totals remain target only.
+
+Every delivery commitment has **one primary success criterion**. Secondary metrics are optional. Capture
+the initial expectation and agree the measurement contract before progression:
+
+| Item | Contract |
+|---|---|
+| Criterion | Specific change or observable result expected. |
+| Starting point | Baseline, or a justified alternative where a baseline does not apply. |
+| Target | Result that would meet expectations. |
+| Evidence | Source and method for establishing the result. |
+| Review window | When and over what period the outcome is assessed. |
+| Guardrails | Relevant things that must not deteriorate, with acceptable limits. |
+
+A numeric business prediction is not compulsory for every kind of work. A specific, verifiable acceptance
+criterion with evidence is valid; “improve UX” is not. Use only relevant guardrails, not an arbitrary count.
+During discovery, baseline unknown is valid. Before delivery commitment, the trio must establish a defensible
+measurement approach. New capabilities may use an absolute target rather than a before/after baseline.
+Existing evidence can be linked; no mandatory report or particular research/testing method is introduced.
+An unknown baseline is explicit, not a fabricated zero or permission to omit the intended result. The
+discovery/bug handling and creation validation need to preserve this distinction in the focused design.
+
+Alignment records the agreed version. Before release, material changes to problem, scope, timing, success or
+guardrails preserve the previous version and require renewed alignment. Routine exploration within that
+agreement does not. After release, targets cannot be rewritten to match observed results. AI must not invent
+targets, baselines or evidence; additional AI capability beyond Intake still requires separate authorization.
+
+### 4.6 Assign and schedule — Current behaviour versus approved target
+
+**Current implementation:** an eligible member picks up an Open Request; this assigns it to that person and
+moves it to In Progress. No trio alignment currently guards this action.
+
+**Confirmed target:** the Request creator may assign the Designer; an eligible Designer may volunteer through
+Pick up when unassigned; an administrator may assign. One accountable Designer is assigned at a time, while
+other people may contribute. Self-pickup must not take an existing assignment from someone else. Assignment
+does not start work, accept a deadline or supply alignment. A replacement Designer must acknowledge the
+current agreement; profile labels do not become global permissions.
+
+The trio agrees a start window. Administrators help resolve competing capacity commitments but cannot waive
+alignment. No automatic ranking, prioritization score or separate Roadmap screen is authorized. Aligned is
+not the same as scheduled. The exact assign/accept/start UI and concurrency-safe transition contract belongs
+in the focused implementation plan.
+
+### 4.7 Explore and converge — Approved target
 
 Design work is exploratory and nonlinear. Lane must not require Sense / Frame / Diverge / Converge / Prove,
 or any other fixed sequence.
@@ -202,40 +335,81 @@ The intended work model is artifact-led:
 - Designers continue to explore in the tools appropriate to the work.
 - Lane may reference research, flows, prototypes, designs, experiments, and decisions.
 - Continuous manual narration is not required.
-- At meaningful convergence points, AI may prepare a concise decision snapshot from available context.
-- A human may confirm, edit, or dismiss that snapshot.
+- Meaningful decisions can be recorded concisely with existing artifact links. AI-prepared snapshots remain
+  a separately gated future capability; they are not required for this pipeline.
 - The history records meaningful decisions, not performative activity.
 
-Candidate convergence points, not mandatory workflow states:
+Design, product and engineering remain involved throughout. Data contributors may help establish baselines,
+instrumentation and interpretation without becoming a fourth mandatory approver or new global role.
+Material changes use the amendment rule (§4.5); routine design iteration does not create a follow-up Request.
 
-- The problem is understood well enough to explore.
-- A direction is selected.
-- The work is ready for implementation.
-
-### 4.7 Build and release — Approved future contract
+### 4.8 Confirm complete build readiness — Approved target
 
 Lane should show the connection between the problem, selected direction, and implementation without becoming
 an engineering tracker. Source code, pull requests, deployment operations, and engineering task management
 remain in their specialist systems unless a later integration is explicitly approved.
 
-The exact handoff contract, supported links, release evidence, and integration boundaries remain unresolved.
+Before production implementation of the agreed release:
 
-### 4.8 Measure and close — Approved future lifecycle contract
+- The trio has aligned on the current agreement.
+- Scope, exclusions and acceptance criteria are clear.
+- Relevant flows, designs and edge states are available.
+- Technical approach and dependencies are understood.
+- Success criteria, guardrails and measurement responsibilities are defined.
+- Timing is agreed and no unresolved blocking concern remains.
+
+Completeness applies to the agreed release, not every future capability. Prototypes and technical experiments
+can occur during aligned discovery. Use existing links, evidence and concise confirmations rather than
+duplicating design or engineering documents. Irrelevant checks may be marked not applicable with a brief
+explanation; a failed relevant check may not be relabelled not applicable. The trio confirms readiness;
+there is no administrator bypass.
+
+### 4.9 Confirm release readiness and release — Approved target
+
+Before the stated release:
+
+- Agreed scope is implemented and verified, with no unresolved release-blocking defects.
+- Relevant accessibility, security, performance and regression checks are complete.
+- Measurement/instrumentation works and has been verified.
+- Audience, rollout, rollback/recovery and operational ownership are clear.
+- The trio confirms readiness for that release; existing evidence supplies the check, not a new report.
+
+Record what became available, to whom and when, the extent of rollout, supporting release evidence and known
+limitations. A merged PR or deployment alone does not prove customer exposure. PM coordinates product launch
+and follow-through, engineering owns deployment in its tools, and design checks the implemented experience.
+Links do not imply automatic integrations or release automation. Partial-release representation and control
+details must be resolved in the release increment's plan before implementation.
+
+### 4.10 Measure and close — Approved target
 
 The creator returns after delivery, records what happened, compares it with the original prediction, and
 closes the outcome. The comparison belongs to the Request and workspace learning—not to a personal score.
+
+**Confirmed 2026-10-06:** the person who submitted the Request owns this obligation, including when the named
+PM is someone else. For ordinary measured closure, actual results, their evidence/source and the agreed
+measurement period must be recorded first. A result below prediction is valid learning and may close;
+exceeding the prediction is not required. An overdue review remains outstanding rather than auto-closing.
+An explicitly recorded exception under §5 may close without a measured number and stays outside measured
+impact totals. Lane records and compares supplied measurements; automatic analytics collection or causal
+verification is not implied and no integration is authorized here.
+
+Compare the original expectation, actual result and guardrails using the agreed source/window; record relevant
+limitations. Existing data or verification evidence is enough when it meets the criterion. Lane must not
+require a retrospective essay or imply causal proof from a before/after change alone. New post-release work
+uses the follow-up contract (§5), even while measurement of the original Request remains open.
 
 ---
 
 ## 5. Locked lifecycle contract
 
-Lane maintains two connected lifecycles.
+The approved target maintains two connected lifecycles. Alignment/readiness are separate conditions, not
+extra board columns or permission roles. Only the work lifecycle exists in the current implementation.
 
 ### Work lifecycle
 
 `Open → In Progress → Done`
 
-- **Open:** accepted work that no one has picked up.
+- **Open:** saved work not yet started; in the target it may be assigned, awaiting alignment or awaiting capacity.
 - **In Progress:** active design, development, or delivery work.
 - **Done:** active work has ended. Done does not mean the outcome has been measured or the Request has been
   fully closed.
@@ -248,7 +422,9 @@ Done may record a truthful completion reason:
 - Superseded
 - Not launched
 
-The existing MVP behaviour remains: eligible members may pick up work and mark delivery Done. Guests may not.
+The existing implementation still lets eligible members pick up work and mark Done; guests may not. The
+target replaces automatic start-on-assignment with §4.6 and must enforce alignment/readiness at the relevant
+transition. Until that increment is implemented and verified, do not claim the new guards are live.
 
 ### Outcome lifecycle
 
@@ -269,15 +445,49 @@ A Request may close with:
 
 Every non-measured closure requires a reason in plain language. The interface must not visually shame or
 deprioritize exception outcomes.
+**Reconfirmed 2026-10-06:** these exception outcomes are separate from measured results and excluded from
+measured-impact totals; display their counts and reasons separately so period reporting does not hide them.
+Measured results may be positive, neutral or negative; Closed never means successful by default. An unlaunched
+or cancelled Request may close directly from Not started with its reason, without a fabricated Measuring step.
 
 ### Closure ownership
 
 - The Request creator owns outcome closure.
 - Functional label does not grant closure permission.
-- If the creator leaves or loses access, an owner or admin explicitly transfers outcome ownership to another
+- If the creator leaves or loses access, a Clerk organization admin explicitly transfers outcome ownership to another
   active member.
 - Transfer must be visible and attributable; it may not happen silently.
 - The exact administrative recovery path is a future implementation decision.
+
+### Closed is permanent; corrections are append-only — Confirmed 2026-09-28
+
+A Closed Request cannot reopen. Preserve its closure snapshot, commitment, outcome and evidence. Factual
+errors may receive an attributable append-only correction displayed beside the original; never silently
+overwrite history. A typo or mistaken evidence link is not new product work and must not inflate follow-up
+counts. Correction authority and presentation must be specified before implementation.
+
+### Amendments and follow-up Requests — Confirmed 2026-09-28
+
+| Situation | Treatment |
+|---|---|
+| Routine exploration within agreed scope | Continue the same Request; no branch or change form. |
+| Material change before release | Preserve the previous agreement, record the amendment and realign. |
+| New work after release or closure | Create a linked follow-up Request; the predecessor is not reopened. |
+
+The user-facing action is **Create follow-up Request**, not a Git-style branch/merge workflow. A follow-up
+links back to the original Request and references useful problem context, artifacts and outcomes; it states
+what changed and why, has its own creator/participants/success criterion and obtains fresh alignment. Its
+creator owns its closure. Context can carry forward; approval and outcome completion cannot.
+
+The original remains Closed if closed, or keeps its outstanding measurement obligation if still Measuring.
+When subsequent work changes the measured experience, record the effect on the earlier measurement and its
+limitations; never silently attribute the same result independently to both Requests. Use truthful exception
+closure if the earlier result is no longer interpretable.
+
+Reasons such as new requirement, new evidence, defect or changed dependency/constraint explain the relationship.
+Track amendments and follow-ups at Request level, not as personal blame or quality scores. Necessary learning
+and preventable rework are not equivalent. No automatic classification, rankings or analytics dashboard is
+authorized by recording this history. Exact relationship storage and UI remain implementation-plan decisions.
 
 ---
 
@@ -290,8 +500,10 @@ concept for Paper exploration, not a route or schema instruction:
 
 - Confirmed problem frame.
 - Creator, assignee, and lifecycle.
+- Named trio, current agreement, unresolved concerns and alignment/readiness when implemented.
 - Affected audience and evidence.
-- Expected-impact summary when outcome learning is authorized.
+- Expected-impact summary implemented locally in existing detail; local checks passed. Actual-result
+  collection and comparison remain target only.
 
 ### Work
 
@@ -312,6 +524,7 @@ concept for Paper exploration, not a route or schema instruction:
 - Actual result or truthful exception.
 - Comparison and concise Request-level learning.
 - Creator-owned close action.
+- Closed snapshot, attributable corrections and follow-up links when implemented.
 
 These labels are information views, not a new lifecycle, permission model, or mandatory process.
 
@@ -326,9 +539,22 @@ one outcome contract.
 When different journey moments have independent problems, releases, or success measures, they should become
 separate Requests. Lane must not introduce initiatives, epics, or a project hierarchy merely to contain them.
 
-Still unresolved:
+**2026-10-05 exception:** the explicitly approved flat Projects in §4.1 group Requests by ongoing work area.
+They currently add no initiative/epic hierarchy, project lifecycle or outcome rollup. The 2026-10-06 target
+adds product/Project-level period summaries (§9); it does not authorize a hierarchy or new Project route.
 
-- Whether related Requests need an explicit lightweight relationship.
+**2026-10-06 foundation:** Lane must be the shared product/journey record, showing how Requests and their
+decisions/results relate to the experience people use. The current journey and its change history must be
+distinguishable. Decide whether the authoritative journey is maintained in Lane or referenced through a
+versioned external artifact, and how Requests attach to its steps, before creating new storage or screens.
+Do not claim the present Project picker or flat Request list already provides this capability.
+
+**Resolved 2026-09-28:** follow-ups have an explicit predecessor link and fresh commitments (§5). This does
+not authorize an initiative/epic hierarchy or a general-purpose relationship graph.
+
+Still unresolved for independently scoped planning:
+
+- The final unit-of-work boundary for large journeys and whether additional non-follow-up relationships help.
 - How a journey-level artifact is referenced without creating a new Docs or Initiatives product.
 - How to prevent fragmentation without turning Lane into a project-management hierarchy.
 
@@ -370,14 +596,31 @@ Future agents may assist with bounded procedural work such as:
 
 ## 9. Learning without surveillance
 
-Lane may eventually help a workspace understand whether its problem-framing and delivery system is improving.
-Permitted learning is attached to Requests or sufficiently aggregated workflow patterns.
+**Confirmed target — 2026-10-06:** Lane shows predicted versus actual impact for each Request and cumulative
+quarterly/yearly product outcomes. This is a foundation, not an optional generic analytics idea. Learning
+is attached to Requests and shared product results; no person-level effectiveness score is authorized.
 
-Candidate permitted signals, still requiring separate approval:
+Reporting requirements for the bounded design:
+
+- Derive reports from the same Request expectations, releases and outcomes; no second reporting form.
+- Preserve the submitted prediction and each agreed revision. Never rewrite a target after seeing results.
+- Compare the same metric definition, unit, audience and measurement window. Keep absolute change,
+  percentage-point change and relative percent change distinguishable.
+- Aggregate only compatible, non-overlapping results. Do not add different metrics, percentages or the
+  same shared result attributed independently to several Requests into one invented total-impact score.
+- Show measured results, still-due/not-yet-measured work and exception outcomes distinctly. Exclude
+  exceptions from measured-impact totals without excluding them from the report's coverage.
+- Show evidence, limitations and related Requests when contributions cannot be isolated. A before/after
+  change alone is not proof that a specific Request caused it.
+- Define the quarter/year basis (launch cohort or measurement period), reporting cutoff, deduplication
+  and treatment of cross-period/shared results before implementation. No aggregation formula is approved yet.
+- Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
+  valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
+
+Other candidate signals, still requiring separate approval:
 
 - Distribution of measured, inconclusive, unavailable, and not-launched outcomes.
 - Recurring problem themes.
-- Prediction-versus-actual patterns aggregated across Requests.
 - Time spent by a Request in broad lifecycle states only when it cannot be used to rank people.
 
 Permanently prohibited:
@@ -390,10 +633,12 @@ Permanently prohibited:
 
 The phrase “designer effectiveness” or “PM effectiveness” must be interpreted as the effectiveness of the
 supported process and resulting product decisions, never an employee score.
+The confirmed amendment/follow-up record supports accountability for decisions; counts alone must never be
+presented as evidence of an individual's performance or used to rank PMs, Designers or Developers.
 
 ---
 
-## 10. Functional requirements for the shipped Requests product
+## 10. Functional requirements for the current Requests scope
 
 ### Authentication and onboarding
 
@@ -420,10 +665,10 @@ supported process and resulting product decisions, never an employee score.
 
 ### Membership and notifications
 
-- Owner/admin membership actions are distinct from functional labels.
-- Invitations are email-bound and retain a copyable fallback link.
-- Email failure does not invalidate a successfully created invitation.
-- Pending invitations support resend and revoke.
+- Clerk organization admin/member/guest permissions are distinct from functional labels.
+- Clerk owns email-bound invitations, delivery, resend, revoke, acceptance and membership state.
+- Lane must recover routing/authorization failures without recreating invitation tokens or a parallel mailer.
+- Older local-invite copy-link/Resend behaviour is historical, not a current Clerk implementation requirement.
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.
 
 ### Profile and theme
@@ -475,22 +720,20 @@ Enterprise-grade means trustworthy operation, not maximum feature count.
 
 ## 12. Frontend and design-system requirements
 
-Plane is Lane's strict frontend reference for information architecture, layout, interaction patterns,
-component composition, states, responsive behaviour, keyboard behaviour, and component organization.
-Lane independently implements those patterns in its own stack, vocabulary, visual identity, and product scope.
+Arc UI is Lane's sole product design authority for layout, components, theme, typography, motion and
+interaction patterns. `DESIGN.md` and the official Arc/Arc Pro skills define the visual implementation.
+`REQUIREMENTS.md` remains the authority for Lane's product behavior and scope. Marketing is separate.
 
 For every material frontend increment:
 
-1. Inspect the matching Plane source and all relevant states.
-2. Read the matching local `src/components/ui` source.
-3. Check the official shadcn registry when a primitive is missing or uncertain.
-4. Use Base UI APIs and composition; never assume Radix behaviour.
-5. Specify the journey, states, light mode, dark mode, and meaningful breakpoints in Paper.
-6. Implement with Lane's semantic Tailwind v4 tokens.
-7. Verify keyboard, focus, accessible names, responsive behaviour, and relevant states.
+1. Inspect the actual Arc registry or licensed MCP source and its documented props.
+2. Read the matching local `src/components/arc` source and the Lane behavior it wraps.
+3. Specify the journey and relevant states in Codex/Storybook, including light and dark modes and meaningful breakpoints.
+4. Compose Arc components with Lane actions, data and permissions; document any adaptation.
+5. Verify keyboard, focus, accessible names, responsive behaviour, motion and relevant states.
 
-Paper is a reviewable visual specification. Editing Paper never updates code, staging, or production
-automatically. Only reviewed, implemented, tested, and deployed code changes the product.
+Storybook is a reviewable local preview. Editing it does not update staging or production; only reviewed,
+implemented, tested and deployed code changes the hosted product.
 
 ---
 
@@ -506,12 +749,12 @@ Nikhil in plain English before it is considered complete.
 1. Confirm the user problem and validation signal.
 2. Update this requirement contract or a focused subsystem specification.
 3. Resolve every product decision required by that increment.
-4. Audit Plane, local components, and shadcn; create Paper states when material UI is involved.
+4. Audit Arc source and local behavior; create Codex/Storybook states when material UI is involved.
 5. Write a focused implementation plan with tests and exact file boundaries.
 6. Implement test-first.
 7. Verify locally and on Lane Staging.
 8. Have Nikhil perform the user journey in plain language.
-9. Promote the verified increment to production.
+9. Obtain release approval and promote the verified increment to production.
 10. Record what was learned before selecting the next increment.
 
 ### Validation gates
@@ -519,9 +762,11 @@ Nikhil in plain English before it is considered complete.
 1. **Operational readiness:** authentication, isolation, recovery, deployment, and staging are trustworthy.
 2. **Intake value:** real teams repeatedly use the gate and prefer the resulting problem frames.
 3. **Requests workflow value:** the board becomes part of real work rather than a duplicate tracker.
-4. **Next-problem evidence:** observed usage identifies the next unmet problem.
-5. **Outcome-learning validation:** teams voluntarily return to record outcomes and find the comparison useful.
-6. **Agent validation:** a bounded agent task saves procedural effort without reducing trust or human control.
+4. **Alignment value:** the named trio can resolve concerns and agree a commitment without redundant documents;
+   attempted progression without agreement is denied, including creator/admin and stale-version attempts.
+5. **Next-problem evidence:** observed usage informs the next bounded increment of the confirmed pipeline.
+6. **Outcome-learning validation:** teams return to record outcomes or truthful exceptions and find the comparison useful.
+7. **Agent validation:** a separately approved bounded agent task saves effort without reducing human control.
 
 Dates and enthusiasm do not advance gates. Evidence does.
 
@@ -529,16 +774,18 @@ Dates and enthusiasm do not advance gates. Evidence does.
 
 ## 14. Subsystem planning boundaries
 
-The complete vision must not become one implementation plan. When authorized, it is divided into focused,
-independently testable plans:
+The confirmed pipeline is not one implementation plan. Operational release gates remain prerequisites to
+production. Expected impact creation/review/detail is implemented and locally verified.
+**Trio alignment inside existing Requests** remains the next agreement scope to plan:
+participants, compact agreement, recorded concerns and a server-enforced no-bypass progression guard.
+Assignment/start separation and agreement versioning must be included wherever required to make that guard
+truthful. Its plan must define exact schema, actions, states, Storybook coverage and regression tests before coding.
 
-1. Requests excellence and Intake-gate validation.
-2. Impact contract.
-3. Outcome lifecycle and creator-owned closure.
-4. Nonlinear Work workspace and artifact references.
-5. Build/release context and external-tool boundary.
-6. Request-level learning without individual surveillance.
-7. First bounded design-operations agent.
+Later contract slices are scoped separately: the full success/evidence contract, nonlinear artifact context,
+complete build/release readiness, measurement and creator-owned closure, immutable history/corrections and
+follow-ups. Closure must not ship without its truthful exceptions and no-reopen/follow-up recovery contract.
+The order of later releases is chosen from dependencies and observed use; it is not a dated delivery promise.
+Workspace analytics and agentic operations remain separate, unselected hypotheses.
 
 Only one subsystem may enter implementation at a time. Later plans consume the verified contract produced by
 earlier increments; they must not pre-build speculative infrastructure.
@@ -556,34 +803,64 @@ earlier increments; they must not pre-build speculative infrastructure.
 - Work lifecycle remains Open → In Progress → Done.
 - Outcome lifecycle is separate: Not started → Measuring → Closed.
 - Done does not mean outcome closure.
-- The creator owns outcome closure; owner/admin may explicitly transfer that responsibility if necessary.
+- The creator owns outcome closure; a Clerk organization admin may explicitly transfer responsibility if necessary.
 - Truthful exception outcomes may close a Request: inconclusive, measurement unavailable, not launched or
   cancelled, rolled back, or superseded.
 - Design work is nonlinear and artifact-led; continuous text logging is not required.
 - No individual performance scoring or surveillance.
-- Plane → local UI → shadcn → Paper → implementation → verification is the permanent frontend workflow.
+- Arc registry/MCP source → local Arc composition → Storybook → implementation → verification is the product frontend workflow.
 
-### Awaiting Nikhil's decision
+**Confirmed 2026-09-28:**
 
-- Approve the exact Impact Contract fields and one-primary-metric rule.
-- Approve prediction lock timing and amendment history.
-- Approve the independently measurable Request rule for large customer journeys.
-- Define the lightest useful relationship between related Requests, if any.
-- Define what Lane owns at design-to-development handoff.
+- Named PM / Designer / Developer alignment before commitment or execution; a specific recorded concern blocks
+  progression. No creator/admin/timeout override. Replacement cannot erase dissent (§4.4).
+- Bounded discovery or delivery commitment; no mandatory linear exploration or diary (§4.4, §4.7).
+- Creator assignment, unassigned Designer self-pickup and admin assignment; assignment is not start permission.
+  The trio agrees a start window; admins help resolve capacity conflicts without bypassing alignment (§4.6).
+- One primary success criterion, numeric or otherwise verifiable, with starting point, target, evidence,
+  window and relevant guardrails; preserve versions and never rewrite post-release targets (§4.5).
+- Complete readiness for the agreed build and release, using existing evidence and concise confirmations (§4.8–4.9).
+- Closed cannot reopen. Use append-only factual corrections or a freshly aligned follow-up for new work;
+  post-release follow-ups do not erase outstanding measurement (§5).
+- Reconcile canonical docs now; plan alignment first. No application/schema/deployment changes authorized yet.
+
+### Remaining focused design/implementation decisions
+
+- Final interaction labels and compact field presentation; schema/action boundaries and stale/concurrent
+  alignment protection; how blocking material edits are distinguished from ordinary edits.
+- Guest-created Request sponsorship, participant absence/replacement evidence, assignment acceptance and
+  outcome-owner transfer recovery. None may weaken the confirmed no-bypass rule or guest isolation.
+- Detailed partial-rollout representation, measurement-source handling and append-only correction authority.
+- Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.
-- Define acceptable workspace-level process signals.
-- Decide whether real pilot evidence now justifies changing the current `AGENTS.md` ban on impact prediction,
-  outcome features, handoff, and agent workflows.
+- Journey representation and Request-to-journey relationships that make the shared record useful.
+- Validate the locally implemented Expected impact creation/review/detail controls, including unknown
+  baselines and both measurement modes. Discovery/bug handling beyond creation, period basis, compatible-metric
+  aggregation and shared-result deduplication remain focused design/implementation decisions.
+- Define any additional workspace-level process signals beyond the confirmed outcome summaries.
 
-### Current scope conflict that must be resolved before expansion
+### Foundation clarification — confirmed 2026-10-06
 
-`AGENTS.md`, `PRODUCT.md`, and `lane-roadmap.md` currently make Requests the only committed product and defer
-outcome learning and agentic design operations until validation or a paying-customer trigger. The newly locked
-lifecycle is preserved here as an approved future contract. It does not override that gate. Before any
-expansion code is planned, Nikhil must explicitly choose either:
+- Lane's two foundations are a single source of truth for the product/journeys and expected-versus-actual
+  impact at Request and quarterly/yearly product levels.
+- Predicted impact is captured during Request creation, before design/delivery, and agreed by the named
+  PM, Designer and Developer before progression. Existing no-bypass and material-realignment rules remain.
+- The person who submitted the Request records actual results at the agreed post-launch window and owns
+  closure. A PM label or named PM seat does not replace that ownership.
+- Ordinary closure requires actual results; positive results are not required. A separately recorded
+  exception with a reason may close and is excluded from measured-impact totals. These two ownership and
+  exception choices were explicitly answered by Nikhil in the same conversation.
+- Current AI review is not stakeholder agreement; current Mark Done is not outcome closure. Neither guard
+  is implemented by this documentation. Replan the creation-to-outcome UX before continuing page polish.
 
-- Keep the existing pilot gate and validate the shipped Requests loop first; or
-- Amend the canonical scope with a named first outcome-learning increment and its validation test.
+### Scope amendment — 2026-09-28
 
-That choice changes sequencing, database scope, routes, Paper coverage, test strategy, and release risk, so it
-must not be inferred.
+Nikhil confirmed the full contract and the proposal to reconcile existing requirements/roadmap before coding.
+The older “outcome learning is only an unselected hypothesis until a paying customer asks” wording is superseded
+for the specific Request-level contract above. Requests remains the product surface; this is not permission
+to add a suite, an engineering tracker, integrations, background automation or individual performance metrics.
+
+The 2026-10-06 Expected impact creation/review/detail increment is separately authorized and implemented
+locally and verified. Bounded alignment design/planning remains target work. Every further
+implementation, schema, new route, AI capability and release still needs its explicit approval gate. Current
+release evidence and operational gates are unchanged. Historical planning snapshots do not override this dated amendment.

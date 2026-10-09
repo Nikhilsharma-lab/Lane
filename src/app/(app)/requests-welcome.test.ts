@@ -1,10 +1,9 @@
-import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
 // Isolate external session/database boundaries; render the real workspace.
 const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[] }))
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), redirect: vi.fn() }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams(), redirect: vi.fn() }))
 vi.mock("@/lib/ensure-workspace", () => ({
   getWorkspace: async () => ({ needsOnboarding: false, role: state.role, orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
 }))
@@ -20,7 +19,8 @@ vi.mock("./requests/[id]/comment-form", () => ({ CommentForm: () => null }))
 vi.mock("./requests/[id]/attachment-download", () => ({ AttachmentDownload: () => null }))
 vi.mock("./requests/[id]/lifecycle-buttons", () => ({ LifecycleButtons: () => null }))
 vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
-vi.mock("./request-status-filter", () => ({ RequestStatusFilter: () => createElement("select", { "aria-label": "Filter Requests by status" }) }))
+// Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
+vi.mock("./request-status-filter", () => ({ RequestStatusFilter: () => null }))
 
 import { RequestsWorkspace } from "./requests-workspace"
 
@@ -31,7 +31,8 @@ describe("Requests first-use landing", () => {
     const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "all" }))
     expect(html.match(/href="\/intake"/g)).toHaveLength(1)
     expect(html).not.toContain("Select a Request")
-    expect(html).not.toContain("Filter Requests by status")
+    expect(html).not.toContain('aria-label="Active filters"')
+    expect(html).not.toContain('aria-label="Filter Requests by title"')
     expect(html.includes('href="/settings/members"')).toBe(role === "admin")
     if (role === "guest") expect(html).toContain("Only Requests you submit appear here")
   })
@@ -40,8 +41,12 @@ describe("Requests first-use landing", () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
     const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "open" }))
-    expect(html).toContain("Show all Requests")
-    expect(html).toContain("Filter Requests by status")
+    expect(html).toContain('aria-label="Active filters"')
+    expect(html).toContain('aria-label="Remove Status: Open"')
+    expect(html).toContain("Clear all")
+    expect(html).toContain("No matching Requests")
+    expect(html).toContain("Change or clear your filters.")
+    expect(html).not.toContain("No Requests yet")
   })
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
@@ -56,7 +61,8 @@ describe("Requests first-use landing", () => {
     const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "all" }))
     expect(html).toContain('href="/requests/request-1"')
     expect(html).toContain("Existing problem")
-    expect(html).toContain("Filter Requests by status")
+    expect(html).toContain('aria-label="Filter Requests by title"')
+    expect(html).toContain("Add filter")
     expect(html).not.toContain("requests-welcome-title")
   })
 })

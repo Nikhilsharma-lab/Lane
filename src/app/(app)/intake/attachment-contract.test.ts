@@ -13,6 +13,7 @@ const DOWNLOADS = source(
   "src/app/(app)/requests/[id]/actions.ts"
 );
 const FORM = source("src/app/(app)/intake/intake-form.tsx");
+const REVIEW_DETAILS = source("src/components/requests/request-review-supporting-details.tsx");
 
 describe("Private Request attachment contract", () => {
   it("creates the Request before uploading directly to private storage", () => {
@@ -24,7 +25,8 @@ describe("Private Request attachment contract", () => {
     expect(FORM).toContain("prepareAttachmentUpload");
     expect(FORM).toContain("uploadToSignedUrl");
     expect(FORM).toContain("finalizeAttachmentUpload");
-    expect(FORM).toContain("Files upload only after you confirm");
+    expect(FORM).toContain("Files upload after creation.");
+    expect(REVIEW_DETAILS).toContain("Files upload after you create the Request.");
   });
 
   it("derives identity from the session and scopes every reservation", () => {

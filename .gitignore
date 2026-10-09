@@ -46,3 +46,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Isolated component review artifacts
+/storybook-static/
+/.storybook-cache/
+
+# Local research captures (third-party downloads, screenshots, logs) — never commit
+/artifacts/

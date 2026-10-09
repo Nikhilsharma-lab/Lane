@@ -6,3 +6,14 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   utf-8-validate: false
+minimumReleaseAgeExclude:
+  - '@storybook/addon-a11y@10.6.1'
+  - '@storybook/addon-docs@10.6.1'
+  - '@storybook/addon-vitest@10.6.1'
+  - '@storybook/builder-vite@10.6.1'
+  - '@storybook/nextjs-vite@10.6.1'
+  - '@storybook/react-dom-shim@10.6.1'
+  - '@storybook/react-vite@10.6.1'
+  - '@storybook/react@10.6.1'
+  - storybook@10.6.1
+  - vite-plugin-storybook-nextjs@10.6.1

@@ -1,8 +1,8 @@
 import { clerkSetup } from "@clerk/testing/playwright";
 import { test as setup } from "@playwright/test";
-import { cleanupTestUsers } from "./helpers/test-user";
+import { safeClerkClient } from "./helpers/safety";
 
 setup("prepare Clerk testing token", async () => {
-  await cleanupTestUsers();
+  await safeClerkClient();
   await clerkSetup();
 });

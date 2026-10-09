@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
+import { assertE2ETarget } from "./e2e/helpers/safety";
 
 // Clerk testing tokens only work with a Development instance. Load its keys
 // from the ignored local env, then overlay Lane Staging's database settings.
@@ -10,6 +11,7 @@ dotenv.config({ path: ".env.staging.local", override: true });
 if (process.env.STAGING_DATABASE_URL) {
   process.env.DATABASE_URL = process.env.STAGING_DATABASE_URL;
 }
+const target = assertE2ETarget();
 
 // Includes real Clerk provisioning/authentication and cross-region Supabase
 // round trips. Workspace isolation took 57s; leave room for provider variance.
@@ -19,7 +21,7 @@ export default defineConfig({
   retries: 0,
   expect: { timeout: 15_000 },
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:3100",
+    baseURL: target.baseURL,
     headless: true,
     navigationTimeout: 30_000,
     actionTimeout: 15_000,
@@ -35,20 +37,20 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: process.env.E2E_BASE_URL
+  webServer: target.baseURL === "https://lane-staging.vercel.app"
     ? undefined
     : {
         command:
-          "LANE_ENV_FILE=.env.staging.local NEXT_DIST_DIR=.next-e2e PORT=3100 pnpm dev",
+          "LANE_ENV_FILE=/dev/null NEXT_DIST_DIR=.next-e2e PORT=3100 node node_modules/next/dist/bin/next dev",
         env: {
           ...process.env,
-          LANE_ENV_FILE: ".env.staging.local",
+          LANE_ENV_FILE: "/dev/null",
           NEXT_DIST_DIR: ".next-e2e",
           DATABASE_URL: process.env.DATABASE_URL!,
           PORT: "3100",
         },
-        port: 3100,
-        reuseExistingServer: true,
+        url: target.baseURL,
+        reuseExistingServer: false,
         timeout: 30_000,
       },
 });

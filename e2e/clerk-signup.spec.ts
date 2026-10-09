@@ -1,4 +1,3 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 
@@ -8,6 +7,8 @@ import {
   getProfileRole,
 } from "./helpers/cleanup";
 import { deleteTestUser } from "./helpers/test-user";
+import { safeClerkClient } from "./helpers/safety";
+import { registerBrowserTestOrganization, registerBrowserTestUser, testEmail } from "./helpers/fixtures";
 
 test("real signup requires a Clerk workspace before the Lane role and Requests", async ({
   page,
@@ -17,15 +18,8 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
   // This exercise creates and removes only one disposable staging identity.
   // Never use test OTPs or the cleanup helpers against production services.
   expect(new URL(baseURL!).hostname).toBe("lane-staging.vercel.app");
-  expect(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_")).toBe(true);
-  expect(process.env.CLERK_SECRET_KEY?.startsWith("sk_test_")).toBe(true);
-  const database = new URL(process.env.DATABASE_URL!);
-  expect(
-    database.hostname === "db.jznepeqghjixcrpuddym.supabase.co" ||
-      decodeURIComponent(database.username).endsWith(".jznepeqghjixcrpuddym")
-  ).toBe(true);
-
-  const email = `lane-e2e-ui-signup-${Date.now()}+clerk_test@example.com`;
+  await safeClerkClient();
+  const email = testEmail("ui-signup");
   const workspaceName = `Lane E2E UI Signup ${Date.now()}`;
   let userId: string | null = null;
 
@@ -49,6 +43,7 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
       .toBe("choose-organization");
     userId = await page.evaluate(() => window.Clerk.user?.id ?? null);
     expect(userId).toMatch(/^user_/);
+    await registerBrowserTestUser(userId!, email);
     await expect(page.getByRole("radiogroup", { name: "Your role" })).toHaveCount(0);
     expect(await getProfileFullName(userId!)).toBeNull();
 
@@ -58,6 +53,8 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
     await expect
       .poll(() => page.evaluate(() => window.Clerk.organization?.id))
       .toMatch(/^org_/);
+    const orgId = await page.evaluate(() => window.Clerk.organization?.id);
+    await registerBrowserTestOrganization(orgId!, userId!, workspaceName);
     await page.getByRole("radio", { name: /^PM\b/ }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
 
@@ -72,11 +69,12 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
     // If signup succeeded but navigation failed, discover only this exact test
     // address; never clean up unrelated users or pre-existing workspaces.
     if (!userId) {
-      const client = await clerkClient();
+      const client = await safeClerkClient();
       const users = await client.users.getUserList({ emailAddress: [email], limit: 2 });
       userId = users.data.find((user) =>
         user.emailAddresses.some((address) => address.emailAddress === email)
       )?.id ?? null;
+      if (userId) await registerBrowserTestUser(userId, email);
     }
     if (userId) {
       await cleanupTestWorkspace(userId);

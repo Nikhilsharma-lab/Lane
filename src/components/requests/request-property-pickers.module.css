@@ -1,0 +1,34 @@
+.optionList {
+  display: grid;
+  max-height: min(16rem, 40vh);
+  gap: var(--space-1);
+  overflow-y: auto;
+}
+
+.option {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.option[aria-selected="true"] {
+  color: var(--selection-foreground, var(--foreground));
+  background: var(--selection-background, var(--surface-muted));
+}
+
+.iconSpace {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+:global(:root[data-ui-state-contract="semantic"]) .option[aria-selected="true"]:is(:hover, :focus-visible, :active):not(:disabled) {
+  color: var(--selection-foreground);
+  background: var(--selection-background);
+}

@@ -13,10 +13,10 @@ Open → In Progress → Done workflow without surveillance or role-specific das
 - `PRODUCT.md` — product thesis and permanent boundaries.
 - `REQUIREMENTS.md` — behavioural requirements and decision status.
 - `lane-roadmap.md` — validated sequence and phase gates.
-- `DESIGN.md` — Lane's visual and component system.
+- `DESIGN.md` — canonical product design authority: Arc UI only.
+- `DESIGN-NOTES.md` — current migration status and review boundaries.
 - `phase-0-ux-skeleton.md` — current journeys, screens, and states.
-- `conventions-plan.md` — Plane-grounded information architecture and interaction conventions.
-- `PLANE-MAP.md` — read-only reference terrain from Plane.
+- `conventions-plan.md` — Lane information architecture and interaction conventions.
 - `DEFERRED.md` — deliberate deferrals and their revisit triggers.
 
 ## Local development

@@ -3,7 +3,10 @@ import {
   text,
   timestamp,
   pgEnum,
+  integer,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const roleEnum = pgEnum("role", ["pm", "designer", "developer"]);
@@ -14,13 +17,16 @@ export const workspaces = pgTable("organizations", {
   slug: text("slug").notNull().unique(),
   ownerUserId: text("owner_id"),
   plan: planEnum("plan").notNull().default("free"),
+  lastRequestNumber: integer("last_request_number").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, table => ({
+  lastRequestNumberCheck: check("organizations_last_request_number_check", sql`${table.lastRequestNumber} >= 0`),
+}));
 
 // Backward-compatible alias
 export const organizations = workspaces;

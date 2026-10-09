@@ -1,25 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { fontVariables } from "@/lib/fonts";
 import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
-import "@clerk/ui/themes/shadcn.css";
+import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
+import "@/components/arc/foundation.css";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Lane",
-  description: "Design-ops software that supports, not surveils.",
+  description: "Collect design requests, clarify the problem, and track the work from Open to Done.",
 };
 
 export default function RootLayout({
@@ -30,27 +19,39 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-accent="green"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fontVariables} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
-          appearance={{ theme: shadcn }}
           signInUrl="/login"
           signUpUrl="/signup"
           signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
-          taskUrls={{ "choose-organization": "/login" }}
+          allowedRedirectOrigins={[
+            process.env.NEXT_PUBLIC_APP_URL,
+            "http://localhost:3000",
+            "http://localhost:3100",
+            "https://lane-staging.vercel.app",
+            "https://app.uselane.app",
+          ].filter((origin): origin is string => Boolean(origin))}
+          taskUrls={{
+            "choose-organization": "/login",
+            "reset-password": "/reset-password",
+          }}
         >
           <ThemeProvider
-            attribute="class"
+            attribute={["class", "data-theme"]}
             defaultTheme="system"
             enableSystem
             enableColorScheme
             disableTransitionOnChange
           >
-            {children}
-            <Toaster />
+            <ToastStackProvider>
+              {children}
+              <ToastStack />
+            </ToastStackProvider>
           </ThemeProvider>
         </ClerkProvider>
       </body>

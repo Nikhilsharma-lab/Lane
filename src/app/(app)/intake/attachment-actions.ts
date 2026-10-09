@@ -51,6 +51,10 @@ export type FinalizeAttachmentResponse =
   | { success: true }
   | { success: false; error: AttachmentActionFailure };
 
+export type DiscardAttachmentResponse =
+  | { success: true; alreadyUploaded?: boolean }
+  | { success: false; error: AttachmentActionFailure };
+
 function sessionFailure(): AttachmentActionFailure {
   return {
     code: "session_expired",
@@ -131,6 +135,7 @@ export async function prepareAttachmentUpload(
 
   const attachmentId = randomUUID();
   const storagePath = `${auth.orgId}/${parsed.data.requestId}/${attachmentId}`;
+  let reservationCreated = false;
 
   try {
     const reservation = await db.transaction(async (tx) => {
@@ -184,6 +189,7 @@ export async function prepareAttachmentUpload(
         },
       };
     }
+    reservationCreated = true;
 
     const storage = createServiceClient().storage.from(
       REQUEST_ATTACHMENTS_BUCKET
@@ -193,18 +199,7 @@ export async function prepareAttachmentUpload(
     });
 
     if (error || !data) {
-      await db
-        .delete(requestAttachments)
-        .where(eq(requestAttachments.id, attachmentId));
-      console.error("[intake/attachments] signed upload failed:", error);
-      return {
-        success: false,
-        error: {
-          code: "storage_unavailable",
-          message:
-            "Lane could not start this upload. The Request is safe. Try the file again.",
-        },
-      };
+      throw error ?? new Error("Storage did not return a signed upload URL");
     }
 
     return {
@@ -214,6 +209,23 @@ export async function prepareAttachmentUpload(
       mimeType: validation.metadata.mimeType,
     };
   } catch (error) {
+    if (reservationCreated) {
+      try {
+        await db
+          .delete(requestAttachments)
+          .where(
+            and(
+              eq(requestAttachments.id, attachmentId),
+              eq(requestAttachments.orgId, auth.orgId),
+              eq(requestAttachments.requestId, parsed.data.requestId),
+              eq(requestAttachments.uploadedBy, auth.userId),
+              sql`${requestAttachments.uploadedAt} is null`
+            )
+          );
+      } catch (cleanupError) {
+        console.error("[intake/attachments] reservation cleanup failed:", cleanupError);
+      }
+    }
     console.error("[intake/attachments] prepare failed:", error);
     return {
       success: false,
@@ -323,43 +335,71 @@ export async function finalizeAttachmentUpload(
 export async function discardAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
-): Promise<void> {
+): Promise<DiscardAttachmentResponse> {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return;
+  if (!auth) return { success: false, error: sessionFailure() };
 
   const parsed = attachmentActionSchema.safeParse(input);
-  if (!parsed.success) return;
-
-  const [attachment] = await db
-    .select({
-      id: requestAttachments.id,
-      storagePath: requestAttachments.storagePath,
-    })
-    .from(requestAttachments)
-    .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
-    .where(
-      and(
-        eq(requestAttachments.id, parsed.data.attachmentId),
-        eq(requestAttachments.requestId, parsed.data.requestId),
-        eq(requestAttachments.orgId, auth.orgId),
-        eq(requestAttachments.uploadedBy, auth.userId),
-        eq(requests.createdBy, auth.userId),
-        sql`${requestAttachments.uploadedAt} is null`
-      )
-    )
-    .limit(1);
-
-  if (!attachment) return;
-
-  try {
-    await createServiceClient()
-      .storage.from(REQUEST_ATTACHMENTS_BUCKET)
-      .remove([attachment.storagePath]);
-  } catch {
-    // Best effort: the object may not exist if upload never began.
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: { code: "validation", message: "Lane could not identify this upload safely." },
+    };
   }
 
-  await db
-    .delete(requestAttachments)
-    .where(eq(requestAttachments.id, attachment.id));
+  try {
+    const [attachment] = await db
+      .select({
+        id: requestAttachments.id,
+        storagePath: requestAttachments.storagePath,
+        uploadedAt: requestAttachments.uploadedAt,
+      })
+      .from(requestAttachments)
+      .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
+      .where(
+        and(
+          eq(requestAttachments.id, parsed.data.attachmentId),
+          eq(requestAttachments.requestId, parsed.data.requestId),
+          eq(requestAttachments.orgId, auth.orgId),
+          eq(requestAttachments.uploadedBy, auth.userId),
+          eq(requests.createdBy, auth.userId)
+        )
+      )
+      .limit(1);
+
+    // An authenticated, scoped repeat can succeed after an earlier cleanup.
+    if (!attachment) return { success: true };
+    if (attachment.uploadedAt) {
+      // Finalization may have committed before its response was lost. Report
+      // that state distinctly; the client must not replace or hide this file.
+      return { success: true, alreadyUploaded: true };
+    }
+
+    const { error } = await createServiceClient()
+      .storage.from(REQUEST_ATTACHMENTS_BUCKET)
+      .remove([attachment.storagePath]);
+    if (error) throw error;
+
+    await db
+      .delete(requestAttachments)
+      .where(
+        and(
+          eq(requestAttachments.id, attachment.id),
+          eq(requestAttachments.orgId, auth.orgId),
+          eq(requestAttachments.requestId, parsed.data.requestId),
+          eq(requestAttachments.uploadedBy, auth.userId),
+          sql`${requestAttachments.uploadedAt} is null`
+        )
+      );
+    return { success: true };
+  } catch (error) {
+    console.error("[intake/attachments] discard failed:", error);
+    return {
+      success: false,
+      error: {
+        code: "storage_unavailable",
+        message: "Lane could not clear this upload. Your Request is saved. Try again.",
+      },
+    };
+  }
 }

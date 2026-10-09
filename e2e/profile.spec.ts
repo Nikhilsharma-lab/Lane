@@ -20,8 +20,8 @@ test("a member can change their profile role without changing access", async ({
 
     await page.getByLabel("Role").click();
     await page.getByRole("option", { name: "Developer" }).click();
-    await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(page.getByRole("status")).toHaveText("Profile updated.");
+    await page.getByRole("button", { name: "Save role" }).click();
+    await expect(page.getByRole("status")).toHaveText("Role updated.");
     expect(await getProfileRole(user.id)).toBe("developer");
 
     await page.getByLabel("Theme").click();

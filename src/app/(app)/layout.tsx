@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { Sidebar } from "@/components/shell/sidebar";
+import { RequestListViewProvider } from "@/components/requests/list-view-state";
+import { NewRequestProvider } from "@/components/requests/new-request-provider";
+import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 export default async function AppLayout({
   children,
@@ -12,17 +15,20 @@ export default async function AppLayout({
   if (result.needsOnboarding) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-dvh flex-col sm:h-screen sm:flex-row">
-      <Sidebar
-        workspaceName={result.workspaceName}
-        fullName={result.fullName}
-        email={result.email}
-        role={result.role}
-        orgId={result.orgId}
-      />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-        {children}
-      </div>
-    </div>
+    <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
+      <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId}>
+        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId}>
+          <Sidebar
+            workspaceName={result.workspaceName}
+            fullName={result.fullName}
+            email={result.email}
+            role={result.role}
+            orgId={result.orgId}
+          >
+            {children}
+          </Sidebar>
+        </NewRequestProvider>
+      </WorkspaceProjectsProvider>
+    </RequestListViewProvider>
   );
 }

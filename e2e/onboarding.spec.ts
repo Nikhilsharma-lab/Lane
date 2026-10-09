@@ -10,6 +10,7 @@ import {
   deleteTestUser,
   signInTestUser,
 } from "./helpers/test-user";
+import { registerBrowserTestOrganization } from "./helpers/fixtures";
 
 test("a Clerk user chooses a Lane role and enters their active workspace", async ({
   page,
@@ -69,6 +70,8 @@ test("workspace membership comes before a Lane role, including after an interrup
     await expect(
       page.getByRole("heading", { name: "How do you work?" })
     ).toBeVisible();
+    const createdOrgId = await page.evaluate(() => window.Clerk.organization?.id);
+    await registerBrowserTestOrganization(createdOrgId!, user.id, workspaceName);
     await page.getByRole("radio", { name: "PM" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
 

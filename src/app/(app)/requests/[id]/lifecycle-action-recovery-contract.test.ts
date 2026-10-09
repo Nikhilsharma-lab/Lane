@@ -11,14 +11,14 @@ const LIFECYCLE = source(
 );
 const ACTIONS = source("src/app/(app)/requests/[id]/actions.ts");
 const RECOVERY_HOOK = source(
-  "src/components/ui/use-recoverable-action.ts"
+  "src/hooks/use-recoverable-action.ts"
 );
 const WORKSPACE = source("src/app/(app)/requests-workspace.tsx");
 
 describe("Reliable Request lifecycle action contract", () => {
   it("uses the shared immediate lock and guaranteed release path", () => {
     expect(LIFECYCLE).toContain(
-      'from "@/components/ui/use-recoverable-action"'
+      'from "@/hooks/use-recoverable-action"'
     );
     expect(LIFECYCLE).toContain("useRecoverableAction()");
     expect(LIFECYCLE).not.toMatch(/\bsetPending\(/);
@@ -39,10 +39,10 @@ describe("Reliable Request lifecycle action contract", () => {
 
   it("explains uncertain network outcomes without inventing state", () => {
     expect(LIFECYCLE).toContain("Couldn’t confirm pickup");
-    expect(LIFECYCLE).toContain("try again if this Request remains Open");
+    expect(LIFECYCLE).toContain("Try again if this Request is still Open");
     expect(LIFECYCLE).toContain("Couldn’t confirm completion");
     expect(LIFECYCLE).toContain(
-      "try again if this Request remains In Progress"
+      "Try again if this Request is still In Progress"
     );
     expect(LIFECYCLE).toContain("router.refresh()");
   });

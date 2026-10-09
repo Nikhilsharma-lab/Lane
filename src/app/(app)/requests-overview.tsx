@@ -1,25 +1,42 @@
 "use client"
-// Official shadcn examples/tasks page composition. See docs/free-ui-components.md.
+// Lane Request rows composed from official Arc properties, filters and controls.
 import { DataTable } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
+import Link from "next/link"
+import { Folder } from "lucide-react"
+import { EmptyState } from "@/components/arc/empty-state/empty-state"
+import buttonStyles from "@/components/arc/button/button.module.css"
 import type { OverviewRequest } from "@/lib/request-overview"
-import type { RequestStatusFilter } from "@/lib/request-workspace"
+import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
+import styles from "./requests-overview.module.css"
+import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
 
-export function RequestsOverview({ requests, filter, isGuest }: {
+export function RequestsOverview({ requests, filter, projectFilter = "all", projectName, isGuest, context }: {
   requests: OverviewRequest[]
   filter: RequestStatusFilter
+  projectFilter?: RequestProjectFilter
+  projectName?: string
   isGuest: boolean
+  context?: { orgId: string }
 }) {
+  const heading = projectName ?? (projectFilter === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
   return (
-    <main data-slot="requests-workspace" className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-y-auto bg-background p-4 lg:p-8">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{isGuest ? "My Requests" : "Requests"}</h1>
-          <p className="text-muted-foreground">{isGuest ? "Only Requests you submit appear here." : "Here’s a list of your workspace’s Requests."}</p>
-        </div>
-      </div>
-      <DataTable data={requests} columns={columns} filter={filter} />
-      {requests.length === 200 && <p className="text-type-meta text-muted-foreground">Showing the latest 200 Requests.</p>}
-    </main>
+    <div data-slot="requests-workspace" className={styles.overview}>
+      <header className={styles.titleStrip} data-slot="requests-title-strip">
+        <SidebarExpandButton />
+        <h1 className={styles.title} title={heading}>{heading}</h1>
+        {isGuest && <p className={styles.guestHint} title="Only Requests you submit appear here.">Only Requests you submit appear here.</p>}
+      </header>
+      <DataTable data={requests} columns={columns} filter={filter} projectFilter={projectFilter} projectName={projectName} context={context} isGuest={isGuest} />
+      {requests.length === 200 && <p className={styles.limitNote}>Showing the latest 200 Requests.</p>}
+    </div>
   )
+}
+
+export function ProjectUnavailable() {
+  return <div data-slot="requests-workspace" className="flex min-w-0 flex-1 flex-col p-6">
+    <div><SidebarExpandButton /></div>
+    <h1 className="sr-only">Project unavailable</h1>
+    <div className="my-auto"><EmptyState icon={<Folder />} title="Project unavailable" description="This Project could not be found or is not available in this workspace." action={<Link href="/" className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`}>View all Requests</Link>} /></div>
+  </div>
 }

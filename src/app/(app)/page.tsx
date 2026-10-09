@@ -1,12 +1,12 @@
-import { parseRequestStatusFilter } from "@/lib/request-workspace"
+import { parseRequestProjectFilter, parseRequestStatusFilter } from "@/lib/request-workspace"
 import { RequestsWorkspace } from "./requests-workspace"
 
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[] }>
+  searchParams: Promise<{ status?: string | string[]; project?: string | string[] }>
 }) {
-  const { status } = await searchParams
+  const { status, project } = await searchParams
 
-  return <RequestsWorkspace filter={parseRequestStatusFilter(status)} />
+  return <RequestsWorkspace filter={parseRequestStatusFilter(status)} projectFilter={parseRequestProjectFilter(project)} />
 }

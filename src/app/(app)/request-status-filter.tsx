@@ -2,22 +2,12 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select } from "@/components/arc/select/select"
 import {
   isRequestStatusFilter,
   type RequestStatusFilter,
 } from "@/lib/request-workspace"
-import { statusLabel } from "@/lib/request-status"
-
-function filterLabel(filter: RequestStatusFilter) {
-  return filter === "all" ? "All statuses" : statusLabel(filter)
-}
+import { statuses } from "@/components/requests/tasks/statuses"
 
 export function RequestStatusFilter({
   value,
@@ -42,27 +32,5 @@ export function RequestStatusFilter({
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
-  return (
-    <Select value={value} onValueChange={handleValueChange}>
-      <SelectTrigger
-        aria-label="Filter Requests by status"
-        size="sm"
-        className="w-full sm:w-[156px]"
-      >
-        <SelectValue>
-          {(selectedValue) =>
-            filterLabel(
-              isRequestStatusFilter(selectedValue) ? selectedValue : "all"
-            )
-          }
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent align="start">
-        <SelectItem value="all">All statuses</SelectItem>
-        <SelectItem value="open">Open</SelectItem>
-        <SelectItem value="in_progress">In Progress</SelectItem>
-        <SelectItem value="done">Done</SelectItem>
-      </SelectContent>
-    </Select>
-  )
+  return <Select label="Status" id="request-status-filter" value={value} onValueChange={handleValueChange} options={[{ value: "all", label: "All statuses" }, ...statuses.map(item => ({ value: item.value, label: item.label }))]} />
 }

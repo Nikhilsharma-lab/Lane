@@ -104,7 +104,7 @@ test("the session-expiry link signs back in to the exact Intake review without a
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();
       await expect(
-        page.getByText("Your confirmed framing is back.", { exact: false })
+        page.getByText("Your review was restored.", { exact: false })
       ).toBeVisible();
       await expect(
         page.getByRole("textbox", { name: "Problem framing" })

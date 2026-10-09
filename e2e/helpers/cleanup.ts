@@ -1,16 +1,15 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
+import { assertE2ETarget } from "./safety";
+import { assertOwnedOrganization, assertOwnedUser, forgetOrganization, ownedUserScope } from "./fixtures";
+import { createClerkTestOrganization } from "./test-user";
 
 type FunctionalRole = "pm" | "designer" | "developer";
 
 function database() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("[e2e] DATABASE_URL is required");
-  }
-
-  return postgres(process.env.DATABASE_URL, {
-    ssl: process.env.DATABASE_URL.includes("localhost") ? false : "require",
+  const { databaseUrl } = assertE2ETarget();
+  return postgres(databaseUrl, {
+    ssl: "require",
     max: 1,
     idle_timeout: 5,
   });
@@ -23,11 +22,9 @@ export async function provisionTestWorkspace(options: {
   workspaceName: string;
   role?: FunctionalRole;
 }): Promise<string> {
-  const client = await clerkClient();
-  const organization = await client.organizations.createOrganization({
-    name: options.workspaceName,
-    createdBy: options.userId,
-  });
+  const organizationId = await createClerkTestOrganization(options.userId, options.workspaceName);
+  const client = await assertOwnedOrganization(organizationId);
+  const organization = await client.organizations.getOrganization({ organizationId });
   const sql = database();
 
   try {
@@ -63,9 +60,11 @@ export async function provisionTestWorkspace(options: {
     });
     return organization.id;
   } catch (error) {
-    await client.organizations
-      .deleteOrganization(organization.id)
-      .catch(() => undefined);
+    // Keep the creation receipt if rollback itself fails; never sweep later.
+    try {
+      await client.organizations.deleteOrganization(organization.id);
+      forgetOrganization(organization.id);
+    } catch { console.warn("[e2e] Fixture rollback failed; explicit inspection required."); }
     throw error;
   } finally {
     await sql.end();
@@ -73,15 +72,12 @@ export async function provisionTestWorkspace(options: {
 }
 
 export async function cleanupTestWorkspace(userId: string): Promise<void> {
+  const { orgIds } = await ownedUserScope(userId);
   const sql = database();
 
   try {
-    const organizations = await sql<{ id: string }[]>`
-      SELECT id FROM organizations WHERE owner_id = ${userId}
-    `;
-
-    for (const organization of organizations) {
-      await sql`DELETE FROM organizations WHERE id = ${organization.id}`;
+    for (const orgId of orgIds) {
+      await sql`DELETE FROM organizations WHERE id = ${orgId} AND owner_id = ${userId}`;
     }
     await sql`DELETE FROM profiles WHERE id = ${userId}`;
   } finally {
@@ -116,6 +112,7 @@ export async function getProfileRole(userId: string): Promise<string | null> {
 }
 
 export async function getTestWorkspaceId(userId: string): Promise<string> {
+  await assertOwnedUser(userId);
   const sql = database();
   try {
     const [row] = await sql<{ id: string }[]>`
@@ -124,6 +121,7 @@ export async function getTestWorkspaceId(userId: string): Promise<string> {
       LIMIT 1
     `;
     if (!row?.id) throw new Error("[e2e] test workspace not found");
+    await assertOwnedOrganization(row.id);
     return row.id;
   } finally {
     await sql.end();
@@ -217,6 +215,7 @@ export async function seedRowIdentityFixtures(
 }
 
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
+  const client = await assertOwnedOrganization(orgId);
   const sql = database();
   try {
     await sql`DELETE FROM organizations WHERE id = ${orgId}`;
@@ -224,6 +223,6 @@ export async function deleteTestWorkspace(orgId: string): Promise<void> {
     await sql.end();
   }
 
-  const client = await clerkClient();
-  await client.organizations.deleteOrganization(orgId).catch(() => undefined);
+  await client.organizations.deleteOrganization(orgId);
+  forgetOrganization(orgId);
 }

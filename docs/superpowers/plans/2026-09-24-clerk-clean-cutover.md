@@ -189,3 +189,248 @@ Create one destructive canonical migration that:
   verification after this setting change. No full-browser-suite or Inbox-placement claim is made.
 - **Production is still untouched.** Do not merge `main` or cut over production before the staging
   gates pass and production-specific Clerk configuration is ready.
+
+## Reliability audit — 2026-09-25
+
+- `/forgot-password` and `/reset-password` no longer bounce to `/login`. They use Clerk's custom
+  `useSignIn` + `reset_password_email_code` flow (not `<SignIn>` on those routes — that fights
+  `signInUrl=/login`). `/reset-password` still resumes the `reset-password` session task.
+  `ClerkProvider` now lists Lane origins and the reset-password task URL so hosted invitation/reset
+  returns are not rejected as unknown.
+- Playwright Clerk mutations refuse anything except `pk_test_` / `sk_test_`. Local/dev database
+  connections refuse a hosted URL that is not Lane Staging unless `LANE_ALLOW_HOSTED_DB=1`.
+- The earlier invitation was accepted in Clerk. Automatic return after the hosted portal still needs
+  a repeat live check; a later `/onboarding` visit is not that evidence.
+- Production remains on `main` and is unchanged.
+
+## Reliability audit — 2026-09-28 (repair approval pending)
+
+### Scope and environment evidence
+
+- Audited the existing Requests implementation, not the unimplemented alignment/outcome contract.
+  Branch: `codex/clerk-clean-cutover`; HEAD: `c165c565d14399ba98b5cb840fbb8662733d63ea`.
+  Existing tracked and untracked changes, including password-recovery work, belong to the user/parallel work.
+- Read-only Vercel inspection: stable staging is Ready at `8490730`, deployment
+  `2CbhmNwtWKgeQoyMWVgtaoai2dtd`; production is Ready on `main` at `826e509`, deployment
+  `5Wz85bAKY8XCx8NA3fucLk9BdLqG`. Local source findings are not claims of reproductions on either deployment.
+- No application repairs, provider changes, hosted database writes, emails, commits, pushes or deployments.
+  No Clerk E2E setup ran. Two independent read-only audits covered auth and domain data paths; the
+  destructive-test findings received a separate review.
+
+### Fresh baseline
+
+| Check | Result and limitation |
+|---|---|
+| `pnpm lint` | Passed, exit 0. Package-manager update lookup warned about network access; ESLint completed. |
+| `pnpm exec tsc --noEmit` | Initial baseline passed, exit 0. A post-build repeat was stopped by pnpm's automatic install check requesting a modules purge (no TTY); no purge was approved. Running the already-installed compiler directly with `node node_modules/typescript/bin/tsc --noEmit` then passed, exit 0. Package manifest/lockfile unchanged. |
+| `pnpm test` | 37 files / 217 tests passed, exit 0. PostgreSQL was first queried to verify loopback `127.0.0.1:5432`, database `lane_test`, and only the known fixture organizations/profiles. Ran with a clean environment, explicit local `DATABASE_URL`, `PGHOST`, `PGPORT`, `PGUSER`, and `PGDATABASE`; only this disposable database was reset. |
+| `pnpm build` | Passed with inert provider credentials, local-only database URL, `LANE_ENV_FILE=/dev/null`, and `.next-audit` output. All keys found in Next's production env-file candidates were overridden to prevent loading real secrets. First sandbox attempt failed only fetching Google Fonts; authorized network retry compiled and generated 13 static pages. Not proof of live provider configuration. |
+| `git diff --check` | Passed. Next's automatically added `.next-audit` TypeScript include entries were removed; the pre-audit tracked diff hash was restored exactly before this record was appended. |
+| Clerk/browser E2E | Not run: destructive setup and remote fixture ownership need a safety repair and explicit execution approval. Existing Vercel metadata was inspected without exercising application journeys. |
+| Dependency advisory lookup | Not completed. Initial network attempt failed; security review blocked sending the locked dependency inventory to npm. Explicit disclosure approval requested; no workaround or package upgrade. |
+
+The baseline contains both behavioral/database tests and source-string contract tests; 217 passing tests are
+not 217 end-to-end journeys. The production build already uses Next's minification. Aggregate emitted static
+JavaScript: 34 chunks, 1,740,314 bytes raw / 516,033 bytes independently gzip-compressed. This is all emitted
+chunks, not one route's transfer, real-user latency, or a before/after improvement. No source compression,
+dead-code deletion, speculative caching or dependency changes are recommended before the defects below.
+
+### Prioritized findings
+
+**A1 — P1: unit-test reset can target a different database connection from the one validated.**
+
+- Evidence: `src/test/global-setup.ts:42–68` checks only the URL hostname, then calls `dropdb`, `createdb`
+  and `psql` without connection arguments. It does not require the URL database to be `lane_test`.
+- Reproduction: a memory-only VM ran the actual setup with subprocess calls intercepted. Both
+  `localhost/lane_test` and `localhost/not_a_test_database` were accepted; generated destructive commands
+  had no host/port/user while inherited `PGHOST`/`PGSERVICE` pointed at nonlocal sentinels. No such command
+  was executed. In ordinary execution, CLI defaults can target another server, or tests can write to a
+  local database different from the reset target.
+- Repair: validate one exact disposable PostgreSQL target; bind every subprocess to it using argv and a
+  sanitized environment. Reject service/host overrides and non-test database names. Use `psql -X` and
+  `ON_ERROR_STOP=1` for every script. This run's manually pinned environment is containment, not a fix.
+- Regression/risk: wrong database, alternate routing and hostile inherited PG variables must yield zero
+  destructive subprocesses; the valid local fixture run must still pass. Risk is accidental data deletion.
+
+**A2 — P1: browser-test cleanup does not establish staging identity or disposable ownership.**
+
+- Evidence: `playwright.config.ts:7–22` loads environment files without a mandatory target check;
+  `e2e/helpers/cleanup.ts:7–31,75–86` uses a raw database URL and creates a Clerk organization before
+  checking database configuration; `e2e/helpers/test-user.ts:45–80` deletes every organization in which a
+  matching test user is admin. `e2e/clerk.setup.ts:5–7` runs this broad cleanup automatically.
+- Reproduction by source trace: absent staging overlay leaves the other database URL available; a fixture
+  user that is also admin of an unrelated development organization causes that organization to be selected
+  for deletion. Development key prefixes do not prove exact instance or fixture ownership. Not executed.
+- Repair: fail-closed preflight for exact staging database identity, approved base URL and intended Clerk
+  development instance before any mutation, repeated in helpers. Delete only recorded, ownership-verified
+  fixtures; remove the automatic broad sweep. Do not reuse the app guard's production/bypass allowance.
+- Regression/risk: mocked wrong-instance/wrong-database/base-URL cases and mixed fixture/nonfixture
+  memberships must perform zero unintended writes/deletes. Operational P1; no observed deletion claimed.
+
+**A3 — P1: guest downgrade does not revoke notification access to other people's Requests.**
+
+- Evidence: `src/app/(app)/notifications/actions.ts:13–54` returns Request titles and actor identities,
+  filtered only by recipient/workspace; count has the same gap. `requests/[id]/actions.ts:164–181`
+  continues notifying a stored assignee. `src/lib/notifications-read.test.ts:109–117` tests only an
+  already-authorized guest notification, not a downgrade.
+- Reproduction scenario: B picks up A's Request; A comments and B receives a notification; B becomes `org:guest`;
+  board/detail deny A's Request but notification reads still disclose its title/actor, including later
+  comment notifications. Confirmed query omission; not exercised with a live user. Production guest
+  availability remains plan-gated, so current real-user exposure is not established.
+- Repair: apply current Request/org visibility, including guest creator ownership, consistently to list
+  and unread count. Specify non-Request notification behavior without expanding guest access.
+- Regression/risk: downgraded guest sees only their own Request-linked entries/count; member, foreign-org
+  and non-Request controls remain correct. Low–medium query risk; no new membership authority needed.
+
+**A4 — P2: retrying one attachment can abandon other failed uploads.**
+
+- Evidence: `src/app/(app)/intake/intake-form.tsx:890–913` navigates when the attempted subset succeeds;
+  the per-file control at `:1917` passes one file. Draft recovery is cleared at `:858–860`.
+- Reproduction: actual retry function extracted/transpiled into a memory-only VM; two failed files,
+  successful retry of A → A uploaded, B still failed, navigation fired. No services called.
+- Repair: decide completion from the whole retained upload queue; stay in recovery until every retained
+  file succeeds or the person explicitly removes/skips it. Avoid checking stale React state after updates.
+- Regression/risk: one of two failures succeeds → no navigation; final failure succeeds → one navigation;
+  explicit skip/remove remains possible. Low risk, bounded attachment-recovery interaction change.
+
+**A5 — P2: thrown Storage errors leak attachment reservations and exhaust quota.**
+
+- Evidence: `src/app/(app)/intake/attachment-actions.ts:164–216` commits a reservation before Storage
+  client creation/signing. Returned errors delete it; the exception path does not and returns no cleanup ID.
+- Reproduction: actual action module with in-memory dependencies, Storage client creation throwing after
+  reservation → five `storage_unavailable` results then `limit_reached`, five rows retained, zero deletes.
+- Repair: track reservation ownership and perform scoped best-effort cleanup on pre-response signing
+  exceptions, preserving the original failure if cleanup also fails. No schema or cron required.
+- Regression/risk: thrown client/signing failures leave no quota row; unrelated rows untouched; next healthy
+  attempt succeeds. Low server-side risk; DB outages/lost responses still need separately stated limits.
+
+**A6 — P2: local password-recovery flow has incomplete continuation and retry states.**
+
+- Evidence: untracked `src/components/auth/password-recovery-form.tsx:32,47–58,69–77,89–137` handles only
+  request/sent and throws on every non-complete Clerk status; there is no resend/change-email/restart path.
+  `e2e/clerk-password-recovery.spec.ts:3–25` checks routes/headings, not a successful reset.
+- Reproduction: actual completion function with in-memory Clerk responses activates for `complete` but
+  errors for `needs_second_factor`. After an expired code, the source offers only resubmission of that code.
+  Clerk documents the second-factor branch in its [legacy recovery guide](https://clerk.com/docs/guides/development/custom-flows/authentication/legacy/forgot-password).
+  This is not a diagnosis of the user's earlier live failure; enabled factors were not checked.
+- Repair: use supported Clerk continuation for enabled factors and provide an accessible resend/restart
+  path with throttling and duplicate-send prevention. Never bypass a required factor or persist reset secrets.
+- Regression/risk: complete, additional-factor, invalid/expired-code, weak-password, activation-failure and
+  controlled email reset-to-Requests tests. Auth-critical; requires approved browser/provider verification.
+
+**A7 — P2: Clerk workspace renames are not reflected in Lane's cached display projection.**
+
+- Evidence: `src/lib/ensure-workspace.ts:58–95` fetches Clerk organization data only when the local row
+  does not exist; standard organization management is exposed in `settings/members/page.tsx:24–34`.
+- Reproduction: actual module with in-memory dependencies and an existing old SQL name plus new Clerk name
+  returned the old name without a Clerk organization lookup. Refresh alone cannot repair that projection.
+- Repair: define a bounded display-name refresh using the existing Clerk resource/projection. Do not add
+  tenancy authority, an unapproved webhook, or an unconditional provider waterfall.
+- Regression/risk: a rename updates displayed name while session organization remains authoritative;
+  explicitly cover provider failure. Moderate availability/performance trade-off; separate from auth repair.
+
+### Journey coverage and remaining release gates
+
+| Journey | Audit evidence | Still unverified |
+|---|---|---|
+| Signup, workspace choice, role selection | Existing signup/onboarding browser specs and prior staging record; local guard tests passed | Fresh deployed run, interruption/provider configuration drift |
+| Sign-in, session expiry, sign-out | Clerk wiring and draft-recovery tests inspected | First-attempt expired-session recovery without forced test reload; direct sign-out E2E |
+| Password recovery | A6 source/VM evidence; two route-only browser specs | Real send → code → new password → activation → return, including failures |
+| Invitations/Members | Accepted invitation and fallback correction recorded previously | Automatic hosted return; actual Members send; wrong-account, expired/revoked, accepted and workspace-limit branches |
+| Intake/gate/drafts | Validation, signed-token user/org/expiry binding, idempotent save and draft tests inspected/passed | Fresh deployed AI failure/recovery and attachment failure branches |
+| Board/detail/pickup/Done/comments | Tenant/guest predicates, conditional lifecycle updates and concurrency tests inspected/passed | Fresh deployed two-account interaction and comment recovery |
+| Private attachments | Session/ownership checks, finalized state and short-lived signed download traced | A4/A5 regressions and fresh deployed storage failure paths |
+| Profile/notifications | Label remains non-permission; profile/read tests passed | A3 downgrade privacy, A7 identity freshness; notification network-error UI not exercised |
+
+### Proposed first repair batch — test-harness safety only
+
+Implement A1/A2 first so subsequent verification cannot delete the wrong data. Scope: test target validation,
+subprocess construction, E2E preflight and fixture ownership, with mocked regression tests followed by the
+same explicitly pinned disposable local suite. No application UX, database schema, dependency or provider
+setting changes. Do not run real Clerk E2E in this batch without separate approval. A3 is next; move it ahead
+only if live guest exposure is established, using the contained local runner and keeping remote E2E blocked.
+
+Acceptance: invalid targets fail before any mutation; valid local fixtures still pass; development-key
+prefix alone never authorizes broad cleanup; unowned organizations are never deleted; full existing test
+suite, lint/typecheck and diff review pass. Independent review required before claiming the harness safe.
+Then obtain approval for controlled staging verification; deployment/production promotion remain separate.
+
+**Approval status:** findings and first repair batch await Nikhil. No repair or launch-readiness claim.
+
+## Approved reliability repairs — 2026-09-28
+
+Nikhil's “fix all” approves A1–A7 above. This supersedes repair-approval-pending status, not the separate
+deployment, hosted migration, real Clerk E2E execution or npm inventory-disclosure gates.
+
+**Goal:** repair the seven demonstrated defects without expanding the product or replacing parallel work.
+**Architecture:** fail-closed test boundaries; existing Clerk authority and SQL visibility predicates;
+small attachment/recovery state helpers with behavior tests. No new tables, routes, dependencies or jobs.
+
+- [x] A1: test `src/test/global-setup.ts` with intercepted subprocesses; reject every non-`lane_test` or
+  alternate-routed URL before commands; replace shell strings with explicit argv and sanitized PG env.
+- [x] A2: test E2E helpers with mocked Clerk/Postgres boundaries; pin the staging database, development
+  instance and base URL; record fixture IDs and verify ownership before deletion; remove startup sweeps.
+- [x] A3: extend `src/lib/notifications-read.test.ts` with guest downgrade and cross-org fixtures; apply
+  current Request visibility consistently to notification reads, counts and read-state updates.
+- [x] A4/A5: regression-test whole-queue upload completion and thrown Storage failures; repair
+  `intake-form.tsx` and `attachment-actions.ts` without changing their approved layout or upload limits.
+- [x] A6: behavior-test reset continuation/retry handling; repair `password-recovery-form.tsx` using
+  supported Clerk flows, duplicate-send protection and recoverable states, without bypassing factors.
+- [x] A7: test Clerk rename and unavailable-provider states; refresh the workspace display using the
+  existing Clerk resource without an unconditional server provider waterfall or new tenancy authority.
+- [x] Run fresh disposable-local tests, existing compiler/linter/build, diff checks and independent
+  review. Report remote journey checks and advisory lookup separately; do not call them passed.
+
+Each repair follows red test → minimal implementation → green focused tests → cross-review. Main owns
+test infrastructure, notifications and workspace freshness; independent workers may own attachment and
+auth recovery files. Only the main worker runs the shared disposable-database suite.
+
+### Implemented repair evidence
+
+| Finding | Local repair and regression evidence |
+|---|---|
+| A1 | All PostgreSQL subprocesses now use explicit validated connection arguments, a sanitized `PG*` environment, `psql -X` and `ON_ERROR_STOP=1`. Invalid targets fail before any command. Ten boundary tests pass after the recorded failing cases. Strict SQL handling exposed the old baseline's ignored Supabase-only errors; `local-baseline.ts` now extracts five canonical enum definitions and `set_updated_at()` verbatim, then runs unchanged migrations 0013/0014 and fixtures. Eighteen prerequisite-selection tests and sixteen schema-safeguard tests pass. This is a fresh post-Clerk schema test, not a hosted restore or historical migration test. |
+| A2 | E2E requires `LANE_E2E_ALLOW_REMOTE=1`, pinned staging DB/Storage/base URL and publishable key, and a read-only verification of the secret key's exact Clerk development instance before fixture mutation. Startup-wide sweeps are removed. Deletion requires this run's exact fixture receipts plus matching remote metadata/creator; mixed or unknown memberships fail closed. Next's secondary env-file overlay and existing-server reuse are disabled for the managed E2E server. Seventeen mocked safety tests pass; independent review identified and then verified closure of Storage-origin and env-overlay gaps. No real Clerk fixture run. |
+| A3 | One SQL visibility predicate now scopes list, count, read, unread and mark-all operations to the current Request/org/guest visibility. A downgraded guest cannot read or mutate hidden historical notifications. Six privacy regressions failed before the change; all seventeen notification-read tests now pass against disposable Postgres. |
+| A4 | Per-file retries determine completion from the entire retained queue. Cleanup failures retain the reservation ID and usable recovery controls; replacement waits for confirmed cleanup. A lost finalize response is reconciled as already uploaded without deletion or re-upload. Fifteen recovery-handler and eight discard-action behavior tests pass after recorded failing cases. |
+| A5 | Thrown client/signing failures now clean up only the newly created, unfinalized reservation; a cleanup failure cannot mask the original upload failure. Six reservation tests cover repeated quota recovery, healthy retry and unrelated-row protection. |
+| A6 | The recovery flow has resend/change-email, a failure-preserving cooldown and duplicate-send protection. Remaining factors use Clerk's managed continuation; session activation can retry without resubmitting a consumed code. Passwords/codes are not persisted. Seventeen flow tests and four real component SSR tests pass. These are not live email, browser-focus, MFA or hosted-return verification. |
+| A7 | Desktop/mobile workspace identity reads the matching loaded Clerk organization name, retaining the server projection only as a fallback. Seven component SSR cases cover rename, loading, missing/mismatched org and blank name. No new tenancy authority or server-side provider waterfall. |
+
+### Verification and remaining boundaries
+
+- Full disposable-local suite: **46 files / 324 tests passed**, exit 0, after all attachment changes.
+  Includes behavioral, mocked-boundary, actual Postgres, SSR and existing source-contract tests; not 324 browser journeys.
+- Full ESLint: passed, exit 0. UI hardening detector on the three changed UI surfaces: no findings.
+  Existing layout and local Base UI components are preserved; no Paper redesign was needed.
+- Independent final read-only review found no remaining material findings in the attachment repairs or
+  password-recovery integration. The test-target/fixture boundary received a separate review; the original
+  implementers' focused checks were followed by the main worker's combined verification above.
+- Production build: passed, exit 0, with inert provider credentials, local-only database URL,
+  `LANE_ENV_FILE=/dev/null` and `.next-audit` output. The first sandbox attempt failed only fetching the
+  existing Google Fonts; the authorized network retry compiled and generated all thirteen static pages.
+  This does not validate live service configuration or make a measured performance-improvement claim.
+- Post-build installed TypeScript compiler and `git diff --check`: passed, exit 0. Only Next's generated
+  `.next-audit` include additions were removed from `tsconfig.json`; pre-existing changes were preserved.
+- No package/lockfile or canonical migration changes; no deployed source, hosted database, Clerk settings,
+  real email, commit or push changed in this repair run.
+- Live staging checks still require explicit execution approval: successful password reset and remaining-factor
+  continuation, invitation return, rename, guest notification downgrade, and attachment failure/retry.
+- Remote E2E is opt-in, not a safe automatic sweep: interrupted runs can leave owned fixtures that require
+  explicit inspection/cleanup. The local bootstrap does not establish hosted migration/restore safety.
+- Cross-service attachment finalization/discard is not atomic across Postgres and Storage. Process termination,
+  a lost preparation response, or a DB outage during cleanup can still leave a reservation. No background
+  reconciliation job or schema expansion was added under this bounded repair approval.
+- Clerk display freshness does not synchronize the SQL name projection in the background; if the Clerk
+  resource is unavailable, the fallback can still show the previous name.
+- Dependency advisory lookup remains unverified: permission to disclose the dependency inventory to npm was
+  previously denied. No retry, workaround, advisory claim or dependency upgrade was made.
+
+**Rollback:** these are source-only changes, with no application schema/data migration to reverse. Preserve
+the fail-closed test harness. If a runtime repair regresses after a separately approved deployment, roll back
+that deployment and make a targeted reversal of the relevant application repair; do not reset this dirty
+working tree or overwrite parallel work. Rolling back notification privacy or auth recovery can restore the
+original defect, so the affected journey must remain gated until corrected. No rollback was performed.
+
+**Next approval:** staging-only deployment of the reviewed source, then one controlled browser/provider
+verification run with known disposable accounts and the pinned targets. Production promotion is separate.

@@ -1,0 +1,7 @@
+.reviewFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-bottom: var(--space-4);
+  background: var(--surface-raised);
+}

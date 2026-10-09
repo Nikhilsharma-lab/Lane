@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { assertSafeDatabaseUrl } from "./hosted-database-guard";
 import * as schema from "./schema";
 
 type DbClient = ReturnType<typeof drizzle<typeof schema>>;
@@ -18,6 +19,7 @@ function getDb(): DbClient {
     }
 
     const url = new URL(process.env.DATABASE_URL);
+    assertSafeDatabaseUrl(process.env.DATABASE_URL);
     const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
 
     globalForDb._sql = postgres(process.env.DATABASE_URL, {

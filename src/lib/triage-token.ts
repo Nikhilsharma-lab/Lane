@@ -1,5 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { expectedImpactSchema } from "./request-impact";
+import { projectIdSchema, requestTypeSchema } from "./request-properties";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -23,6 +25,9 @@ const tokenPayloadSchema = z.object({
   requestId: z.string().uuid(),
   orgId: z.string().min(1),
   userId: z.string().min(1),
+  expectedImpact: expectedImpactSchema.nullable().default(null),
+  projectId: projectIdSchema,
+  requestType: requestTypeSchema,
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().min(1).max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX),
@@ -39,7 +44,7 @@ export type TriageTokenPayload = z.infer<typeof tokenPayloadSchema>;
 
 export type TriageTokenVerification =
   | { valid: true; payload: TriageTokenPayload }
-  | { valid: false; reason: "invalid" | "expired" | "context_mismatch" };
+  | { valid: false; reason: "invalid" | "expired" | "context_mismatch" | "impact_required" };
 
 const TOKEN_MAX_AGE_MS = 10 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
@@ -76,6 +81,9 @@ export function createTriageToken(
     requestId: randomUUID(),
     orgId: context.orgId,
     userId: context.userId,
+    expectedImpact: expectedImpactSchema.parse(input.expectedImpact),
+    projectId: input.projectId ?? null,
+    requestType: input.requestType ?? null,
     title: input.title,
     description: input.description,
     affectedPeople: input.affectedPeople,
@@ -132,6 +140,7 @@ export function verifyTriageToken(
       return { valid: false, reason: "context_mismatch" };
     }
 
+    if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };
     return { valid: true, payload: parsed.data };
   } catch {
     return { valid: false, reason: "invalid" };

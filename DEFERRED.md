@@ -6,7 +6,17 @@ be **built or deleted** before the first paying customer.
 
 Each item: what · why deferred · source review.
 
+**Authority update — 2026-09-28:** the confirmed Request pipeline and alignment-first planning decision live
+in `REQUIREMENTS.md` §§4–5/15 and `lane-roadmap.md` §3. This ledger preserves historical evidence and conditional
+work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item grants an
+alignment bypass, reopens a Closed outcome, or proves the current production cutover. Pipeline approval does
+not authorize implementing these unrelated deferrals.
+
 ---
+
+## AFTER REQUESTS VISUAL REVIEW — property and lifecycle decisions
+
+- **Saved Request codes/priority and additional context-menu capabilities.** The 2026-10-08 Linear preview uses illustrative IDs and in-memory edits. Nikhil explicitly chose to plan extra statuses/features separately. Resolve the decisions in [Request properties follow-up](docs/superpowers/plans/2026-10-08-request-properties-follow-up.md) before any schema/action work. The production three-status lifecycle and REQUIREMENTS.md remain authoritative; no unsupported Linear menu action is implicitly approved. The plan now includes the live Filter/Display/list-summary audit, status-to-outcome mapping, multi-value filters, preference persistence, completed recency, sub-grouping and explicit adoption/refusal gates.
 
 ## PRE-GTM MUST-BUILD — board polish
 
@@ -146,9 +156,11 @@ Each item: what · why deferred · source review.
 
 ## GUEST ROLE-CHANGE — when assignment cleanup is needed
 
-- **Demoting an assigned member to guest leaves in-progress assignments dangling.** No security issue (guest can't
-  pick up or mark done), but the request stays assigned to someone who can no longer act on it. Owner can manually
-  reassign. Auto-unassign on demotion-to-guest is the clean fix — build when real usage surfaces the gap.
+- **Demoting an assigned member to guest leaves in-progress assignments dangling.** The guest cannot pick up
+  or mark Done, but an assignment may remain. The older claim of a shipped Owner reassignment action was not
+  verified and must not be used as a recovery guarantee. The confirmed target allows attributable admin
+  reassignment, replacement alignment and preserved concerns; this is not implemented yet. Specify recovery
+  in the relevant alignment/assignment plan; automatic unassignment remains a separately scoped choice.
   — Guest role-change increment.
 
 ## GUEST INTAKE — invited shipped; public / anonymous deferred
@@ -184,7 +196,8 @@ Each item: what · why deferred · source review.
   exact-byte download, and anonymous/cross-workspace denial passed. Live signup → test OTP → required
   workspace → PM label → Requests passed, with no profile before membership. Existing-org role onboarding,
   required-org interruption/reload, and two-workspace board/detail isolation passed live (4 tests including
-  setup, 1.9m, exit 0). Actual emailed invitation acceptance remains pending. Production is untouched; its
+  setup, 1.9m, exit 0). The emailed invitation was accepted in Clerk; automatic return to Lane after
+  the hosted portal is the remaining invite gate. Production is untouched; its
   backup, migration, deployment, and live verification remain open after the staging gate passes.
 - `playwright.config.ts` loads ignored Clerk Development keys from `.env.local`, overlays
   `.env.staging.local`, and unconditionally maps `STAGING_DATABASE_URL` to `DATABASE_URL` so production cannot

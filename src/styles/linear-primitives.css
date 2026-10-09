@@ -1,0 +1,1447 @@
+/* Applied Linear Light/Dark, captured 2026-10-08. Source contexts are separate. */
+
+:root[data-visual-system="linear"] {
+
+  --linear-content-bg-sub: lch(94.44% 0.5 282 / 1);
+
+  --linear-content-bg-sub-hover: lch(89.44% 0.5 282 / 1);
+
+  --linear-content-bg-base: lch(97.94% 0.5 282);
+
+  --linear-content-bg-base-hover: lch(94.44% 0.5 282 / 1);
+
+  --linear-content-bg-shade: lch(92.44% 0.5 282 / 1);
+
+  --linear-content-bg-shade-hover: lch(90.94% 0.5 282 / 1);
+
+  --linear-content-bg-selected: lch(92.254% 5.903 282.518 / 1);
+
+  --linear-content-bg-selected-hover: lch(90.254% 5.903 282.518 / 1);
+
+  --linear-content-bg-focus: lch(92.94% 0.5 282 / 1);
+
+  --linear-content-bg-modal-overlay: lch(0% 0 0 / 0.25);
+
+  --linear-content-bg-border: lch(88.49% 0 282 / 1);
+
+  --linear-content-bg-border-hover: lch(85.79% 0 282 / 1);
+
+  --linear-content-bg-border-thin: lch(89.84% 0 282 / 1);
+
+  --linear-content-bg-border-faint: lch(95.24% 0 282 / 1);
+
+  --linear-content-bg-border-faint-hover: lch(92.54% 0 282 / 1);
+
+  --linear-content-bg-border-faint-thin: lch(89.84% 0 282 / 1);
+
+  --linear-content-bg-border-solid: lch(84.44% 0 282 / 1);
+
+  --linear-content-bg-border-solid-hover: lch(73.64% 0 282 / 1);
+
+  --linear-content-bg-border-solid-thin: lch(84.44% 0 282 / 1);
+
+  --linear-content-bg-border-strong: lch(52.04% 0 282 / 1);
+
+  --linear-content-bg-border-strong-hover: lch(41.24% 0 282 / 1);
+
+  --linear-content-bg-border-strong-thin: lch(52.04% 0 282 / 1);
+
+  --linear-content-bg-border-alpha: lch(0% 0 0 / 0.105);
+
+  --linear-content-bg-border-alpha-hover: lch(0% 0 0 / 0.135);
+
+  --linear-content-bg-border-alpha-thin: lch(0% 0 0 / 0.09);
+
+  --linear-content-bg-border-faint-alpha: lch(0% 0 0 / 0.03);
+
+  --linear-content-bg-border-faint-alpha-hover: lch(0% 0 0 / 0.06);
+
+  --linear-content-bg-border-faint-alpha-thin: lch(0% 0 0 / 0.09);
+
+  --linear-content-bg-border-solid-alpha: lch(0% 0 0 / 0.15);
+
+  --linear-content-bg-border-solid-alpha-hover: lch(0% 0 0 / 0.27);
+
+  --linear-content-bg-border-solid-alpha-thin: lch(0% 0 0 / 0.15);
+
+  --linear-content-bg-border-strong-alpha: lch(0% 0 0 / 0.511);
+
+  --linear-content-bg-border-strong-alpha-hover: lch(0% 0 0 / 0.631);
+
+  --linear-content-bg-border-strong-alpha-thin: lch(0% 0 0 / 0.511);
+
+  --linear-content-bg-selected-border: lch(82.804% 3.203 282.518 / 1);
+
+  --linear-content-bg-selected-border-hover: lch(80.104% 3.203 282.518 / 1);
+
+  --linear-content-label-title: lch(9.794% 0 282 / 1);
+
+  --linear-content-label-title-hover: lch(36.238% 0 282 / 1);
+
+  --linear-content-label-base: lch(19.588% 1.25 282 / 1);
+
+  --linear-content-label-base-hover: lch(43.094% 1.25 282 / 1);
+
+  --linear-content-label-muted: lch(39.176% 1.25 282 / 1);
+
+  --linear-content-label-muted-hover: lch(56.805% 1.25 282 / 1);
+
+  --linear-content-label-faint: lch(64.64% 1.25 282 / 1);
+
+  --linear-content-label-link: lch(44.073% 70 286.91 / 1);
+
+  --linear-content-control-primary: lch(53% 52.26 286.91);
+
+  --linear-content-control-primary-label: lch(100% 5 286.91 / 1);
+
+  --linear-content-control-primary-hover: lch(47% 50.26 286.91 / 1);
+
+  --linear-content-control-secondary: lch(99.997% 0.5 282 / 1);
+
+  --linear-content-control-secondary-label: lch(19.588% 1.25 282 / 1);
+
+  --linear-content-control-secondary-hover: lch(95.883% 0.157 282 / 1);
+
+  --linear-content-control-secondary-selected: lch(94.854% 0.157 282 / 1);
+
+  --linear-content-control-tertiary: lch(99.997% 0.5 282 / 1);
+
+  --linear-content-control-tertiary-label: lch(19.588% 1.25 282 / 1);
+
+  --linear-content-control-tertiary-hover: lch(94.854% 0.5 282 / 1);
+
+  --linear-content-control-tertiary-selected: lch(93.483% 0.5 282 / 1);
+
+  --linear-content-teal-bg: lch(42.969% 45 210);
+
+  --linear-content-teal-base: lch(67.5% 45 210);
+
+  --linear-content-teal-base-hover: lch(62.5% 45 210 / 1);
+
+  --linear-content-teal-mid: lch(59.5% 45 210 / 1);
+
+  --linear-content-teal-text: lch(50% 80 210 / 1);
+
+  --linear-content-teal-foreground: lch(100% 22.5 210);
+
+  --linear-content-teal-tint: lch(93.134% 5.294 220.416 / 1);
+
+  --linear-content-green-bg: lch(42.969% 64.37 141.95);
+
+  --linear-content-green-base: lch(68% 64.37 141.95);
+
+  --linear-content-green-base-hover: lch(63% 64.37 141.95 / 1);
+
+  --linear-content-green-mid: lch(60% 64.37 141.95 / 1);
+
+  --linear-content-green-text: lch(50% 80 141.95 / 1);
+
+  --linear-content-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-content-green-tint: lch(93.193% 6.051 148.602 / 1);
+
+  --linear-content-yellow-bg: lch(42.969% 90 85);
+
+  --linear-content-yellow-base: lch(80% 90 85);
+
+  --linear-content-yellow-base-hover: lch(75% 90 85 / 1);
+
+  --linear-content-yellow-mid: lch(72% 90 85 / 1);
+
+  --linear-content-yellow-text: lch(50% 80 85 / 1);
+
+  --linear-content-yellow-foreground: lch(100% 45 85);
+
+  --linear-content-yellow-tint: lch(94.802% 7.462 80.086 / 1);
+
+  --linear-content-orange-bg: lch(42.969% 80 48);
+
+  --linear-content-orange-base: lch(66% 80 48);
+
+  --linear-content-orange-base-hover: lch(61% 80 48 / 1);
+
+  --linear-content-orange-mid: lch(58% 80 48 / 1);
+
+  --linear-content-orange-text: lch(50% 80 48 / 1);
+
+  --linear-content-orange-foreground: lch(100% 40 48);
+
+  --linear-content-orange-tint: lch(92.961% 8.051 29.406 / 1);
+
+  --linear-content-red-bg: lch(42.969% 73 29);
+
+  --linear-content-red-base: lch(58% 73 29);
+
+  --linear-content-red-base-hover: lch(53% 73 29 / 1);
+
+  --linear-content-red-mid: lch(50% 73 29 / 1);
+
+  --linear-content-red-text: lch(50% 80 29 / 1);
+
+  --linear-content-red-foreground: lch(100% 36.5 29);
+
+  --linear-content-red-tint: lch(92.134% 7.526 15.947 / 1);
+
+  --linear-content-blue-bg: lch(42.969% 70 267);
+
+  --linear-content-blue-base: lch(80% 70 267);
+
+  --linear-content-blue-base-hover: lch(75% 70 267 / 1);
+
+  --linear-content-blue-mid: lch(72% 70 267 / 1);
+
+  --linear-content-blue-text: lch(50% 80 267 / 1);
+
+  --linear-content-blue-foreground: lch(100% 35 267);
+
+  --linear-content-blue-tint: lch(94.802% 14.798 268.228 / 1);
+
+  --linear-content-purple-bg: lch(42.969% 59.31 288.43);
+
+  --linear-content-purple-base: lch(48% 59.31 288.43);
+
+  --linear-content-purple-base-hover: lch(43% 59.31 288.43 / 1);
+
+  --linear-content-purple-mid: lch(40% 59.31 288.43 / 1);
+
+  --linear-content-purple-text: lch(50% 80 288.43 / 1);
+
+  --linear-content-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-content-purple-tint: lch(91.312% 6.767 282.94 / 1);
+
+  --linear-content-github-logo: lch(39.176% 1.25 282 / 1);
+
+  --linear-content-scroll-background: lch(100% 0 0 / 0);
+
+  --linear-content-focus-color: lch(53% 52.26 286.91);
+
+  --linear-content-shadow-color: lch(0% 0 0 / 0.03);
+
+  --linear-content-sidebar-link-bg: lch(95.14% 0.5 282 / 1);
+
+  --linear-content-sidebar-link-bg-active: lch(93.04% 0.5 282 / 1);
+
+  --linear-content-scrollbar-bg: lch(64.94% 1.25 282 / 1);
+
+  --linear-content-scrollbar-bg-hover: lch(65.44% 1.25 282 / 1);
+
+  --linear-content-scrollbar-bg-active: lch(64.64% 1.25 282 / 1);
+
+  --linear-content-chrome-tab-bg: lch(100% 0.5 282 / 1);
+
+  --linear-content-chrome-tab-bg-hover: lch(100% 0.5 282 / 1);
+
+  --linear-content-chrome-tab-bg-active: lch(100% 0.5 282 / 1);
+
+  --linear-sidebar-bg-sub: lch(90.94% 0.5 282 / 1);
+
+  --linear-sidebar-bg-sub-hover: lch(85.94% 0.5 282 / 1);
+
+  --linear-sidebar-bg-base: lch(94.44% 0.5 282 / 1);
+
+  --linear-sidebar-bg-base-hover: lch(90.94% 0.5 282 / 1);
+
+  --linear-sidebar-bg-shade: lch(88.94% 0.5 282 / 1);
+
+  --linear-sidebar-bg-shade-hover: lch(87.44% 0.5 282 / 1);
+
+  --linear-sidebar-bg-selected: lch(89.091% 6.22 282.548 / 1);
+
+  --linear-sidebar-bg-selected-hover: lch(87.091% 6.22 282.548 / 1);
+
+  --linear-sidebar-bg-focus: lch(89.44% 0.5 282 / 1);
+
+  --linear-sidebar-bg-modal-overlay: lch(0% 0 0 / 0.25);
+
+  --linear-sidebar-bg-border: lch(84.99% 0 282 / 1);
+
+  --linear-sidebar-bg-border-hover: lch(82.29% 0 282 / 1);
+
+  --linear-sidebar-bg-border-thin: lch(86.34% 0 282 / 1);
+
+  --linear-sidebar-bg-border-faint: lch(91.74% 0 282 / 1);
+
+  --linear-sidebar-bg-border-faint-hover: lch(89.04% 0 282 / 1);
+
+  --linear-sidebar-bg-border-faint-thin: lch(86.34% 0 282 / 1);
+
+  --linear-sidebar-bg-border-solid: lch(80.94% 0 282 / 1);
+
+  --linear-sidebar-bg-border-solid-hover: lch(70.14% 0 282 / 1);
+
+  --linear-sidebar-bg-border-solid-thin: lch(80.94% 0 282 / 1);
+
+  --linear-sidebar-bg-border-strong: lch(48.54% 0 282 / 1);
+
+  --linear-sidebar-bg-border-strong-hover: lch(37.74% 0 282 / 1);
+
+  --linear-sidebar-bg-border-strong-thin: lch(48.54% 0 282 / 1);
+
+  --linear-sidebar-bg-border-alpha: lch(0% 0 0 / 0.109);
+
+  --linear-sidebar-bg-border-alpha-hover: lch(0% 0 0 / 0.14);
+
+  --linear-sidebar-bg-border-alpha-thin: lch(0% 0 0 / 0.093);
+
+  --linear-sidebar-bg-border-faint-alpha: lch(0% 0 0 / 0.031);
+
+  --linear-sidebar-bg-border-faint-alpha-hover: lch(0% 0 0 / 0.062);
+
+  --linear-sidebar-bg-border-faint-alpha-thin: lch(0% 0 0 / 0.093);
+
+  --linear-sidebar-bg-border-solid-alpha: lch(0% 0 0 / 0.156);
+
+  --linear-sidebar-bg-border-solid-alpha-hover: lch(0% 0 0 / 0.28);
+
+  --linear-sidebar-bg-border-solid-alpha-thin: lch(0% 0 0 / 0.156);
+
+  --linear-sidebar-bg-border-strong-alpha: lch(0% 0 0 / 0.53);
+
+  --linear-sidebar-bg-border-strong-alpha-hover: lch(0% 0 0 / 0.654);
+
+  --linear-sidebar-bg-border-strong-alpha-thin: lch(0% 0 0 / 0.53);
+
+  --linear-sidebar-bg-selected-border: lch(79.641% 3.52 282.548 / 1);
+
+  --linear-sidebar-bg-selected-border-hover: lch(76.941% 3.52 282.548 / 1);
+
+  --linear-sidebar-label-title: lch(9.444% 0 282 / 1);
+
+  --linear-sidebar-label-title-hover: lch(34.943% 0 282 / 1);
+
+  --linear-sidebar-label-base: lch(18.888% 1.25 282 / 1);
+
+  --linear-sidebar-label-base-hover: lch(41.554% 1.25 282 / 1);
+
+  --linear-sidebar-label-muted: lch(37.776% 1.25 282 / 1);
+
+  --linear-sidebar-label-muted-hover: lch(54.775% 1.25 282 / 1);
+
+  --linear-sidebar-label-faint: lch(62.33% 1.25 282 / 1);
+
+  --linear-sidebar-label-link: lch(42.498% 70 286.91 / 1);
+
+  --linear-sidebar-control-primary: lch(53% 52.26 286.91);
+
+  --linear-sidebar-control-primary-label: lch(100% 5 286.91 / 1);
+
+  --linear-sidebar-control-primary-hover: lch(47% 50.26 286.91 / 1);
+
+  --linear-sidebar-control-secondary: lch(97.94% 0.5 282);
+
+  --linear-sidebar-control-secondary-label: lch(18.888% 1.25 282 / 1);
+
+  --linear-sidebar-control-secondary-hover: lch(94.44% 0.5 282 / 1);
+
+  --linear-sidebar-control-secondary-selected: lch(91.354% 0.157 282 / 1);
+
+  --linear-sidebar-control-tertiary: lch(96.497% 0.5 282 / 1);
+
+  --linear-sidebar-control-tertiary-label: lch(18.888% 1.25 282 / 1);
+
+  --linear-sidebar-control-tertiary-hover: lch(0% 0 0 / 0.06);
+
+  --linear-sidebar-control-tertiary-selected: lch(89.983% 0.5 282 / 1);
+
+  --linear-sidebar-teal-bg: lch(42.969% 45 210);
+
+  --linear-sidebar-teal-base: lch(67.5% 45 210);
+
+  --linear-sidebar-teal-base-hover: lch(62.5% 45 210 / 1);
+
+  --linear-sidebar-teal-mid: lch(59.5% 45 210 / 1);
+
+  --linear-sidebar-teal-text: lch(50% 80 210 / 1);
+
+  --linear-sidebar-teal-foreground: lch(100% 22.5 210);
+
+  --linear-sidebar-teal-tint: lch(90.09% 5.588 220.105 / 1);
+
+  --linear-sidebar-green-bg: lch(42.969% 64.37 141.95);
+
+  --linear-sidebar-green-base: lch(68% 64.37 141.95);
+
+  --linear-sidebar-green-base-hover: lch(63% 64.37 141.95 / 1);
+
+  --linear-sidebar-green-mid: lch(60% 64.37 141.95 / 1);
+
+  --linear-sidebar-green-text: lch(50% 80 141.95 / 1);
+
+  --linear-sidebar-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-sidebar-green-tint: lch(90.153% 6.429 148.401 / 1);
+
+  --linear-sidebar-yellow-bg: lch(42.969% 90 85);
+
+  --linear-sidebar-yellow-base: lch(80% 90 85);
+
+  --linear-sidebar-yellow-base-hover: lch(75% 90 85 / 1);
+
+  --linear-sidebar-yellow-mid: lch(72% 90 85 / 1);
+
+  --linear-sidebar-yellow-text: lch(50% 80 85 / 1);
+
+  --linear-sidebar-yellow-foreground: lch(100% 45 85);
+
+  --linear-sidebar-yellow-tint: lch(91.853% 7.929 80.197 / 1);
+
+  --linear-sidebar-orange-bg: lch(42.969% 80 48);
+
+  --linear-sidebar-orange-base: lch(66% 80 48);
+
+  --linear-sidebar-orange-base-hover: lch(61% 80 48 / 1);
+
+  --linear-sidebar-orange-mid: lch(58% 80 48 / 1);
+
+  --linear-sidebar-orange-text: lch(50% 80 48 / 1);
+
+  --linear-sidebar-orange-foreground: lch(100% 40 48);
+
+  --linear-sidebar-orange-tint: lch(89.908% 8.527 29.672 / 1);
+
+  --linear-sidebar-red-bg: lch(42.969% 73 29);
+
+  --linear-sidebar-red-base: lch(58% 73 29);
+
+  --linear-sidebar-red-base-hover: lch(53% 73 29 / 1);
+
+  --linear-sidebar-red-mid: lch(50% 73 29 / 1);
+
+  --linear-sidebar-red-text: lch(50% 80 29 / 1);
+
+  --linear-sidebar-red-foreground: lch(100% 36.5 29);
+
+  --linear-sidebar-red-tint: lch(89.032% 7.97 16.192 / 1);
+
+  --linear-sidebar-blue-bg: lch(42.969% 70 267);
+
+  --linear-sidebar-blue-base: lch(80% 70 267);
+
+  --linear-sidebar-blue-base-hover: lch(75% 70 267 / 1);
+
+  --linear-sidebar-blue-mid: lch(72% 70 267 / 1);
+
+  --linear-sidebar-blue-text: lch(50% 80 267 / 1);
+
+  --linear-sidebar-blue-foreground: lch(100% 35 267);
+
+  --linear-sidebar-blue-tint: lch(91.853% 15.505 268.194 / 1);
+
+  --linear-sidebar-purple-bg: lch(42.969% 59.31 288.43);
+
+  --linear-sidebar-purple-base: lch(48% 59.31 288.43);
+
+  --linear-sidebar-purple-base-hover: lch(43% 59.31 288.43 / 1);
+
+  --linear-sidebar-purple-mid: lch(40% 59.31 288.43 / 1);
+
+  --linear-sidebar-purple-text: lch(50% 80 288.43 / 1);
+
+  --linear-sidebar-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-sidebar-purple-tint: lch(88.16% 7.134 282.977 / 1);
+
+  --linear-sidebar-github-logo: lch(37.776% 1.25 282 / 1);
+
+  --linear-sidebar-scroll-background: lch(100% 0 0 / 0);
+
+  --linear-sidebar-focus-color: lch(53% 52.26 286.91);
+
+  --linear-sidebar-shadow-color: lch(0% 0 0 / 0.03);
+
+  --linear-sidebar-sidebar-link-bg: lch(91.64% 0.5 282 / 1);
+
+  --linear-sidebar-sidebar-link-bg-active: lch(89.54% 0.5 282 / 1);
+
+  --linear-sidebar-scrollbar-bg: lch(62.63% 1.25 282 / 1);
+
+  --linear-sidebar-scrollbar-bg-hover: lch(63.13% 1.25 282 / 1);
+
+  --linear-sidebar-scrollbar-bg-active: lch(62.33% 1.25 282 / 1);
+
+  --linear-sidebar-chrome-tab-bg: lch(96.94% 0.5 282 / 1);
+
+  --linear-sidebar-chrome-tab-bg-hover: lch(99.44% 0.5 282 / 1);
+
+  --linear-sidebar-chrome-tab-bg-active: lch(100% 0.5 282 / 1);
+
+  --linear-menu-bg-sub: lch(96.5% 0 282 / 1);
+
+  --linear-menu-bg-sub-hover: lch(91.5% 0 282 / 1);
+
+  --linear-menu-bg-base: lch(100% 0 282 / 1);
+
+  --linear-menu-bg-base-hover: lch(96.5% 0 282 / 1);
+
+  --linear-menu-bg-shade: lch(94.5% 0 282 / 1);
+
+  --linear-menu-bg-shade-hover: lch(93% 0 282 / 1);
+
+  --linear-menu-bg-selected: lch(94.222% 5.203 282.49 / 1);
+
+  --linear-menu-bg-selected-hover: lch(92.222% 5.203 282.49 / 1);
+
+  --linear-menu-bg-focus: lch(95% 0 282 / 1);
+
+  --linear-menu-bg-modal-overlay: lch(0% 0 0 / 0.25);
+
+  --linear-menu-bg-border: lch(90.55% 0 282 / 1);
+
+  --linear-menu-bg-border-hover: lch(87.85% 0 282 / 1);
+
+  --linear-menu-bg-border-thin: lch(91.9% 0 282 / 1);
+
+  --linear-menu-bg-border-faint: lch(97.3% 0 282 / 1);
+
+  --linear-menu-bg-border-faint-hover: lch(94.6% 0 282 / 1);
+
+  --linear-menu-bg-border-faint-thin: lch(91.9% 0 282 / 1);
+
+  --linear-menu-bg-border-solid: lch(86.5% 0 282 / 1);
+
+  --linear-menu-bg-border-solid-hover: lch(75.7% 0 282 / 1);
+
+  --linear-menu-bg-border-solid-thin: lch(86.5% 0 282 / 1);
+
+  --linear-menu-bg-border-strong: lch(54.1% 0 282 / 1);
+
+  --linear-menu-bg-border-strong-hover: lch(43.3% 0 282 / 1);
+
+  --linear-menu-bg-border-strong-thin: lch(54.1% 0 282 / 1);
+
+  --linear-menu-bg-border-alpha: lch(0% 0 0 / 0.103);
+
+  --linear-menu-bg-border-alpha-hover: lch(0% 0 0 / 0.132);
+
+  --linear-menu-bg-border-alpha-thin: lch(0% 0 0 / 0.088);
+
+  --linear-menu-bg-border-faint-alpha: lch(0% 0 0 / 0.029);
+
+  --linear-menu-bg-border-faint-alpha-hover: lch(0% 0 0 / 0.059);
+
+  --linear-menu-bg-border-faint-alpha-thin: lch(0% 0 0 / 0.088);
+
+  --linear-menu-bg-border-solid-alpha: lch(0% 0 0 / 0.147);
+
+  --linear-menu-bg-border-solid-alpha-hover: lch(0% 0 0 / 0.265);
+
+  --linear-menu-bg-border-solid-alpha-thin: lch(0% 0 0 / 0.147);
+
+  --linear-menu-bg-border-strong-alpha: lch(0% 0 0 / 0.5);
+
+  --linear-menu-bg-border-strong-alpha-hover: lch(0% 0 0 / 0.618);
+
+  --linear-menu-bg-border-strong-alpha-thin: lch(0% 0 0 / 0.5);
+
+  --linear-menu-bg-selected-border: lch(84.772% 2.503 282.49 / 1);
+
+  --linear-menu-bg-selected-border-hover: lch(82.072% 2.503 282.49 / 1);
+
+  --linear-menu-label-title: lch(10% 0 282 / 1);
+
+  --linear-menu-label-title-hover: lch(37% 0 282 / 1);
+
+  --linear-menu-label-base: lch(20% 1 282 / 1);
+
+  --linear-menu-label-base-hover: lch(44% 1 282 / 1);
+
+  --linear-menu-label-muted: lch(40% 1 282 / 1);
+
+  --linear-menu-label-muted-hover: lch(58% 1 282 / 1);
+
+  --linear-menu-label-faint: lch(66% 1 282 / 1);
+
+  --linear-menu-label-link: lch(45% 70 286.91 / 1);
+
+  --linear-menu-control-primary: lch(53% 52.26 286.91);
+
+  --linear-menu-control-primary-label: lch(100% 5 286.91 / 1);
+
+  --linear-menu-control-primary-hover: lch(47% 50.26 286.91 / 1);
+
+  --linear-menu-control-secondary: lch(100% 0 282 / 1);
+
+  --linear-menu-control-secondary-label: lch(20% 1 282 / 1);
+
+  --linear-menu-control-secondary-hover: lch(95.886% 0 282 / 1);
+
+  --linear-menu-control-secondary-selected: lch(94.857% 0 282 / 1);
+
+  --linear-menu-control-tertiary: lch(100% 0 282 / 1);
+
+  --linear-menu-control-tertiary-label: lch(20% 1 282 / 1);
+
+  --linear-menu-control-tertiary-hover: lch(96.914% 0 282 / 1);
+
+  --linear-menu-control-tertiary-selected: lch(95.543% 0 282 / 1);
+
+  --linear-menu-teal-bg: lch(43.75% 45 210);
+
+  --linear-menu-teal-base: lch(67.5% 45 210);
+
+  --linear-menu-teal-base-hover: lch(62.5% 45 210 / 1);
+
+  --linear-menu-teal-mid: lch(59.5% 45 210 / 1);
+
+  --linear-menu-teal-text: lch(50% 80 210 / 1);
+
+  --linear-menu-teal-foreground: lch(100% 22.5 210);
+
+  --linear-menu-teal-tint: lch(94.933% 4.945 216.246 / 1);
+
+  --linear-menu-green-bg: lch(43.75% 64.37 141.95);
+
+  --linear-menu-green-base: lch(68% 64.37 141.95);
+
+  --linear-menu-green-base-hover: lch(63% 64.37 141.95 / 1);
+
+  --linear-menu-green-mid: lch(60% 64.37 141.95 / 1);
+
+  --linear-menu-green-text: lch(50% 80 141.95 / 1);
+
+  --linear-menu-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-menu-green-tint: lch(94.99% 6.16 145.645 / 1);
+
+  --linear-menu-yellow-bg: lch(43.75% 90 85);
+
+  --linear-menu-yellow-base: lch(80% 90 85);
+
+  --linear-menu-yellow-base-hover: lch(75% 90 85 / 1);
+
+  --linear-menu-yellow-mid: lch(72% 90 85 / 1);
+
+  --linear-menu-yellow-text: lch(50% 80 85 / 1);
+
+  --linear-menu-yellow-foreground: lch(100% 45 85);
+
+  --linear-menu-yellow-tint: lch(96.548% 7.634 81.257 / 1);
+
+  --linear-menu-orange-bg: lch(43.75% 80 48);
+
+  --linear-menu-orange-base: lch(66% 80 48);
+
+  --linear-menu-orange-base-hover: lch(61% 80 48 / 1);
+
+  --linear-menu-orange-mid: lch(58% 80 48 / 1);
+
+  --linear-menu-orange-text: lch(50% 80 48 / 1);
+
+  --linear-menu-orange-foreground: lch(100% 40 48);
+
+  --linear-menu-orange-tint: lch(94.766% 7.942 32.39 / 1);
+
+  --linear-menu-red-bg: lch(43.75% 73 29);
+
+  --linear-menu-red-base: lch(58% 73 29);
+
+  --linear-menu-red-base-hover: lch(53% 73 29 / 1);
+
+  --linear-menu-red-mid: lch(50% 73 29 / 1);
+
+  --linear-menu-red-text: lch(50% 80 29 / 1);
+
+  --linear-menu-red-foreground: lch(100% 36.5 29);
+
+  --linear-menu-red-tint: lch(93.966% 7.33 19.355 / 1);
+
+  --linear-menu-blue-bg: lch(43.75% 70 267);
+
+  --linear-menu-blue-base: lch(80% 70 267);
+
+  --linear-menu-blue-base-hover: lch(75% 70 267 / 1);
+
+  --linear-menu-blue-mid: lch(72% 70 267 / 1);
+
+  --linear-menu-blue-text: lch(50% 80 267 / 1);
+
+  --linear-menu-blue-foreground: lch(100% 35 267);
+
+  --linear-menu-blue-tint: lch(96.548% 14.043 267.841 / 1);
+
+  --linear-menu-purple-bg: lch(43.75% 59.31 288.43);
+
+  --linear-menu-purple-base: lch(48% 59.31 288.43);
+
+  --linear-menu-purple-base-hover: lch(43% 59.31 288.43 / 1);
+
+  --linear-menu-purple-mid: lch(40% 59.31 288.43 / 1);
+
+  --linear-menu-purple-text: lch(50% 80 288.43 / 1);
+
+  --linear-menu-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-menu-purple-tint: lch(93.171% 6.139 282.938 / 1);
+
+  --linear-menu-github-logo: lch(40% 1 282 / 1);
+
+  --linear-menu-scroll-background: lch(100% 0 0 / 0);
+
+  --linear-menu-focus-color: lch(53% 52.26 286.91);
+
+  --linear-menu-shadow-color: lch(0% 0 0 / 0.03);
+
+  --linear-menu-sidebar-link-bg: lch(97.2% 0 282 / 1);
+
+  --linear-menu-sidebar-link-bg-active: lch(95.1% 0 282 / 1);
+
+  --linear-menu-scrollbar-bg: lch(66.3% 1 282 / 1);
+
+  --linear-menu-scrollbar-bg-hover: lch(66.8% 1 282 / 1);
+
+  --linear-menu-scrollbar-bg-active: lch(66% 1 282 / 1);
+
+  --linear-menu-chrome-tab-bg: lch(100% 0 282 / 1);
+
+  --linear-menu-chrome-tab-bg-hover: lch(100% 0 282 / 1);
+
+  --linear-menu-chrome-tab-bg-active: lch(100% 0 282 / 1);
+
+}
+
+:root[data-visual-system="linear"][data-theme="dark"] {
+
+  --linear-content-bg-sub: lch(2.595% 0.4 272 / 1);
+
+  --linear-content-bg-sub-hover: lch(4.845% 3.1 272 / 1);
+
+  --linear-content-bg-base: lch(5.52% 0.4 272);
+
+  --linear-content-bg-base-hover: lch(9.345% 0.85 272 / 1);
+
+  --linear-content-bg-shade: lch(7.32% 0.85 272 / 1);
+
+  --linear-content-bg-shade-hover: lch(8.22% 1.3 272 / 1);
+
+  --linear-content-bg-selected: lch(12.141% 17.792 286.445 / 1);
+
+  --linear-content-bg-selected-hover: lch(14.391% 19.592 286.445 / 1);
+
+  --linear-content-bg-focus: lch(13.62% 0.85 272 / 1);
+
+  --linear-content-bg-modal-overlay: lch(0% 0 0 / 0.4);
+
+  --linear-content-bg-border: lch(14.16% 1.48 272 / 1);
+
+  --linear-content-bg-border-hover: lch(16.32% 1.48 272 / 1);
+
+  --linear-content-bg-border-thin: lch(18.48% 1.48 272 / 1);
+
+  --linear-content-bg-border-faint: lch(9.84% 1.48 272 / 1);
+
+  --linear-content-bg-border-faint-hover: lch(11.46% 1.48 272 / 1);
+
+  --linear-content-bg-border-faint-thin: lch(13.08% 1.48 272 / 1);
+
+  --linear-content-bg-border-solid: lch(16.32% 1.48 272 / 1);
+
+  --linear-content-bg-border-solid-hover: lch(20.64% 1.48 272 / 1);
+
+  --linear-content-bg-border-solid-thin: lch(27.12% 1.48 272 / 1);
+
+  --linear-content-bg-border-strong: lch(48.72% 1.48 272 / 1);
+
+  --linear-content-bg-border-strong-hover: lch(57.36% 1.48 272 / 1);
+
+  --linear-content-bg-border-strong-thin: lch(61.68% 1.48 272 / 1);
+
+  --linear-content-bg-border-alpha: lch(100% 0 0 / 0.091);
+
+  --linear-content-bg-border-alpha-hover: lch(100% 0 0 / 0.114);
+
+  --linear-content-bg-border-alpha-thin: lch(100% 0 0 / 0.137);
+
+  --linear-content-bg-border-faint-alpha: lch(100% 0 0 / 0.046);
+
+  --linear-content-bg-border-faint-alpha-hover: lch(100% 0 0 / 0.063);
+
+  --linear-content-bg-border-faint-alpha-thin: lch(100% 0 0 / 0.08);
+
+  --linear-content-bg-border-solid-alpha: lch(100% 0 0 / 0.114);
+
+  --linear-content-bg-border-solid-alpha-hover: lch(100% 0 0 / 0.16);
+
+  --linear-content-bg-border-solid-alpha-thin: lch(100% 0 0 / 0.229);
+
+  --linear-content-bg-border-strong-alpha: lch(100% 0 0 / 0.457);
+
+  --linear-content-bg-border-strong-alpha-hover: lch(100% 0 0 / 0.549);
+
+  --linear-content-bg-border-strong-alpha-thin: lch(100% 0 0 / 0.594);
+
+  --linear-content-bg-selected-border: lch(19.701% 19.952 286.445 / 1);
+
+  --linear-content-bg-selected-border-hover: lch(21.861% 19.952 286.445 / 1);
+
+  --linear-content-label-title: lch(100% 0 272 / 1);
+
+  --linear-content-label-title-hover: lch(85.828% 0 272 / 1);
+
+  --linear-content-label-base: lch(90.451% 1.2 272 / 1);
+
+  --linear-content-label-base-hover: lch(77.711% 1.2 272 / 1);
+
+  --linear-content-label-muted: lch(61.803% 1.2 272 / 1);
+
+  --linear-content-label-muted-hover: lch(70.246% 1.2 272 / 1);
+
+  --linear-content-label-faint: lch(36.975% 1.2 272 / 1);
+
+  --linear-content-label-link: lch(57.028% 70 288.421 / 1);
+
+  --linear-content-control-primary: lch(47.918% 59.303 288.421);
+
+  --linear-content-control-primary-label: lch(100% 5 288.421 / 1);
+
+  --linear-content-control-primary-hover: lch(52.418% 61.103 288.421 / 1);
+
+  --linear-content-control-secondary: lch(10.149% 0.689 272 / 1);
+
+  --linear-content-control-secondary-label: lch(90.451% 1.2 272 / 1);
+
+  --linear-content-control-secondary-hover: lch(14.777% 1.075 272 / 1);
+
+  --linear-content-control-secondary-selected: lch(18.634% 1.075 272 / 1);
+
+  --linear-content-control-tertiary: lch(10.149% 0.593 272 / 1);
+
+  --linear-content-control-tertiary-label: lch(90.451% 1.2 272 / 1);
+
+  --linear-content-control-tertiary-hover: lch(14.006% 0.593 272 / 1);
+
+  --linear-content-control-tertiary-selected: lch(16.706% 0.979 272 / 1);
+
+  --linear-content-teal-bg: lch(50% 45 210);
+
+  --linear-content-teal-base: lch(67.5% 45 210);
+
+  --linear-content-teal-base-hover: lch(72% 45 210 / 1);
+
+  --linear-content-teal-mid: lch(74.7% 45 210 / 1);
+
+  --linear-content-teal-text: lch(80% 80 210 / 1);
+
+  --linear-content-teal-foreground: lch(100% 22.5 210);
+
+  --linear-content-teal-tint: lch(13.895% 10.447 213.218 / 1);
+
+  --linear-content-green-bg: lch(50% 64.37 141.95);
+
+  --linear-content-green-base: lch(60% 64.37 141.95);
+
+  --linear-content-green-base-hover: lch(64.5% 64.37 141.95 / 1);
+
+  --linear-content-green-mid: lch(67.2% 64.37 141.95 / 1);
+
+  --linear-content-green-text: lch(80% 80 141.95 / 1);
+
+  --linear-content-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-content-green-tint: lch(12.198% 12.395 145.838 / 1);
+
+  --linear-content-yellow-bg: lch(50% 90 85);
+
+  --linear-content-yellow-base: lch(80% 90 85);
+
+  --linear-content-yellow-base-hover: lch(84.5% 90 85 / 1);
+
+  --linear-content-yellow-mid: lch(87.2% 90 85 / 1);
+
+  --linear-content-yellow-text: lch(80% 80 85 / 1);
+
+  --linear-content-yellow-foreground: lch(100% 45 85);
+
+  --linear-content-yellow-tint: lch(16.956% 17.184 83.272 / 1);
+
+  --linear-content-orange-bg: lch(50% 80 48);
+
+  --linear-content-orange-base: lch(66% 80 48);
+
+  --linear-content-orange-base-hover: lch(70.5% 80 48 / 1);
+
+  --linear-content-orange-mid: lch(73.2% 80 48 / 1);
+
+  --linear-content-orange-text: lch(80% 80 48 / 1);
+
+  --linear-content-orange-foreground: lch(100% 40 48);
+
+  --linear-content-orange-tint: lch(13.546% 16.71 39.039 / 1);
+
+  --linear-content-red-bg: lch(50% 73 29);
+
+  --linear-content-red-base: lch(58% 73 29);
+
+  --linear-content-red-base-hover: lch(62.5% 73 29 / 1);
+
+  --linear-content-red-mid: lch(65.2% 73 29 / 1);
+
+  --linear-content-red-text: lch(80% 80 29 / 1);
+
+  --linear-content-red-foreground: lch(100% 36.5 29);
+
+  --linear-content-red-tint: lch(11.767% 15.869 22.59 / 1);
+
+  --linear-content-blue-bg: lch(50% 70 267);
+
+  --linear-content-blue-base: lch(80% 70 267);
+
+  --linear-content-blue-base-hover: lch(84.5% 70 267 / 1);
+
+  --linear-content-blue-mid: lch(87.2% 70 267 / 1);
+
+  --linear-content-blue-text: lch(80% 80 267 / 1);
+
+  --linear-content-blue-foreground: lch(100% 35 267);
+
+  --linear-content-blue-tint: lch(16.956% 19.309 267.26 / 1);
+
+  --linear-content-purple-bg: lch(50% 59.31 288.43);
+
+  --linear-content-purple-base: lch(48% 59.31 288.43);
+
+  --linear-content-purple-base-hover: lch(52.5% 59.31 288.43 / 1);
+
+  --linear-content-purple-mid: lch(55.2% 59.31 288.43 / 1);
+
+  --linear-content-purple-text: lch(80% 80 288.43 / 1);
+
+  --linear-content-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-content-purple-tint: lch(9.772% 13.365 285.643 / 1);
+
+  --linear-content-github-logo: lch(61.803% 1.2 272 / 1);
+
+  --linear-content-scroll-background: lch(0% 0 0 / 0.004);
+
+  --linear-content-focus-color: lch(47.918% 59.303 288.421);
+
+  --linear-content-shadow-color: lch(2.16% 0 0 / 0.15);
+
+  --linear-content-sidebar-link-bg: lch(11.37% 1.3 272 / 1);
+
+  --linear-content-sidebar-link-bg-active: lch(16.77% 1.3 272 / 1);
+
+  --linear-content-scrollbar-bg: lch(37.275% 1.2 272 / 1);
+
+  --linear-content-scrollbar-bg-hover: lch(37.375% 1.2 272 / 1);
+
+  --linear-content-scrollbar-bg-active: lch(36.975% 1.2 272 / 1);
+
+  --linear-content-chrome-tab-bg: lch(10.02% 2.2 272 / 1);
+
+  --linear-content-chrome-tab-bg-hover: lch(11.82% 2.2 272 / 1);
+
+  --linear-content-chrome-tab-bg-active: lch(14.52% 2.2 272 / 1);
+
+  --linear-sidebar-bg-sub: lch(0% 0.4 272 / 1);
+
+  --linear-sidebar-bg-sub-hover: lch(2.25% 3.1 272 / 1);
+
+  --linear-sidebar-bg-base: lch(2.595% 0.4 272 / 1);
+
+  --linear-sidebar-bg-base-hover: lch(6.42% 0.85 272 / 1);
+
+  --linear-sidebar-bg-shade: lch(4.395% 0.85 272 / 1);
+
+  --linear-sidebar-bg-shade-hover: lch(5.295% 1.3 272 / 1);
+
+  --linear-sidebar-bg-selected: lch(9.956% 19.755 287.248 / 1);
+
+  --linear-sidebar-bg-selected-hover: lch(12.206% 21.555 287.248 / 1);
+
+  --linear-sidebar-bg-focus: lch(10.695% 0.85 272 / 1);
+
+  --linear-sidebar-bg-modal-overlay: lch(0% 0 0 / 0.4);
+
+  --linear-sidebar-bg-border: lch(11.235% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-hover: lch(13.395% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-thin: lch(15.555% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-faint: lch(6.915% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-faint-hover: lch(8.535% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-faint-thin: lch(10.155% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-solid: lch(13.395% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-solid-hover: lch(17.715% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-solid-thin: lch(24.195% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-strong: lch(45.795% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-strong-hover: lch(54.435% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-strong-thin: lch(58.755% 1.48 272 / 1);
+
+  --linear-sidebar-bg-border-alpha: lch(100% 0 0 / 0.089);
+
+  --linear-sidebar-bg-border-alpha-hover: lch(100% 0 0 / 0.111);
+
+  --linear-sidebar-bg-border-alpha-thin: lch(100% 0 0 / 0.133);
+
+  --linear-sidebar-bg-border-faint-alpha: lch(100% 0 0 / 0.044);
+
+  --linear-sidebar-bg-border-faint-alpha-hover: lch(100% 0 0 / 0.061);
+
+  --linear-sidebar-bg-border-faint-alpha-thin: lch(100% 0 0 / 0.078);
+
+  --linear-sidebar-bg-border-solid-alpha: lch(100% 0 0 / 0.111);
+
+  --linear-sidebar-bg-border-solid-alpha-hover: lch(100% 0 0 / 0.155);
+
+  --linear-sidebar-bg-border-solid-alpha-thin: lch(100% 0 0 / 0.222);
+
+  --linear-sidebar-bg-border-strong-alpha: lch(100% 0 0 / 0.444);
+
+  --linear-sidebar-bg-border-strong-alpha-hover: lch(100% 0 0 / 0.532);
+
+  --linear-sidebar-bg-border-strong-alpha-thin: lch(100% 0 0 / 0.577);
+
+  --linear-sidebar-bg-selected-border: lch(17.516% 21.915 287.248 / 1);
+
+  --linear-sidebar-bg-selected-border-hover: lch(19.676% 21.915 287.248 / 1);
+
+  --linear-sidebar-label-title: lch(100% 0 272 / 1);
+
+  --linear-sidebar-label-title-hover: lch(85.389% 0 272 / 1);
+
+  --linear-sidebar-label-base: lch(90.155% 1.2 272 / 1);
+
+  --linear-sidebar-label-base-hover: lch(77.021% 1.2 272 / 1);
+
+  --linear-sidebar-label-muted: lch(60.621% 1.2 272 / 1);
+
+  --linear-sidebar-label-muted-hover: lch(69.324% 1.2 272 / 1);
+
+  --linear-sidebar-label-faint: lch(35.024% 1.2 272 / 1);
+
+  --linear-sidebar-label-link: lch(55.698% 70 288.421 / 1);
+
+  --linear-sidebar-control-primary: lch(47.918% 59.303 288.421);
+
+  --linear-sidebar-control-primary-label: lch(100% 5 288.421 / 1);
+
+  --linear-sidebar-control-primary-hover: lch(52.418% 61.103 288.421 / 1);
+
+  --linear-sidebar-control-secondary: lch(10.149% 0.689 272 / 1);
+
+  --linear-sidebar-control-secondary-label: lch(90.155% 1.2 272 / 1);
+
+  --linear-sidebar-control-secondary-hover: lch(14.777% 1.075 272 / 1);
+
+  --linear-sidebar-control-secondary-selected: lch(15.709% 1.075 272 / 1);
+
+  --linear-sidebar-control-tertiary: lch(7.224% 0.593 272 / 1);
+
+  --linear-sidebar-control-tertiary-label: lch(90.155% 1.2 272 / 1);
+
+  --linear-sidebar-control-tertiary-hover: lch(10.149% 0.689 272 / 1);
+
+  --linear-sidebar-control-tertiary-selected: lch(13.781% 0.979 272 / 1);
+
+  --linear-sidebar-teal-bg: lch(50% 45 210);
+
+  --linear-sidebar-teal-base: lch(67.5% 45 210);
+
+  --linear-sidebar-teal-base-hover: lch(72% 45 210 / 1);
+
+  --linear-sidebar-teal-mid: lch(74.7% 45 210 / 1);
+
+  --linear-sidebar-teal-text: lch(80% 80 210 / 1);
+
+  --linear-sidebar-teal-foreground: lch(100% 22.5 210);
+
+  --linear-sidebar-teal-tint: lch(11.942% 12.029 212.22 / 1);
+
+  --linear-sidebar-green-bg: lch(50% 64.37 141.95);
+
+  --linear-sidebar-green-base: lch(60% 64.37 141.95);
+
+  --linear-sidebar-green-base-hover: lch(64.5% 64.37 141.95 / 1);
+
+  --linear-sidebar-green-mid: lch(67.2% 64.37 141.95 / 1);
+
+  --linear-sidebar-green-text: lch(80% 80 141.95 / 1);
+
+  --linear-sidebar-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-sidebar-green-tint: lch(9.972% 14.663 146.88 / 1);
+
+  --linear-sidebar-yellow-bg: lch(50% 90 85);
+
+  --linear-sidebar-yellow-base: lch(80% 90 85);
+
+  --linear-sidebar-yellow-base-hover: lch(84.5% 90 85 / 1);
+
+  --linear-sidebar-yellow-mid: lch(87.2% 90 85 / 1);
+
+  --linear-sidebar-yellow-text: lch(80% 80 85 / 1);
+
+  --linear-sidebar-yellow-foreground: lch(100% 45 85);
+
+  --linear-sidebar-yellow-tint: lch(15.377% 19.362 83.428 / 1);
+
+  --linear-sidebar-orange-bg: lch(50% 80 48);
+
+  --linear-sidebar-orange-base: lch(66% 80 48);
+
+  --linear-sidebar-orange-base-hover: lch(70.5% 80 48 / 1);
+
+  --linear-sidebar-orange-mid: lch(73.2% 80 48 / 1);
+
+  --linear-sidebar-orange-text: lch(80% 80 48 / 1);
+
+  --linear-sidebar-orange-foreground: lch(100% 40 48);
+
+  --linear-sidebar-orange-tint: lch(11.541% 18.899 39.259 / 1);
+
+  --linear-sidebar-red-bg: lch(50% 73 29);
+
+  --linear-sidebar-red-base: lch(58% 73 29);
+
+  --linear-sidebar-red-base-hover: lch(62.5% 73 29 / 1);
+
+  --linear-sidebar-red-mid: lch(65.2% 73 29 / 1);
+
+  --linear-sidebar-red-text: lch(80% 80 29 / 1);
+
+  --linear-sidebar-red-foreground: lch(100% 36.5 29);
+
+  --linear-sidebar-red-tint: lch(9.461% 18.303 22.515 / 1);
+
+  --linear-sidebar-blue-bg: lch(50% 70 267);
+
+  --linear-sidebar-blue-base: lch(80% 70 267);
+
+  --linear-sidebar-blue-base-hover: lch(84.5% 70 267 / 1);
+
+  --linear-sidebar-blue-mid: lch(87.2% 70 267 / 1);
+
+  --linear-sidebar-blue-text: lch(80% 80 267 / 1);
+
+  --linear-sidebar-blue-foreground: lch(100% 35 267);
+
+  --linear-sidebar-blue-tint: lch(15.377% 20.56 267.158 / 1);
+
+  --linear-sidebar-purple-bg: lch(50% 59.31 288.43);
+
+  --linear-sidebar-purple-base: lch(48% 59.31 288.43);
+
+  --linear-sidebar-purple-base-hover: lch(52.5% 59.31 288.43 / 1);
+
+  --linear-sidebar-purple-mid: lch(55.2% 59.31 288.43 / 1);
+
+  --linear-sidebar-purple-text: lch(80% 80 288.43 / 1);
+
+  --linear-sidebar-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-sidebar-purple-tint: lch(7.068% 15.464 286.11 / 1);
+
+  --linear-sidebar-github-logo: lch(60.621% 1.2 272 / 1);
+
+  --linear-sidebar-scroll-background: lch(0% 0 0 / 0.004);
+
+  --linear-sidebar-focus-color: lch(47.918% 59.303 288.421);
+
+  --linear-sidebar-shadow-color: lch(2.16% 0 0 / 0.15);
+
+  --linear-sidebar-sidebar-link-bg: lch(8.445% 1.3 272 / 1);
+
+  --linear-sidebar-sidebar-link-bg-active: lch(13.845% 1.3 272 / 1);
+
+  --linear-sidebar-scrollbar-bg: lch(35.324% 1.2 272 / 1);
+
+  --linear-sidebar-scrollbar-bg-hover: lch(35.424% 1.2 272 / 1);
+
+  --linear-sidebar-scrollbar-bg-active: lch(35.024% 1.2 272 / 1);
+
+  --linear-sidebar-chrome-tab-bg: lch(7.095% 2.2 272 / 1);
+
+  --linear-sidebar-chrome-tab-bg-hover: lch(8.895% 2.2 272 / 1);
+
+  --linear-sidebar-chrome-tab-bg-active: lch(11.595% 2.2 272 / 1);
+
+  --linear-menu-bg-sub: lch(9.795% 0.85 272 / 1);
+
+  --linear-menu-bg-sub-hover: lch(12.045% 3.55 272 / 1);
+
+  --linear-menu-bg-base: lch(12.72% 0.85 272 / 1);
+
+  --linear-menu-bg-base-hover: lch(16.545% 1.3 272 / 1);
+
+  --linear-menu-bg-shade: lch(14.52% 1.3 272 / 1);
+
+  --linear-menu-bg-shade-hover: lch(15.42% 1.75 272 / 1);
+
+  --linear-menu-bg-selected: lch(16.988% 14.654 284.983 / 1);
+
+  --linear-menu-bg-selected-hover: lch(19.238% 16.454 284.983 / 1);
+
+  --linear-menu-bg-focus: lch(20.82% 1.3 272 / 1);
+
+  --linear-menu-bg-modal-overlay: lch(0% 0 0 / 0.4);
+
+  --linear-menu-bg-border: lch(21.36% 1.93 272 / 1);
+
+  --linear-menu-bg-border-hover: lch(23.52% 1.93 272 / 1);
+
+  --linear-menu-bg-border-thin: lch(25.68% 1.93 272 / 1);
+
+  --linear-menu-bg-border-faint: lch(17.04% 1.93 272 / 1);
+
+  --linear-menu-bg-border-faint-hover: lch(18.66% 1.93 272 / 1);
+
+  --linear-menu-bg-border-faint-thin: lch(20.28% 1.93 272 / 1);
+
+  --linear-menu-bg-border-solid: lch(23.52% 1.93 272 / 1);
+
+  --linear-menu-bg-border-solid-hover: lch(27.84% 1.93 272 / 1);
+
+  --linear-menu-bg-border-solid-thin: lch(34.32% 1.93 272 / 1);
+
+  --linear-menu-bg-border-strong: lch(55.92% 1.93 272 / 1);
+
+  --linear-menu-bg-border-strong-hover: lch(64.56% 1.93 272 / 1);
+
+  --linear-menu-bg-border-strong-thin: lch(68.88% 1.93 272 / 1);
+
+  --linear-menu-bg-border-alpha: lch(100% 0 0 / 0.099);
+
+  --linear-menu-bg-border-alpha-hover: lch(100% 0 0 / 0.124);
+
+  --linear-menu-bg-border-alpha-thin: lch(100% 0 0 / 0.148);
+
+  --linear-menu-bg-border-faint-alpha: lch(100% 0 0 / 0.049);
+
+  --linear-menu-bg-border-faint-alpha-hover: lch(100% 0 0 / 0.068);
+
+  --linear-menu-bg-border-faint-alpha-thin: lch(100% 0 0 / 0.087);
+
+  --linear-menu-bg-border-solid-alpha: lch(100% 0 0 / 0.124);
+
+  --linear-menu-bg-border-solid-alpha-hover: lch(100% 0 0 / 0.173);
+
+  --linear-menu-bg-border-solid-alpha-thin: lch(100% 0 0 / 0.247);
+
+  --linear-menu-bg-border-strong-alpha: lch(100% 0 0 / 0.495);
+
+  --linear-menu-bg-border-strong-alpha-hover: lch(100% 0 0 / 0.594);
+
+  --linear-menu-bg-border-strong-alpha-thin: lch(100% 0 0 / 0.643);
+
+  --linear-menu-bg-selected-border: lch(24.548% 16.814 284.983 / 1);
+
+  --linear-menu-bg-selected-border-hover: lch(26.708% 16.814 284.983 / 1);
+
+  --linear-menu-label-title: lch(100% 0 272 / 1);
+
+  --linear-menu-label-title-hover: lch(86.908% 0 272 / 1);
+
+  --linear-menu-label-base: lch(91.178% 1.425 272 / 1);
+
+  --linear-menu-label-base-hover: lch(79.41% 1.425 272 / 1);
+
+  --linear-menu-label-muted: lch(64.714% 1.425 272 / 1);
+
+  --linear-menu-label-muted-hover: lch(72.513% 1.425 272 / 1);
+
+  --linear-menu-label-faint: lch(41.778% 1.425 272 / 1);
+
+  --linear-menu-label-link: lch(60.303% 70 288.421 / 1);
+
+  --linear-menu-control-primary: lch(47.918% 59.303 288.421);
+
+  --linear-menu-control-primary-label: lch(100% 5 288.421 / 1);
+
+  --linear-menu-control-primary-hover: lch(52.418% 61.103 288.421 / 1);
+
+  --linear-menu-control-secondary: lch(17.349% 1.139 272 / 1);
+
+  --linear-menu-control-secondary-label: lch(91.178% 1.425 272 / 1);
+
+  --linear-menu-control-secondary-hover: lch(21.977% 1.525 272 / 1);
+
+  --linear-menu-control-secondary-selected: lch(25.834% 1.525 272 / 1);
+
+  --linear-menu-control-tertiary: lch(17.349% 1.043 272 / 1);
+
+  --linear-menu-control-tertiary-label: lch(91.178% 1.425 272 / 1);
+
+  --linear-menu-control-tertiary-hover: lch(21.206% 1.043 272 / 1);
+
+  --linear-menu-control-tertiary-selected: lch(23.906% 1.429 272 / 1);
+
+  --linear-menu-teal-bg: lch(50% 45 210);
+
+  --linear-menu-teal-base: lch(67.5% 45 210);
+
+  --linear-menu-teal-base-hover: lch(72% 45 210 / 1);
+
+  --linear-menu-teal-mid: lch(74.7% 45 210 / 1);
+
+  --linear-menu-teal-text: lch(80% 80 210 / 1);
+
+  --linear-menu-teal-foreground: lch(100% 22.5 210);
+
+  --linear-menu-teal-tint: lch(18.326% 8.062 216.827 / 1);
+
+  --linear-menu-green-bg: lch(50% 64.37 141.95);
+
+  --linear-menu-green-base: lch(60% 64.37 141.95);
+
+  --linear-menu-green-base-hover: lch(64.5% 64.37 141.95 / 1);
+
+  --linear-menu-green-mid: lch(67.2% 64.37 141.95 / 1);
+
+  --linear-menu-green-text: lch(80% 80 141.95 / 1);
+
+  --linear-menu-green-foreground: lch(100% 32.185 141.95);
+
+  --linear-menu-green-tint: lch(17.064% 8.354 149.392 / 1);
+
+  --linear-menu-yellow-bg: lch(50% 90 85);
+
+  --linear-menu-yellow-base: lch(80% 90 85);
+
+  --linear-menu-yellow-base-hover: lch(84.5% 90 85 / 1);
+
+  --linear-menu-yellow-mid: lch(87.2% 90 85 / 1);
+
+  --linear-menu-yellow-text: lch(80% 80 85 / 1);
+
+  --linear-menu-yellow-foreground: lch(100% 45 85);
+
+  --linear-menu-yellow-tint: lch(20.722% 11.872 82.063 / 1);
+
+  --linear-menu-orange-bg: lch(50% 80 48);
+
+  --linear-menu-orange-base: lch(66% 80 48);
+
+  --linear-menu-orange-base-hover: lch(70.5% 80 48 / 1);
+
+  --linear-menu-orange-mid: lch(73.2% 80 48 / 1);
+
+  --linear-menu-orange-text: lch(80% 80 48 / 1);
+
+  --linear-menu-orange-foreground: lch(100% 40 48);
+
+  --linear-menu-orange-tint: lch(18.062% 12.146 33.758 / 1);
+
+  --linear-menu-red-bg: lch(50% 73 29);
+
+  --linear-menu-red-base: lch(58% 73 29);
+
+  --linear-menu-red-base-hover: lch(62.5% 73 29 / 1);
+
+  --linear-menu-red-mid: lch(65.2% 73 29 / 1);
+
+  --linear-menu-red-text: lch(80% 80 29 / 1);
+
+  --linear-menu-red-foreground: lch(100% 36.5 29);
+
+  --linear-menu-red-tint: lch(16.753% 11.593 18.302 / 1);
+
+  --linear-menu-blue-bg: lch(50% 70 267);
+
+  --linear-menu-blue-base: lch(80% 70 267);
+
+  --linear-menu-blue-base-hover: lch(84.5% 70 267 / 1);
+
+  --linear-menu-blue-mid: lch(87.2% 70 267 / 1);
+
+  --linear-menu-blue-text: lch(80% 80 267 / 1);
+
+  --linear-menu-blue-foreground: lch(100% 35 267);
+
+  --linear-menu-blue-tint: lch(20.722% 16.877 267.52 / 1);
+
+  --linear-menu-purple-bg: lch(50% 59.31 288.43);
+
+  --linear-menu-purple-base: lch(48% 59.31 288.43);
+
+  --linear-menu-purple-base-hover: lch(52.5% 59.31 288.43 / 1);
+
+  --linear-menu-purple-mid: lch(55.2% 59.31 288.43 / 1);
+
+  --linear-menu-purple-text: lch(80% 80 288.43 / 1);
+
+  --linear-menu-purple-foreground: lch(100% 29.655 288.43);
+
+  --linear-menu-purple-tint: lch(15.361% 10.279 283.983 / 1);
+
+  --linear-menu-github-logo: lch(64.714% 1.425 272 / 1);
+
+  --linear-menu-scroll-background: lch(0% 0 0 / 0.004);
+
+  --linear-menu-focus-color: lch(47.918% 59.303 288.421);
+
+  --linear-menu-shadow-color: lch(2.16% 0 0 / 0.15);
+
+  --linear-menu-sidebar-link-bg: lch(18.57% 1.75 272 / 1);
+
+  --linear-menu-sidebar-link-bg-active: lch(23.97% 1.75 272 / 1);
+
+  --linear-menu-scrollbar-bg: lch(42.078% 1.425 272 / 1);
+
+  --linear-menu-scrollbar-bg-hover: lch(42.178% 1.425 272 / 1);
+
+  --linear-menu-scrollbar-bg-active: lch(41.778% 1.425 272 / 1);
+
+  --linear-menu-chrome-tab-bg: lch(17.22% 2.65 272 / 1);
+
+  --linear-menu-chrome-tab-bg-hover: lch(19.02% 2.65 272 / 1);
+
+  --linear-menu-chrome-tab-bg-active: lch(21.72% 2.65 272 / 1);
+
+}
+
+/* Geometry from the live list, metadata, pane, menu and static source inputs.
+ * This finite vocabulary is an adapter, not a claimed universal Linear spacing scale. */
+:root[data-visual-system="linear"] {
+  --linear-row-height: 44px;
+  --linear-row-radius: 8px;
+  --linear-control-radius: 8px;
+  --linear-panel-radius: 12px;
+  --linear-pill-radius: 48px;
+  --linear-rounded-radius: 9999px;
+  --linear-pill-height: 24px;
+  --linear-pill-padding: 8px;
+  --linear-checkbox-size: 14px;
+  --linear-checkbox-radius: 3px;
+  --linear-toolbar-height: 28px;
+  --linear-sidebar-row-height: 28px;
+  --linear-menu-row-height: 32px;
+  --linear-control-padding: 12px;
+  --linear-row-gap: 8px;
+  --linear-meta-gap: 4px;
+  --linear-font-small: .8125rem;
+  --linear-font-mini: .75rem;
+  --linear-font-regular: .9375rem;
+  --linear-font-large: 1.125rem;
+  --linear-font-title-3: 1.25rem;
+  --linear-font-title-2: 1.5rem;
+  --linear-font-title-1: 2.25rem;
+  --linear-font-weight-normal: 450;
+  --linear-font-weight-medium: 500;
+}
+
+:root[data-visual-system="linear"] {
+  --linear-space-4: 4px;
+  --linear-space-8: 8px;
+  --linear-space-12: 12px;
+  --linear-space-16: 16px;
+  --linear-space-20: 20px;
+  --linear-space-24: 24px;
+  --linear-space-32: 32px;
+  --linear-space-40: 40px;
+  --linear-space-48: 48px;
+  --linear-space-64: 64px;
+  --linear-space-80: 80px;
+  --linear-space-96: 96px;
+  --linear-header-height: 43.5px;
+}

@@ -1,0 +1,26 @@
+/* Keep the Owner target stable while Arc renders a photo or initials. */
+.trigger { min-width: var(--space-8); }
+/* Arc Badge size="sm" is 22px tall. Match the visible avatar, not its hit area. */
+.trigger .avatar, .unassigned { width: var(--request-avatar-size, 22px); height: var(--request-avatar-size, 22px); }
+.trigger .avatar { background: var(--request-property-background, var(--surface-muted)); color: var(--request-property-foreground, var(--foreground)); border-color: var(--request-property-border, var(--border)); }
+.unassigned {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--request-property-border, var(--border));
+  border-radius: var(--radius-pill);
+  background: var(--request-property-background, var(--surface-muted));
+  color: var(--request-property-foreground, var(--text-secondary));
+}
+@media (pointer: coarse), (max-width: 640px) {
+  .trigger { min-width: 44px; }
+}
+
+/* Stable identity colours from the captured Linear roles, only in the opt-in list. */
+.trigger .avatar[data-avatar-tone] { background: var(--picker-background, var(--linear-content-blue-tint)); color: var(--linear-content-label-title); }
+.trigger .avatar[data-avatar-tone="green"] { --picker-background: var(--linear-content-green-tint); }
+.trigger .avatar[data-avatar-tone="violet"] { --picker-background: var(--linear-content-purple-tint); }
+.trigger .avatar[data-avatar-tone="amber"] { --picker-background: var(--linear-content-yellow-tint); }
+.trigger .avatar[data-avatar-tone="coral"] { --picker-background: var(--linear-content-orange-tint); }
+.trigger .avatar[data-avatar-tone="slate"] { --picker-background: var(--linear-content-red-tint); }
+:global([data-selected]) .trigger .avatar[data-avatar-tone] { background: var(--request-property-background); color: var(--request-property-foreground); }

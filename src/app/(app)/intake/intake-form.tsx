@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -13,42 +14,25 @@ import {
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   CheckIcon,
-  CircleCheckIcon,
+  PlusIcon,
   FileTextIcon,
-  GitMergeIcon,
   ImageIcon,
-  InfoIcon,
   LightbulbIcon,
   LoaderCircleIcon,
   PaperclipIcon,
   RotateCcwIcon,
-  SearchIcon,
   Trash2Icon,
-  UploadIcon,
-  UserRoundIcon,
   XIcon,
-  type LucideIcon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 
-import { Button } from "@/components/ui/button";
-import { Feedback } from "@/components/ui/feedback";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Typography,
-  typographyVariants,
-} from "@/components/ui/typography";
+import { Button } from "@/components/arc/button/button";
+import { Alert } from "@/components/arc/alert/alert";
+import { Input } from "@/components/arc/input/input";
+import { Progress } from "@/components/arc/progress/progress";
+import { Textarea } from "@/components/arc/textarea/textarea";
+import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
 import type { TriageResult } from "@/lib/ai/triage";
 import {
   clearIntakeDraft,
@@ -64,7 +48,6 @@ import {
   validateAttachmentSelection,
 } from "@/lib/request-attachments";
 import {
-  CONTEXT_MAX,
   DESCRIPTION_MAX,
   problemFramingSchema,
   requestSchema,
@@ -73,6 +56,15 @@ import {
   type RequestInput,
 } from "@/lib/request-schema";
 import { cn } from "@/lib/utils";
+import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
+import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
+import { REQUEST_TYPE_LABELS } from "@/lib/request-properties";
+import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
+import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
+import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
+import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
+import type { z } from "zod";
+import styles from "./intake-form.module.css";
 
 import {
   discardAttachmentUpload,
@@ -88,14 +80,13 @@ import {
 } from "./actions";
 
 type Stage =
-  | "tell"
-  | "details"
-  | "review"
+  | "compose"
   | "checking"
   | "framing"
   | "creating"
   | "uploading"
-  | "attachment_recovery";
+  | "attachment_recovery"
+  | "complete";
 
 type QueuedAttachment = {
   key: string;
@@ -117,54 +108,92 @@ const emptyRequest: RequestInput = {
   observedEvidence: "",
   uncertainty: "",
   usefulLink: "",
+  projectId: null,
+  requestType: null,
+  expectedImpact: EMPTY_METRIC_IMPACT,
 };
+
+const earlierDraftFields = [
+  { name: "affectedPeople", label: "Users" },
+  { name: "desiredChange", label: "Expected result" },
+  { name: "observedEvidence", label: "Supporting information" },
+  { name: "uncertainty", label: "Open questions" },
+] as const;
+
+function EarlierDraftDetails({
+  values,
+  error,
+}: {
+  values: RequestInput;
+  error?: string;
+}) {
+  const details = earlierDraftFields.filter(({ name }) => values[name]);
+  if (!details.length && !error) return null;
+
+  return (
+    <section
+      id="intake-earlier-details"
+      aria-labelledby="intake-earlier-details-heading"
+      tabIndex={-1}
+      className="space-y-3 border-t pt-4"
+    >
+      <div className="space-y-1">
+        <h2 id="intake-earlier-details-heading" className="text-sm font-medium">
+          Details from your earlier draft
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          These details will be included with your Request.
+        </p>
+      </div>
+      <dl className="grid gap-4 text-sm sm:grid-cols-2">
+        {details.map(({ name, label }) => (
+          <div key={name} className="min-w-0 space-y-1">
+            <dt className="font-medium">{label}</dt>
+            <dd className="whitespace-pre-wrap break-words text-muted-foreground">
+              {values[name]}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {error && <p role="alert" className="text-destructive-foreground">{error}</p>}
+    </section>
+  );
+}
 
 const classificationPresentation: Record<
   TriageResult["classification"],
   {
-    label: string;
     title: string;
     description: string;
-    icon: LucideIcon;
-    tag: string;
   }
 > = {
   problem: {
-    label: "Problem-framed",
-    title: "The problem is clear",
+    title: "Review your Request",
     description:
-      "This describes the need without prescribing the answer.",
-    icon: CircleCheckIcon,
-    tag: "border-success-border bg-success-soft text-success",
+      "Check the details before sharing this Request with your team.",
   },
   solution: {
-    label: "Solution-shaped",
-    title: "Let’s make the problem clear",
+    title: "Check the suggested problem",
     description:
-      "Lane found a proposed answer. Confirm the need your team should solve.",
-    icon: LightbulbIcon,
-    tag: "border-warning-border bg-warning-soft text-warning",
+      "Lane’s AI suggested a problem to solve from your description. Edit anything that doesn’t match what you know.",
   },
   hybrid: {
-    label: "Problem + idea",
-    title: "Separate the problem from the idea",
+    title: "Check the suggested problem",
     description:
-      "Keep the need as the Request and preserve the proposed solution as context.",
-    icon: GitMergeIcon,
-    tag: "border-brand bg-brand-soft text-brand",
+      "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
   },
 };
 
 const clientNetworkFailure: IntakeFailure = {
   code: "network",
   message:
-    "Lane could not complete that request. Check your connection—your work is still here—then try again.",
+    "The review could not finish. Your draft is still here. Check your connection and try again.",
 };
 
 function uploadToSignedUrl(
   signedUrl: string,
   file: File,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -189,271 +218,57 @@ function uploadToSignedUrl(
   });
 }
 
-function ClassificationTag({
-  classification,
-}: {
-  classification: TriageResult["classification"];
-}) {
-  const presentation = classificationPresentation[classification];
-  const Icon = presentation.icon;
-
-  return (
-    <div
-      className={cn(
-        "inline-flex w-fit items-center gap-2 rounded-md border px-2.5 py-1.5 text-type-label",
-        presentation.tag
-      )}
-    >
-      <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.8} />
-      <span>{presentation.label}</span>
-    </div>
-  );
-}
-
-function IntakeStepper({ step }: { step: 1 | 2 | 3 }) {
-  const steps = [
-    { number: 1 as const, label: "Tell us" },
-    { number: 2 as const, label: "Add details" },
-    { number: 3 as const, label: "Review" },
-  ];
-
-  return (
-    <ol aria-label="Request progress" className="flex w-full items-center gap-2">
-      {steps.map((item, index) => {
-        const active = item.number === step;
-        const complete = item.number < step;
-        return (
-          <li
-            key={item.number}
-            aria-current={active ? "step" : undefined}
-            className={cn(
-              "flex min-w-0 items-center gap-2",
-              index < steps.length - 1 && "flex-1"
-            )}
-          >
-            <span
-              className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-full border text-type-micro font-semibold",
-                active &&
-                  "border-primary bg-primary text-primary-foreground",
-                complete &&
-                  "border-muted bg-muted text-foreground",
-                !active &&
-                  !complete &&
-                  "border-input bg-card text-muted-foreground"
-              )}
-            >
-              {complete ? (
-                <CheckIcon aria-hidden="true" className="size-3.5" strokeWidth={2} />
-              ) : (
-                item.number
-              )}
-            </span>
-            <span
-              className={cn(
-                "hidden text-type-meta sm:inline",
-                active ? "font-semibold text-foreground" : "text-muted-foreground"
-              )}
-            >
-              {item.label}
-            </span>
-            {index < steps.length - 1 && (
-              <span aria-hidden="true" className="h-px flex-1 bg-border" />
-            )}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function WizardHeader({
-  step,
+function IntakeNotice({
+  error = false,
+  attention = false,
   title,
-  description,
-  headingRef,
+  children,
 }: {
-  step: 1 | 2 | 3;
-  title: string;
-  description: string;
-  headingRef: React.RefObject<HTMLHeadingElement | null>;
+  error?: boolean;
+  attention?: boolean;
+  title?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <header className="space-y-4">
-      <IntakeStepper step={step} />
-      <div className="space-y-1.5">
-        <Typography
-          as="p"
-          role="micro"
-          className="font-semibold tracking-[0.08em] text-brand uppercase"
-        >
-          Step {step} of 3
-        </Typography>
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className={cn(
-            typographyVariants({ role: "pageTitle" }),
-            "focus:outline-none"
-          )}
-        >
-          {title}
-        </h1>
-        <Typography
-          as="p"
-          role="ui"
-          className="max-w-[62ch] text-pretty text-muted-foreground"
-        >
-          {description}
-        </Typography>
-      </div>
-    </header>
-  );
-}
-
-function RequestSummary({
-  values,
-  files,
-  step,
-}: {
-  values: RequestInput;
-  files: QueuedAttachment[];
-  step: 1 | 2 | 3;
-}) {
-  const optionalCount = [
-    values.affectedPeople,
-    values.desiredChange,
-    values.observedEvidence,
-    values.uncertainty,
-    values.usefulLink,
-    files.length > 0 ? "files" : "",
-  ].filter((value) => value.trim().length > 0).length;
-
-  return (
-    <aside className="rounded-xl border bg-card p-5 lg:sticky lg:top-6">
-      <Typography
-        as="p"
-        role="micro"
-        className="font-semibold tracking-[0.08em] text-brand uppercase"
-      >
-        Your Request
-      </Typography>
-      <Typography as="h2" role="sectionTitle" className="mt-2">
-        {step === 1
-          ? "Start with what you know."
-          : optionalCount > 0
-            ? "You have added useful detail."
-            : "The required story is ready."}
-      </Typography>
-      <Typography
-        as="p"
-        role="support"
-        className="mt-1 text-muted-foreground"
-      >
-        Only the title and what happened are required.
-      </Typography>
-
-      <dl className="mt-5 divide-y border-y">
-        <div className="flex min-h-12 items-center gap-3 py-2.5">
-          <span className="flex size-5 shrink-0 items-center justify-center text-muted-foreground">
-            {values.title.trim() && values.description.trim() ? (
-              <CheckIcon aria-hidden="true" className="size-4 text-brand" />
-            ) : (
-              <span className="size-3.5 rounded-full border border-input" />
-            )}
-          </span>
-          <Typography as="dt" role="label" className="min-w-0 flex-1">
-            Title and description
-          </Typography>
-          <Typography as="dd" role="meta" className="text-muted-foreground">
-            Required
-          </Typography>
-        </div>
-        <div className="flex min-h-12 items-center gap-3 py-2.5">
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <UserRoundIcon
-              aria-hidden="true"
-              className="size-4 text-muted-foreground"
-              strokeWidth={1.8}
-            />
-          </span>
-          <Typography as="dt" role="label" className="min-w-0 flex-1">
-            Who is affected
-          </Typography>
-          <Typography as="dd" role="meta" className="text-muted-foreground">
-            {values.affectedPeople || values.desiredChange ? "Added" : "Optional"}
-          </Typography>
-        </div>
-        <div className="flex min-h-12 items-center gap-3 py-2.5">
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <SearchIcon
-              aria-hidden="true"
-              className="size-4 text-muted-foreground"
-              strokeWidth={1.8}
-            />
-          </span>
-          <Typography as="dt" role="label" className="min-w-0 flex-1">
-            What you have seen
-          </Typography>
-          <Typography as="dd" role="meta" className="text-muted-foreground">
-            {values.observedEvidence || values.uncertainty
-              ? "Added"
-              : "Optional"}
-          </Typography>
-        </div>
-        <div className="flex min-h-12 items-center gap-3 py-2.5">
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <PaperclipIcon
-              aria-hidden="true"
-              className="size-4 text-muted-foreground"
-              strokeWidth={1.8}
-            />
-          </span>
-          <Typography as="dt" role="label" className="min-w-0 flex-1">
-            Files and links
-          </Typography>
-          <Typography as="dd" role="meta" className="text-muted-foreground">
-            {files.length > 0
-              ? `${files.length} file${files.length === 1 ? "" : "s"}`
-              : values.usefulLink
-                ? "Link added"
-                : "Optional"}
-          </Typography>
-        </div>
-      </dl>
-
-      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-muted p-3">
-        <InfoIcon
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-          strokeWidth={1.8}
-        />
-        <Typography as="p" role="meta" className="text-muted-foreground">
-          {step === 3
-            ? "Next, Lane checks whether the wording describes a problem or suggests a solution."
-            : "Add only what you know. You can skip every optional detail."}
-        </Typography>
-      </div>
-    </aside>
+    <Alert tone={error ? "danger" : attention ? "warning" : "info"} title={title ?? (error ? "Action needed" : attention ? "Draft restored" : "Request update")}>
+      {children}
+    </Alert>
   );
 }
 
 function AttachmentIcon({ file }: { file: File }) {
   if (file.type.startsWith("image/")) {
-    return <ImageIcon aria-hidden="true" className="size-4" strokeWidth={1.8} />;
+    return (
+      <ImageIcon aria-hidden="true" className="size-4" />
+    );
   }
-  return <FileTextIcon aria-hidden="true" className="size-4" strokeWidth={1.8} />;
+  return (
+    <FileTextIcon aria-hidden="true" className="size-4" />
+  );
 }
 
 export default function IntakeForm({
   context,
   draftOwnerId,
+  presentation = "page",
+  active = true,
+  onCreated,
+  onBusyChange,
+  initialProjectId = null,
 }: {
   context: { orgId: string };
   draftOwnerId: string;
+  presentation?: "page" | "dialog";
+  active?: boolean;
+  onCreated?: (requestId: string) => void;
+  onBusyChange?: (busy: boolean) => void;
+  initialProjectId?: string | null;
 }) {
   const router = useRouter();
-  const [stage, setStage] = useState<Stage>("tell");
+  const { toast } = useToastStack();
+  const [stage, setStage] = useState<Stage>("compose");
+  const [linkOpen, setLinkOpen] = useState(false);
+  const projects = useWorkspaceProjects(context.orgId, active);
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [source, setSource] = useState<RequestInput | null>(null);
@@ -466,12 +281,20 @@ export default function IntakeForm({
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
+  const [projectBusy, setProjectBusy] = useState(false);
+  const projectInFlight = useRef(false);
+  const projectDefaultApplied = useRef(false);
+  const draftEdited = useRef(false);
+  const [mutationBusy, setMutationBusy] = useState(false);
 
   const operationInFlight = useRef(false);
+  const leftUploadScreen = useRef(false);
   const draftCleared = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previousProblem, setPreviousProblem] = useState("");
+  const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId);
 
   const {
@@ -482,9 +305,9 @@ export default function IntakeForm({
     reset,
     setError,
     setFocus,
-    trigger,
-    formState: { errors },
-  } = useForm<RequestInput>({
+    setValue,
+    formState: { errors, isSubmitted },
+  } = useForm<RequestInput, unknown, z.output<typeof requestSchema>>({
     resolver: zodResolver(requestSchema),
     defaultValues: emptyRequest,
   });
@@ -499,6 +322,9 @@ export default function IntakeForm({
       observedEvidence: watched.observedEvidence ?? "",
       uncertainty: watched.uncertainty ?? "",
       usefulLink: watched.usefulLink ?? "",
+      projectId: watched.projectId ?? null,
+      requestType: watched.requestType ?? null,
+      expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? EMPTY_METRIC_IMPACT,
     }),
     [
       watched.affectedPeople,
@@ -508,7 +334,10 @@ export default function IntakeForm({
       watched.title,
       watched.uncertainty,
       watched.usefulLink,
-    ]
+      watched.projectId,
+      watched.requestType,
+      watched.expectedImpact,
+    ],
   );
 
   const checking = stage === "checking";
@@ -517,15 +346,14 @@ export default function IntakeForm({
     useCallback(() => () => {}, []),
     () =>
       /Mac|iPhone|iPad|iPod/.test(
-        `${navigator.platform} ${navigator.userAgent}`
+        `${navigator.platform} ${navigator.userAgent}`,
       ),
-    () => false
+    () => false,
   );
   const modKey = isMac ? "⌘" : "Ctrl";
 
   useEffect(() => {
     const draft = readIntakeDraft(window.sessionStorage, draftScope);
-    let focusTimer: number | undefined;
     const restoreTimer = window.setTimeout(() => {
       if (draft) {
         reset(draft.source);
@@ -533,17 +361,24 @@ export default function IntakeForm({
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
+        setLinkOpen(Boolean(draft.source.usefulLink));
+        setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
+        // A stored review knows which text produced its framing. Older compose
+        // drafts may retain wording without an origin; show it, but never
+        // silently attach it to a different Request.
+        setPreviousProblemSource(draft.review?.triage.classification !== "problem" && draft.review
+          ? { title: draft.source.title, description: draft.source.description }
+          : draft.previousProblemSource ?? null);
 
-        if (draft.review) {
+        if (draft.review && expectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
           setTriage(draft.review.triage);
           setToken(draft.review.token);
           setEditedProblem(draft.review.editedProblem);
           setStage("framing");
         } else {
-          setStage("tell");
+          setStage("compose");
         }
 
-        focusTimer = window.setTimeout(() => headingRef.current?.focus(), 0);
       }
 
       setDraftReady(true);
@@ -551,21 +386,40 @@ export default function IntakeForm({
 
     return () => {
       window.clearTimeout(restoreTimer);
-      if (focusTimer !== undefined) window.clearTimeout(focusTimer);
     };
   }, [draftScope, reset]);
 
   useEffect(() => {
-    if (!draftReady || draftCleared.current) return;
+    if (!draftReady || !active || !initialProjectId || projectDefaultApplied.current) return;
+    if (restoredDraft || draftEdited.current || stage !== "compose" || attachments.length > 0 || currentValues.projectId) {
+      projectDefaultApplied.current = true;
+      return;
+    }
+    // This list came through the workspace/guest guard. Never trust a Project
+    // from the URL or overwrite a draft while its options are still loading.
+    if (!projects.projects.some((project) => project.id === initialProjectId)) return;
+    projectDefaultApplied.current = true;
+    setValue("projectId", initialProjectId);
+  }, [active, attachments.length, currentValues.projectId, draftReady, initialProjectId, projects.projects, restoredDraft, setValue, stage]);
 
+  const persistDraft = useEffectEvent(() => {
+    if (!draftReady || draftCleared.current) return true;
     const review =
       (stage === "framing" || stage === "creating") && triage && token
         ? { triage, token, editedProblem }
         : null;
-    writeIntakeDraft(window.sessionStorage, draftScope, {
-      source: review && source ? source : currentValues,
-      review,
-    });
+    try {
+      return writeIntakeDraft(window.sessionStorage, draftScope, {
+        source: review && source ? source : getValues(),
+        review,
+        previousProblem: editedProblem || previousProblem,
+        previousProblemSource,
+      });
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    persistDraft();
   }, [
     currentValues,
     draftReady,
@@ -575,11 +429,15 @@ export default function IntakeForm({
     stage,
     token,
     triage,
+    previousProblem,
+    previousProblemSource,
   ]);
 
   useEffect(() => {
-    headingRef.current?.focus();
-  }, [stage]);
+    if (!active || !draftReady) return;
+    if (stage === "compose") setFocus("title");
+    else headingRef.current?.focus();
+  }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
     if (!checking) return;
@@ -587,27 +445,60 @@ export default function IntakeForm({
     return () => window.clearTimeout(timer);
   }, [checking]);
 
+  const hasPendingUploads =
+    Boolean(createdRequestId) &&
+    attachments.some((attachment) => attachment.status !== "uploaded");
+
+  const busy =
+    stage !== "complete" &&
+    (checking || creating || stage === "uploading" || mutationBusy || projectBusy);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+
+  const blocksWorkspaceSwitch = stage !== "complete" &&
+    (busy || attachments.some((attachment) => attachment.status !== "uploaded"));
+  useEffect(() => {
+    if (stage === "complete") return;
+    // A workspace switch reloads the document, including a closed composer's
+    // in-memory File objects. Text drafts already have workspace-scoped storage.
+    const blockSwitch = (event: Event) => {
+      if (blocksWorkspaceSwitch || !persistDraft()) event.preventDefault();
+    };
+    window.addEventListener(WORKSPACE_SWITCH_EVENT, blockSwitch);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_EVENT, blockSwitch);
+  }, [blocksWorkspaceSwitch, stage]);
+
+  useEffect(() => {
+    if (active || stage === "complete" || !hasPendingUploads) return;
+    // The hidden composer retains File objects across in-app navigation, but a
+    // full reload would still discard unfinished uploads and their retry state.
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [active, hasPendingUploads, stage]);
+
   const liveStatus =
     restoredDraft && !checking && !creating
-      ? "Your unsaved Request was restored after signing in."
+      ? "Your unsaved Request was restored."
       : checking
-        ? "Checking the Request framing."
+        ? "Preparing your Request for review."
         : stage === "framing" && triage
-          ? `${classificationPresentation[triage.classification].label} result ready to review.`
+          ? "Your Request is ready to review."
           : creating
             ? "Creating the Request."
             : stage === "uploading"
               ? "Uploading Request files."
               : "";
 
-  function updateAttachment(
-    key: string,
-    update: Partial<QueuedAttachment>
-  ) {
+  function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
     setAttachments((current) =>
       current.map((attachment) =>
-        attachment.key === key ? { ...attachment, ...update } : attachment
-      )
+        attachment.key === key ? { ...attachment, ...update } : attachment,
+      ),
     );
   }
 
@@ -655,33 +546,19 @@ export default function IntakeForm({
 
   function removeQueuedFile(key: string) {
     setAttachments((current) =>
-      current.filter((attachment) => attachment.key !== key)
+      current.filter((attachment) => attachment.key !== key),
     );
     setFileFailure(null);
-  }
-
-  async function goToDetails() {
-    const valid = await trigger(["title", "description"], {
-      shouldFocus: true,
-    });
-    if (!valid) return;
-    setFailure(null);
-    setStage("details");
-  }
-
-  async function goToReview() {
-    const valid = await trigger(undefined, { shouldFocus: true });
-    if (!valid) return;
-    setFailure(null);
-    setStage("review");
   }
 
   async function checkFraming(data: RequestInput) {
     if (operationInFlight.current) return;
     operationInFlight.current = true;
+    onBusyChange?.(true);
     setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
+    const keepEarlierProblem = previousProblemSource?.title === data.title && previousProblemSource?.description === data.description;
     setSource(data);
     setShowSlowCue(false);
     setStage("checking");
@@ -697,39 +574,89 @@ export default function IntakeForm({
               type: "server",
               message: result.error.message,
             });
-            if (
-              result.error.field === "title" ||
-              result.error.field === "description"
-            ) {
-              setStage("tell");
-            } else {
-              setStage("details");
-            }
-            setFocus(result.error.field);
+            if (result.error.field === "usefulLink") setLinkOpen(true);
+            setStage("compose");
+            const field = result.error.field;
+            // Optional controls may have just expanded. Wait for their render
+            // before moving focus to the rejected field.
+            window.setTimeout(() => focusRequestField(field), 0);
             return;
           }
         } else {
           setFailure(result.error);
         }
-        setStage("review");
+        setStage("compose");
         return;
       }
 
       setTriage(result.triage);
       setToken(result.token);
-      setEditedProblem(result.triage.reframedProblem ?? "");
+      if (result.triage.classification === "problem") {
+        // A fresh classification can change. Keep earlier user wording
+        // recoverable, without submitting it as the new Request's framing.
+        if (editedProblem) setPreviousProblem(editedProblem);
+        setEditedProblem("");
+      } else {
+        const nextProblem = keepEarlierProblem && (editedProblem || previousProblem)
+          ? editedProblem || previousProblem
+          : result.triage.reframedProblem ?? "";
+        setEditedProblem(nextProblem);
+        setPreviousProblem(nextProblem);
+        setPreviousProblemSource({ title: data.title, description: data.description });
+      }
       setStage("framing");
     } catch {
       setFailure(clientNetworkFailure);
-      setStage("review");
+      setStage("compose");
     } finally {
       operationInFlight.current = false;
+      onBusyChange?.(false);
+    }
+  }
+
+  async function discardFailedAttachment(
+    attachment: QueuedAttachment,
+    requestId: string,
+  ): Promise<"discarded" | "uploaded" | "failed"> {
+    if (!attachment.attachmentId) return "discarded";
+
+    try {
+      const result = await discardAttachmentUpload(
+        { requestId, attachmentId: attachment.attachmentId },
+        context,
+      );
+      if (!result.success) {
+        updateAttachment(attachment.key, {
+          status: "failed",
+          error: result.error.message,
+        });
+        return "failed";
+      }
+      if (result.alreadyUploaded) {
+        updateAttachment(attachment.key, {
+          status: "uploaded",
+          progress: 100,
+          error: null,
+        });
+        return "uploaded";
+      }
+      updateAttachment(attachment.key, { attachmentId: null, error: null });
+      return "discarded";
+    } catch {
+      // Keep the reservation ID until the server confirms cleanup. Retrying
+      // must not reserve another slot or hide a file that still needs attention.
+      updateAttachment(attachment.key, {
+        status: "failed",
+        error:
+          "Lane could not clear this upload. Your Request is saved. Try again.",
+      });
+      return "failed";
     }
   }
 
   async function uploadAttachment(
     attachment: QueuedAttachment,
-    requestId: string
+    requestId: string,
   ): Promise<boolean> {
     updateAttachment(attachment.key, {
       status: "uploading",
@@ -746,7 +673,7 @@ export default function IntakeForm({
           mimeType: attachment.file.type,
           sizeBytes: attachment.file.size,
         },
-        context
+        context,
       );
       if (!prepared.success) {
         updateAttachment(attachment.key, {
@@ -767,12 +694,12 @@ export default function IntakeForm({
             });
 
       await uploadToSignedUrl(prepared.signedUrl, uploadFile, (progress) =>
-        updateAttachment(attachment.key, { progress })
+        updateAttachment(attachment.key, { progress }),
       );
 
       const finalized = await finalizeAttachmentUpload(
         { requestId, attachmentId },
-        context
+        context,
       );
       if (!finalized.success) {
         updateAttachment(attachment.key, {
@@ -790,23 +717,32 @@ export default function IntakeForm({
       return true;
     } catch {
       if (attachmentId) {
-        await discardAttachmentUpload(
-          { requestId, attachmentId },
-          context
+        const cleanup = await discardFailedAttachment(
+          { ...attachment, attachmentId },
+          requestId,
         );
+        if (cleanup === "uploaded") return true;
+        if (cleanup === "failed") return false;
       }
       updateAttachment(attachment.key, {
         status: "failed",
         attachmentId: null,
         error:
-          "The file did not finish uploading. The Request is safe. Try again.",
+          "The file did not finish uploading. Your Request was created. Retry the upload.",
       });
       return false;
     }
   }
 
   function finishCreatedRequest(requestId: string) {
-    toast.success("Request created", {
+    if (leftUploadScreen.current) return;
+    setStage("complete");
+    if (onCreated) {
+      onBusyChange?.(false);
+      onCreated(requestId);
+      return;
+    }
+    toast({ type: "success", title: "Request created",
       description: "Open and ready to be picked up.",
     });
     router.push(`/requests/${requestId}`);
@@ -826,6 +762,7 @@ export default function IntakeForm({
     }
 
     operationInFlight.current = true;
+    onBusyChange?.(true);
     setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
@@ -838,10 +775,17 @@ export default function IntakeForm({
           editedProblemText:
             triage.classification === "problem" ? null : editedProblem,
         },
-        context
+        context,
       );
 
       if (!result.success) {
+        if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
+          const field = result.error.field;
+          setError(field, { type: "server", message: result.error.message });
+          setStage("compose");
+          window.setTimeout(() => focusRequestField(field), 0);
+          return;
+        }
         if (
           result.error.code === "validation" &&
           result.error.field === "editedProblemText"
@@ -879,84 +823,104 @@ export default function IntakeForm({
       setFailure({
         code: "save_failed",
         message:
-          "Lane could not create this Request. Your confirmed framing is still here. Try again.",
+          "Your Request could not be created. Your text is still here. Try again.",
       });
       setStage("framing");
     } finally {
       operationInFlight.current = false;
+      onBusyChange?.(false);
     }
   }
 
   async function retryAttachments(failed: QueuedAttachment[]) {
     if (!createdRequestId || operationInFlight.current) return;
     operationInFlight.current = true;
-    const results: boolean[] = [];
+    setMutationBusy(true);
+    onBusyChange?.(true);
+    const uploadedKeys = new Set<string>();
 
     try {
       for (const attachment of failed) {
-        if (attachment.attachmentId) {
-          await discardAttachmentUpload(
-            {
-              requestId: createdRequestId,
-              attachmentId: attachment.attachmentId,
-            },
-            context
-          );
-          updateAttachment(attachment.key, { attachmentId: null });
+        const cleanup = await discardFailedAttachment(
+          attachment,
+          createdRequestId,
+        );
+        if (cleanup === "failed") continue;
+        if (cleanup === "uploaded") {
+          uploadedKeys.add(attachment.key);
+          continue;
         }
-        results.push(await uploadAttachment(attachment, createdRequestId));
+        if (await uploadAttachment(attachment, createdRequestId)) {
+          uploadedKeys.add(attachment.key);
+        }
       }
     } finally {
       operationInFlight.current = false;
+      setMutationBusy(false);
+      onBusyChange?.(false);
     }
 
-    if (results.every(Boolean)) finishCreatedRequest(createdRequestId);
+    // A per-file retry must not abandon another failed file. Use the retry
+    // outcomes as well as the render snapshot; React state updates may lag.
+    if (
+      attachments.every(
+        (attachment) =>
+          attachment.status === "uploaded" || uploadedKeys.has(attachment.key),
+      )
+    ) {
+      finishCreatedRequest(createdRequestId);
+    }
   }
 
   async function retryFailedFiles() {
     await retryAttachments(
-      attachments.filter((attachment) => attachment.status === "failed")
+      attachments.filter((attachment) => attachment.status === "failed"),
     );
   }
 
   async function removeFailedFile(attachment: QueuedAttachment) {
-    if (createdRequestId && attachment.attachmentId) {
-      await discardAttachmentUpload(
-        {
-          requestId: createdRequestId,
-          attachmentId: attachment.attachmentId,
-        },
-        context
+    if (!createdRequestId || operationInFlight.current) return;
+    operationInFlight.current = true;
+    setMutationBusy(true);
+    onBusyChange?.(true);
+    try {
+      if (
+        (await discardFailedAttachment(attachment, createdRequestId)) !==
+        "discarded"
+      )
+        return;
+      setAttachments((current) =>
+        current.filter((item) => item.key !== attachment.key),
       );
+    } finally {
+      operationInFlight.current = false;
+      setMutationBusy(false);
+      onBusyChange?.(false);
     }
-    setAttachments((current) =>
-      current.filter((item) => item.key !== attachment.key)
-    );
   }
 
   async function continueWithoutFailedFiles() {
     if (!createdRequestId || operationInFlight.current) return;
     operationInFlight.current = true;
+    setMutationBusy(true);
+    onBusyChange?.(true);
 
     try {
       const unfinished = attachments.filter(
         (attachment) =>
-          attachment.status !== "uploaded" && attachment.attachmentId
+          attachment.status !== "uploaded" && attachment.attachmentId,
       );
-      await Promise.all(
+      const discarded = await Promise.all(
         unfinished.map((attachment) =>
-          discardAttachmentUpload(
-            {
-              requestId: createdRequestId,
-              attachmentId: attachment.attachmentId!,
-            },
-            context
-          )
-        )
+          discardFailedAttachment(attachment, createdRequestId),
+        ),
       );
-      finishCreatedRequest(createdRequestId);
+      if (discarded.every((result) => result !== "failed"))
+        finishCreatedRequest(createdRequestId);
     } finally {
       operationInFlight.current = false;
+      setMutationBusy(false);
+      onBusyChange?.(false);
     }
   }
 
@@ -969,6 +933,8 @@ export default function IntakeForm({
     writeIntakeDraft(window.sessionStorage, draftScope, {
       source: review && source ? source : getValues(),
       review,
+      previousProblem: editedProblem || previousProblem,
+      previousProblemSource,
     });
   }
 
@@ -976,7 +942,8 @@ export default function IntakeForm({
     if (
       event.key === "Enter" &&
       (event.metaKey || event.ctrlKey) &&
-      !creating
+      !creating &&
+      active
     ) {
       event.preventDefault();
       if (failure?.code === "review_expired" && source) {
@@ -987,676 +954,262 @@ export default function IntakeForm({
     }
   }
 
-  const wizardStep: 1 | 2 | 3 =
-    stage === "tell" ? 1 : stage === "details" ? 2 : 3;
-  const wizard =
-    stage === "tell" ||
-    stage === "details" ||
-    stage === "review" ||
-    stage === "checking";
+  const composing = stage === "compose" || checking;
+  const reviewing = stage === "framing" || creating;
+  const Surface = "div";
+  const ReviewFooter = "footer";
+
+  function onProjectBusyChange(value: boolean) {
+    projectInFlight.current = value;
+    setProjectBusy(value);
+    onBusyChange?.(value);
+  }
+
+  function focusRequestField(field: keyof RequestInput) {
+    if (field === "projectId") document.getElementById("intake-project")?.focus();
+    else if (field === "requestType") document.getElementById("intake-request-type")?.focus();
+    else if (field === "expectedImpact") {
+      const section = document.getElementById("intake-expected-impact");
+      (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section)?.focus();
+    }
+    else if (earlierDraftFields.some(({ name }) => name === field)) document.getElementById("intake-earlier-details")?.focus();
+    else setFocus(field);
+  }
+
+  function submitForReview() {
+    if (!active || checking || projectInFlight.current) return;
+    onBusyChange?.(true);
+    void handleSubmit(checkFraming, (fieldErrors) => {
+      onBusyChange?.(false);
+      const firstField = Object.keys(fieldErrors)[0] as keyof RequestInput | undefined;
+      if (!firstField) return;
+      if (firstField !== "title" && firstField !== "description") {
+        if (firstField === "usefulLink") setLinkOpen(true);
+        window.setTimeout(() => focusRequestField(firstField), 0);
+      }
+    })();
+  }
 
   return (
-    <main
-      className={cn(
-        "mx-auto w-full px-4 py-6 sm:px-6 sm:py-8",
-        wizard ? "max-w-[1088px]" : "max-w-[920px]"
+    <div className={presentation === "page" ? "mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
+      {active && stage !== "complete" && (creating || hasPendingUploads) && (
+        <IntakeNavigationGuard
+          creating={creating}
+          onLeave={() => {
+            leftUploadScreen.current = true;
+          }}
+        />
       )}
-    >
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {liveStatus}
+        {active ? liveStatus : ""}
       </p>
-
-      {wizard && (
-        <div className={cn(reveal, "space-y-6")}>
-          <WizardHeader
-            step={wizardStep}
-            headingRef={headingRef}
-            title={
-              stage === "tell"
-                ? "Tell us what’s happening."
-                : stage === "details"
-                  ? "Add any details that will help."
-                  : "Check your Request."
-            }
-            description={
-              stage === "tell"
-                ? "Write it in your own words. You can add more detail next."
-                : stage === "details"
-                  ? "Everything here is optional. Add only what you already know."
-                  : "If anything looks wrong, go back and edit it before Lane checks the wording."
-            }
-          />
-
-          {restoredDraft && (
-            <Feedback kind="success" variant="inline">
-              Your unsaved Request is back. Text and links were restored.
-              Files stay only in the tab where you choose them.
-            </Feedback>
-          )}
-
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,660px)_minmax(280px,1fr)]">
-            <form
-              noValidate
-              onSubmit={(event) => {
+      {presentation === "dialog" && reviewing && <h2 ref={headingRef} tabIndex={-1} className="mb-5 text-lg font-medium">Review Request</h2>}
+      <Surface className={presentation === "page" ? "space-y-6" : cn("min-h-0 min-w-0 flex-1", reviewing ? "flex flex-col" : "space-y-5")}>
+        {presentation === "page" && composing && (
+          <header className="space-y-1.5">
+            <h1 className="text-xl font-medium tracking-tight">New Request</h1>
+            <p className="text-sm text-muted-foreground">
+              Describe your Request and the result you expect. Review it before sharing with your team.
+            </p>
+          </header>
+        )}
+        {composing && (
+          <form
+            noValidate
+            onChangeCapture={() => { draftEdited.current = true; }}
+            aria-busy={checking || projectBusy || undefined}
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitForReview();
+            }}
+            onKeyDown={(event) => {
+              if (active && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
-                if (stage === "tell") void goToDetails();
-                else if (stage === "details") void goToReview();
-                else void handleSubmit(checkFraming)();
-              }}
-              className="min-w-0 space-y-4"
-              aria-busy={checking || undefined}
-            >
-              {stage === "tell" && (
-                <section className="space-y-5 rounded-xl border bg-card p-5">
-                  <Field invalid={Boolean(errors.title)}>
-                    <FieldLabel htmlFor="intake-title">Short title *</FieldLabel>
-                    <Input
-                      id="intake-title"
-                      placeholder="For example: Customers can’t find their saved drafts"
-                      maxLength={TITLE_MAX}
-                      aria-invalid={Boolean(errors.title) || undefined}
-                      aria-describedby={
-                        errors.title ? "intake-title-error" : undefined
-                      }
-                      {...register("title")}
-                    />
-                    {errors.title && (
-                      <FieldError id="intake-title-error">
-                        {errors.title.message}
-                      </FieldError>
-                    )}
-                  </Field>
-
-                  <Field invalid={Boolean(errors.description)}>
-                    <FieldLabel htmlFor="intake-description">
-                      What happened? *
-                    </FieldLabel>
-                    <Textarea
-                      id="intake-description"
-                      placeholder="What did you notice? Who ran into it? What made it a problem?"
-                      rows={6}
-                      maxLength={DESCRIPTION_MAX}
-                      className="min-h-32 resize-y"
-                      aria-invalid={Boolean(errors.description) || undefined}
-                      aria-describedby={
-                        errors.description
-                          ? "intake-description-error"
-                          : "intake-description-help"
-                      }
-                      {...register("description")}
-                    />
-                    {errors.description ? (
-                      <FieldError id="intake-description-error">
-                        {errors.description.message}
-                      </FieldError>
-                    ) : (
-                      <FieldDescription id="intake-description-help">
-                        Just tell us what you know. Lane will help make it
-                        clearer.
-                      </FieldDescription>
-                    )}
-                  </Field>
-                </section>
+                submitForReview();
+              }
+            }}
+            onDragOver={(event) => {
+              if (checking || !event.dataTransfer.types.includes("Files")) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+            }}
+            onDrop={(event) => {
+              if (checking || !event.dataTransfer.files.length) return;
+              event.preventDefault();
+              addFiles(Array.from(event.dataTransfer.files));
+            }}
+            className="space-y-5"
+          >
+            {restoredDraft && (
+              <IntakeNotice attention>
+                Your text and links were restored. Choose any files again before creating the Request.
+              </IntakeNotice>
+            )}
+            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.title)}>
+              <Input
+                label="Request title"
+                id="intake-title"
+                placeholder="Request title"
+                maxLength={TITLE_MAX}
+                readOnly={checking}
+                aria-invalid={Boolean(errors.title) || undefined}
+                aria-describedby={errors.title ? "intake-title-error" : undefined}
+                {...register("title")}
+              />
+              {errors.title && (
+                <p className="text-destructive-foreground" id="intake-title-error">
+                  {errors.title.message}
+                </p>
               )}
-
-              {stage === "details" && (
-                <>
-                  <section className="space-y-5 rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                      <UserRoundIcon
-                        aria-hidden="true"
-                        className="size-4 text-brand"
-                        strokeWidth={1.8}
-                      />
-                      <Typography as="h2" role="sectionTitle">
-                        Who is affected?
-                      </Typography>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field invalid={Boolean(errors.affectedPeople)}>
-                        <FieldLabel htmlFor="intake-affected">
-                          Who ran into this?
-                        </FieldLabel>
-                        <Textarea
-                          id="intake-affected"
-                          rows={3}
-                          maxLength={CONTEXT_MAX}
-                          placeholder="Customers, teammates, or a specific group"
-                          className="min-h-24 resize-y"
-                          aria-invalid={
-                            Boolean(errors.affectedPeople) || undefined
-                          }
-                          {...register("affectedPeople")}
-                        />
-                        {errors.affectedPeople && (
-                          <FieldError>
-                            {errors.affectedPeople.message}
-                          </FieldError>
-                        )}
-                      </Field>
-                      <Field invalid={Boolean(errors.desiredChange)}>
-                        <FieldLabel htmlFor="intake-desired-change">
-                          What would be better?
-                        </FieldLabel>
-                        <Textarea
-                          id="intake-desired-change"
-                          rows={3}
-                          maxLength={CONTEXT_MAX}
-                          placeholder="Describe the change people need, not the feature"
-                          className="min-h-24 resize-y"
-                          aria-invalid={
-                            Boolean(errors.desiredChange) || undefined
-                          }
-                          {...register("desiredChange")}
-                        />
-                        {errors.desiredChange && (
-                          <FieldError>
-                            {errors.desiredChange.message}
-                          </FieldError>
-                        )}
-                      </Field>
-                    </div>
-                  </section>
-
-                  <section className="space-y-5 rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                      <SearchIcon
-                        aria-hidden="true"
-                        className="size-4 text-brand"
-                        strokeWidth={1.8}
-                      />
-                      <Typography as="h2" role="sectionTitle">
-                        What have you seen?
-                      </Typography>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field invalid={Boolean(errors.observedEvidence)}>
-                        <FieldLabel
-                          htmlFor="intake-evidence"
-                          className="text-brand"
-                        >
-                          What we know · observed
-                        </FieldLabel>
-                        <Textarea
-                          id="intake-evidence"
-                          rows={4}
-                          maxLength={CONTEXT_MAX}
-                          placeholder="Examples, research, quotes, or a repeated pattern"
-                          className="min-h-28 resize-y"
-                          aria-invalid={
-                            Boolean(errors.observedEvidence) || undefined
-                          }
-                          {...register("observedEvidence")}
-                        />
-                        {errors.observedEvidence && (
-                          <FieldError>
-                            {errors.observedEvidence.message}
-                          </FieldError>
-                        )}
-                      </Field>
-                      <Field invalid={Boolean(errors.uncertainty)}>
-                        <FieldLabel htmlFor="intake-uncertainty">
-                          What we’re not sure about · unconfirmed
-                        </FieldLabel>
-                        <Textarea
-                          id="intake-uncertainty"
-                          rows={4}
-                          maxLength={CONTEXT_MAX}
-                          placeholder="A belief, assumption, or question still to verify"
-                          className="min-h-28 resize-y"
-                          aria-invalid={
-                            Boolean(errors.uncertainty) || undefined
-                          }
-                          {...register("uncertainty")}
-                        />
-                        {errors.uncertainty && (
-                          <FieldError>
-                            {errors.uncertainty.message}
-                          </FieldError>
-                        )}
-                      </Field>
-                    </div>
-                  </section>
-
-                  <section className="space-y-5 rounded-xl border bg-card p-5">
-                    <div className="flex items-center gap-2">
-                      <PaperclipIcon
-                        aria-hidden="true"
-                        className="size-4 text-brand"
-                        strokeWidth={1.8}
-                      />
-                      <Typography as="h2" role="sectionTitle">
-                        Files and links
-                      </Typography>
-                      <Typography
-                        as="span"
-                        role="meta"
-                        className="ml-auto text-muted-foreground"
-                      >
-                        Optional
-                      </Typography>
-                    </div>
-
-                    <Field invalid={Boolean(errors.usefulLink)}>
-                      <FieldLabel htmlFor="intake-useful-link">
-                        Useful link
-                      </FieldLabel>
-                      <Input
-                        id="intake-useful-link"
-                        type="url"
-                        inputMode="url"
-                        placeholder="https://docs.example.com/request-context"
-                        maxLength={USEFUL_LINK_MAX}
-                        aria-invalid={Boolean(errors.usefulLink) || undefined}
-                        {...register("usefulLink")}
-                      />
-                      {errors.usefulLink && (
-                        <FieldError>{errors.usefulLink.message}</FieldError>
-                      )}
-                    </Field>
-
-                    <div
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "copy";
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        addFiles(Array.from(event.dataTransfer.files));
-                      }}
-                      className="flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-input bg-recessed px-4 py-5 text-center transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50"
-                    >
-                      <UploadIcon
-                        aria-hidden="true"
-                        className="size-5 text-muted-foreground"
-                        strokeWidth={1.8}
-                      />
-                      <button
-                        type="button"
-                        className="rounded-sm text-type-label font-semibold outline-none"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Drop files here or choose files
-                      </button>
-                      <Typography
-                        as="p"
-                        role="meta"
-                        className="text-muted-foreground"
-                      >
-                        PDF, DOCX, text, Markdown, PNG, JPEG, or WebP
-                      </Typography>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        accept={ATTACHMENT_ACCEPT}
-                        className="sr-only"
-                        onChange={(event) => {
-                          addFiles(Array.from(event.target.files ?? []));
-                          event.target.value = "";
-                        }}
-                      />
-                    </div>
-                    <Typography
-                      as="p"
-                      role="meta"
-                      className="text-muted-foreground"
-                    >
-                      Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB
-                      together. Files upload only after you confirm the Request.
-                      Reloading before then means choosing them again.
-                    </Typography>
-
-                    {fileFailure && (
-                      <Feedback kind="error" variant="inline">
-                        {fileFailure}
-                      </Feedback>
-                    )}
-
-                    {attachments.length > 0 && (
-                      <ul aria-label="Files ready to upload" className="divide-y rounded-lg border">
-                        {attachments.map((attachment) => (
-                          <li
-                            key={attachment.key}
-                            className="flex min-h-14 items-center gap-3 px-3 py-2"
-                          >
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                              <AttachmentIcon file={attachment.file} />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <Typography
-                                as="span"
-                                role="label"
-                                className="block truncate"
-                              >
-                                {attachment.file.name}
-                              </Typography>
-                              <Typography
-                                as="span"
-                                role="meta"
-                                className="block text-muted-foreground"
-                              >
-                                {formatAttachmentSize(attachment.file.size)} ·
-                                Ready to upload
-                              </Typography>
-                            </span>
-                            <Button
-                              type="button"
-                              size="icon-sm"
-                              variant="ghost"
-                              aria-label={`Remove ${attachment.file.name}`}
-                              onClick={() => removeQueuedFile(attachment.key)}
-                            >
-                              <XIcon aria-hidden="true" strokeWidth={1.8} />
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                </>
+            </div>
+            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.description)}>
+              <Textarea
+                label="Description"
+                id="intake-description"
+                placeholder="Add a description…"
+                rows={3}
+                maxLength={DESCRIPTION_MAX}
+                readOnly={checking}
+                aria-invalid={Boolean(errors.description) || undefined}
+                aria-describedby={errors.description ? "intake-description-error" : undefined}
+                {...register("description")}
+              />
+              {errors.description && (
+                <p className="text-destructive-foreground" id="intake-description-error">
+                  {errors.description.message}
+                </p>
               )}
+            </div>
 
-              {(stage === "review" || stage === "checking") && (
-                <>
-                  <section className="space-y-5 rounded-xl border bg-card p-5">
-                    <div>
-                      <Typography as="h2" role="label">
-                        Title
-                      </Typography>
-                      <Typography
-                        as="p"
-                        role="ui"
-                        className="mt-2 rounded-lg border bg-muted px-3 py-2.5 font-medium"
-                      >
-                        {currentValues.title}
-                      </Typography>
-                    </div>
-                    <div>
-                      <Typography as="h2" role="label">
-                        What happened
-                      </Typography>
-                      <Typography
-                        as="p"
-                        role="ui"
-                        className="mt-2 min-h-24 whitespace-pre-wrap rounded-lg border bg-muted px-3 py-2.5"
-                      >
-                        {currentValues.description}
-                      </Typography>
-                    </div>
-                  </section>
-
-                  <section className="rounded-xl border bg-card">
-                    <div className="px-5 py-4">
-                      <Typography as="h2" role="sectionTitle">
-                        Details you added
-                      </Typography>
-                      <Typography
-                        as="p"
-                        role="meta"
-                        className="mt-1 text-muted-foreground"
-                      >
-                        These stay attached to the Request.
-                      </Typography>
-                    </div>
-                    <dl className="divide-y border-t">
-                      {currentValues.affectedPeople && (
-                        <div className="px-5 py-3">
-                          <Typography as="dt" role="label">
-                            Who is affected
-                          </Typography>
-                          <Typography
-                            as="dd"
-                            role="ui"
-                            className="mt-1 whitespace-pre-wrap text-muted-foreground"
-                          >
-                            {currentValues.affectedPeople}
-                          </Typography>
-                        </div>
-                      )}
-                      {currentValues.desiredChange && (
-                        <div className="px-5 py-3">
-                          <Typography as="dt" role="label">
-                            What would be better
-                          </Typography>
-                          <Typography
-                            as="dd"
-                            role="ui"
-                            className="mt-1 whitespace-pre-wrap text-muted-foreground"
-                          >
-                            {currentValues.desiredChange}
-                          </Typography>
-                        </div>
-                      )}
-                      {currentValues.observedEvidence && (
-                        <div className="px-5 py-3">
-                          <Typography as="dt" role="label" className="text-brand">
-                            What we know · observed
-                          </Typography>
-                          <Typography
-                            as="dd"
-                            role="ui"
-                            className="mt-1 whitespace-pre-wrap text-muted-foreground"
-                          >
-                            {currentValues.observedEvidence}
-                          </Typography>
-                        </div>
-                      )}
-                      {currentValues.uncertainty && (
-                        <div className="px-5 py-3">
-                          <Typography as="dt" role="label">
-                            What we’re not sure about · unconfirmed
-                          </Typography>
-                          <Typography
-                            as="dd"
-                            role="ui"
-                            className="mt-1 whitespace-pre-wrap text-muted-foreground"
-                          >
-                            {currentValues.uncertainty}
-                          </Typography>
-                        </div>
-                      )}
-                      {(currentValues.usefulLink || attachments.length > 0) && (
-                        <div className="px-5 py-3">
-                          <Typography as="dt" role="label">
-                            Files and links
-                          </Typography>
-                          <Typography
-                            as="dd"
-                            role="ui"
-                            className="mt-1 text-muted-foreground"
-                          >
-                            {attachments.length > 0
-                              ? `${attachments.map((item) => item.file.name).join(", ")}`
-                              : ""}
-                            {attachments.length > 0 && currentValues.usefulLink
-                              ? " · "
-                              : ""}
-                            {currentValues.usefulLink}
-                          </Typography>
-                        </div>
-                      )}
-                      {!currentValues.affectedPeople &&
-                        !currentValues.desiredChange &&
-                        !currentValues.observedEvidence &&
-                        !currentValues.uncertainty &&
-                        !currentValues.usefulLink &&
-                        attachments.length === 0 && (
-                          <Typography
-                            as="p"
-                            role="support"
-                            className="px-5 py-4 text-muted-foreground"
-                          >
-                            No optional details added. That is okay.
-                          </Typography>
-                        )}
-                    </dl>
-                  </section>
-                </>
-              )}
-
-              {failure && (
-                <Feedback kind="error" title="Framing check not completed">
-                  <span>{failure.message}</span>
-                  {failure.code === "session_expired" && (
-                    <>
-                      {" "}
-                      <Link
-                        href="/login#/?redirect_url=%2Fintake"
-                        onClick={preserveDraftForSignIn}
-                        className="font-medium text-foreground underline underline-offset-4"
-                      >
-                        Sign in again
-                      </Link>
-                    </>
-                  )}
-                </Feedback>
-              )}
-
-              <div className="flex items-center justify-between gap-3">
-                {stage !== "tell" ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() =>
-                      setStage(stage === "details" ? "tell" : "details")
-                    }
-                    disabled={checking}
-                  >
-                    <ArrowLeftIcon
-                      aria-hidden="true"
-                      data-icon="inline-start"
-                      strokeWidth={1.8}
-                    />
-                    Back
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <Button type="submit" size="lg" disabled={checking}>
-                  {checking ? (
-                    <LoaderCircleIcon
-                      aria-hidden="true"
-                      data-icon="inline-start"
-                      className="animate-spin motion-reduce:animate-none"
-                      strokeWidth={1.8}
-                    />
-                  ) : null}
-                  {stage === "tell"
-                    ? "Continue"
-                    : stage === "details"
-                      ? "Review Request"
-                      : checking
-                        ? "Checking wording…"
-                        : "Check Request"}
-                  {!checking && (
-                    <ArrowRightIcon
-                      aria-hidden="true"
-                      data-icon="inline-end"
-                      strokeWidth={1.8}
-                    />
-                  )}
-                </Button>
-              </div>
-
-              {checking && showSlowCue && (
-                <Typography
-                  as="p"
-                  role="support"
-                  className="text-right text-muted-foreground"
-                >
-                  This is taking a little longer than usual. Your Request is
-                  still here.
-                </Typography>
-              )}
-            </form>
-
-            <RequestSummary
-              values={currentValues}
-              files={attachments}
-              step={wizardStep}
+            <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
+              <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
+              <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => { draftEdited.current = true; setValue("requestType", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} error={errors.requestType?.message} />
+              <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
+                {currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}Add link
+              </Button>
+              <Button type="button" variant="ghost" size="sm"  onClick={() => fileInputRef.current?.click()} disabled={checking}>
+                <PaperclipIcon aria-hidden="true" data-icon="inline-start" />Attach files
+              </Button>
+              <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
+                onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
+            </div>
+            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
+            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
+            <ExpectedImpactFields
+              value={expectedImpactDraftSchema.parse(currentValues.expectedImpact) ?? EMPTY_METRIC_IMPACT}
+              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
+              disabled={checking}
+              errors={errors.expectedImpact}
             />
-          </div>
-        </div>
-      )}
+            <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
+              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
+                <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
+                  aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
+                {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
+              </div>
+            </section>
+            <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
+            {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
+              <h2 className="text-sm font-medium">Problem from your earlier review</h2>
+              <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{previousProblem}</p>
+            </section>}
 
+            {fileFailure && <IntakeNotice error>{fileFailure}</IntakeNotice>}
+            {attachments.length > 0 && (
+              <div className="space-y-2">
+                <ul aria-label="Files ready to upload" className="divide-y">
+                  {attachments.map((attachment) => (
+                    <li key={attachment.key} className="flex items-center gap-3 py-2">
+                      <span className="shrink-0 text-muted-foreground"><AttachmentIcon file={attachment.file} /></span>
+                      <span className="min-w-0 flex-1 truncate text-sm">{attachment.file.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{formatAttachmentSize(attachment.file.size)}</span>
+                      <Button type="button" size="sm" variant="ghost" aria-label={`Remove ${attachment.file.name}`} onClick={() => removeQueuedFile(attachment.key)} disabled={checking}>
+                        <XIcon aria-hidden="true" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
+                </p>
+              </div>
+            )}
+            {failure && (
+              <IntakeNotice error title="Could not prepare the review">
+                <span>{failure.message}</span>
+                {failure.code === "session_expired" && (
+                  <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
+                )}
+              </IntakeNotice>
+            )}
+            <footer className="flex justify-end border-t pt-4">
+              <Button type="submit" disabled={checking || projectBusy}>
+                {checking && <LoaderCircleIcon aria-hidden="true" data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />}
+                {checking ? "Preparing review…" : "Review Request"}
+              </Button>
+            </footer>
+            {checking && showSlowCue && (
+              <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
+            )}
+          </form>
+        )}
       {(stage === "framing" || stage === "creating") && triage && source && (
         <div
-          className={cn(reveal, "space-y-8")}
+          className={cn(reveal, presentation === "dialog" ? "flex min-h-0 flex-1 flex-col" : "space-y-6")}
           aria-busy={creating || undefined}
           onKeyDown={onReviewKeyDown}
         >
-          <header className="space-y-3">
-            <ClassificationTag classification={triage.classification} />
+          <div className={cn("space-y-6", presentation === "dialog" && "min-h-0 flex-1")}>
+          {(presentation === "page" || triage.classification !== "problem" || restoredDraft) && <header className="space-y-3">
             <div className="space-y-2">
-              <h1
+              {presentation === "page" && <h2
                 ref={headingRef}
                 tabIndex={-1}
                 className={cn(
-                  typographyVariants({ role: "pageTitle" }),
-                  "focus:outline-none"
+                  "text-xl font-medium tracking-tight",
+                  "focus:outline-none",
                 )}
               >
                 {classificationPresentation[triage.classification].title}
-              </h1>
-              <Typography
-                as="p"
-                role="ui"
-                className="max-w-[62ch] text-pretty text-muted-foreground"
+              </h2>}
+              {(presentation === "page" || triage.classification !== "problem") && <p
+                className={cn(
+                  "text-sm leading-relaxed",
+                  "max-w-[62ch] text-pretty text-muted-foreground",
+                )}
               >
                 {classificationPresentation[triage.classification].description}
-              </Typography>
+              </p>}
               {restoredDraft && (
-                <Feedback kind="success" variant="inline">
-                  Your confirmed framing is back. Text and links were restored.
+                <IntakeNotice attention>
+                  Your review was restored. Text and links are still here.
                   Choose any files again before creating the Request.
-                </Feedback>
+                </IntakeNotice>
               )}
             </div>
-          </header>
+          </header>}
+
+          <h3 className="break-words text-lg font-medium">{source.title}</h3>
+
+          {(source.projectId || source.requestType) && <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {source.projectId && <div><dt className="text-xs text-muted-foreground">Project</dt><dd>{projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project"}</dd></div>}
+            {source.requestType && <div><dt className="text-xs text-muted-foreground">Request type</dt><dd>{REQUEST_TYPE_LABELS[source.requestType]}</dd></div>}
+          </dl>}
 
           {triage.classification === "problem" ? (
-            <section
-              aria-labelledby="problem-framing-heading"
-              className="rounded-xl border border-success-border bg-success-soft p-4 sm:p-6"
-            >
-              <Typography
-                id="problem-framing-heading"
-                as="h2"
-                role="label"
-                className="text-success"
-              >
-                Problem framing
-              </Typography>
-              <Typography
-                as="h3"
-                role="sectionTitle"
-                className="mt-3 max-w-none break-words"
-              >
-                {source.title}
-              </Typography>
-              <Typography
-                as="p"
-                role="prose"
-                className="mt-2 max-w-none whitespace-pre-wrap break-words"
-              >
-                {source.description}
-              </Typography>
-            </section>
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>
           ) : (
-            <div className="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
+            <div className="space-y-5">
               <section
-                aria-labelledby="editable-framing-heading"
+                aria-label="Problem to solve"
                 className="min-w-0"
               >
-                <Field invalid={Boolean(problemError)}>
-                  <FieldLabel
-                    id="editable-framing-heading"
-                    htmlFor="problem-framing"
-                  >
-                    Problem framing
-                  </FieldLabel>
+                <div
+                  className="data-[invalid=true]:text-destructive-foreground"
+                  data-invalid={Boolean(problemError)}
+                >
                   <Textarea
+                    label="Problem to solve"
                     id="problem-framing"
                     ref={problemRef}
                     value={editedProblem}
@@ -1664,7 +1217,7 @@ export default function IntakeForm({
                       setEditedProblem(event.target.value);
                       if (problemError) setProblemError(null);
                     }}
-                    rows={10}
+                    rows={3}
                     maxLength={DESCRIPTION_MAX}
                     readOnly={creating}
                     aria-invalid={Boolean(problemError) || undefined}
@@ -1673,76 +1226,76 @@ export default function IntakeForm({
                         ? "problem-framing-error"
                         : "problem-framing-description"
                     }
-                    className="min-h-52 resize-y text-type-prose"
+                    className="min-h-24 resize-y text-sm leading-relaxed"
                   />
                   {problemError ? (
-                    <FieldError id="problem-framing-error">
+                    <p
+                      className="text-destructive-foreground"
+                      id="problem-framing-error"
+                    >
                       {problemError}
-                    </FieldError>
+                    </p>
                   ) : (
-                    <FieldDescription id="problem-framing-description">
-                      Edit this before creating the Request. The original stays
-                      unchanged.
-                    </FieldDescription>
+                    <p id="problem-framing-description">
+                      Your original description will also be saved.
+                    </p>
                   )}
-                </Field>
+                </div>
               </section>
 
               <aside
                 aria-labelledby="source-request-heading"
-                className="min-w-0 rounded-xl border bg-recessed p-4 sm:p-5"
+                className="min-w-0 space-y-2"
               >
-                <Typography
+                <h2
                   id="source-request-heading"
-                  as="h2"
-                  role="label"
-                  className="text-muted-foreground"
+                  className={cn("text-sm font-medium", "text-muted-foreground")}
                 >
-                  Original Request
-                </Typography>
-                <Typography
-                  as="h3"
-                  role="sectionTitle"
-                  className="mt-3 max-w-none break-words"
-                >
-                  {source.title}
-                </Typography>
-                <Typography
-                  as="p"
-                  role="ui"
-                  className="mt-2 whitespace-pre-wrap break-words text-muted-foreground"
+                  Your original Request
+                </h2>
+                <p
+                  className={cn(
+                    "text-sm leading-relaxed",
+                    "mt-2 whitespace-pre-wrap break-words text-muted-foreground",
+                  )}
                 >
                   {source.description}
-                </Typography>
+                </p>
 
                 {triage.classification === "hybrid" &&
                   triage.extractedSolution && (
                     <div className="mt-5 border-t pt-5">
-                      <div className="flex items-center gap-2 text-warning">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <LightbulbIcon
                           aria-hidden="true"
                           className="size-4 shrink-0"
-                          strokeWidth={1.8}
                         />
-                        <Typography as="h3" role="label">
-                          Solution idea, preserved
-                        </Typography>
+                        <h3 className={cn("text-sm font-medium")}>
+                          Suggested change
+                        </h3>
                       </div>
-                      <Typography
-                        as="p"
-                        role="ui"
-                        className="mt-2 break-words text-muted-foreground"
+                      <p
+                        className={cn(
+                          "text-sm leading-relaxed",
+                          "mt-2 break-words text-muted-foreground",
+                        )}
                       >
                         {triage.extractedSolution}
-                      </Typography>
+                      </p>
                     </div>
                   )}
               </aside>
             </div>
           )}
 
+          <EarlierDraftDetails values={source} />
+          {expectedImpactSchema.safeParse(source.expectedImpact).success && (
+            <div className="border-t pt-5"><ExpectedImpactSummary impact={expectedImpactSchema.parse(source.expectedImpact)} /></div>
+          )}
+          <RequestReviewSupportingDetails relatedLink={source.usefulLink} files={attachments} />
+
           {failure && (
-            <Feedback kind="error" title="Request not created">
+            <IntakeNotice error title="Request not created">
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
                 <>
@@ -1756,14 +1309,17 @@ export default function IntakeForm({
                   </Link>
                 </>
               )}
-            </Feedback>
+            </IntakeNotice>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          </div>
+          <ReviewFooter className={cn("flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-4", presentation === "dialog" && styles.reviewFooter)}>
+            <Button type="button" variant="ghost" onClick={() => {
+              setFailure(null);
+              setStage("compose");
+            }} disabled={creating}>Edit Request</Button>
             <Button
               type="button"
-              size="lg"
-              className="flex-1"
               onClick={
                 failure?.code === "review_expired"
                   ? () => source && void checkFraming(source)
@@ -1771,41 +1327,29 @@ export default function IntakeForm({
               }
               disabled={creating}
               aria-busy={creating || undefined}
+              aria-keyshortcuts="Control+Enter Meta+Enter"
             >
               {creating && (
                 <LoaderCircleIcon
                   aria-hidden="true"
                   data-icon="inline-start"
                   className="animate-spin motion-reduce:animate-none"
-                  strokeWidth={1.8}
                 />
               )}
               {creating
                 ? "Creating Request…"
                 : failure?.code === "review_expired"
-                  ? "Check wording again"
+                  ? "Review again"
                   : "Create Request"}
             </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              onClick={() => {
-                setFailure(null);
-                setStage("review");
-              }}
-              disabled={creating}
-              className="sm:min-w-40"
-            >
-              Edit Request
-            </Button>
-          </div>
+          </ReviewFooter>
 
           {!creating && (
-            <Typography
-              as="p"
-              role="meta"
-              className="hidden text-center text-muted-foreground sm:block"
+            <p
+              className={cn(
+                "text-xs",
+                "sr-only",
+              )}
             >
               Press{" "}
               <kbd className="rounded border border-input bg-muted px-1.5 py-0.5 font-mono">
@@ -1816,7 +1360,7 @@ export default function IntakeForm({
                 Enter
               </kbd>{" "}
               to create.
-            </Typography>
+            </p>
           )}
         </div>
       )}
@@ -1825,54 +1369,66 @@ export default function IntakeForm({
         createdRequestId && (
           <div className={cn(reveal, "mx-auto max-w-[680px] space-y-6")}>
             <header className="space-y-2">
-              <Typography
-                as="p"
-                role="micro"
-                className="font-semibold tracking-[0.08em] text-brand uppercase"
+              <p
+                className={cn(
+                  "text-xs font-medium",
+                  "font-medium text-muted-foreground",
+                )}
               >
                 Request created
-              </Typography>
-              <h1
+              </p>
+              <h2
                 ref={headingRef}
                 tabIndex={-1}
                 className={cn(
-                  typographyVariants({ role: "pageTitle" }),
-                  "focus:outline-none"
+                  "text-xl font-medium tracking-tight",
+                  "focus:outline-none",
                 )}
               >
                 {stage === "uploading"
-                  ? "Adding your files."
-                  : "Your Request is safe."}
-              </h1>
-              <Typography
-                as="p"
-                role="ui"
-                className="text-muted-foreground"
+                  ? "Uploading files"
+                  : hasPendingUploads
+                    ? "Some files weren’t uploaded"
+                    : "Your Request is ready"}
+              </h2>
+              <p
+                className={cn(
+                  "text-sm leading-relaxed",
+                  "text-muted-foreground",
+                )}
               >
                 {stage === "uploading"
                   ? "Keep this tab open while the selected files upload."
-                  : "One or more files need attention. Retry them, remove them, or continue without them."}
-              </Typography>
+                  : hasPendingUploads
+                    ? "One or more files need attention. Retry them, remove them, or continue without them."
+                    : "Your Request is saved. Open it to continue."}
+              </p>
             </header>
 
-            <ul aria-label="Request file uploads" className="divide-y rounded-xl border bg-card">
+            <ul aria-label="Request file uploads" className="space-y-3">
               {attachments.map((attachment) => (
-                <li key={attachment.key} className="flex gap-3 px-4 py-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <li
+                  key={attachment.key}
+                  className="flex items-start gap-3 border-b py-3 last:border-0"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
                     <AttachmentIcon file={attachment.file} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Typography as="p" role="label" className="truncate">
+                    <p className={cn("text-sm font-medium", "truncate")}>
                       {attachment.file.name}
-                    </Typography>
+                    </p>
                     <div className="mt-1 flex items-center justify-between gap-3">
-                      <Typography
-                        as="p"
-                        role="meta"
+                      <p
                         className={cn(
-                          "text-muted-foreground",
-                          attachment.status === "failed" && "text-destructive",
-                          attachment.status === "uploaded" && "text-success"
+                          "text-xs",
+                          cn(
+                            "text-muted-foreground",
+                            attachment.status === "failed" &&
+                              "text-destructive-foreground",
+                            attachment.status === "uploaded" &&
+                              "text-success-foreground",
+                          ),
                         )}
                       >
                         {attachment.status === "queued"
@@ -1882,12 +1438,11 @@ export default function IntakeForm({
                             : attachment.status === "uploaded"
                               ? "Uploaded"
                               : "Upload failed"}
-                      </Typography>
+                      </p>
                       {attachment.status === "uploaded" && (
                         <CheckIcon
                           aria-hidden="true"
-                          className="size-4 shrink-0 text-success"
-                          strokeWidth={2}
+                          className="size-4 shrink-0 text-success-foreground"
                         />
                       )}
                     </div>
@@ -1899,13 +1454,14 @@ export default function IntakeForm({
                       />
                     )}
                     {attachment.error && (
-                      <Typography
-                        as="p"
-                        role="meta"
-                        className="mt-2 text-destructive"
+                      <p
+                        className={cn(
+                          "text-xs",
+                          "mt-2 text-destructive-foreground",
+                        )}
                       >
                         {attachment.error}
-                      </Typography>
+                      </p>
                     )}
                     {stage === "attachment_recovery" &&
                       attachment.status === "failed" && (
@@ -1913,28 +1469,26 @@ export default function IntakeForm({
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void retryAttachments([attachment])
-                            }
+                            variant="secondary"
+                            onClick={() => void retryAttachments([attachment])}
+                            disabled={mutationBusy}
                           >
                             <RotateCcwIcon
                               aria-hidden="true"
                               data-icon="inline-start"
-                              strokeWidth={1.8}
                             />
-                            Try again
+                            Retry upload
                           </Button>
                           <Button
                             type="button"
                             size="sm"
                             variant="ghost"
                             onClick={() => void removeFailedFile(attachment)}
+                            disabled={mutationBusy}
                           >
                             <Trash2Icon
                               aria-hidden="true"
                               data-icon="inline-start"
-                              strokeWidth={1.8}
                             />
                             Remove
                           </Button>
@@ -1945,32 +1499,42 @@ export default function IntakeForm({
               ))}
             </ul>
 
-            {stage === "attachment_recovery" && (
+            {stage === "attachment_recovery" && hasPendingUploads && (
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
                   type="button"
-                  className="flex-1"
+                  className="sm:flex-1"
                   onClick={() => void retryFailedFiles()}
+                  disabled={mutationBusy}
                 >
                   <RotateCcwIcon
                     aria-hidden="true"
                     data-icon="inline-start"
-                    strokeWidth={1.8}
                   />
                   Retry failed files
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  className="flex-1"
+                  variant="secondary"
+                  className="sm:flex-1"
                   onClick={() => void continueWithoutFailedFiles()}
+                  disabled={mutationBusy}
                 >
-                  Continue without them
+                  Skip failed files
                 </Button>
               </div>
             )}
+            {stage === "attachment_recovery" && !hasPendingUploads && (
+              <Button
+                type="button"
+                onClick={() => finishCreatedRequest(createdRequestId)}
+              >
+                View Request
+              </Button>
+            )}
           </div>
         )}
-    </main>
+      </Surface>
+    </div>
   );
 }

@@ -1,45 +1,19 @@
 "use client"
-// Official Tasks columns composition, with Lane fields and existing detail links.
-import Link from "next/link"
-import { createColumnHelper } from "@tanstack/react-table"
-import type { OverviewRequest } from "@/lib/request-overview"
-import { requestDetailHref, type RequestStatusFilter } from "@/lib/request-workspace"
-import { relativeTime } from "@/lib/relative-time"
-import { DataTableColumnHeader } from "./data-table-column-header"
-import type { TasksTableFeatures } from "./data-table-features"
-import { statuses } from "./statuses"
 
-const columnHelper = createColumnHelper<TasksTableFeatures, OverviewRequest>()
-export const columns = columnHelper.columns([
-  columnHelper.accessor(row => row.reframedProblem ?? row.title, {
-    id: "title",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Request" />,
-    enableHiding: false,
-    cell: ({ row, table }) => {
-      const status = (table.getColumn("status")?.getFilterValue() as string[] | undefined)?.[0] ?? "all"
-      return <Link id={`request-${row.original.id}`} href={requestDetailHref(row.original.id, status as RequestStatusFilter)} className="block min-w-[220px] max-w-[500px] truncate font-medium underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring" title={row.original.reframedProblem ?? row.original.title}>{row.getValue("title")}</Link>
-    },
-  }),
-  columnHelper.accessor("status", {
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => {
-      const status = statuses.find(status => status.value === row.getValue("status"))!
-      return <div className="flex w-[110px] items-center gap-2"><status.icon aria-hidden="true" className="size-4 text-muted-foreground" /><span>{status.label}</span></div>
-    },
-    filterFn: (row, id, value) => value.includes(row.getValue(id)),
-  }),
-  columnHelper.accessor("creatorName", {
-    id: "submittedBy",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Submitted by" />,
-    cell: ({ row }) => <span className="whitespace-nowrap">{row.original.creatorName ?? "Unknown member"}</span>,
-  }),
-  columnHelper.accessor("assigneeName", {
-    id: "pickedUpBy",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Picked up by" />,
-    cell: ({ row }) => <span className="whitespace-nowrap">{row.original.assigneeName ?? "Not picked up"}</span>,
-  }),
-  columnHelper.accessor("createdAt", {
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Submitted" />,
-    cell: ({ row }) => <time dateTime={row.original.createdAt} title={new Date(row.original.createdAt).toUTCString()} className="whitespace-nowrap">{relativeTime(new Date(row.original.createdAt))}</time>,
-  }),
-])
+import Link from "next/link"
+import type { ReactNode } from "react"
+import type { OverviewRequest } from "@/lib/request-overview"
+import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { RequestProperty } from "../request-properties"
+import styles from "../request-rows.module.css"
+
+export type RequestColumn = { key: string; label: string; value: (row: OverviewRequest) => string; render: (row: OverviewRequest, filter: RequestStatusFilter, projectFilter?: RequestProjectFilter) => ReactNode }
+export const columns: RequestColumn[] = [
+  { key: "title", label: "Request", value: row => row.reframedProblem ?? row.title, render: (row, filter, projectFilter) => <Link id={`request-${row.id}`} href={requestDetailHref(row.id, filter, projectFilter)} title={row.reframedProblem ?? row.title} className={styles.title}>{row.reframedProblem ?? row.title}</Link> },
+  { key: "status", label: "Status", value: row => row.status, render: row => <RequestProperty request={row} property="status" /> },
+  { key: "project", label: "Project", value: row => row.projectName ?? "", render: (row, filter) => <RequestProperty request={row} property="project" filter={filter} /> },
+  { key: "pickedUpBy", label: "Owner", value: row => row.assigneeName ?? "", render: row => <RequestProperty request={row} property="pickedUpBy" /> },
+  { key: "createdAt", label: "Submitted", value: row => row.createdAt, render: row => <RequestProperty request={row} property="createdAt" /> },
+  { key: "requestType", label: "Request type", value: row => row.requestType ?? "", render: row => <RequestProperty request={row} property="requestType" /> },
+  { key: "submittedBy", label: "Submitted by", value: row => row.creatorName ?? "", render: row => <RequestProperty request={row} property="submittedBy" /> },
+]

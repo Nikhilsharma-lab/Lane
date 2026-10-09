@@ -3,9 +3,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Feedback } from "@/components/ui/feedback";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/arc/button/button";
+import { Alert } from "@/components/arc/alert/alert";
+import { Textarea } from "@/components/arc/textarea/textarea";
 import { addComment } from "./actions";
 
 type SubmissionState = "idle" | "posting" | "error" | "success";
@@ -52,7 +52,7 @@ export function CommentForm({
       router.refresh();
     } catch {
       setError(
-        "We couldn’t post your comment. Your draft is still here."
+        "Couldn’t post your comment. Your draft is still here. Try again."
       );
       setSubmissionState("error");
     } finally {
@@ -68,6 +68,7 @@ export function CommentForm({
       aria-busy={pending || undefined}
     >
       <Textarea
+        label="Comment"
         aria-label="Comment"
         aria-describedby="comment-posting-shortcut"
         name="body"
@@ -99,9 +100,9 @@ export function CommentForm({
       />
       {error && (
         <div id="comment-posting-error">
-          <Feedback kind="error" variant="inline">
+          <Alert tone="danger" title="Action failed">
             {error}
-          </Feedback>
+          </Alert>
         </div>
       )}
       <p
@@ -126,7 +127,7 @@ export function CommentForm({
         </span>
         <span
           aria-hidden="true"
-          className="hidden text-type-micro text-muted-foreground sm:inline"
+          className="hidden text-xs text-muted-foreground sm:inline"
         >
           ⌘/Ctrl + Enter to post
         </span>
@@ -142,13 +143,11 @@ export function CommentForm({
               aria-hidden="true"
               data-icon="inline-start"
               className="motion-safe:animate-spin motion-reduce:animate-none"
-              strokeWidth={1.8}
             />
           ) : (
             <Send
               aria-hidden="true"
               data-icon="inline-start"
-              strokeWidth={1.8}
             />
           )}
           {pending

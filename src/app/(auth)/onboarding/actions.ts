@@ -27,7 +27,7 @@ export async function saveOnboardingRole(data: { role: string }) {
   }
 
   const user = await currentUser();
-  if (!user) return { error: "Lane could not load your Clerk profile." };
+  if (!user) return { error: "Could not load your profile. Refresh the page and try again." };
 
   await db
     .insert(profiles)

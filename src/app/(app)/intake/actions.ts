@@ -9,9 +9,11 @@ import {
   type TriageFailureKind,
   type TriageResult,
 } from "@/lib/ai/triage";
+import { canUseProject } from "@/lib/project-access";
+import type { RequestType } from "@/lib/request-properties";
 import { requireActiveMember } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { editedProblemSchema, requestSchema } from "@/lib/request-schema";
+import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 
 export type IntakeFailureCode =
@@ -29,6 +31,9 @@ export type IntakeFailure = {
   code: IntakeFailureCode;
   message: string;
   field?:
+    | "expectedImpact"
+    | "projectId"
+    | "requestType"
     | "title"
     | "description"
     | "affectedPeople"
@@ -52,27 +57,27 @@ const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
   timeout: {
     code: "timeout",
     message:
-      "The framing check took longer than expected. Your request is still here. Try again.",
+      "The review took too long. Your draft is still here. Try again.",
   },
   rate_limited: {
     code: "rate_limited",
     message:
-      "The framing service is receiving too many requests. Wait a moment, then try again.",
+      "Lane is busy right now. Wait a moment, then try again.",
   },
   malformed: {
     code: "malformed",
     message:
-      "Lane could not read the framing result safely. Your request is still here. Run the check again.",
+      "Lane could not prepare the review. Your draft is still here. Try again.",
   },
   network: {
     code: "network",
     message:
-      "Lane could not reach the framing service. Your request is still here. Try again.",
+      "The review is unavailable right now. Your draft is still here. Try again shortly.",
   },
   provider: {
     code: "provider",
     message:
-      "The framing service is unavailable right now. Your request is still here. Try again shortly.",
+      "The review is unavailable right now. Your draft is still here. Try again shortly.",
   },
 };
 
@@ -85,6 +90,9 @@ function sessionFailure(): IntakeFailure {
 
 export async function runTriage(
   formData: {
+    expectedImpact?: RequestInput["expectedImpact"];
+    projectId?: string | null;
+    requestType?: RequestType | null;
     title: string;
     description: string;
     affectedPeople?: string;
@@ -104,6 +112,9 @@ export async function runTriage(
     const field =
       typeof issue.path[0] === "string" &&
       [
+        "expectedImpact",
+        "projectId",
+        "requestType",
         "title",
         "description",
         "affectedPeople",
@@ -125,6 +136,15 @@ export async function runTriage(
     };
   }
 
+  try {
+    if (!(await canUseProject(parsed.data.projectId, auth))) {
+      return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Choose another Project or clear the selection." } };
+    }
+  } catch (error) {
+    console.error("[intake] Project validation failed:", error);
+    return { success: false, error: { code: "network", field: "projectId", message: "Lane could not check this Project. Try again." } };
+  }
+
   const rateCheck = await checkAiRateLimit(auth.userId);
   if (!rateCheck.allowed) {
     const retryAfterSeconds = Math.max(
@@ -135,7 +155,7 @@ export async function runTriage(
       success: false,
       error: {
         code: "rate_limited",
-        message: `You have checked several Requests quickly. Try again in ${retryAfterSeconds} seconds.`,
+        message: `You’ve reached the review limit. Try again in ${retryAfterSeconds} seconds.`,
         retryAfterSeconds,
       },
     };
@@ -171,12 +191,15 @@ export async function saveRequest(
     userId: auth.userId,
   });
   if (!verification.valid) {
+    if (verification.reason === "impact_required") {
+      return { success: false, error: { code: "validation", field: "expectedImpact", message: "Add the expected impact, then review this Request again before creating it." } };
+    }
     return {
       success: false,
       error: {
         code: "review_expired",
         message:
-          "This framing review has expired. Your original Request is still here. Review the framing again.",
+          "This review has expired. Your original Request is still here. Review it again to continue.",
       },
     };
   }
@@ -199,7 +222,7 @@ export async function saveRequest(
       success: false,
       error: {
         code: "validation",
-        message: "Add a problem framing before creating this Request.",
+        message: "Describe the problem before creating this Request.",
         field: "editedProblemText",
       },
     };
@@ -209,11 +232,17 @@ export async function saveRequest(
     payload.classification === "problem" ? null : parsedEdit.data;
 
   try {
+    if (!(await canUseProject(payload.projectId, auth))) {
+      return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Return to your Request and choose another Project or clear the selection." } };
+    }
     const [created] = await db
       .insert(requests)
       .values({
         id: payload.requestId,
         orgId: auth.orgId,
+        projectId: payload.projectId,
+        requestType: payload.requestType,
+        expectedImpact: payload.expectedImpact,
         title: payload.title,
         description: payload.description,
         affectedPeople: payload.affectedPeople || null,
@@ -252,7 +281,7 @@ export async function saveRequest(
       error: {
         code: "save_failed",
         message:
-          "Lane could not create this Request. Your confirmed framing is still here. Try again.",
+          "Your Request could not be created. Your text is still here. Try again.",
       },
     };
   } catch (error) {
@@ -262,7 +291,7 @@ export async function saveRequest(
       error: {
         code: "save_failed",
         message:
-          "Lane could not create this Request. Your confirmed framing is still here. Try again.",
+          "Your Request could not be created. Your text is still here. Try again.",
       },
     };
   }

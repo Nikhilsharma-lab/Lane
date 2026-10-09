@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { expectedImpactDraftSchema } from "./request-impact";
+import { projectIdSchema, requestTypeSchema } from "./request-properties";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -12,10 +14,17 @@ import {
 const INTAKE_DRAFT_VERSION = 2;
 const INTAKE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
+// Covers every bounded source/impact/AI field even when JSON uses six-byte
+// escapes per character and base64 expands it again. The former 20k limit
+// discarded valid long reviews on recovery.
+const REVIEW_TOKEN_MAX_LENGTH = 256_000;
 
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const sourceSchema = z.object({
+  expectedImpact: expectedImpactDraftSchema,
+  projectId: projectIdSchema,
+  requestType: requestTypeSchema,
   title: z.string().max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX).default(""),
@@ -67,10 +76,15 @@ const intakeDraftSchema = z.object({
   version: z.literal(INTAKE_DRAFT_VERSION),
   savedAt: z.number().int().nonnegative(),
   source: sourceSchema,
+  previousProblem: z.string().max(DESCRIPTION_MAX).default(""),
+  previousProblemSource: z.object({
+    title: z.string().max(TITLE_MAX),
+    description: z.string().max(DESCRIPTION_MAX),
+  }).nullable().optional(),
   review: z
     .object({
       triage: triageDraftSchema,
-      token: z.string().min(1).max(20_000),
+      token: z.string().min(1).max(REVIEW_TOKEN_MAX_LENGTH),
       editedProblem: z.string().max(DESCRIPTION_MAX),
     })
     .nullable(),
@@ -80,6 +94,8 @@ export type IntakeDraft = {
   version: typeof INTAKE_DRAFT_VERSION;
   savedAt: number;
   source: RequestInput;
+  previousProblem?: string;
+  previousProblemSource?: Pick<RequestInput, "title" | "description"> | null;
   review: {
     triage: TriageResult;
     token: string;
@@ -134,7 +150,14 @@ export function writeIntakeDraft(
   now = Date.now()
 ): boolean {
   const key = intakeDraftStorageKey(scope);
+  const hasImpact = draft.source.expectedImpact != null && Object.entries(draft.source.expectedImpact).some(
+    ([key, value]) => key !== "kind" && (typeof value === "number" || (typeof value === "string" && value.trim().length > 0))
+  );
   const hasSource =
+    hasImpact ||
+    Boolean(draft.previousProblem?.trim()) ||
+    draft.source.projectId != null ||
+    draft.source.requestType != null ||
     draft.source.title.trim().length > 0 ||
     draft.source.description.trim().length > 0 ||
     draft.source.affectedPeople.trim().length > 0 ||

@@ -6,33 +6,45 @@ product
 
 ## Users
 
-Design-team practitioners — PMs, designers, and developers — at companies where design work
-arrives as ad-hoc requests. They open Lane in the middle of real work: submitting a request,
-checking what's on the shared board, or picking something up. They are software-literate power
-users who live in keyboard-fast tools. Their job-to-be-done is simple and shared: get a design
-request understood as a *problem* (not a pre-baked solution), see it on one workspace-wide board,
-and move it Open → In Progress → Done. No one is here to be measured.
+Product leaders and design leaders are the initial buyers; PMs, designers, and developers work
+together in Lane. They need requests framed as problems, design and engineering involved before
+commitment, and released work followed through to an evidenced outcome. They use specialist tools
+for design, engineering, and analytics; Lane coordinates the context and decisions between them.
+They should not need another set of long documents, activity logs, or individual performance scores.
 
 ## Product Purpose
 
-Lane is design-ops software built on one belief: **surveillance produces performance; support
-produces truth.** It deliberately omits time tracking, "last active," and utilization metrics —
-that omission is the product, not a gap. The core moment is the **intake gate**: an AI classifier
-that catches solution-shaped requests and reframes them into a problem the submitter confirms
-before anything is saved. Accepted requests live on a single shared board with a dead-simple
-lifecycle (Open → In Progress → Done) that looks identical for every role. Success looks like a
-design lead trusting the board enough to stop running a side spreadsheet — and a team that tells
-the truth about its work because nothing here is watching them.
+Lane has two product foundations, confirmed 2026-10-06:
+
+1. **One source of truth for the product and its journeys:** connect Requests, agreed decisions,
+   design/development references, journey changes, releases and results in a shared record.
+2. **Expected impact compared with actual results:** record a prediction when a Request is created,
+   measure after launch in the agreed timeframe, compare and learn, then show quarterly/yearly product
+   results from the same records.
+
+The named PM, Designer and Developer must align before work advances. The person who submitted the
+Request owns reporting its actual results and closing it. An explicit exception may close with a reason
+and is excluded from measured-impact totals. Finishing work and closing its outcome are different.
+Lane supports understanding the team's product results without time tracking, utilization or individual
+rankings. These are product requirements; the current build does not yet implement the complete chain.
 
 ## Current Product Promise
 
 Lane helps a team turn an unclear or solution-shaped design request into an accepted,
 problem-framed **Request**, then move it transparently from Open → In Progress → Done. The
-current product is Requests: auth, onboarding, the Intake gate (with optional evidence fields
-and private attachments), one shared board (with an optional status filter), request detail,
+existing application scope is Requests: auth, onboarding, the compact Intake gate (with Expected impact,
+optional Project, Request type, related link and private attachments), one shared board (with an optional status filter), request detail,
 comments, invited guests, lightweight in-app notifications, members, and Profile settings
 (including browser-local theme preference). A person can change their PM / Designer / Developer
 label in Profile without changing access or permissions.
+
+Expected impact is implemented locally as Metric or Verified result, preserved through signed review and
+shown read-only on saved Request detail; local checks passed. An unknown current value remains valid.
+Named trio agreement, launch, actual-result closure and quarterly/yearly totals remain target only.
+
+This describes the source-level MVP, not a fresh production verification. Its existing pickup/completion
+behaviour remains until an explicitly scoped increment changes it. Deployment and cutover evidence live in
+`lane-roadmap.md` and the Clerk cutover plan.
 
 PM / Designer / Developer is always a functional label, never a permission tier. Clerk is the sole
 authority for users, sessions, organizations, memberships, roles, and invitations. Lane recognizes
@@ -40,15 +52,41 @@ Clerk **admin | member | guest** organization roles; invited guests are limited 
 see and discuss only their own Requests. Production guest invitations require Clerk Enhanced B2B, so
 free-plan production is Admin/Member only. Public or anonymous Intake is a different, deferred decision.
 
-## Product Vision — not current build scope
+## Approved Product Direction — confirmed 2026-09-28; clarified 2026-10-06, not fully implemented
 
-**Outcome learning.** Lane may eventually let a requester state an expected measurable outcome,
-then record what actually happened after shipping. The comparison belongs to the Request and its
-retrospective, not to an individual score. Request `Done` and outcome-learning completion remain
-separate: evidence can be delayed, unavailable, inconclusive, or impossible to attribute. The
-requester owns the inputs; the PM label does not gate the action. PRDs may be optional supporting
-context, never a universal Intake requirement. PM calibration scores, rankings, and performance
-profiles are permanently refused.
+**The pipeline:** Request → Alignment → Prioritization → Discovery and design → Development → Release
+→ Measurement → Closure. These are journey moments, not eight mandatory board columns. Discovery and
+delivery can overlap within agreed boundaries; specialist work remains in existing tools.
+
+- Each Request names a PM, Designer, and Developer. The creator represents one discipline and selects the
+  other two participants. Explicit alignment is required before prioritization/execution; disagreement
+  blocks progress and requires a short reason. Silence and administrator authority cannot override it.
+- The trio can commit to bounded discovery or to delivery. Assignment by the creator or an administrator,
+  or self-pickup of unassigned work by a Designer, does not start work or supply alignment. Request-specific
+  responsibilities are not global permissions derived from `profiles.role`.
+- One compact agreement covers the problem, scope, timing, success, guardrails, complexity, dependencies,
+  and unknowns. Delivery needs one primary measurable or otherwise verifiable success criterion, evidence,
+  and a review window. Expected impact starts at Request creation and is preserved through agreement and
+  measurement. Build readiness and release readiness must be complete for the agreed release.
+- Active work stays **Open → In Progress → Done**. Outcome resolution is separate. The creator closes with
+  an actual result or a truthful exception; `Done` does not mean impact was measured or expectations met.
+- Outcome-closed Requests cannot reopen. Further work becomes a linked **follow-up Request**, with its own
+  agreement and outcome. Material pre-release changes amend the existing agreement and require realignment;
+  ordinary exploration does not. Post-release work uses follow-ups even while measurement is underway.
+  Factual corrections to closed records are append-only, not silent rewrites.
+- Decisions, concerns, transfers, and changes remain attributable. Follow-up counts are not individual
+  quality scores. PM calibration, rankings, and performance profiles remain permanently refused.
+- Quarterly/yearly summaries derive from Request results, preserve outstanding measurements and show
+  exceptions separately. Combine only compatible, non-overlapping measurements; do not total unrelated
+  percentages or count the same product result once per contributing Request. The journey-record model
+  and report-period rules remain focused design decisions.
+
+`REQUIREMENTS.md` §§4–7 is the canonical behaviour contract, including exceptions and change boundaries.
+This approval settles direction; it does not authorize building the whole pipeline, new routes/tables,
+integrations, or background AI. `lane-roadmap.md` sequences separately approved increments. Keep typing
+minimal and reuse existing artifacts rather than requiring duplicate PRDs, test reports, or daily logs.
+
+## Product Vision — not current build scope
 
 **Agentic design operations.** Lane may eventually use agents for bounded procedural work: organize
 context, structure research, surface gaps and edge cases, and compose from an approved design
@@ -86,10 +124,11 @@ should feel like a sharp, helpful colleague, not a wizard.
 
 - **Support, not surveillance.** Never ship an affordance that measures, ranks, or times a person.
   When a feature could read as monitoring, cut it. The omission is the value.
-- **Same view for everyone.** PM/Designer/Developer is a label, not a permission or UI tier. No
-  role-gated dashboards, hidden actions, or per-role views. (Owner-vs-member is the only tier.)
-- **The gate is the product.** Concentrate craft on the intake reframing moment; it's where Lane
-  earns its belief. Everything else stays quiet so the gate can speak.
+- **Same shared view.** PM/Designer/Developer is a label, not a permission or UI tier. Clerk membership
+  and Admin/Member/conditional Guest permissions define access. Named Request responsibilities define
+  specific alignment and closure actions, not per-role dashboards or separate applications.
+- **Make decisions legible.** Problem framing, alignment, readiness, and outcome closure should be clear
+  without turning exploration into a stage machine or documentation exercise.
 - **Pace to comprehension.** Restraint over output. One deliberate, legible thing beats five
   half-built ones. If it can't be explained in plain English, it shipped too fast.
 - **Recede until needed.** Engineered minimalism, keyboard-fast. The tool is invisible until the
