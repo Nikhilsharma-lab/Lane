@@ -12,7 +12,7 @@
   background: var(--request-property-background, var(--surface-muted));
   color: var(--request-property-foreground, var(--text-secondary));
 }
-@media (pointer: coarse), (max-width: 640px) {
+@media (pointer: coarse) {
   .trigger { min-width: 44px; }
 }
 

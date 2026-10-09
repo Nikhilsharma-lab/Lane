@@ -1,7 +1,7 @@
 .panel { padding: 0; max-width: min(424px, calc(100vw - 24px)); }
 .trigger { height: var(--row, 32px); }
 .compact { grid-template-columns: 1fr; place-items: center; width: 40px; padding: 0; }
-@media (max-width: 640px), (pointer: coarse) { .trigger { min-height: 44px; } }
+@media (pointer: coarse) { .trigger { min-height: 44px; } }
 .compactCount { position: absolute; top: -2px; right: -4px; border-radius: var(--radius-pill); padding: 1px 4px; color: var(--accent-foreground); background: var(--accent); font-size: var(--text-xs); }
 .items { margin: 0; padding: 0; list-style: none; }
 .title strong { overflow: visible; white-space: normal; overflow-wrap: anywhere; }

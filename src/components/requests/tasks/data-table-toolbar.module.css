@@ -13,13 +13,17 @@
 .activeFilters { padding: var(--space-2) var(--space-6) 0; }
 .recordRegion { min-width: 0; margin-top: var(--space-2); padding-inline: var(--space-6); }
 .tableFooter { margin-top: var(--space-5); padding: 0 var(--space-6) var(--space-6); }
+/* Narrow widths only tighten the gutters; control sizes follow the pointer. */
 @media (max-width: 640px) {
-  .toolbar { min-height: 56px; padding: var(--space-1) var(--space-4); }
-  .status { --control-height-sm: var(--control-height-md); flex: 1 1 auto; }
-  .iconButton { width: 44px; min-width: 44px; min-height: 44px; }
+  .toolbar { padding: var(--space-1) var(--space-4); }
   .activeFilters { padding-inline: var(--space-4); }
   .recordRegion { padding-inline: var(--space-4); }
   .tableFooter { padding-inline: var(--space-4); }
+}
+@media (max-width: 640px) and (pointer: fine) {
+  /* Arc's filter trigger grows to 44px at this width on its own; keep it level
+     with the other toolbar icons for a mouse. Same documented size token. */
+  .actions :global([data-icon-only][data-icon-only]) { --filter-trigger-size: var(--toolbar-icon-size, 40px); }
 }
 @media (pointer: coarse) {
   .status { --control-height-sm: var(--control-height-md); }
@@ -56,7 +60,7 @@
   .tableLayout[data-preview-table] .listAndSummary[data-summary-open] .listPane { visibility: hidden; }
   .summary { inset-inline: auto var(--space-2); }
 }
-@media (pointer: coarse), (max-width: 640px) {
+@media (pointer: coarse) {
   :global(:root[data-visual-system="linear"]) .status, .summaryDimensions { --control-height-sm: 44px; }
   .summaryClose { top: 100%; width: 44px; min-height: 44px; }
   .summaryCount[aria-live] { min-height: 44px; display: flex; align-items: center; margin-block: 0; padding-inline-end: 44px; }

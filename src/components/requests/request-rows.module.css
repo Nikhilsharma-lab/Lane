@@ -74,7 +74,7 @@
   .savedCode + .title { flex-basis: 10rem; }
   .properties { justify-content: flex-start; width: 100%; }
 }
-@media (pointer: coarse), (max-width: 640px) {
+@media (pointer: coarse) {
   .propertyTrigger { min-height: 44px; min-width: 44px; }
 }
 
@@ -117,7 +117,7 @@
   .row[data-compact-row] .requestCode,
   .row[data-compact-row] .savedCode { display: none; }
 }
-@media (pointer: coarse), (max-width: 640px) {
+@media (pointer: coarse) {
   .row[data-compact-row] .identityControl { flex-basis: 24px; width: 24px; height: 44px; }
   .row[data-compact-row] .rowContent { gap: 4px; }
 }

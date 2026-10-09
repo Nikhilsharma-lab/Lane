@@ -46,6 +46,6 @@
   .shell[data-linear-preview-auto-collapse] .resizeHandle { display: none; }
   .shell[data-linear-preview-auto-collapse] .topbar { display: flex; }
 }
-@media (pointer: coarse), (max-width: 640px) {
+@media (pointer: coarse) {
   .shell[data-linear-preview-auto-collapse] .expand { width: 44px; height: 44px; min-height: 44px; }
 }

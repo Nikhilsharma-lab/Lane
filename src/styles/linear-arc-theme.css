@@ -185,7 +185,9 @@
   --interaction-pressed: var(--linear-menu-bg-focus);
 }
 
-@media (pointer: coarse), (max-width: 640px) {
+/* Touch targets grow for coarse pointers only. A narrow window with a mouse
+   keeps the desktop sizes, as Linear does. */
+@media (pointer: coarse) {
   :root[data-visual-system="linear"] {
     --control-height-sm: 44px;
     --control-height-md: 44px;
