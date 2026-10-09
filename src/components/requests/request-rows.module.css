@@ -112,7 +112,10 @@
   .row[data-compact-row] .properties { flex: none; max-width: none; }
 }
 @media (max-width: 640px) {
-  .row[data-compact-row] .requestCode { display: none; }
+  /* Phones keep checkbox, priority, status, title and picker. The code stays
+     reachable through the row menu's Copy code and on the Request detail. */
+  .row[data-compact-row] .requestCode,
+  .row[data-compact-row] .savedCode { display: none; }
 }
 @media (pointer: coarse), (max-width: 640px) {
   .row[data-compact-row] .identityControl { flex-basis: 24px; width: 24px; height: 44px; }
