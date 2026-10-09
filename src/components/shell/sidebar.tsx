@@ -44,6 +44,7 @@ export function Sidebar({
 
   return (
     <SidebarView
+      previewProjectTree
       workspaceName={displayedWorkspaceName}
       fullName={fullName}
       email={email}

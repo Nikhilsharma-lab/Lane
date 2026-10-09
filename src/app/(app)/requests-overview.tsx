@@ -10,6 +10,7 @@ import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
 import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
+import { RequestRowActions } from "@/components/requests/request-row-actions"
 
 export function RequestsOverview({ requests, filter, projectFilter = "all", projectName, isGuest, context }: {
   requests: OverviewRequest[]
@@ -27,7 +28,9 @@ export function RequestsOverview({ requests, filter, projectFilter = "all", proj
         <h1 className={styles.title} title={heading}>{heading}</h1>
         {isGuest && <p className={styles.guestHint} title="Only Requests you submit appear here.">Only Requests you submit appear here.</p>}
       </header>
-      <DataTable data={requests} columns={columns} filter={filter} projectFilter={projectFilter} projectName={projectName} context={context} isGuest={isGuest} />
+      {context
+        ? <RequestRowActions requests={requests} context={context} isGuest={isGuest}><DataTable data={requests} columns={columns} filter={filter} projectFilter={projectFilter} projectName={projectName} context={context} isGuest={isGuest} /></RequestRowActions>
+        : <DataTable data={requests} columns={columns} filter={filter} projectFilter={projectFilter} projectName={projectName} context={context} isGuest={isGuest} />}
       {requests.length === 200 && <p className={styles.limitNote}>Showing the latest 200 Requests.</p>}
     </div>
   )

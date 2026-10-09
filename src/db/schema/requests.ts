@@ -19,6 +19,8 @@ import type { DesignReview } from "@/lib/request-review";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
 
+export const requestPriorityEnum = pgEnum("request_priority", ["none", "urgent", "high", "medium", "low"]);
+
 export const classificationEnum = pgEnum("classification", [
   "problem",
   "solution",
@@ -42,6 +44,7 @@ export const requests = pgTable(
     requestNumber: integer("request_number").notNull().default(0),
     projectId: uuid("project_id"),
     requestType: requestTypeEnum("request_type"),
+    priority: requestPriorityEnum("priority").notNull().default("none"),
     expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
     designReviews: jsonb("design_reviews").$type<DesignReview[]>().notNull().default([]),
     designReviewVersion: integer("design_review_version").notNull().default(0),

@@ -7,6 +7,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { createNotification, createNotifications } from "@/lib/notify";
 import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
+import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 const UUID_RE =
@@ -233,4 +234,30 @@ export async function getAttachmentDownloadUrl(
   }
 
   return { success: true, url: data.signedUrl };
+}
+
+/** Priority is a triage signal on the row. It never changes status,
+ * assignment or what anyone may do; guests cannot set it. */
+export async function setRequestPriority(
+  requestId: string,
+  priority: unknown,
+  context: { orgId: string }
+) {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  const parsed = requestPrioritySchema.safeParse(priority);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await requireMemberOrAbove(context.orgId);
+  if (!auth) return { error: "Not found" };
+
+  const [updated] = await db
+    .update(requests)
+    .set({ priority: parsed.data })
+    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)))
+    .returning({ priority: requests.priority });
+
+  if (!updated) return { error: "Request not found" };
+
+  revalidatePath("/");
+  revalidatePath(`/requests/${requestId}`);
+  return { success: true as const, priority: updated.priority };
 }

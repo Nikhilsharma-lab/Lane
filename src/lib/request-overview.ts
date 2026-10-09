@@ -1,4 +1,4 @@
-import type { RequestType } from "./request-properties"
+import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestStatusFilter } from "./request-workspace"
 
 export type OverviewRequest = {
@@ -16,6 +16,8 @@ export type OverviewRequest = {
   projectId?: string | null
   projectName?: string | null
   requestType?: RequestType | null
+  /** Saved triage signal. Optional only for older illustrative fixtures. */
+  priority?: RequestPriority
 }
 
 export type RequestSort = "newest" | "oldest" | "title"

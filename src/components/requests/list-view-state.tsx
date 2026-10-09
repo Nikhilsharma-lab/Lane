@@ -16,7 +16,7 @@ type ListViewState = {
 const initialView: ListViewState = {
   // Keep the first scan about the Request and its current owner. The other
   // fields remain available in the Display control when a team needs them.
-  columnVisibility: { requestType: false, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
+  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
   pagination: { pageIndex: 0, pageSize: 25 },
 }
 type StatePair = [ListViewState, Dispatch<SetStateAction<ListViewState>>]

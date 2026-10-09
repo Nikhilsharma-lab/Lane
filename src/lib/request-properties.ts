@@ -13,6 +13,16 @@ export const REQUEST_TYPE_DESCRIPTIONS: Record<RequestType, string> = {
   improvement: "An existing capability or experience needs to work better.",
   new_feature: "A capability that does not currently exist.",
 };
+export const REQUEST_PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const;
+export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
+export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
+  none: "No priority",
+  urgent: "Urgent",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+export const requestPrioritySchema = z.enum(REQUEST_PRIORITIES, "Choose a valid priority");
 export type ProjectOption = { id: string; name: string; description: string | null };
 export const projectIdSchema = z.string().uuid("Choose a valid Project").nullable().default(null);
 export const requestTypeSchema = z.enum(REQUEST_TYPES, "Choose a valid Request type").nullable().default(null);

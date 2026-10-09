@@ -3,12 +3,14 @@
 import { createContext, useContext } from "react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import type { OverviewRequest } from "@/lib/request-overview"
+import type { RequestPriority } from "@/lib/request-properties"
 
-export type RequestPriority = "none" | "urgent" | "high" | "medium" | "low"
+export type { RequestPriority }
 export type RequestIdentity = { code: string; priority: RequestPriority }
 
-/** Optional presentation boundary. The Linear review supplies fixture identities
- * and in-memory actions; production has no synthetic codes or saved priorities. */
+/** Optional presentation boundary. Production supplies saved codes, saved
+ * priorities and guarded actions through RequestRowActions; the Linear review
+ * stories supply fixture identities and in-memory actions. */
 export const RequestRowPresentation = createContext<{
   identities: Record<string, RequestIdentity>
   menuItems: (request: OverviewRequest) => ContextMenuItem[]

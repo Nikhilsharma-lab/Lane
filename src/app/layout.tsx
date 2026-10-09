@@ -5,6 +5,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import "@/components/arc/foundation.css";
 import "./globals.css";
+// Linear visual values through Arc's public token hooks. Activated for
+// production by Nikhil on 2026-10-09 (docs/design-system/linear-primitives.md).
+import "@/styles/linear-primitives.css";
+import "@/styles/linear-arc-theme.css";
 
 export const metadata: Metadata = {
   title: "Lane",
@@ -19,7 +23,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-accent="green"
+      data-visual-system="linear"
+      data-ui-state-contract="semantic"
       suppressHydrationWarning
       className={`${fontVariables} h-full antialiased`}
     >

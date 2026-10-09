@@ -1,6 +1,6 @@
 # Linear primitives through Arc components
 
-The 2026-10-08 increment is an opt-in Requests/sidebar preview. Linear supplies the visual values; Arc supplies the installed components, keyboard mechanics, portals and motion. Lane retains its product behaviour. The production root, marketing and Request detail are outside this increment.
+The 2026-10-08 increment began as an opt-in Requests/sidebar preview. Linear supplies the visual values; Arc supplies the installed components, keyboard mechanics, portals and motion. Lane retains its product behaviour. **Production activation (2026-10-09):** Nikhil activated the primitives for the whole app, Request detail included. The root layout (`src/app/layout.tsx`) now imports both stylesheets and sets `data-visual-system="linear"` + `data-ui-state-contract="semantic"`; the compact rows are driven in production by `src/components/requests/request-row-actions.tsx` (saved `LAN-n` codes, the saved `priority` column from migration `0019`, status moves through the existing pick-up/Done actions, copy actions) and the sidebar renders the folder-tree Project navigation. Marketing remains out of scope.
 
 ## Source and activation
 
@@ -8,7 +8,7 @@ The 2026-10-08 increment is an opt-in Requests/sidebar preview. Linear supplies 
 
 The initial token capture used computed styles and CSSOM, not screenshot colour sampling or execution of downloaded JavaScript. That capture temporarily changed Linear to Light and restored its then-current Dark preference. Root defaults were insufficient: the root retained a fallback background even in Light. The adapter therefore uses the actual content/sidebar/menu scopes. The later row audit below began and ended in Light.
 
-`src/styles/linear-arc-theme.css` maps the captured values into existing Arc/Lane semantic hooks. Storybook alone sets `data-visual-system="linear"` and `data-ui-state-contract="semantic"`. Floating surfaces carry `data-ui-surface="floating"` so their portalled children receive the menu context. Switching to other stories restores the previous root attributes. The production layout imports neither new stylesheet.
+`src/styles/linear-arc-theme.css` maps the captured values into existing Arc/Lane semantic hooks. The production root layout and the Linear Storybook stories both set `data-visual-system="linear"` and `data-ui-state-contract="semantic"`. Floating surfaces carry `data-ui-surface="floating"` so their portalled children receive the menu context. Switching to other stories restores the previous root attributes.
 
 ## Applied mapping
 

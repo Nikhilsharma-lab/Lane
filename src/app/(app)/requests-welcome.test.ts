@@ -1,5 +1,7 @@
+import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
+import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
 
 // Isolate external session/database boundaries; render the real workspace.
 const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[] }))
@@ -24,11 +26,15 @@ vi.mock("./request-status-filter", () => ({ RequestStatusFilter: () => null }))
 
 import { RequestsWorkspace } from "./requests-workspace"
 
+// The root layout always supplies the toast stack that row actions report errors through.
+const render = async (props: Parameters<typeof RequestsWorkspace>[0]) =>
+  renderToStaticMarkup(createElement(ToastStackProvider, null, await RequestsWorkspace(props)))
+
 describe("Requests first-use landing", () => {
   it.each(["admin", "member", "guest"])("gives an empty %s workspace one Intake action and appropriate navigation", async (role) => {
     state.role = role
     state.rows = []
-    const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "all" }))
+    const html = await render({ filter: "all" })
     expect(html.match(/href="\/intake"/g)).toHaveLength(1)
     expect(html).not.toContain("Select a Request")
     expect(html).not.toContain('aria-label="Active filters"')
@@ -40,7 +46,7 @@ describe("Requests first-use landing", () => {
   it("does not mistake a status with no matches for a new workspace", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
-    const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "open" }))
+    const html = await render({ filter: "open" })
     expect(html).toContain('aria-label="Active filters"')
     expect(html).toContain('aria-label="Remove Status: Open"')
     expect(html).toContain("Clear all")
@@ -51,14 +57,14 @@ describe("Requests first-use landing", () => {
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
     state.rows = []
-    const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "all", selectedRequestId: "invalid-id" }))
+    const html = await render({ filter: "all", selectedRequestId: "invalid-id" })
     expect(html).toContain("Back to Requests")
   })
 
   it("keeps existing work visible in the shared list", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
-    const html = renderToStaticMarkup(await RequestsWorkspace({ filter: "all" }))
+    const html = await render({ filter: "all" })
     expect(html).toContain('href="/requests/request-1"')
     expect(html).toContain("Existing problem")
     expect(html).toContain('aria-label="Filter Requests by title"')

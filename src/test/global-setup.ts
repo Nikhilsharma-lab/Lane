@@ -17,6 +17,7 @@ const PROJECTS_PATH = path.resolve(__dirname, "../db/migrations/0015_request_pro
 const EXPECTED_IMPACT_PATH = path.resolve(__dirname, "../db/migrations/0016_request_expected_impact.sql");
 const REQUEST_CODES_PATH = path.resolve(__dirname, "../db/migrations/0017_request_codes.sql");
 const DESIGN_REVIEWS_PATH = path.resolve(__dirname, "../db/migrations/0018_request_design_reviews.sql");
+const REQUEST_PRIORITY_PATH = path.resolve(__dirname, "../db/migrations/0019_request_priority.sql");
 const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
@@ -90,9 +91,10 @@ export async function setup() {
   sql(["-f", EXPECTED_IMPACT_PATH]);
   sql(["-f", REQUEST_CODES_PATH]);
   sql(["-f", DESIGN_REVIEWS_PATH]);
+  sql(["-f", REQUEST_PRIORITY_PATH]);
   sql(["-f", FIXTURES_PATH]);
 
   console.log(
-    `[test-setup] ${DB_NAME} reset from canonical local prerequisites + Clerk cutover/safeguards + Projects/expected impact/Request codes/design reviews migrations + test fixtures (not a hosted restore)`
+    `[test-setup] ${DB_NAME} reset from canonical local prerequisites + Clerk cutover/safeguards + Projects/expected impact/Request codes/design reviews/priority migrations + test fixtures (not a hosted restore)`
   );
 }

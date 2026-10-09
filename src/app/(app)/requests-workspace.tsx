@@ -79,6 +79,7 @@ export async function RequestsWorkspace({
       projectId: requests.projectId,
       projectName: projects.name,
       requestType: requests.requestType,
+      priority: requests.priority,
     })
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))

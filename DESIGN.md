@@ -6,7 +6,9 @@ Marketing is explicitly out of scope. Do not edit the independent `marketing/` r
 
 On 2026-10-08, Nikhil approved a **Geist neutral + blue colour preview** for Requests and the sidebar. `src/styles/geist-colors.css` is the colour authority only for Storybook stories opting into `parameters.colorSystem = "geist"`; Arc still supplies their components, typography, geometry and motion. The production root retains Arc Green pending review. This exception does not authorize marketing or Request detail changes. See `docs/superpowers/plans/2026-10-08-geist-colours.md`.
 
-Later on 2026-10-08, Nikhil approved implementing **Linear visual primitives with Arc components** as a separate Requests/sidebar review. Stories opting into `parameters.visualSystem = "linear"` use verified Linear Light/Dark colours, sourced spacing/geometry and type metrics with Inter. Arc retains component APIs, keyboard mechanics and motion. The adapter is preview-only; production remains on its current theme. Marketing and Request detail remain excluded. See `docs/design-system/linear-primitives.md` and the approved implementation plan.
+Later on 2026-10-08, Nikhil approved implementing **Linear visual primitives with Arc components** as a separate Requests/sidebar review. Stories opting into `parameters.visualSystem = "linear"` use verified Linear Light/Dark colours, sourced spacing/geometry and type metrics with Inter. Arc retains component APIs, keyboard mechanics and motion. See `docs/design-system/linear-primitives.md` and the approved implementation plan.
+
+On 2026-10-09, Nikhil moved the Linear primitives into production for the whole app, Request detail included: the root layout imports `linear-primitives.css` and `linear-arc-theme.css` and sets `data-visual-system="linear"` with `data-ui-state-contract="semantic"`. Arc still supplies every component, API and motion. The same decision activated the compact Requests rows (saved codes, saved priority, status glyphs, row context menu, per-group New Request, list summary) and the folder-tree Project navigation in production. Marketing remains out of scope.
 
 ## Authoritative sources
 
