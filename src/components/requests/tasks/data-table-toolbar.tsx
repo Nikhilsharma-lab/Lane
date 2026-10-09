@@ -18,13 +18,7 @@ import type { RequestColumn } from "./columns"
 import { statuses } from "./statuses"
 import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
-
-const statusViews = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-]
+import { StatusPills, statusViews } from "./status-pills"
 
 export function DataTableToolbar({ data, filter, title, project, projectName, requestType, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
   summaryOpen?: boolean; onSummaryChange?: (open: boolean) => void; summaryTrigger?: RefObject<HTMLButtonElement | null>;
@@ -61,10 +55,7 @@ export function DataTableToolbar({ data, filter, title, project, projectName, re
   }
   return <div className={styles.toolbarStack}>
     <div data-slot="requests-toolbar" className={styles.toolbar}>
-      {preview ? <div className={styles.status}><ChipGroup label="Request status" options={statusViews} value={[filter]} multiple={false} onValueChange={values => {
-        const next = values[0] ?? "all"
-        if (isRequestStatusFilter(next) && next !== filter) onStatusChange(next)
-      }} /></div> : <SegmentedControl className={styles.status} label="Request status" options={statusViews} value={filter} onValueChange={next => {
+      {preview ? <div className={styles.status}><StatusPills filter={filter} onStatusChange={onStatusChange} /></div> : <SegmentedControl className={styles.status} label="Request status" options={statusViews} value={filter} onValueChange={next => {
         if (isRequestStatusFilter(next) && next !== filter) onStatusChange(next)
       }} />}
       <div className={styles.actions}>
