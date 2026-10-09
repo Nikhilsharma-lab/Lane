@@ -29,6 +29,10 @@ function notificationSentence(type: string, actorName: string, requestTitle: str
       return `${actorName} commented on “${requestTitle}”`;
     case "request_done":
       return `${actorName} marked “${requestTitle}” done`;
+    case "review_requested":
+      return `${actorName} asked for your feedback on “${requestTitle}”`;
+    case "review_responded":
+      return `${actorName} responded to your design review on “${requestTitle}”`;
     case "invite_accepted":
       return `${actorName} accepted your invite`;
     default:

@@ -1,0 +1,40 @@
+/* Request-owned composition around installed Arc controls and native history. */
+.panel { display: grid; gap: var(--space-4); min-width: 0; color: var(--foreground); }
+.header, .actions, .roundHeader, .responseHeader { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.header { justify-content: space-between; gap: var(--space-4); }
+.header h2, .pastRounds h3 { margin: 0; font-size: var(--text-base); font-weight: 500; }
+.panel p { margin: 0; }
+.hint, .url, .announcement { color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); }
+.announcement:empty { display: none; }
+.form { display: grid; gap: var(--space-4); min-width: 0; }
+.current { display: grid; gap: var(--space-4); min-width: 0; }
+.current > .form { border-top: 1px solid var(--border); padding-top: var(--space-4); }
+.fields, .reviewers { margin: 0; padding: 0; min-width: 0; border: 0; }
+.reviewers { display: grid; gap: var(--space-3); }
+.reviewers > legend { margin-bottom: var(--space-3); padding: 0; font-size: var(--text-sm); font-weight: 500; }
+.search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: end; }
+.panel .action { min-height: 44px; justify-self: start; }
+.panel .action:focus-visible, .history > summary:focus-visible, .designLink:focus-visible { background: var(--surface-muted); color: var(--foreground); }
+.panel .action[data-review-primary]:focus-visible { background: var(--text-secondary); color: var(--background); }
+.memberResults { max-height: 15rem; overflow-y: auto; }
+.memberList, .responses, .events { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.memberList li { min-width: 0; overflow-wrap: anywhere; }
+.error { color: var(--danger); font-size: var(--text-sm); }
+.round { display: grid; gap: var(--space-3); min-width: 0; }
+.designLink { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; width: fit-content; max-width: 100%; color: var(--foreground); font-size: var(--text-sm); text-decoration: underline; text-underline-offset: .2em; border-radius: var(--radius-control); }
+.designLink svg { flex: none; }
+.url { overflow-wrap: anywhere; }
+.question { font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.responses { gap: var(--space-3); }
+.response { display: grid; gap: var(--space-1); font-size: var(--text-sm); min-width: 0; }
+.responseHeader { justify-content: space-between; }
+.responseHeader > span:first-child { overflow-wrap: anywhere; min-width: 0; }
+.response > p, .withdrawal > p, .events p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--leading-body); }
+.withdrawal { display: grid; gap: var(--space-2); padding-left: var(--space-3); border-left: 2px solid var(--border-strong); font-size: var(--text-sm); }
+.history { min-width: 0; border-top: 1px solid var(--border); }
+.history > summary { min-height: 44px; padding-block: var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); cursor: pointer; border-radius: var(--radius-control); }
+.history > summary:hover { color: var(--foreground); }
+.events { gap: var(--space-4); padding-block: var(--space-2); font-size: var(--text-sm); }
+.pastRounds { display: grid; gap: var(--space-6); padding-top: var(--space-2); }
+.pastRounds > section { display: grid; gap: var(--space-3); min-width: 0; }
+@media (max-width: 480px) { .search { grid-template-columns: minmax(0, 1fr); } .roundHeader, .responseHeader { align-items: flex-start; } }

@@ -11,6 +11,7 @@ import { statuses } from "./tasks/statuses"
 import { RequestStatusFilter as StatusFilter } from "@/app/(app)/request-status-filter"
 import { REQUEST_TYPE_LABELS, type RequestType } from "@/lib/request-properties"
 import type { ExpectedImpact } from "@/lib/request-impact"
+import type { DesignReview } from "@/lib/request-review"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { relativeTime } from "@/lib/relative-time"
 import { formatAttachmentSize } from "@/lib/request-attachments"
@@ -35,6 +36,8 @@ export type RequestListItem = {
 }
 
 export type RequestDetail = {
+  designReviews?: DesignReview[]
+  designReviewVersion?: number
   id: string
   title: string
   description: string
@@ -134,9 +137,9 @@ function Comments({ comments }: { comments: RequestComment[] }) {
     </li>)}</ul> : <p className="text-sm text-muted-foreground">No comments yet. Add a question or update below.</p>}
   </section>
 }
-export function RequestDetailView({ request, comments, attachments, filter, projectFilter = "all", isGuest, lifecycleActions, mobileLifecycleActions, commentForm, attachmentAction }: {
+export function RequestDetailView({ request, comments, attachments, filter, projectFilter = "all", isGuest, lifecycleActions, mobileLifecycleActions, commentForm, attachmentAction, designReview }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; filter: RequestStatusFilter; projectFilter?: RequestProjectFilter; isGuest: boolean;
-  lifecycleActions: ReactNode; mobileLifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode;
+  lifecycleActions: ReactNode; mobileLifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; designReview?: ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.title
   const status = statuses.find(item => item.value === request.status)!
@@ -160,6 +163,7 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
         </section>}
         {attachments.length > 0 && <section aria-labelledby="request-files" className="space-y-3"><div className="flex items-center gap-2"><Paperclip size={16} aria-hidden="true" /><h2 id="request-files" className="text-base font-medium">Files</h2><span className="text-sm text-muted-foreground">{attachments.length}</span></div><ul aria-label="Request files" className="divide-y">{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}<div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{attachment.fileName}</p><p className="text-sm text-muted-foreground">{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul></section>}
         <section aria-labelledby="request-people" className="space-y-3"><h2 id="request-people" className="text-base font-medium">People</h2><ul aria-label="Request people" className="space-y-3"><li className="flex items-center gap-3"><Avatar name={request.creatorName ?? "Unknown member"} size="sm" /><div><p className="text-sm font-medium">{request.creatorName ?? "Unknown member"}</p><p className="text-sm text-muted-foreground">Submitted this Request · {relativeTime(request.createdAt)}</p></div></li>{!isGuest && <li className="flex items-center gap-3"><Avatar name={request.assigneeName ?? "Unassigned"} size="sm" /><div><p className="text-sm font-medium">{request.assigneeName ?? "No one yet"}</p><p className="text-sm text-muted-foreground">{request.assigneeName ? "Picked up this Request" : "Available for anyone to pick up"}</p></div></li>}</ul></section>
+        {designReview}
         <Comments comments={comments} />
         <section className="space-y-4">{!isGuest && <div className="lg:hidden">{mobileLifecycleActions ?? lifecycleActions}</div>}{commentForm}</section>
       </article>

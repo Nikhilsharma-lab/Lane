@@ -7,6 +7,7 @@ import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-downloa
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
 import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest } from "@/app/(app)/requests/[id]/actions"
 import type { ReactNode } from "react"
+import { DesignReviewFixture } from "./design-review.stories"
 
 const request: RequestDetail = {
   id: "fixture-request", title: "Show a delivery date before checkout", description: "Customers have to begin checkout before they can see when their order will arrive.",
@@ -23,7 +24,7 @@ function Shell({ children, guest = false }: { children: ReactNode; guest?: boole
   return <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView>
 }
 
-function Detail({ current = request, guest = false, minimal = false, list = requests }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[] }) {
+function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
   return <Shell guest={guest}><div className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestListPane requests={list} selectedRequestId={current.id} filter="all" isGuest={guest} />
     <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} filter="all" isGuest={guest}
@@ -31,6 +32,7 @@ function Detail({ current = request, guest = false, minimal = false, list = requ
       mobileLifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" fullWidth />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
+      designReview={designReview}
     />
   </div></Shell>
 }
@@ -50,6 +52,16 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Full: Story = {}
+export const AskForReview: Story = {
+  render: () => <Detail minimal current={{ ...request, title: "Customers cannot find the delivery date before checkout", reframedProblem: null, extractedSolution: null, classification: "problem", affectedPeople: null, desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null }} designReview={<DesignReviewFixture />} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole("region", { name: "Design review" })).toBeInTheDocument()
+    await expect(canvas.getByRole("button", { name: "Ask for review" })).toBeInTheDocument()
+    await expect(canvas.getByRole("textbox", { name: "Comment" })).toBeInTheDocument()
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  },
+}
 export const Minimal: Story = {
   args: { minimal: true, current: { ...request, reframedProblem: null, extractedSolution: null, classification: "problem", affectedPeople: null, desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null, expectedImpact: null } },
   play: async ({ canvasElement }) => {

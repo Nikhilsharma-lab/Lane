@@ -11,6 +11,7 @@ import { Alert } from "@/components/arc/alert/alert"
 import { CommentForm } from "./requests/[id]/comment-form"
 import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
+import { DesignReview } from "./requests/[id]/design-review"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
 import { RequestsWelcome } from "./requests-welcome"
 import { ProjectUnavailable, RequestsOverview } from "./requests-overview"
@@ -18,15 +19,16 @@ import { ProjectUnavailable, RequestsOverview } from "./requests-overview"
 const MAX_REQUESTS_QUERY = 200
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function RequestDetailPane({ orgId, ...props }: {
+function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
-  filter: RequestStatusFilter; projectFilter: RequestProjectFilter; orgId: string; isGuest: boolean;
+  filter: RequestStatusFilter; projectFilter: RequestProjectFilter; orgId: string; isGuest: boolean; currentUserId: string; isAdmin: boolean;
 }) {
   return <RequestDetailView {...props}
     lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} />}
     mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} fullWidth />}
     commentForm={<CommentForm requestId={props.request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
+    designReview={<DesignReview requestId={props.request.id} initialState={{ version: props.request.designReviewVersion ?? 0, reviews: props.request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!props.isGuest} canManage={!props.isGuest && (isAdmin || props.request.createdBy === currentUserId)} context={{ orgId }} />}
   />
 }
 
@@ -111,6 +113,8 @@ export async function RequestsWorkspace({
         uncertainty: requests.uncertainty,
         usefulLink: requests.usefulLink,
         expectedImpact: requests.expectedImpact,
+        designReviews: requests.designReviews,
+        designReviewVersion: requests.designReviewVersion,
         reframedProblem: requests.reframedProblem,
         extractedSolution: requests.extractedSolution,
         classification: requests.classification,
@@ -198,6 +202,8 @@ export async function RequestsWorkspace({
       filter={filter}
       projectFilter={projectFilter}
       orgId={workspace.orgId}
+      currentUserId={workspace.userId}
+      isAdmin={workspace.role === "admin"}
       isGuest={isGuest}
     />
   ) : <RequestUnavailable returnHref={returnHref} />

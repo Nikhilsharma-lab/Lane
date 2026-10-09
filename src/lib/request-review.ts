@@ -34,14 +34,36 @@ export function latestReviewerResponse(review: DesignReview, reviewerId: string)
 export function reviewHasAllResponses(review: DesignReview) { return review.reviewers.every(person => latestReviewerResponse(review, person.id)) }
 
 export function addReviewRound(state: RequestReviewState, input: Pick<StartReviewInput, "designUrl" | "question">, reviewers: ReviewPerson[], actor: ReviewPerson, at: string, id: string): RequestReviewState {
-  void input; void reviewers; void actor; void at; void id;
-  return state
+  const parsed = startReviewInputSchema.safeParse({ ...input, expectedVersion: state.version, reviewerIds: reviewers.map(person => person.id) })
+  if (!parsed.success) throw new ReviewRuleError(parsed.error.issues[0].message)
+  if (reviewers.some(person => person.id === actor.id)) throw new ReviewRuleError("Choose someone else to review your design")
+  const previous = currentReview(state)
+  if (previous && !previous.withdrawal && !reviewHasAllResponses(previous)) throw new ReviewRuleError("Wait for the selected reviewers to respond, or withdraw this review with a reason")
+  return { version: state.version + 1, reviews: [...state.reviews, {
+    id, designUrl: parsed.data.designUrl, question: parsed.data.question,
+    requestedBy: { ...actor }, requestedAt: at, reviewers: reviewers.map(person => ({ ...person })), responses: [], withdrawal: null,
+  }] }
 }
+
+function requireCurrentReview(state: RequestReviewState, reviewId: string) {
+  const review = currentReview(state)
+  if (!review || review.id !== reviewId) throw new ReviewRuleError("This is an earlier review. Refresh to see the current review")
+  if (review.withdrawal) throw new ReviewRuleError("This review was withdrawn. Its feedback remains in the history")
+  return review
+}
+
 export function recordReviewResponse(state: RequestReviewState, input: Pick<RespondToReviewInput, "reviewId" | "decision" | "note">, actor: ReviewPerson, at: string, id: string): RequestReviewState {
-  void input; void actor; void at; void id;
-  return state
+  const parsed = respondToReviewInputSchema.safeParse({ ...input, expectedVersion: state.version })
+  if (!parsed.success) throw new ReviewRuleError(parsed.error.issues[0].message)
+  const review = requireCurrentReview(state, input.reviewId)
+  if (!review.reviewers.some(person => person.id === actor.id)) throw new ReviewRuleError("Only a selected reviewer can respond to this review")
+  const next = { ...review, responses: [...review.responses, { id, reviewerId: actor.id, decision: parsed.data.decision, note: parsed.data.note, createdAt: at }] }
+  return { version: state.version + 1, reviews: [...state.reviews.slice(0, -1), next] }
 }
 export function withdrawReviewRound(state: RequestReviewState, input: Pick<WithdrawReviewInput, "reviewId" | "reason">, actor: ReviewPerson, at: string, canManage = false): RequestReviewState {
-  void input; void actor; void at; void canManage;
-  return state
+  const parsed = withdrawReviewInputSchema.safeParse({ ...input, expectedVersion: state.version })
+  if (!parsed.success) throw new ReviewRuleError(parsed.error.issues[0].message)
+  const review = requireCurrentReview(state, input.reviewId)
+  if (review.requestedBy.id !== actor.id && !canManage) throw new ReviewRuleError("Only the person who requested this review, the Request creator or an admin can withdraw it")
+  return { version: state.version + 1, reviews: [...state.reviews.slice(0, -1), { ...review, withdrawal: { by: { ...actor }, reason: parsed.data.reason, at } }] }
 }
