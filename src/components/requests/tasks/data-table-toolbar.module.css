@@ -22,8 +22,8 @@
 }
 @media (max-width: 640px) and (pointer: fine) {
   /* Arc's filter trigger grows to 44px at this width on its own; keep it level
-     with the other toolbar icons for a mouse. Same documented size token. */
-  .actions :global([data-icon-only][data-icon-only]) { --filter-trigger-size: var(--toolbar-icon-size, 40px); }
+     with the other toolbar icons for a mouse, using the same size token. */
+  .actions :global([data-filter-trigger]) { width: var(--toolbar-icon-size, 40px); min-width: var(--toolbar-icon-size, 40px); min-height: var(--toolbar-icon-size, 40px); --filter-trigger-size: var(--toolbar-icon-size, 40px); }
 }
 @media (pointer: coarse) {
   .status { --control-height-sm: var(--control-height-md); }
