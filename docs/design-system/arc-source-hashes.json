@@ -17,7 +17,7 @@
     "source": "https://uiarc.dev/r/arc-foundation.json",
     "file": "src/components/arc/foundation.css",
     "upstreamSha256": "73535d61af5f35a3374a5242b8e53b1f5ac11a7454f7e37e38b57e76a51fd3ed",
-    "localSha256": "9edc6b5a93793850b863595e354f210417b710a6d6bdd1e99ace7533c9816d35"
+    "localSha256": "6327f2d8c3d7ca49672340b9000684920d2cd34567ab1989f39d501bca3bbd9b"
   },
   {
     "id": "arc-foundation",
@@ -356,14 +356,14 @@
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx",
     "upstreamSha256": "ba91e8b75357ada3b74dff408f3519671e6c582d702396bb3f76fdd0e35a5916",
-    "localSha256": "bfedd88fe3ae0e7fcbe26b9647d9146d52dceafd1bbe17860f1f93fcfabc69c2"
+    "localSha256": "45973e39e4ed095025dbc99015832c859702d4aca2af6d18138a7d3051cccb64"
   },
   {
     "id": "workspace-sidebar",
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css",
     "upstreamSha256": "0c80f65cc602adf3e78890d1045edd62201e279b78a104d63416a5594a702235",
-    "localSha256": "e627b7bccc76c41bafbddc1303e12c3aabaad1f1576671702deecdcf69861b1c"
+    "localSha256": "956b94c8815e1fae946acf5d82d8099a471c96a816b9721f390b187e7b38934a"
   },
   {
     "id": "context-menu",

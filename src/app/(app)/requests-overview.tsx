@@ -3,9 +3,11 @@
 import { DataTable } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
 import Link from "next/link"
-import { Folder } from "lucide-react"
+import { Folder, Plus } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
+import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import buttonStyles from "@/components/arc/button/button.module.css"
+import { NewRequestLink } from "@/components/requests/new-request-link"
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
@@ -27,6 +29,10 @@ export function RequestsOverview({ requests, filter, projectFilter = "all", proj
         <SidebarExpandButton />
         <h1 className={styles.title} title={heading}>{heading}</h1>
         {isGuest && <p className={styles.guestHint} title="Only Requests you submit appear here.">Only Requests you submit appear here.</p>}
+        {/* The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut. */}
+        <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
+          <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
+        </Tooltip>
       </header>
       {context
         ? <RequestRowActions requests={requests} context={context} isGuest={isGuest}><DataTable data={requests} columns={columns} filter={filter} projectFilter={projectFilter} projectName={projectName} context={context} isGuest={isGuest} /></RequestRowActions>

@@ -11,6 +11,7 @@
 .iconButton[data-active] { color: var(--selection-icon, var(--accent)); background: var(--selection-background, var(--surface-muted)); }
 .searchPanel { width: min(20rem, calc(100vw - 20px)); }
 .activeFilters { padding: var(--space-2) var(--space-6) 0; }
+.matchCount { flex: none; color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .recordRegion { min-width: 0; margin-top: var(--space-2); padding-inline: var(--space-6); }
 .tableFooter { margin-top: var(--space-5); padding: 0 var(--space-6) var(--space-6); }
 /* Narrow widths only tighten the gutters; control sizes follow the pointer. */

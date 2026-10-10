@@ -36,7 +36,7 @@ export interface SidebarViewProps {
   onSignOut?: () => void | Promise<unknown>;
   onSearch?: (input: WorkspaceSearchInput) => Promise<WorkspaceSearchResponse>;
   workspaceSwitcher?: UserMenuWorkspaces;
-  /** Opt-in responsive collapse for the Linear review preview. */
+  /** Collapses the sidebar at 880px and below; the expand control then opens it as a peek. Production enables it. */
   linearPreviewAutoCollapse?: boolean;
   /** Opt-in collapsible Projects folder; existing Project destinations stay flat. */
   previewProjectTree?: boolean;

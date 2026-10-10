@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "storybook-static/**",
     "marketing/**",
     "next-env.d.ts",
+    // Local research captures (gitignored); never lint them.
+    "artifacts/**",
   ]),
 ]);
 

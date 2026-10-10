@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db, requests, comments, requestAttachments } from "@/db";
+import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { createNotification, createNotifications } from "@/lib/notify";
@@ -128,6 +128,74 @@ const commentSchema = z.object({
     .min(1, "Comment cannot be empty")
     .max(5000, "Comment must be 5,000 characters or fewer"),
 });
+
+/** How long after a Done move its Undo stays valid. The list's toast offers it
+ * for seconds; the window only has to outlast a slow network. */
+const UNDO_DONE_WINDOW_MS = 15 * 60 * 1000;
+
+/** Returns a Request that was just marked Done to In Progress: the undo for
+ * markDone, not a reverse lifecycle move. It only applies while the Done move
+ * is recent (updated_at, kept by the 0002 trigger), the status row and its Done
+ * notification change together, and Closed outcomes are a later lifecycle state
+ * that never reopens this way. */
+export async function undoMarkDone(
+  requestId: string,
+  context: { orgId: string }
+) {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  const auth = await requireMemberOrAbove(context.orgId);
+  if (!auth) return { error: "Not found" };
+
+  const [req] = await db
+    .select({ status: requests.status, orgId: requests.orgId, updatedAt: requests.updatedAt })
+    .from(requests)
+    .where(eq(requests.id, requestId));
+
+  if (!req) return { error: "Request not found" };
+  if (req.orgId !== auth.orgId) return { error: "Not found" };
+  if (req.status !== "done") {
+    return { error: "This Request is not Done. Refresh to see its current state." };
+  }
+  if (Date.now() - req.updatedAt.getTime() > UNDO_DONE_WINDOW_MS) {
+    return { error: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." };
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(requests)
+      .set({ status: "in_progress" })
+      .where(
+        and(
+          eq(requests.id, requestId),
+          eq(requests.orgId, auth.orgId),
+          eq(requests.status, "done")
+        )
+      )
+      .returning({ status: requests.status });
+    if (!row) return null;
+    await tx
+      .delete(notifications)
+      .where(
+        and(
+          eq(notifications.requestId, requestId),
+          eq(notifications.orgId, auth.orgId),
+          eq(notifications.type, "request_done")
+        )
+      );
+    return row;
+  });
+
+  if (!updated) {
+    return {
+      error:
+        "This Request changed before Lane could undo. Refresh and try again.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/requests/${requestId}`);
+  return { success: true as const, status: updated.status };
+}
 
 export async function addComment(
   requestId: string,

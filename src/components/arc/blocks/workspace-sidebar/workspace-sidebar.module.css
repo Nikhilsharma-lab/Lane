@@ -60,9 +60,11 @@
 /* Arc Docs sidebar's folder/branch treatment, only rendered by the opt-in Project tree. */
 .projectFolder { position: relative; display: flex; width: 100%; min-height: var(--row); align-items: center; gap: 10px; border: 0; border-radius: var(--row-radius); padding: 0 10px 0 12px; background: transparent; color: var(--text-secondary); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
 .projectFolder[data-holds] { color: var(--foreground); }
-.projectFolderIcon { flex: none; width: var(--sidebar-icon-size, 16px); height: var(--sidebar-icon-size, 16px); color: var(--text-muted); }
+/* Same 16px lead box as .row icons, so a smaller sourced icon size stays centred on the same axis. */
+.projectFolderIcon { flex: none; box-sizing: border-box; width: 16px; height: 16px; padding: calc((16px - var(--sidebar-icon-size, 16px)) / 2); color: var(--text-muted); }
 .projectFolderLabel { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.projectChevron { flex: none; color: var(--text-muted); transition: transform var(--duration-spring) var(--ease-spring); }
+/* The chevron takes the notification count's 21px slot, so trailing glyphs share one centre line. */
+.projectChevron { flex: none; width: 21px; color: var(--text-muted); transition: transform var(--duration-spring) var(--ease-spring); }
 .projectFolder[aria-expanded="true"] .projectChevron { transform: rotate(90deg); }
 .projectFolderCurrent { width: 6px; height: 6px; flex: none; border-radius: var(--radius-pill); background: var(--accent); }
 .projectBranch { position: relative; min-width: 0; }

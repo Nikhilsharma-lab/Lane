@@ -20,9 +20,9 @@ import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViews } from "./status-pills"
 
-export function DataTableToolbar({ data, filter, title, project, projectName, requestType, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
+export function DataTableToolbar({ data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
   summaryOpen?: boolean; onSummaryChange?: (open: boolean) => void; summaryTrigger?: RefObject<HTMLButtonElement | null>;
-  data: OverviewRequest[]; filter: RequestStatusFilter; title: string; project: string; projectName?: string; requestType: string; columns: RequestColumn[]; columnVisibility: Record<string, boolean>;
+  data: OverviewRequest[]; filter: RequestStatusFilter; title: string; project: string; projectName?: string; requestType: string; matchCount: number; columns: RequestColumn[]; columnVisibility: Record<string, boolean>;
   ordering: RequestOrdering; grouping: RequestGrouping; onOrderingChange: (value: RequestOrdering) => void; onGroupingChange: (value: RequestGrouping) => void;
   onFilterChange: (id: string, value: string) => void; onStatusChange: (value: RequestStatusFilter) => void; onVisibilityChange: (value: Record<string, boolean>) => void; onClear: () => void
 }) {
@@ -76,6 +76,9 @@ export function DataTableToolbar({ data, filter, title, project, projectName, re
         {summaryOpen !== undefined && <Button ref={summaryTrigger} variant="secondary" size="sm" className={styles.iconButton} data-active={summaryOpen || undefined} aria-label={summaryOpen ? "Close list summary" : "Open list summary"} aria-expanded={summaryOpen} onClick={() => onSummaryChange?.(!summaryOpen)}><PanelRight size={preview ? 14 : 17} aria-hidden="true" /></Button>}
       </div>
     </div>
-    {displayedChips.length > 0 && <div className={styles.activeFilters}><FilterToolbar filters={displayedChips} onRemove={id => id === "status" ? onStatusChange("all") : onFilterChange(id, "")} onClearAll={onClear} /></div>}
+    {displayedChips.length > 0 && <div className={styles.activeFilters}><FilterToolbar filters={displayedChips} onRemove={id => id === "status" ? onStatusChange("all") : onFilterChange(id, "")} onClearAll={onClear}>
+      {/* Counts every matching row across pages while a filter is applied; the footer only shows page ranges. */}
+      <span role="status" className={styles.matchCount}>{matchCount} {matchCount === 1 ? "Request matches" : "Requests match"}</span>
+    </FilterToolbar></div>}
   </div>
 }

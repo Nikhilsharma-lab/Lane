@@ -53,3 +53,9 @@ next-env.d.ts
 
 # Local research captures (third-party downloads, screenshots, logs) — never commit
 /artifacts/
+
+# Impeccable skill state (critique snapshots, hook cache)
+/.impeccable/
+
+# Claude Code project tooling: local launch config and licensed Arc Pro skill copies
+/.claude/

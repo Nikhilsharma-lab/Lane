@@ -25,7 +25,7 @@ describe("Pilot entry and transition contract", () => {
     expect(SKELETON_STYLES).toContain("prefers-reduced-motion: reduce")
 
     expect(REQUESTS_LOADING).toContain(
-      'aria-label="Loading Request list"'
+      'aria-label="Loading Requests"'
     )
     expect(REQUESTS_LOADING).not.toContain('aria-hidden="true"')
   })

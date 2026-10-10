@@ -2,7 +2,8 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { markDone, pickUpRequest } from "@/app/(app)/requests/[id]/actions"
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { markDone, pickUpRequest, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
 
 type SelectionState = {
@@ -13,6 +14,7 @@ const emptySelection = (scope: string): SelectionState => ({ scope, ids: [], err
 
 export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false) {
   const router = useRouter()
+  const { toast, update: updateToast } = useToastStack()
   const [state, setState] = useState(() => emptySelection(scope))
   // Changing a filter/page/workspace starts a fresh selection, including when returning to an old view.
   if (state.scope !== scope) setState(emptySelection(scope))
@@ -85,11 +87,33 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (activeScope.current !== scope || running.current !== operation) return
     running.current = null
     restoreAfterCommit.current = true
+    const succeeded = selected.map(row => row.id).filter(id => !failed.includes(id))
     setState({ scope, ids: failed, pending: null, failedCount: failed.length,
       error: [...reasons].join(" "),
-      message: failed.length ? "" : `${selected.length} ${selected.length === 1 ? "Request" : "Requests"} ${availableAction === "pick-up" ? "picked up" : "marked Done"}.`,
+      // Done confirms through the toast, which also carries the way back.
+      message: failed.length || availableAction === "done" ? "" : `${selected.length} ${selected.length === 1 ? "Request" : "Requests"} picked up.`,
     })
+    if (availableAction === "done" && succeeded.length) confirmDone(succeeded, context)
     router.refresh()
+  }
+
+  function confirmDone(ids: string[], scopeContext: { orgId: string }) {
+    const noun = ids.length === 1 ? "Request" : "Requests"
+    toast({ type: "success", title: `${ids.length} ${noun} marked Done`, duration: 10_000,
+      action: { label: "Undo", onClick: toastId => void undoDone(toastId, ids, noun, scopeContext) } })
+  }
+
+  async function undoDone(toastId: string, ids: string[], noun: string, scopeContext: { orgId: string }) {
+    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In Progress.`, action: undefined })
+    const failed: string[] = []
+    for (const id of ids) {
+      try { if ((await undoMarkDone(id, scopeContext)).error) failed.push(id) }
+      catch { failed.push(id) }
+    }
+    router.refresh()
+    // The result reuses the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
+    if (failed.length) toast({ id: toastId, type: "error", title: `${failed.length} of ${ids.length} could not be undone`, description: "Those stay Done. Refresh to see their current state." })
+    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back In Progress`, description: undefined })
   }
 
   async function copyLinks() {

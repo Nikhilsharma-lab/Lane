@@ -1,24 +1,22 @@
-/* Lane record composition. Pills, popovers and controls are native Arc items. */
+/* Lane record composition. Pills, popovers and controls are native Arc items.
+ * Keyboard focus shows Arc's shared outline; fills mark hover, open menus and selection. */
 .records { container-type: inline-size; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height, calc(var(--space-10) + var(--space-1))); padding: 0 var(--space-2) 0 0; border-radius: var(--request-row-radius, var(--radius-control)); }
 .rowContent { display: flex; align-items: center; gap: var(--space-4); flex: 1; min-width: 0; }
 .savedCode { display: grid; flex: none; min-width: 7rem; max-width: 100%; }
 .savedCode .codeButton { min-height: 44px; justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
-.codeButton:focus-visible { background: var(--interaction-focus, color-mix(in oklab, var(--foreground) 16%, var(--surface))); color: var(--foreground); }
 .codeError { max-width: 12rem; padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .row[data-selected] .codeButton { color: var(--selection-foreground, var(--foreground)); }
 /* Checkbox focus stays on its square; it must not leave a deselected row highlighted. */
-.row:hover, .row:has(.title:focus-visible, .propertyTrigger:focus-visible) { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
+.row:hover, .row[data-menu-open], .row:has(.title:focus-visible, .propertyTrigger:focus-visible, .rowMenu:focus-visible) { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
 .row[data-selected] { background: var(--selection-background, var(--accent-subtle)); }
 .row[data-selected]:hover, .row[data-selected]:focus-within { background: var(--selection-hover, var(--accent-subtle)); }
 .row[data-selected]:active { background: var(--selection-pressed, var(--accent-subtle)); }
 .row[data-selected]:has(+ .row[data-selected]) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
 .title { flex: 1 1 20rem; min-width: 0; display: flex; align-items: center; min-height: 44px; padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: 500; line-height: var(--request-title-line-height, 1.5); text-decoration: none; overflow-wrap: anywhere; }
-.title:focus-visible { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
 .row[data-selected] .title { color: var(--selection-foreground, var(--foreground)); }
-.row[data-selected] .title:focus-visible { background: var(--selection-hover, var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface)))); text-decoration: var(--selection-focus-decoration, none); text-underline-offset: .18em; }
 /* Selected metadata shares the row's colour pair, including labels, glyphs and initials. */
 :global(:root[data-ui-state-contract="semantic"]) :is(.row[data-selected], .selectionSurface) {
   --request-property-background: var(--selection-background);
@@ -40,17 +38,17 @@
   --badge-border: var(--selection-property-border);
   --badge-hover-border: var(--selection-property-border);
 }
-:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger:is(:focus-visible, [data-state="open"]) {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger[data-state="open"] {
   --request-property-border: var(--selection-foreground);
   background: var(--selection-background);
 }
-:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger:is(:focus-visible, [data-state="open"]) .propertyBadge {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger[data-state="open"] .propertyBadge {
   --badge-border: var(--selection-foreground);
   --badge-hover-border: var(--selection-foreground);
 }
 .properties { display: flex; flex: 0 1 auto; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); min-width: 0; }
 .propertyTrigger { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; border: 0; padding: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
-.propertyTrigger:focus-visible, .propertyTrigger[data-state="open"] { background: var(--interaction-focus, color-mix(in oklab, var(--foreground) 16%, var(--surface))); }
+.propertyTrigger[data-state="open"] { background: var(--interaction-focus, color-mix(in oklab, var(--foreground) 16%, var(--surface))); }
 .propertyValue { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .propertyDetail { display: grid; gap: var(--space-2); max-width: 20rem; overflow-wrap: anywhere; font-size: var(--text-sm); }
 .propertyLabel { color: var(--text-secondary); font-size: var(--text-xs); }
@@ -60,7 +58,7 @@
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
 .groupButton > span:first-of-type { min-width: 0; overflow-wrap: anywhere; }
-.groupButton:hover, .groupButton:focus-visible { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
+.groupButton:hover { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
 .groupCount { flex-shrink: 0; margin-inline-start: auto; color: var(--text-secondary); font-size: var(--text-xs); font-weight: 400; font-variant-numeric: tabular-nums; }
 .displayPanel { display: grid; gap: var(--space-4); min-width: min(18rem, 100%); }
 .displayLabel { margin-bottom: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
@@ -73,6 +71,11 @@
   .title { flex-basis: 100%; }
   .savedCode + .title { flex-basis: 10rem; }
   .properties { justify-content: flex-start; width: 100%; }
+  /* Narrow compact records tighten the code column: one width up to four digits
+     plus the copy glyph, which still appears for hover, focus and a copy result,
+     so the status glyphs stay in a line and copying keeps its confirmation. */
+  .row[data-compact-row] .savedCode { min-width: 5.5rem; }
+  .row[data-compact-row] .savedCode .codeButton { padding-inline: var(--space-1); }
 }
 @media (pointer: coarse) {
   .propertyTrigger { min-height: 44px; min-width: 44px; }
@@ -93,7 +96,6 @@
 .row[data-compact-row] .propertyBadge > span { min-width: 0; max-width: 100%; }
 .row[data-compact-row][data-selected] .propertyBadge { border-width: 1px; }
 .identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 32px; border: 0; padding: 0; background: transparent; color: var(--linear-content-label-muted); border-radius: 4px; cursor: pointer; }
-.identityControl:focus-visible { background: var(--interaction-focus); color: var(--foreground); }
 .identityControl[data-priority="urgent"] { color: var(--linear-content-orange-text); }
 .identityControl[data-status="open"] { color: var(--linear-content-label-muted); }
 .identityControl[data-status="in_progress"] { color: var(--linear-content-yellow-text); }
@@ -104,6 +106,21 @@
 .typeDot { width: 9px; height: 9px; border-radius: 50%; background: var(--linear-content-red-base); }
 .typeDot[data-type="improvement"] { background: var(--linear-content-blue-base); }
 .typeDot[data-type="new_feature"] { background: var(--linear-content-purple-base); }
+/* Row actions. The menu button and the copy glyph appear for the pointer or
+ * the keyboard instead of standing as a permanent column of icons. The span
+ * around each glyph button only carries menu handlers; it draws nothing. */
+.menuSlot { display: contents; }
+.rowMenu { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; padding: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.rowMenu:hover, .row[data-menu-open] .rowMenu { background: var(--interaction-focus, color-mix(in oklab, var(--foreground) 16%, var(--surface))); color: var(--foreground); }
+.row[data-selected] .rowMenu { color: var(--selection-foreground, var(--foreground)); }
+@media (hover: hover) {
+  .rowMenu, .row[data-compact-row] .codeButton svg { opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+  .row:is(:hover, :focus-within, [data-menu-open]) .rowMenu, .row:is(:hover, :focus-within, [data-menu-open]) .codeButton svg, .savedCode:not([data-state="idle"]) .codeButton svg { opacity: 1; }
+}
+/* After the compact rules above, so the narrower cap wins at equal specificity. */
+@container (max-width: 880px) {
+  .row[data-compact-row] .properties { max-width: 40%; }
+}
 @container (max-width: 700px) {
   .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
 }
@@ -112,14 +129,15 @@
   .row[data-compact-row] .properties { flex: none; max-width: none; }
 }
 @media (max-width: 640px) {
-  /* Phones keep checkbox, priority, status, title and picker. The code stays
-     reachable through the row menu's Copy code and on the Request detail. */
+  /* Phones keep checkbox, priority, status, title, picker and the row menu. The
+     code stays reachable through the menu's Copy code and on the Request detail. */
   .row[data-compact-row] .requestCode,
   .row[data-compact-row] .savedCode { display: none; }
 }
 @media (pointer: coarse) {
   .row[data-compact-row] .identityControl { flex-basis: 24px; width: 24px; height: 44px; }
   .row[data-compact-row] .rowContent { gap: 4px; }
+  .rowMenu { width: 44px; height: 44px; }
 }
 
 /* Compact prefix targets meet the 24px AA target floor without widening the row. */
@@ -129,5 +147,5 @@
 .groupHeader .groupHeading { flex: 1; min-width: 0; }
 .groupHeader .groupButton { background: transparent; }
 .groupAdd { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: var(--request-row-radius); color: var(--text-secondary); }
-.groupAdd:hover, .groupAdd:focus-visible { background: var(--interaction-hover); color: var(--foreground); }
+.groupAdd:hover { background: var(--interaction-hover); color: var(--foreground); }
 .groupHeader + div:not([hidden]) { padding-block-start: var(--request-group-gap, 0px); }

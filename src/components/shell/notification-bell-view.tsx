@@ -1,6 +1,7 @@
 "use client";
 
 // Arc notification-center presentation with Lane's controlled server state and recovery actions.
+import { useSyncExternalStore } from "react";
 import { Bell, CheckCheck, Mail, MailOpen, X } from "lucide-react";
 import { Avatar } from "@/components/arc/avatar/avatar";
 import { Button } from "@/components/arc/button/button";
@@ -55,21 +56,30 @@ export type NotificationBellViewProps = {
   onRetry: () => void;
 };
 
+const NARROW = "(max-width: 880px)";
+const subscribeNarrow = (change: () => void) => {
+  const query = window.matchMedia(NARROW);
+  query.addEventListener("change", change);
+  return () => query.removeEventListener("change", change);
+};
+
 export function NotificationBellView({
   compact = false, open, unread, items, loaded, isPending, error,
   onOpenChange, onSelect, onMarkAllRead, onToggleRead, onRetry,
 }: NotificationBellViewProps) {
   const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
   const count = unread > 99 ? "99+" : unread;
+  // Below the shell's auto-collapse width the sidebar is a peek or drawer, so there is no room beside it.
+  const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
   return <Popover open={open} onOpenChange={onOpenChange}>
     <PopoverTrigger asChild>
       <button type="button" className={`${shellStyles.row} ${styles.trigger} ${compact ? styles.compact : ""}`} aria-label={label}>
-        <Bell size={16} className={shellStyles.lead} aria-hidden="true" />
+        <span className={shellStyles.lead}><Bell size={16} aria-hidden="true" /></span>
         {!compact && <span className={shellStyles.name}>Notifications</span>}
         {unread > 0 && <span className={compact ? styles.compactCount : notificationStyles.count} aria-hidden="true">{count}</span>}
       </button>
     </PopoverTrigger>
-    <PopoverContent className={`${notificationStyles.panel} ${styles.panel}`} side={compact ? "bottom" : "right"} align="start" sideOffset={8} aria-label="Notifications">
+    <PopoverContent className={`${notificationStyles.panel} ${styles.panel}`} side={compact || narrow ? "bottom" : "right"} align="start" sideOffset={8} aria-label="Notifications">
       <div className={notificationStyles.header}>
         <div className={notificationStyles.heading}><h2>Notifications</h2>{unread > 0 && <span className={notificationStyles.count}>{count}</span>}</div>
         <PopoverClose className={notificationStyles.close} aria-label="Close notifications"><X size={17} aria-hidden="true" /></PopoverClose>

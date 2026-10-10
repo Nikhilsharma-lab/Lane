@@ -1,5 +1,5 @@
 /* Linear visual values through Arc's existing public token hooks.
- * Enabled only by the dedicated Storybook review; production imports stay unchanged. */
+ * Production has applied it since 2026-10-09 through data-visual-system="linear" on <html> in src/app/layout.tsx; Storybook loads the same file from .storybook/preview.tsx. */
 :root[data-visual-system="linear"] {
   --background: var(--linear-sidebar-bg-base);
   --workspace-canvas: var(--linear-sidebar-bg-base);
@@ -19,6 +19,8 @@
   --interaction-hover: var(--linear-content-bg-base-hover);
   --interaction-pressed: var(--linear-content-bg-focus);
   --interaction-focus: var(--linear-content-bg-focus);
+  /* Arc's keyboard outline takes Linear's focus colour; pointer focus still draws no ring. */
+  --focus-outline: var(--linear-content-focus-color);
   --accent: var(--linear-content-label-link);
   --accent-strong: var(--linear-content-label-link);
   --accent-subtle: var(--linear-content-bg-selected);

@@ -45,6 +45,7 @@ export function Sidebar({
   return (
     <SidebarView
       previewProjectTree
+      linearPreviewAutoCollapse
       workspaceName={displayedWorkspaceName}
       fullName={fullName}
       email={email}

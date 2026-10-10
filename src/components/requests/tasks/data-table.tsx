@@ -8,6 +8,7 @@ import { Pagination } from "@/components/arc/pagination/pagination"
 import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
+import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { useRequestListView } from "@/components/requests/list-view-state"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import { groupRequestRows, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
@@ -72,7 +73,7 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
   </ul>
   return <div className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
-    <DataTableToolbar data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
+    <DataTableToolbar data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={setSummaryOpen} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter}
       onStatusChange={next => { setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 } })); router.replace(requestListHref(next, projectFilter), { scroll: false }) }}
@@ -94,16 +95,16 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
               <div className={presentation ? styles.groupHeader : undefined}><h2 className={styles.groupHeading}><button type="button" className={styles.groupButton} aria-expanded={!collapsed} aria-controls={id} aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.label} group`} onClick={() => setView(previous => ({ ...previous, collapsedGroups: collapsed ? previous.collapsedGroups.filter(key => key !== group.key) : [...previous.collapsedGroups, group.key] }))}>
                 {collapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}<span>{group.label}</span>
                 <span className={styles.groupCount}>{rows.length < group.rows.length ? `${rows.length} of ` : ""}{group.rows.length} {group.rows.length === 1 ? "Request" : "Requests"}</span>
-              </button></h2>{presentation && grouping === "status" && <NewRequestLink className={styles.groupAdd} aria-label={`New Request from ${group.label} group`} title="New Request starts Open"><Plus size={16} aria-hidden="true" /></NewRequestLink>}</div>
+              </button></h2>{presentation && group.key === "status:open" && <Tooltip content="New Request"><NewRequestLink className={styles.groupAdd} aria-label="New Request"><Plus size={16} aria-hidden="true" /></NewRequestLink></Tooltip>}</div>
               <div id={id} hidden={collapsed}>{renderRows(rows, `${group.label} Requests`)}</div>
             </section>
           })}
     </div>
-    <div className={`${styles.footer} ${layoutStyles.tableFooter}`}>
+    {pageCount > 1 && <div className={`${styles.footer} ${layoutStyles.tableFooter}`}>
       <div className={styles.pageInfo}><Select label="Requests per page" value={String(pagination.pageSize)} options={[10, 20, 25, 30, 40, 50].map(size => ({ value: String(size), label: String(size) }))} onValueChange={value => setView(previous => ({ ...previous, pagination: { pageIndex: 0, pageSize: Number(value) } }))} />
       <p className={styles.count}>{matching.length ? pageIndex * pagination.pageSize + 1 : 0} – {Math.min((pageIndex + 1) * pagination.pageSize, matching.length)} of {matching.length} Requests</p></div>
       <Pagination page={pageIndex + 1} pageCount={pageCount} onPageChange={page => setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: page - 1 } }))} label="Request pages" />
-    </div>
+    </div>}
     </div>
     <AnimatePresence initial={false}>
     {presentation && summaryOpen && <RequestListSummary rows={matching} filter={filter} project={project} requestType={requestType}

@@ -120,9 +120,6 @@ export function RequestListPane({ requests, selectedRequestId, filter, projectFi
   </aside>
 }
 
-export function NoRequestSelected() {
-  return <div className="hidden min-w-0 flex-1 lg:flex"><EmptyState icon={<Inbox />} title="Select a Request" description="View its problem, supporting details, and comments here." /></div>
-}
 function CloseDetail({ href, label }: { href: string; label: string }) {
   return <Link href={href} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm}`} aria-label={label}><ArrowLeft size={16} aria-hidden="true" className="lg:hidden" /><X size={16} aria-hidden="true" className="hidden lg:block" /></Link>
 }
