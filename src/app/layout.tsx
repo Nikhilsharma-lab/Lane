@@ -15,6 +15,21 @@ export const metadata: Metadata = {
   description: "Collect design requests, clarify the problem, and track the work from Open to Done.",
 };
 
+// Origins Clerk may redirect back to after sign-in, sign-up and invite flows.
+// NEXT_PUBLIC_APP_URL stays first. Localhost is only trusted outside the
+// production deployment (plan 6.1, G10).
+const isProductionDeployment = process.env.VERCEL_ENV === "production";
+const allowedRedirectOrigins = Array.from(
+  new Set(
+    [
+      process.env.NEXT_PUBLIC_APP_URL,
+      ...(isProductionDeployment ? [] : ["http://localhost:3000", "http://localhost:3100"]),
+      "https://lane-staging.vercel.app",
+      "https://app.uselane.app",
+    ].filter((origin): origin is string => Boolean(origin)),
+  ),
+);
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,13 +49,7 @@ export default function RootLayout({
           signUpUrl="/signup"
           signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
-          allowedRedirectOrigins={[
-            process.env.NEXT_PUBLIC_APP_URL,
-            "http://localhost:3000",
-            "http://localhost:3100",
-            "https://lane-staging.vercel.app",
-            "https://app.uselane.app",
-          ].filter((origin): origin is string => Boolean(origin))}
+          allowedRedirectOrigins={allowedRedirectOrigins}
           taskUrls={{
             "choose-organization": "/login",
             "reset-password": "/reset-password",

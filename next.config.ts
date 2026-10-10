@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import dotenv from "dotenv";
 
+import { securityHeaders } from "./src/lib/security-headers";
+
 // Force-load Lane's selected local env file so it wins over system env vars.
 // Needed because Claude Desktop sets an empty ANTHROPIC_API_KEY as a
 // system env var, and Next.js's built-in dotenv doesn't override existing
@@ -14,6 +16,19 @@ dotenv.config({
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  // Baseline security headers on every route; CSP stays Report-Only until
+  // staging and production report nothing (src/lib/security-headers.ts).
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders({
+          development: process.env.NODE_ENV !== "production",
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        }),
+      },
+    ];
+  },
 };
 
 export default nextConfig;
