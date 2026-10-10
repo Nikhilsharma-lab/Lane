@@ -6,6 +6,8 @@ export const REQUEST_STATUS_FILTERS = [
 ] as const
 
 export type RequestStatusFilter = (typeof REQUEST_STATUS_FILTERS)[number]
+// "all", "none", or a Project ID. IDs are authorized at the server boundary.
+export type RequestProjectFilter = string
 
 export function isRequestStatusFilter(
   value: string | null | undefined
@@ -20,14 +22,30 @@ export function parseRequestStatusFilter(
   return isRequestStatusFilter(candidate) ? candidate : "all"
 }
 
-export function requestListHref(filter: RequestStatusFilter) {
-  return filter === "all" ? "/" : `/?status=${filter}`
+export function parseRequestProjectFilter(
+  value: string | string[] | null | undefined
+): RequestProjectFilter {
+  const candidate = Array.isArray(value) ? value[0] : value
+  if (candidate && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) return candidate.toLowerCase()
+  return candidate ?? "all"
+}
+
+function requestQuery(filter: RequestStatusFilter, projectFilter: RequestProjectFilter) {
+  const query = new URLSearchParams()
+  if (filter !== "all") query.set("status", filter)
+  if (projectFilter !== "all") query.set("project", projectFilter)
+  return query.size ? `?${query}` : ""
+}
+
+export function requestListHref(filter: RequestStatusFilter, projectFilter: RequestProjectFilter = "all") {
+  return `/${requestQuery(filter, projectFilter)}`
 }
 
 export function requestDetailHref(
   requestId: string,
-  filter: RequestStatusFilter
+  filter: RequestStatusFilter,
+  projectFilter: RequestProjectFilter = "all"
 ) {
   const path = `/requests/${requestId}`
-  return filter === "all" ? path : `${path}?status=${filter}`
+  return `${path}${requestQuery(filter, projectFilter)}`
 }

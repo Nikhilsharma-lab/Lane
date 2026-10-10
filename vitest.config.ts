@@ -13,6 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+      // Next resolves this marker itself; the suite imports server loaders directly.
+      "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
     },
   },
 });

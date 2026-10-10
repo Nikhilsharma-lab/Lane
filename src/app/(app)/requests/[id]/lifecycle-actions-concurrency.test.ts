@@ -4,7 +4,6 @@ import {
   notifications,
   profiles,
   requests,
-  workspaceMembers,
   workspaces,
 } from "@/db";
 import { and, eq } from "drizzle-orm";
@@ -13,21 +12,13 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-type SessionUser = { id: string; email?: string };
-let sessionQueue: SessionUser[] = [];
+type Session = { userId: string; orgId: string; orgRole: "org:member" };
+let sessionQueue: Session[] = [];
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => {
-    const user = sessionQueue.shift() ?? null;
-    return {
-      auth: {
-        getUser: async () => ({
-          data: { user },
-          error: user ? null : { message: "Not authenticated" },
-        }),
-      },
-    };
-  }),
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(async () =>
+    sessionQueue.shift() ?? { userId: null, orgId: null, orgRole: null }
+  ),
 }));
 
 const WORKSPACE_ID = "00000000-0000-4000-a000-00000000a101";
@@ -45,44 +36,21 @@ beforeAll(async () => {
   await db.insert(profiles).values([
     {
       id: REQUESTER_ID,
-      orgId: WORKSPACE_ID,
       fullName: "Requester",
       email: "requester@lifecycle.test",
       role: "pm",
     },
     {
       id: FIRST_MEMBER_ID,
-      orgId: WORKSPACE_ID,
       fullName: "First Member",
       email: "first@lifecycle.test",
       role: "designer",
     },
     {
       id: SECOND_MEMBER_ID,
-      orgId: WORKSPACE_ID,
       fullName: "Second Member",
       email: "second@lifecycle.test",
       role: "developer",
-    },
-  ]);
-  await db.insert(workspaceMembers).values([
-    {
-      workspaceId: WORKSPACE_ID,
-      userId: REQUESTER_ID,
-      role: "member",
-      isActive: true,
-    },
-    {
-      workspaceId: WORKSPACE_ID,
-      userId: FIRST_MEMBER_ID,
-      role: "member",
-      isActive: true,
-    },
-    {
-      workspaceId: WORKSPACE_ID,
-      userId: SECOND_MEMBER_ID,
-      role: "member",
-      isActive: true,
     },
   ]);
   await db.insert(requests).values({
@@ -100,10 +68,9 @@ afterAll(async () => {
     .delete(notifications)
     .where(eq(notifications.orgId, WORKSPACE_ID));
   await db.delete(requests).where(eq(requests.orgId, WORKSPACE_ID));
-  await db
-    .delete(workspaceMembers)
-    .where(eq(workspaceMembers.workspaceId, WORKSPACE_ID));
-  await db.delete(profiles).where(eq(profiles.orgId, WORKSPACE_ID));
+  await db.delete(profiles).where(eq(profiles.id, REQUESTER_ID));
+  await db.delete(profiles).where(eq(profiles.id, FIRST_MEMBER_ID));
+  await db.delete(profiles).where(eq(profiles.id, SECOND_MEMBER_ID));
   await db.delete(workspaces).where(eq(workspaces.id, WORKSPACE_ID));
 });
 
@@ -119,8 +86,8 @@ function splitResults(
 describe("atomic Request lifecycle transitions", () => {
   it("allows only one concurrent pickup and one pickup notification", async () => {
     sessionQueue = [
-      { id: FIRST_MEMBER_ID },
-      { id: SECOND_MEMBER_ID },
+      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
+      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
     ];
     const { pickUpRequest } = await import("./actions");
 
@@ -157,8 +124,8 @@ describe("atomic Request lifecycle transitions", () => {
 
   it("allows only one concurrent completion and one Done notification", async () => {
     sessionQueue = [
-      { id: FIRST_MEMBER_ID },
-      { id: SECOND_MEMBER_ID },
+      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
+      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
     ];
     const { markDone } = await import("./actions");
 

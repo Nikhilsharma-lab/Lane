@@ -9,24 +9,17 @@
  * Does NOT touch any row another test file uses.
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { db, workspaceMembers, requests, profiles, workspaces, comments } from "@/db";
+import { db, requests, profiles, workspaces, comments } from "@/db";
 import { eq, and } from "drizzle-orm";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-let mockSessionUser: { id: string; email?: string } | null = null;
+let mockSession = { userId: "", orgId: "", orgRole: "" };
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({
-    auth: {
-      getUser: async () => ({
-        data: { user: mockSessionUser },
-        error: mockSessionUser ? null : { message: "Not authenticated" },
-      }),
-    },
-  })),
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(async () => mockSession),
 }));
 
 const WS_ID = "00000000-0000-4000-c000-000000000001";
@@ -43,13 +36,8 @@ beforeAll(async () => {
   }).onConflictDoNothing();
 
   await db.insert(profiles).values([
-    { id: GUEST_ID, orgId: WS_ID, fullName: "Comment Guest", email: "guest-comment@forge.test", role: "designer" },
-    { id: MEMBER_ID, orgId: WS_ID, fullName: "Comment Member", email: "member-comment@forge.test", role: "developer" },
-  ]).onConflictDoNothing();
-
-  await db.insert(workspaceMembers).values([
-    { workspaceId: WS_ID, userId: GUEST_ID, role: "guest", isActive: true },
-    { workspaceId: WS_ID, userId: MEMBER_ID, role: "member", isActive: true },
+    { id: GUEST_ID, fullName: "Comment Guest", email: "guest-comment@forge.test", role: "designer" },
+    { id: MEMBER_ID, fullName: "Comment Member", email: "member-comment@forge.test", role: "developer" },
   ]).onConflictDoNothing();
 
   await db.insert(requests).values([
@@ -80,8 +68,8 @@ afterAll(async () => {
     eq(comments.requestId, MEMBER_REQ_ID)
   );
   await db.delete(requests).where(eq(requests.orgId, WS_ID));
-  await db.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, WS_ID));
-  await db.delete(profiles).where(eq(profiles.orgId, WS_ID));
+  await db.delete(profiles).where(eq(profiles.id, GUEST_ID));
+  await db.delete(profiles).where(eq(profiles.id, MEMBER_ID));
   await db.delete(workspaces).where(eq(workspaces.id, WS_ID));
 });
 
@@ -93,7 +81,7 @@ function formData(body: string): FormData {
 
 describe("Guest comment own-scoping", () => {
   it("guest addComment on own request → allowed", async () => {
-    mockSessionUser = { id: GUEST_ID };
+    mockSession = { userId: GUEST_ID, orgId: WS_ID, orgRole: "org:guest" };
 
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const result = await addComment(GUEST_REQ_ID, formData("guest's own comment"), { orgId: WS_ID });
@@ -109,7 +97,7 @@ describe("Guest comment own-scoping", () => {
   });
 
   it("guest addComment on member's request (forged id) → rejected", async () => {
-    mockSessionUser = { id: GUEST_ID };
+    mockSession = { userId: GUEST_ID, orgId: WS_ID, orgRole: "org:guest" };
 
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const result = await addComment(MEMBER_REQ_ID, formData("sneaky comment"), { orgId: WS_ID });
@@ -125,7 +113,7 @@ describe("Guest comment own-scoping", () => {
   });
 
   it("member addComment on guest's request → allowed (positive control)", async () => {
-    mockSessionUser = { id: MEMBER_ID };
+    mockSession = { userId: MEMBER_ID, orgId: WS_ID, orgRole: "org:member" };
 
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const result = await addComment(GUEST_REQ_ID, formData("member's comment on guest request"), { orgId: WS_ID });

@@ -1,0 +1,165 @@
+/* Lane visual primitives: colour, geometry, type and spacing roles for the dense
+ * product shell. Authored for Lane on 2026-10-10 as OKLCH ramps on one cool neutral
+ * axis (hue 255) with a green-teal accent (hue 162); status and Project hues are
+ * generic families. Every text-on-surface pair here passes 4.5:1 in both modes (the
+ * generator asserts it). Three contexts share the roles: content, sidebar and the
+ * floating menu. Activated by data-visual-system="lane" on <html>; the mapping into
+ * Arc's semantic hooks lives in lane-arc-theme.css. */
+:root[data-visual-system="lane"] {
+  --lane-content-bg-base: oklch(0.985 0.002 255);
+  --lane-content-bg-base-hover: oklch(0.955 0.003 255);
+  --lane-content-bg-shade: oklch(0.945 0.003 255);
+  --lane-content-bg-shade-hover: oklch(0.925 0.004 255);
+  --lane-content-bg-focus: oklch(0.93 0.004 255);
+  --lane-content-bg-border-faint: oklch(0.95 0.002 255);
+  --lane-content-bg-border: oklch(0.885 0.003 255);
+  --lane-content-bg-border-solid: oklch(0.84 0.004 255);
+  --lane-content-bg-border-strong: oklch(0.55 0.006 255);
+  --lane-content-bg-selected: oklch(0.93 0.035 162);
+  --lane-content-bg-selected-border: oklch(0.82 0.05 162);
+  --lane-content-label-title: oklch(0.17 0.01 255);
+  --lane-content-label-base: oklch(0.3 0.012 255);
+  --lane-content-label-muted: oklch(0.47 0.012 255);
+  --lane-content-label-link: oklch(0.5 0.13 162);
+  --lane-content-focus-color: oklch(0.56 0.13 162);
+  --lane-content-control-primary: oklch(0.54 0.14 162);
+  --lane-content-control-primary-label: oklch(0.995 0.005 162);
+  --lane-content-control-secondary: oklch(1 0 255);
+  --lane-content-control-secondary-hover: oklch(0.96 0.003 255);
+  --lane-sidebar-bg-base: oklch(0.965 0.003 255);
+  --lane-sidebar-bg-base-hover: oklch(0.935 0.004 255);
+  --lane-sidebar-bg-shade-hover: oklch(0.91 0.005 255);
+  --lane-menu-bg-base: oklch(1 0 255);
+  --lane-menu-bg-base-hover: oklch(0.96 0.003 255);
+  --lane-menu-bg-focus: oklch(0.945 0.003 255);
+  --lane-menu-bg-border: oklch(0.9 0.003 255);
+  --lane-menu-bg-border-faint: oklch(0.965 0.002 255);
+  --lane-menu-bg-border-strong: oklch(0.55 0.006 255);
+  --lane-menu-label-base: oklch(0.22 0.01 255);
+  --lane-menu-label-muted: oklch(0.47 0.012 255);
+  --lane-content-blue-base: oklch(0.7 0.15 250);
+  --lane-content-blue-mid: oklch(0.62 0.15 250);
+  --lane-content-blue-text: oklch(0.47 0.14 250);
+  --lane-content-blue-tint: oklch(0.955 0.03 250);
+  --lane-content-green-base: oklch(0.7 0.15 148);
+  --lane-content-green-mid: oklch(0.62 0.15 148);
+  --lane-content-green-text: oklch(0.47 0.14 148);
+  --lane-content-green-tint: oklch(0.955 0.03 148);
+  --lane-content-purple-base: oklch(0.7 0.15 300);
+  --lane-content-purple-mid: oklch(0.62 0.15 300);
+  --lane-content-purple-text: oklch(0.47 0.14 300);
+  --lane-content-purple-tint: oklch(0.955 0.03 300);
+  --lane-content-red-base: oklch(0.7 0.15 25);
+  --lane-content-red-mid: oklch(0.62 0.15 25);
+  --lane-content-red-text: oklch(0.47 0.14 25);
+  --lane-content-red-tint: oklch(0.955 0.03 25);
+  --lane-content-red-bg: oklch(0.52 0.17 25);
+  --lane-content-orange-base: oklch(0.7 0.15 52);
+  --lane-content-orange-mid: oklch(0.62 0.15 52);
+  --lane-content-orange-text: oklch(0.52 0.15 52);
+  --lane-content-orange-tint: oklch(0.955 0.03 52);
+  --lane-content-yellow-base: oklch(0.7 0.15 92);
+  --lane-content-yellow-mid: oklch(0.62 0.15 92);
+  --lane-content-yellow-text: oklch(0.5 0.12 92);
+  --lane-content-yellow-tint: oklch(0.955 0.03 92);
+}
+
+:root[data-visual-system="lane"][data-theme="dark"] {
+  --lane-content-bg-base: oklch(0.19 0.006 255);
+  --lane-content-bg-base-hover: oklch(0.225 0.007 255);
+  --lane-content-bg-shade: oklch(0.215 0.007 255);
+  --lane-content-bg-shade-hover: oklch(0.235 0.008 255);
+  --lane-content-bg-focus: oklch(0.26 0.008 255);
+  --lane-content-bg-border-faint: oklch(0.235 0.007 255);
+  --lane-content-bg-border: oklch(0.27 0.008 255);
+  --lane-content-bg-border-solid: oklch(0.29 0.008 255);
+  --lane-content-bg-border-strong: oklch(0.6 0.01 255);
+  --lane-content-bg-selected: oklch(0.27 0.04 162);
+  --lane-content-bg-selected-border: oklch(0.36 0.06 162);
+  --lane-content-label-title: oklch(0.98 0.004 255);
+  --lane-content-label-base: oklch(0.9 0.006 255);
+  --lane-content-label-muted: oklch(0.68 0.01 255);
+  --lane-content-label-link: oklch(0.78 0.13 162);
+  --lane-content-focus-color: oklch(0.74 0.13 162);
+  --lane-content-control-primary: oklch(0.72 0.14 162);
+  --lane-content-control-primary-label: oklch(0.17 0.02 162);
+  --lane-content-control-secondary: oklch(0.22 0.007 255);
+  --lane-content-control-secondary-hover: oklch(0.26 0.008 255);
+  --lane-sidebar-bg-base: oklch(0.16 0.006 255);
+  --lane-sidebar-bg-base-hover: oklch(0.2 0.007 255);
+  --lane-sidebar-bg-shade-hover: oklch(0.19 0.007 255);
+  --lane-menu-bg-base: oklch(0.235 0.007 255);
+  --lane-menu-bg-base-hover: oklch(0.275 0.008 255);
+  --lane-menu-bg-focus: oklch(0.3 0.008 255);
+  --lane-menu-bg-border: oklch(0.31 0.008 255);
+  --lane-menu-bg-border-faint: oklch(0.27 0.008 255);
+  --lane-menu-bg-border-strong: oklch(0.58 0.01 255);
+  --lane-menu-label-base: oklch(0.92 0.006 255);
+  --lane-menu-label-muted: oklch(0.7 0.01 255);
+  --lane-content-blue-base: oklch(0.72 0.15 250);
+  --lane-content-blue-mid: oklch(0.66 0.14 250);
+  --lane-content-blue-text: oklch(0.8 0.12 250);
+  --lane-content-blue-tint: oklch(0.27 0.05 250);
+  --lane-content-green-base: oklch(0.72 0.15 148);
+  --lane-content-green-mid: oklch(0.66 0.14 148);
+  --lane-content-green-text: oklch(0.8 0.12 148);
+  --lane-content-green-tint: oklch(0.27 0.05 148);
+  --lane-content-purple-base: oklch(0.72 0.15 300);
+  --lane-content-purple-mid: oklch(0.66 0.14 300);
+  --lane-content-purple-text: oklch(0.8 0.12 300);
+  --lane-content-purple-tint: oklch(0.27 0.05 300);
+  --lane-content-red-base: oklch(0.72 0.15 25);
+  --lane-content-red-mid: oklch(0.66 0.14 25);
+  --lane-content-red-text: oklch(0.8 0.12 25);
+  --lane-content-red-tint: oklch(0.27 0.05 25);
+  --lane-content-red-bg: oklch(0.62 0.17 25);
+  --lane-content-orange-base: oklch(0.72 0.15 52);
+  --lane-content-orange-mid: oklch(0.66 0.14 52);
+  --lane-content-orange-text: oklch(0.8 0.12 52);
+  --lane-content-orange-tint: oklch(0.27 0.05 52);
+  --lane-content-yellow-base: oklch(0.72 0.15 92);
+  --lane-content-yellow-mid: oklch(0.66 0.14 92);
+  --lane-content-yellow-text: oklch(0.8 0.12 92);
+  --lane-content-yellow-tint: oklch(0.27 0.05 92);
+}
+
+:root[data-visual-system="lane"] {
+  --lane-row-height: 44px;
+  --lane-row-radius: 8px;
+  --lane-control-radius: 8px;
+  --lane-panel-radius: 12px;
+  --lane-pill-radius: 48px;
+  --lane-rounded-radius: 9999px;
+  --lane-pill-height: 24px;
+  --lane-pill-padding: 8px;
+  --lane-checkbox-size: 14px;
+  --lane-checkbox-radius: 3px;
+  --lane-toolbar-height: 28px;
+  --lane-sidebar-row-height: 28px;
+  --lane-menu-row-height: 32px;
+  --lane-control-padding: 12px;
+  --lane-row-gap: 8px;
+  --lane-meta-gap: 4px;
+  --lane-font-small: .8125rem;
+  --lane-font-mini: .75rem;
+  --lane-font-regular: .9375rem;
+  --lane-font-large: 1.125rem;
+  --lane-font-title-3: 1.25rem;
+  --lane-font-title-2: 1.5rem;
+  --lane-font-title-1: 2.25rem;
+  --lane-font-weight-normal: 450;
+  --lane-font-weight-medium: 500;
+  --lane-space-4: 4px;
+  --lane-space-8: 8px;
+  --lane-space-12: 12px;
+  --lane-space-16: 16px;
+  --lane-space-20: 20px;
+  --lane-space-24: 24px;
+  --lane-space-32: 32px;
+  --lane-space-40: 40px;
+  --lane-space-48: 48px;
+  --lane-space-64: 64px;
+  --lane-space-80: 80px;
+  --lane-space-96: 96px;
+  --lane-header-height: 44px;
+}

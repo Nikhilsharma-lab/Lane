@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { db, workspaces, profiles, workspaceMembers, requests, comments } from "@/db";
+import { db, workspaces, profiles, requests, comments } from "@/db";
 import { alias } from "drizzle-orm/pg-core";
 import { eq, asc } from "drizzle-orm";
 
@@ -18,15 +18,9 @@ beforeAll(async () => {
   }).onConflictDoNothing();
 
   await db.insert(profiles).values([
-    { id: CREATOR_ID, orgId: WS_ID, fullName: "Alice Creator", email: "alice-detail@forge.test", role: "pm" },
-    { id: ASSIGNEE_ID, orgId: WS_ID, fullName: "Bob Assignee", email: "bob-detail@forge.test", role: "designer" },
-    { id: GUEST_ID, orgId: WS_ID, fullName: "Carol Guest", email: "carol-detail@forge.test", role: "developer" },
-  ]).onConflictDoNothing();
-
-  await db.insert(workspaceMembers).values([
-    { workspaceId: WS_ID, userId: CREATOR_ID, role: "member", isActive: true },
-    { workspaceId: WS_ID, userId: ASSIGNEE_ID, role: "member", isActive: true },
-    { workspaceId: WS_ID, userId: GUEST_ID, role: "guest", isActive: true },
+    { id: CREATOR_ID, fullName: "Alice Creator", email: "alice-detail@forge.test", role: "pm" },
+    { id: ASSIGNEE_ID, fullName: "Bob Assignee", email: "bob-detail@forge.test", role: "designer" },
+    { id: GUEST_ID, fullName: "Carol Guest", email: "carol-detail@forge.test", role: "developer" },
   ]).onConflictDoNothing();
 
   await db.insert(requests).values([
@@ -58,8 +52,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(comments).where(eq(comments.requestId, REQ_ID));
   await db.delete(requests).where(eq(requests.orgId, WS_ID));
-  await db.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, WS_ID));
-  await db.delete(profiles).where(eq(profiles.orgId, WS_ID));
+  await db.delete(profiles).where(eq(profiles.id, CREATOR_ID));
+  await db.delete(profiles).where(eq(profiles.id, ASSIGNEE_ID));
+  await db.delete(profiles).where(eq(profiles.id, GUEST_ID));
   await db.delete(workspaces).where(eq(workspaces.id, WS_ID));
 });
 

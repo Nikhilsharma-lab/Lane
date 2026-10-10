@@ -1,5 +1,5 @@
-import { RequestsWorkspaceLoading } from "../../requests-workspace-loading"
+import { RequestDetailSkeleton } from "@/components/requests/detail-view"
 
 export default function RequestDetailLoading() {
-  return <RequestsWorkspaceLoading selected />
+  return <RequestDetailSkeleton />
 }

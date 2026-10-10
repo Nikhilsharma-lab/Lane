@@ -1,8 +1,8 @@
-# Lane component rules
+# Product UI
 
-- Inspect Plane's equivalent frontend before implementation: IA, composition, interaction, states, responsive, and keyboard behaviour.
-- Reuse `src/components/ui` before creating a primitive; search the official shadcn registry when the component is missing.
-- Lane uses shadcn `base-nova`, Base UI APIs and `render` composition, not assumed Radix APIs.
-- Read local component source before use or modification. Diff the official registry first; never overwrite Lane-owned source blindly.
-- Use semantic Tailwind tokens from `globals.css`, preserve `DESIGN.md`, and avoid arbitrary visual values.
-- Verify accessible names, focus, keyboard operation, reduced motion, responsive behaviour, and all relevant states.
+- `DESIGN.md` is authoritative: Arc UI only. Read `.claude/skills/arc/SKILL.md` and the relevant Arc Pro workflow before UI changes.
+- Use actual official Arc registry/MCP source and documented APIs. Record deliberate adaptations in `docs/design-system/arc-sources.md`.
+- Use Arc foundation tokens globally, Inter body and Geist display, and the native light/dark theme. No parallel palettes or scoped competing themes. The approved 2026-10-07 Requests/detail/Project navigation work may reference Linear interactions; Arc remains the visual authority.
+- Preserve existing routes, data, actions, draft/upload recovery, permissions and Clerk-owned flows. Marketing is out of scope.
+- Show live Codex/Storybook previews and verify keyboard, accessible names, responsive behavior, motion and all relevant states.
+- Approved 2026-10-08 exception: `Review/Linear primitives` uses sourced Linear visual tokens through optional Arc hooks, retaining Arc components/motion. This is an opt-in Requests/sidebar preview only; production, marketing and Request detail stay outside it. See `docs/design-system/linear-primitives.md`.

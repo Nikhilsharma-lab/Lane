@@ -1,0 +1,48 @@
+name: Storybook
+
+# Storybook is the design-system reference (components and primitives), not a
+# per-page gate (Nikhil, 2026-10-10). Run it on demand from the Actions tab.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  storybook:
+    name: storybook (${{ matrix.width }} ${{ matrix.theme }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - width: "1440"
+            theme: light
+          - width: "390"
+            theme: dark
+
+    # Read by vitest.storybook.config.ts (viewport, define) and .storybook/preview.tsx (initial theme global).
+    env:
+      STORYBOOK_WIDTH: ${{ matrix.width }}
+      STORYBOOK_THEME: ${{ matrix.theme }}
+      # Browser-process stderr in the job log, so a renderer crash names its reason.
+      DEBUG: pw:browser
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:storybook

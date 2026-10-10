@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoaderCircleIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Feedback } from "@/components/ui/feedback";
-import { useRecoverableAction } from "@/components/ui/use-recoverable-action";
+import { Button } from "@/components/arc/button/button";
+import { Alert } from "@/components/arc/alert/alert";
+import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import {
   requestListHref,
+  type RequestProjectFilter,
   type RequestStatusFilter,
 } from "@/lib/request-workspace";
 import { cn } from "@/lib/utils";
@@ -19,12 +20,14 @@ export function LifecycleButtons({
   status,
   context,
   filter,
+  projectFilter = "all",
   fullWidth = false,
 }: {
   requestId: string;
   status: string;
   context: { orgId: string };
   filter: RequestStatusFilter;
+  projectFilter?: RequestProjectFilter;
   fullWidth?: boolean;
 }) {
   const { pending, run } = useRecoverableAction();
@@ -52,11 +55,13 @@ export function LifecycleButtons({
 
     const result = outcome.value;
     if ("error" in result && result.error) {
+      // The server did not revalidate on a conflict, so re-sync the detail here.
       setError(result.error);
       router.refresh();
     } else {
+      // A successful action already revalidated the detail and list paths, and
+      // its response carries the refreshed tree. A refresh here would render twice.
       setMovedTo(target);
-      router.refresh();
     }
   }
 
@@ -64,7 +69,7 @@ export function LifecycleButtons({
     await runLifecycleAction(
       () => pickUpRequest(requestId, context),
       "in_progress",
-      "Couldn’t confirm pickup. Refreshing now—try again if this Request remains Open."
+      "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open."
     );
   }
 
@@ -72,7 +77,7 @@ export function LifecycleButtons({
     await runLifecycleAction(
       () => markDone(requestId, context),
       "done",
-      "Couldn’t confirm completion. Refreshing now—try again if this Request remains In Progress."
+      "Couldn’t confirm completion. Refreshing now. Try again if this Request is still In Progress."
     );
   }
 
@@ -87,22 +92,22 @@ export function LifecycleButtons({
       )}
     >
       {error && (
-        <Feedback kind="error" variant="inline">
+        <Alert tone="danger" title="Action failed">
           {error}
-        </Feedback>
+        </Alert>
       )}
       {movedTo && (
-        <Feedback kind="success" variant="inline">
+        <Alert tone="success" title="Request updated">
           Moved to {movedTo === "done" ? "Done" : "In Progress"}.{" "}
           {filter !== "all" && filter !== movedTo && (
             <Link
-              href={requestListHref(movedTo)}
-              className="font-semibold underline underline-offset-4"
+              href={requestListHref(movedTo, projectFilter)}
+              className="font-medium underline underline-offset-4"
             >
-              Show that list
+              View Requests
             </Link>
           )}
-        </Feedback>
+        </Alert>
       )}
 
       {status === "open" && (
@@ -118,7 +123,6 @@ export function LifecycleButtons({
               aria-hidden="true"
               data-icon="inline-start"
               className="animate-spin motion-reduce:animate-none"
-              strokeWidth={1.8}
             />
           )}
           {pending ? "Picking up…" : "Pick up"}
@@ -138,7 +142,6 @@ export function LifecycleButtons({
               aria-hidden="true"
               data-icon="inline-start"
               className="animate-spin motion-reduce:animate-none"
-              strokeWidth={1.8}
             />
           )}
           {pending ? "Completing…" : "Mark done"}

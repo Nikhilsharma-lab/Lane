@@ -1,0 +1,41 @@
+/* Press scale is driven by Motion (whileTap) alone, so transform never gets a CSS transition here. */
+.button { position: relative; display: inline-flex; min-height: var(--control-height-md); align-items: center; justify-content: center; gap: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-4); font: inherit; font-size: var(--text-sm); font-weight: 500; line-height: var(--leading-body); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard); }
+.button:disabled { cursor: not-allowed; opacity: .52; }
+.button[aria-busy="true"] { cursor: progress; }
+/* Anchors of floating layers never scale: Radix opens on pointerdown and would measure a shrunken trigger. */
+.button:is([aria-haspopup]:not([aria-haspopup="false"]), [data-state], [role="combobox"]) { transform: none !important; }
+/* The slot's width follows the incoming label on a spring. The label stays centered and may overflow evenly while the slot catches up;
+   the outgoing label pops out of flow against the slot itself, so it keeps its place instead of following the new content box. */
+.labelSlot { position: relative; display: inline-flex; min-width: 0; align-items: center; justify-content: center; transition: opacity var(--duration-fast) var(--ease-standard); }
+.labelSlot[data-morphing] { clip-path: inset(-50% calc(var(--space-3) * -1)); }
+.labelContent { display: inline-flex; flex: none; align-items: center; }
+.labelPhase { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); white-space: nowrap; }
+.labelPhase svg { flex: none; }
+.primary { color: var(--primary-label, var(--background)); background: var(--primary-background, var(--foreground)); border-color: var(--primary-background, var(--foreground)); }
+.secondary { color: var(--foreground); background: var(--surface); border-color: var(--border); }
+.ghost { color: var(--text-secondary); background: transparent; border-color: transparent; }
+.danger { color: var(--danger); background: var(--surface); border-color: var(--border); }
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover:not(:disabled) { opacity: var(--primary-hover-opacity, .91); background: var(--primary-hover-background, var(--foreground)); border-color: var(--primary-hover-background, var(--foreground)); box-shadow: var(--shadow-resting); }
+  .secondary:hover:not(:disabled) { background: var(--interaction-hover, var(--surface-muted)); box-shadow: var(--shadow-resting); }
+  .ghost:hover:not(:disabled) { color: var(--foreground); background: var(--interaction-hover, var(--surface-muted)); }
+  .danger:hover:not(:disabled) { border-color: var(--danger); background: var(--interaction-hover, var(--surface-muted)); }
+}
+/* Color feedback on press, so touch and menu triggers (which never scale) still answer the finger. */
+.primary:active:not(:disabled) { opacity: var(--primary-pressed-opacity, .84); background: var(--primary-pressed-background, var(--foreground)); border-color: var(--primary-pressed-background, var(--foreground)); }
+.secondary:active:not(:disabled), .ghost:active:not(:disabled) { color: var(--foreground); background: var(--interaction-pressed, var(--surface-muted)); }
+.danger:active:not(:disabled) { border-color: var(--danger); background: var(--interaction-pressed, var(--surface-muted)); }
+/* The preview adds visible keyboard fills without changing the existing Arc focus cascade. */
+:global(:root[data-ui-state-contract="semantic"]) .primary:focus-visible:not(:disabled) { background: var(--primary-focus-background, var(--primary-hover-background, var(--foreground))); border-color: var(--primary-focus-background, var(--primary-hover-background, var(--foreground))); }
+:global(:root[data-ui-state-contract="semantic"]) .secondary:focus-visible:not(:disabled), :global(:root[data-ui-state-contract="semantic"]) .danger:focus-visible:not(:disabled) { background: var(--interaction-focus, var(--surface)); }
+:global(:root[data-ui-state-contract="semantic"]) .ghost:focus-visible:not(:disabled) { background: var(--interaction-focus, transparent); }
+.sm { min-height: var(--control-height-sm); padding-inline: var(--space-3); font-size: var(--text-sm); }
+.md { min-height: var(--control-height-md); }
+.lg { min-height: var(--control-height-lg); padding-inline: var(--space-5); font-size: var(--text-sm); }
+.loader { position: absolute; left: 50%; top: 50%; display: grid; width: var(--space-4); height: var(--space-4); margin: calc(var(--space-4) / -2); }
+.spinner { border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+.loadingLabel { opacity: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .button { transition: none; } .labelSlot { transition: opacity var(--duration-instant) linear; } .spinner { animation-duration: .01ms; animation-iteration-count: 1; } }
+
+:global(:root[data-ui-state-contract="semantic"]) .button[role="option"][aria-selected="true"]:focus-visible .labelPhase { text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }

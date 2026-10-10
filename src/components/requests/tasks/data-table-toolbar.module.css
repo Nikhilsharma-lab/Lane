@@ -1,0 +1,68 @@
+.tableLayout { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.toolbarStack { min-width: 0; }
+.toolbar { display: flex; min-width: 0; min-height: var(--request-toolbar-height, 52px); align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-6); }
+.status { min-width: 0; flex: 1 1 auto; }
+.statusRow { position: relative; display: flex; min-width: 0; flex-wrap: nowrap; align-items: center; gap: var(--space-2); }
+.statusMeasure { position: absolute; top: 0; inset-inline-start: 0; display: flex; width: max-content; align-items: center; gap: var(--space-2); visibility: hidden; pointer-events: none; }
+/* The "N more" menu trigger reads as one more pill in the row. */
+.statusMore { display: inline-flex; flex: none; --radius-control: var(--radius-pill); }
+.actions { display: flex; flex: none; align-items: center; gap: var(--space-1); }
+.iconButton { width: var(--toolbar-icon-size, 40px); min-width: var(--toolbar-icon-size, 40px); min-height: var(--toolbar-icon-size, 40px); border-radius: var(--radius-pill); padding: 0; }
+.iconButton[data-active] { color: var(--selection-icon, var(--accent)); background: var(--selection-background, var(--surface-muted)); }
+.searchPanel { width: min(20rem, calc(100vw - 20px)); }
+.activeFilters { padding: var(--space-2) var(--space-6) 0; }
+.matchCount { flex: none; color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.recordRegion { min-width: 0; margin-top: var(--space-2); padding-inline: var(--space-6); }
+.tableFooter { margin-top: var(--space-5); padding: 0 var(--space-6) var(--space-6); }
+/* Narrow widths only tighten the gutters; control sizes follow the pointer. */
+@media (max-width: 640px) {
+  .toolbar { padding: var(--space-1) var(--space-4); }
+  .activeFilters { padding-inline: var(--space-4); }
+  .recordRegion { padding-inline: var(--space-4); }
+  .tableFooter { padding-inline: var(--space-4); }
+}
+@media (max-width: 640px) and (pointer: fine) {
+  /* Arc's filter trigger grows to 44px at this width on its own; keep it level
+     with the other toolbar icons for a mouse, using the same size token. */
+  .actions :global([data-filter-trigger]) { width: var(--toolbar-icon-size, 40px); min-width: var(--toolbar-icon-size, 40px); min-height: var(--toolbar-icon-size, 40px); --filter-trigger-size: var(--toolbar-icon-size, 40px); }
+}
+@media (pointer: coarse) {
+  .status { --control-height-sm: var(--control-height-md); }
+  .iconButton { width: 44px; min-width: 44px; min-height: 44px; }
+  .toolbar { min-height: 56px; }
+}
+
+:global(:root[data-ui-state-contract="semantic"]) .iconButton[data-active]:is(:hover, :focus-visible, :active):not(:disabled) { color: var(--selection-icon, var(--selection-foreground)); background: var(--selection-background); }
+
+:global(:root[data-ui-state-contract="semantic"]) .iconButton[data-active]:focus-visible::after { content: ""; position: absolute; width: 14px; height: 1px; bottom: 5px; left: calc(50% - 7px); background: currentColor; }
+
+:global(:root[data-visual-system="lane"]) .status { --control-height-sm: 28px; }
+
+.listAndSummary { position: relative; display: flex; min-width: 0; }
+.listPane { flex: 1; min-width: 0; }
+.tableLayout[data-preview-table] { min-height: 0; overflow: hidden; }
+.tableLayout[data-preview-table] .toolbarStack { flex: none; }
+.tableLayout[data-preview-table] .listAndSummary { flex: 1; min-height: 0; overflow: hidden; }
+.tableLayout[data-preview-table] .listPane { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.summaryViewport { position: relative; flex: none; max-width: 100%; overflow: hidden; }
+.summary { position: absolute; inset: 0 auto var(--space-2) 0; width: 342px; max-width: calc(100cqw - var(--space-2)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-raised); }
+.summaryHeading { position: relative; margin-bottom: var(--space-2); }
+.summaryDimensions { --control-height-sm: 28px; --text-sm: var(--text-xs); gap: var(--space-1); }
+.summaryClose { position: absolute; top: 36px; right: 0; min-height: 24px; width: 24px; padding: 0; }
+.summaryCount { margin-block: var(--space-3); color: var(--text-secondary); font-size: var(--text-xs); }
+.summaryCount[aria-live] { padding-inline-end: 28px; }
+.summaryRows { display: grid; gap: var(--space-1); }
+.summaryRow { justify-content: space-between; width: 100%; text-align: left; }
+.summaryRow > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.summaryRow > span:last-child { font-variant-numeric: tabular-nums; }
+.summaryRow[aria-pressed="true"] { background: var(--selection-background); color: var(--selection-foreground); }
+@container main (max-width: 760px) {
+  .summaryViewport { position: absolute; inset: 0 0 0 auto; }
+  .tableLayout[data-preview-table] .listAndSummary[data-summary-open] .listPane { visibility: hidden; }
+  .summary { inset-inline: auto var(--space-2); }
+}
+@media (pointer: coarse) {
+  :global(:root[data-visual-system="lane"]) .status, .summaryDimensions { --control-height-sm: 44px; }
+  .summaryClose { top: 100%; width: 44px; min-height: 44px; }
+  .summaryCount[aria-live] { min-height: 44px; display: flex; align-items: center; margin-block: 0; padding-inline-end: 44px; }
+}

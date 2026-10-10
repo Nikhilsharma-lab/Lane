@@ -9,10 +9,15 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-e2e/**",
+    ".next-audit/**",
     "out/**",
     "build/**",
+    "storybook-static/**",
     "marketing/**",
     "next-env.d.ts",
+    // Local research captures (gitignored); never lint them.
+    "artifacts/**",
   ]),
 ]);
 

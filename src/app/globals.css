@@ -1,162 +1,65 @@
-/* Lane — approved global colour foundation.
-   Gallery-neutral materials carry the product. Interaction, semantic feedback,
-   and identity colours are separate layers with one job per token. */
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* Product semantic aliases derive exclusively from the Arc foundation. */
 :root {
-  --radius: 0.625rem;
-  color-scheme: light;
-
-  /* Material */
-  --background: oklch(0.9839 0.0025 345.2);
-  --foreground: oklch(0.2087 0.0111 346.5);
-
-  --card: oklch(0.9978 0.0011 17.2);
+  --radius: var(--radius-control);
+  --card: var(--surface);
   --card-foreground: var(--foreground);
-
-  --recessed: oklch(0.9648 0.005 345.3);
-  --raised: oklch(0.9798 0.005 345.3);
-  --popover: var(--raised);
+  --recessed: var(--surface-muted);
+  --raised: var(--surface-raised);
+  --scrim: color-mix(in oklab, var(--foreground) 20%, transparent);
+  --popover: var(--surface-raised);
   --popover-foreground: var(--foreground);
-
-  --primary: var(--foreground);
-  --primary-foreground: var(--card);
-
-  --secondary: var(--recessed);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --primary-hover: var(--accent-strong);
+  --secondary: var(--surface-muted);
   --secondary-foreground: var(--foreground);
-
-  --muted: var(--recessed);
-  --muted-foreground: oklch(0.4798 0.0113 352.7);
-
-  --disabled: oklch(0.9407 0.005 345.3);
-  --disabled-foreground: oklch(0.5001 0.01 349.5);
-
-  --accent: var(--recessed);
-  --accent-foreground: var(--foreground);
-
-  /* Interaction. Focus is a UI boundary; brand is readable action ink. */
-  --focus: oklch(0.6009 0.1506 350);
-  --brand: oklch(0.4795 0.1193 349.8);
-  --brand-soft: oklch(0.9501 0.0292 350.5);
-  --brand-foreground: var(--card);
-
-  --border: oklch(0.8794 0.0087 349.3);
-  --control: oklch(0.621 0.0145 353.4);
-  --input: var(--control);
-  --ring: var(--focus);
-
-  /* Desk tabs communicate state, never decoration or identity. */
-  --persimmon: oklch(0.5011 0.1384 47.1);
-  --persimmon-soft: oklch(0.9502 0.0296 56);
-  --chartreuse: oklch(0.4493 0.0992 124.6);
-  --chartreuse-soft: oklch(0.959 0.0346 124.9);
-  --raspberry: var(--focus);
-  --raspberry-soft: var(--brand-soft);
-
-  /* Identity colour is not semantic status colour. These physical tab fills
-     keep one graphite ink in both themes and each pair exceeds 8:1 contrast. */
-  --identity-ink: oklch(0.2294 0.0181 62.9);
-  --identity-raspberry: oklch(0.7802 0.1194 350.1);
-  --identity-persimmon: oklch(0.7973 0.1229 43.4);
-  --identity-chartreuse: oklch(0.84 0.1295 118);
-
-  /* Semantic feedback. Every foreground, soft surface, boundary, and icon tile
-     is authored explicitly; routes never manufacture contrast with opacity. */
-  --destructive: oklch(0.5098 0.1597 25.2);
-  --destructive-foreground: var(--card);
-  --destructive-soft: oklch(0.9533 0.0231 24.1);
-  --destructive-border: oklch(0.7591 0.0757 21);
-  --destructive-icon: oklch(0.8792 0.042 21.6);
-
-  --success: var(--chartreuse);
-  --success-soft: var(--chartreuse-soft);
-  --success-border: oklch(0.7537 0.0638 122);
-  --success-icon: oklch(0.8827 0.046 123.6);
-
-  --warning: var(--persimmon);
-  --warning-soft: var(--persimmon-soft);
-  --warning-border: oklch(0.7575 0.0778 56.5);
-  --warning-icon: oklch(0.8767 0.0476 55.7);
-
-  --info: var(--muted-foreground);
-  --info-soft: var(--recessed);
-  --info-border: oklch(0.7714 0.0063 350.9);
-  --info-icon: oklch(0.8921 0.0051 345.3);
-
-  /* Fonts — supplied by next/font variables on <html> in layout.tsx */
-  --font-sans: var(--font-geist-sans);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--text-secondary);
+  --disabled: var(--surface-muted);
+  --disabled-foreground: var(--text-muted);
+  --focus: var(--accent);
+  --ring: var(--focus-ring);
+  --brand: var(--accent);
+  --brand-soft: var(--accent-subtle);
+  --brand-foreground: var(--accent-foreground);
+  --highlight: var(--accent-subtle);
+  --control: var(--border-strong);
+  --input: var(--border-strong);
+  --identity-ink: var(--foreground);
+  --identity-surface: var(--surface-muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger);
+  --destructive-soft: color-mix(in oklab, var(--danger) 8%, var(--surface));
+  --destructive-border: color-mix(in oklab, var(--danger) 24%, var(--border));
+  --destructive-icon: var(--destructive-soft);
+  --success-foreground: var(--success);
+  --success-soft: color-mix(in oklab, var(--success) 8%, var(--surface));
+  --success-border: color-mix(in oklab, var(--success) 24%, var(--border));
+  --success-icon: var(--success-soft);
+  --warning-foreground: var(--warning);
+  --warning-soft: color-mix(in oklab, var(--warning) 8%, var(--surface));
+  --warning-border: color-mix(in oklab, var(--warning) 24%, var(--border));
+  --warning-icon: var(--warning-soft);
+  --info: var(--accent);
+  --info-foreground: var(--accent);
+  --info-soft: var(--accent-subtle);
+  --info-border: var(--border-strong);
+  --info-icon: var(--accent-subtle);
+  --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
-}
-
-.dark {
-  color-scheme: dark;
-  --background: oklch(0.1491 0.0056 355.7);
-  --foreground: oklch(0.9397 0.0035 354.7);
-
-  --card: oklch(0.1908 0.0052 355.4);
-  --card-foreground: var(--foreground);
-
-  --recessed: oklch(0.2357 0.0064 0.6);
-  --raised: var(--recessed);
-  --popover: var(--raised);
-  --popover-foreground: var(--foreground);
-
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-
-  --secondary: var(--recessed);
-  --secondary-foreground: var(--foreground);
-
-  --muted: var(--recessed);
-  --muted-foreground: oklch(0.7211 0.0075 354.9);
-
-  --disabled: oklch(0.2357 0.0064 0.6);
-  --disabled-foreground: oklch(0.6304 0.0094 349.4);
-
-  --accent: var(--recessed);
-  --accent-foreground: var(--foreground);
-
-  --focus: oklch(0.7391 0.1108 349.5);
-  --brand: oklch(0.7391 0.1108 349.5);
-  --brand-soft: oklch(0.2703 0.0446 351.4);
-  --brand-foreground: var(--background);
-
-  --border: oklch(0.2992 0.008 351.4);
-  --control: oklch(0.5011 0.0112 352.7);
-  --input: var(--control);
-  --ring: var(--focus);
-
-  --persimmon: oklch(0.7511 0.1205 48.4);
-  --persimmon-soft: oklch(0.2607 0.0404 48.9);
-  --chartreuse: oklch(0.7805 0.1002 124.8);
-  --chartreuse-soft: oklch(0.2599 0.0348 125.2);
-  --raspberry: var(--focus);
-  --raspberry-soft: var(--brand-soft);
-
-  --destructive: oklch(0.7202 0.1302 24.8);
-  --destructive-foreground: var(--background);
-  --destructive-soft: oklch(0.2592 0.0351 25.4);
-  --destructive-border: oklch(0.4654 0.0788 24.8);
-  --destructive-icon: oklch(0.3407 0.0523 25.4);
-
-  --success: var(--chartreuse);
-  --success-soft: var(--chartreuse-soft);
-  --success-border: oklch(0.497 0.0652 124.7);
-  --success-icon: oklch(0.3543 0.0472 124.8);
-
-  --warning: var(--persimmon);
-  --warning-soft: var(--persimmon-soft);
-  --warning-border: oklch(0.4809 0.0767 48.2);
-  --warning-icon: oklch(0.3481 0.0543 48.3);
-
-  --info: var(--muted-foreground);
-  --info-soft: var(--recessed);
-  --info-border: oklch(0.4549 0.0072 351.1);
-  --info-icon: oklch(0.3231 0.0079 351.3);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-accent: var(--surface-muted);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--accent-foreground);
+  --sidebar-ring: var(--focus-ring);
 }
 
 @theme inline {
@@ -168,7 +71,11 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-recessed: var(--recessed);
   --color-raised: var(--raised);
+  --color-scrim: var(--scrim);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-highlight: var(--highlight);
+  --color-identity-surface: var(--identity-surface);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -182,16 +89,7 @@
   --color-brand-soft: var(--brand-soft);
   --color-brand-foreground: var(--brand-foreground);
   --color-focus: var(--focus);
-  --color-persimmon: var(--persimmon);
-  --color-persimmon-soft: var(--persimmon-soft);
-  --color-chartreuse: var(--chartreuse);
-  --color-chartreuse-soft: var(--chartreuse-soft);
-  --color-raspberry: var(--raspberry);
-  --color-raspberry-soft: var(--raspberry-soft);
   --color-identity-ink: var(--identity-ink);
-  --color-identity-raspberry: var(--identity-raspberry);
-  --color-identity-persimmon: var(--identity-persimmon);
-  --color-identity-chartreuse: var(--identity-chartreuse);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-soft: var(--destructive-soft);
@@ -214,106 +112,98 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-display);
 
-  /* Semantic typography. Product routes consume roles, never raw sizes. */
-  --text-type-display: 2.25rem;
-  --text-type-display--line-height: 2.625rem;
-  --text-type-display--letter-spacing: -0.025em;
-  --text-type-display--font-weight: 600;
-  --text-type-auth-title: 1.875rem;
-  --text-type-auth-title--line-height: 2.25rem;
-  --text-type-auth-title--letter-spacing: -0.025em;
-  --text-type-auth-title--font-weight: 600;
-  --text-type-auth-title-mobile: 1.75rem;
-  --text-type-auth-title-mobile--line-height: 2.125rem;
-  --text-type-auth-title-mobile--letter-spacing: -0.025em;
-  --text-type-auth-title-mobile--font-weight: 600;
-  --text-type-page-title: 1.5rem;
-  --text-type-page-title--line-height: 1.875rem;
-  --text-type-page-title--letter-spacing: -0.02em;
-  --text-type-page-title--font-weight: 600;
-  --text-type-page-title-mobile: 1.375rem;
-  --text-type-page-title-mobile--line-height: 1.75rem;
-  --text-type-page-title-mobile--letter-spacing: -0.02em;
-  --text-type-page-title-mobile--font-weight: 600;
-  --text-type-section-title: 1rem;
-  --text-type-section-title--line-height: 1.5rem;
-  --text-type-section-title--font-weight: 600;
-  --text-type-prose: 1rem;
-  --text-type-prose--line-height: 1.5625rem;
+  /* Product type roles reference the Arc scale. */
+  --text-type-display: var(--text-3xl);
+  --text-type-display--line-height: var(--leading-body);
+  --text-type-display--letter-spacing: var(--tracking-body);
+  --text-type-display--font-weight: 500;
+  --text-type-auth-title: var(--text-2xl);
+  --text-type-auth-title--line-height: var(--leading-body);
+  --text-type-auth-title--letter-spacing: var(--tracking-body);
+  --text-type-auth-title--font-weight: 500;
+  --text-type-auth-title-mobile: var(--text-2xl);
+  --text-type-auth-title-mobile--line-height: var(--leading-body);
+  --text-type-auth-title-mobile--letter-spacing: var(--tracking-body);
+  --text-type-auth-title-mobile--font-weight: 500;
+  --text-type-page-title: var(--text-2xl);
+  --text-type-page-title--line-height: var(--leading-body);
+  --text-type-page-title--letter-spacing: var(--tracking-body);
+  --text-type-page-title--font-weight: 500;
+  --text-type-page-title-mobile: var(--text-xl);
+  --text-type-page-title-mobile--line-height: var(--leading-body);
+  --text-type-page-title-mobile--letter-spacing: var(--tracking-body);
+  --text-type-page-title-mobile--font-weight: 500;
+  --text-type-section-title: var(--text-lg);
+  --text-type-section-title--line-height: var(--leading-body);
+  --text-type-section-title--font-weight: 500;
+  --text-type-prose: var(--text-base);
+  --text-type-prose--line-height: var(--leading-body);
   --text-type-prose--font-weight: 400;
-  --text-type-ui: 0.875rem;
-  --text-type-ui--line-height: 1.3125rem;
+  --text-type-ui: var(--text-sm);
+  --text-type-ui--line-height: var(--leading-body);
   --text-type-ui--font-weight: 400;
-  --text-type-control: 0.875rem;
-  --text-type-control--line-height: 1.25rem;
+  --text-type-control: var(--text-sm);
+  --text-type-control--line-height: var(--leading-body);
   --text-type-control--font-weight: 500;
-  --text-type-label: 0.8125rem;
-  --text-type-label--line-height: 1.125rem;
+  --text-type-label: var(--text-sm);
+  --text-type-label--line-height: var(--leading-body);
   --text-type-label--font-weight: 500;
-  --text-type-support: 0.8125rem;
-  --text-type-support--line-height: 1.1875rem;
+  --text-type-support: var(--text-sm);
+  --text-type-support--line-height: var(--leading-body);
   --text-type-support--font-weight: 400;
-  --text-type-meta: 0.75rem;
-  --text-type-meta--line-height: 1.0625rem;
+  --text-type-meta: var(--text-xs);
+  --text-type-meta--line-height: var(--leading-body);
   --text-type-meta--font-weight: 400;
-  --text-type-micro: 0.6875rem;
-  --text-type-micro--line-height: 1rem;
+  --text-type-micro: var(--text-xs);
+  --text-type-micro--line-height: var(--leading-body);
   --text-type-micro--font-weight: 500;
-  --text-type-wordmark: 0.9375rem;
-  --text-type-wordmark--line-height: 1.25rem;
-  --text-type-wordmark--letter-spacing: -0.02em;
-  --text-type-wordmark--font-weight: 600;
+  --text-type-wordmark: var(--text-base);
+  --text-type-wordmark--line-height: var(--leading-body);
+  --text-type-wordmark--letter-spacing: var(--tracking-body);
+  --text-type-wordmark--font-weight: 500;
 
   /* Semantic density. Mobile touch targets collapse to compact desktop
      controls at the small breakpoint; form controls keep their own rhythm. */
-  --spacing-control-utility: 2rem;
-  --spacing-control-product: 2.25rem;
-  --spacing-control-form: 2.75rem;
-  --spacing-control-form-touch: 3rem;
+  --spacing-control-utility: var(--control-height-sm);
+  --spacing-control-product: var(--control-height-md);
+  --spacing-control-form: var(--control-height-md);
+  --spacing-control-form-touch: var(--control-height-md);
   --spacing-touch-target: 2.75rem;
   --spacing-row-identity: 3.25rem;
   --spacing-row-identity-touch: 3.75rem;
   --spacing-row-leading: 2rem;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { border-color: var(--border); }
   body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: var(--leading-body);
+    letter-spacing: var(--tracking-body);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-}
-
-[data-slot="radio-option"]:has(
-    [data-slot="radio-group-item"]:focus-visible
-  ) {
-  z-index: 10;
-  border-color: var(--ring);
-  border-radius: var(--radius);
-  box-shadow: 0 0 0 3px
-    color-mix(in oklch, var(--ring) 50%, transparent);
-}
-
-[data-slot="select-trigger"][aria-expanded="true"] [data-icon="chevron"] {
-  transform: rotate(180deg);
+  h1, h2, h3, h4, h5, h6 { font-weight: 500; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

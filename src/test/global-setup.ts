@@ -1,8 +1,23 @@
-import { execSync } from "child_process";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "path";
+import { buildLocalBaseline } from "./local-baseline";
 
 const DB_NAME = "lane_test";
 const BASELINE_PATH = path.resolve(__dirname, "../db/baseline.sql");
+const CLERK_CUTOVER_PATH = path.resolve(
+  __dirname,
+  "../db/migrations/0013_clerk_clean_cutover.sql"
+);
+const CLERK_SAFEGUARDS_PATH = path.resolve(
+  __dirname,
+  "../db/migrations/0014_restore_clerk_table_safeguards.sql"
+);
+const PROJECTS_PATH = path.resolve(__dirname, "../db/migrations/0015_request_projects_and_types.sql");
+const EXPECTED_IMPACT_PATH = path.resolve(__dirname, "../db/migrations/0016_request_expected_impact.sql");
+const REQUEST_CODES_PATH = path.resolve(__dirname, "../db/migrations/0017_request_codes.sql");
+const DESIGN_REVIEWS_PATH = path.resolve(__dirname, "../db/migrations/0018_request_design_reviews.sql");
+const REQUEST_PRIORITY_PATH = path.resolve(__dirname, "../db/migrations/0019_request_priority.sql");
 const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
@@ -14,7 +29,7 @@ function getPgBinDir(): string {
   ];
   for (const dir of candidates) {
     try {
-      execSync(`${dir}/psql --version`, { stdio: "pipe" });
+      execFileSync(`${dir}/psql`, ["--version"], { stdio: "pipe" });
       return dir;
     } catch {}
   }
@@ -32,21 +47,54 @@ export async function setup() {
   }
 
   const url = new URL(dbUrl);
-  const host = url.hostname;
-
-  if (host !== "localhost" && host !== "127.0.0.1") {
+  if (
+    !["postgres:", "postgresql:"].includes(url.protocol) ||
+    !["localhost", "127.0.0.1"].includes(url.hostname) ||
+    url.pathname !== `/${DB_NAME}` ||
+    !url.username || url.search || url.hash ||
+    (url.port && (Number(url.port) < 1 || Number(url.port) > 65535))
+  ) {
     throw new Error(
-      `[test-setup] FATAL: DATABASE_URL points to "${host}" — refusing to run tests against a non-local database. ` +
-        `Tests must target localhost. Check .env.test.`
+      "[test-setup] Refusing reset: require a loopback PostgreSQL URL with an explicit user, database lane_test, and no query or fragment."
     );
   }
 
+  // The reset and the tests must use the same target. Never inherit libpq
+  // service/host/options settings or interpolate credentials into a shell.
+  const username = decodeURIComponent(url.username);
+  const password = decodeURIComponent(url.password);
+  // Validate the canonical prerequisites before any destructive subprocess.
+  const baseline = buildLocalBaseline(readFileSync(BASELINE_PATH, "utf8"));
+  const env: NodeJS.ProcessEnv = { ...Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("PG"))
+  ), NODE_ENV: process.env.NODE_ENV };
+  env.PGPASSWORD = password;
+  env.PGPASSFILE = path.join(__dirname, ".no-test-password-file");
+  const connection = [
+    "--host", url.hostname, "--port", url.port || "5432",
+    "--username", username, "--no-password",
+  ];
   const pgBin = getPgBinDir();
+  const run = (binary: string, args: string[], input?: string) =>
+    execFileSync(`${pgBin}/${binary}`, [...connection, ...args], { env, input, stdio: "pipe" });
+  const sql = (args: string[], input?: string) => run("psql", ["-X", "-v", "ON_ERROR_STOP=1", "--dbname", DB_NAME, ...args], input);
 
-  execSync(`${pgBin}/dropdb --if-exists ${DB_NAME}`, { stdio: "pipe" });
-  execSync(`${pgBin}/createdb ${DB_NAME}`, { stdio: "pipe" });
-  execSync(`${pgBin}/psql -d ${DB_NAME} -f "${BASELINE_PATH}"`, { stdio: "pipe" });
-  execSync(`${pgBin}/psql -d ${DB_NAME} -f "${FIXTURES_PATH}"`, { stdio: "pipe" });
+  run("dropdb", ["--if-exists", DB_NAME]);
+  run("createdb", [DB_NAME]);
+  sql([], baseline);
+  // Do not let a hosted-project convenience trigger hide missing RLS in the
+  // canonical migrations. Fresh databases must be protected by the SQL itself.
+  sql(["-c", "DROP EVENT TRIGGER IF EXISTS ensure_rls"]);
+  sql(["-f", CLERK_CUTOVER_PATH]);
+  sql(["-f", CLERK_SAFEGUARDS_PATH]);
+  sql(["-f", PROJECTS_PATH]);
+  sql(["-f", EXPECTED_IMPACT_PATH]);
+  sql(["-f", REQUEST_CODES_PATH]);
+  sql(["-f", DESIGN_REVIEWS_PATH]);
+  sql(["-f", REQUEST_PRIORITY_PATH]);
+  sql(["-f", FIXTURES_PATH]);
 
-  console.log(`[test-setup] ${DB_NAME} reset from baseline.sql + test-fixtures.sql`);
+  console.log(
+    `[test-setup] ${DB_NAME} reset from canonical local prerequisites + Clerk cutover/safeguards + Projects/expected impact/Request codes/design reviews/priority migrations + test fixtures (not a hosted restore)`
+  );
 }

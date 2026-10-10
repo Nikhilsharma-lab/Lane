@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { requiredExpectedImpactSchema } from "./request-impact";
+import { projectIdSchema, requestTypeSchema } from "./request-properties";
 
 /**
  * Shared intake-form validation — the single source of truth for both the
  * client form (zodResolver) and the server actions (safeParse).
  *
- * MUST stay importable by client components: zod only — no "use server",
+ * MUST stay importable by client components: client-safe validation only — no "use server",
  * no db/auth/env imports.
  */
 
@@ -20,13 +22,13 @@ const optionalContextSchema = z
   .trim()
   .max(
     CONTEXT_MAX,
-    `Keep each optional detail under ${CONTEXT_MAX} characters`
+    `Use at most ${CONTEXT_MAX} characters for each optional detail`
   );
 
 const usefulLinkSchema = z
   .string()
   .trim()
-  .max(USEFUL_LINK_MAX, "The useful link is too long")
+  .max(USEFUL_LINK_MAX, "This link is too long")
   .refine(
     (value) => {
       if (value.length === 0) return true;
@@ -37,26 +39,29 @@ const usefulLinkSchema = z
   );
 
 export const requestSchema = z.object({
+  projectId: projectIdSchema,
+  requestType: requestTypeSchema,
   title: z
     .string()
     .trim()
     .min(1, "Title is required")
-    .min(TITLE_MIN, `Please give this a short title — at least ${TITLE_MIN} characters`)
+    .min(TITLE_MIN, `Use at least ${TITLE_MIN} characters for the title`)
     .max(TITLE_MAX, `Title must be at most ${TITLE_MAX} characters`),
   description: z
     .string()
     .trim()
     .min(1, "Description is required")
-    .min(DESCRIPTION_MIN, `Tell us a bit more — at least ${DESCRIPTION_MIN} characters`)
+    .min(DESCRIPTION_MIN, `Use at least ${DESCRIPTION_MIN} characters for the description`)
     .max(DESCRIPTION_MAX, `Description must be at most ${DESCRIPTION_MAX} characters`),
   affectedPeople: optionalContextSchema,
   desiredChange: optionalContextSchema,
   observedEvidence: optionalContextSchema,
   uncertainty: optionalContextSchema,
   usefulLink: usefulLinkSchema,
+  expectedImpact: requiredExpectedImpactSchema,
 });
 
-export type RequestInput = z.infer<typeof requestSchema>;
+export type RequestInput = z.input<typeof requestSchema>;
 
 /**
  * The user-editable problem framing submitted at save time. Nullable: null
@@ -69,11 +74,11 @@ export const problemFramingSchema = z
   .trim()
   .min(
     DESCRIPTION_MIN,
-    `Problem framing needs at least ${DESCRIPTION_MIN} characters`
+    `Describe the problem in at least ${DESCRIPTION_MIN} characters`
   )
   .max(
     DESCRIPTION_MAX,
-    `Problem framing must be at most ${DESCRIPTION_MAX} characters`
+    `Use no more than ${DESCRIPTION_MAX} characters for the problem`
   );
 
 export const editedProblemSchema = problemFramingSchema.nullable();

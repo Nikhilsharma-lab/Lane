@@ -1,0 +1,15 @@
+.panel { padding: 0; max-width: min(424px, calc(100vw - 24px)); }
+.trigger { height: var(--row, 32px); }
+.compact { grid-template-columns: 1fr; place-items: center; width: 40px; padding: 0; }
+@media (pointer: coarse) { .trigger { min-height: 44px; } }
+/* Inverse pair like Arc's own count badge: the accent pair reads 3.4:1 in the Linear dark theme. */
+.compactCount { position: absolute; top: -2px; right: -4px; border-radius: var(--radius-pill); padding: 1px 4px; color: var(--background); background: var(--foreground); font-size: var(--text-xs); }
+.items { margin: 0; padding: 0; list-style: none; }
+.title strong { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+.error { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-3); }
+.error p { margin: 0; color: var(--danger); font-size: var(--text-sm); }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--foreground); border-radius: var(--radius-pill); animation: spin 800ms linear infinite; }
+.panel button:focus-visible { background: var(--surface-muted); color: var(--foreground); }
+.panel button:disabled { opacity: .5; cursor: not-allowed; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

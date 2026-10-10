@@ -1,29 +1,16 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { provisionAndSignIn } from "./helpers/auth";
 
-async function onboard(
+async function openWorkspace(
   context: BrowserContext,
-  email: string,
-  password: string,
+  user: Awaited<ReturnType<typeof createTestUser>>,
   name: string,
   workspaceName: string
 ): Promise<Page> {
   const page = await context.newPage();
-  await page.goto("/login");
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL("**/onboarding");
-  await page.locator("#fullName").fill(name);
-  await page.getByRole("radio", { name: /^Designer/ }).click();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.locator("#workspaceName").fill(workspaceName);
-  await page.getByRole("button", { name: "Create workspace" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Bring one teammate" })
-  ).toBeVisible({ timeout: 10_000 });
-  await page.getByRole("button", { name: "Skip for now" }).click();
+  await provisionAndSignIn(page, user, { name, workspaceName });
   await expect(page.getByRole("heading", { name: "Requests" })).toBeVisible();
   return page;
 }
@@ -35,17 +22,15 @@ test("fresh users cannot read requests across workspaces", async ({ browser }) =
   const contextB = await browser.newContext();
 
   try {
-    const pageA = await onboard(
+    const pageA = await openWorkspace(
       contextA,
-      userA.email,
-      userA.password,
+      userA,
       "Isolation User A",
       "Isolation Workspace A"
     );
-    const pageB = await onboard(
+    const pageB = await openWorkspace(
       contextB,
-      userB.email,
-      userB.password,
+      userB,
       "Isolation User B",
       "Isolation Workspace B"
     );

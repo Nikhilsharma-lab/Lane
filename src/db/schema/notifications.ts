@@ -1,6 +1,7 @@
 import {
   pgTable,
   pgEnum,
+  text,
   uuid,
   timestamp,
   index,
@@ -14,23 +15,25 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "comment_added",
   "request_done",
   "invite_accepted",
+  "review_requested",
+  "review_responded",
 ]);
 
 export const notifications = pgTable(
   "notifications",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     type: notificationTypeEnum("type").notNull(),
     requestId: uuid("request_id").references(() => requests.id, {
       onDelete: "cascade",
     }),
-    actorId: uuid("actor_id")
+    actorId: text("actor_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     readAt: timestamp("read_at", { withTimezone: true }),

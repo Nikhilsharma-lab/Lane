@@ -1,15 +1,19 @@
 # LANE ROADMAP — the path through the terrain
 
-> **STATUS: Phase 0 functional loop shipped — pre-GTM gate.** Phase 2 is unselected and gated on real design-lead usage.
+> **STATUS: Requests foundation — pre-GTM gates still open.** On 2026-09-28 Nikhil confirmed the
+> inception-to-closure contract and selected alignment inside Requests as the first increment to plan.
+> Documentation/planning approval is not implementation, migration or deployment approval.
+> **2026-10-06:** product/journey source of truth and Request/quarter/year predicted-versus-actual impact
+> are core target requirements. Predictions begin at creation; the submitter owns results and closure.
+> Reasoned exception outcomes may close but are excluded from measured-impact totals.
 
-`PLANE-MAP.md` is the terrain: what a mature product in this space looks like. This is **Lane's chosen path
-through it**, filtered by the thesis (anti-surveillance, problem-first, design teams). The map shows
-everything possible; this says what Lane builds, what it bends, and what it refuses — and in what order.
+`REQUIREMENTS.md` defines Lane's confirmed behaviour. This roadmap sequences focused increments through
+the product thesis: one source of truth, measurable impact, problem-first Intake and support for design
+teams without surveillance. It records what Lane builds, reshapes or refuses, and in what order.
 
-**How to read it:** the near-term is concrete and committed. Everything past Phase 1 is *directional* — a
-sequence we revise with every real design lead who uses Lane. Nothing past the near-term is a build promise.
-That distinction is the whole defense against rebuilding the v1 cathedral: we plan the destination loosely and
-the next step tightly, and usage rewrites the rest.
+**How to read it:** `REQUIREMENTS.md` §§4–5 records confirmed product behaviour; this file sequences focused
+increments. Alignment is selected for planning, not already built. Later release order depends on dependencies
+and real use, not dates. Unrelated apps/integrations/agents remain hypotheses. No single full-pipeline build.
 
 ---
 
@@ -47,18 +51,26 @@ Refusing the REFUSE bucket is not deferral. It's positioning. These don't come b
 
 ---
 
-## 2. The destination — Requests first, expansion pulled by evidence
+## 2. The destination — one Request from problem to outcome
 
-**Requests is Lane's only committed product.** Ideas, Docs, Insights, outcome learning, and agentic design
-operations are an unranked hypothesis pool — product possibilities, not scheduled apps or build promises.
-Real Requests usage decides which problem, if any, deserves to become Phase 2.
+**Requests remains Lane's product surface.** The confirmed target connects problem-first Intake, named trio
+alignment, assignment/scheduling, nonlinear discovery, complete build/release readiness, measurement and
+creator-owned closure. Closed is permanent; new work after release/closure uses a linked follow-up with fresh
+alignment. Recorded disagreement blocks progression without creator/admin override. Work stays
+Open / In Progress / Done; outcome Not started / Measuring / Closed and alignment/readiness are separate.
+
+The 2026-10-06 clarification requires this chain to feed a shared product/journey record and quarterly/yearly
+outcome summaries. These are confirmed product requirements, distinct from the unselected generic Insights
+application below. The exact journey representation and report-period/aggregation rules need focused design.
+
+This target is not current implementation or production readiness. The exact behavioural authority is
+`REQUIREMENTS.md` §§4–5 and §15. The following remain **unselected hypotheses**, not promised apps:
 
 | Hypothesis | Plane analog / source | Lane's unresolved question |
 |---|---|---|
 | **Ideas** | No clean analog; closest is Drafts/Stickies | Is lighter capture genuinely distinct from a Request? |
 | **Docs** | Pages / Wiki | Do teams need problem-context documents inside Lane? |
 | **Insights** | Analytics | Can problem-pattern insight help without measuring people? |
-| **Outcome learning** | Lane-specific | Does predicted-versus-actual reflection improve decisions without becoming a scorecard? |
 | **Agentic design operations** | Lane-specific | Which bounded procedural task helps designers while preserving human judgment and craft? |
 
 The two-tier app-switcher remains an architectural option from `conventions-plan.md`; it appears only if a
@@ -68,31 +80,73 @@ second app earns its place through validation. Nothing is shown merely to signal
 
 ## 3. The incremental sequence
 
-**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED.** App shell + two-tier-ready nav;
-roles/members/invites; settings IA (workspace vs account); the **Requests** app — board, detail, lifecycle,
-comments, guest role; auth + onboarding (create workspace, invite-join, post-create invite step); members/invites.
-All merged. Invited Guest is shipped as a limited workspace member. Settings → Profile is shipped; changing
-the PM / Designer / Developer label does not change access or permissions. Workspace invitation email delivery
-with a durable copy-link fallback shipped and was live-verified on staging and production on 2026-07-14.
+**Phase 0 — Foundation. FUNCTIONAL LOOP SHIPPED; CLERK CUTOVER IN PROGRESS.** App shell +
+settings IA; the **Requests** app — board, detail, lifecycle, comments, guest enforcement, and Profile settings.
+Clerk now owns users, sessions, organizations, memberships, roles, and invitations; Lane keeps only the
+PM / Designer / Developer profile label and Clerk IDs on domain records. Local membership and invitation
+tables are removed. Production guest invitations remain unavailable until Clerk Enhanced B2B is approved.
 
-**What's next:** close the **pre-GTM gate** (see §3a below) — the hardening, infra, and product decisions that
-must be done before real users. Then Phase 1.
+**Operational track:** close the **pre-GTM gates** (§3a), including live Clerk recovery/invitation return,
+production-specific cutover and isolation. Documentation approval does not mark these complete. Feature
+planning can proceed separately; no feature release bypasses operational verification.
 
-**Phase 1 — Make Requests excellent; make the gate the star.** Harden the gate (it's the differentiator —
-it deserves the most polish); request-detail layout; search / command palette; saved filters. Lightweight
-in-app notifications for pick-up, comments, completion, and invite acceptance are already shipped; expansion
-stays trigger-gated in `DEFERRED.md`. **Validation gate:** the four committed design leads actually using Lane
-in real work. Phase 2 remains unselected until their usage pulls for a specific problem.
+**Current bounded increment — MVP launch plan, Phase 0 (accepted 2026-10-10).** Nikhil accepted
+`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` with its default decisions: finish and land the
+Requests list polish on a green, protected baseline (Phase 0); co-locate the server with the database and
+simplify every mutation (Phase 1); cut production over early for one or two pilot teams; then migrate the
+remaining pages to the Linear-style system one small increment at a time. That plan now carries the
+sequence, the budgets and the open decisions; this section records only the selections.
+
+**Previous bounded increment — Saved Request codes (feature-first selection 2026-10-08).** Nikhil chose
+Request features first when offered codes/priority versus trio agreement. Implement stable workspace-local
+codes, copy and existing workspace-search retrieval as one local slice; saved priority followed on 2026-10-09 (`0019`).
+See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Staging now has `0017`–`0019` (applied 2026-10-09 after a verified export and a local rehearsal); production migration and release gates remain open.
+This selection changes the immediate sequence without removing the alignment and outcome contract below.
+
+**Next foundational increment — Trio alignment inside Requests (planning selected 2026-09-28).** Define named
+participants, the compact versioned agreement, recorded concerns and a server-enforced no-bypass guard.
+The agreement must reuse the predicted impact recorded during creation and its measurement window, so the
+first alignment increment does not approve work without an expectation to compare later. First design the
+creation → human review → awaiting trio agreement chain; AI framing is not stakeholder agreement.
+Assignment must not implicitly start work or grant alignment. Discovery versus delivery commitments and
+material-edit invalidation must be addressed wherever necessary to make the guard truthful. Resolve the
+guest sponsorship/replacement/concurrency details, inspect Arc source and local behavior, specify Storybook states and
+approve the focused schema/action/test plan before code. No separate Roadmap route or prioritization score.
+
+**Acceptance for the alignment increment:** creator/admin/direct-action/stale-version attempts cannot advance
+without the current trio's agreement; dissent has a specific reason; replacements cannot erase it; a team
+can align or withdraw without duplicate briefs; assignment does not bypass the start guard. Verify tenant
+isolation, recovery and accessibility alongside the user journey. Real design leads validate its usefulness.
+
+**Later contract slices — separately planned, not a bundle:**
+
+1. Complete success/evidence capture and nonlinear artifact context, reusing links rather than new document apps.
+2. Complete build/release readiness, with implementation and deployment retained in specialist tools.
+3. Measurement and creator-owned closure, including truthful exceptions, immutable closed history,
+   append-only factual corrections and follow-up recovery. Do not ship closure without those safeguards.
+4. Quarterly/yearly product outcome summaries from those same Request records, with compatible metrics,
+   shared-result deduplication, visible outstanding reviews and exceptions outside measured-impact totals.
+
+Product/journey context and change-history linking must be defined alongside these slices, using existing
+artifacts where suitable. A new journey map/editor, reporting route, integration or storage model is not
+silently authorized. The full outcome chain is a foundation; sequencing is not a decision to omit it from
+the product or market an unfinished loop as complete.
+
+These are dependency-oriented planning groups, not fixed release dates; smaller cuts require coherent
+end-to-end behaviour and explicit approval. Integrations and extra AI are not prerequisites or authorized.
+Intake/detail polish, the existing isolated search increment, command palette and saved filters remain
+separate candidates. Only the explicit 2026-10-08 feature-first selection above changes the immediate ordering.
 
 ### 3a. Pre-GTM launch list
 
-Everything standing between Phase 0 (complete) and paid launch. Source: DEFERRED.md pre-launch gate,
-CLAUDE.md "before first paying customer", and the 2026-06-26 pre-GTM recon. No payment is accepted until
-every must-build is done and every must-decide is resolved (built or deleted). A 20–30-person free,
+The implemented foundation is distinct from open cutover/release gates. Source: DEFERRED.md pre-launch gate,
+AGENTS.md "FREE PILOT → FIRST PAYMENT", and the historical pre-GTM review. No payment is accepted until
+every must-build is done and every inline deferred decision in §3a is explicit (built, deleted,
+or trigger-gated). A 20–30-person free,
 non-commercial pilot is explicitly approved on free tiers; it exists to validate Requests, not bypass the
 paid-launch gate.
 
-**Must-build (16 items):**
+**Recorded launch checklist (historical counts are not a current work estimate):**
 
 DEFERRED.md PRE-LAUNCH hard gate (8):
 - [x] Rate limiter → Upstash (in-memory leaks, resets on deploy) → RESOLVED (sliding window 10/60s, fail-open; 3ad18fa, merged e368edc)
@@ -115,6 +169,16 @@ Board polish — verdicts from build-or-delete review (2):
 - [x] Card hierarchy → reframed problem leads, title secondary (on-thesis: the problem is the unit of work) → RESOLVED (page.tsx:140-149 reframed problem leads, title secondary; f7df09e — checkbox caught up 2026-07-12)
 
 AGENTS.md infra (5):
+- [ ] Clerk clean cutover → on 2026-09-24, verified backups preceded staging migrations `0013` and `0014`,
+  both verified; Clerk runtime `8490730` is Ready at `https://lane-staging.vercel.app`. Fresh release checks:
+  205 tests across 34 files, typecheck, lint, and build passed. Live private attachment upload/finalization,
+  exact-byte download, and anonymous/cross-workspace denial passed. Live email/password signup → test OTP →
+  required workspace → PM label → Requests passed, with no profile created before membership. Existing-org
+  role onboarding, required-org interruption/reload, and two-workspace board/detail isolation passed live
+  (4 tests including setup, 1.9m, exit 0). The emailed invitation was accepted in Clerk; automatic
+  return to Lane after the hosted portal remains the invite gate. Production is untouched and still needs
+  its backup, migration, deployment, and live verification after staging passes. The old Supabase Auth and
+  Resend invite verification is historical evidence only and does not satisfy the Clerk gate.
 - [x] Split prod / staging → RESOLVED 2026-07-13: the free `Lane Staging` Tokyo Supabase project was
   initialized from the canonical migration chain and paired with the separate `lane-staging` Vercel Hobby project
   at `https://lane-staging.vercel.app`. Live verification covered signup, Resend confirmation, onboarding, the
@@ -125,9 +189,10 @@ AGENTS.md infra (5):
 - [ ] Vercel Pro → deferred during the free, non-commercial pilot; required before accepting the first payment.
 - [x] Custom domain → RESOLVED 2026-07-12: `app.uselane.app` is production; `www.uselane.app` returns a
   path-preserving permanent 308 redirect; Vercel app URL and Supabase Site URL/callback allowlist use `app`.
-- [x] Confirm workspace isolation with fresh second accounts → RESOLVED (live browser E2E creates two users
-  and workspaces, proves A sees its seeded Request while B sees neither the board card nor direct detail;
-  `e2e/workspace-isolation.spec.ts`)
+- [ ] Confirm workspace isolation with fresh second Clerk accounts → the retained browser E2E creates two
+  Clerk users and organizations and asserts both board and direct-detail isolation. It passed against the
+  local Clerk build and deployed staging on 2026-09-24. Live attachment anonymous/cross-workspace denial
+  also passed, including forged organization context. Production verification remains pending.
 
 **Resolved (2026-06-26 / 2026-06-27):**
 - Slug collision in workspace bootstrap → RESOLVED (bootstrap rework: name-derived slug, retry loop, unique constraint, forge test)
@@ -136,16 +201,14 @@ AGENTS.md infra (5):
 - Optimistic UI on lifecycle → DEFERRED post-GTM (trigger: after Tokyo co-location, if transitions still feel slow)
 - `completeOnboarding` one-workspace invariant → RESOLVED (bootstrap IF FOUND early-return + profiles.id PK covers concurrent race; forge-tested)
 
-**Already parked (17 items):** guest role-change, guest intake increment, comment pagination, auth
-surface touch, request peek/preview, 9 notification-at-scale items, public/anonymous intake, auth form
-DRY, optimistic UI on lifecycle, reserved-slug guard. All carry explicit post-GTM triggers in DEFERRED.md.
-No action needed before launch.
+**Conditional work:** `DEFERRED.md` retains scale/usage triggers and historical resolutions. Its older
+auth, local-invitation, reassignment and peek claims must not override current source or Clerk cutover
+evidence. Do not interpret a historical item count as either open work or current launch clearance.
 
 ---
 
-**Phase 2 — UNSELECTED.** Choose one hypothesis only after Requests is in sustained real use and evidence
-identifies the next problem. Definition and validation precede implementation. No current hypothesis has
-priority merely because it appeared in an earlier roadmap.
+**Beyond the confirmed Request pipeline — UNSELECTED.** Choose a separate product/agent hypothesis only after
+real use identifies its need. The confirmed pipeline is not permission to build Ideas, Docs or Insights apps.
 
 **Woven in only when usage pulls:** favorites, archives (soft-delete), exports, and preferences.
 
@@ -154,8 +217,10 @@ priority merely because it appeared in an earlier roadmap.
 1. **Operational readiness:** pre-GTM auth, isolation, recovery, deployment, and live verification are done.
 2. **Intake value:** real teams repeatedly use the gate and designers prefer the resulting problem frames.
 3. **Requests workflow value:** the board becomes part of real work rather than a second source of truth.
-4. **Requests excellence:** demonstrated friction is addressed before adding another product layer.
-5. **Next-problem evidence:** Phase 2 is selected only when usage identifies a specific unmet need.
+4. **Alignment value:** the trio can reach a clear commitment or stop with reasons, without redundant reporting;
+   server guards prevent disagreement, stale alignment and assignment from being bypassed.
+5. **Next-increment evidence:** observed use and dependencies select the next slice of the confirmed contract.
+6. **Outcome value:** teams return with results or truthful exceptions; changes remain traceable without scores.
 
 Dates do not advance phases. Evidence does.
 
@@ -163,16 +228,16 @@ Dates do not advance phases. Evidence does.
 
 ## 4. Patterns to adopt early (filtered for Lane's stack)
 
-The map's "worth borrowing" list, minus what assumes Plane's architecture (Lane is Next.js + server actions +
-Drizzle — so MobX/SWR dual-layer, the Django/SPA split, and the CE/EE Django seam do **not** apply; the map
-itself flags those as don't-adopt for Lane):
+These patterns fit Lane's Next.js, server-action and Drizzle stack. Each remains subject to the focused
+product approval and sequencing rules above:
 
-1. **Soft-delete + slug recycling** — `deleted_at` filter, uniqueness scoped to non-deleted rows, `__<epoch>`
-   slug suffix on delete. Cheap to add at the schema level now, enables archive/undo later. Adopt early.
+1. **Soft-delete + slug recycling** — reference for a future approved archive/undo need, not permission to add
+   schema now. Archiving is not reopening a Closed outcome or rewriting its preserved history.
 2. **Optimistic update with rollback** — snapshot → apply → revert on error. Already on DEFERRED.md for the
    lifecycle actions; this is the proven shape.
-3. **Creator-bypass permission** — "you can always edit your own stuff" as an escape hatch on top of the role
-   check. Simpler than full RBAC, and it's exactly how the guest/own-requests rule already works.
+3. **Scoped responsibility** — derive identity from the Clerk session and enforce workspace/Request rights.
+   A creator's ownership never bypasses trio alignment, readiness or immutable closure. Plane's creator-bypass
+   pattern must not be copied into these transitions.
 4. **Feature flags for incremental rollout** — flip apps on per-workspace as they ship. Feature-gating only,
    never role-gating.
 
@@ -182,8 +247,8 @@ itself flags those as don't-adopt for Lane):
 
 - **One increment a week.** Don't build an app because it's next on this list — build it because usage pulls
   for it.
-- **Validate between phases.** Past Phase 1, this roadmap is a set of hypotheses. The four design leads are
-  your instrument; their usage rewrites the order. (This is also where the still-open customer-discovery gap
-  gets closed — real users, not the map, decide Phase 2+.)
+- **Validate between increments.** The Request pipeline is confirmed; its unbuilt slices still need scoped
+  plans, approval and validation. The four design leads inform order and usability. Other products/agents
+  remain hypotheses; a competitor reference never supplies build authority.
 - **The refusals hold.** When a customer asks for sprints or a velocity chart, the answer is a considered no,
   and the reason is the entire reason Lane exists. The roadmap's refusals are load-bearing.

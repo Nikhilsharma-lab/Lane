@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.pnpm-store/
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,13 +13,18 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
 
 # next.js
 /.next/
+/.next-e2e/
+/.next-audit/
 /out/
 
 # production
 /build
+/backups/
 
 # misc
 .DS_Store
@@ -40,3 +46,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Isolated component review artifacts
+/storybook-static/
+/.storybook-cache/
+
+# Local research captures (third-party downloads, screenshots, logs) — never commit
+/artifacts/
+
+# Impeccable skill state (critique snapshots, hook cache)
+/.impeccable/
+
+# Claude Code project tooling: local launch config and licensed Arc Pro skill copies
+/.claude/

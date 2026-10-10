@@ -1,10 +1,35 @@
 "use server";
 
 import { db, notifications, profiles, requests } from "@/db";
-import { eq, and, isNull, desc, count } from "drizzle-orm";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { eq, and, or, isNull, desc, count, exists } from "drizzle-orm";
+import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 
 const NOTIFICATIONS_LIMIT = 30;
+
+function notificationVisibility(auth: MemberAuth) {
+  const visibleRequest = exists(
+    db
+      .select({ id: requests.id })
+      .from(requests)
+      .where(
+        and(
+          eq(requests.id, notifications.requestId),
+          eq(requests.orgId, auth.orgId),
+          auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined
+        )
+      )
+  );
+
+  return and(
+    eq(notifications.userId, auth.userId),
+    eq(notifications.orgId, auth.orgId),
+    // Historical delivery never grants access after a role change. Guests have
+    // no workspace-wide notification surface, so non-Request events stay hidden.
+    auth.role === "guest"
+      ? visibleRequest
+      : or(isNull(notifications.requestId), visibleRequest)
+  );
+}
 
 export async function getNotifications(context: { orgId: string }) {
   const auth = await requireActiveMember(context.orgId);
@@ -24,12 +49,7 @@ export async function getNotifications(context: { orgId: string }) {
     .from(notifications)
     .leftJoin(profiles, eq(notifications.actorId, profiles.id))
     .leftJoin(requests, eq(notifications.requestId, requests.id))
-    .where(
-      and(
-        eq(notifications.userId, auth.userId),
-        eq(notifications.orgId, auth.orgId)
-      )
-    )
+    .where(notificationVisibility(auth))
     .orderBy(desc(notifications.createdAt))
     .limit(NOTIFICATIONS_LIMIT);
 
@@ -45,8 +65,7 @@ export async function getUnreadCount(context: { orgId: string }) {
     .from(notifications)
     .where(
       and(
-        eq(notifications.userId, auth.userId),
-        eq(notifications.orgId, auth.orgId),
+        notificationVisibility(auth),
         isNull(notifications.readAt)
       )
     );
@@ -67,8 +86,7 @@ export async function markNotificationRead(
     .where(
       and(
         eq(notifications.id, notificationId),
-        eq(notifications.userId, auth.userId),
-        eq(notifications.orgId, auth.orgId)
+        notificationVisibility(auth)
       )
     );
 
@@ -84,8 +102,7 @@ export async function markAllNotificationsRead(context: { orgId: string }) {
     .set({ readAt: new Date() })
     .where(
       and(
-        eq(notifications.userId, auth.userId),
-        eq(notifications.orgId, auth.orgId),
+        notificationVisibility(auth),
         isNull(notifications.readAt)
       )
     );
@@ -106,8 +123,7 @@ export async function markNotificationUnread(
     .where(
       and(
         eq(notifications.id, notificationId),
-        eq(notifications.userId, auth.userId),
-        eq(notifications.orgId, auth.orgId)
+        notificationVisibility(auth)
       )
     );
 

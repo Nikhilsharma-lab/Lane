@@ -1,56 +1,69 @@
-import { createServiceClient } from "../../src/lib/supabase/admin";
+import { clerk } from "@clerk/testing/playwright";
+import type { Page } from "@playwright/test";
 
-const TEST_EMAIL_DOMAIN = "lane-e2e-test.local";
+import { safeClerkClient } from "./safety";
+import { assertOwnedUser, fixtureMetadata, forgetOrganization, forgetUser, ownedUserScope, recordCreatedOrganization, recordCreatedUser, testEmail } from "./fixtures";
 
-let serviceClient: ReturnType<typeof createServiceClient> | null = null;
+export type TestUser = {
+  id: string;
+  email: string;
+  password: string;
+};
 
-function getAdmin() {
-  if (!serviceClient) serviceClient = createServiceClient();
-  return serviceClient;
+export async function createClerkTestOrganization(
+  userId: string,
+  name: string
+): Promise<string> {
+  const client = await assertOwnedUser(userId);
+  const organization = await client.organizations.createOrganization({
+    name,
+    createdBy: userId,
+    privateMetadata: fixtureMetadata,
+  });
+  recordCreatedOrganization(organization.id, userId);
+  return organization.id;
 }
 
 export async function createTestUser(
   label: string,
-  password = "Test1234!"
-): Promise<{ id: string; email: string; password: string }> {
-  const email = `${label}-${Date.now()}@${TEST_EMAIL_DOMAIN}`;
-  const admin = getAdmin();
-
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
+  password = "LaneE2ETest1234!"
+): Promise<TestUser> {
+  const client = await safeClerkClient();
+  const email = testEmail(label);
+  const user = await client.users.createUser({
+    emailAddress: [email],
     password,
-    email_confirm: true,
+    firstName: "Lane",
+    lastName: "E2E",
+    skipLegalChecks: true,
+    privateMetadata: fixtureMetadata,
   });
-
-  if (error || !data.user) {
-    throw new Error(`[e2e] createTestUser failed: ${error?.message}`);
-  }
-
-  return { id: data.user.id, email, password };
+  recordCreatedUser(user.id);
+  return { id: user.id, email, password };
 }
 
 export async function deleteTestUser(id: string): Promise<void> {
-  const admin = getAdmin();
-  const { error } = await admin.auth.admin.deleteUser(id);
-  if (error) {
-    console.warn(`[e2e] deleteTestUser(${id}) failed: ${error.message}`);
+  const { client, orgIds } = await ownedUserScope(id);
+  for (const orgId of orgIds) {
+    await client.organizations.deleteOrganization(orgId);
+    forgetOrganization(orgId);
   }
+  await client.users.deleteUser(id);
+  forgetUser(id);
 }
 
-export async function cleanupTestUsers(): Promise<void> {
-  const admin = getAdmin();
-  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (!data?.users) return;
+export async function signInTestUser(
+  page: Page,
+  user: Pick<TestUser, "email">,
+  organizationId?: string
+): Promise<void> {
+  await safeClerkClient();
+  await page.goto("/login");
+  await clerk.signIn({ page, emailAddress: user.email });
 
-  const testUsers = data.users.filter((u) =>
-    u.email?.endsWith(`@${TEST_EMAIL_DOMAIN}`)
-  );
-
-  for (const user of testUsers) {
-    await admin.auth.admin.deleteUser(user.id);
-  }
-
-  if (testUsers.length > 0) {
-    console.log(`[e2e] cleaned up ${testUsers.length} test user(s)`);
+  if (organizationId) {
+    await page.evaluate(async (orgId) => {
+      await window.Clerk.setActive({ organization: orgId });
+    }, organizationId);
   }
 }

@@ -9,6 +9,8 @@ import {
   DESCRIPTION_MAX,
 } from "./request-schema";
 
+const validImpact = { kind: "verification" as const, result: "People can finish the intended flow", source: "Released flow acceptance check", reviewAfterDays: 7 };
+
 describe("requestSchema", () => {
   it("valid input passes", () => {
     const result = requestSchema.safeParse({
@@ -19,6 +21,7 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(true);
   });
@@ -32,11 +35,12 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe(
-        `Please give this a short title — at least ${TITLE_MIN} characters`
+        `Use at least ${TITLE_MIN} characters for the title`
       );
     }
   });
@@ -50,6 +54,7 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -66,6 +71,7 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -84,6 +90,7 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(true);
   });
@@ -97,11 +104,14 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
 
     expect(result.data).toEqual({
+      projectId: null,
+      requestType: null,
       title: "Export flow",
       description: "People lose their filters during export.",
       affectedPeople: "Design leads",
@@ -109,6 +119,7 @@ describe("requestSchema", () => {
       observedEvidence: "",
       uncertainty: "",
       usefulLink: "",
+      expectedImpact: validImpact,
     });
   });
 
@@ -145,7 +156,7 @@ describe("editedProblemSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe(
-        `Problem framing must be at most ${DESCRIPTION_MAX} characters`
+        `Use no more than ${DESCRIPTION_MAX} characters for the problem`
       );
     }
   });
@@ -155,8 +166,35 @@ describe("editedProblemSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toBe(
-        `Problem framing needs at least ${DESCRIPTION_MIN} characters`
+        `Describe the problem in at least ${DESCRIPTION_MIN} characters`
       );
     }
+  });
+});
+
+
+describe("Request properties", () => {
+  const valid = { expectedImpact: validImpact, title: "Pricing is confusing", description: "People cannot compare the plans confidently.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "" };
+  it("keeps old requests unclassified and without a project", () => {
+    expect(requestSchema.parse(valid)).toMatchObject({ projectId: null, requestType: null });
+  });
+  it("preserves a chosen project and type", () => {
+    expect(requestSchema.parse({ ...valid, projectId: "00000000-0000-4000-a000-000000000001", requestType: "bug" })).toMatchObject({ projectId: "00000000-0000-4000-a000-000000000001", requestType: "bug" });
+  });
+  it.each([{ projectId: "not-an-id" }, { requestType: "urgent" }])("rejects invalid property values %j", (properties) => {
+    expect(requestSchema.safeParse({ ...valid, ...properties }).success).toBe(false);
+  });
+});
+
+
+describe("required expected impact", () => {
+  const request = { title: "Pricing confusion", description: "Customers cannot compare the plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "" };
+  it("rejects a new review without impact rather than inventing a target", () => {
+    const result = requestSchema.safeParse(request);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0].path[0]).toBe("expectedImpact");
+  });
+  it("rejects an incomplete metric prediction", () => {
+    expect(requestSchema.safeParse({ ...request, expectedImpact: { kind: "metric", metric: "Conversion", baseline: null, target: null, unit: "%", source: "Analytics", reviewAfterDays: null } }).success).toBe(false);
   });
 });

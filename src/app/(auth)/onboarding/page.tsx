@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
+
 import { getWorkspace } from "@/lib/ensure-workspace";
-import { OnboardingForm } from "./onboarding-form";
-import { getPendingInvites } from "./get-pending-invites";
+import { RoleForm } from "./role-form";
 
 export default async function OnboardingPage() {
   const result = await getWorkspace();
@@ -9,12 +9,5 @@ export default async function OnboardingPage() {
   if (!result) redirect("/login");
   if (!result.needsOnboarding) redirect("/");
 
-  const pendingInvites = await getPendingInvites(result.email);
-
-  return (
-    <OnboardingForm
-      fullName={result.fullName}
-      pendingInvites={pendingInvites}
-    />
-  );
+  return <RoleForm />;
 }

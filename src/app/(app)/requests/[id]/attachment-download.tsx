@@ -3,8 +3,8 @@
 import { useState } from "react"
 import { Download, LoaderCircle } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Feedback } from "@/components/ui/feedback"
+import { Button } from "@/components/arc/button/button"
+import { Alert } from "@/components/arc/alert/alert"
 
 import { getAttachmentDownloadUrl } from "./actions"
 
@@ -29,13 +29,13 @@ export function AttachmentDownload({
         context
       )
       if (!("success" in result) || !result.success || !result.url) {
-        setError(result.error ?? "Lane could not prepare this download.")
+        setError(result.error ?? "Couldn’t prepare the download. Try again.")
         return
       }
 
       window.location.assign(result.url)
     } catch {
-      setError("Lane could not prepare this download. Try again.")
+      setError("Couldn’t prepare the download. Try again.")
     } finally {
       setPending(false)
     }
@@ -45,7 +45,7 @@ export function AttachmentDownload({
     <div className="flex flex-col items-end gap-2">
       <Button
         type="button"
-        size="icon-sm"
+        size="sm"
         variant="ghost"
         aria-label={pending ? "Preparing download" : "Download file"}
         aria-busy={pending || undefined}
@@ -56,16 +56,15 @@ export function AttachmentDownload({
           <LoaderCircle
             aria-hidden="true"
             className="animate-spin motion-reduce:animate-none"
-            strokeWidth={1.8}
           />
         ) : (
-          <Download aria-hidden="true" strokeWidth={1.8} />
+          <Download aria-hidden="true" />
         )}
       </Button>
       {error && (
-        <Feedback kind="error" variant="inline">
+        <Alert tone="danger" title="Action failed">
           {error}
-        </Feedback>
+        </Alert>
       )}
     </div>
   )

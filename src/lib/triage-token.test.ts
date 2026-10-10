@@ -1,12 +1,16 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const GOOD_SECRET = "a".repeat(64);
 const WRONG_SECRET = "b".repeat(64);
-const ORG_ID = "11111111-1111-4111-8111-111111111111";
-const USER_ID = "22222222-2222-4222-8222-222222222222";
-const OTHER_ORG_ID = "33333333-3333-4333-8333-333333333333";
+const ORG_ID = "org_lane_test_a";
+const USER_ID = "user_lane_test_a";
+const OTHER_ORG_ID = "org_lane_test_b";
+
+const impact = { kind: "metric" as const, metric: "Successful settings visits", baseline: 40, target: 60, unit: "%", source: "Product analytics", reviewAfterDays: 30 };
 
 const input = {
+  expectedImpact: impact,
   title: "Settings are hard to find",
   description: "People cannot find workspace settings when they need them.",
   affectedPeople: "Workspace members",
@@ -59,6 +63,50 @@ describe("triage-token signing", () => {
     expect(verification.payload.userId).toBe(USER_ID);
   });
 
+  it("signs the selected project and request type", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const properties = { projectId: "00000000-0000-4000-a000-000000000001", requestType: "improvement" as const };
+    const token = createTriageToken({ ...input, ...properties }, triageResult, context);
+    const result = verifyTriageToken(token, context);
+    expect(result.valid && result.payload).toMatchObject(properties);
+    const [encoded, signature] = token.split(".");
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
+    payload.requestType = "bug";
+    expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
+  });
+
+  it("accepts an older signed review with absent properties as null", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const [current] = createTriageToken(input, triageResult, context).split(".");
+    const payload = JSON.parse(Buffer.from(current, "base64url").toString());
+    delete payload.projectId; delete payload.requestType;
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const signature = createHmac("sha256", GOOD_SECRET).update(encoded).digest("base64url");
+    const result = verifyTriageToken(`${encoded}.${signature}`, context);
+    expect(result.valid && result.payload).toMatchObject({ projectId: null, requestType: null });
+  });
+
+  it("binds expected impact to the signed review and rejects a changed target", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, context);
+    const result = verifyTriageToken(token, context);
+    expect(result.valid && result.payload.expectedImpact).toEqual(impact);
+    const [encoded, signature] = token.split(".");
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
+    payload.expectedImpact = { ...impact, target: 95 };
+    expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
+  });
+
+  it("requires a fresh review of old tokens missing expected impact", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const [current] = createTriageToken(input, triageResult, context).split(".");
+    const payload = JSON.parse(Buffer.from(current, "base64url").toString());
+    delete payload.expectedImpact;
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const signature = createHmac("sha256", GOOD_SECRET).update(encoded).digest("base64url");
+    expect(verifyTriageToken(`${encoded}.${signature}`, context)).toEqual({ valid: false, reason: "impact_required" });
+  });
+
   it("rejects a token signed with a different secret", async () => {
     const { createTriageToken, verifyTriageToken } = await import(
       "./triage-token"
@@ -83,6 +131,29 @@ describe("triage-token signing", () => {
     ).toEqual({
       valid: false,
       reason: "context_mismatch",
+    });
+  });
+
+  it("rejects a valid token for another Clerk user in the same workspace", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, context);
+
+    expect(verifyTriageToken(token, { ...context, userId: "user_lane_test_b" })).toEqual({
+      valid: false,
+      reason: "context_mismatch",
+    });
+  });
+
+  it.each([
+    { orgId: "", userId: USER_ID },
+    { orgId: ORG_ID, userId: "" },
+  ])("rejects a signed review missing identity: %j", async (missingIdentity) => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, missingIdentity);
+
+    expect(verifyTriageToken(token, missingIdentity)).toEqual({
+      valid: false,
+      reason: "invalid",
     });
   });
 

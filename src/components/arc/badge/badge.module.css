@@ -1,0 +1,52 @@
+.badge {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid var(--badge-border, var(--border));
+  border-radius: var(--radius-pill);
+  padding: 0 10px;
+  color: var(--badge-foreground, var(--foreground));
+  background: var(--badge-background, var(--surface));
+  font-size: var(--text-xs);
+  font-weight: var(--badge-font-weight, 500);
+  letter-spacing: -.01em;
+  line-height: var(--leading-body);
+  white-space: nowrap;
+  /* Clip keeps the inline baseline while the pill morphs around swapped text. */
+  overflow: clip;
+  transition: border-color var(--duration-standard) var(--ease-standard), background-color var(--duration-standard) var(--ease-standard), color var(--duration-standard) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .badge:hover { border-color: var(--badge-hover-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); background: var(--badge-hover-background, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); }
+}
+.sm { min-height: var(--badge-sm-height, 22px); padding: 0 var(--badge-sm-padding, 8px); font-size: var(--badge-sm-font, 11px); }
+.md { font-size: var(--text-xs); }
+
+.body { display: block; }
+.content { position: relative; display: flex; width: max-content; align-items: center; gap: 5px; }
+.sm .content { gap: var(--badge-sm-gap, 4px); }
+.label, .glyph { position: relative; display: inline-flex; align-items: center; }
+.text { display: block; }
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--badge-color, var(--foreground));
+  line-height: 1;
+}
+
+.neutral { --badge-color: var(--state-neutral-text, var(--text-secondary)); --badge-foreground: var(--state-neutral-text, var(--text-secondary)); --badge-background: var(--state-neutral-background, var(--surface-muted)); --badge-border: var(--state-neutral-border, var(--border)); --badge-hover-background: var(--state-neutral-hover, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); --badge-hover-border: var(--state-neutral-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); }
+.success { --badge-color: var(--state-success-icon, var(--state-success-text, var(--success))); --badge-foreground: var(--state-success-text, var(--success)); --badge-background: var(--state-success-background, color-mix(in oklab, var(--success) 10%, var(--surface))); --badge-border: var(--state-success-border, color-mix(in oklab, var(--success) 25%, var(--border))); --badge-hover-background: var(--state-success-hover, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); --badge-hover-border: var(--state-success-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); }
+.info { --badge-color: var(--state-info-icon, var(--state-info-text, var(--accent))); --badge-foreground: var(--state-info-text, var(--foreground)); --badge-background: var(--state-info-background, var(--accent-subtle)); --badge-border: var(--state-info-border, color-mix(in oklab, var(--accent) 24%, var(--border))); --badge-hover-background: var(--state-info-hover, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); --badge-hover-border: var(--state-info-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); }
+.warning { --badge-color: var(--state-warning-icon, var(--state-warning-text, var(--warning))); --badge-foreground: var(--state-warning-text, var(--foreground)); --badge-background: var(--state-warning-background, color-mix(in oklab, var(--warning) 11%, var(--surface))); --badge-border: var(--state-warning-border, color-mix(in oklab, var(--warning) 27%, var(--border))); --badge-hover-background: var(--state-warning-hover, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); --badge-hover-border: var(--state-warning-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); }
+.danger { --badge-color: var(--state-danger-icon, var(--state-danger-text, var(--danger))); --badge-foreground: var(--state-danger-text, var(--danger)); --badge-background: var(--state-danger-background, color-mix(in oklab, var(--danger) 10%, var(--surface))); --badge-border: var(--state-danger-border, color-mix(in oklab, var(--danger) 26%, var(--border))); --badge-hover-background: var(--state-danger-hover, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); --badge-hover-border: var(--state-danger-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge { transition-duration: var(--duration-instant); }
+}

@@ -6,7 +6,17 @@ be **built or deleted** before the first paying customer.
 
 Each item: what · why deferred · source review.
 
+**Authority update — 2026-09-28:** the confirmed Request pipeline and alignment-first planning decision live
+in `REQUIREMENTS.md` §§4–5/15 and `lane-roadmap.md` §3. This ledger preserves historical evidence and conditional
+work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item grants an
+alignment bypass, reopens a Closed outcome, or proves the current production cutover. Pipeline approval does
+not authorize implementing these unrelated deferrals.
+
 ---
+
+## AFTER REQUESTS VISUAL REVIEW — property and lifecycle decisions
+
+- **Saved Request codes/priority and additional context-menu capabilities.** The 2026-10-08 Linear preview uses illustrative IDs and in-memory edits. Nikhil explicitly chose to plan extra statuses/features separately. Resolve the decisions in [Request properties follow-up](docs/superpowers/plans/2026-10-08-request-properties-follow-up.md) before any schema/action work. The production three-status lifecycle and REQUIREMENTS.md remain authoritative; no unsupported Linear menu action is implicitly approved. The plan now includes the live Filter/Display/list-summary audit, status-to-outcome mapping, multi-value filters, preference persistence, completed recency, sub-grouping and explicit adoption/refusal gates.
 
 ## PRE-GTM MUST-BUILD — board polish
 
@@ -24,12 +34,16 @@ Each item: what · why deferred · source review.
 > - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; the former evergreen signal was reserved for the gate at the time, and the current interaction signature is raspberry.
 > - ~~Redundant per-card status badge~~ — DELETED. Section header already states the status.
 
-## POST-GTM — optimistic UI on lifecycle transitions
+## UN-DEFERRED 2026-10-10 — optimistic UI on lifecycle transitions
 
 - **Optimistic UI on lifecycle transitions.** Pick-up / mark-done wait for the full round-trip. useOptimistic
   (React 19) flips state instantly. On-brand "considered" feel. — Day 3 #7. Verdict: DEFER (rollback flicker
   would be visible against Tokyo latency; complexity over correctness at this stage).
   Trigger: after Tokyo co-location, if transitions still feel slow.
+  **Un-deferred 2026-10-10:** "superfast" is a launch requirement (plan decision 8.4). It lands after the
+  server is co-located with the database, as a layout-level pending-mutation overlay that clears only when
+  the server rows show the change or the action fails (plan Phase 1b, item 1.5), which is what removes the
+  flicker the original verdict feared.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 
@@ -146,9 +160,11 @@ Each item: what · why deferred · source review.
 
 ## GUEST ROLE-CHANGE — when assignment cleanup is needed
 
-- **Demoting an assigned member to guest leaves in-progress assignments dangling.** No security issue (guest can't
-  pick up or mark done), but the request stays assigned to someone who can no longer act on it. Owner can manually
-  reassign. Auto-unassign on demotion-to-guest is the clean fix — build when real usage surfaces the gap.
+- **Demoting an assigned member to guest leaves in-progress assignments dangling.** The guest cannot pick up
+  or mark Done, but an assignment may remain. The older claim of a shipped Owner reassignment action was not
+  verified and must not be used as a recovery guarantee. The confirmed target allows attributable admin
+  reassignment, replacement alignment and preserved concerns; this is not implemented yet. Specify recovery
+  in the relevant alignment/assignment plan; automatic unassignment remains a separately scoped choice.
   — Guest role-change increment.
 
 ## GUEST INTAKE — invited shipped; public / anonymous deferred
@@ -170,19 +186,30 @@ Each item: what · why deferred · source review.
 
 ## AUTH SURFACE TOUCH — next time auth routes are modified
 
-- **`auth/callback/route.ts` open-redirect check.** `safeRedirectPath` currently validates the `next` param
-  (`startsWith("/")` and not `startsWith("//")`) — same check in `login`/`signup` actions for `redirectTo`.
-  Verify this remains sufficient (no `javascript:`, no protocol-relative, no backslash tricks) next time the
-  auth surface is touched. — Danger-day entry-point inventory.
+- **SUPERSEDED 2026-09-24 by the Clerk clean cutover.** Clerk owns sign-in, sign-up, recovery, organizations,
+  memberships, roles, and invitations. Lane's legacy `/auth/callback` only redirects old links to `/`; the
+  Supabase `safeRedirectPath`, local invite-token, local membership, and Resend invitation paths were deleted.
+  Future auth work must use Clerk configuration and components rather than rebuilding these paths locally.
 
-## E2E BRING-UP — first e2e run after Supabase creds are filled
+## E2E BRING-UP — Playwright uses Lane Staging
 
-- **Verify e2e port alignment.** What: playwright now runs the app on port 3100 (`playwright.config.ts` —
-  `baseURL … localhost:3100`, `command: "PORT=3100 pnpm dev"`) while `NEXT_PUBLIC_APP_URL` in `.env.local`
-  stays `localhost:3000`. Why deferred: unverified whether any e2e spec depends on the two matching
-  (`NEXT_PUBLIC_APP_URL` feeds invite links and auth redirects); can't test until Supabase creds are filled
-  and e2e is brought up. Source: feat/detail-nplus1's e2e-port hardening (3000→3100) vs `.env.local`
-  `NEXT_PUBLIC_APP_URL` (3000). Trigger: first e2e bring-up after Supabase creds are filled.
+- **STAGING DEPLOYED; CUTOVER OPEN (2026-09-24):** the existing Lane Staging project was paused, not deleted.
+  It was resumed; verified backups preceded canonical migrations `0013` and `0014`, and both were verified.
+  Clerk runtime `8490730` is Ready at `https://lane-staging.vercel.app`. Fresh release checks passed:
+  205 tests across 34 files, typecheck, lint, and build. Live private attachment upload/finalization,
+  exact-byte download, and anonymous/cross-workspace denial passed. Live signup → test OTP → required
+  workspace → PM label → Requests passed, with no profile before membership. Existing-org role onboarding,
+  required-org interruption/reload, and two-workspace board/detail isolation passed live (4 tests including
+  setup, 1.9m, exit 0). The emailed invitation was accepted in Clerk; automatic return to Lane after
+  the hosted portal is the remaining invite gate. Production is untouched; its
+  backup, migration, deployment, and live verification remain open after the staging gate passes.
+- `playwright.config.ts` loads ignored Clerk Development keys from `.env.local`, overlays
+  `.env.staging.local`, and unconditionally maps `STAGING_DATABASE_URL` to `DATABASE_URL` so production cannot
+  leak into E2E. Clerk's official testing token and Backend API helpers now create disposable users and
+  organizations; the suite no longer creates Supabase Auth users or local membership/invite rows.
+- **OPEN — port alignment.** `baseURL` is `localhost:3100` while `NEXT_PUBLIC_APP_URL` in staging
+  env may still say `localhost:3000`. Trigger: if an e2e spec fails on invite-link or redirect
+  assertions.
 
 ## REQUEST PEEK/PREVIEW — when board-context viewing is needed
 
