@@ -48,13 +48,44 @@ describe("Reliable Request lifecycle action contract", () => {
   });
 
   it("makes both lifecycle transitions conditional and atomic", () => {
-    expect(ACTIONS).toContain('eq(requests.status, "open")');
-    expect(ACTIONS).toContain('eq(requests.status, "in_progress")');
-    expect(ACTIONS.match(/\.returning\(\{ id: requests\.id \}\)/g)).toHaveLength(
-      2
+    // Plan item 1.4: each move is one data-modifying CTE. The UPDATE keeps the
+    // status guard and the notification INSERT reads from its RETURNING row,
+    // so the two commit or fail together (decision 8.17) and a race can only
+    // win once. Pick up guards Open → In Progress; Done guards In Progress → Done.
+    expect(ACTIONS).toContain('from: "open"');
+    expect(ACTIONS).toContain('to: "in_progress"');
+    expect(ACTIONS).toContain('from: "in_progress"');
+    expect(ACTIONS).toContain('to: "done"');
+    expect(ACTIONS).toContain(
+      "and ${requests.status} = ${transition.from}::request_status"
     );
+    expect(ACTIONS).toContain("insert into ${notifications}");
+    expect(ACTIONS).toContain("where u.created_by <> ${auth.userId}");
+    // The outer SELECT reads the updated row even when no notification was
+    // inserted (self pick up), so success never depends on the INSERT.
+    expect(ACTIONS).toContain("from u left join n on true");
+    expect(ACTIONS).not.toContain("createNotification(");
     expect(ACTIONS).toContain("changed before Lane could pick it up");
     expect(ACTIONS).toContain("changed before Lane could mark it Done");
+  });
+
+  it("runs the diagnostic read only after the single statement matched nothing", () => {
+    for (const move of ["PICK_UP", "MARK_DONE"]) {
+      const update = ACTIONS.indexOf(`transitionRequest(${move}`);
+      const explain = ACTIONS.indexOf(`explainFailedTransition(${move}`);
+      expect(update).toBeGreaterThan(-1);
+      expect(explain).toBeGreaterThan(update);
+      expect(ACTIONS.slice(update, explain)).toContain("if (!updated)");
+    }
+  });
+
+  it("tells a guest or an outsider apart from a missing Request", () => {
+    expect(ACTIONS).toContain(
+      'const CANNOT_CHANGE_REQUESTS = "You can\'t change Requests in this workspace."'
+    );
+    expect(ACTIONS.match(/return \{ error: CANNOT_CHANGE_REQUESTS \}/g)).toHaveLength(
+      4
+    );
   });
 
   it("keeps lifecycle actions in detail and removes the dead list action", () => {

@@ -88,7 +88,8 @@ describe("Guest blocked from management actions", () => {
       orgId: WORKSPACE_A,
     });
     expect(result).toHaveProperty("error");
-    expect(result.error).toMatch(/not found/i);
+    // Plan item 1.4: lifecycle actions name the permission problem instead of hiding behind "Not found".
+    expect(result.error).toMatch(/can't change Requests/);
     expect(result).not.toHaveProperty("success");
   });
 
@@ -97,7 +98,7 @@ describe("Guest blocked from management actions", () => {
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
     const result = await markDone(CONTROL_REQ, { orgId: WORKSPACE_A });
     expect(result).toHaveProperty("error");
-    expect(result.error).toMatch(/not found/i);
+    expect(result.error).toMatch(/can't change Requests/);
     expect(result).not.toHaveProperty("success");
   });
 });

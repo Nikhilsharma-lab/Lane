@@ -53,11 +53,14 @@ describe("setRequestPriority", () => {
 
   it("denies guests, members of other workspaces and a forged workspace context", async () => {
     const { setRequestPriority } = await api();
+    // Plan item 1.4: a failed membership check (guest, or a workspace context
+    // that is not the session's) names the permission; "Not found" is kept
+    // for a Request that is missing or belongs to another workspace.
     actAs(GUEST, "org:guest");
-    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "Not found" });
+    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
     actAs(FOREIGN, "org:member", FOREIGN_ORG);
     expect(await setRequestPriority(requestId, "urgent", { orgId: FOREIGN_ORG })).toEqual({ error: "Request not found" });
-    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "Not found" });
+    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
     expect((await saved()).priority).toBe("none");
   });
 

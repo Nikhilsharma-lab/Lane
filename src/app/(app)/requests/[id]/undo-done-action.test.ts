@@ -71,11 +71,14 @@ describe("undoMarkDone", () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
+    // Plan item 1.4: a failed membership check (guest, or a workspace context
+    // that is not the session's) names the permission; "Not found" is kept
+    // for a Request that belongs to another workspace.
     actAs(GUEST, "org:guest");
-    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "Not found" });
+    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
     actAs(FOREIGN, "org:member", FOREIGN_ORG);
     expect(await undoMarkDone(requestId, { orgId: FOREIGN_ORG })).toEqual({ error: "Not found" });
-    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "Not found" });
+    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
     expect((await saved()).status).toBe("done");
     expect(await doneNotifications()).toBe(1);
   });
