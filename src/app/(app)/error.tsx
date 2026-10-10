@@ -20,9 +20,14 @@ export default function AppError({
       <EmptyState
         className="my-auto"
         title="This page couldn’t load"
-        description="Try again. If the error continues, refresh the page."
+        description="Try again. If the error continues, reload the page."
         icon={<CircleAlert aria-hidden="true" />}
-        action={<Button variant="secondary" onClick={reset}>Try again</Button>}
+        action={
+          <>
+            <Button variant="secondary" onClick={reset}>Try again</Button>
+            <Button variant="ghost" onClick={() => window.location.reload()}>Reload</Button>
+          </>
+        }
       />
     </div>
   );
