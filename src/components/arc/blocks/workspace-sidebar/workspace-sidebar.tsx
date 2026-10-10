@@ -54,7 +54,6 @@ export interface WorkspaceSidebarProps {
   onMobileOpenChange?: (open: boolean) => void;
   renderLink?: (props: WorkspaceLinkProps) => ReactElement;
   notifications?: ReactNode;
-  compactNotifications?: ReactNode;
   onSearch?: () => void;
   searchActive?: boolean;
   workspaces?: UserMenuWorkspaces;
@@ -183,7 +182,7 @@ function SectionTitle({ id, text, rail, reduce }: { id: string; text: string; ra
   </motion.h2>;
 }
 
-type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId" | "loading" | "error" | "onRetry" | "renderLink" | "notifications" | "compactNotifications" | "projectTree"> & {
+type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId" | "loading" | "error" | "onRetry" | "renderLink" | "notifications" | "projectTree"> & {
   reduce: boolean; rail: boolean;
   onExpand: () => void;
   onSelect: (id: string, name: string) => void;
@@ -191,7 +190,7 @@ type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId"
   onContextMenuChange: (open: boolean) => void;
 };
 
-function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink, reduce, rail, onExpand, onSelect, onCreate, notifications, compactNotifications, onContextMenuChange, projectTree = false }: PanelProps) {
+function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink, reduce, rail, onExpand, onSelect, onCreate, notifications, onContextMenuChange, projectTree = false }: PanelProps) {
   const group = useId();
   const projectSection = useRef<HTMLElement>(null);
   const projectFolder = useRef<HTMLButtonElement>(null);
@@ -259,7 +258,7 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
     return <section key={sectionGroup.id} className={styles.section} role="group" aria-label={sectionGroup.name}>
       <SectionTitle id={`${group}-${sectionGroup.id}`} text={sectionGroup.name} rail={rail} reduce={reduce} />
       <ul className={styles.list}>{sectionGroup.items.map(item => row(item))}</ul>
-      {sectionGroup.id === "workspace" && <div className={styles.notificationSlot}>{rail ? compactNotifications ?? notifications : notifications}</div>}
+      {sectionGroup.id === "workspace" && <div className={styles.notificationSlot}>{notifications}</div>}
     </section>;
   }
   const projectContents = <>
@@ -351,7 +350,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, compactNotifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -545,7 +544,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
         <div className={styles.stack}>
           <AnimatePresence initial={false}>
             <Panel key={workspace.id} projects={projects} groups={groups} activeId={activeId} reduce={reduce} rail={rail} projectTree={projectTree} onExpand={() => setRail(false)} onSelect={select}
-              loading={loading} error={error} onRetry={onRetry} renderLink={renderLink} onCreate={onCreateProject ? create : undefined} onContextMenuChange={open => { contextMenuOpen.current = open; }} notifications={notifications} compactNotifications={compactNotifications} />
+              loading={loading} error={error} onRetry={onRetry} renderLink={renderLink} onCreate={onCreateProject ? create : undefined} onContextMenuChange={open => { contextMenuOpen.current = open; }} notifications={notifications} />
           </AnimatePresence>
         </div>
       </motion.div>

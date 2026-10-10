@@ -11,7 +11,11 @@ vi.mock("@/db", async () => {
     return { rows: recorded.projectAvailable && sql.includes('from "projects" where') ? [["00000000-0000-4000-8000-000000000002", "Website"]] : [] }
   }, { schema }) }
 })
-vi.mock("@/lib/ensure-workspace", () => ({ getWorkspace: async () => ({ orgId: "org_visible", userId: "person_current", role: recorded.role, needsOnboarding: false }) }))
+vi.mock("@/lib/ensure-workspace", () => ({
+  // Plan item 1.8: the page reads Clerk claims first, then runs its loaders in parallel.
+  getMember: async () => ({ userId: "person_current", orgId: "org_visible", role: recorded.role }),
+  getWorkspace: async () => ({ orgId: "org_visible", userId: "person_current", role: recorded.role, needsOnboarding: false }),
+}))
 vi.mock("./requests/[id]/actions", () => ({ addComment: vi.fn(), pickUpRequest: vi.fn(), markDone: vi.fn(), getAttachmentDownloadUrl: vi.fn() }))
 
 beforeEach(() => { recorded.queries = []; recorded.role = "member"; recorded.projectAvailable = false })

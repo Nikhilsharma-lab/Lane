@@ -1,14 +1,16 @@
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
 import { cache } from "react";
 
-import { db, profiles, workspaces } from "@/db";
-import { clerkWorkspacePermission } from "@/lib/auth-guard";
+import { db, workspaces } from "@/db";
+import { clerkWorkspacePermission, type MemberAuth } from "@/lib/auth-guard";
+import { loadShell } from "@/lib/data/shell";
 
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
   role: "admin" | "member" | "guest";
+  /** The functional label chosen at onboarding; Settings → Profile edits it. */
+  profileRole: "pm" | "designer" | "developer";
   fullName: string;
   email: string;
   workspaceName: string;
@@ -27,25 +29,32 @@ function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
   return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
 }
 
+/**
+ * Identity and workspace permission from Clerk claims alone: no database
+ * round trip. Plan item 1.8 starts the page's reads from this so they run in
+ * parallel with the profile/workspace join in getWorkspace. Cached per
+ * request, so the layout and the page share one auth() call.
+ */
+export const getMember = cache(async function getMember(): Promise<MemberAuth | null> {
+  const { userId, orgId, orgRole } = await auth();
+  const role = clerkWorkspacePermission(orgRole);
+  if (!userId || !orgId || !role) return null;
+  return { userId, orgId, role };
+});
+
 export const getWorkspace = cache(async function getWorkspace(): Promise<
   | (WorkspaceContext & { needsOnboarding: false })
   | OnboardingContext
   | null
 > {
-  const { userId, orgId, orgRole } = await auth();
-  const permission = clerkWorkspacePermission(orgRole);
-  if (!userId || !orgId || !permission) return null;
+  const member = await getMember();
+  if (!member) return null;
+  const { userId, orgId, role } = member;
 
-  const [profile] = await db
-    .select({
-      fullName: profiles.fullName,
-      email: profiles.email,
-      role: profiles.role,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, userId));
+  // Plan item 1.9: profile and workspace in one statement.
+  const shell = await loadShell(member);
 
-  if (!profile) {
+  if (!shell) {
     const user = await currentUser();
     return {
       needsOnboarding: true,
@@ -55,24 +64,21 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
     };
   }
 
-  let [workspace] = await db
-    .select({ name: workspaces.name })
-    .from(workspaces)
-    .where(eq(workspaces.id, orgId));
+  let workspaceName = shell.workspaceName;
 
-  if (!workspace) {
+  if (workspaceName === null) {
     const client = await clerkClient();
     const organization = await client.organizations.getOrganization({
       organizationId: orgId,
     });
 
-    [workspace] = await db
+    const [workspace] = await db
       .insert(workspaces)
       .values({
         id: organization.id,
         name: organization.name,
         slug: organization.slug ?? organization.id,
-        ownerUserId: permission === "admin" ? userId : null,
+        ownerUserId: role === "admin" ? userId : null,
       })
       .onConflictDoUpdate({
         target: workspaces.id,
@@ -83,15 +89,17 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
         },
       })
       .returning({ name: workspaces.name });
+    workspaceName = workspace.name;
   }
 
   return {
     needsOnboarding: false,
     userId,
     orgId,
-    role: permission,
-    fullName: profile.fullName,
-    email: profile.email,
-    workspaceName: workspace.name,
+    role,
+    profileRole: shell.profileRole,
+    fullName: shell.fullName,
+    email: shell.email,
+    workspaceName,
   };
 });

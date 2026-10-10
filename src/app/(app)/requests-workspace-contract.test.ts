@@ -29,6 +29,15 @@ describe("Requests workspace contract", () => {
     expect(REQUEST_STYLES).not.toMatch(/(?:border-left|border-inline-start)\s*:/)
   })
 
+  it("reads through the server-only loaders instead of querying inline (plan items 1.8 and 1.9)", () => {
+    expect(WORKSPACE).toContain('from "@/lib/data/requests"')
+    expect(WORKSPACE).toContain("Promise.all([")
+    expect(WORKSPACE).not.toContain('from "@/db"')
+    for (const loader of ["shell", "requests", "projects", "notifications"]) {
+      expect(source(`src/lib/data/${loader}.ts`)).toMatch(/^import "server-only"/)
+    }
+  })
+
   it("keeps lifecycle actions in detail instead of the Request list", () => {
     expect(WORKSPACE).not.toContain("PickUpButton")
     expect(WORKSPACE).toContain("<LifecycleButtons")

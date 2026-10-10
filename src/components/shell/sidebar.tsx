@@ -19,6 +19,7 @@ export function Sidebar({
   email,
   role,
   orgId,
+  unreadCount,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
@@ -26,6 +27,8 @@ export function Sidebar({
   email: string;
   role: string;
   orgId: string;
+  /** The (app) layout's unread count, streamed to the bell (plan item 1.8). */
+  unreadCount?: Promise<number>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -64,8 +67,7 @@ export function Sidebar({
         router.push(requestListHref("all", result.project.id));
         return result.project;
       }}
-      notifications={<NotificationBell orgId={orgId} />}
-      compactNotifications={<NotificationBell orgId={orgId} compact />}
+      notifications={<NotificationBell orgId={orgId} unreadCount={unreadCount} />}
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}
       workspaceSwitcher={workspaceSwitcher}

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { listProjects } from "@/app/(app)/intake/project-actions";
 import type { ProjectOption } from "@/lib/request-properties";
 
@@ -62,8 +62,18 @@ type SharedWorkspaceProjects = {
 
 const WorkspaceProjectsContext = createContext<SharedWorkspaceProjects | null>(null);
 
-export function WorkspaceProjectsProvider({ orgId, children }: { orgId: string; children: ReactNode }) {
-  const [state, dispatch] = useReducer(workspaceProjectsReducer, initialWorkspaceProjectsState);
+/** Seeds the provider from the (app) layout's loadProjects read; without it the provider fetches on mount. */
+export function seedWorkspaceProjectsState(initialProjects?: ProjectOption[]): WorkspaceProjectsState {
+  if (!initialProjects) return initialWorkspaceProjectsState;
+  return { ...initialWorkspaceProjectsState, projects: initialProjects, loading: false };
+}
+
+export function WorkspaceProjectsProvider({ orgId, initialProjects, children }: { orgId: string; initialProjects?: ProjectOption[]; children: ReactNode }) {
+  // Plan item 1.8: the layout passes the Projects it already read, so the
+  // sidebar paints with them and no listProjects action runs on load. The
+  // action still serves the client refresh (retry, duplicate-name resolution).
+  const [state, dispatch] = useReducer(workspaceProjectsReducer, initialProjects, seedWorkspaceProjectsState);
+  const [seeded] = useState(initialProjects !== undefined);
   const mounted = useRef(false);
   const requestSequence = useRef(0);
 
@@ -82,9 +92,9 @@ export function WorkspaceProjectsProvider({ orgId, children }: { orgId: string; 
 
   useEffect(() => {
     mounted.current = true;
-    void reload();
+    if (!seeded) void reload();
     return () => { mounted.current = false; requestSequence.current += 1; };
-  }, [reload]);
+  }, [reload, seeded]);
 
   const addProject = useCallback((project: ProjectOption) => {
     dispatch({ type: "project-added", project });

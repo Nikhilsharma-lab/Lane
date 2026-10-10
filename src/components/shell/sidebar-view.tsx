@@ -32,6 +32,7 @@ export interface SidebarViewProps {
   onRetryProjects?: () => void | Promise<void>;
   onCreateProject?: (name: string) => Promise<ProjectOption>;
   notifications: ReactNode;
+  /** No longer read: one bell instance serves both the panel and the rail (plan item 1.8, 2026-10-10). Kept so existing fixtures type-check. */
   compactNotifications?: ReactNode;
   onSignOut?: () => void | Promise<unknown>;
   onSearch?: (input: WorkspaceSearchInput) => Promise<WorkspaceSearchResponse>;
@@ -49,7 +50,7 @@ function renderLink({ href, ...props }: WorkspaceLinkProps) {
 }
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, compactNotifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, cssWidth, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, linearPreviewAutoCollapse, openAutoPeek);
   const { peeking, peekTop, dismiss: dismissPeek, show: showPeek, triggerEvents, panelEvents } = useSidebarPeek(collapsed && !resizing, switchingWorkspace);
@@ -119,7 +120,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
             setListView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 0 } }));
           }
         }}
-        renderLink={renderLink} notifications={notifications} compactNotifications={compactNotifications} onMobileOpenChange={setMobileOpen} />
+        renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
       </div>
     </aside>
     <div {...separator} className={styles.resizeHandle} />

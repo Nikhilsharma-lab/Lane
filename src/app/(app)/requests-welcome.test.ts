@@ -6,8 +6,12 @@ import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
 // Isolate external session/database boundaries; render the real workspace.
 const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[] }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams(), redirect: vi.fn() }))
+// Plan item 1.8: the workspace reads through src/lib/data (server-only). Vitest cannot resolve Next's
+// "server-only" marker, and the page now derives identity from claims (getMember) before it queries.
+vi.mock("server-only", () => ({}))
 vi.mock("@/lib/ensure-workspace", () => ({
-  getWorkspace: async () => ({ needsOnboarding: false, role: state.role, orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
+  getMember: async () => ({ userId: "user_test", orgId: "org_test", role: state.role }),
+  getWorkspace: async () => ({ needsOnboarding: false, role: state.role, profileRole: "pm", orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
 }))
 vi.mock("@/db", async () => {
   const schema = await import("@/db/schema")

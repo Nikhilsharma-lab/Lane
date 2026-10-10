@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useRef } from "react";
+import { Suspense, use, useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { NotificationBellView, type NotificationItem } from "./notification-bell-view";
 import {
@@ -11,16 +11,47 @@ import {
   markAllNotificationsRead,
 } from "@/app/(app)/notifications/actions";
 
+const noop = () => {};
+
+/**
+ * Plan item 1.8: the (app) layout streams the unread count as a promise. The
+ * bell suspends on it inside its own boundary, so the shell paints at once
+ * with a plain bell and the badge arrives with the count. Without a promise
+ * (fixtures, previews) the bell reads the count after it mounts, as before.
+ */
 export function NotificationBell({
   orgId,
+  unreadCount,
   compact = false,
 }: {
   orgId: string;
+  unreadCount?: Promise<number>;
   compact?: boolean;
 }) {
+  return (
+    <Suspense fallback={<NotificationBellView compact={compact} open={false} unread={0} items={[]} loaded={false} isPending={false} onOpenChange={noop} onSelect={noop} onMarkAllRead={noop} onToggleRead={noop} onRetry={noop} />}>
+      <LoadedNotificationBell orgId={orgId} unreadCount={unreadCount} compact={compact} />
+    </Suspense>
+  );
+}
+
+function LoadedNotificationBell({
+  orgId,
+  unreadCount,
+  compact,
+}: {
+  orgId: string;
+  unreadCount?: Promise<number>;
+  compact: boolean;
+}) {
   const router = useRouter();
+  // Only the first promise is read: a later server render hands over a new one
+  // and the bell must not suspend again for it. Later counts come from the
+  // action when the bell opens or a read state changes.
+  const [initialCount] = useState(unreadCount);
+  const serverUnread = initialCount ? use(initialCount) : undefined;
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState(serverUnread ?? 0);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +84,8 @@ export function NotificationBell({
   }, [orgId]);
 
   useEffect(() => {
+    // The layout supplied the count; the next read happens when the bell opens.
+    if (initialCount) return;
     let active = true;
     void getUnreadCount({ orgId }).then((result) => {
       if (active && "count" in result) setUnread(result.count ?? 0);
@@ -60,16 +93,17 @@ export function NotificationBell({
     return () => {
       active = false;
     };
-  }, [orgId]);
+  }, [orgId, initialCount]);
 
   useEffect(() => {
     if (!open || loaded) return;
     let active = true;
-    void Promise.resolve().then(() => refreshList(() => active));
+    // Opening refreshes the count with the list, so the badge matches what is shown.
+    void Promise.resolve().then(() => Promise.all([refreshList(() => active), refreshCount()]));
     return () => {
       active = false;
     };
-  }, [open, loaded, refreshList]);
+  }, [open, loaded, refreshList, refreshCount]);
 
   const runUpdate = (operation: () => Promise<void>, retry: () => void) => {
     if (isPending) return;

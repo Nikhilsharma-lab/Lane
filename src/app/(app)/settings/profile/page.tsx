@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { ProfileLayout, ProfileSections } from "@/components/settings/profile-sections";
-import { db, profiles } from "@/db";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
@@ -11,16 +9,12 @@ export default async function ProfilePage() {
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
 
-  const [profile] = await db
-    .select({ role: profiles.role })
-    .from(profiles)
-    .where(eq(profiles.id, workspace.userId));
-  if (!profile) redirect("/onboarding");
-
+  // Plan item 1.9: the profile role arrived with the shell join, so this page
+  // makes no read of its own.
   return (
     <ProfileLayout>
       <ProfileSections
-        profileForm={<ProfileForm initialRole={profile.role} orgId={workspace.orgId} />}
+        profileForm={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference />}
       />
     </ProfileLayout>
