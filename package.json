@@ -16,7 +16,8 @@
     "test:storybook": "vitest run --config vitest.storybook.config.ts --no-file-parallelism",
     "test:ui": "vitest run --config vitest.ui.config.ts --no-file-parallelism",
     "typecheck": "tsc --noEmit",
-    "design:check": "node scripts/design-system/arc-source-check.mjs"
+    "design:check": "node scripts/design-system/arc-source-check.mjs",
+    "bundle:check": "node scripts/bundle-baseline.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.81",

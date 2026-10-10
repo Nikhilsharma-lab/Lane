@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, count, eq, exists, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, exists, isNull, or } from "drizzle-orm";
 
-import { db, notifications, requests } from "@/db";
+import { db, notifications, profiles, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 
 /**
@@ -48,4 +48,43 @@ export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
     .where(and(notificationVisibility(auth), isNull(notifications.readAt)));
 
   return row?.value ?? 0;
+}
+
+const NOTIFICATIONS_LIMIT = 30;
+
+export type NotificationRow = {
+  id: string;
+  type: string;
+  requestId: string | null;
+  actorId: string;
+  readAt: Date | null;
+  createdAt: Date;
+  actorName: string | null;
+  requestTitle: string | null;
+};
+
+/**
+ * Plan item 1.16: the notification list for the bell, the same statement as
+ * getNotifications in src/app/(app)/notifications/actions.ts so the GET route
+ * and the action agree. src/app/api/read-routes.test.ts covers its org and
+ * guest scoping through GET /api/notifications.
+ */
+export async function loadNotifications(auth: MemberAuth): Promise<NotificationRow[]> {
+  return db
+    .select({
+      id: notifications.id,
+      type: notifications.type,
+      requestId: notifications.requestId,
+      actorId: notifications.actorId,
+      readAt: notifications.readAt,
+      createdAt: notifications.createdAt,
+      actorName: profiles.fullName,
+      requestTitle: requests.title,
+    })
+    .from(notifications)
+    .leftJoin(profiles, eq(notifications.actorId, profiles.id))
+    .leftJoin(requests, eq(notifications.requestId, requests.id))
+    .where(notificationVisibility(auth))
+    .orderBy(desc(notifications.createdAt))
+    .limit(NOTIFICATIONS_LIMIT);
 }

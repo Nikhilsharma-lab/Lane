@@ -1,29 +1,15 @@
 import { z } from "zod";
+import { REQUEST_PRIORITIES, REQUEST_TYPES } from "@/lib/request-constants";
 
 // Client-safe shared values; project permissions stay in guarded server code.
-export const REQUEST_TYPES = ["bug", "improvement", "new_feature"] as const;
-export type RequestType = (typeof REQUEST_TYPES)[number];
-export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
-  bug: "Bug",
-  improvement: "Improvement",
-  new_feature: "New feature",
-};
-export const REQUEST_TYPE_DESCRIPTIONS: Record<RequestType, string> = {
-  bug: "Something fails to behave as expected.",
-  improvement: "An existing capability or experience needs to work better.",
-  new_feature: "A capability that does not currently exist.",
-};
-export const REQUEST_PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const;
-export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
-export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
-  none: "No priority",
-  urgent: "Urgent",
-  high: "High",
-  medium: "Medium",
-  low: "Low",
-};
+// The constants and labels live in request-constants.ts (no Zod import, plan
+// item 1.13) and are re-exported here for server code and older imports.
+export {
+  REQUEST_TYPES, REQUEST_TYPE_LABELS, REQUEST_TYPE_DESCRIPTIONS,
+  REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS,
+  type RequestType, type RequestPriority, type ProjectOption,
+} from "@/lib/request-constants";
 export const requestPrioritySchema = z.enum(REQUEST_PRIORITIES, "Choose a valid priority");
-export type ProjectOption = { id: string; name: string; description: string | null };
 export const projectIdSchema = z.string().uuid("Choose a valid Project").nullable().default(null);
 export const requestTypeSchema = z.enum(REQUEST_TYPES, "Choose a valid Request type").nullable().default(null);
 export const projectInputSchema = z.object({

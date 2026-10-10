@@ -8,7 +8,9 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
 import { NewRequestContext } from "./new-request-context";
-import { projectIdSchema } from "@/lib/request-properties";
+import { usePendingMutationWriter } from "./pending-mutations-provider";
+import type { OverviewRequest } from "@/lib/request-overview";
+import { projectIdOrNull } from "@/lib/request-constants";
 import { parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace";
 
 export { NewRequestLink } from "./new-request-link";
@@ -29,11 +31,11 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
 }) {
   const router = useRouter();
   const { toast } = useToastStack();
+  const insert = usePendingMutationWriter()?.insert;
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const projectFilter = parseRequestProjectFilter(searchParams.get("project"));
-  const projectParam = projectIdSchema.safeParse(projectFilter);
-  const projectId = projectParam.success ? projectParam.data : null;
+  const projectId = projectIdOrNull(projectFilter);
   const statusFilter = parseRequestStatusFilter(searchParams.get("status") ?? undefined);
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
@@ -83,7 +85,10 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
   // saveRequest revalidates the list and the new detail path, so its response
   // already carries the created Request. A router refresh would render twice.
-  const onCreated = useCallback((requestId: string) => {
+  // When the composer hands over the saved row, the overlay shows it in the
+  // Open group at once and keeps it there if a navigation drops that response.
+  const onCreated = useCallback((requestId: string, created?: OverviewRequest) => {
+    if (created?.id === requestId) insert?.(created);
     completed.current = true;
     busy.current = false;
     setOpen(false);
@@ -91,7 +96,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       description: "Open and ready to be picked up.",
       action: { label: "Open Request", onClick: () => router.push(requestDetailHref(requestId, returnContext.status, returnContext.project)) },
     });
-  }, [returnContext, router, toast]);
+  }, [insert, returnContext, router, toast]);
 
   const value = useMemo(() => ({ openComposer }), [openComposer]);
   return (

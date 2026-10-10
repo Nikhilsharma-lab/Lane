@@ -3,6 +3,7 @@ import { fontVariables } from "@/lib/fonts";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
+import { WebVitals } from "@/components/web-vitals";
 import "@/components/arc/foundation.css";
 import "./globals.css";
 // Linear visual values through Arc's public token hooks. Activated for
@@ -44,6 +45,8 @@ export default function RootLayout({
       className={`${fontVariables} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Plan item 1.15b: logs Web Vitals in development; posts nothing in production yet. */}
+        <WebVitals />
         <ClerkProvider
           signInUrl="/login"
           signUpUrl="/signup"

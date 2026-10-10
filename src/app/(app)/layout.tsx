@@ -5,6 +5,7 @@ import { loadUnreadCount } from "@/lib/data/notifications";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
+import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -32,6 +33,9 @@ export default async function AppLayout({
 
   return (
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
+      {/* Pending Request changes live here, above every page, so a navigation
+          while an action is pending never shows the row revert (plan item 1.5). */}
+      <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId}>
           <Sidebar
@@ -46,6 +50,7 @@ export default async function AppLayout({
           </Sidebar>
         </NewRequestProvider>
       </WorkspaceProjectsProvider>
+      </PendingMutationsProvider>
     </RequestListViewProvider>
   );
 }

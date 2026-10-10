@@ -1,10 +1,10 @@
 "use client"
 
-import { cloneElement, useEffect, useId, useRef, useState, type FocusEvent, type ReactElement } from "react"
+import { cloneElement, memo, useEffect, useId, useRef, useState, type FocusEvent, type ReactElement } from "react"
 import { Check, Copy, Ellipsis, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { REQUEST_PRIORITY_LABELS } from "@/lib/request-properties"
+import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
 import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./tasks/columns"
 import styles from "./request-rows.module.css"
@@ -72,7 +72,7 @@ function GlyphMenu({ label, items, tip, onOpenChange, children }: { label: strin
   </ContextMenu>
 }
 
-export function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, onCheckedChange }: {
+type RequestRowProps = {
   request: OverviewRequest
   columns: RequestColumn[]
   visibility: Record<string, boolean>
@@ -80,8 +80,33 @@ export function RequestRow({ request, columns, visibility, filter, projectFilter
   projectFilter: RequestProjectFilter
   checked: boolean
   disabled: boolean
+  /** Excluded from the memo comparison: callers pass a fresh closure each render,
+   * so the handler must act on the latest selection itself (useRequestSelection does). */
   onCheckedChange: (checked: boolean) => void
-}) {
+}
+
+const shallowEqual = (a: object, b: object) => {
+  const left = a as Record<string, unknown>, right = b as Record<string, unknown>
+  const keys = Object.keys(left)
+  return keys.length === Object.keys(right).length && keys.every(key => Object.is(left[key], right[key]))
+}
+
+/** Each RSC response and each overlay patch hands rows new objects. A row
+ * re-renders only when what it shows changed: its id, status, priority,
+ * request number or another saved field (compared field by field), its
+ * selection, or the view's columns and filters (plan item 1.14). The row
+ * presentation context still re-renders rows when codes or priorities change. */
+function sameRow(previous: RequestRowProps, next: RequestRowProps) {
+  return previous.checked === next.checked
+    && previous.disabled === next.disabled
+    && previous.filter === next.filter
+    && previous.projectFilter === next.projectFilter
+    && previous.columns === next.columns
+    && shallowEqual(previous.visibility, next.visibility)
+    && (previous.request === next.request || shallowEqual(previous.request, next.request))
+}
+
+export const RequestRow = memo(function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, onCheckedChange }: RequestRowProps) {
   const presentation = useRequestRowPresentation()
   const identity = presentation?.identities[request.id]
   const savedCode = request.requestNumber === undefined ? null : formatRequestCode(request.requestNumber)
@@ -115,4 +140,4 @@ export function RequestRow({ request, columns, visibility, filter, projectFilter
     </div>
   </li>
   return presentation ? <ContextMenu label={`Request ${code || "actions"}`} items={menuItems} asChild openOnClick={false} onOpenChange={setMenuOpen}>{row}</ContextMenu> : row
-}
+}, sameRow)

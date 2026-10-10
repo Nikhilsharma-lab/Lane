@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useState, type MouseEvent, type ReactNode } from "react";
 import { Rows3 } from "lucide-react";
 import { motion, type MotionStyle } from "motion/react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
-import { useRequestListView } from "@/components/requests/list-view-state";
-import { parseRequestStatusFilter, requestListHref } from "@/lib/request-workspace";
-import type { ProjectOption } from "@/lib/request-properties";
+import { useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
+import { parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
+import type { ProjectOption } from "@/lib/request-constants";
 import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { WorkspaceSearchPane } from "./workspace-search-pane";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
@@ -24,7 +24,8 @@ export interface SidebarViewProps {
   email: string;
   role: string;
   pathname: string;
-  statusFilter: string;
+  /** The URL status view. Read only without the list view provider (fixtures); the layout state wins (plan item 1.7). */
+  statusFilter?: string;
   projectFilter?: string;
   projects?: ProjectOption[];
   projectsLoading?: boolean;
@@ -45,12 +46,10 @@ export interface SidebarViewProps {
 
 const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
-function renderLink({ href, ...props }: WorkspaceLinkProps) {
-  return href === "/intake" ? <NewRequestLink {...props} /> : <Link href={href} {...props} />;
-}
+const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter: urlProjectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, cssWidth, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, linearPreviewAutoCollapse, openAutoPeek);
   const { peeking, peekTop, dismiss: dismissPeek, show: showPeek, triggerEvents, panelEvents } = useSidebarPeek(collapsed && !resizing, switchingWorkspace);
@@ -60,12 +59,31 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       ?? triggers.find(button => button.getClientRects().length > 0 && !button.closest("[hidden],[inert]"));
     showPeek(trigger);
   }
-  const [, setListView] = useRequestListView();
+  // Plan items 1.7 and 1.14: the list context comes from the layout's list
+  // view state (the URL only mirrors it on "/"), and the sidebar subscribes to
+  // that context and the setter only, so typing in the list filter does not
+  // re-render it. Fixtures without the provider fall back to the props.
+  const setListView = useSetRequestListView();
+  const listContext = useRequestListContext();
+  const filter = listContext?.status ?? parseRequestStatusFilter(statusFilter);
+  const projectFilter = listContext?.project ?? urlProjectFilter;
+  // Already on "/", a plain click on a Requests list link (All Requests, a
+  // Project, No Project) changes the view in place with no request; the URL
+  // follows through history.replaceState. onNavigate has already set the
+  // context. Modified clicks and every other route keep navigating.
+  const renderLink = useCallback(({ href, onClick, ...props }: WorkspaceLinkProps) => {
+    if (href === "/intake") return <NewRequestLink {...props} onClick={onClick} />;
+    return <Link href={href} {...props} onClick={event => {
+      onClick?.(event);
+      if (event.defaultPrevented || pathname !== "/" || !isPlainClick(event) || typeof href !== "string" || !requestListContextFromHref(href)) return;
+      event.preventDefault();
+    }} />;
+  }, [pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchVisited, setSearchVisited] = useState(false);
-  const [previousLocation, setPreviousLocation] = useState(`${pathname}?${statusFilter}&${projectFilter}`);
-  const location = `${pathname}?${statusFilter}&${projectFilter}`;
+  const [previousLocation, setPreviousLocation] = useState(`${pathname}?${filter}&${projectFilter}`);
+  const location = `${pathname}?${filter}&${projectFilter}`;
   if (location !== previousLocation) { setPreviousLocation(location); setSearchOpen(false); }
   function openSearch() {
     dismissPeek();
@@ -81,7 +99,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   }
   function navigateFromSearch(href: string) {
     closeSearch(false);
-    if (href.startsWith("/?project=")) setListView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 0 } }));
+    const target = requestListContextFromHref(href);
+    if (target) setListView(current => withListContext(current, target));
   }
   const searchShortcut = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -91,7 +110,6 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
-  const filter = parseRequestStatusFilter(statusFilter);
   const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
   const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "Intake" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
@@ -117,7 +135,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
           dismissPeek();
           closeSearch(false);
           if (id === "requests" || id === "none" || projects.some(item => item.id === id)) {
-            setListView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 0 } }));
+            // A new Project moves to the first page; choosing the current one also returns there.
+            setListView(current => { const next = withListContext(current, { project: id === "requests" ? "all" : id }); return next !== current || !current.pagination.pageIndex ? next : { ...current, pagination: { ...current.pagination, pageIndex: 0 } }; });
           }
         }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
