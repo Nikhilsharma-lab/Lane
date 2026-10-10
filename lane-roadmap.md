@@ -90,9 +90,16 @@ tables are removed. Production guest invitations remain unavailable until Clerk 
 production-specific cutover and isolation. Documentation approval does not mark these complete. Feature
 planning can proceed separately; no feature release bypasses operational verification.
 
-**Current bounded increment — Saved Request codes (feature-first selection 2026-10-08).** Nikhil chose
+**Current bounded increment — MVP launch plan, Phase 0 (accepted 2026-10-10).** Nikhil accepted
+`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` with its default decisions: finish and land the
+Requests list polish on a green, protected baseline (Phase 0); co-locate the server with the database and
+simplify every mutation (Phase 1); cut production over early for one or two pilot teams; then migrate the
+remaining pages to the Linear-style system one small increment at a time. That plan now carries the
+sequence, the budgets and the open decisions; this section records only the selections.
+
+**Previous bounded increment — Saved Request codes (feature-first selection 2026-10-08).** Nikhil chose
 Request features first when offered codes/priority versus trio agreement. Implement stable workspace-local
-codes, copy and existing workspace-search retrieval as one local slice; priority remains a separate decision.
+codes, copy and existing workspace-search retrieval as one local slice; saved priority followed on 2026-10-09 (`0019`).
 See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Staging now has `0017`–`0019` (applied 2026-10-09 after a verified export and a local rehearsal); production migration and release gates remain open.
 This selection changes the immediate sequence without removing the alignment and outcome contract below.
 

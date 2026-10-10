@@ -34,12 +34,16 @@ not authorize implementing these unrelated deferrals.
 > - ~~Green badge on board~~ — DELETED. Violates the one-signal rule; the former evergreen signal was reserved for the gate at the time, and the current interaction signature is raspberry.
 > - ~~Redundant per-card status badge~~ — DELETED. Section header already states the status.
 
-## POST-GTM — optimistic UI on lifecycle transitions
+## UN-DEFERRED 2026-10-10 — optimistic UI on lifecycle transitions
 
 - **Optimistic UI on lifecycle transitions.** Pick-up / mark-done wait for the full round-trip. useOptimistic
   (React 19) flips state instantly. On-brand "considered" feel. — Day 3 #7. Verdict: DEFER (rollback flicker
   would be visible against Tokyo latency; complexity over correctness at this stage).
   Trigger: after Tokyo co-location, if transitions still feel slow.
+  **Un-deferred 2026-10-10:** "superfast" is a launch requirement (plan decision 8.4). It lands after the
+  server is co-located with the database, as a layout-level pending-mutation overlay that clears only when
+  the server rows show the change or the action fails (plan Phase 1b, item 1.5), which is what removes the
+  flicker the original verdict feared.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 

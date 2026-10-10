@@ -19,7 +19,9 @@
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
-> Priority remains separate. Hosted migration/release and the broader target pipeline are not implied.
+> Saved priority followed on 2026-10-09 (`0019`), as did Ask for review (`0018`). Hosted migration/release
+> and the broader target pipeline are not implied; the launch sequence and its decisions are in
+> `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` (accepted 2026-10-10).
 
 This is the product-behaviour master, not a monolithic implementation plan. `AGENTS.md` remains the primary
 repository instruction file. `lane-roadmap.md` controls sequence, `DESIGN.md` controls the visual system,
@@ -126,9 +128,12 @@ Clerk cutover record still requires hosted invitation-return and production veri
    type, related link, private attachments, and the AI problem gate. Expected impact is implemented locally
    through signed review and save; local checks passed.
 4. Requests board: one shared workspace board grouped Open / In Progress / Done, with an optional status
-   filter.
+   filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`) for Requests by code
+   and title.
 5. Request detail: problem, supporting context, saved Expected impact, assignment, lifecycle actions,
-   attachments, and comments. The Expected impact summary is implemented and locally verified.
+   attachments, comments, and Ask for review (named teammates respond in place; see
+   `docs/superpowers/plans/2026-10-09-ask-for-review.md`). The Expected impact summary is implemented and
+   locally verified.
 6. Members and invitations: Clerk Organization Profile owns invitations, delivery, resend, revoke, roles,
    and membership changes. Lane supplies no parallel invite tokens or membership mutations.
 7. Profile settings: editable functional label and browser-local System / Light / Dark preference.
@@ -788,7 +793,9 @@ The order of later releases is chosen from dependencies and observed use; it is 
 Workspace analytics and agentic operations remain separate, unselected hypotheses.
 
 Only one subsystem may enter implementation at a time. Later plans consume the verified contract produced by
-earlier increments; they must not pre-build speculative infrastructure.
+earlier increments; they must not pre-build speculative infrastructure. **2026-10-10:** this rule is waived
+for Phase 1 (the speed foundation) of the MVP launch plan only; the Phase 2 page migrations return to one
+increment at a time.
 
 ---
 
@@ -801,6 +808,23 @@ earlier increments; they must not pre-build speculative infrastructure.
 - **2026-09-24:** workspace-first onboarding with Clerk Membership required; choose the functional label
   only after an active organization exists, then enter Requests.
 - Work lifecycle remains Open → In Progress → Done.
+- **2026-10-09:** Mark Done can be undone from the Requests list (and from Request detail once it is
+  migrated, 2026-10-10) for 15 minutes after the move: the Request returns to In Progress and its Done
+  notification is withdrawn. This is the undo of Mark Done, offered to the same members who can mark Done,
+  not a reverse lifecycle move; Closed outcomes never reopen this way.
+- **2026-10-09:** Saved priority (none, urgent, high, medium, low) is a triage signal members set from the
+  list; it does not assign people or start work. Ask for review lets a member ask named teammates for
+  feedback on a design reference inside a Request; responses are recorded in place.
+- **2026-10-10 launch decisions** (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` §8, defaults
+  accepted by Nikhil): a free, invite-only pilot for design leads at small product teams; server and
+  database co-located in Tokyo (`hnd1` + `ap-northeast-1`); optimistic UI un-deferred as a launch
+  requirement; early production cutover for one or two pilot teams, then one small increment per PR;
+  read-only GET route handlers for search, reviewers, notifications and the unread count are approved as
+  new routes; error monitoring, Speed Insights and an uptime monitor; Supabase Pro when real pilot data
+  arrives; a filtered result count in the Requests toolbar; the Geist preview retired; the Linear-derived
+  token values re-authored as Lane-owned tokens before any page sign-off; "Intake" names the flow and
+  "New Request" the action and breadcrumb. The creation-to-outcome replan is a sketch session before
+  Phase 2, not waived.
 - Outcome lifecycle is separate: Not started → Measuring → Closed.
 - Done does not mean outcome closure.
 - The creator owns outcome closure; a Clerk organization admin may explicitly transfer responsibility if necessary.
@@ -852,6 +876,9 @@ earlier increments; they must not pre-build speculative infrastructure.
   exception choices were explicitly answered by Nikhil in the same conversation.
 - Current AI review is not stakeholder agreement; current Mark Done is not outcome closure. Neither guard
   is implemented by this documentation. Replan the creation-to-outcome UX before continuing page polish.
+  **2026-10-10:** that replan is scheduled as a sketch session before Phase 2 of the launch plan (where
+  alignment and outcome will sit on the composer and on detail); Phases 0 and 1 are plumbing, not page
+  polish.
 
 ### Scope amendment — 2026-09-28
 

@@ -31,7 +31,8 @@ pnpm dev
 
 Link the repository to the Clerk development application and pull its local keys with `clerk init` followed
 by `clerk env pull`; keep the generated values only in the ignored `.env.local`. Open
-[http://localhost:3000](http://localhost:3000). Never paste secrets into documentation, source control, or chat.
+[http://localhost:3000](http://localhost:3000), or run `pnpm dev -p 3100` when another project holds port 3000.
+Never paste secrets into documentation, source control, or chat.
 
 Clerk owns identity and tenancy. Supabase supplies Postgres and private attachment storage only. Never add a
 parallel Lane membership or invitation model.
