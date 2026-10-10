@@ -17,13 +17,16 @@ export type DesignReviewPanelProps = {
   currentUserId: string
   canRequest: boolean
   canManage: boolean
-  onFindReviewers: (query: string) => Promise<{ members: ReviewPerson[] } | { error: string }>
+  /** Resolves one reviewer search. The signal aborts it when a newer query replaces it (plan item 1.16). */
+  onFindReviewers: (query: string, signal?: AbortSignal) => Promise<{ members: ReviewPerson[] } | { error: string }>
   onRequest: (input: StartReviewInput) => Promise<ReviewActionResult>
   onRespond: (input: RespondToReviewInput) => Promise<ReviewActionResult>
   onWithdraw: (input: WithdrawReviewInput) => Promise<ReviewActionResult>
 }
 
 type FormState = { pending: boolean; error: string | null; blocked?: string }
+/** Typing pauses this long before reviewers are searched; Enter and the button search at once. */
+export const REVIEWER_DEBOUNCE_MS = 150
 const decisions = [{ value: "looks_good", label: "Looks good" }, { value: "changes_requested", label: "Changes requested" }]
 const decisionLabel = (decision: string) => decision === "looks_good" ? "Looks good" : "Changes requested"
 const formatDate = (value: string) => new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC" }) + " UTC"
@@ -44,6 +47,8 @@ function AskForm({ expectedVersion, currentUserId, pending, error, blocked, onFi
   const [searchError, setSearchError] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const sequence = useRef(0)
+  const inflight = useRef<AbortController | null>(null)
+  const debounce = useRef(0)
   const lifetime = useRef({ active: true })
   const urlInput = useRef<HTMLInputElement>(null)
   const uid = useId()
@@ -53,20 +58,26 @@ function AskForm({ expectedVersion, currentUserId, pending, error, blocked, onFi
     alive.active = true
     urlInput.current?.focus()
     const id = ++sequence.current
-    void onFindReviewers("").then(result => {
+    const controller = new AbortController()
+    inflight.current?.abort(); inflight.current = controller
+    void onFindReviewers("", controller.signal).then(result => {
       if (!alive.active || sequence.current !== id) return
       if ("error" in result) setSearchError(result.error)
       else setMembers(result.members.filter(member => member.id !== currentUserId))
     }).catch(() => { if (alive.active && sequence.current === id) setSearchError("Members could not be loaded. Try again.") })
       .finally(() => { if (alive.active && sequence.current === id) setSearching(false) })
-    return () => { alive.active = false }
+    return () => { alive.active = false; window.clearTimeout(debounce.current); controller.abort() }
   }, [onFindReviewers, currentUserId])
 
-  async function findMembers() {
+  async function findMembers(value = query) {
+    window.clearTimeout(debounce.current)
     const id = ++sequence.current
+    // A newer query replaces an older one in flight instead of waiting for it.
+    const controller = new AbortController()
+    inflight.current?.abort(); inflight.current = controller
     setSearching(true); setSearchError(null)
     try {
-      const result = await onFindReviewers(query.trim())
+      const result = await onFindReviewers(value.trim(), controller.signal)
       if (!lifetime.current.active || sequence.current !== id) return
       if ("error" in result) setSearchError(result.error)
       else setMembers(result.members.filter(member => member.id !== currentUserId))
@@ -90,7 +101,12 @@ function AskForm({ expectedVersion, currentUserId, pending, error, blocked, onFi
     <fieldset className={styles.reviewers} aria-describedby={`${uid}-selection`}>
       <legend>Reviewers</legend>
       <div className={styles.search}>
-        <Input label="Search members" value={query} onChange={event => setQuery(event.target.value)} readOnly={pending} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); if (!pending) void findMembers() } }} />
+        <Input label="Search members" value={query} onChange={event => {
+          const value = event.target.value
+          setQuery(value)
+          window.clearTimeout(debounce.current)
+          debounce.current = window.setTimeout(() => { if (lifetime.current.active && !pending) void findMembers(value) }, REVIEWER_DEBOUNCE_MS)
+        }} readOnly={pending} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); if (!pending) void findMembers() } }} />
         <Button type="button" variant="secondary" loading={searching} disabled={pending} className={styles.action} onClick={() => { void findMembers() }}>Find reviewers</Button>
       </div>
       <p id={`${uid}-selection`} className={styles.hint}>{selected.length} of 10 selected. Choose teammates other than yourself.</p>

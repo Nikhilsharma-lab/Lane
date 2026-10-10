@@ -2,7 +2,7 @@ import { NewRequestProvider } from "@/components/requests/new-request-provider"
 import { ToastStackProvider, ToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { useEffect, useState, type ComponentProps } from "react"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { REQUEST_TYPES } from "@/lib/request-properties"
+import { REQUEST_TYPES } from "@/lib/request-constants"
 import { RequestsShellFixture } from "../requests.stories"
 
 // Explicit illustrative saved numbers. A fixture Request without one is a
