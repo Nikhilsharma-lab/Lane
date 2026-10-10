@@ -1,12 +1,8 @@
-import { parseRequestProjectFilter, parseRequestStatusFilter } from "@/lib/request-workspace"
 import { RequestsWorkspace } from "./requests-workspace"
 
-export default async function RequestsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string | string[]; project?: string | string[] }>
-}) {
-  const { status, project } = await searchParams
-
-  return <RequestsWorkspace filter={parseRequestStatusFilter(status)} projectFilter={parseRequestProjectFilter(project)} />
+// Plan item 1.7: the status view and Project filter are read in the browser
+// (src/components/requests/list-view-state.tsx), so this page never reads
+// the URL query and a view switch makes no server request.
+export default function RequestsPage() {
+  return <RequestsWorkspace />
 }

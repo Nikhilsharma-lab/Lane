@@ -49,3 +49,29 @@ export function requestDetailHref(
   const path = `/requests/${requestId}`
   return `${path}${requestQuery(filter, projectFilter)}`
 }
+
+/** The list context a page holds in layout state: the status view and the Project filter. */
+export type RequestListContext = { status: RequestStatusFilter; project: RequestProjectFilter }
+
+type SearchParamsLike = { get(name: string): string | null; has(name: string): boolean }
+
+/** Reads the list context of a URL query. Absent values mean "all". */
+export function parseRequestListContext(params: SearchParamsLike | null | undefined): RequestListContext {
+  return {
+    status: parseRequestStatusFilter(params?.get("status") ?? undefined),
+    project: parseRequestProjectFilter(params?.get("project")),
+  }
+}
+
+/** True when a URL query names a status view or a Project filter. */
+export function hasRequestListContext(params: SearchParamsLike | null | undefined) {
+  return Boolean(params?.has("status") || params?.has("project"))
+}
+
+/** The list context of an in-app Requests list link ("/" with an optional query), or null for any other link. */
+export function requestListContextFromHref(href: string): RequestListContext | null {
+  if (!href.startsWith("/") || href.startsWith("//")) return null
+  const url = new URL(href, "https://lane.invalid")
+  if (url.pathname !== "/" || url.hash) return null
+  return parseRequestListContext(url.searchParams)
+}

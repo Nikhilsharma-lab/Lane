@@ -16,6 +16,13 @@ dotenv.config({
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  experimental: {
+    // Plan item 1.11: Request titles fully prefetch the detail route on
+    // intent. Without this a full prefetch stays cached for the 5-minute
+    // static default and could show a stale status; 30 s also lets Back and
+    // a quick return to a Request reuse the page segment.
+    staleTimes: { dynamic: 30, static: 30 },
+  },
   // Baseline security headers on every route; CSP stays Report-Only until
   // staging and production report nothing (src/lib/security-headers.ts).
   async headers() {
