@@ -98,6 +98,8 @@ jobs:
     env:
       STORYBOOK_WIDTH: ${{ matrix.width }}
       STORYBOOK_THEME: ${{ matrix.theme }}
+      # Browser-process stderr in the job log, so a renderer crash names its reason.
+      DEBUG: pw:browser
 
     steps:
       - uses: actions/checkout@v4
