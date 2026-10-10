@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { db, requests } from "@/db";
 import {
@@ -86,6 +87,18 @@ function sessionFailure(): IntakeFailure {
     code: "session_expired",
     message: "Your session ended. Sign in again to continue this Request.",
   };
+}
+
+// The action response then carries the refreshed list and detail, so the
+// client does not refresh the router a second time after a successful save.
+// A cache refresh failure must not claim the committed Request was lost.
+function revalidateSavedRequest(requestId: string) {
+  try {
+    revalidatePath("/");
+    revalidatePath(`/requests/${requestId}`);
+  } catch {
+    console.error("[intake] saved Request cache refresh failed");
+  }
 }
 
 export async function runTriage(
@@ -260,7 +273,10 @@ export async function saveRequest(
       .onConflictDoNothing({ target: requests.id })
       .returning({ id: requests.id });
 
-    if (created) return { success: true, requestId: created.id };
+    if (created) {
+      revalidateSavedRequest(created.id);
+      return { success: true, requestId: created.id };
+    }
 
     const [existing] = await db
       .select({ id: requests.id })
@@ -274,7 +290,10 @@ export async function saveRequest(
       )
       .limit(1);
 
-    if (existing) return { success: true, requestId: existing.id };
+    if (existing) {
+      revalidateSavedRequest(existing.id);
+      return { success: true, requestId: existing.id };
+    }
 
     return {
       success: false,

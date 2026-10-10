@@ -94,7 +94,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
       message: failed.length || availableAction === "done" ? "" : `${selected.length} ${selected.length === 1 ? "Request" : "Requests"} picked up.`,
     })
     if (availableAction === "done" && succeeded.length) confirmDone(succeeded, context)
-    router.refresh()
+    // Each successful action revalidated the list in its own response. Only a
+    // failure leaves rows the server did not refresh, so re-sync them here.
+    if (failed.length) router.refresh()
   }
 
   function confirmDone(ids: string[], scopeContext: { orgId: string }) {
@@ -110,7 +112,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
       try { if ((await undoMarkDone(id, scopeContext)).error) failed.push(id) }
       catch { failed.push(id) }
     }
-    router.refresh()
+    // Successful undos revalidated the list in their own responses; a failed
+    // one did not, so re-sync the rows it left behind.
+    if (failed.length) router.refresh()
     // The result reuses the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
     if (failed.length) toast({ id: toastId, type: "error", title: `${failed.length} of ${ids.length} could not be undone`, description: "Those stay Done. Refresh to see their current state." })
     else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back In Progress`, description: undefined })

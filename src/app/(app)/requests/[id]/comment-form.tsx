@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { LoaderCircle, Send } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
@@ -23,7 +22,6 @@ export function CommentForm({
   const [error, setError] = useState<string | null>(null);
   const submissionLock = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const router = useRouter();
   const pending = submissionState === "posting";
   const empty = body.trim().length === 0;
 
@@ -47,9 +45,10 @@ export function CommentForm({
         return;
       }
 
+      // addComment revalidated the detail path, so its response already
+      // carries the new comment. A router refresh here would render twice.
       setBody("");
       setSubmissionState("success");
-      router.refresh();
     } catch {
       setError(
         "Couldn’t post your comment. Your draft is still here. Try again."

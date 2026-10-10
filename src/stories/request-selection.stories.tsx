@@ -26,6 +26,7 @@ const meta = {
     mocked(pickUpRequest).mockReset().mockResolvedValue({ success: true })
     mocked(markDone).mockReset().mockResolvedValue({ success: true })
     getRouter().push.mockClear()
+    getRouter().refresh.mockClear()
   },
 } satisfies Meta<typeof RequestsOverview>
 export default meta
@@ -91,9 +92,14 @@ export const PartialFailure: Story = {
     await expect(mocked(pickUpRequest)).toHaveBeenNthCalledWith(2, requests[1].id, context)
     await expect(await canvas.findByRole("alert")).toHaveTextContent("1 Request could not be updated. It is still selected. Try again.")
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(1)
+    // A batch with a failure re-syncs the view once, since the failed action
+    // did not revalidate it (plan item 1.3).
+    await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
     await expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(3)
+    // The retry succeeded and revalidated itself, so no further refresh.
+    await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
   },
 }
 
@@ -188,5 +194,7 @@ export const CompleteInProgress: Story = {
     await waitFor(() => expect(mocked(markDone)).toHaveBeenCalledWith(requests[26].id, context))
     await expect(mocked(pickUpRequest)).not.toHaveBeenCalled()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
+    // markDone revalidated the list itself; success never refreshes the router again.
+    await expect(getRouter().refresh).not.toHaveBeenCalled()
   },
 }

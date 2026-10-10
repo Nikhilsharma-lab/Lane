@@ -366,7 +366,9 @@ export const RowContextMenu: Story = {
     await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
     await waitFor(() => expect(mocked(setRequestPriority)).toHaveBeenCalledWith("fixture-1", "high", args.context))
     await waitFor(() => expect(within(row).getByRole("button", { name: "Priority: High" })).toBeVisible())
-    expect(getRouter().refresh).toHaveBeenCalledTimes(1)
+    // The revalidated render is the only render: a successful action never
+    // refreshes the router a second time (plan item 1.3).
+    expect(getRouter().refresh).not.toHaveBeenCalled()
     title.focus()
     await userEvent.keyboard("{Shift>}{F10}{/Shift}")
     await userEvent.click(within(await page.findByRole("menu", { name: "Request LAN-1" })).getByRole("menuitem", { name: "Status" }))
@@ -376,7 +378,7 @@ export const RowContextMenu: Story = {
     await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
     await waitFor(() => expect(mocked(pickUpRequest)).toHaveBeenCalledWith("fixture-1", args.context))
     await waitFor(() => expect(canvas.getByRole("list", { name: "In Progress Requests" }).querySelector('[data-request-id="fixture-1"]')).not.toBeNull())
-    expect(getRouter().refresh).toHaveBeenCalledTimes(2)
+    expect(getRouter().refresh).not.toHaveBeenCalled()
     await waitFor(() => expect(canvas.getByRole("link", { name: title.textContent! })).toHaveFocus())
   },
 }

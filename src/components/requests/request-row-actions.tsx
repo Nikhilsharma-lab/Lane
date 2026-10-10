@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { useRef, useState, type ReactNode } from "react"
 import { Copy } from "lucide-react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
@@ -27,7 +26,6 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   isGuest: boolean
   children: ReactNode
 }) {
-  const router = useRouter()
   const { toast, update } = useToastStack()
   const [message, setMessage] = useState("")
   const busy = useRef(new Set<string>())
@@ -48,6 +46,9 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
     })
   }
 
+  // Every action here revalidates the list and detail paths, so a successful
+  // response already carries the refreshed rows. A router refresh afterwards
+  // would render the page a second time.
   async function run(id: string, operation: () => Promise<ActionResult>, done: string | (() => void)) {
     if (busy.current.has(id)) return
     busy.current.add(id)
@@ -59,7 +60,6 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
       }
       if (typeof done === "string") setMessage(done)
       else done()
-      router.refresh()
       restoreFocus(id)
     } catch {
       toast({ type: "error", title: "Could not update this Request", description: "Check your connection and try again." })
@@ -86,7 +86,6 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         return
       }
       toast({ id: toastId, type: "success", title: "Back In Progress", description: `${name} is In Progress again.` })
-      router.refresh()
       restoreFocus(requestId)
     } catch {
       toast({ id: toastId, type: "error", title: "Could not undo", description: "Check your connection and try again." })

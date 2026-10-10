@@ -81,11 +81,12 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   }, [openComposer]);
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
+  // saveRequest revalidates the list and the new detail path, so its response
+  // already carries the created Request. A router refresh would render twice.
   const onCreated = useCallback((requestId: string) => {
     completed.current = true;
     busy.current = false;
     setOpen(false);
-    router.refresh();
     toast({ type: "success", title: "Request created",
       description: "Open and ready to be picked up.",
       action: { label: "Open Request", onClick: () => router.push(requestDetailHref(requestId, returnContext.status, returnContext.project)) },

@@ -55,11 +55,13 @@ export function LifecycleButtons({
 
     const result = outcome.value;
     if ("error" in result && result.error) {
+      // The server did not revalidate on a conflict, so re-sync the detail here.
       setError(result.error);
       router.refresh();
     } else {
+      // A successful action already revalidated the detail and list paths, and
+      // its response carries the refreshed tree. A refresh here would render twice.
       setMovedTo(target);
-      router.refresh();
     }
   }
 

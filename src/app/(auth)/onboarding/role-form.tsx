@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { AuthAction } from "@/components/auth/auth-action";
 import { OnboardingChrome } from "@/components/auth/onboarding-chrome";
@@ -12,7 +11,6 @@ import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import { saveOnboardingRole } from "./actions";
 
 export function RoleForm() {
-  const router = useRouter();
   const [role, setRole] = useState<FunctionalRole | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { pending, run } = useRecoverableAction();
@@ -39,7 +37,9 @@ export function RoleForm() {
       return;
     }
 
-    router.refresh();
+    // saveOnboardingRole revalidates /onboarding, so its response re-renders
+    // this page, whose server component then redirects to / once the role is
+    // saved. A router refresh here would render it a second time.
   }
 
   return (

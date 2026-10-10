@@ -80,6 +80,9 @@ export const PendingActionSurvivesRowRefresh: Story = {
     // Status grouping remounts the original row, so focus needs a stable list
     // fallback instead of trying to focus its detached checkbox.
     await waitFor(() => expect(canvas.getByRole("button", { name: "Filter Requests by title" })).toHaveFocus())
+    // Both actions revalidated the list themselves; a batch with no failures
+    // never refreshes the router a second time (plan item 1.3).
+    await expect(getRouter().refresh).not.toHaveBeenCalled()
   },
 }
 
@@ -104,6 +107,8 @@ export const FailedRequestLeavesFilteredView: Story = {
     await expect(error).toBeVisible()
     await expect(error).toHaveTextContent("1 Request could not be updated")
     await expect(error).toHaveTextContent("no longer Open")
+    // The failed action did not revalidate, so the view re-syncs once.
+    await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
   },
 }
 
@@ -127,5 +132,6 @@ export const SuccessRestoresEnabledCheckbox: Story = {
     await expect(checkbox).not.toBeDisabled()
     await expect(checkbox).not.toBeChecked()
     await waitFor(() => expect(checkbox).toHaveFocus())
+    await expect(getRouter().refresh).not.toHaveBeenCalled()
   },
 }

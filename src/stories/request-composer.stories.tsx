@@ -374,7 +374,9 @@ export const CreateWithoutLeaving: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Create Request" }));
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
     await expect(saveRequest).toHaveBeenCalledTimes(1);
-    await expect(getRouter().refresh).toHaveBeenCalledTimes(1);
+    // saveRequest revalidates the list itself; the composer must not refresh
+    // the router again after a successful save (plan item 1.3).
+    await expect(getRouter().refresh).not.toHaveBeenCalled();
     await expect(getRouter().push).not.toHaveBeenCalled();
     await userEvent.click(within(canvasElement).getByRole("link", { name: "Profile navigation fixture" }));
     await expect(profileNavigation).toHaveBeenCalledTimes(1);
@@ -435,7 +437,7 @@ export const FailedUploadStaysRecoverable: Story = {
     await expect(saveRequest).toHaveBeenCalledTimes(1);
     await userEvent.click(reopened.composer.getByRole("button", { name: "Skip failed files" }));
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
-    await expect(getRouter().refresh).toHaveBeenCalledTimes(1);
+    await expect(getRouter().refresh).not.toHaveBeenCalled();
     await expect(getRouter().push).not.toHaveBeenCalled();
   },
 };

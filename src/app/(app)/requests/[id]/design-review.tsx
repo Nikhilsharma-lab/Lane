@@ -13,8 +13,9 @@ export function DesignReview({ requestId, initialState, currentUserId, canReques
   async function refresh(result: Promise<ReviewActionResult>) {
     const response = await result
     // A router refresh preserves this panel's drafts while reconciling a newer
-    // saved version after a conflict. Success also refreshes surrounding content.
-    router.refresh()
+    // saved version after a conflict. A saved review already revalidated the
+    // detail path, so its response carries the refreshed content.
+    if ("error" in response) router.refresh()
     return response
   }
   return <DesignReviewPanel key={requestId} initialState={initialState} currentUserId={currentUserId} canRequest={canRequest} canManage={canManage}
