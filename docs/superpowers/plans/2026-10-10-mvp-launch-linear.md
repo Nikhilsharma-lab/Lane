@@ -17,7 +17,7 @@
 
 ## 0. Where to start (the short version)
 
-1. **Lock `main` today** (§3, item 0.1). PR #35 is MERGEABLE/CLEAN and `main` has no protection. One merge would deploy the new app onto a production database that lacks migrations 0013–0019 and has no live Clerk keys (prod §1.1, B4, C1).
+1. **Lock `main` today** (§3, item 0.1). PR #35 is MERGEABLE/CLEAN and `main` has no protection. One merge would deploy the new app onto a production database that lacks migrations 0013–0019 and has no live Clerk keys (prod §1.1, B4, C1). *(2026-10-10: automatic deployments for `main` are disabled in `vercel.json`, so merging no longer deploys; branch protection is still Nikhil's item 0.1.)*
 2. **Make the blocking decisions** in §8 group A over one or two sessions. Two of them need outside advice: the Linear-derived tokens and the Arc Pro licence. A one-hour session will not cover them.
 3. **Finish Phase 0**, then put the server next to the database and simplify every mutation (Phase 1a).
 4. **Cut over production early**, at about week 7, and open it to one or two friendly teams ("pilot zero"). Page polish then ships as small PRs to a protected `main`, not as one giant PR. PR #35 is already 466 files, +53,690/−18,902.
@@ -522,7 +522,7 @@ Owner key: **N** = Nikhil (dashboard, manual step or decision), **A** = agent, *
 3. **Build a staged production deployment with the production env, not promoted.** `NEXT_PUBLIC_*` values are baked in at build time. Check that its served page carries a `pk_live` prefix (do not print the key).
 4. **D3:** `pg_dump -Fc` production, check it with `pg_restore --list`, restore into a local rehearsal DB, and apply 0013–0019 with `ON_ERROR_STOP`. Keep an encrypted copy off the laptop; it is the only machine (E3).
 5. **D4:** apply 0013–0019 to production. Verify RLS flags, revoked grants, timestamp triggers, and `allocate_request_number`, `guard_request_number` and `guard_organization_request_counter`. Downtime starts here: the old app breaks against the new schema.
-6. **Promote the staged deployment immediately.** Downtime ends. Then merge PR #35 so `main` matches what is live.
+6. **Promote the staged deployment immediately.** Downtime ends. *(2026-10-10: PR #35 is merged ahead of cutover at Nikhil's instruction, with `vercel.json` `git.deploymentEnabled.main = false` so the merge deploys nothing; production keeps serving `826e509`. The cutover commit re-enables deployments for `main`, and the promoted build is a build of `main` with the production env.)*
 7. **D7:** configure the `request-attachments` bucket on production (10 MB, MIME allowlist).
 8. **Production-only checks (L3)** with fresh Clerk accounts. Each is a go/no-go line:
    - Workspace isolation, J8a (board, detail, attachments).
