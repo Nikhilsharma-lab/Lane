@@ -171,10 +171,10 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 1. `pnpm typecheck && pnpm lint && pnpm design:check`, after adding `artifacts/**` to the ESLint ignores.
 2. ESLint restrictions. `router.refresh` is allowed only inside the mutation helper. No read server action is imported into a client file. No `router.replace`/`push` with `requestListHref` in list components.
 3. `pnpm test`, plus a **mock-parity test** (every export of an `sb.mock`'d module exists in its `__mocks__` file; this catches the `9ac2684` failure) and **statement-count ceilings** per action and loader.
-4. `pnpm test:storybook` at 1440/light and 390/dark (`STORYBOOK_WIDTH`/`STORYBOOK_THEME`), sharded.
+4. ~~`pnpm test:storybook` at 1440/light and 390/dark, sharded.~~ *(Changed 2026-10-10 by Nikhil: Storybook is the design-system reference (components and primitives), not a per-page gate. The Storybook suite runs on demand through its own manual workflow; page behaviour is covered by unit tests, the e2e journeys and the perf spec.)*
 5. `npx impeccable detect` on changed UI files returns 0 findings or a waiver with a written reason.
 6. Per-route bundle sizes against the committed baseline (§2.2).
-7. Branch protection on `main` requires all of the above. This only works while the repo is public, or on a paid GitHub plan if it goes private (decision 8.7).
+7. Branch protection on `main` requires all of the above (required checks: `checks` and `test`). This only works while the repo is public, or on a paid GitHub plan if it goes private (decision 8.7).
 
 **Per-page definition of done** (human, about 15–20 minutes):
 - Page stories render in the Lane/Linear system. They cover default, empty, loading, error, long content and guest/forbidden. Play functions cover the keyboard path, focus return and Esc.
