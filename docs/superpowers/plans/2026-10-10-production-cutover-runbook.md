@@ -55,7 +55,8 @@ Tick a box only with evidence. "Owner N/A" means the row is a decision or dashbo
 - [ ] **Linear-derived material** handled per decision 8.7; Arc Pro licence confirmed (8.8). Owner: N decides, A executes. Ref R1–R4.
 - [ ] **Old Supabase-era test password** (public history, `01acf82`) is not reused anywhere. Owner: N/A (N). Ref D9.
 - [ ] **Staging release candidate passed** §6.2 (deploy, golden journeys, manual walk-through, perf numbers recorded). Owner: N+A.
-- [ ] **`main` is protected** (plan item 0.1) so PR #35 cannot merge before promotion. Owner: N/A (N).
+- [ ] **`main` is protected** (plan item 0.1): required checks `checks` and `test`, no force pushes. PR #35 itself was merged ahead of cutover on 2026-10-10 (merge commit `1aad382`) with automatic deployments from `main` disabled in `vercel.json`, so it deployed nothing. Owner: N/A (N).
+- [ ] **Supabase GitHub integration cannot touch production.** The production project (`tcfwabpoiydvfqxhtkur`) has the Supabase GitHub integration connected: on every push to `main` it runs a "Supabase Preview" job that connects to the production database to apply migrations from a `supabase/` folder. Lane has no such folder (migrations live in `src/db/migrations` and run only through this runbook), and on 2026-10-10 the job failed to connect, so nothing was applied. Before cutover, turn off its production deploy (Supabase Dashboard → Project Settings → Integrations → GitHub: disable "Deploy to production" or disconnect the repository) so migrations reach production only through §5.5. Owner: N/A (N).
 - [ ] **Local tools present.** `pg_dump`, `pg_restore`, `psql`, `createdb`, `dropdb` (Homebrew PostgreSQL 17 is installed), `gpg` (installed), local PostgreSQL on `127.0.0.1:5432` (the one `src/test/global-setup.ts` uses). The Vercel CLI is not installed; the commands below run it with `pnpm dlx vercel@latest`, which adds no dependency to the repo. Owner: A.
 
 ---
@@ -354,11 +355,11 @@ curl -sI https://app.uselane.app/login | grep -i '^x-vercel-id'    # should now 
 
 - [ ] `app.uselane.app` serves the new deployment; `/login` renders the Clerk sign-in. Downtime ends.
 
-### 5.7 Merge PR #35 only after promotion **[N: authorize]**
+### 5.7 Re-enable deployments from `main` **[N: authorize]**
 
-Production is now ahead of `main`. Merge PR #35 so `main` matches what is live. With `main` protected (item 0.1), Nikhil merges through GitHub. Vercel then builds `main` with the same Production environment and assigns `app.uselane.app` to it automatically. Repeat the 5.4 check against `https://app.uselane.app/login` once that deployment is Ready.
+PR #35 was merged on 2026-10-10 (`1aad382`) with `git.deploymentEnabled.main = false` in `vercel.json`, so the promoted build in 5.6 is a build of `main`. After promotion, a one-line commit removes that setting (through a pull request, since `main` is protected), so later merges deploy as normal. Once that commit's `main` deployment is Ready, repeat the 5.4 check against `https://app.uselane.app/login`.
 
-- [ ] PR #35 merged; the `main` deployment is Ready and `app.uselane.app` passes 5.4.
+- [ ] Deployments from `main` re-enabled; the next `main` deployment is Ready and `app.uselane.app` passes 5.4.
 
 ### 5.8 D7: configure the `request-attachments` bucket on production **[N: authorize]**
 
