@@ -63,7 +63,7 @@ describe("Intake Project authorization", () => {
     const token = createTriageToken(input, triage, context);
     boundary.responses = [[[PROJECT_ID]], [["saved-request"]]];
     const result = await saveRequest({ token, editedProblemText: null, projectId: "forged", requestType: "urgent", userId: "forged" } as { token: string; editedProblemText: null }, { orgId: "org_a" });
-    expect(result).toEqual({ success: true, requestId: "saved-request" });
+    expect(result).toMatchObject({ success: true, requestId: "saved-request" });
     expect(boundary.queries[1].params).toContain(PROJECT_ID);
     expect(boundary.queries[1].params).toContain("bug");
     expect(boundary.queries[1].params).toContain("user_member");

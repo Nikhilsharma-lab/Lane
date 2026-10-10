@@ -145,6 +145,118 @@ export async function markDone(
   return { success: true };
 }
 
+/** The most rows one bulk move accepts: a page of the list at its largest. */
+const BULK_LIMIT = 50;
+
+type BulkOutcome = {
+  error?: string;
+  /** Ids the statement moved; their notifications were written with them. */
+  moved: string[];
+  /** Ids it did not move, each with the same copy a single move would show. */
+  failed: { id: string; error: string }[];
+};
+
+/** Moves many Requests between lifecycle statuses in ONE statement (plan item
+ * 1.6), with the single-row guards: the workspace, the from-status and the
+ * member check before it. The notification INSERT reads the moved rows from
+ * the UPDATE's RETURNING, so a row and its notification commit together. Only
+ * when some ids did not move does one diagnostic read say why. */
+async function transitionRequests(
+  transition: LifecycleTransition,
+  requestIds: string[],
+  context: { orgId: string }
+): Promise<BulkOutcome> {
+  // Never trust the client's ids: anything but a string is dropped.
+  const unique = [
+    ...new Set(
+      (Array.isArray(requestIds) ? requestIds : []).filter(
+        (id): id is string => typeof id === "string"
+      )
+    ),
+  ];
+  const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
+  const invalid = unique
+    .filter((id) => !valid.includes(id))
+    .map((id) => ({ id, error: "Not found" }));
+  const auth = await requireMemberOrAbove(context.orgId);
+  if (!auth) {
+    return {
+      error: CANNOT_CHANGE_REQUESTS,
+      moved: [],
+      failed: unique.map((id) => ({ id, error: CANNOT_CHANGE_REQUESTS })),
+    };
+  }
+  if (!valid.length) return { moved: [], failed: invalid };
+
+  // Validated UUIDs only, so the array literal is one bound parameter.
+  const ids = `{${valid.join(",")}}`;
+  const assignment =
+    transition.to === "in_progress"
+      ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
+      : sql`"status" = ${transition.to}::request_status`;
+  const rows = await db.execute<{ id: string }>(sql`
+    with u as (
+      update ${requests}
+      set ${assignment}
+      where ${requests.id} = any(${ids}::uuid[])
+        and ${requests.orgId} = ${auth.orgId}
+        and ${requests.status} = ${transition.from}::request_status
+      returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
+    ), n as (
+      insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
+      select u.created_by, u.org_id, ${transition.notification}::notification_type, u.id, ${auth.userId}
+      from u
+      where u.created_by <> ${auth.userId}
+      returning ${notifications.id}
+    )
+    select u.id as id from u
+  `);
+  const moved = rows.map((row) => row.id);
+  const missed = valid.filter((id) => !moved.includes(id));
+
+  let failed = invalid;
+  if (missed.length) {
+    const found = await db
+      .select({ id: requests.id, status: requests.status, orgId: requests.orgId })
+      .from(requests)
+      .where(sql`${requests.id} = any(${`{${missed.join(",")}}`}::uuid[])`);
+    failed = [
+      ...invalid,
+      ...missed.map((id) => {
+        const req = found.find((row) => row.id === id);
+        if (!req) return { id, error: "Request not found" };
+        if (req.orgId !== auth.orgId) return { id, error: "Not found" };
+        if (req.status !== transition.from) {
+          return { id, error: `This Request is no longer ${transition.label}. Refresh to see its current state.` };
+        }
+        return { id, error: `This Request changed before Lane could ${transition.verb}. Refresh and try again.` };
+      }),
+    ];
+  }
+
+  if (moved.length) {
+    revalidatePath("/");
+    for (const id of moved) revalidatePath(`/requests/${id}`);
+  }
+  return { moved, failed };
+}
+
+/** Bulk pick up from the list's selection: one statement for every row. */
+export async function pickUpRequests(
+  requestIds: string[],
+  context: { orgId: string }
+) {
+  return transitionRequests(PICK_UP, requestIds, context);
+}
+
+/** Bulk Done from the list's selection: one statement for every row. */
+export async function markDoneMany(
+  requestIds: string[],
+  context: { orgId: string }
+) {
+  return transitionRequests(MARK_DONE, requestIds, context);
+}
+
 const commentSchema = z.object({
   body: z
     .string()

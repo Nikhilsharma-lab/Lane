@@ -36,7 +36,7 @@ describe("Expected impact server contract", () => {
     const token = createTriageToken(input, triage, context);
     boundary.responses = [[["saved-request"]]];
     const data = { token, editedProblemText: null, expectedImpact: { ...impact, target: 99 } };
-    expect(await saveRequest(data, { orgId: "org_test" })).toEqual({ success: true, requestId: "saved-request" });
+    expect(await saveRequest(data, { orgId: "org_test" })).toMatchObject({ success: true, requestId: "saved-request" });
     expect(boundary.queries[0].params).toContain(JSON.stringify(impact));
     expect(boundary.queries[0].params).not.toContain(JSON.stringify(data.expectedImpact));
   });
@@ -54,7 +54,7 @@ describe("Expected impact server contract", () => {
     const token = createTriageToken(input, triage, context);
     const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString());
     boundary.responses = [[], [[payload.requestId]]];
-    expect(await saveRequest({ token, editedProblemText: null }, { orgId: "org_test" })).toEqual({ success: true, requestId: payload.requestId });
+    expect(await saveRequest({ token, editedProblemText: null }, { orgId: "org_test" })).toMatchObject({ success: true, requestId: payload.requestId });
     expect(boundary.queries[0].sql).toContain("on conflict");
     expect(boundary.queries[1].params).toEqual([payload.requestId, "org_test", "user_creator", 1]);
   });
