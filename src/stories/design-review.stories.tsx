@@ -96,7 +96,8 @@ export const AskAndRespond: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "View as Alex Morgan" }))
     await fillAsk(canvasElement, "2")
     await userEvent.click(canvas.getByRole("button", { name: "Ask for review" }))
-    await expect(await canvas.findByRole("link", { name: "Open design version" })).toHaveAttribute("href", "https://example.com/design/checkout?version=2")
+    // Round 1 now sits inside the closed "Review history" details, which still exposes its own link, so read the current round only.
+    await waitFor(() => expect(within(canvas.getByRole("region", { name: "Current review" })).getByRole("link", { name: "Open design version" })).toHaveAttribute("href", "https://example.com/design/checkout?version=2"))
     await userEvent.click(canvas.getByText("Review history"))
     const history = within(canvas.getByRole("region", { name: "Review round 1" }))
     await expect(within(history.getByRole("list", { name: "Reviewers" })).getByText("The date is now clear.")).toBeVisible()

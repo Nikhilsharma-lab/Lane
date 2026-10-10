@@ -36,10 +36,12 @@ export const CompactWithWrapping: Story = {
     const row = title.closest("li")!
     const long = canvas.getByRole("link", { name: longTitle })
     const narrow = canvasElement.clientWidth - 32 <= 880
-    const touch = matchMedia("(pointer: coarse), (max-width: 640px)").matches
+    // Pills grow to 44px for coarse pointers only; a narrow window with a mouse keeps 32px (adc8178).
+    const touch = matchMedia("(pointer: coarse)").matches
     if (!narrow) await expect(row.getBoundingClientRect().height).toBe(44)
     await expect(title.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
-    await expect(getComputedStyle(row).borderRadius).toBe("12px")
+    // Linear row radius (--linear-row-radius), the Storybook default since decision 8.12.
+    await expect(getComputedStyle(row).borderRadius).toBe("8px")
     await expect(long.getBoundingClientRect().height).toBeGreaterThan(44)
     await expect(long.scrollWidth).toBeLessThanOrEqual(long.clientWidth + 1)
     for (const pill of within(row).getAllByRole("button")) {

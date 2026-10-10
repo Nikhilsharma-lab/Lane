@@ -1,2 +1,0 @@
-.link { color: var(--request-property-foreground, var(--link-foreground)); width: fit-content; border-radius: var(--radius-control); }
-.link:focus-visible { color: var(--selection-foreground); background: var(--selection-hover); text-decoration: underline; }

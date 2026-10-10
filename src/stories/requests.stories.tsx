@@ -120,6 +120,9 @@ async function selectFilter(canvasElement: HTMLElement, field: string, value: st
   await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Add filter" })).not.toBeInTheDocument())
 }
 
+// The toolbar's announced result count, shown only while a filter is applied.
+const matchCountText = /^\d+ Requests? match(es)?$/
+
 async function openTitleFilter(canvasElement: HTMLElement) {
   await userEvent.click(within(canvasElement).getByRole("button", { name: "Filter Requests by title" }))
   return within(document.body).findByRole("searchbox", { name: "Filter Requests by title" })
@@ -272,10 +275,12 @@ export const ControlGeometry: Story = {
       canvas.getByRole("button", { name: "Add filter" }),
       canvas.getByRole("button", { name: "Display" }),
     ]
-    // Arc controls share one compact row while retaining touch-sized targets.
+    // Linear's 28px toolbar controls share one compact row for a mouse (--linear-toolbar-height,
+    // data-table-toolbar.module.css); coarse pointers grow every control to 44px.
+    const minHeight = matchMedia("(pointer: coarse)").matches ? 44 : 28
     for (const control of controls) {
       await expect(control).toBeVisible()
-      await expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(36)
+      await expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(minHeight)
     }
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   },
@@ -377,16 +382,19 @@ export const DisplayPropertiesAndOrder: Story = {
     await expect(within(firstRow).getByRole("link", { name: "The status menu is difficult to operate by keyboard" })).toBeVisible()
     const submittedBy = panel.getByRole("button", { name: "Submitted by" })
     const requestType = panel.getByRole("button", { name: "Request type" })
+    // Request type shows by default; Submitted by stays opt-in.
     await expect(submittedBy).toHaveAttribute("aria-pressed", "false")
-    await expect(requestType).toHaveAttribute("aria-pressed", "false")
-    await userEvent.click(submittedBy)
-    await userEvent.click(requestType)
-    await expect(canvas.getAllByRole("button", { name: /^Submitted by:/ })[0]).toBeVisible()
+    await expect(requestType).toHaveAttribute("aria-pressed", "true")
+    await expect(canvas.queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
     await expect(canvas.getAllByRole("button", { name: "Request type: No type" })[0]).toBeVisible()
     await userEvent.click(submittedBy)
     await userEvent.click(requestType)
-    await expect(canvas.queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
+    await expect(canvas.getAllByRole("button", { name: /^Submitted by:/ })[0]).toBeVisible()
     await expect(canvas.queryByRole("button", { name: "Request type: No type" })).not.toBeInTheDocument()
+    await userEvent.click(submittedBy)
+    await userEvent.click(requestType)
+    await expect(canvas.queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
+    await expect(canvas.getAllByRole("button", { name: "Request type: No type" })[0]).toBeVisible()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Display Requests" })).not.toBeInTheDocument())
     await expect(canvas.getByRole("button", { name: "Display" })).toHaveFocus()
@@ -483,7 +491,9 @@ export const FilteredFromUrl: Story = {
     await expect(canvas.getByRole("button", { name: "Remove Status: In Progress" })).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[0].title })).not.toBeInTheDocument()
     await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", "/requests/fixture-2?status=in_progress")
-    await expect(canvas.getByText("1 – 11 of 11 Requests")).toBeVisible()
+    const count = canvas.getByText("11 Requests match")
+    await expect(count).toBeVisible()
+    await expect(count).toHaveAttribute("role", "status")
     await userEvent.click(canvas.getByRole("button", { name: "Clear all" }))
     await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/", { scroll: false }))
   },
@@ -496,7 +506,7 @@ export const SearchFromLaterPage: Story = {
     await expect(canvas.getByRole("link", { name: requests[11].title })).toBeVisible()
     await userEvent.type(await openTitleFilter(canvasElement), "delivery date")
     await expect(canvas.getByRole("link", { name: requests[0].title })).toBeVisible()
-    await expect(canvas.getByText("1 – 1 of 1 Requests")).toBeVisible()
+    await expect(canvas.getByText("1 Request matches")).toBeVisible()
     await expect(canvas.queryByText(/No matching Requests/)).not.toBeInTheDocument()
   },
 }
@@ -697,25 +707,28 @@ export const ProjectAndTypeFilters: Story = {
     await selectFilter(canvasElement, "Project", "Website")
     await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
-    await expect(canvas.getByText("1 – 2 of 2 Requests")).toBeVisible()
+    await expect(canvas.getByText("2 Requests match")).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[2].title })).not.toBeInTheDocument()
     await selectFilter(canvasElement, "Request type", "Bug")
-    await expect(canvas.getByText("1 – 1 of 1 Requests")).toBeVisible()
+    await expect(canvas.getByText("1 Request matches")).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[0].title })).toBeVisible()
     await userEvent.type(await openTitleFilter(canvasElement), "not found")
     await expect(canvas.getByText(/No matching Requests/)).toBeVisible()
+    await expect(canvas.getByText("0 Requests match")).toBeVisible()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("searchbox", { name: "Filter Requests by title" })).not.toBeInTheDocument())
     await userEvent.click(canvas.getByRole("button", { name: "Clear all" }))
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Project: Website" })).not.toBeInTheDocument())
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Request type: Bug" })).not.toBeInTheDocument())
-    await expect(canvas.getByText("1 – 4 of 4 Requests")).toBeVisible()
+    // No filter applied: the count leaves with the chips and every Request is back.
+    await expect(canvas.queryByText(matchCountText)).not.toBeInTheDocument()
+    await expect(canvas.getAllByRole("listitem")).toHaveLength(4)
     await expect(await openTitleFilter(canvasElement)).toHaveValue("")
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("searchbox", { name: "Filter Requests by title" })).not.toBeInTheDocument())
     await selectFilter(canvasElement, "Project", "No Project")
     await expect(canvas.getByRole("link", { name: requests[3].title })).toBeVisible()
-    await expect(canvas.getByText("1 – 1 of 1 Requests")).toBeVisible()
+    await expect(canvas.getByText("1 Request matches")).toBeVisible()
   },
 }
 
@@ -728,7 +741,7 @@ export const ProjectFilterWithStatus: Story = {
     await expect(canvas.getByRole("link", { name: requests[1].title })).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[0].title })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("link", { name: requests[2].title })).not.toBeInTheDocument()
-    await expect(canvas.getByText("1 – 1 of 1 Requests")).toBeVisible()
+    await expect(canvas.getByText("1 Request matches")).toBeVisible()
     await expect(getRouter().replace).toHaveBeenCalledWith(`/?status=in_progress&project=${fixtureProjects[0].id}`, { scroll: false })
     await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", `/requests/fixture-2?status=in_progress&project=${fixtureProjects[0].id}`)
   },
@@ -743,7 +756,7 @@ export const ReturnKeepsProjectFilter: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Preview detail transition" }))
     await userEvent.click(canvas.getByRole("button", { name: "Return to list" }))
     await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
-    await expect(canvas.getByText("1 – 2 of 2 Requests")).toBeVisible()
+    await expect(canvas.getByText("2 Requests match")).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
   },
 }

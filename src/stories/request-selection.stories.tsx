@@ -54,7 +54,7 @@ export const KeyboardAndClear: Story = {
     checkbox.focus()
     await userEvent.keyboard(" ")
     await expect(checkbox).toBeChecked()
-    await userEvent.click(canvas.getByRole("button", { name: "Select all on this page" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Select all on page" }))
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(5)
     await userEvent.keyboard("{Escape}")
     await expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument()
@@ -85,13 +85,13 @@ export const PartialFailure: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     await userEvent.click(canvas.getAllByRole("checkbox")[1])
-    await userEvent.click(canvas.getByRole("button", { name: "Pick up selected Requests" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
     await waitFor(() => expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(2))
     await expect(mocked(pickUpRequest)).toHaveBeenNthCalledWith(1, requests[0].id, context)
     await expect(mocked(pickUpRequest)).toHaveBeenNthCalledWith(2, requests[1].id, context)
     await expect(await canvas.findByRole("alert")).toHaveTextContent("1 Request could not be updated. It is still selected. Try again.")
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(1)
-    await userEvent.click(canvas.getByRole("button", { name: "Pick up selected Requests" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
     await expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(3)
   },
@@ -102,7 +102,7 @@ export const Guest: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
-    await expect(canvas.queryByRole("button", { name: "Pick up selected Requests" })).not.toBeInTheDocument()
+    await expect(canvas.queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Copy links" })).toBeVisible()
   },
 }
@@ -112,7 +112,7 @@ export const PageAndGroupScope: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
-    await userEvent.click(canvas.getByRole("button", { name: "Select all on this page" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Select all on page" }))
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(25)
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument()
@@ -129,7 +129,7 @@ export const PendingPreventsDuplicates: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
-    const action = canvas.getByRole("button", { name: "Pick up selected Requests" })
+    const action = canvas.getByRole("button", { name: "Pick up" })
     await userEvent.dblClick(action)
     await expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(1)
     await expect(action).toHaveAttribute("aria-disabled", "true")
@@ -184,7 +184,7 @@ export const CompleteInProgress: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
-    await userEvent.click(canvas.getByRole("button", { name: "Mark selected Requests Done" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Mark Done" }))
     await waitFor(() => expect(mocked(markDone)).toHaveBeenCalledWith(requests[26].id, context))
     await expect(mocked(pickUpRequest)).not.toHaveBeenCalled()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())

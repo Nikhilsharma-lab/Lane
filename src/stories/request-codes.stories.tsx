@@ -49,10 +49,21 @@ export const CopyAndSearchInWorkspace: Story = {
     const writeText = fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } })
     try {
-      const code = canvas.getByRole("button", { name: "Copy code LAN-42" })
-      code.focus()
-      await userEvent.keyboard("{Enter}")
-      await expect(await canvas.findByText("LAN-42 copied.")).toBeInTheDocument()
+      // Phone-width compact rows hide the code to keep the title readable; the row menu still copies it.
+      const codeOnRow = innerWidth > 640
+      if (codeOnRow) {
+        const code = canvas.getByRole("button", { name: "Copy code LAN-42" })
+        code.focus()
+        await userEvent.keyboard("{Enter}")
+        await expect(await canvas.findByText("LAN-42 copied.")).toBeInTheDocument()
+      } else {
+        expect(canvas.queryByRole("button", { name: "Copy code LAN-42" })).not.toBeInTheDocument()
+        await userEvent.pointer({ target: canvas.getByRole("link", { name: requests[0].title }), keys: "[MouseRight]" })
+        await userEvent.click(within(await page.findByRole("menu", { name: "Request LAN-42" })).getByRole("menuitem", { name: "Copy" }))
+        await userEvent.click(await page.findByRole("menuitem", { name: "Copy code" }))
+        await expect(await canvas.findByText("Code copied.")).toBeInTheDocument()
+        await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
+      }
       await expect(writeText).toHaveBeenCalledWith("LAN-42")
       await userEvent.keyboard("/")
       const search = await canvas.findByRole("searchbox", { name: "Search workspace" })
@@ -68,7 +79,7 @@ export const CopyAndSearchInWorkspace: Story = {
       await expect(await canvas.findByRole("heading", { name: "No results found" })).toBeVisible()
       await userEvent.click(canvas.getByRole("button", { name: "Close search" }))
       await waitFor(() => expect(page.queryByRole("searchbox", { name: "Search workspace" })).not.toBeInTheDocument())
-      await expect(canvas.getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
+      if (codeOnRow) await expect(canvas.getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
     } finally { Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard }) }
   },
 }
@@ -193,14 +204,16 @@ export const PreviewMenuUsesSavedCode: Story = {
     const writeText = fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } })
     try {
-      await expect(canvas.getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
+      // Phone-width compact rows hide the code to keep the title readable; the menu still names and copies it.
+      if (innerWidth > 640) await expect(canvas.getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
+      else expect(canvas.queryByRole("button", { name: "Copy code LAN-42" })).not.toBeInTheDocument()
       await userEvent.pointer({ target: canvas.getByRole("link", { name: requestsMeta.args.requests[0].title }), keys: "[MouseRight]" })
       const menu = within(await page.findByRole("menu", { name: "Request LAN-42" }))
       await userEvent.click(menu.getByRole("menuitem", { name: "Copy" }))
       await userEvent.click(await page.findByRole("menuitem", { name: "Copy code" }))
       await expect(writeText).toHaveBeenCalledTimes(1)
       await expect(writeText).toHaveBeenCalledWith("LAN-42")
-      await expect(await canvas.findByText("Copied.")).toBeInTheDocument()
+      await expect(await canvas.findByText("Code copied.")).toBeInTheDocument()
       await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
     } finally { Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard }) }
   },

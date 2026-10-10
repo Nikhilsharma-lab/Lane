@@ -229,7 +229,8 @@ export const SavedRequestCode: Story = {
     await submit(canvasElement, "LAN-42");
     const results = within(await canvas.findByRole("region", { name: "Requests results" }));
     const link = results.getByRole("link", { name: /Website checkout issue 1 .*LAN-42/ });
-    await expect(within(link).getByText("LAN-42")).toBeVisible();
+    // Results fade in from opacity 0, so wait for the highlighted code to settle before reading visibility.
+    await waitFor(() => expect(within(link).getByText("LAN-42")).toBeVisible());
     await expect(within(link).getByText("Open")).toBeVisible();
     await expect(within(link).getByText("Website")).toBeVisible();
     await expect(link).toHaveAttribute("href", "/requests/44444444-4444-4444-8444-444444444444");

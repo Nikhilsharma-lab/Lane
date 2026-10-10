@@ -505,7 +505,7 @@ export const MobileComposerReturnsToNavigation: Story = {
     const opener = await canvas.findByRole("button", { name: "Open navigation" });
     await userEvent.click(opener);
     const navigation = within(await page.findByRole("dialog", { name: "Navigation" }));
-    await userEvent.click(navigation.getByRole("link", { name: "Create Request" }));
+    await userEvent.click(navigation.getByRole("link", { name: "New Request" }));
     const dialog = await page.findByRole("dialog", { name: "New Request" });
     const title = await within(dialog).findByRole("textbox", { name: "Request title" });
     await waitFor(() => expect(title).toHaveFocus());

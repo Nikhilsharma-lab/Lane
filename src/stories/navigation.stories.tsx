@@ -97,8 +97,7 @@ export const MemberNavigation: Story = {
     for (const [name, href] of [["All Requests", "/"], ["Website", `/?project=${websiteId}`], ["B2B App", `/?project=${appId}`], ["No Project", "/?project=none"]]) {
       await expect(nav.getByRole("link", { name })).toHaveAttribute("href", href)
     }
-    await expect(nav.getByRole("link", { name: "Create Request" })).toHaveAttribute("href", "/intake")
-    await expect(nav.queryByRole("link", { name: "New Request" })).not.toBeInTheDocument()
+    await expect(nav.getByRole("link", { name: "New Request" })).toHaveAttribute("href", "/intake")
     await expect(nav.getByRole("link", { name: "All Requests" })).toHaveAttribute("aria-current", "page")
     await expect(nav.queryByRole("link", { name: "Profile" })).not.toBeInTheDocument()
     await userEvent.click(nav.getByRole("button", { name: `Account menu, ${args.fullName}` }))
@@ -180,8 +179,7 @@ export const IntakeSelected: Story = {
   args: { pathname: "/intake" },
   play: async ({ canvasElement }) => {
     const nav = await visibleNavigation(canvasElement)
-    await expect(nav.getByRole("link", { name: "Create Request" })).toHaveAttribute("href", "/intake")
-    await expect(nav.queryByRole("link", { name: "New Request" })).not.toBeInTheDocument()
+    await expect(nav.getByRole("link", { name: "New Request" })).toHaveAttribute("href", "/intake")
     await closeMobile(canvasElement)
   },
 }
@@ -247,7 +245,7 @@ export const ModifiedLinksKeepMobileNavigationOpen: Story = {
     const nav = await visibleNavigation(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
     const dialog = page.getByRole("dialog", { name: "Navigation" })
-    nav.getByRole("link", { name: "Create Request" }).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }))
+    nav.getByRole("link", { name: "New Request" }).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }))
     await expect(dialog).toBeVisible()
     await userEvent.click(nav.getByRole("button", { name: "Account menu, Nikhil Sharma" }))
     const settings = await page.findByRole("menuitem", { name: "Settings" })
@@ -274,11 +272,12 @@ export const MobileDismissalAndNavigation: Story = {
     await userEvent.tab()
     await expect(within(dialog).getByRole("button", { name: "Search workspace" })).toHaveFocus()
     await userEvent.tab()
-    await expect(within(dialog).getByRole("link", { name: "Create Request" })).toHaveFocus()
-    const composeTip = await page.findByRole("tooltip", { name: "Create Request" })
+    await expect(within(dialog).getByRole("link", { name: "New Request" })).toHaveFocus()
+    // The tip now carries the C shortcut after the label.
+    const composeTip = await page.findByRole("tooltip", { name: /^New Request/ })
     await waitFor(() => expect(composeTip).toHaveStyle({ opacity: "1" }))
     await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(page.queryByRole("tooltip", { name: "Create Request" })).not.toBeInTheDocument())
+    await waitFor(() => expect(page.queryByRole("tooltip", { name: /^New Request/ })).not.toBeInTheDocument())
     await expect(dialog).toBeVisible()
     await closeMobile(canvasElement)
     await expect(toggle).toHaveFocus()
@@ -344,7 +343,7 @@ export const TemplateOffcanvasControls: Story = {
     await userEvent.click(within(main).getByRole("button", { name: "Expand sidebar" }))
     await waitFor(() => expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(272))
     const nav = within(sidebar)
-    await expect(nav.getByRole("link", { name: "Create Request" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "New Request" })).toBeVisible()
     await expect(nav.queryByRole("link", { name: "Profile" })).not.toBeInTheDocument()
     await userEvent.click(nav.getByRole("button", { name: `Account menu, ${args.fullName}` }))
     const page = within(canvasElement.ownerDocument.body)
@@ -547,7 +546,7 @@ export const ComposerPreservesListPage: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Show page 3" }))
     await expect(canvas.getByLabelText("Current Request page")).toHaveTextContent("3")
     const nav = await visibleNavigation(canvasElement)
-    await userEvent.click(nav.getByRole("link", { name: "Create Request" }))
+    await userEvent.click(nav.getByRole("link", { name: "New Request" }))
     await expect(canvas.getByLabelText("Current Request page")).toHaveTextContent("3")
     if (window.innerWidth <= 640) {
       await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())

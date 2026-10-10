@@ -29,7 +29,8 @@ async function expectMatchingMetadataHeight(canvasElement: HTMLElement, trigger:
   const avatarBounds = avatar.getBoundingClientRect()
   await expect(Math.abs(avatarBounds.height - badgeBounds.height)).toBeLessThan(.1)
   await expect(Math.abs(avatarBounds.width - avatarBounds.height)).toBeLessThan(.1)
-  const minimumTarget = window.matchMedia("(pointer: coarse), (max-width: 640px)").matches ? 44 : 32
+  // The trigger grows to 44px for coarse pointers only; a narrow window with a mouse keeps 32px (adc8178).
+  const minimumTarget = window.matchMedia("(pointer: coarse)").matches ? 44 : 32
   await expect(trigger.getBoundingClientRect().height).toBeGreaterThanOrEqual(minimumTarget)
   await expect(trigger.getBoundingClientRect().width).toBeGreaterThanOrEqual(minimumTarget)
 }

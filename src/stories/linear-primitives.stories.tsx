@@ -1,6 +1,9 @@
 import { listProjects } from "@/app/(app)/intake/project-actions"
+import { pickUpRequest, setRequestPriority } from "@/app/(app)/requests/[id]/actions"
 import { clearIntakeDraft, intakeDraftScope } from "@/lib/intake-draft"
+import type { RequestPriority } from "@/lib/request-properties"
 import type { StoryObj } from "@storybook/nextjs-vite"
+import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import requestsMeta, { ConsistentToolbarFlyouts, PropertyDetails } from "./requests.stories"
 import { textContrast, controlContrast } from "./helpers/rendered-colours"
@@ -10,7 +13,7 @@ import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Alert } from "@/components/arc/alert/alert"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import AppError from "@/app/(app)/error"
-import { LinearRequestsFixture } from "./helpers/linear-requests-fixture"
+import { LinearRequestsFixture, revalidateLinearPreview } from "./helpers/linear-requests-fixture"
 
 const meta = {
   ...requestsMeta,
@@ -18,6 +21,10 @@ const meta = {
   parameters: { ...requestsMeta.parameters, fullShell: true, visualSystem: "linear" },
   beforeEach: () => {
     mocked(listProjects).mockReset().mockResolvedValue({ success: true, projects: [] })
+    // The production row actions run against Storybook's mocked server actions.
+    mocked(pickUpRequest).mockReset().mockResolvedValue({ success: true })
+    mocked(setRequestPriority).mockReset().mockImplementation(async (_id, priority) => ({ success: true as const, priority: priority as RequestPriority }))
+    getRouter().refresh.mockClear()
     clearIntakeDraft(window.sessionStorage, intakeDraftScope("linear-preview-person", "org_storybook"))
   },
   args: { ...requestsMeta.args, requests: requestsMeta.args.requests.slice(0, 12), context: { orgId: "org_storybook" } },
@@ -94,7 +101,9 @@ export const Deselected: Story = {
     await userEvent.tab()
     const priority = within(rows[0]).getByRole("button", { name: "Priority: No priority" })
     expect(priority).toHaveFocus()
-    expect(getComputedStyle(priority).backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+    // Keyboard focus draws Arc's shared outline; the glyph keeps its transparent fill.
+    expect(getComputedStyle(priority).outlineStyle).toBe("solid")
+    expect(getComputedStyle(priority).outlineWidth).toBe("2px")
   },
 }
 export const SeparateSelections: Story = {
@@ -166,31 +175,48 @@ export const AccountMenu: Story = {
     await waitFor(() => expect(menu).not.toBeInTheDocument())
   },
 }
-export const PropertyMenus: Story = { args: PropertyDetails.args, play: async ({ canvasElement }) => {
+export const PropertyMenus: Story = { args: PropertyDetails.args, play: async ({ canvasElement, args }) => {
+  const canvas = within(canvasElement)
   const row = canvasElement.querySelector<HTMLElement>('[data-request-id]')!
   await userEvent.pointer({ target: within(row).getByRole("link"), keys: "[MouseRight]" })
   const page = within(document.body)
-  await userEvent.click(await page.findByRole("menuitem", { name: "Picker" }))
-  await userEvent.click(await page.findByRole("menuitemcheckbox", { name: "Sam Lee" }))
-  await waitFor(() => expect(within(row).getByRole("button", { name: "Owner: Sam Lee" })).toBeVisible())
+  // The production menu: the one lifecycle move, the saved properties and Copy. Nothing it cannot save.
+  const menu = await page.findByRole("menu", { name: "Request LAN-1" })
+  await waitFor(() => { for (const name of ["Pick up", "Status", "Priority", "Copy"]) expect(within(menu).getByRole("menuitem", { name })).toBeVisible() })
+  expect(within(menu).getAllByRole("menuitem")).toHaveLength(4)
+  await userEvent.click(within(menu).getByRole("menuitem", { name: "Priority" }))
+  await userEvent.click(await page.findByRole("menuitemcheckbox", { name: "Urgent" }))
+  await waitFor(() => expect(mocked(setRequestPriority)).toHaveBeenCalledWith(row.dataset.requestId, "urgent", args.context))
+  await waitFor(() => expect(canvas.getByText("Priority set to urgent.")).toBeInTheDocument())
   await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
 } }
 export const Empty: Story = { args: { requests: [] } }
 export const StatusChips: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const group = canvas.getByRole("group", { name: "Request status" })
-    expect(group.querySelectorAll("[data-chip]")).toHaveLength(4)
-    const open = within(group).getByRole("button", { name: "Open" })
-    await userEvent.click(open)
-    expect(open).toHaveAttribute("aria-pressed", "true")
+    const page = within(document.body)
+    // The status row also holds an inert, aria-hidden measurement copy of the chips; query only the visible group.
+    const group = () => canvas.getByRole("group", { name: "Status views" })
+    // Views that do not fit fold into a "N more" menu; the current view always stays a chip.
+    const more = canvas.queryByRole("button", { name: /^\d more$/ })
+    const folded = more ? Number(/\d+/.exec(more.textContent ?? "")?.[0]) : 0
+    expect(group().querySelectorAll("[data-chip]").length + folded).toBe(4)
+    async function choose(name: string) {
+      const chip = within(group()).queryByRole("button", { name })
+      if (chip) { await userEvent.click(chip); return }
+      await userEvent.click(canvas.getByRole("button", { name: /^\d more$/ }))
+      await userEvent.click(await page.findByRole("menuitem", { name }))
+    }
+    await choose("Open")
+    await waitFor(() => expect(within(group()).getByRole("button", { name: "Open" })).toHaveAttribute("aria-pressed", "true"))
     await waitFor(() => expect(canvas.queryByRole("list", { name: "Done Requests" })).not.toBeInTheDocument())
-    await userEvent.click(open)
-    expect(within(group).getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true")
+    await userEvent.click(within(group()).getByRole("button", { name: "Open" }))
+    await waitFor(() => expect(within(group()).getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true"))
     await waitFor(() => expect(canvas.getByRole("list", { name: "Done Requests" })).toBeVisible())
-    open.focus()
+    if (folded) return
+    within(group()).getByRole("button", { name: "Open" }).focus()
     await userEvent.keyboard("{ArrowRight}{Enter}")
-    expect(within(group).getByRole("button", { name: "In Progress" })).toHaveAttribute("aria-pressed", "true")
+    expect(within(group()).getByRole("button", { name: "In Progress" })).toHaveAttribute("aria-pressed", "true")
   },
 }
 export const DrawerLayout: Story = {
@@ -226,17 +252,19 @@ export const GroupComposer: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const page = within(document.body)
-    for (const status of ["Open", "In Progress", "Done"]) {
-      const trigger = canvas.getByRole("link", { name: `New Request from ${status} group` })
-      trigger.focus()
-      await userEvent.keyboard("{Enter}")
-      const dialog = await page.findByRole("dialog", { name: "New Request" })
-      expect(await within(dialog).findByLabelText("Request title", {}, { timeout: 5000 })).toBeVisible()
-      await userEvent.keyboard("{Escape}")
-      await waitFor(() => expect(dialog).not.toBeInTheDocument())
-      await waitFor(() => expect(trigger).toHaveFocus())
-      expect(canvas.getByRole("button", { name: `Collapse ${status} group` })).toHaveAttribute("aria-expanded", "true")
+    // Only the Open group offers the plus: a new Request always starts Open.
+    for (const status of ["In Progress", "Done"]) {
+      expect(within(canvas.getByRole("region", { name: `${status} Requests` })).queryByRole("link", { name: "New Request" })).not.toBeInTheDocument()
     }
+    const trigger = within(canvas.getByRole("region", { name: "Open Requests" })).getByRole("link", { name: "New Request" })
+    trigger.focus()
+    await userEvent.keyboard("{Enter}")
+    const dialog = await page.findByRole("dialog", { name: "New Request" })
+    expect(await within(dialog).findByLabelText("Request title", {}, { timeout: 5000 })).toBeVisible()
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(dialog).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(canvas.getByRole("button", { name: "Collapse Open group" })).toHaveAttribute("aria-expanded", "true")
   },
 }
 export const ListSummary: Story = {
@@ -311,10 +339,20 @@ export const ResponsiveRows: Story = {
 }
 
 export const RowContextMenu: Story = {
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     const page = within(document.body)
+    // Each mocked action saves its change into the preview, so the refreshed list shows what the server would.
+    mocked(setRequestPriority).mockImplementation(async (id, priority) => {
+      revalidateLinearPreview(id, { priority: priority as RequestPriority })
+      return { success: true as const, priority: priority as RequestPriority }
+    })
+    mocked(pickUpRequest).mockImplementation(async id => {
+      revalidateLinearPreview(id, { status: "in_progress", assignedTo: "person-alex", assigneeName: "Alex Morgan" })
+      return { success: true }
+    })
     const row = canvasElement.querySelector<HTMLElement>('[data-request-id="fixture-1"]')!
+    // The code is the saved number, not a display position.
     expect(row.querySelector('[data-request-code]')).toHaveTextContent("LAN-1")
     const title = within(row).getByRole("link")
     const priority = within(row).getByRole("button", { name: "Priority: No priority" })
@@ -326,14 +364,20 @@ export const RowContextMenu: Story = {
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Priority" }))
     await userEvent.click(await page.findByRole("menuitemcheckbox", { name: "High" }))
     await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
-    expect(within(row).getByRole("button", { name: "Priority: high" })).toBeVisible()
+    await waitFor(() => expect(mocked(setRequestPriority)).toHaveBeenCalledWith("fixture-1", "high", args.context))
+    await waitFor(() => expect(within(row).getByRole("button", { name: "Priority: High" })).toBeVisible())
+    expect(getRouter().refresh).toHaveBeenCalledTimes(1)
     title.focus()
     await userEvent.keyboard("{Shift>}{F10}{/Shift}")
     await userEvent.click(within(await page.findByRole("menu", { name: "Request LAN-1" })).getByRole("menuitem", { name: "Status" }))
-    await userEvent.click(await page.findByRole("menuitemcheckbox", { name: "In Progress" }))
+    // Only the next lifecycle step is offered; it names its verb.
+    expect(await page.findByRole("menuitemcheckbox", { name: "Done" })).toBeDisabled()
+    await userEvent.click(page.getByRole("menuitemcheckbox", { name: "In Progress (pick up)" }))
     await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
+    await waitFor(() => expect(mocked(pickUpRequest)).toHaveBeenCalledWith("fixture-1", args.context))
     await waitFor(() => expect(canvas.getByRole("list", { name: "In Progress Requests" }).querySelector('[data-request-id="fixture-1"]')).not.toBeNull())
-    expect(canvas.getByRole("link", { name: title.textContent! })).toHaveFocus()
+    expect(getRouter().refresh).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(canvas.getByRole("link", { name: title.textContent! })).toHaveFocus())
   },
 }
 

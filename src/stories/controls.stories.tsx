@@ -9,7 +9,9 @@ const meta = {
   component: Button,
   args: { children: "New Request" },
   parameters: {
-    docs: { description: { component: "Official Arc Button variants and the production AuthAction composite. Labels describe actions, including icon-only controls and pending work." } },
+    // The one Arc reference kept after the Linear default (decision 8.12, 2026-10-10).
+    visualSystem: "arc",
+    docs: { description: { component: "Official Arc Button variants and the production AuthAction composite, in the plain Arc foundation rather than Lane's Linear system. Labels describe actions, including icon-only controls and pending work." } },
   },
 } satisfies Meta<typeof Button>
 
