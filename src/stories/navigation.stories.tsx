@@ -40,6 +40,15 @@ async function closeMobile(canvasElement: HTMLElement) {
   await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
 }
 
+/** A modified click leaves navigation to the browser and must not touch the drawer. The synthetic
+ * event would navigate this test page wherever the modifier is not the platform's new-tab key (it
+ * dropped the browser connection on the Linux runner), so its default is cancelled at document level,
+ * after the app's own handlers have seen the modified event. */
+function modifiedClick(target: Element) {
+  document.addEventListener("click", event => event.preventDefault(), { once: true })
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }))
+}
+
 async function closeAccountMenu(canvasElement: HTMLElement) {
   const page = within(canvasElement.ownerDocument.body)
   if (!page.queryByRole("menuitem", { name: "Settings", hidden: true })) return
@@ -246,11 +255,11 @@ export const ModifiedLinksKeepMobileNavigationOpen: Story = {
     const nav = await visibleNavigation(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
     const dialog = page.getByRole("dialog", { name: "Navigation" })
-    nav.getByRole("link", { name: "New Request" }).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }))
+    modifiedClick(nav.getByRole("link", { name: "New Request" }))
     await expect(dialog).toBeVisible()
     await userEvent.click(nav.getByRole("button", { name: "Account menu, Nikhil Sharma" }))
     const settings = await page.findByRole("menuitem", { name: "Settings" })
-    settings.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }))
+    modifiedClick(settings)
     await expect(dialog).toBeVisible()
     await closeAccountMenu(canvasElement)
     await closeMobile(canvasElement)
