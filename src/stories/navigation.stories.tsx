@@ -44,7 +44,8 @@ async function closeAccountMenu(canvasElement: HTMLElement) {
   const page = within(canvasElement.ownerDocument.body)
   if (!page.queryByRole("menuitem", { name: "Settings", hidden: true })) return
   await userEvent.keyboard("{Escape}")
-  await waitFor(() => expect(page.queryByRole("menuitem", { name: "Settings", hidden: true })).not.toBeInTheDocument())
+  // The menu animates out before it unmounts; CI runners take longer than the 1 s default.
+  await waitFor(() => expect(page.queryByRole("menuitem", { name: "Settings", hidden: true })).not.toBeInTheDocument(), { timeout: 4000 })
 }
 
 const meta = {

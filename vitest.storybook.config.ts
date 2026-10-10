@@ -15,7 +15,9 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright({ contextOptions: { reducedMotion: process.env.STORYBOOK_REDUCED_MOTION === "reduce" ? "reduce" : "no-preference" } }),
+      // CI runners give Chromium a small /dev/shm; without this flag the browser dies mid-run
+      // ("Browser connection was closed while running tests") and the rest of the shard is lost.
+      provider: playwright({ launchOptions: { args: ["--disable-dev-shm-usage"] }, contextOptions: { reducedMotion: process.env.STORYBOOK_REDUCED_MOTION === "reduce" ? "reduce" : "no-preference" } }),
       instances: [{ browser: "chromium" }],
       viewport: { width: Number(process.env.STORYBOOK_WIDTH ?? 1440), height: 1000 },
     },
