@@ -16,11 +16,11 @@
   .trigger { min-width: 44px; }
 }
 
-/* Stable identity colours from the captured Linear roles, only in the opt-in list. */
-.trigger .avatar[data-avatar-tone] { background: var(--picker-background, var(--linear-content-blue-tint)); color: var(--linear-content-label-title); }
-.trigger .avatar[data-avatar-tone="green"] { --picker-background: var(--linear-content-green-tint); }
-.trigger .avatar[data-avatar-tone="violet"] { --picker-background: var(--linear-content-purple-tint); }
-.trigger .avatar[data-avatar-tone="amber"] { --picker-background: var(--linear-content-yellow-tint); }
-.trigger .avatar[data-avatar-tone="coral"] { --picker-background: var(--linear-content-orange-tint); }
-.trigger .avatar[data-avatar-tone="slate"] { --picker-background: var(--linear-content-red-tint); }
+/* Stable identity colours from the Lane hue families, only in the compact list. */
+.trigger .avatar[data-avatar-tone] { background: var(--picker-background, var(--lane-content-blue-tint)); color: var(--lane-content-label-title); }
+.trigger .avatar[data-avatar-tone="green"] { --picker-background: var(--lane-content-green-tint); }
+.trigger .avatar[data-avatar-tone="violet"] { --picker-background: var(--lane-content-purple-tint); }
+.trigger .avatar[data-avatar-tone="amber"] { --picker-background: var(--lane-content-yellow-tint); }
+.trigger .avatar[data-avatar-tone="coral"] { --picker-background: var(--lane-content-orange-tint); }
+.trigger .avatar[data-avatar-tone="slate"] { --picker-background: var(--lane-content-red-tint); }
 :global([data-selected]) .trigger .avatar[data-avatar-tone] { background: var(--request-property-background); color: var(--request-property-foreground); }

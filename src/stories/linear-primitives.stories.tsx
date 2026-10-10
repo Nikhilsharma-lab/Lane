@@ -18,7 +18,7 @@ import { LinearRequestsFixture, revalidateLinearPreview } from "./helpers/linear
 const meta = {
   ...requestsMeta,
   title: "Review/Linear primitives",
-  parameters: { ...requestsMeta.parameters, fullShell: true, visualSystem: "linear" },
+  parameters: { ...requestsMeta.parameters, fullShell: true },
   beforeEach: () => {
     mocked(listProjects).mockReset().mockResolvedValue({ success: true, projects: [] })
     // The production row actions run against Storybook's mocked server actions.
@@ -36,7 +36,7 @@ type Story = StoryObj<typeof meta>
 export const Requests: Story = {
   play: async context => {
     const canvas = within(context.canvasElement)
-    expect(document.documentElement).toHaveAttribute("data-visual-system", "linear")
+    expect(document.documentElement).toHaveAttribute("data-visual-system", "lane")
     expect(document.documentElement).not.toHaveAttribute("data-color-system")
     const main = canvas.getByRole("main")
     expect(getComputedStyle(main).borderRadius).toBe("12px")
@@ -62,7 +62,7 @@ function canvasElementIdentityControls(canvasElement: HTMLElement) {
 
 export const Selected: Story = {
   play: async ({ canvasElement }) => {
-    expect(document.documentElement).toHaveAttribute("data-visual-system", "linear")
+    expect(document.documentElement).toHaveAttribute("data-visual-system", "lane")
     const canvas = within(canvasElement)
     const rows = within(canvas.getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")
     await userEvent.click(within(rows[0]).getByRole("checkbox"))
@@ -125,7 +125,7 @@ export const ToolbarMenus: Story = {
     const style = getComputedStyle(panel)
     expect(style.borderRadius).toBe("12px")
     expect(style.boxShadow).toBe("none")
-    expect(style.getPropertyValue("--foreground")).toBe(getComputedStyle(document.documentElement).getPropertyValue("--linear-menu-label-base"))
+    expect(style.getPropertyValue("--foreground")).toBe(getComputedStyle(document.documentElement).getPropertyValue("--lane-menu-label-base"))
     for (const item of within(panel).getAllByRole("menuitem")) expect(textContrast(item)).toBeGreaterThanOrEqual(4.5)
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(canvas.getByRole("button", { name: "Add filter" })).toHaveFocus())

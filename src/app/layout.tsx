@@ -7,8 +7,8 @@ import "@/components/arc/foundation.css";
 import "./globals.css";
 // Linear visual values through Arc's public token hooks. Activated for
 // production by Nikhil on 2026-10-09 (docs/design-system/linear-primitives.md).
-import "@/styles/linear-primitives.css";
-import "@/styles/linear-arc-theme.css";
+import "@/styles/lane-primitives.css";
+import "@/styles/lane-arc-theme.css";
 
 export const metadata: Metadata = {
   title: "Lane",
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-visual-system="linear"
+      data-visual-system="lane"
       data-ui-state-contract="semantic"
       suppressHydrationWarning
       className={`${fontVariables} h-full antialiased`}

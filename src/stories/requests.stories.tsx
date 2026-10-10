@@ -275,7 +275,7 @@ export const ControlGeometry: Story = {
       canvas.getByRole("button", { name: "Add filter" }),
       canvas.getByRole("button", { name: "Display" }),
     ]
-    // Linear's 28px toolbar controls share one compact row for a mouse (--linear-toolbar-height,
+    // Linear's 28px toolbar controls share one compact row for a mouse (--lane-toolbar-height,
     // data-table-toolbar.module.css); coarse pointers grow every control to 44px.
     const minHeight = matchMedia("(pointer: coarse)").matches ? 44 : 28
     for (const control of controls) {

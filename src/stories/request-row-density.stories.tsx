@@ -40,7 +40,7 @@ export const CompactWithWrapping: Story = {
     const touch = matchMedia("(pointer: coarse)").matches
     if (!narrow) await expect(row.getBoundingClientRect().height).toBe(44)
     await expect(title.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
-    // Linear row radius (--linear-row-radius), the Storybook default since decision 8.12.
+    // Linear row radius (--lane-row-radius), the Storybook default since decision 8.12.
     await expect(getComputedStyle(row).borderRadius).toBe("8px")
     await expect(long.getBoundingClientRect().height).toBeGreaterThan(44)
     await expect(long.scrollWidth).toBeLessThanOrEqual(long.clientWidth + 1)

@@ -5,7 +5,7 @@ import requestsMeta, { RequestsShellFixture } from "./requests.stories"
 const meta = {
   ...requestsMeta,
   title: "Review/Sidebar Project tree",
-  parameters: { ...requestsMeta.parameters, fullShell: true, visualSystem: "linear" },
+  parameters: { ...requestsMeta.parameters, fullShell: true },
   render: (args: React.ComponentProps<typeof RequestsShellFixture>) => <RequestsShellFixture {...args} linearPreviewAutoCollapse />,
 }
 export default meta

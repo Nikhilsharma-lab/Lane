@@ -28,7 +28,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const SavedCodes: Story = {
-  parameters: { fullShell: true, visualSystem: "linear" },
+  parameters: { fullShell: true },
   args: { context: { orgId: "org_storybook" } },
   render: args => <LinearRequestsFixture {...args} />,
   play: async ({ canvasElement }) => {
@@ -194,7 +194,7 @@ export const LongSavedCode: Story = {
 }
 
 export const PreviewMenuUsesSavedCode: Story = {
-  parameters: { fullShell: true, visualSystem: "linear" },
+  parameters: { fullShell: true },
   args: { requests: [{ ...requestsMeta.args.requests[0], requestNumber: 42 }], context: { orgId: "org_storybook" } },
   render: args => <LinearRequestsFixture {...args} />,
   play: async ({ canvasElement }) => {

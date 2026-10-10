@@ -5,8 +5,8 @@
 .newRequest { flex: none; margin-inline-start: auto; gap: var(--space-2); }
 .kbd { margin-inline-start: var(--space-3); font: inherit; color: color-mix(in oklab, var(--background) 58%, var(--foreground)); font-variant-numeric: tabular-nums; }
 .limitNote { margin: 0; padding: 0 var(--space-6) var(--space-4); color: var(--text-secondary); font-size: var(--text-xs); }
-:global(:root[data-visual-system="linear"]) .overview:has([data-preview-table]) { height: 100%; min-height: 0; overflow: hidden; }
-:global(:root[data-visual-system="linear"]) .overview:has([data-preview-table]) .titleStrip { flex: none; }
+:global(:root[data-visual-system="lane"]) .overview:has([data-preview-table]) { height: 100%; min-height: 0; overflow: hidden; }
+:global(:root[data-visual-system="lane"]) .overview:has([data-preview-table]) .titleStrip { flex: none; }
 @media (max-width: 640px) {
   .titleStrip { padding-inline: var(--space-4); }
   /* The heading keeps its words on phones; the guest hint returns with the width. */

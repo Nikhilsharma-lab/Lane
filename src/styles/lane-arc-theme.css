@@ -1,0 +1,208 @@
+/* Linear visual values through Arc's existing public token hooks.
+ * Production has applied it since 2026-10-09 through data-visual-system="lane" on <html> in src/app/layout.tsx; Storybook loads the same file from .storybook/preview.tsx. */
+:root[data-visual-system="lane"] {
+  --background: var(--lane-sidebar-bg-base);
+  --workspace-canvas: var(--lane-sidebar-bg-base);
+  --navigation-background: var(--lane-sidebar-bg-base);
+  --surface: var(--lane-content-bg-base);
+  --surface-raised: var(--lane-menu-bg-base);
+  --surface-muted: var(--lane-content-bg-shade);
+  --foreground: var(--lane-content-label-title);
+  --text-secondary: var(--lane-content-label-muted);
+  --text-muted: var(--lane-content-label-muted);
+  --floating-foreground: var(--lane-menu-label-base);
+  --border: var(--lane-content-bg-border);
+  --border-subtle: var(--lane-content-bg-border-faint);
+  --border-strong: var(--lane-content-bg-border-strong);
+  --interaction-background: var(--lane-content-bg-shade);
+  --interaction-border: var(--lane-content-bg-border);
+  --interaction-hover: var(--lane-content-bg-base-hover);
+  --interaction-pressed: var(--lane-content-bg-focus);
+  --interaction-focus: var(--lane-content-bg-focus);
+  /* Arc's keyboard outline takes Lane's focus colour; pointer focus still draws no ring. */
+  --focus-outline: var(--lane-content-focus-color);
+  --accent: var(--lane-content-label-link);
+  --accent-strong: var(--lane-content-label-link);
+  --accent-subtle: var(--lane-content-bg-selected);
+  --accent-foreground: var(--lane-content-control-primary-label);
+  --selection-background: var(--lane-content-bg-selected);
+  /* Persistent selected fills stay stable, including metadata, as requested. */
+  --selection-hover: var(--selection-background);
+  --selection-pressed: var(--selection-background);
+  --selection-foreground: var(--lane-content-label-title);
+  --selection-secondary-foreground: var(--selection-foreground);
+  --selection-icon: var(--selection-foreground);
+  --selection-border: var(--lane-content-bg-selected-border);
+  --selection-property-border: var(--lane-content-bg-border-strong);
+  --selection-focus-decoration: underline;
+  --control-on: var(--lane-content-control-primary);
+  --control-glyph: var(--lane-content-control-primary-label);
+  --control-track: var(--lane-content-control-secondary);
+  --control-track-hover: var(--lane-content-control-secondary-hover);
+  --control-on-subtle: var(--lane-content-bg-selected);
+  --control-fill: var(--lane-content-control-primary);
+  --control-thumb: var(--lane-content-control-primary-label);
+  --control-thumb-on: var(--lane-content-control-primary-label);
+  /* Neutral main actions use the strongest text/surface pair. */
+  --primary-background: var(--lane-content-label-title);
+  --primary-label: var(--lane-content-bg-base);
+  --primary-hover-background: var(--lane-content-label-base);
+  --primary-focus-background: var(--lane-content-label-base);
+  --primary-pressed-background: var(--lane-content-label-base);
+  --primary-hover-opacity: 1;
+  --primary-pressed-opacity: 1;
+  --success: var(--lane-content-green-text);
+  --warning: var(--lane-content-yellow-text);
+  --danger: var(--lane-content-red-bg);
+  --info: var(--lane-content-blue-text);
+  --info-foreground: var(--info);
+  --info-soft: var(--lane-content-blue-tint);
+  --info-border: var(--lane-content-blue-mid);
+  --success-foreground: var(--success);
+  --success-soft: var(--lane-content-green-tint);
+  --success-border: var(--lane-content-green-mid);
+  --warning-foreground: var(--warning);
+  --warning-soft: var(--lane-content-yellow-tint);
+  --warning-border: var(--lane-content-yellow-mid);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger);
+  --destructive-soft: var(--lane-content-red-tint);
+  --destructive-border: var(--lane-content-red-mid);
+  --state-neutral-text: var(--lane-content-label-muted);
+  --state-neutral-background: var(--lane-content-bg-shade);
+  --state-neutral-hover: var(--lane-content-bg-shade-hover);
+  --state-neutral-border: var(--lane-content-bg-border);
+  --state-info-text: var(--lane-content-label-base);
+  --state-info-icon: var(--lane-content-purple-text);
+  --state-info-background: var(--lane-content-purple-tint);
+  --state-info-hover: var(--lane-content-bg-selected);
+  --state-info-border: var(--lane-content-purple-mid);
+  --state-success-text: var(--lane-content-label-base);
+  --state-success-icon: var(--success);
+  --state-success-background: var(--success-soft);
+  --state-success-hover: var(--lane-content-green-tint);
+  --state-success-border: var(--success-border);
+  --state-warning-text: var(--lane-content-label-base);
+  --state-warning-icon: var(--warning);
+  --state-warning-background: var(--warning-soft);
+  --state-warning-hover: var(--lane-content-yellow-tint);
+  --state-warning-border: var(--warning-border);
+  --state-danger-text: var(--lane-content-label-base);
+  --state-danger-icon: var(--danger);
+  --state-danger-background: var(--destructive-soft);
+  --state-danger-hover: var(--lane-content-red-tint);
+  --state-danger-border: var(--destructive-border);
+  --project-blue: var(--lane-content-blue-base);
+  --project-green: var(--lane-content-green-base);
+  --project-violet: var(--lane-content-purple-base);
+  --project-amber: var(--lane-content-yellow-base);
+  --project-coral: var(--lane-content-orange-base);
+  --project-slate: var(--lane-content-label-muted);
+  --request-property-background: var(--lane-content-bg-base);
+  --request-property-foreground: var(--lane-content-label-muted);
+  --request-property-border: var(--lane-content-bg-border-solid);
+  --radius-control: var(--lane-control-radius);
+  --radius-panel: var(--lane-panel-radius);
+  --radius-surface: var(--lane-panel-radius);
+  --radius-pill: var(--lane-rounded-radius);
+  --workspace-pane-radius: var(--lane-panel-radius);
+  --request-row-radius: var(--lane-row-radius);
+  --request-row-height: var(--lane-row-height);
+  --request-group-gap: 8px;
+  --badge-sm-height: var(--lane-pill-height);
+  --badge-sm-padding: var(--lane-pill-padding);
+  --badge-sm-font: var(--lane-font-mini);
+  --badge-sm-gap: var(--lane-meta-gap);
+  --request-avatar-size: var(--lane-pill-height);
+  --checkbox-size: var(--lane-checkbox-size);
+  --checkbox-radius: var(--lane-checkbox-radius);
+  --sidebar-row-height: var(--lane-sidebar-row-height);
+  --sidebar-icon-size: 14px;
+  --sidebar-action-icon-size: 14px;
+  --sidebar-row-radius: var(--lane-row-radius);
+  --toolbar-icon-size: var(--lane-toolbar-height);
+  --control-height-sm: var(--lane-menu-row-height);
+  --control-height-md: 36px;
+  --control-height-lg: var(--lane-row-height);
+  --text-xs: var(--lane-font-mini);
+  --text-sm: var(--lane-font-small);
+  --text-base: var(--lane-font-regular);
+  --text-lg: var(--lane-font-large);
+  --text-xl: var(--lane-font-title-3);
+  --text-2xl: var(--lane-font-title-2);
+  --text-3xl: var(--lane-font-title-1);
+  --font-display: var(--font-inter, "Inter Variable"), sans-serif;
+  --tracking-body: 0;
+  --leading-body: 1.5;
+  --shadow-resting: none;
+  --shadow-raised: none;
+  --shadow-floating: none;
+  --control-thumb-shadow: none;
+  --project-dot-shadow: none;
+  --avatar-status-shadow: none;
+  --user-menu-presence-shadow: none;
+  --sidebar-photo-shadow: none;
+  --sidebar-logo-shadow: none;
+  --badge-font-weight: 450;
+  --request-title-line-height: normal;
+  --search-highlight-foreground: var(--lane-content-label-title);
+  --space-1: var(--lane-space-4);
+  --space-2: var(--lane-space-8);
+  --space-3: var(--lane-space-12);
+  --space-4: var(--lane-space-16);
+  --space-5: var(--lane-space-20);
+  --space-6: var(--lane-space-24);
+  --space-8: var(--lane-space-32);
+  --space-10: var(--lane-space-40);
+  --space-12: var(--lane-space-48);
+  --space-16: var(--lane-space-64);
+  --space-20: var(--lane-space-80);
+  --space-24: var(--lane-space-96);
+  --request-toolbar-height: var(--lane-header-height);
+  --workspace-header-height: var(--lane-header-height);
+  --segment-height: var(--lane-toolbar-height);
+  --segment-radius: var(--lane-rounded-radius);
+  --floating-action-height: var(--lane-toolbar-height);
+  --floating-border-width: .5px;
+  --workspace-pane-border-width: .5px;
+  --menu-row-height: var(--lane-menu-row-height);
+  --menu-font-weight: 400;
+  --select-panel-radius: var(--lane-panel-radius);
+}
+
+:root[data-visual-system="lane"][data-theme="dark"] {
+  --danger: var(--lane-content-red-text);
+}
+
+/* Portals inherit the document theme, then use the floating menu context. */
+:root[data-visual-system="lane"] [data-ui-surface="floating"] {
+  --foreground: var(--lane-menu-label-base);
+  --text-secondary: var(--lane-menu-label-muted);
+  --text-muted: var(--lane-menu-label-muted);
+  --border: var(--lane-menu-bg-border);
+  --border-subtle: var(--lane-menu-bg-border-faint);
+  --border-strong: var(--lane-menu-bg-border-strong);
+  --interaction-hover: var(--lane-menu-bg-base-hover);
+  --interaction-focus: var(--lane-menu-bg-focus);
+  --interaction-pressed: var(--lane-menu-bg-focus);
+}
+
+/* Touch targets grow for coarse pointers only. A narrow window with a mouse
+   keeps the desktop sizes. */
+@media (pointer: coarse) {
+  :root[data-visual-system="lane"] {
+    --control-height-sm: 44px;
+    --control-height-md: 44px;
+    --toolbar-icon-size: 44px;
+    --sidebar-row-height: 44px;
+    --segment-height: 44px;
+    --menu-row-height: 44px;
+  }
+}
+
+/* Sidebar hover uses the sidebar neutral surface; selection keeps its own fill. */
+:root[data-visual-system="lane"] nav[aria-label="Primary navigation"] {
+  --interaction-hover: var(--lane-sidebar-bg-base-hover);
+  --interaction-focus: var(--lane-sidebar-bg-shade-hover);
+  --interaction-pressed: var(--lane-sidebar-bg-shade-hover);
+}

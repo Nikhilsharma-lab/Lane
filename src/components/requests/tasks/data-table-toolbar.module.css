@@ -36,7 +36,7 @@
 
 :global(:root[data-ui-state-contract="semantic"]) .iconButton[data-active]:focus-visible::after { content: ""; position: absolute; width: 14px; height: 1px; bottom: 5px; left: calc(50% - 7px); background: currentColor; }
 
-:global(:root[data-visual-system="linear"]) .status { --control-height-sm: 28px; }
+:global(:root[data-visual-system="lane"]) .status { --control-height-sm: 28px; }
 
 .listAndSummary { position: relative; display: flex; min-width: 0; }
 .listPane { flex: 1; min-width: 0; }
@@ -62,7 +62,7 @@
   .summary { inset-inline: auto var(--space-2); }
 }
 @media (pointer: coarse) {
-  :global(:root[data-visual-system="linear"]) .status, .summaryDimensions { --control-height-sm: 44px; }
+  :global(:root[data-visual-system="lane"]) .status, .summaryDimensions { --control-height-sm: 44px; }
   .summaryClose { top: 100%; width: 44px; min-height: 44px; }
   .summaryCount[aria-live] { min-height: 44px; display: flex; align-items: center; margin-block: 0; padding-inline-end: 44px; }
 }

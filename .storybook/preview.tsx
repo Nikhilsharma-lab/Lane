@@ -6,8 +6,8 @@ import { ToastStackProvider } from "../src/components/arc/toast-stack/toast-stac
 import { sb } from "storybook/test"
 import "../src/components/arc/foundation.css"
 import "../src/app/globals.css"
-import "../src/styles/linear-primitives.css"
-import "../src/styles/linear-arc-theme.css"
+import "../src/styles/lane-primitives.css"
+import "../src/styles/lane-arc-theme.css"
 
 // Preview real forms while keeping all database, AI and storage effects outside Storybook.
 sb.mock(import("../src/app/(app)/intake/actions.ts"))
@@ -18,12 +18,12 @@ sb.mock(import("../src/app/(app)/notifications/actions.ts"))
 
 // Keep root styling with the mounted preview, including hot reloads and portals.
 // Story-test cleanup can run while the preview remains visible.
-// Every story renders in Lane's Linear system, matching the production root in
+// Every story renders in Lane's visual system, matching the production root in
 // src/app/layout.tsx. parameters.visualSystem: "arc" is the opt-out for the one Arc
 // reference story (Primitives/Controls). The Geist preview was retired on 2026-10-10
 // (decision 8.12); data-color-system is still cleared in case a host set it.
 const ROOT_ATTRIBUTES = ["data-visual-system", "data-ui-state-contract", "data-color-system"] as const
-function PreviewRoot({ visualSystem = "linear", children }: { visualSystem?: string; children: ReactNode }) {
+function PreviewRoot({ visualSystem = "lane", children }: { visualSystem?: string; children: ReactNode }) {
   useLayoutEffect(() => {
     const root = document.documentElement
     const classes = fontVariables.split(" ").filter(name => !root.classList.contains(name))
@@ -31,7 +31,7 @@ function PreviewRoot({ visualSystem = "linear", children }: { visualSystem?: str
     root.classList.add(...classes)
     for (const name of ROOT_ATTRIBUTES) root.removeAttribute(name)
     if (visualSystem !== "arc") {
-      root.setAttribute("data-visual-system", "linear")
+      root.setAttribute("data-visual-system", "lane")
       root.setAttribute("data-ui-state-contract", "semantic")
     }
     return () => {

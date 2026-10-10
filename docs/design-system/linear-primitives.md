@@ -1,5 +1,7 @@
 # Linear primitives through Arc components
 
+> **Superseded 2026-10-10.** The captured Linear values this document describes were replaced by Lane-authored tokens (`src/styles/lane-primitives.css`, mapped by `src/styles/lane-arc-theme.css`, activated by `data-visual-system="lane"`) under the MVP launch plan, decision 8.7; `linear-primitives-source.json` and the live-audit record were removed from the tree. The density, geometry and component mechanics recorded below still apply; the colour values and the capture method are history, kept for the trail.
+
 The 2026-10-08 increment began as an opt-in Requests/sidebar preview. Linear supplies the visual values; Arc supplies the installed components, keyboard mechanics, portals and motion. Lane retains its product behaviour. **Production activation (2026-10-09):** Nikhil activated the primitives for the whole app, Request detail included. The root layout (`src/app/layout.tsx`) now imports both stylesheets and sets `data-visual-system="linear"` + `data-ui-state-contract="semantic"`; the compact rows are driven in production by `src/components/requests/request-row-actions.tsx` (saved `LAN-n` codes, the saved `priority` column from migration `0019`, status moves through the existing pick-up/Done actions, copy actions) and the sidebar renders the folder-tree Project navigation. Migration `0019` is on Lane Staging as of 2026-10-09 (with `0017` and `0018`); production still needs it. Marketing remains out of scope.
 
 ## Source and activation
