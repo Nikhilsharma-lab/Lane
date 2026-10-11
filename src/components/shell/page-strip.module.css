@@ -1,0 +1,29 @@
+/* Plan item 2.0: one fixed 44px strip per page. No wrapping, so skeletons and pages share its height. */
+.strip { position: sticky; top: 0; z-index: 2; display: flex; flex: none; min-width: 0; min-height: var(--workspace-header-height, 44px); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--border-subtle); padding-inline: var(--space-6); background: var(--surface); }
+.expandSlot { display: flex; flex: none; }
+.expandSlot:empty { display: none; }
+.title { min-width: 0; margin: 0; overflow: hidden; color: var(--foreground); font-size: var(--text-base); font-weight: 500; line-height: var(--leading-body); text-overflow: ellipsis; white-space: nowrap; }
+.note { min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.crumbs { min-width: 0; font-size: var(--text-sm); }
+.crumbs ol { display: flex; min-width: 0; margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
+.crumbs li { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+.crumbs li + li::before { content: "/"; margin: 0 10px; color: var(--text-muted); }
+.crumbs a { overflow: hidden; text-overflow: ellipsis; border-radius: var(--radius-control); }
+.crumbs a:focus-visible { background: var(--surface-muted); color: var(--foreground); }
+.crumbs [aria-current] { color: var(--foreground); }
+.current { min-width: 0; margin: 0; overflow: hidden; font: inherit; color: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.end { display: flex; flex: none; align-items: center; gap: var(--space-2); margin-inline-start: auto; }
+.tools, .action { display: flex; min-width: 0; align-items: center; gap: var(--space-2); }
+@media (max-width: 640px) {
+  .strip { padding-inline: var(--space-4); }
+  .note { display: none; }
+  .crumbs li:not(:last-child) { display: none; }
+  .crumbs li:last-child::before { content: none; }
+}
+/* Reserve the expand control where the shell auto-collapses, so it never pushes the strip after hydration. */
+@media (max-width: 880px) {
+  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { display: flex; width: 32px; height: 32px; }
+}
+@media (max-width: 880px) and (pointer: coarse) {
+  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { width: 44px; height: 44px; }
+}

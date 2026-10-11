@@ -14,7 +14,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
-import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
+import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -83,15 +83,12 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
 
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
-      <header className={styles.titleStrip} data-slot="requests-title-strip">
-        <SidebarExpandButton />
-        <h1 className={styles.title} title={heading}>{heading}</h1>
-        {isGuest && <p className={styles.guestHint} title="Only Requests you submit appear here.">Only Requests you submit appear here.</p>}
-        {/* The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut. */}
-        <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
+      <PageStrip title={heading} heading
+        note={isGuest ? "Only Requests you submit appear here." : undefined}
+        // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
+        action={<Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
           <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
-        </Tooltip>
-      </header>
+        </Tooltip>} />
       {context
         ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} /></RequestRowActions>
         : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} />}
@@ -102,9 +99,8 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
 /** A Project filter that names no Project in this workspace. Clearing it stays on this page with no request. */
 export function ProjectUnavailable() {
   const setView = useSetRequestListView()
-  return <div data-slot="requests-workspace" className="flex min-w-0 flex-1 flex-col p-6">
-    <div><SidebarExpandButton /></div>
-    <h1 className="sr-only">Project unavailable</h1>
-    <div className="my-auto"><EmptyState icon={<Folder />} title="Project unavailable" description="This Project could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
+  return <div data-slot="requests-workspace" className={styles.overview}>
+    <PageStrip title="Project unavailable" heading />
+    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="Project unavailable" description="This Project could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
   </div>
 }

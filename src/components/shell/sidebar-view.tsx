@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useEffectEvent, useState, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { Rows3 } from "lucide-react";
 import { motion, type MotionStyle } from "motion/react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
@@ -13,6 +13,7 @@ import type { ProjectOption } from "@/lib/request-constants";
 import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { WorkspaceSearchPane } from "./workspace-search-pane";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
+import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import styles from "./workspace-shell.module.css";
@@ -47,6 +48,8 @@ export interface SidebarViewProps {
 const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
 const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+// Plan item 2.0: each page's strip carries the expand control, so phones keep a way into navigation.
+const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
 export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter: urlProjectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
@@ -114,6 +117,16 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const project = projects.find(item => item.id === projectFilter);
   const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "Intake" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
   const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : null;
+  // Plan item 2.0: the ancestors the topbar used to show. Each page's strip adds
+  // its own name as the current crumb. Memoised, so typing in the list filter
+  // does not re-render the strips (plan item 1.14).
+  const listHref = requestListHref(filter, projectFilter);
+  const trail = useMemo<PageStripCrumb[]>(() => pathname === "/" ? [] : [
+    { label: workspaceName, href: "/" },
+    ...(pathname.startsWith("/requests/") ? [{ label: section, href: listHref }]
+      : pathname.startsWith("/settings/") ? [{ label: "Settings", href: "/settings/profile" }] : []),
+  ], [pathname, workspaceName, section, listHref]);
+  const frame = useMemo(() => ({ trail, expand: expandButton }), [trail]);
   const groups = [
     { id: "workspace", name: workspaceName, items: [
       { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 size={16} strokeWidth={1.75} /> },
@@ -144,12 +157,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     </aside>
     <div {...separator} className={styles.resizeHandle} />
     <main id="lane-main" tabIndex={-1} className={styles.main} inert={mobileOpen || switchingWorkspace} aria-busy={switchingWorkspace || undefined} onPointerDownCapture={() => { if (peeking) dismissPeek(); }}>
-      {pathname !== "/" && !searchOpen && <header className={styles.topbar}><SidebarExpandButton /><nav aria-label="Breadcrumb" className={styles.crumbs}><ol>
-        <li><Link href="/" title={workspaceName}>{workspaceName}</Link></li>
-        <li>{page ? <Link href={isRequests ? requestListHref(filter, projectFilter) : "/settings/profile"}>{section}</Link> : <span aria-current="page">{section}</span>}</li>
-        {page && <li aria-current="page">{page}</li>}
-      </ol></nav></header>}
-      <div className={styles.content} hidden={searchOpen}>{children}</div>
+      <PageStripProvider value={frame}><div className={styles.content} hidden={searchOpen}>{children}</div></PageStripProvider>
       {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onNavigate={navigateFromSearch} />}
     </main>
   </motion.div></SidebarControlsProvider>;
