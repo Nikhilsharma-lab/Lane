@@ -60,6 +60,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
+import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
+import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
 import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
@@ -91,7 +94,11 @@ type Stage =
   | "creating"
   | "uploading"
   | "attachment_recovery"
+  | "uploads_lost"
   | "complete";
+
+/** Files a reload interrupted after the Request was created (plan item 2.3, S3). */
+type LostUploads = { requestId: string; files: { key: string; name: string }[] };
 
 type QueuedAttachment = {
   key: string;
@@ -244,7 +251,8 @@ export default function IntakeForm({
   draftOwnerId: string;
   presentation?: "page" | "dialog";
   active?: boolean;
-  onCreated?: (requestId: string, created?: OverviewRequest) => void;
+  /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. */
+  onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
   onBusyChange?: (busy: boolean) => void;
   initialProjectId?: string | null;
 }) {
@@ -267,6 +275,8 @@ export default function IntakeForm({
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   // The saved row, handed to the composer so the list shows it at once.
   const createdRow = useRef<OverviewRequest | null>(null);
+  const pendingWriter = usePendingMutationWriter();
+  const [lostUploads, setLostUploads] = useState<LostUploads | null>(null);
   const [projectBusy, setProjectBusy] = useState(false);
   const projectInFlight = useRef(false);
   const projectDefaultApplied = useRef(false);
@@ -346,10 +356,40 @@ export default function IntakeForm({
     () => null,
   );
 
+  // Plan item 2.3 (S3): after a reload, each recorded reservation is cleared;
+  // a file that did finish drops off the list, and the rest are named honestly.
+  const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
+    const kept: UnfinishedUploads["files"] = [];
+    for (const file of lost.files) {
+      if (!file.attachmentId) { kept.push(file); continue; }
+      try {
+        const result = await discardAttachmentUpload({ requestId: lost.requestId, attachmentId: file.attachmentId }, context);
+        if (result.success && result.alreadyUploaded) continue;
+        kept.push(result.success ? { ...file, attachmentId: null } : file);
+      } catch {
+        kept.push(file);
+      }
+    }
+    if (!kept.length) {
+      clearUnfinishedUploads(window.sessionStorage, draftScope);
+      setLostUploads(null);
+      setStage("compose");
+      return;
+    }
+    writeUnfinishedUploads(window.sessionStorage, draftScope, { ...lost, files: kept });
+    setLostUploads({ requestId: lost.requestId, files: kept.map(({ key, name }) => ({ key, name })) });
+  });
+
   useEffect(() => {
-    const draft = readIntakeDraft(window.sessionStorage, draftScope);
+    // A record of interrupted uploads comes before any draft: its Request exists.
+    const lost = readUnfinishedUploads(window.sessionStorage, draftScope);
+    const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
-      if (draft) {
+      if (lost) {
+        setLostUploads({ requestId: lost.requestId, files: lost.files.map(({ key, name }) => ({ key, name })) });
+        setStage("uploads_lost");
+        void settleLostUploads(lost);
+      } else if (draft) {
         reset(draft.source);
         setSource(draft.source);
         setFailure(null);
@@ -397,7 +437,7 @@ export default function IntakeForm({
   }, [active, attachments.length, currentValues.projectId, draftReady, initialProjectId, projects.projects, restoredDraft, setValue, stage]);
 
   const persistDraft = useEffectEvent(() => {
-    if (!draftReady || draftCleared.current) return true;
+    if (!draftReady || draftCleared.current || stage === "uploads_lost") return true;
     const review =
       (stage === "framing" || stage === "creating") && triage && token
         ? { triage, token, editedProblem }
@@ -485,6 +525,19 @@ export default function IntakeForm({
   }, [active, hasPendingUploads, stage]);
 
   // The checking step announces itself through its own visible status.
+  // Plan item 2.3 (S3): while files upload after creation, this tab remembers
+  // which have not finished, so a reload can say so instead of losing them silently.
+  useEffect(() => {
+    if (!createdRequestId || (stage !== "uploading" && stage !== "attachment_recovery")) return;
+    writeUnfinishedUploads(window.sessionStorage, draftScope, {
+      requestId: createdRequestId,
+      title: source?.title ?? "",
+      files: attachments
+        .filter((attachment) => attachment.status !== "uploaded")
+        .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
+    });
+  }, [attachments, createdRequestId, draftScope, source, stage]);
+
   const liveStatus =
     restoredDraft && !checking && !creating
       ? "Your unsaved Request was restored."
@@ -745,19 +798,41 @@ export default function IntakeForm({
     }
   }
 
-  function finishCreatedRequest(requestId: string) {
+  /** The saved row joins the list's Open group through the overlay at once,
+   * before any upload, on both surfaces (plan item 2.3). No router refresh: the
+   * save already revalidated the list. */
+  function showCreatedInList(created: OverviewRequest | undefined) {
+    if (!created) return;
+    const row = { ...created, projectName: projects.projects.find((project) => project.id === created.projectId)?.name ?? created.projectName };
+    createdRow.current = row;
+    pendingWriter?.insert(row);
+  }
+
+  function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
     if (leftUploadScreen.current) return;
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
     if (onCreated) {
       onBusyChange?.(false);
-      const row = createdRow.current?.id === requestId ? createdRow.current : null;
-      onCreated(requestId, row ? { ...row, projectName: projects.projects.find((project) => project.id === row.projectId)?.name ?? row.projectName } : undefined);
+      onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
       return;
     }
-    toast({ type: "success", title: "Request created",
-      description: "Open and ready to be picked up.",
-    });
+    if (!open) toast(requestCreatedToast({}));
     router.push(`/requests/${requestId}`);
+  }
+
+  function openLostRequest() {
+    if (!lostUploads) return;
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
+    setStage("complete");
+    if (onCreated) onCreated(lostUploads.requestId, { open: true });
+    else router.push(`/requests/${lostUploads.requestId}`);
+  }
+
+  function dismissLostUploads() {
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
+    setLostUploads(null);
+    setStage("compose");
   }
 
   async function onConfirm() {
@@ -817,7 +892,7 @@ export default function IntakeForm({
       }
 
       setCreatedRequestId(result.requestId);
-      createdRow.current = result.created ?? null;
+      showCreatedInList(result.created);
       draftCleared.current = true;
       clearIntakeDraft(window.sessionStorage, draftScope);
 
@@ -1339,21 +1414,11 @@ export default function IntakeForm({
         createdRequestId && (
           <div className={cn(reveal, "mx-auto max-w-[680px] space-y-6")}>
             <header className="space-y-2">
-              <p
-                className={cn(
-                  "text-xs font-medium",
-                  "font-medium text-muted-foreground",
-                )}
-              >
-                Request created
-              </p>
               <h2
                 ref={headingRef}
                 tabIndex={-1}
-                className={cn(
-                  "text-xl font-medium tracking-tight",
-                  "focus:outline-none",
-                )}
+                className="text-lg font-medium"
+                data-composer-autofocus=""
               >
                 {stage === "uploading"
                   ? "Uploading files"
@@ -1497,11 +1562,33 @@ export default function IntakeForm({
             {stage === "attachment_recovery" && !hasPendingUploads && (
               <Button
                 type="button"
-                onClick={() => finishCreatedRequest(createdRequestId)}
+                onClick={() => finishCreatedRequest(createdRequestId, { open: true })}
               >
-                View Request
+                Open Request
               </Button>
             )}
+          </div>
+        )}
+        {stage === "uploads_lost" && lostUploads && (
+          <div className={cn(reveal, "space-y-6")}>
+            <header className="space-y-2">
+              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Some files weren’t added</h2>
+              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+                Your Request was created, but the page reloaded before these files finished uploading, so they weren’t added. Mention them in a comment if your team needs them.
+              </p>
+            </header>
+            <ul aria-label="Files that weren’t added" className="divide-y">
+              {lostUploads.files.map((file) => (
+                <li key={file.key} className="flex items-center gap-3 py-2">
+                  <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={openLostRequest}>Open Request</Button>
+              <Button type="button" variant="ghost" onClick={dismissLostUploads}>Dismiss</Button>
+            </div>
           </div>
         )}
       </div>

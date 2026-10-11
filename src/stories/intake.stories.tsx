@@ -3,6 +3,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { SidebarView } from "@/components/shell/sidebar-view";
 import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { clearUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
 import IntakeForm from "@/app/(app)/intake/intake-form";
@@ -84,6 +85,8 @@ const meta = {
       window.sessionStorage,
       intakeDraftScope(draftOwnerId, context.orgId),
     );
+    // A story that leaves uploads unfinished leaves this tab's record (plan item 2.3, S3).
+    clearUnfinishedUploads(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId));
     mocked(runTriage).mockReset().mockResolvedValue({
       success: true,
       triage: problem,
@@ -919,9 +922,9 @@ export const AllFailedFilesRemoved: Story = {
     const canvas = await reachAttachmentSave(canvasElement);
     await visible(canvas.findByRole("heading", { name: "Some files weren’t uploaded", level: 2 }));
     await userEvent.click(canvas.getByRole("button", { name: "Remove" }));
-    await visible(canvas.findByRole("button", { name: "View Request" }));
+    await visible(canvas.findByRole("button", { name: "Open Request" }));
     await expect(canvas.queryByRole("button", { name: "Retry failed files" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "View Request" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Open Request" }));
     await waitFor(() => expect(getRouter().push).toHaveBeenCalledWith("/requests/00000000-0000-4000-8000-000000000123"));
     await expect(saveRequest).toHaveBeenCalledTimes(1);
   },

@@ -151,6 +151,10 @@ function recoveryHarness(files: Attachment[]) {
     draftCleared: { current: false }, draftScope: "scope",
     createdRow: { current: null },
     window: { sessionStorage: {} }, clearIntakeDraft: () => {},
+    // Plan item 2.3: the overlay insert and the unfinished-uploads record are
+    // browser boundaries; the handlers only call them.
+    showCreatedInList: () => {}, refreshClerkToken: async () => {},
+    writeUnfinishedUploads: () => true, clearUnfinishedUploads: () => {},
     setRestoredDraft: () => {}, setProblemError: () => {},
     setFailure: (failure: unknown) => { state.failure = failure; },
     setStage: (stage: string) => { state.stage = stage; },

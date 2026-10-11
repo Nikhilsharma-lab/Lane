@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { groupRequestRows, sortRequestRows, paginateRequests, selectOverviewRequests, type OverviewRequest } from "./request-overview"
+import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, paginateRequests, selectOverviewRequests, type ListFilters, type OverviewRequest } from "./request-overview"
 
 const requests: OverviewRequest[] = [
   { id: "a", title: "Progress bar", reframedProblem: "Signup is confusing", status: "open", createdAt: "2026-09-28T10:00:00Z", creatorName: "Maya", assigneeName: null },
@@ -73,5 +73,35 @@ describe("Request row grouping and order", () => {
     expect(paginateRequests(ordered, 1, 2).rows.map(row => row.id)).toEqual(["b", "c"])
     expect(groups[0].rows).toHaveLength(2)
     expect(rows.map(row => row.id)).toEqual(["c", "a", "b", "d"])
+  })
+})
+
+describe("List filters for the list and the composer (plan item 2.3)", () => {
+  const all: ListFilters = { status: "all", project: "all", title: "", requestType: "" }
+  const created: OverviewRequest = { id: "new", title: "Checkout drops at the phone step", reframedProblem: null, status: "open", createdAt: "2026-10-11T10:00:00Z", creatorName: null, assigneeName: null, projectId: "p1", requestType: "bug" }
+
+  it("hides nothing under the default view", () => {
+    expect(filtersHiding(created, all)).toEqual([])
+    expect(matchesListFilters(created, { ...all, project: "" })).toBe(true)
+  })
+
+  it("names each filter that leaves the row out", () => {
+    expect(filtersHiding(created, { status: "done", project: "p2", title: "pricing", requestType: "feature" })).toEqual(["status", "project", "title", "requestType"])
+    expect(filtersHiding({ ...created, projectId: null, requestType: null }, { ...all, project: "none", requestType: "none" })).toEqual([])
+    expect(filtersHiding({ ...created, projectId: null }, { ...all, project: "p1" })).toEqual(["project"])
+  })
+
+  it("matches the title text the way the list does: trimmed, case-insensitive, on the reframed problem when there is one", () => {
+    expect(matchesListFilters(created, { ...all, title: "  PHONE " })).toBe(true)
+    expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "phone" })).toBe(false)
+  })
+
+  it("agrees with the list's own status and title selection", () => {
+    for (const status of ["all", "open", "in_progress", "done"] as const) {
+      for (const title of ["", "signup", "PRICING"]) {
+        const listed = requests.filter(row => matchesListFilters(row, { ...all, status, title })).map(row => row.id).sort()
+        expect(listed).toEqual(selectOverviewRequests(requests, status, title, "newest").filter(row => (row.reframedProblem ?? row.title).toLocaleLowerCase().includes(title.trim().toLocaleLowerCase())).map(row => row.id).sort())
+      }
+    }
   })
 })

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { clearUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 import IntakeForm from "@/app/(app)/intake/intake-form";
 import { runTriage, saveRequest } from "@/app/(app)/intake/actions";
@@ -34,6 +35,8 @@ const meta = {
   parameters: { layout: "fullscreen", nextjs: { appDirectory: true, navigation: { pathname: "/intake" } } },
   beforeEach: () => {
     clearIntakeDraft(window.sessionStorage, scope);
+    // A story that leaves uploads unfinished leaves this tab's record (plan item 2.3, S3).
+    clearUnfinishedUploads(window.sessionStorage, scope);
     writeIntakeDraft(window.sessionStorage, scope, { source, review: { triage: solution, token: "old-review-token", editedProblem: oldProblem } });
     mocked(listProjects).mockReset().mockResolvedValue({ success: true, projects: [] });
     mocked(runTriage).mockReset().mockResolvedValue({ success: true, triage: { ...solution, reframedProblem: nextProblem }, token: "new-review-token" });

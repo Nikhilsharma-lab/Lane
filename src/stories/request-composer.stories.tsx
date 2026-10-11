@@ -1,5 +1,6 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { clearUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
@@ -68,6 +69,8 @@ const meta = {
     getRouter().refresh.mockClear();
     profileNavigation.mockClear();
     clearIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId));
+    // A story that leaves uploads unfinished leaves this tab's record (plan item 2.3, S3).
+    clearUnfinishedUploads(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId));
     window.sessionStorage.removeItem("lane:request-return-focus");
     mocked(runTriage).mockReset().mockResolvedValue({
       success: true,

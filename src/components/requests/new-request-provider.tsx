@@ -8,10 +8,12 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
 import { NewRequestContext } from "./new-request-context";
-import { usePendingMutationWriter } from "./pending-mutations-provider";
-import type { OverviewRequest } from "@/lib/request-overview";
+import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
+import { requestCreatedToast } from "./request-created-toast";
+import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
-import { parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace";
+import { readUnfinishedUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
+import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -41,17 +43,20 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
 }) {
   const router = useRouter();
   const { toast } = useToastStack();
-  const insert = usePendingMutationWriter()?.insert;
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const projectFilter = parseRequestProjectFilter(searchParams.get("project"));
+  // Plan item 1.7 moved the list context into layout state; the URL is only a
+  // mirror of it, and the fallback outside the layout's provider.
+  const listContext = useRequestListContext();
+  const { status: statusFilter, project: projectFilter } = listContext ?? parseRequestListContext(searchParams);
   const projectId = projectIdOrNull(projectFilter);
-  const statusFilter = parseRequestStatusFilter(searchParams.get("status") ?? undefined);
+  const listSnapshot = useListViewSnapshot();
+  const setListView = useSetRequestListView();
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [generation, setGeneration] = useState(0);
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
-  const [returnContext, setReturnContext] = useState<{ status: RequestStatusFilter; project: RequestProjectFilter }>({ status: "all", project: "all" });
+  const [returnContext, setReturnContext] = useState<RequestListContext>({ status: "all", project: "all" });
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
   const busy = useRef(false);
   const completed = useRef(false);
@@ -96,20 +101,42 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
   // saveRequest revalidates the list and the new detail path, so its response
-  // already carries the created Request. A router refresh would render twice.
-  // When the composer hands over the saved row, the overlay shows it in the
-  // Open group at once and keeps it there if a navigation drops that response.
-  const onCreated = useCallback((requestId: string, created?: OverviewRequest) => {
-    if (created?.id === requestId) insert?.(created);
+  // already carries the created Request; the composer has already put the row
+  // in the Open group through the pending overlay (plan item 2.3). A router
+  // refresh would render twice.
+  const onCreated = useCallback((requestId: string, { open: openRequest, created }: { open: boolean; created?: OverviewRequest }) => {
     createdId.current = requestId;
     completed.current = true;
     busy.current = false;
     setOpen(false);
-    toast({ type: "success", title: "Request created",
-      description: "Open and ready to be picked up.",
-      action: { label: "Open Request", onClick: () => router.push(requestDetailHref(requestId, returnContext.status, returnContext.project)) },
-    });
-  }, [insert, returnContext, router, toast]);
+    const href = requestDetailHref(requestId, returnContext.status, returnContext.project);
+    if (openRequest) {
+      router.push(href);
+      return;
+    }
+    // Plan item 2.3 (S4): on the list, say when the current filters leave the
+    // new Request out, and offer to show it. Filters never clear silently.
+    const view = pathname === "/" && created?.id === requestId ? listSnapshot?.() : undefined;
+    const hidden = Boolean(view && created && !matchesListFilters(created, listFiltersOf(view)));
+    toast(requestCreatedToast({
+      hidden,
+      onOpen: () => router.push(href),
+      onShow: created ? () => setListView((previous) => revealRequest(previous, created)) : undefined,
+    }));
+  }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
+
+  // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
+  // created. Once per document, after hydration, open the composer so it can
+  // say which files weren't added. /intake shows it in the page itself.
+  const checkedLostUploads = useRef(false);
+  useEffect(() => {
+    if (checkedLostUploads.current || directEntry) return;
+    const timer = window.setTimeout(() => {
+      checkedLostUploads.current = true;
+      if (readUnfinishedUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId))) openComposer();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [context.orgId, directEntry, draftOwnerId, openComposer]);
 
   const value = useMemo(() => ({ openComposer }), [openComposer]);
   return (
