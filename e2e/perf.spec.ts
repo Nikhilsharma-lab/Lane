@@ -434,6 +434,14 @@ test("the composer drawer enters with at most 2 long animation frames at 4x CPU"
   expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
 })
 
+test("/intake cold loads stay within the CLS budget at 1440 and 390", async ({ browser }) => {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    const cls = await coldLoadCls(browser, "/intake", viewport, "#intake-title")
+    report(`/intake CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
+    expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+  }
+})
+
 test("Review Request acknowledges within 100 ms and an unavailable review keeps the draft", async ({ page }) => {
   const draft = {
     title: "Perf check: the review answers at once",
