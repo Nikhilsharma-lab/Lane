@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -17,9 +16,23 @@ import { parseRequestListContext, requestDetailHref, type RequestListContext } f
 
 export { NewRequestLink } from "./new-request-link";
 
-const IntakeForm = dynamic(() => import("@/app/(app)/intake/intake-form"), {
-  loading: () => <Skeleton label="Loading New Request" lines={5} />,
-});
+type IntakeFormComponent = typeof import("@/app/(app)/intake/intake-form").default;
+
+// Plan item 2.3: C focuses the title within 100 ms on the first open. The form
+// (react-hook-form, zod, the AI review) stays out of every route's first load:
+// it loads once, on idle after the provider mounts or when the pointer or
+// focus reaches New Request, and from then on renders synchronously, with no
+// Suspense boundary. The skeleton shows only if C beats the preload.
+let loadedForm: IntakeFormComponent | null = null;
+let formPromise: Promise<IntakeFormComponent> | null = null;
+
+export function preloadComposer(): Promise<IntakeFormComponent> {
+  formPromise ??= import("@/app/(app)/intake/intake-form").then(
+    (module) => (loadedForm = module.default),
+    (error: unknown) => { formPromise = null; throw error; },
+  );
+  return formPromise;
+}
 
 // The compact drawer's body hands its height to its child, so the composer can
 // scroll its own content and keep the footer at the bottom of the panel.
@@ -58,6 +71,11 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
   const [returnContext, setReturnContext] = useState<RequestListContext>({ status: "all", project: "all" });
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
+  const [IntakeForm, setIntakeForm] = useState<IntakeFormComponent | null>(() => loadedForm);
+  const preload = useCallback(() => {
+    if (loadedForm) return;
+    preloadComposer().then((form) => setIntakeForm(() => form), () => undefined);
+  }, []);
   const busy = useRef(false);
   const completed = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
@@ -82,9 +100,20 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       completed.current = false;
     }
     setFormHost(current => current ?? createFormHost());
+    if (!IntakeForm) preload();
     setHasOpened(true);
     setOpen(true);
-  }, [directEntry, hasOpened, projectFilter, projectId, statusFilter]);
+  }, [IntakeForm, directEntry, hasOpened, preload, projectFilter, projectId, statusFilter]);
+
+  useEffect(() => {
+    if (IntakeForm || directEntry) return;
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(preload, { timeout: 4000 });
+      return () => window.cancelIdleCallback(idle);
+    }
+    const timer = window.setTimeout(preload, 1500);
+    return () => window.clearTimeout(timer);
+  }, [IntakeForm, directEntry, preload]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -138,17 +167,26 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     return () => window.clearTimeout(timer);
   }, [context.orgId, directEntry, draftOwnerId, openComposer]);
 
-  const value = useMemo(() => ({ openComposer }), [openComposer]);
+  const value = useMemo(() => ({ openComposer, preload }), [openComposer, preload]);
   return (
     <NewRequestContext.Provider value={directEntry ? null : value}>
       {children}
+      {/* For the perf spec (e2e/perf.spec.ts): C after this has no chunk to wait for. */}
+      <span hidden data-composer-ready={IntakeForm ? "true" : undefined} />
       {hasOpened && !directEntry && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc drawer closes. Its overlay and focus scope still unmount normally. */}
-        {createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} presentation="dialog" active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} presentation="dialog" active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
         <Drawer open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
           <DrawerContent compact title="New Request" description="Describe your Request and the result you expect."
-            onOpenAutoFocus={event => { event.preventDefault(); document.getElementById("intake-title")?.focus(); }}
+            onOpenAutoFocus={event => {
+              // The title in the compose step, the step's heading otherwise. Until
+              // the form arrives, Radix focuses the close button.
+              const target = formHost.querySelector<HTMLElement>("[data-composer-autofocus]");
+              if (!target) return;
+              event.preventDefault();
+              target.focus({ preventScroll: true });
+            }}
             onCloseAutoFocus={event => {
               event.preventDefault();
               // Mobile navigation stays mounted while closed. Its original
@@ -170,6 +208,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
                 event.preventDefault();
               }
             }}>
+            {!IntakeForm && <div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div>}
             <div style={fill} ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
           </DrawerContent>
         </Drawer>

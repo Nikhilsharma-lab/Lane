@@ -8,7 +8,7 @@ import { projectIdOrNull } from "@/lib/request-constants";
 import { parseRequestProjectFilter } from "@/lib/request-workspace";
 
 /** Keeps direct/new-tab navigation working while ordinary activation opens Intake in context. */
-export function NewRequestLink({ onClick, ...props }: Omit<ComponentProps<typeof Link>, "href">) {
+export function NewRequestLink({ onClick, onPointerEnter, onFocus, ...props }: Omit<ComponentProps<typeof Link>, "href">) {
   const composer = useContext(NewRequestContext);
   const searchParams = useSearchParams();
   const projectId = projectIdOrNull(parseRequestProjectFilter(searchParams.get("project")));
@@ -19,6 +19,8 @@ export function NewRequestLink({ onClick, ...props }: Omit<ComponentProps<typeof
       href={href}
       aria-haspopup={composer ? "dialog" : undefined}
       aria-keyshortcuts={composer ? "C" : undefined}
+      onPointerEnter={(event) => { onPointerEnter?.(event); composer?.preload(); }}
+      onFocus={(event) => { onFocus?.(event); composer?.preload(); }}
       onClick={(event) => {
         onClick?.(event);
         if (!composer || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || (props.target && props.target !== "_self")) return;
