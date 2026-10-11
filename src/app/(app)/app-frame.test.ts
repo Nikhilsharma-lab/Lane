@@ -51,8 +51,8 @@ const strips = (html: string) => html.match(/data-slot="page-strip"/g)?.length ?
 
 const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
   workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member",
-  pathname, statusFilter: "all", notifications: null, children,
-}))
+  pathname, statusFilter: "all", notifications: null,
+}, children))
 
 const skeletons: [string, string, ComponentType, string, string][] = [
   ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],

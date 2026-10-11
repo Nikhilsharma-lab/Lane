@@ -18,8 +18,8 @@ const websiteId = "11111111-1111-4111-8111-111111111111";
 const render = (pathname: string, children?: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
   workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member",
   pathname, statusFilter: "in_progress", projectFilter: websiteId,
-  projects: [{ id: websiteId, name: "Website", description: null }], notifications: null, children,
-}));
+  projects: [{ id: websiteId, name: "Website", description: null }], notifications: null,
+}, children));
 const crumbs = (html: string) => {
   const nav = /<nav aria-label="Breadcrumb"[^>]*>[\s\S]*?<\/nav>/.exec(html)?.[0];
   if (!nav) return null;
