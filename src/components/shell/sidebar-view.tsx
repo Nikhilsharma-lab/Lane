@@ -126,7 +126,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     ...(pathname.startsWith("/requests/") ? [{ label: section, href: listHref }]
       : pathname.startsWith("/settings/") ? [{ label: "Settings", href: "/settings/profile" }] : []),
   ], [pathname, workspaceName, section, listHref]);
-  const frame = useMemo(() => ({ trail, expand: expandButton }), [trail]);
+  const frame = useMemo(() => ({ trail, expand: expandButton, link: Link }), [trail]);
   const groups = [
     { id: "workspace", name: workspaceName, items: [
       { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 size={16} strokeWidth={1.75} /> },

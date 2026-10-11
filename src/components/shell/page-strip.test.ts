@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -7,7 +8,7 @@ import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls
 // Plan item 2.0: the strip's anatomy, rendered as the server sends it.
 const trail: PageStripCrumb[] = [{ label: "Lane Studio", href: "/" }, { label: "Settings", href: "/settings/profile" }];
 const strip = (props: PageStripProps) => createElement(PageStrip, props);
-const framed = (children: ReactNode, value: { trail: readonly PageStripCrumb[]; expand: ReactNode } = { trail, expand: null }) =>
+const framed = (children: ReactNode, value: Parameters<typeof PageStripProvider>[0]["value"] = { trail, expand: null, link: Link }) =>
   createElement(PageStripProvider, { value } as Parameters<typeof PageStripProvider>[0], children);
 const header = (html: string) => /<header\b[^>]*data-slot="page-strip"[^>]*>[\s\S]*<\/header>/.exec(html)?.[0] ?? "";
 
@@ -51,7 +52,7 @@ describe("PageStrip", () => {
   it("carries the shell's expand control in its slot once the sidebar is collapsed", () => {
     const controls: Omit<Parameters<typeof SidebarControlsProvider>[0], "children"> = { collapsed: true, peeking: false, expand: () => {}, onPointerEnter: () => {}, onPointerLeave: () => {} };
     const html = renderToStaticMarkup(createElement(SidebarControlsProvider, controls as Parameters<typeof SidebarControlsProvider>[0],
-      framed(strip({ title: "Members" }), { trail, expand: createElement(SidebarExpandButton) })));
+      framed(strip({ title: "Members" }), { trail, expand: createElement(SidebarExpandButton), link: Link })));
     expect(html).toMatch(/^<header\b[^>]*><span\b[^>]*><button\b[^>]*aria-label="Expand sidebar"/);
   });
 

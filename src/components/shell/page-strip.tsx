@@ -1,18 +1,23 @@
 "use client";
 
-import Link from "next/link";
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ElementType, type ReactNode } from "react";
 import styles from "./page-strip.module.css";
 
 /** One ancestor in the strip's trail. */
 export type PageStripCrumb = { label: string; href: string };
-type PageStripFrame = { trail: readonly PageStripCrumb[]; expand: ReactNode };
+type PageStripFrame = {
+  trail: readonly PageStripCrumb[];
+  expand: ReactNode;
+  /** The shell's client link (next/link) for the trail. */
+  link: ElementType<{ href: string; title: string; children: ReactNode }>;
+};
 
 const PageStripContext = createContext<PageStripFrame | null>(null);
 
-/** The shell supplies the trail and the expand control, so this file depends
- * only on React, next/link and its CSS module. The root boundaries render the
- * strip with no provider: no trail and no expand control. */
+/** The shell supplies the trail, its link component and the expand control, so
+ * this file depends only on React and its CSS module. The root boundaries render
+ * the strip with no provider (no trail, no expand control) and so never ship a
+ * copy of next/link or the shell in every route's first load. */
 export function PageStripProvider({ value, children }: { value: PageStripFrame; children: ReactNode }) {
   return <PageStripContext value={value}>{children}</PageStripContext>;
 }
@@ -39,6 +44,7 @@ export interface PageStripProps {
 export function PageStrip({ title, heading = false, note, leading, tools, action, overflow }: PageStripProps) {
   const frame = useContext(PageStripContext);
   const trail = frame?.trail ?? [];
+  const CrumbLink = frame?.link ?? "a";
   const Current = heading ? "h1" : "span";
   const label = typeof title === "string" ? title : undefined;
   return <header className={styles.strip} data-slot="page-strip">
@@ -46,7 +52,7 @@ export function PageStrip({ title, heading = false, note, leading, tools, action
     {leading}
     {trail.length > 0
       ? <nav aria-label="Breadcrumb" className={styles.crumbs}><ol>
-        {trail.map((crumb, index) => <li key={index}><Link href={crumb.href} title={crumb.label}>{crumb.label}</Link></li>)}
+        {trail.map((crumb, index) => <li key={index}><CrumbLink href={crumb.href} title={crumb.label}>{crumb.label}</CrumbLink></li>)}
         <li aria-current="page"><Current className={styles.current} title={label}>{title}</Current></li>
       </ol></nav>
       : <Current className={styles.title} title={label}>{title}</Current>}
