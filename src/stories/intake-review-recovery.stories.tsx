@@ -56,7 +56,7 @@ export const ChangedRequestFailedRetry: Story = {
     await editDescription(canvas);
     mocked(runTriage).mockRejectedValueOnce(new Error("Offline fixture"));
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await canvas.findByText(/Check your connection and try again/);
+    await canvas.findByText("Review unavailable right now");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await expect(await canvas.findByRole("textbox", { name: "Problem to solve" })).toHaveValue(nextProblem);
     await expect(canvas.getByRole("region", { name: "Expected impact" })).toHaveTextContent(metricImpact.metric);
@@ -79,7 +79,9 @@ export const SignInPreservesEarlierProblem: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Edit Request" }));
-    mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } });
+    // The composer retries once with a fresh token; both attempts find the session ended.
+    mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } })
+      .mockResolvedValueOnce({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } });
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await canvas.findByRole("link", { name: "Sign in again" }));
     await expect(readIntakeDraft(window.sessionStorage, scope)?.previousProblem).toBe(oldProblem);
@@ -113,9 +115,9 @@ export const ExpiredReviewRetryFailure: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
     mocked(runTriage).mockRejectedValueOnce(new Error("First offline fixture")).mockRejectedValueOnce(new Error("Second offline fixture"));
     await userEvent.click(await canvas.findByRole("button", { name: "Review again" }));
-    await canvas.findByText(/Check your connection and try again/);
+    await canvas.findByText("Review unavailable right now");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await canvas.findByText(/Check your connection and try again/);
+    await canvas.findByText("Review unavailable right now");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await expect(await canvas.findByRole("textbox", { name: "Problem to solve" })).toHaveValue(correction);
   },

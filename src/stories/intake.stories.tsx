@@ -480,11 +480,17 @@ export const Checking: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
+    // Plan item 2.3: the review step's shape with a visible status, at once.
+    const status = await canvas.findByText("Checking whether this describes a problem…");
+    await visible(status);
+    await expect(status).toHaveAttribute("role", "status");
+    await expect(canvas.getByRole("heading", { name: "Review Request", level: 2 })).toHaveFocus();
     await expect(
-      await canvas.findByRole("button", { name: "Review Request" }),
+      canvas.getByRole("button", { name: "Review Request" }),
     ).toHaveAttribute("aria-busy", "true");
-    await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveAttribute("readonly");
-    await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveAttribute("readonly");
+    // The compose form stays mounted, hidden, with its values.
+    await expect(canvas.queryByRole("textbox", { name: "Request title" })).not.toBeInTheDocument();
+    await expect(canvasElement.querySelector<HTMLInputElement>("#intake-title")?.value).toBe(requestSource.title);
   },
 };
 
@@ -494,14 +500,11 @@ export const CheckFailed: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
-    await visible(
-      await canvas.findByText(
-        "The review could not finish. Your draft is still here. Check your connection and try again.",
-      ),
-    );
-    await expect(
-      canvas.getByRole("button", { name: "Review Request" }),
-    ).toBeEnabled();
+    await visible(await canvas.findByText("Review unavailable right now"));
+    await visible(canvas.getByText("Your draft is kept."));
+    const review = canvas.getByRole("button", { name: "Review Request" });
+    await expect(review).toBeEnabled();
+    await waitFor(() => expect(review).toHaveFocus());
     await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
   },
 };
@@ -521,6 +524,9 @@ export const SessionExpired: Story = {
     await expect(
       await canvas.findByRole("link", { name: "Sign in again" }),
     ).toHaveAttribute("href", "/login#/?redirect_url=%2Fintake");
+    await visible(canvas.getByText("Your session ended"));
+    // One silent retry with a fresh token came first.
+    await expect(runTriage).toHaveBeenCalledTimes(2);
     await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveValue(requestSource.description);
   },
 };

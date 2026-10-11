@@ -76,10 +76,12 @@ import {
 import {
   runTriage,
   saveRequest,
-  type IntakeFailure,
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
+import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
+import { refreshClerkToken } from "@/components/requests/use-optimistic-action";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 
 type Stage =
   | "compose"
@@ -186,12 +188,6 @@ const classificationPresentation: Record<
   },
 };
 
-const clientNetworkFailure: IntakeFailure = {
-  code: "network",
-  message:
-    "The review could not finish. Your draft is still here. Check your connection and try again.",
-};
-
 function uploadToSignedUrl(
   signedUrl: string,
   file: File,
@@ -276,7 +272,7 @@ export default function IntakeForm({
   const [source, setSource] = useState<RequestInput | null>(null);
   const [editedProblem, setEditedProblem] = useState("");
   const [problemError, setProblemError] = useState<string | null>(null);
-  const [failure, setFailure] = useState<IntakeFailure | null>(null);
+  const [failure, setFailure] = useState<GateFailure | null>(null);
   const [fileFailure, setFileFailure] = useState<string | null>(null);
   const [showSlowCue, setShowSlowCue] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
@@ -300,6 +296,9 @@ export default function IntakeForm({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const failureRef = useRef<HTMLDivElement>(null);
+  // Where focus goes when the compose step shows again: the title by default,
+  // the primary button after a gate failure, nowhere when a field takes it.
+  const focusAfterCompose = useRef<"title" | "submit" | "none">("title");
   const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -444,8 +443,17 @@ export default function IntakeForm({
 
   useEffect(() => {
     if (!active || !draftReady) return;
-    if (stage === "compose") setFocus("title");
-    else headingRef.current?.focus();
+    if (stage !== "compose") {
+      headingRef.current?.focus();
+      return;
+    }
+    const target = focusAfterCompose.current;
+    focusAfterCompose.current = "title";
+    if (target === "title") setFocus("title");
+    else if (target === "submit") {
+      submitRef.current?.focus();
+      failureRef.current?.scrollIntoView({ block: "nearest" });
+    }
   }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
@@ -490,12 +498,11 @@ export default function IntakeForm({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [active, hasPendingUploads, stage]);
 
+  // The checking step announces itself through its own visible status.
   const liveStatus =
     restoredDraft && !checking && !creating
       ? "Your unsaved Request was restored."
-      : checking
-        ? "Preparing your Request for review."
-        : stage === "framing" && triage
+      : stage === "framing" && triage
           ? "Your Request is ready to review."
           : creating
             ? "Creating the Request."
@@ -573,7 +580,13 @@ export default function IntakeForm({
     setStage("checking");
 
     try {
-      const result: TriageResponse = await runTriage(data, context);
+      let result: TriageResponse = await runTriage(data, context);
+      if (!result.success && result.error.code === "session_expired") {
+        // A tab left hidden is the likely cause: ask Clerk for a fresh token and
+        // check once more before asking the person to sign in.
+        await refreshClerkToken().catch(() => undefined);
+        result = await runTriage(data, context);
+      }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
           if (result.error.field === "editedProblemText") {
@@ -584,6 +597,7 @@ export default function IntakeForm({
               message: result.error.message,
             });
             if (result.error.field === "usefulLink") setLinkOpen(true);
+            focusAfterCompose.current = "none";
             setStage("compose");
             const field = result.error.field;
             // Optional controls may have just expanded. Wait for their render
@@ -594,6 +608,7 @@ export default function IntakeForm({
         } else {
           setFailure(result.error);
         }
+        focusAfterCompose.current = "submit";
         setStage("compose");
         return;
       }
@@ -615,7 +630,8 @@ export default function IntakeForm({
       }
       setStage("framing");
     } catch {
-      setFailure(clientNetworkFailure);
+      setFailure(thrownGateFailure(navigator.onLine !== false));
+      focusAfterCompose.current = "submit";
       setStage("compose");
     } finally {
       operationInFlight.current = false;
@@ -779,19 +795,24 @@ export default function IntakeForm({
     setStage("creating");
 
     try {
-      const result: SaveResponse = await saveRequest(
-        {
-          token,
-          editedProblemText:
-            triage.classification === "problem" ? null : editedProblem,
-        },
-        context,
-      );
+      const payload = {
+        token,
+        editedProblemText:
+          triage.classification === "problem" ? null : editedProblem,
+      };
+      // Saving is idempotent by the review's requestId, so an ended session
+      // gets one silent retry with a fresh Clerk token, as the gate does.
+      const result: SaveResponse = await saveRequest(payload, context).then(async (first) => {
+        if (first.success || first.error.code !== "session_expired") return first;
+        await refreshClerkToken().catch(() => undefined);
+        return saveRequest(payload, context);
+      });
 
       if (!result.success) {
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;
           setError(field, { type: "server", message: result.error.message });
+          focusAfterCompose.current = "none";
           setStage("compose");
           window.setTimeout(() => focusRequestField(field), 0);
           return;
@@ -966,6 +987,8 @@ export default function IntakeForm({
   const composing = stage === "compose" || checking;
   const reviewing = stage === "framing" || creating;
   const dialog = presentation === "dialog";
+  // Compose shows gate failures; review-step failures keep their own alert.
+  const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
   const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
 
   function onProjectBusyChange(value: boolean) {
@@ -1027,6 +1050,7 @@ export default function IntakeForm({
         {composing && (
           <form
             id={formId}
+            hidden={checking}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
             aria-busy={checking || projectBusy || undefined}
@@ -1142,20 +1166,35 @@ export default function IntakeForm({
                 </p>
               </div>
             )}
-            {failure && (
+            {gateNotice && (
               <div ref={failureRef}>
-                <IntakeNotice error title="Could not prepare the review">
-                  <span>{failure.message}</span>
-                  {failure.code === "session_expired" && (
+                <Alert tone={gateNotice.tone} title={gateNotice.title}>
+                  <span>{gateNotice.body}</span>
+                  {gateNotice.signIn && (
                     <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
                   )}
-                </IntakeNotice>
+                </Alert>
               </div>
             )}
-            {checking && showSlowCue && (
-              <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
-            )}
           </form>
+        )}
+        {checking && (
+          // Plan item 2.3: the gate acknowledges within a frame with the review
+          // step's shape. The compose form above stays mounted but hidden, so
+          // its values, number text, disclosure state and files survive a failure.
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
+              <p role="status" className="text-sm text-muted-foreground">
+                {showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
+              </p>
+            </div>
+            <div aria-hidden="true" className="space-y-6">
+              <Skeleton lines={2} />
+              <Skeleton lines={4} />
+              <div className="border-t pt-5"><Skeleton lines={3} /></div>
+            </div>
+          </div>
         )}
       {reviewing && triage && source && (
         <div

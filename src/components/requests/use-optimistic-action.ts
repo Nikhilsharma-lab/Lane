@@ -155,7 +155,7 @@ type ClerkGlobal = { Clerk?: { session?: { getToken(options?: { skipCache?: bool
 
 /** Reads the Clerk instance ClerkProvider installs, so stories and fixtures
  * without a ClerkProvider still render; there the retry simply runs again. */
-async function refreshClerkToken() {
+export async function refreshClerkToken() {
   await (globalThis as ClerkGlobal).Clerk?.session?.getToken({ skipCache: true })
 }
 
