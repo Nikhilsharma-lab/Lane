@@ -68,6 +68,15 @@ test("the session-expiry link signs back in to the exact Intake review without a
         observedEvidence: "Pilot users asked what had changed.",
         uncertainty: "Showing both versions may improve trust.",
         usefulLink: "",
+        projectId: null,
+        requestType: null,
+        // Plan item 2.3: a restored review needs a complete Expected impact.
+        expectedImpact: {
+          kind: "verification" as const,
+          result: "Customers can see why a Request changed after they submitted it.",
+          source: "Pilot walk-through with three submitters",
+          reviewAfterDays: 14,
+        },
       };
       const triage = {
         classification: "hybrid" as const,
@@ -98,8 +107,10 @@ test("the session-expiry link signs back in to the exact Intake review without a
       );
       await page.reload();
 
+      // Plan item 2.3: one review heading on both surfaces.
       const reviewHeading = page.getByRole("heading", {
-        name: "Separate the problem from the idea",
+        name: "Review Request",
+        level: 2,
       });
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();
@@ -107,7 +118,7 @@ test("the session-expiry link signs back in to the exact Intake review without a
         page.getByText("Your review was restored.", { exact: false })
       ).toBeVisible();
       await expect(
-        page.getByRole("textbox", { name: "Problem framing" })
+        page.getByRole("textbox", { name: "Problem to solve" })
       ).toHaveValue(editedProblem);
       await expect(page.getByText(source.title, { exact: true })).toBeVisible();
       await expect(
@@ -148,7 +159,7 @@ test("the session-expiry link signs back in to the exact Intake review without a
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();
       await expect(
-        page.getByRole("textbox", { name: "Problem framing" })
+        page.getByRole("textbox", { name: "Problem to solve" })
       ).toHaveValue(editedProblem);
       await expect(
         page.getByRole("button", { name: "Create Request", exact: true })

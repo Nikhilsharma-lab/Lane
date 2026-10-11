@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type CDPSession, type Page, type Request } from "@playwright/test"
+import { expect, test, type Browser, type CDPSession, type Page, type Request, type Route } from "@playwright/test"
 
 /**
  * Plan item 1.15b: the §2.2 performance budgets, measured against a running
@@ -38,6 +38,8 @@ const BUDGET = {
   markDoneOnScreen: { target: 50, limit: 100 }, // optimistic change in the next frame, p75
   skeleton: 100, // click to the loading frame (or the page) on screen, p75 (plan item 2.0)
   longFramesPerTransition: 2, // at 4x CPU, in a 300 ms transition
+  composerFocus: 100, // C to the focused title on the first open, p75, also at 4x CPU (plan item 2.3)
+  gateAcknowledgement: 100, // Review Request to the visible checking status, p75 (plan item 2.3)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -352,4 +354,139 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
   report("CLS over the skeleton to Request swap", shifts, "", BUDGET.cls)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.skeleton * TOLERANCE)
   expect(p75(shifts)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+})
+
+// Plan item 2.3: the New Request composer. Each run loads the list afresh, so
+// every C is the composer's first open in that document, and waits for the
+// idle preload (data-composer-ready) the way a person reading the list would.
+// Nothing here creates a Request: the gate check holds Review Request's server
+// action in the browser and aborts it, so no AI call or database write happens.
+const LOADING_COMPOSER = '[role="status"][aria-label="Loading New Request"]'
+
+async function openListForComposer(page: Page) {
+  await openList(page)
+  await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 10_000 })
+  // Nothing focused, so C reaches the page's shortcut.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+}
+
+/** Resolves with the time from the last input to the title taking focus, and whether a loading status ever mounted. */
+const watchComposerFocus = (page: Page) => page.evaluate(selector => new Promise<{ focus: number; loading: boolean }>((resolve, reject) => {
+  const perf = (window as unknown as PerfWindow).__lanePerf
+  let loading = false
+  const observer = new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) {
+      if (node instanceof Element && (node.matches(selector) || node.querySelector(selector))) loading = true
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  const onFocus = (event: FocusEvent) => {
+    if ((event.target as HTMLElement | null)?.id !== "intake-title") return
+    document.removeEventListener("focusin", onFocus)
+    observer.disconnect()
+    resolve({ focus: performance.now() - perf.lastInput, loading })
+  }
+  document.addEventListener("focusin", onFocus)
+  setTimeout(() => { observer.disconnect(); reject(new Error("The composer's title never took focus")) }, 10_000)
+}), LOADING_COMPOSER)
+
+test("C opens the composer with its title focused within 100 ms, with no loading status, also at 4x CPU", async ({ page }) => {
+  const timings: Record<number, number[]> = { 1: [], 4: [] }
+  for (const rate of [1, 4]) {
+    for (let run = 0; run < RUNS; run++) {
+      await openListForComposer(page)
+      const cdp = await throttle(page, rate)
+      try {
+        const watched = watchComposerFocus(page)
+        await page.keyboard.press("c")
+        const { focus, loading } = await watched
+        expect(loading, "The first open after the preload must not show a loading status").toBe(false)
+        timings[rate].push(focus)
+      } finally {
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+      }
+      await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible()
+    }
+  }
+  report("C to focused title, first open", timings[1], "ms", BUDGET.composerFocus)
+  report("C to focused title, first open at 4x CPU", timings[4], "ms", BUDGET.composerFocus)
+  expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
+  expect(p75(timings[4])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
+})
+
+test("the composer drawer enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
+  const longFrames: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openListForComposer(page)
+    const cdp = await throttle(page, 4)
+    try {
+      const since = await now(page)
+      await page.keyboard.press("c")
+      await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible()
+      await page.waitForTimeout(400) // the 240 ms entrance plus the frames that report it
+      longFrames.push(await page.evaluate(start => (window as unknown as PerfWindow).__lanePerf.longFrames
+        .filter(frame => frame.startTime >= start && frame.startTime <= start + 300).length, since))
+    } finally {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+    }
+  }
+  report("long animation frames in the composer's 300 ms entrance at 4x CPU", longFrames, "frames", BUDGET.longFramesPerTransition)
+  expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
+})
+
+test("Review Request acknowledges within 100 ms and an unavailable review keeps the draft", async ({ page }) => {
+  const draft = {
+    title: "Perf check: the review answers at once",
+    description: "A held review must show its checking status within a frame and keep this text when it fails.",
+    metric: "Perf check metric",
+  }
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openListForComposer(page)
+    // A draft from the previous run would be restored; start clean.
+    await page.evaluate(() => window.sessionStorage.clear())
+    await page.keyboard.press("c")
+    const dialog = page.getByRole("dialog", { name: "New Request" })
+    await expect(dialog.getByRole("textbox", { name: "Request title" })).toBeFocused()
+    await dialog.getByRole("textbox", { name: "Request title" }).fill(draft.title)
+    await dialog.getByRole("textbox", { name: "Description" }).fill(draft.description)
+    await dialog.getByRole("button", { name: "Add expected impact" }).click()
+    await dialog.getByRole("textbox", { name: /^Metric/ }).fill(draft.metric)
+    await dialog.getByRole("spinbutton", { name: /^Target value/ }).fill("80")
+    await dialog.getByRole("textbox", { name: /^Unit/ }).fill("%")
+    await dialog.getByRole("textbox", { name: /^Data source/ }).fill("Perf check source")
+    await dialog.getByRole("spinbutton", { name: /^Measure after launch/ }).fill("30")
+
+    // Hold every server action from here on in the browser, then abort it.
+    const held: Route[] = []
+    const hold = (route: Route) => {
+      if (route.request().method() === "POST" && route.request().headers()["next-action"]) held.push(route)
+      else void route.continue()
+    }
+    await page.route("**/*", hold)
+    try {
+      const acknowledged = page.evaluate(() => new Promise<number>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const shown = () => [...document.querySelectorAll('[role="status"]')].some(node => node.textContent === "Checking whether this describes a problem…" && node.getClientRects().length > 0)
+        const observer = new MutationObserver(() => { if (shown()) { observer.disconnect(); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) } })
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("The checking status never showed")) }, 10_000)
+      }))
+      await dialog.getByRole("button", { name: "Review Request" }).click()
+      timings.push(await acknowledged)
+      await expect.poll(() => held.length, { message: "Review Request should call its server action" }).toBeGreaterThan(0)
+      for (const route of held.splice(0)) await route.abort("failed")
+      await expect(dialog.getByText("Review unavailable right now")).toBeVisible()
+      await expect(dialog.getByText("Your draft is kept.")).toBeVisible()
+      await expect(dialog.getByRole("textbox", { name: "Request title" })).toHaveValue(draft.title)
+      await expect(dialog.getByRole("textbox", { name: "Description" })).toHaveValue(draft.description)
+      await expect(dialog.getByRole("textbox", { name: /^Metric/ })).toHaveValue(draft.metric)
+    } finally {
+      await page.unroute("**/*", hold)
+      for (const route of held.splice(0)) await route.abort("failed")
+    }
+    await page.evaluate(() => window.sessionStorage.clear())
+  }
+  report("Review Request to the visible checking status", timings, "ms", BUDGET.gateAcknowledgement)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.gateAcknowledgement * TOLERANCE)
 })
