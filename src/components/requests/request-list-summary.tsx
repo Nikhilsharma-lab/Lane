@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { motion, useIsPresent, useReducedMotion } from "motion/react"
+import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
@@ -15,12 +15,10 @@ import styles from "./tasks/data-table-toolbar.module.css"
 
 const dimensions = [{ value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "requestType", label: "Request type" }]
 type Dimension = "status" | "project" | "requestType"
-// Arc Cart drawer's critically damped physical spring preserves velocity on reversal.
-const physical = (duration: number) => {
-  const root = 2 * Math.PI / (duration * 1.2)
-  return { type: "spring" as const, stiffness: root * root, damping: 2 * root, mass: 1 }
-}
-const drawerSpring = physical(.42), drawerExit = physical(.34)
+// Plan item 2.4 (plan §2.3): the summary overlays the list and moves on transform only,
+// entering in 240 ms on the enter curve and leaving in 180 ms on the exit curve, like the drawer.
+const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
+const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
 
 /** A breakdown of the currently matching list, before pagination. No new record data. */
 export function RequestListSummary({ rows, filter, project, requestType, onFilter, onClose }: {
@@ -42,12 +40,11 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
   }
   const active = dimension === "status" ? filter : dimension === "project" ? project : requestType
   const label = dimensions.find(item => item.value === dimension)!.label
-  return <motion.div className={styles.summaryViewport} inert={!present} aria-hidden={!present || undefined}
-    initial={reduced ? { width: 350, opacity: 0 } : { width: 0 }} animate={{ width: 350, opacity: 1 }}
-    exit={reduced ? { opacity: 0 } : { width: 0, transition: drawerExit }} transition={reduced ? { duration: motionTokens.duration.instant } : drawerSpring}>
+  // The viewport only clips; it animates nothing, and AnimatePresence still waits for the panel's exit.
+  return <motion.div className={styles.summaryViewport} inert={!present} aria-hidden={!present || undefined}>
     <motion.section ref={panel} tabIndex={-1} className={styles.summary} role="region" aria-label="List summary"
-      initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: drawerExit }}
-      transition={reduced ? { duration: motionTokens.duration.instant } : drawerSpring} onKeyDown={event => {
+      initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
+      transition={reduced ? { duration: motionTokens.duration.instant } : enter} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); onClose() }
   }}>
     <div className={styles.summaryHeading}>

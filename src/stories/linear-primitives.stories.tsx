@@ -278,9 +278,30 @@ export const ListSummary: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const toggle = canvas.getByRole("button", { name: "Open list summary" })
+    const grid = canvas.getByRole("treegrid")
+    const listWidth = grid.getBoundingClientRect().width
+    const opened = performance.now()
     await userEvent.click(toggle)
     const summary = canvas.getByRole("region", { name: "List summary" })
     expect(summary).toBeVisible()
+    // Plan item 2.4: the summary overlays the list. The list keeps its width, and only transform and opacity move.
+    const animated = new Set<string>()
+    const widths = new Set<number>()
+    let settledAt = 0
+    while (performance.now() - opened < 600) {
+      widths.add(Math.round(grid.getBoundingClientRect().width))
+      for (const animation of canvasElement.getAnimations({ subtree: true })) {
+        if (!(animation.effect instanceof KeyframeEffect) || !summary.parentElement!.contains(animation.effect.target as Node)) continue
+        for (const frame of animation.effect.getKeyframes()) for (const key of Object.keys(frame)) if (!["offset", "computedOffset", "easing", "composite"].includes(key)) animated.add(key)
+      }
+      const transform = getComputedStyle(summary).transform
+      if (!settledAt && (transform === "none" || transform === "matrix(1, 0, 0, 1, 0, 0)")) settledAt = performance.now()
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    }
+    if (innerWidth > 760) expect([...widths]).toEqual([Math.round(listWidth)])
+    for (const key of animated) expect(["transform", "opacity"]).toContain(key)
+    // Settles within the 240 ms panel budget, give or take a frame of the test's own clock.
+    expect(settledAt - opened).toBeLessThanOrEqual(240 + 50)
     await waitFor(() => expect(summary).toHaveFocus())
     expect(within(summary).getByText("12 matching Requests")).toBeVisible()
     await userEvent.click(within(summary).getByRole("button", { name: "Filter Status: Open, 4 Requests" }))

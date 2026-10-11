@@ -248,30 +248,127 @@ export const SearchCollapseFocus: Story = {
   },
 }
 
-export const DragDuringAnimationKeepsVisibleWidth: Story = {
+/** Samples a value once per frame until `done` holds or the time runs out. */
+async function sampleFrames<T>(sample: () => T, ms: number) {
+  const values: T[] = []
+  const end = performance.now() + ms
+  while (performance.now() < end) {
+    values.push(sample())
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  }
+  return values
+}
+const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches
+const panelOf = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-sidebar-panel]")!
+
+/** Plan item 2.4: a collapse slides the panel on transform only and the content widens once, at the start. */
+export const CollapseTranslatesPanel: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640 || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (innerWidth <= 640) return
+    const canvas = within(canvasElement)
+    const main = canvas.getByRole("main")
+    const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
+    const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
+    await expectWidth(handle, sidebar, 272)
+    const before = main.getBoundingClientRect().width
+    handle.focus()
+    const started = performance.now()
+    await userEvent.keyboard("[BracketLeft]")
+    const animations = panelOf(canvasElement).getAnimations()
+    if (reducedMotion()) {
+      await expect(animations).toHaveLength(0)
+    } else {
+      await expect(animations).toHaveLength(1)
+      const keyframes = (animations[0].effect as KeyframeEffect).getKeyframes()
+      for (const frame of keyframes) await expect(Object.keys(frame).filter(key => !["offset", "computedOffset", "easing", "composite"].includes(key))).toEqual(["transform"])
+    }
+    const widths = await sampleFrames(() => Math.round(main.getBoundingClientRect().width), 320)
+    // At most two widths: the one before the toggle, if a frame caught it, and the one after.
+    await expect(new Set(widths).size).toBeLessThanOrEqual(2)
+    await expect(widths.at(-1)).toBeGreaterThan(before)
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
+    await expect(performance.now() - started).toBeLessThan(1000)
+    await expect(panelOf(canvasElement).getAnimations()).toHaveLength(0)
+  },
+}
+
+/** Plan item 2.4: an expand slides the panel in over the content, and the content narrows once, at the end. */
+export const ExpandChangesWidthOnce: Story = {
+  play: async ({ canvasElement }) => {
+    if (innerWidth <= 640) return
+    const canvas = within(canvasElement)
+    const main = canvas.getByRole("main")
+    const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
+    const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
+    handle.focus()
+    await userEvent.keyboard("{Home}")
+    await expectWidth(handle, sidebar, 0)
+    const collapsedWidth = Math.round(main.getBoundingClientRect().width)
+    const expand = within(main).getByRole("button", { name: "Expand sidebar" })
+    let settledAt = 0
+    // From the keyboard: a pointer would open the peek first, and pinning a visible peek does not slide.
+    expand.focus()
+    const started = performance.now()
+    await userEvent.keyboard("{Enter}")
+    if (!reducedMotion()) {
+      const [slide] = panelOf(canvasElement).getAnimations()
+      await expect(slide).toBeDefined()
+      void slide.finished.then(() => { settledAt = performance.now() })
+    }
+    const widths = await sampleFrames(() => Math.round(main.getBoundingClientRect().width), 360)
+    await expect(new Set(widths).size).toBeLessThanOrEqual(2)
+    await expect(widths[0]).toBe(collapsedWidth)
+    await expect(widths.at(-1)).toBeLessThan(collapsedWidth)
+    await expectWidth(handle, sidebar, 272)
+    await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
+    // The slide settles in its 240 ms (plus a frame of slack for the test's own clock).
+    if (!reducedMotion()) await expect(settledAt - started).toBeLessThanOrEqual(240 + 50)
+  },
+}
+
+/** Plan item 2.4: grabbing the edge mid-slide finishes the slide and drags from the width it was heading to. */
+export const DragDuringSlideFinishesIt: Story = {
+  play: async ({ canvasElement }) => {
+    if (innerWidth <= 640 || reducedMotion()) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     handle.focus()
-    await userEvent.keyboard("{End}")
-    let visibleWidth = 0
-    await waitFor(() => {
-      visibleWidth = sidebar.getBoundingClientRect().width
-      expect(visibleWidth).toBeGreaterThan(280)
-      expect(visibleWidth).toBeLessThan(370)
-    })
-    // Measure in the same task as pointerdown, without an assertion's await
-    // allowing the spring to advance between the observation and the grab.
-    visibleWidth = sidebar.getBoundingClientRect().width
+    await userEvent.keyboard("{Home}")
+    await expectWidth(handle, sidebar, 0)
+    within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" }).focus()
+    await userEvent.keyboard("{Enter}")
+    await expect(sidebar).toHaveAttribute("data-motion", "expanding")
     dragPointer(handle, "pointerdown", 300)
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-    await expect(Math.abs(sidebar.getBoundingClientRect().width - visibleWidth)).toBeLessThan(2)
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
+    await expect(panelOf(canvasElement).getAnimations()).toHaveLength(0)
+    await expectWidth(handle, sidebar, 272)
     dragPointer(handle, "pointermove", 312)
-    await waitFor(() => expect(Math.abs(Number(handle.getAttribute("aria-valuenow")) - (visibleWidth + 12))).toBeLessThan(2))
-    dragPointer(handle, "pointercancel", 312)
-    await expectWidth(handle, sidebar, 400)
+    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "284"))
+    dragPointer(handle, "pointerup", 312)
+    await expectWidth(handle, sidebar, 284)
+  },
+}
+
+/** Plan item 2.4: a toggle mid-slide turns the same slide around rather than restarting it. */
+export const ToggleMidSlideReverses: Story = {
+  play: async ({ canvasElement }) => {
+    if (innerWidth <= 640 || reducedMotion()) return
+    const canvas = within(canvasElement)
+    const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
+    const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
+    handle.focus()
+    await userEvent.keyboard("{Enter}")
+    const [slide] = panelOf(canvasElement).getAnimations()
+    await expect(sidebar).toHaveAttribute("data-motion", "collapsing")
+    handle.focus()
+    await userEvent.keyboard("{Enter}")
+    await expect(sidebar).toHaveAttribute("data-motion", "expanding")
+    // The same animation now runs backwards; no second slide starts from an edge.
+    await expect(panelOf(canvasElement).getAnimations()).toEqual([slide])
+    await expect(slide.playbackRate).toBe(-1)
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
+    await expectWidth(handle, sidebar, 272)
   },
 }
 

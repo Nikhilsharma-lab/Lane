@@ -29,6 +29,7 @@ export default defineConfig({
       "src/lib/keyboard-shortcuts.test.ts",
       "src/components/requests/request-grid-keys.test.ts",
       "src/components/requests/request-row-label.test.ts",
+      "src/components/shell/sidebar-motion.test.ts",
     ],
   },
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
