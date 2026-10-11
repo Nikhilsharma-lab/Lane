@@ -72,8 +72,8 @@ export const PendingActionSurvivesRowRefresh: Story = {
     await expect(action).toBeInTheDocument()
     await expect(action).toHaveAttribute("aria-disabled", "true")
     await expect(action).toHaveFocus()
-    // Each row action also owns a status region, so read the selection announcement by its text.
-    await expect(canvas.getByText("Working on 2 selected Requests")).toHaveAttribute("role", "status")
+    // Plan item 2.4: the list's one polite region carries the selection announcement.
+    await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Working on 2 selected Requests.")
     await expect(canvas.queryByRole("button", { name: "Mark Done" })).not.toBeInTheDocument()
     finishSecond?.()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())

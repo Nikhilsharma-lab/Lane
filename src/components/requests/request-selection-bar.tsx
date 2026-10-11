@@ -15,7 +15,7 @@ const subscribePhone = (change: () => void) => {
 }
 
 export function RequestSelectionBar({ selection }: { selection: ReturnType<typeof useRequestSelection> }) {
-  const { selected, busy, count, action, allSelected, error, message } = selection
+  const { busy, count, action, allSelected, error, message } = selection
   // A phone-width tray keeps only the lifecycle verb as words; the rest keep their glyphs and tooltips.
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
   const items: FloatingButtonGroupItem[] = [
@@ -25,8 +25,8 @@ export function RequestSelectionBar({ selection }: { selection: ReturnType<typeo
     ...(!count && error ? [{ id: "refresh", label: "Refresh", icon: <RefreshCw />, iconOnly: phone, onSelect: selection.refresh }] : []),
     { id: "clear", label: "Clear selection", icon: <X />, iconOnly: true, shortcut: "Esc", disabled: busy, onSelect: selection.clear },
   ]
+  // Plan item 2.4: changes are announced by the list's one region (useRequestSelection), not here.
   return <>
-    <span className="sr-only" role="status">{busy ? `Working on ${count} selected Requests` : message || (selected.length ? `${selected.length} selected` : "")}</span>
     {(count > 0 || error) && <div className={styles.dock} data-request-selection-bar="">
       {error && <p className={styles.error} role="alert">{error}</p>}
       <FloatingButtonGroup label="Selected Requests" variant="floating" items={items}

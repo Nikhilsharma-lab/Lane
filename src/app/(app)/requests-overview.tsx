@@ -17,6 +17,7 @@ import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-wo
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
+import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestsWelcome } from "./requests-welcome"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -104,9 +105,12 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
         action={<Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
-      {context
-        ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} /></RequestRowActions>
-        : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
+      {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
+      <ListAnnouncerProvider>
+        {context
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} /></RequestRowActions>
+          : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
+      </ListAnnouncerProvider>
     </div>
   )
 }

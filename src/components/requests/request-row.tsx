@@ -14,10 +14,13 @@ import { ContextMenu, type ContextMenuItem } from "@/components/arc/context-menu
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
+import { useListAnnouncer } from "./list-announcer"
 
 function RequestCodeControl({ code }: { code: string }) {
   const feedbackId = useId()
   const [state, setState] = useState<"idle" | "copying" | "copied" | "error">("idle")
+  // Plan item 2.4: progress and success speak in the list's one region; only the error stays visible here.
+  const announce = useListAnnouncer()
   const inFlight = useRef(false)
   const mounted = useRef(false)
   useEffect(() => {
@@ -29,10 +32,14 @@ function RequestCodeControl({ code }: { code: string }) {
     if (inFlight.current) return
     inFlight.current = true
     setState("copying")
+    // Said only if the clipboard is slow; a quick result replaces it unheard.
+    announce(`Copying ${code}.`, { key: "copy", delay: 400 })
     try {
       await navigator.clipboard.writeText(code)
+      announce(`${code} copied.`, { key: "copy" })
       if (mounted.current) setState("copied")
     } catch {
+      announce("Copy failed. Try again.", { key: "copy" })
       if (mounted.current) setState("error")
     } finally { inFlight.current = false }
   }
@@ -45,14 +52,12 @@ function RequestCodeControl({ code }: { code: string }) {
     {/* Plan item 2.4 (decision 8.22): no blur morphs in dense rows. */}
     <Tooltip morph="plain" content={state === "copied" ? "Copied. Copy again" : state === "error" ? "Retry copying code" : "Copy code"}>
       <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.codeButton}
-        aria-label={`Copy code ${code}`} aria-describedby={feedbackId}
+        aria-label={`Copy code ${code}`} aria-describedby={state === "error" ? feedbackId : undefined}
         loading={state === "copying"} onClick={() => { void copyCode() }}>
         <span data-request-code>{code}</span><Icon size={14} strokeWidth={1.75} aria-hidden="true" />
       </Button>
     </Tooltip>
-    <span id={feedbackId} role="status" className={state === "error" ? styles.codeError : "sr-only"}>
-      {state === "copied" ? `${code} copied.` : state === "error" ? "Copy failed. Try again." : state === "copying" ? `Copying ${code}.` : ""}
-    </span>
+    {state === "error" && <span id={feedbackId} className={styles.codeError}>Copy failed. Try again.</span>}
   </span>
 }
 

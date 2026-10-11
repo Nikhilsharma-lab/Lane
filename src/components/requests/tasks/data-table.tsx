@@ -20,6 +20,8 @@ import { DataTableToolbar } from "./data-table-toolbar"
 import { RequestRow } from "../request-row"
 import { useRequestSelection } from "../use-request-selection"
 import { RequestSelectionBar } from "../request-selection-bar"
+import { useListAnnouncer } from "../list-announcer"
+import { matchCountText } from "../request-row-label"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
@@ -107,6 +109,21 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     frame = window.requestAnimationFrame(focusRow)
     return () => window.cancelAnimationFrame(frame)
   }, [reveal, setView])
+  // Plan item 2.4 (decision 8.11): while a filter is on, the result count is
+  // announced once the person stops changing filters; removing the last one
+  // says so. A count that changes only because the data did is not announced,
+  // and nothing is said on the first render.
+  const announce = useListAnnouncer()
+  const filterSignature = JSON.stringify([filter, projectFilter, title, requestType])
+  const announcedFilters = useRef(filterSignature)
+  const matchCount = matching.length
+  useEffect(() => {
+    if (announcedFilters.current === filterSignature) return
+    announcedFilters.current = filterSignature
+    if (workspaceEmpty) return
+    if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
+    else announce("Filters cleared.", { key: "count" })
+  }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
   const hasFilter = filter !== "all" || !!title || !!requestType
   const emptyTitle = hasFilter ? "No matching Requests" : projectFilter === "none" ? "No Requests without a Project" : projectFilter !== "all" ? "No Requests in this Project yet" : "No Requests yet"
   const renderRows = (rows: OverviewRequest[], label: string, id?: string) => <ul id={id} className={styles.list} aria-label={label}>

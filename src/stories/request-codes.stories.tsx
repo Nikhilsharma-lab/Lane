@@ -150,7 +150,11 @@ export const CopyFailureAndRetry: Story = {
     try {
       const button = canvas.getByRole("button", { name: "Copy code LAN-42" })
       await userEvent.click(button)
-      await expect(await canvas.findByText("Copy failed. Try again.")).toBeVisible()
+      // The error shows beside the code and describes the button; the list's one region also says it once.
+      const error = await within(button.closest<HTMLElement>("[data-state]")!).findByText("Copy failed. Try again.")
+      await expect(error).toBeVisible()
+      await expect(button).toHaveAttribute("aria-describedby", error.id)
+      await waitFor(() => expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Copy failed. Try again."))
       await expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
       await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
       await expect(button).toHaveFocus()

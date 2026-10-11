@@ -54,7 +54,7 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
       <ChipGroup className={styles.summaryDimensions} label="Summarize Requests by" options={dimensions} multiple={false} value={[dimension]} onValueChange={values => { if (values[0]) setDimension(values[0] as Dimension) }} />
       <Button className={styles.summaryClose} variant="ghost" size="sm" aria-label="Close list summary" onClick={onClose}><X size={14} aria-hidden="true" /></Button>
     </div>
-    <p className={styles.summaryCount} aria-live="polite">{rows.length} matching {rows.length === 1 ? "Request" : "Requests"}</p>
+    <p className={`${styles.summaryCount} ${styles.summaryTotal}`}>{rows.length} matching {rows.length === 1 ? "Request" : "Requests"}</p>
     <div className={styles.summaryRows}>{Array.from(counts, ([value, item]) => <button key={value} type="button" className={`${buttonStyles.button} ${buttonStyles.ghost} ${styles.summaryRow}`} aria-pressed={active === value}
       aria-label={`Filter ${label}: ${item.label}, ${item.count} ${item.count === 1 ? "Request" : "Requests"}`} onClick={() => onFilter(dimension, active === value ? "" : value)}>
       <span>{item.label}</span><span>{item.count}</span>
