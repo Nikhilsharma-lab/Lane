@@ -1,15 +1,16 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
-import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
+import { getRouter, usePathname } from "@storybook/nextjs-vite/navigation.mock";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
 import { runTriage, saveRequest } from "@/app/(app)/intake/actions";
 import { prepareAttachmentUpload, finalizeAttachmentUpload, discardAttachmentUpload } from "@/app/(app)/intake/attachment-actions";
+import { useState } from "react";
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard";
 import { RequestsOverview } from "@/app/(app)/requests-overview";
 import { NewRequestLink, NewRequestProvider, preloadComposer } from "@/components/requests/new-request-provider";
-import { RequestListViewProvider } from "@/components/requests/list-view-state";
+import { RequestListViewProvider, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { SidebarView } from "@/components/shell/sidebar-view";
@@ -772,6 +773,9 @@ export const DraftRestored: Story = {
     await waitFor(() => expect(title).toHaveValue(source.title));
     await expect(composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
     await expect(composer.getByText("Draft restored")).toBeVisible();
+    // The visible notice is the one announcement; the composer's live region stays quiet.
+    await expect(composer.getByText("Draft restored").closest('[role="status"]')).not.toBeNull();
+    await expect(composer.queryByText(/was restored\./, { selector: ".sr-only" })).not.toBeInTheDocument();
     // Expected impact starts folded after a restore, as its two-line summary (decision 8.26).
     const toggle = composer.getByRole("button", { name: "Edit expected impact" });
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -807,6 +811,10 @@ export const GateSlow5s: Story = {
   play: async ({ canvasElement }) => {
     const { composer, dialog } = await reachReview(canvasElement);
     const status = await composer.findByText("Checking whether this describes a problem…");
+    // Focus lands on the heading, which reads the status with it.
+    const heading = composer.getByRole("heading", { name: "Review Request" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    await expect(heading).toHaveAccessibleDescription("Checking whether this describes a problem…");
     await waitFor(() => expect(status).toHaveTextContent("Still checking. Your draft is kept."), { timeout: 7000 });
     await expect(status).toHaveAttribute("role", "status");
     await userEvent.keyboard("{Escape}");
@@ -892,6 +900,24 @@ function ListFixture() {
   </PendingMutationsProvider></RequestListViewProvider>;
 }
 
+/** Chooses the Done view in the layout state, as the list's status control does at any width. */
+function DoneViewFixture() {
+  const setView = useSetRequestListView();
+  return <button type="button" onClick={() => setView((view) => withListContext(view, { status: "done" }))}>Show the Done view fixture</button>;
+}
+
+/** The list, or another page in its place, under the same layout state. */
+function LeavableListFixture() {
+  const [away, setAway] = useState(false);
+  return <RequestListViewProvider><PendingMutationsProvider>
+    <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
+      <DoneViewFixture />
+      <button type="button" onClick={() => setAway((value) => !value)}>{away ? "Back to the list fixture" : "Leave the list fixture"}</button>
+      {away ? <p>Another page</p> : <RequestsOverview requests={listRows} isGuest={false} context={context} />}
+    </NewRequestProvider>
+  </PendingMutationsProvider></RequestListViewProvider>;
+}
+
 async function createFromList(canvasElement: HTMLElement) {
   const opened = await reachReview(canvasElement);
   await userEvent.click(await opened.composer.findByRole("button", { name: "Create Request" }));
@@ -934,6 +960,36 @@ export const CreatedHiddenByFilters: Story = {
     await expect(within(canvas.getByRole("list", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(row);
     await expect(canvas.queryByRole("link", { name: "Refund emails show the wrong total" })).not.toBeInTheDocument();
     await expect(getRouter().refresh).not.toHaveBeenCalled();
+  },
+};
+
+export const ShowItAfterLeavingTheList: Story = {
+  render: () => <LeavableListFixture />,
+  beforeEach: () => {
+    mocked(saveRequest).mockResolvedValue({ success: true, requestId, created: createdRow });
+    return () => { mocked(usePathname).mockRestore(); };
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The Done view leaves the new Request out. (A query would stay in this
+    // fixture's URL, since its router does not navigate.)
+    await userEvent.click(canvas.getByRole("button", { name: "Show the Done view fixture" }));
+    await expect(await canvas.findByRole("link", { name: "Refund emails show the wrong total" })).toBeVisible();
+    const { page } = await createFromList(canvasElement);
+    await expect(await page.findByText("It’s hidden by your current filters.")).toBeVisible();
+    // The toast outlives the page: the person opens something else first.
+    mocked(usePathname).mockReturnValue(`/requests/${listRows[1].id}`);
+    await userEvent.click(canvas.getByRole("button", { name: "Leave the list fixture" }));
+    await expect(canvas.queryByRole("list", { name: "Done Requests" })).not.toBeInTheDocument();
+    await userEvent.click(page.getByRole("button", { name: "Show it" }));
+    // Show it goes back to the list, in the smallest view that holds the new Request.
+    await expect(getRouter().push).toHaveBeenCalledWith("/?status=open");
+    // The router is a fixture here, so the story makes the navigation itself.
+    mocked(usePathname).mockReturnValue("/");
+    await userEvent.click(canvas.getByRole("button", { name: "Back to the list fixture" }));
+    const row = await canvas.findByRole("link", { name: source.title });
+    await waitFor(() => expect(row).toHaveFocus());
+    await expect(within(canvas.getByRole("list", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(row);
   },
 };
 

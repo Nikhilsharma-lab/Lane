@@ -550,16 +550,15 @@ export default function IntakeForm({
     });
   }, [attachments, createdRequestId, draftScope, source, stage]);
 
+  // A restored draft announces itself once, through its visible notice.
   const liveStatus =
-    restoredDraft && !checking && !creating
-      ? "Your unsaved Request was restored."
-      : stage === "framing" && triage
-          ? "Your Request is ready to review."
-          : creating
-            ? "Creating the Request."
-            : stage === "uploading"
-              ? "Uploading Request files."
-              : "";
+    stage === "framing" && triage && !restoredDraft
+      ? "Your Request is ready to review."
+      : creating
+        ? "Creating the Request."
+        : stage === "uploading"
+          ? "Uploading Request files."
+          : "";
 
   function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
     setAttachments((current) =>
@@ -1293,8 +1292,10 @@ export default function IntakeForm({
           // its values, number text, disclosure state and files survive a failure.
           <div className="space-y-6">
             <div className="space-y-2">
-              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
-              <p role="status" className="text-sm text-muted-foreground">
+              {/* Focus reads the status with the heading: a live region inserted
+                  with its text is often not announced, and focus would win. */}
+              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="" aria-describedby="intake-checking-status">Review Request</h2>
+              <p id="intake-checking-status" role="status" className="text-sm text-muted-foreground">
                 {showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
               </p>
             </div>

@@ -12,7 +12,7 @@ import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
 import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
-import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
+import { parseRequestListContext, requestDetailHref, requestListHref, type RequestListContext } from "@/lib/request-workspace";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -81,6 +81,9 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const trigger = useRef<HTMLElement | null>(null);
   const createdId = useRef<string | null>(null);
   const directEntry = pathname === "/intake";
+  // Where the person is now, for a toast action that runs after a navigation.
+  const onList = useRef(pathname === "/");
+  useEffect(() => { onList.current = pathname === "/"; }, [pathname]);
 
   const openComposer = useCallback((element?: HTMLElement) => {
     if (directEntry) {
@@ -150,7 +153,14 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     toast(requestCreatedToast({
       hidden,
       onOpen: () => router.push(href),
-      onShow: created ? () => setListView((previous) => revealRequest(previous, created)) : undefined,
+      onShow: view && created ? () => {
+        setListView((previous) => revealRequest(previous, created));
+        // The toast outlives the page. Away from the list, Show it goes back to
+        // it, in the view that holds the new Request, and the list consumes the reveal there.
+        if (onList.current) return;
+        const revealed = revealRequest(listSnapshot?.() ?? view, created);
+        router.push(requestListHref(revealed.status, revealed.project));
+      } : undefined,
     }));
   }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
 
