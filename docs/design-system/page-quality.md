@@ -1,0 +1,15 @@
+# Page quality ledger
+
+One line per page or plan item, from the per-page definition of done in
+`../superpowers/plans/2026-10-10-mvp-launch-linear.md` §2.4. `.impeccable/` is
+gitignored, so the summary lives here.
+
+- **Critique:** an Impeccable critique. The gate is 0 P0 and 0 P1; a score of
+  28/40 or more is advisory.
+- **Detector:** `impeccable detect` over the item's changed UI files.
+- **Staging perf:** the item's `e2e/perf.spec.ts` numbers on the staging
+  production build, as p75.
+
+| Item | Date | Detector | Critique | Staging perf | Visual approval |
+|---|---|---|---|---|---|
+| 2.0 App frame and states | 2026-10-11 | 0 findings over 22 changed files | Pending | Pending: detail CLS at 1440 and 390, list CLS at 390, click to skeleton (budget 100 ms) | Pending (Nikhil) |
