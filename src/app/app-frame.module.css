@@ -1,0 +1,9 @@
+/* Plan item 2.0: the frame for the root boundaries (error, not-found and
+ * global-error), which render outside the (app) layout and its shell. */
+.page { display: flex; min-height: 100dvh; flex: 1; flex-direction: column; background: var(--surface); color: var(--foreground); font-family: var(--font-body); }
+.body { display: flex; flex: 1; flex-direction: column; justify-content: center; padding: var(--space-6) var(--space-4); }
+.message { max-width: 24rem; margin: 0 auto; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); text-align: center; }
+.actions { display: flex; justify-content: center; margin-top: var(--space-5); }
+@media (min-width: 641px) {
+  .body { padding-inline: var(--space-6); }
+}
