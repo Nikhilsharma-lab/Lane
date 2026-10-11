@@ -1,0 +1,50 @@
+"use client"
+
+import { Fragment, useEffect, useEffectEvent, useState } from "react"
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { isTypingTarget } from "@/components/requests/request-grid-keys"
+import { overlayOpen } from "@/components/requests/list-focus"
+import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
+import styles from "./keyboard-shortcuts.module.css"
+
+/**
+ * Plan item 2.4 (decision 8.25): `?` lists every shortcut, from the one map
+ * in src/lib/keyboard-shortcuts.ts. Mounted once in the authenticated shell.
+ * `?` opens and closes it, Esc closes it, and the Arc Dialog returns focus to
+ * where it was (a row, say). Nothing renders until it opens.
+ */
+export function KeyboardShortcuts() {
+  const [open, setOpen] = useState(false)
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    // "?" arrives as its own key; Shift is how most layouts type it, so Shift is allowed.
+    if (event.key !== "?" || event.defaultPrevented || event.isComposing || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return
+    // Open, the overlay is itself the visible dialog, so `?` closes it. Closed, another dialog, menu or listbox keeps the key.
+    if (!open && overlayOpen()) return
+    event.preventDefault()
+    setOpen(value => !value)
+  })
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onKeyDown(event)
+    window.addEventListener("keydown", listener)
+    return () => window.removeEventListener("keydown", listener)
+  }, [])
+
+  return <Dialog open={open} onOpenChange={setOpen}>
+    <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog}>
+      <div className={styles.groups}>
+        {SHORTCUT_GROUPS.map(group => <section key={group.scope} className={styles.group} aria-labelledby={`shortcuts-${group.scope}`}>
+          <h3 id={`shortcuts-${group.scope}`} className={styles.heading}>{group.title}</h3>
+          <dl className={styles.list}>
+            {group.shortcuts.map(shortcut => <div key={shortcut.label} className={styles.item}>
+              <dt className={styles.label}>{shortcut.label}</dt>
+              <dd className={styles.keys}>{shortcut.keys.map((alternative, index) => <Fragment key={alternative}>
+                {index > 0 && <span className={styles.or}>or</span>}
+                {alternative.split(" ").map(part => <kbd key={part} className={styles.key}>{part}</kbd>)}
+              </Fragment>)}</dd>
+            </div>)}
+          </dl>
+        </section>)}
+      </div>
+    </DialogContent>
+  </Dialog>
+}

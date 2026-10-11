@@ -16,6 +16,7 @@ import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
+import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -160,5 +161,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       <PageStripProvider value={frame}><div className={styles.content} hidden={searchOpen}>{children}</div></PageStripProvider>
       {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onNavigate={navigateFromSearch} />}
     </main>
+    {/* Plan item 2.4: `?` lists the shortcuts on every authenticated page. */}
+    <KeyboardShortcuts />
   </motion.div></SidebarControlsProvider>;
 }

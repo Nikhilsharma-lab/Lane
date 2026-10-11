@@ -10,6 +10,13 @@ const TITLE_FILTER = 'button[aria-label="Filter Requests by title"]'
 // Arc ToastStack's region: the only live section that lists additions (Undo, Show it).
 const TOAST_STACK = 'section[aria-live][aria-relevant]'
 
+const OVERLAYS = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
+
+/** The same check as the C shortcut: a visible dialog, menu or listbox owns the keyboard. */
+export function overlayOpen() {
+  return Array.from(document.querySelectorAll<HTMLElement>(OVERLAYS)).some(element => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true")
+}
+
 /** Laid out and not inside a hidden or inert subtree. */
 export function isShown(element: Element | null | undefined): element is HTMLElement {
   return element instanceof HTMLElement && element.getClientRects().length > 0 && !element.closest("[hidden], [inert]")

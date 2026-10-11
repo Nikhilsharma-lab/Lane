@@ -2,14 +2,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from "react"
 import { gridCommand, headerOf, isGroupKey, isTypingTarget, listCommand, nextKey, requestIdOf, tabbableKey, type GridKey } from "./request-grid-keys"
-import { isShown } from "./list-focus"
-
-const OVERLAYS = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
-
-/** The same check as the C shortcut: a visible dialog, menu or listbox owns the keyboard. */
-export function overlayOpen() {
-  return Array.from(document.querySelectorAll<HTMLElement>(OVERLAYS)).some(element => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true")
-}
+import { isShown, overlayOpen } from "./list-focus"
 
 export type RequestGridOptions = {
   /** The grid or treegrid element. */
