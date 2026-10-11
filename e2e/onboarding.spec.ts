@@ -13,18 +13,23 @@ import {
 } from "./helpers/test-user";
 import { registerBrowserTestOrganization } from "./helpers/fixtures";
 
-/** Plan item 2.2: the navigations Continue causes. Prefetches are left out;
- * only GETs a person waits for count. */
+/** Plan item 2.2: the requests Continue causes. Server action POSTs go in
+ * `actions`; RSC GETs a person waits for go in `paths`. Prefetches are left out. */
 function recordRscNavigations(page: Page) {
   const paths: string[] = [];
+  const actions: string[] = [];
   const listener = (request: Request) => {
     const url = new URL(request.url());
+    if (request.method() === "POST" && request.headers()["next-action"]) {
+      actions.push(url.pathname);
+      return;
+    }
     if (request.method() !== "GET" || !url.searchParams.has("_rsc")) return;
     if (request.headers()["next-router-prefetch"]) return;
     paths.push(url.pathname);
   };
   page.on("request", listener);
-  return { paths, stop: () => page.off("request", listener) };
+  return { paths, actions, stop: () => page.off("request", listener) };
 }
 
 /** Every scroller on the empty Requests page fits: the list pane, the shell's
@@ -61,8 +66,9 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
     await expect(page.getByText(/^Step \d of \d$/)).toHaveCount(0);
     await page.getByRole("radio", { name: "Designer" }).click();
 
-    // Role saved → welcome in one navigation: one GET of /, none of
-    // /onboarding, and the same document throughout.
+    // Role saved → welcome in one navigation: the save redirects to /, so its
+    // response normally carries the welcome. At most one GET of / may follow
+    // (a partial seed), none of /onboarding, and the same document throughout.
     await page.evaluate(() => { (window as unknown as { __laneSameDocument: boolean }).__laneSameDocument = true; });
     const navigations = recordRscNavigations(page);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -73,7 +79,8 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
     ).toBeVisible();
     await expect(page.locator("[data-requests-welcome]")).toBeVisible();
     navigations.stop();
-    expect(navigations.paths.filter(path => path === "/")).toHaveLength(1);
+    expect(navigations.actions).toEqual(["/onboarding"]);
+    expect(navigations.paths.filter(path => path === "/").length).toBeLessThanOrEqual(1);
     expect(navigations.paths).not.toContain("/onboarding");
     expect(await page.evaluate(() => (window as unknown as { __laneSameDocument?: boolean }).__laneSameDocument)).toBe(true);
     expect(await page.evaluate(() => performance.getEntriesByType("navigation").length)).toBe(1);

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useRouter } from "next/navigation";
 
 import { AuthAction } from "@/components/auth/auth-action";
 import { OnboardingChrome } from "@/components/auth/onboarding-chrome";
@@ -23,17 +22,22 @@ function isTextEntry(target: EventTarget | null) {
   return target instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(target.type);
 }
 
+/** A saved role answers with a redirect to /: the call rejects with Next's
+ * redirect error while the router is already rendering / from the response. */
+function isRedirect(error: unknown) {
+  return typeof error === "object" && error !== null && "digest" in error
+    && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT;");
+}
+
 export function RoleForm() {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [role, setRole] = useState<FunctionalRole | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { pending, run } = useRecoverableAction();
-  const [navigating, startNavigation] = useTransition();
   // useRecoverableAction clears `pending` as soon as the action answers; this
   // keeps the form disabled until the navigation to / commits.
   const [saved, setSaved] = useState(false);
-  const busy = pending || saved || navigating;
+  const busy = pending || saved;
 
   // Plan item 2.2: 1, 2 and 3 pick a role. Matched on `key`, so the numpad and
   // Shift-digit layouts (AZERTY) work; Shift is therefore not rejected. Moving
@@ -65,6 +69,13 @@ export function RoleForm() {
     setError(null);
     const outcome = await run(() => saveOnboardingRole({ role }));
     if (outcome.status === "blocked") return;
+    // The one navigation: saveOnboardingRole revalidates and redirects to /, so
+    // its response carries / and the router is already on its way there. No
+    // router call here, no refresh, and no prefetch of / before the save.
+    if (outcome.status === "failed" && isRedirect(outcome.error)) {
+      setSaved(true);
+      return;
+    }
     if (outcome.status === "failed") {
       setError(
         "Your role selection is still here. Check your connection and try again."
@@ -72,17 +83,7 @@ export function RoleForm() {
       return;
     }
 
-    if (outcome.value.error) {
-      setError(outcome.value.error);
-      return;
-    }
-
-    // saveOnboardingRole neither revalidates nor redirects, so this is the one
-    // navigation: the action's response carries no /onboarding render to
-    // bounce through. No refresh, and no prefetch of / before the save, which
-    // would cache the redirect back to /onboarding.
-    setSaved(true);
-    startNavigation(() => router.replace("/"));
+    setError(outcome.value.error);
   }
 
   return (

@@ -7,12 +7,24 @@ import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions"
 
 // Plan item 2.2: the real onboarding role step. Storybook mocks the action and
 // the Next router, so nothing here saves a profile or navigates.
+
+/** What a saved role does in the app: the action redirects to /, so the call
+ * rejects with Next's redirect error while the router renders / from the
+ * response. The form makes no router call of its own. */
+const savedRedirect = () => Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/;303;" })
+
+/** Waits for the latest save to settle, then for React to commit what follows. */
+async function afterLatestSave() {
+  const results = mocked(saveOnboardingRole).mock.results
+  await (results[results.length - 1]?.value as Promise<unknown> | undefined)?.catch(() => {})
+  await new Promise(resolve => setTimeout(resolve, 100))
+}
 const meta = {
   title: "Auth/Onboarding",
   component: RoleForm,
   parameters: { layout: "fullscreen", nextjs: { appDirectory: true, navigation: { pathname: "/onboarding" } } },
   beforeEach: () => {
-    mocked(saveOnboardingRole).mockReset().mockResolvedValue({ success: true })
+    mocked(saveOnboardingRole).mockReset().mockRejectedValue(savedRedirect())
     getRouter().replace.mockClear()
     getRouter().refresh.mockClear()
     getRouter().push.mockClear()
@@ -71,9 +83,12 @@ export const KeyboardOnly: Story = {
 
     await waitFor(() => expect(saveOnboardingRole).toHaveBeenCalledTimes(1))
     await expect(saveOnboardingRole).toHaveBeenCalledWith({ role: "designer" })
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledTimes(1))
-    await expect(getRouter().replace).toHaveBeenCalledWith("/")
+    await afterLatestSave()
+    // The action's response is the navigation: no second request from the form.
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(getRouter().push).not.toHaveBeenCalled()
     await expect(getRouter().refresh).not.toHaveBeenCalled()
+    await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
     // Saved: the form stays disabled until the navigation commits, so it never re-enables in between.
     await expect(submit).toBeDisabled()
     await expect(designer).toBeDisabled()
@@ -84,7 +99,7 @@ export const KeyboardOnly: Story = {
 }
 
 export const SaveFailure: Story = {
-  beforeEach: () => { mocked(saveOnboardingRole).mockReset().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue({ success: true }) },
+  beforeEach: () => { mocked(saveOnboardingRole).mockReset().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockRejectedValue(savedRedirect()) },
   play: async ({ canvasElement }) => {
     const designer = radio(canvasElement, "Designer")
     await userEvent.keyboard("2")
@@ -102,8 +117,12 @@ export const SaveFailure: Story = {
     await expect(developer).toHaveFocus()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
     await userEvent.click(continueButton(canvasElement))
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/"))
+    await waitFor(() => expect(saveOnboardingRole).toHaveBeenCalledTimes(2))
     await expect(saveOnboardingRole).toHaveBeenLastCalledWith({ role: "developer" })
+    await afterLatestSave()
+    await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
+    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
 
@@ -150,8 +169,11 @@ export const PointerChoose: Story = {
     await userEvent.click(within(canvasElement).getByText("Designer"))
     await expect(designer).toBeChecked()
     await userEvent.click(continueButton(canvasElement))
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/"))
-    await expect(saveOnboardingRole).toHaveBeenCalledWith({ role: "designer" })
+    await waitFor(() => expect(saveOnboardingRole).toHaveBeenCalledWith({ role: "designer" }))
+    await afterLatestSave()
+    await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
+    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
 

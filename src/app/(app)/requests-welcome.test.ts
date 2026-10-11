@@ -55,8 +55,10 @@ describe("Requests first-use landing", () => {
     expect(html).not.toContain("Filter Requests by title")
     expect(html).not.toContain("Active filters")
     expect(html).not.toContain("Select a Request")
-    // The strip's New Request and the welcome's primary one (risk 3 in the 2.1 spec).
-    expect(html.match(/href="\/intake"/g)).toHaveLength(2)
+    // A way into Intake. How many New Request links the empty page shows (the
+    // strip's and the welcome's) waits on Nikhil's decision (risk 3 in the 2.1
+    // spec; docs/design-system/page-quality.md), so the count is not pinned here.
+    expect(html.match(/href="\/intake"/g)?.length ?? 0).toBeGreaterThanOrEqual(1)
     expect(html.includes('href="/settings/members"')).toBe(role === "admin")
     expect(html).toContain("to create a Request.")
     expect(html).toMatch(/<kbd[^>]*>C<\/kbd> to create a Request\./)
