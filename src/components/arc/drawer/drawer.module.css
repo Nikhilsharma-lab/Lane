@@ -2,8 +2,8 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: oklch(10% 0 0 / .38);
-  backdrop-filter: blur(4px);
+  /* Lane adaptation (decision 8.22): the theme's overlay token, no backdrop blur. */
+  background: var(--overlay, oklch(10% 0 0 / .38));
 }
 
 .content {
@@ -28,10 +28,11 @@
 /* Radix writes pointer-events inline on the overlay, so the closing state has to win over it. */
 .overlay[data-state="closed"], .content[data-state="closed"] { pointer-events: none !important; }
 
-.content[data-side="right"] { inset: 0 0 0 auto; border-width: 1px 0 1px 1px; border-radius: 22px 0 0 22px; }
-.content[data-side="left"] { inset: 0 auto 0 0; border-width: 1px 1px 1px 0; border-radius: 0 22px 22px 0; }
-.content[data-side="top"] { inset: 0 0 auto; width: 100%; max-width: none; max-height: min(32rem, 100dvh); border-width: 0 0 1px; border-radius: 0 0 22px 22px; }
-.content[data-side="bottom"] { inset: auto 0 0; width: 100%; max-width: none; max-height: min(32rem, 100dvh); border-width: 1px 0 0; border-radius: 22px 22px 0 0; }
+/* Lane adaptation (plan item 2.3): the open edge takes the theme's panel radius (12px under Lane) instead of 22px. */
+.content[data-side="right"] { inset: 0 0 0 auto; border-width: 1px 0 1px 1px; border-radius: var(--radius-panel) 0 0 var(--radius-panel); }
+.content[data-side="left"] { inset: 0 auto 0 0; border-width: 1px 1px 1px 0; border-radius: 0 var(--radius-panel) var(--radius-panel) 0; }
+.content[data-side="top"] { inset: 0 0 auto; width: 100%; max-width: none; max-height: min(32rem, 100dvh); border-width: 0 0 1px; border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
+.content[data-side="bottom"] { inset: auto 0 0; width: 100%; max-width: none; max-height: min(32rem, 100dvh); border-width: 1px 0 0; border-radius: var(--radius-panel) var(--radius-panel) 0 0; }
 .content[data-side="bottom"]::before { position: absolute; top: 9px; left: 50%; width: 2.25rem; height: 4px; border-radius: var(--radius-pill); background: var(--border-strong); content: ""; opacity: .75; transform: translateX(-50%); }
 
 /* Motion springs the panel from its edge. Keyframes only run when DrawerContent sits under a bare Radix root. */
@@ -40,7 +41,7 @@
 .content[data-side="bottom"] { --drawer-from: translateY(100%); }
 .keyframes.overlay[data-state="open"] { animation: overlay-in var(--duration-standard) var(--ease-enter) both; }
 .keyframes.overlay[data-state="closed"] { animation: overlay-out var(--duration-fast) var(--ease-standard) both; }
-.keyframes.content[data-state="open"] { animation: drawer-in var(--duration-considered) var(--ease-drawer) both; }
+.keyframes.content[data-state="open"] { animation: drawer-in var(--duration-standard) var(--ease-drawer) both; }
 .keyframes.content[data-state="closed"] { animation: drawer-out var(--duration-standard) var(--ease-standard) both; }
 .content:focus { outline: none; }
 /* Inside a container the layers anchor to that element instead of the viewport. */
@@ -70,13 +71,23 @@
 .close:active { transform: scale(.96); transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), transform var(--duration-instant) var(--ease-standard); }
 .body { min-height: 0; overflow: auto; padding: var(--space-6); font-size: var(--text-sm); line-height: var(--leading-body); overscroll-behavior: contain; scrollbar-width: thin; }
 
+/* Lane adaptation (plan item 2.3): the compact drawer. A 44px header strip with the title at body size; the description stays
+   the dialog's accessible description but is visually hidden; the body hands its height and scrolling to its child, so a
+   composer can keep its own action row at the bottom of the panel. */
+.content[data-compact] .header { min-height: var(--workspace-header-height, 44px); align-items: center; padding: 0 var(--space-2) 0 var(--space-4); }
+.content[data-compact] .title { font-size: var(--text-base); }
+.content[data-compact] .description { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.content[data-compact] .close { width: var(--space-8); height: var(--space-8); margin-top: 0; border-color: transparent; background: transparent; }
+.content[data-compact] .body { display: flex; flex: 1 1 auto; flex-direction: column; padding: 0; overflow: hidden; }
+@media (pointer: coarse) { .content[data-compact] .close { width: 44px; height: 44px; } .content[data-compact] .header { padding-right: 0; } }
+
 @media (max-width: 40rem) {
-  .content { --drawer-size: calc(100vw - var(--space-3)); }
-  .content[data-side="right"] { border-radius: 18px 0 0 18px; }
-  .content[data-side="left"] { border-radius: 0 18px 18px 0; }
-  .content[data-side="top"] { border-radius: 0 0 18px 18px; }
-  .content[data-side="bottom"] { border-radius: 18px 18px 0 0; }
-  .header, .body { padding: var(--space-5); }
+  /* Lane adaptation (plan item 2.3): phones get the whole width, square edges and a 16px gutter. */
+  .content { --drawer-size: 100vw; }
+  .content[data-side] { border-radius: 0; }
+  .header, .body { padding: var(--space-4); }
+  .content[data-compact] .header { padding: 0 var(--space-2) 0 var(--space-4); }
+  .content[data-compact] .body { padding: 0; }
 }
 
 @keyframes overlay-in { from { opacity: 0; } }
