@@ -365,8 +365,9 @@ export const ToggleMidSlideReverses: Story = {
     await userEvent.keyboard("{Enter}")
     await expect(sidebar).toHaveAttribute("data-motion", "expanding")
     // The same animation now runs backwards; no second slide starts from an edge.
+    // (A reversed rate applies once the animation is ready, so it is read when it lands.)
     await expect(panelOf(canvasElement).getAnimations()).toEqual([slide])
-    await expect(slide.playbackRate).toBe(-1)
+    await waitFor(() => expect(slide.playbackRate).toBe(-1))
     await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
     await expectWidth(handle, sidebar, 272)
   },

@@ -12,9 +12,14 @@ const TOAST_STACK = 'section[aria-live][aria-relevant]'
 
 const OVERLAYS = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
 
-/** The same check as the C shortcut: a visible dialog, menu or listbox owns the keyboard. */
+/**
+ * The C shortcut's check: a visible dialog, menu or listbox owns the keyboard.
+ * A closed panel that stays laid out but inert or visibility: hidden (the
+ * phone navigation sheet) does not count.
+ */
 export function overlayOpen() {
-  return Array.from(document.querySelectorAll<HTMLElement>(OVERLAYS)).some(element => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true")
+  return Array.from(document.querySelectorAll<HTMLElement>(OVERLAYS)).some(element => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true"
+    && !element.closest("[inert]") && getComputedStyle(element).visibility !== "hidden")
 }
 
 /** Laid out and not inside a hidden or inert subtree. */
