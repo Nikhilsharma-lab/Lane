@@ -1,46 +1,46 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-type RateLimitResult = { allowed: boolean; retryAfterMs: number };
+type RateLimitResult =
+  | { allowed: true; retryAfterMs: 0 }
+  | { allowed: false; reason: "rate_limited" | "unavailable"; retryAfterMs: number };
 
-const MISSING_ENV =
-  !process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN;
-
-if (MISSING_ENV && process.env.NODE_ENV === "production") {
-  console.warn(
-    "[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN not set — rate limiting disabled"
-  );
-}
-
-const ratelimit = MISSING_ENV
-  ? null
-  : new Ratelimit({
-      redis: new Redis({
-        url: process.env.KV_REST_API_URL!,
-        token: process.env.KV_REST_API_TOKEN!,
-      }),
-      limiter: Ratelimit.slidingWindow(10, "60 s"),
-      prefix: "lane:ratelimit:ai",
-    });
+let ratelimit: Ratelimit | undefined;
+const unavailable: RateLimitResult = { allowed: false, reason: "unavailable", retryAfterMs: 0 };
 
 export async function checkAiRateLimit(
   userId: string
 ): Promise<RateLimitResult> {
-  if (!ratelimit) {
-    return { allowed: true, retryAfterMs: 0 };
-  }
-
   try {
+    if (!ratelimit) {
+      const url = process.env.KV_REST_API_URL?.trim();
+      const token = process.env.KV_REST_API_TOKEN?.trim();
+      if (!url || !token) {
+        console.error("[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN missing — AI review unavailable");
+        return unavailable;
+      }
+      // Initialization can reject malformed configuration too. Keep that failure
+      // inside the same closed, recoverable boundary as a Redis request failure.
+      ratelimit = new Ratelimit({
+        redis: new Redis({ url, token }),
+        limiter: Ratelimit.slidingWindow(10, "60 s"),
+        prefix: "lane:ratelimit:ai",
+      });
+    }
     const result = await ratelimit.limit(userId);
+    // Upstash deliberately returns success: true when its check times out.
+    // That response is not authorization to spend an AI call.
+    if (result.reason === "timeout") return unavailable;
     if (result.success) {
       return { allowed: true, retryAfterMs: 0 };
     }
     return {
       allowed: false,
+      reason: "rate_limited",
       retryAfterMs: Math.max(0, result.reset - Date.now()),
     };
-  } catch (err) {
-    console.error("[rate-limit] Redis error — failing open:", err);
-    return { allowed: true, retryAfterMs: 0 };
+  } catch {
+    console.error("[rate-limit] Check failed — AI review unavailable");
+    return unavailable;
   }
 }

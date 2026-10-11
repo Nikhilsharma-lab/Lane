@@ -6,6 +6,8 @@ Marketing is explicitly out of scope. Do not edit the independent `marketing/` r
 
 **Visual system (current, 2026-10-10):** the whole app renders Lane's own dense visual system. `src/app/layout.tsx` imports `src/styles/lane-primitives.css` (OKLCH colour ramps on one cool neutral axis with a green-teal accent, plus geometry, type and spacing roles; every text-on-surface pair passes 4.5:1 in both modes) and `src/styles/lane-arc-theme.css` (the mapping into Arc's semantic hooks), and sets `data-visual-system="lane"` with `data-ui-state-contract="semantic"`. Storybook renders every story the same way by default; one Arc reference story opts out with `parameters.visualSystem = "arc"`. Arc still supplies every component, API and motion.
 
+**Dark-theme correction, 2026-10-11:** Nikhil supplied a dark Linear composer screenshot and requested the colors match. Shared dark neutrals now use neutral charcoal surfaces and lighter gray secondary controls; primary actions use indigo with white labels. Green selections/focus and semantic status/Project colors remain independent. Light-mode values are unchanged. The correction lives in the same Lane primitive and Arc mapping files, with no per-surface palette overrides.
+
 History: on 2026-10-08 Nikhil reviewed a Geist neutral + blue preview and then a Linear-style density review (values captured from Linear); on 2026-10-09 that review went to production; on 2026-10-10, under the accepted MVP launch plan (decision 8.7), the captured values and their records were replaced by the Lane-authored tokens above, and the Geist preview was retired (decision 8.12). The density, 44px rows and 13px type carry over; the colour values do not.
 
 ## Authoritative sources

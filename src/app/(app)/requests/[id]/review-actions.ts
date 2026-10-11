@@ -3,7 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 import { db, notifications, requests, type NewNotification } from "@/db";
 import { requireMemberOrAbove } from "@/lib/auth-guard";
 import { getRequestReviewMembers, type ReviewMember } from "@/lib/request-review-members";
@@ -14,7 +13,6 @@ import {
 } from "@/lib/request-review";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const querySchema = z.string().trim().max(100, "Use a shorter name to find a reviewer");
 const staleMessage = "This review changed while you were working. Refresh to see the latest feedback and try again.";
 
 async function reviewAccess(requestId: string, context: { orgId: string }) {
@@ -38,7 +36,7 @@ function requireActor(members: ReviewMember[], userId: string) {
 function actionFailure(error: unknown, operation: string) {
   if (error instanceof ReviewRuleError) return { error: error.message };
   console.error("[request/review] operation failed", { operation, kind: error instanceof Error ? error.name : "UnknownError" });
-  return { error: operation === "list" ? "Team members could not be loaded. Try again." : "Lane could not save this review. Your input is still here. Try again." };
+  return { error: "Lane could not save this review. Your input is still here. Try again." };
 }
 
 async function saveReviewState(requestId: string, orgId: string, previous: RequestReviewState, next: RequestReviewState, deliveries: NewNotification[]) {
@@ -102,16 +100,4 @@ export async function withdrawDesignReview(requestId: string, input: unknown, co
     const next = withdrawReviewRound(state, parsed.data, person(actor), new Date().toISOString(), actor.role === "admin" || request.createdBy === auth.userId);
     return await saveReviewState(requestId, auth.orgId, state, next, []);
   } catch (error) { return actionFailure(error, "withdraw"); }
-}
-
-export async function listDesignReviewers(requestId: string, query: string, context: { orgId: string }): Promise<{ members: ReviewPerson[] } | { error: string }> {
-  try {
-    const parsed = querySchema.safeParse(query);
-    if (!parsed.success) return { error: parsed.error.issues[0].message };
-    const { auth } = await reviewAccess(requestId, context);
-    // Verify the caller independently because the search query may exclude them.
-    requireActor(await getRequestReviewMembers(auth.orgId, { userIds: [auth.userId] }), auth.userId);
-    const members = await getRequestReviewMembers(auth.orgId, { query: parsed.data });
-    return { members: members.filter(member => member.id !== auth.userId).map(person) };
-  } catch (error) { return actionFailure(error, "list"); }
 }

@@ -1,5 +1,4 @@
 import type { RequestPriority, RequestType } from "./request-properties"
-import type { RequestStatusFilter } from "./request-workspace"
 
 export type OverviewRequest = {
   id: string
@@ -59,24 +58,6 @@ export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGroup
     if (a.key === `${grouping}:none`) return 1
     if (b.key === `${grouping}:none`) return -1
     return compareText(a.label, b.label) || compareText(a.key, b.key)
-  })
-}
-
-export function selectOverviewRequests(
-  requests: OverviewRequest[],
-  status: RequestStatusFilter,
-  query: string,
-  sort: RequestSort,
-) {
-  const search = query.trim().toLocaleLowerCase()
-  return requests.filter(request => {
-    if (status !== "all" && request.status !== status) return false
-    return !search || [request.title, request.reframedProblem, request.creatorName, request.assigneeName]
-      .filter(Boolean).join(" ").toLocaleLowerCase().includes(search)
-  }).sort((a, b) => {
-    if (sort === "title") return (a.reframedProblem ?? a.title).localeCompare(b.reframedProblem ?? b.title)
-    const difference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    return sort === "oldest" ? -difference : difference
   })
 }
 

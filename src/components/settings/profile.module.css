@@ -10,7 +10,6 @@
 .actions { display: flex; align-items: flex-start; flex-direction: column; gap: var(--space-3); }
 .disabled { margin: 0; padding: 0; border: 0; min-width: 0; }
 .disabled:disabled { opacity: .55; }
-.label { font-size: var(--text-sm); font-weight: 500; }
 .nav { display: flex; gap: var(--space-2); border-bottom: 1px solid var(--border); padding-inline: clamp(16px, 4vw, 32px); }
 .navLink { display: flex; align-items: center; min-height: var(--control-height-md); padding-inline: var(--space-3); border-bottom: 2px solid transparent; font-size: var(--text-sm); color: var(--text-secondary); }
 .navLink:hover, .navLink:focus-visible { color: var(--foreground); background: var(--surface-muted); }

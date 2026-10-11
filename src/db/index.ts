@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { attachDatabasePool } from "@vercel/functions";
 import { assertSafeDatabaseUrl } from "./hosted-database-guard";
+import { databaseTlsOptions } from "./tls-options";
 import { queryCounter } from "./query-counter";
 import * as schema from "./schema";
 
@@ -22,7 +23,6 @@ function getDb(): DbClient {
 
     const url = new URL(process.env.DATABASE_URL);
     assertSafeDatabaseUrl(process.env.DATABASE_URL);
-    const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
 
     // Supabase's transaction pooler (port 6543) needs prepare: false. A function
     // instance next to the database reconnects in milliseconds, so the pool stays
@@ -32,7 +32,7 @@ function getDb(): DbClient {
       max: 8,
       idle_timeout: 20,
       connect_timeout: 10,
-      ssl: isLocal ? false : "require",
+      ssl: databaseTlsOptions(url, process.env.DATABASE_SSL_CA),
     });
 
     // Fluid compute suspends an idle instance; the helper closes idle

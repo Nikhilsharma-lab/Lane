@@ -169,7 +169,11 @@ function NotificationsFixture() {
     onSelect={() => {}} onMarkAllRead={() => {}} onToggleRead={() => {}} onRetry={() => {}} />
 }
 
-export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & { linearPreviewAutoCollapse?: boolean }) {
+export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & {
+  linearPreviewAutoCollapse?: boolean
+  pathname?: string
+  children?: React.ReactNode
+}) {
   const [route, setRoute] = useFixtureRequestRoute(args)
   const [projects, setProjects] = useState(fixtureProjects)
   const projectName = projects.find(project => project.id === route.projectFilter)?.name
@@ -183,7 +187,7 @@ export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsO
     if (url.origin !== "https://lane.example.test" || url.pathname !== "/" || url.hash) return
     setRoute({ filter: parseRequestStatusFilter(url.searchParams.get("status") ?? undefined), projectFilter: parseRequestProjectFilter(url.searchParams.get("project")) })
   }}><RequestListViewProvider initialColumnVisibility={args.linearPreviewAutoCollapse ? { requestType: true } : undefined}><SidebarView linearPreviewAutoCollapse={args.linearPreviewAutoCollapse} previewProjectTree={args.linearPreviewAutoCollapse} workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test"
-    role={args.isGuest ? "guest" : "member"} pathname="/" statusFilter={route.filter} projectFilter={route.projectFilter} projects={projects}
+    role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} statusFilter={route.filter} projectFilter={route.projectFilter} projects={projects}
     notifications={<NotificationsFixture />} onSignOut={() => {}} onSearch={input => Promise.resolve(fixtureWorkspaceSearch(input, args.requests, projects))}
     onCreateProject={async name => {
       const existing = projects.find(project => project.name.toLocaleLowerCase() === name.toLocaleLowerCase())
@@ -192,7 +196,7 @@ export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsO
       setRoute({ filter: "all", projectFilter: project.id })
       return project
     }}>
-    <RequestsOverview {...args} {...route} projectName={projectName} />
+    {args.children ?? <RequestsOverview {...args} {...route} projectName={projectName} />}
   </SidebarView></RequestListViewProvider></div>
 }
 
@@ -585,7 +589,8 @@ export const ProjectNavigationInShell: Story = {
     await userEvent.click(navigation.getByRole("link", { name: "Website" }))
     if (window.innerWidth <= 640) await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
     await expect(canvas.getByRole("heading", { name: "Website", level: 1 })).toBeVisible()
-    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
+    // The shared layout retains the Project view; detail links stay canonical.
+    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(canvas.queryByRole("link", { name: requests[1].title })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("button", { name: "Project: Website" })).not.toBeInTheDocument()
     await userEvent.click(canvas.getByRole("button", { name: "Display" }))

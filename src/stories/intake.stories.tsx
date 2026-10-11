@@ -1,9 +1,10 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
-import { SidebarView } from "@/components/shell/sidebar-view";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
+import { IntakeLauncher } from "@/components/requests/intake-launcher";
+import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import IntakeForm from "@/app/(app)/intake/intake-form";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import {
@@ -22,6 +23,7 @@ import {
 import IntakeLoading from "@/app/(app)/intake/loading";
 import type { TriageResult } from "@/lib/ai/triage";
 import { fillMetricImpact, metricImpact, verifiedImpact } from "./fixtures/request-impact";
+import requestsMeta, { RequestsShellFixture } from "./requests.stories";
 
 const requestSource = {
   expectedImpact: metricImpact,
@@ -221,6 +223,7 @@ export const LegacyDraftPreserved: Story = {
       uncertainty: legacySource.uncertainty,
     });
     await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
+    await waitForCreatedNotification(canvasElement);
     await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
     await expect(saveRequest).toHaveBeenCalledTimes(1);
   },
@@ -624,6 +627,22 @@ export const QueuedAttachments: Story = {
   },
 };
 
+export const AttachmentRemovalFocus: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
+      new File(["First"], "first.txt", { type: "text/plain" }),
+      new File(["Second"], "second.txt", { type: "text/plain" }),
+    ]);
+    await userEvent.click(canvas.getByRole("button", { name: "Remove first.txt" }));
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Remove second.txt" })).toHaveFocus());
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Attach files" })).toHaveFocus());
+    await expect(canvas.queryByRole("list", { name: "Files ready to upload" })).not.toBeInTheDocument();
+    await expect(prepareAttachmentUpload).not.toHaveBeenCalled();
+  },
+};
+
 async function reachAttachmentSave(canvasElement: HTMLElement) {
   const canvas = await fillRequest(canvasElement);
   await userEvent.upload(
@@ -694,6 +713,17 @@ async function waitForButtonLabelsToSettle(canvasElement: HTMLElement) {
   await waitFor(() =>
     expect(canvasElement.querySelector('[data-motion-pop-id][aria-hidden="true"]')).toBeNull(),
   );
+}
+
+async function waitForCreatedNotification(canvasElement: HTMLElement) {
+  const page = within(canvasElement.ownerDocument.body);
+  const notification = (await page.findByRole("button", { name: "Dismiss notification" })).closest("li")!;
+  // MotionValue fades do not appear in document.getAnimations(). Wait for the
+  // notification to be opaque before Storybook measures its text contrast.
+  await waitFor(() => {
+    expect(within(notification).getByText("Request created")).toBeVisible();
+    expect(getComputedStyle(notification).opacity).toBe("1");
+  });
 }
 
 export const LinkToggle: Story = {
@@ -837,27 +867,69 @@ export const LeaveUploadRecovery: Story = {
 export const WorkspaceIntake: Story = {
   parameters: { workspaceShell: true },
   render: (args) => (
-    <SidebarView
-      notifications={null}
-      workspaceName="Lane Studio"
-      fullName="Nikhil Sharma"
-      email="nikhil@example.test"
-      role="member"
+    <NewRequestProvider context={args.context} draftOwnerId={args.draftOwnerId}>
+    <RequestsShellFixture
+      {...requestsMeta.args}
+      linearPreviewAutoCollapse
       pathname="/intake"
-      statusFilter="all"
-      onSignOut={() => {}}
     >
-      <IntakeForm {...args} />
-    </SidebarView>
+      <IntakeLauncher />
+    </RequestsShellFixture>
+    </NewRequestProvider>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await visible(
-      canvas.getByRole("heading", { name: "New Request", level: 1 }),
-    );
-    await expect(
-      canvasElement.ownerDocument.documentElement.scrollWidth,
-    ).toBeLessThanOrEqual(window.innerWidth + 1);
+    await visible(canvas.getByRole("heading", { name: "Start a new Request" }));
+    await expect(canvas.getByRole("link", { name: "Create Request" })).toHaveAttribute("aria-haspopup", "dialog");
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
+    await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1);
+  },
+};
+
+export const WorkspaceActionsRemainVisible: Story = {
+  ...WorkspaceIntake,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("link", { name: "Create Request" }));
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "New Request" });
+    const canvas = within(dialog);
+    await userEvent.type(await canvas.findByRole("textbox", { name: "Request title" }), requestSource.title);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
+    await fillMetricImpact(canvas);
+    await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
+    const relatedLink = canvas.getByRole("textbox", { name: "Related link" });
+    await userEvent.type(relatedLink, "https://example.test/customer-feedback");
+    await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
+      new File(["evidence"], "Customer-feedback.pdf", { type: "application/pdf" }),
+      new File(["image"], "Long-customer-interview-screenshot.png", { type: "image/png" }),
+    ]);
+    const review = canvas.getByRole("button", { name: "Review Request" });
+    const footer = review.closest("footer")!;
+    let scroller: HTMLElement | null = relatedLink.parentElement;
+    while (scroller && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+    // Narrow viewports must scroll; wider ones can fit the complete form.
+    if (window.innerWidth <= 640) await expect(scroller).not.toBeNull();
+    if (scroller) {
+      for (const position of [0, scroller.scrollHeight / 2, scroller.scrollHeight]) {
+        scroller.scrollTop = position;
+        scroller.dispatchEvent(new Event("scroll"));
+        await waitFor(() => {
+          const bounds = review.getBoundingClientRect();
+          expect(bounds.top).toBeGreaterThanOrEqual(0);
+          expect(bounds.bottom).toBeLessThanOrEqual(window.innerHeight);
+        });
+      }
+      scroller.scrollTop = 0;
+      relatedLink.focus();
+      await waitFor(() => {
+        expect(relatedLink).toHaveFocus();
+        expect(relatedLink.getBoundingClientRect().top).toBeGreaterThanOrEqual(scroller!.getBoundingClientRect().top);
+        expect(relatedLink.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top);
+      });
+    }
+    await userEvent.click(review);
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
+    await expect(runTriage).toHaveBeenCalledTimes(1);
+    await expect(saveRequest).not.toHaveBeenCalled();
   },
 };
 
@@ -948,6 +1020,7 @@ export const ExpectedMetricImpactReview: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
     await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
+    await waitForCreatedNotification(canvasElement);
   },
 };
 
@@ -970,6 +1043,7 @@ export const ExpectedVerifiedImpactReview: Story = {
     await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))?.source.expectedImpact).toEqual(verifiedImpact);
     await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
     await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
+    await waitForCreatedNotification(canvasElement);
   },
 };
 

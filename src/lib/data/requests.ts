@@ -5,8 +5,6 @@ import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { accessibleProjectsWhere } from "@/lib/project-access"
-import type { RequestProjectFilter } from "@/lib/request-workspace"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -25,8 +23,6 @@ export const MAX_REQUESTS_QUERY = 200
 export const DONE_PAGE_SIZE = 50
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export type RequestProjectScope = { unavailable: boolean; name?: string }
-
 /** One row of the list query, as the select below infers it. */
 export type RequestListRow = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
 
@@ -42,20 +38,6 @@ export type RequestDetailData = {
   request: RequestDetail
   comments: RequestComment[]
   attachments: RequestAttachment[]
-}
-
-/**
- * Resolves the Project filter of a list URL. "all" and "none" need no lookup;
- * a malformed id is unavailable without a query; a well-formed id must name a
- * Project the member may see (accessibleProjectsWhere carries the guest rule).
- */
-export async function loadProjectScope(auth: MemberAuth, projectFilter: RequestProjectFilter): Promise<RequestProjectScope> {
-  if (projectFilter === "all" || projectFilter === "none") return { unavailable: false }
-  if (!UUID_RE.test(projectFilter)) return { unavailable: true }
-  const [project] = await db.select({ id: projects.id, name: projects.name }).from(projects)
-    .where(and(accessibleProjectsWhere(auth), eq(projects.id, projectFilter)))
-    .limit(1)
-  return { unavailable: !project, name: project?.name }
 }
 
 /** The list select, scoped to the workspace and (for a guest) to Requests they created. */
@@ -113,8 +95,8 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
 /**
  * The next page of Done Requests older than `beforeId` (the oldest Done row the
  * client shows), newest first, in one statement. The cursor row is read back
- * inside the same workspace, so its database timestamp is compared at full
- * precision and an id from another workspace yields no rows.
+ * under the same workspace and guest visibility rules, so its database
+ * timestamp is compared at full precision and an invisible id yields no rows.
  */
 export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string): Promise<{ rows: RequestListRow[]; hasOlderDone: boolean }> {
   if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderDone: false }
@@ -123,7 +105,11 @@ export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string):
     auth,
     and(
       eq(requests.status, "done"),
-      sql`(${requests.createdAt}, ${requests.id}) < (${db.select({ createdAt: cursor.createdAt, id: cursor.id }).from(cursor).where(and(eq(cursor.id, beforeId), eq(cursor.orgId, auth.orgId)))})`,
+      sql`(${requests.createdAt}, ${requests.id}) < (${db.select({ createdAt: cursor.createdAt, id: cursor.id }).from(cursor).where(and(
+        eq(cursor.id, beforeId),
+        eq(cursor.orgId, auth.orgId),
+        auth.role === "guest" ? eq(cursor.createdBy, auth.userId) : undefined,
+      ))})`,
     )!,
     DONE_PAGE_SIZE + 1,
   )

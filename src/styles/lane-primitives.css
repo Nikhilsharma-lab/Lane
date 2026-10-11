@@ -1,8 +1,9 @@
 /* Lane visual primitives: colour, geometry, type and spacing roles for the dense
  * product shell. Authored for Lane on 2026-10-10 as OKLCH ramps on one cool neutral
  * axis (hue 255) with a green-teal accent (hue 162); status and Project hues are
- * generic families. Every text-on-surface pair here passes 4.5:1 in both modes (the
- * generator asserts it). Three contexts share the roles: content, sidebar and the
+ * generic families. Dark neutrals and primary actions were revised against the
+ * supplied Linear screenshot on 2026-10-11; readable text contrast is retained.
+ * Three contexts share the roles: content, sidebar and the
  * floating menu. Activated by data-visual-system="lane" on <html>; the mapping into
  * Arc's semantic hooks lives in lane-arc-theme.css. */
 :root[data-visual-system="lane"] {
@@ -65,37 +66,45 @@
 }
 
 :root[data-visual-system="lane"][data-theme="dark"] {
-  --lane-content-bg-base: oklch(0.19 0.006 255);
-  --lane-content-bg-base-hover: oklch(0.225 0.007 255);
-  --lane-content-bg-shade: oklch(0.215 0.007 255);
-  --lane-content-bg-shade-hover: oklch(0.235 0.008 255);
-  --lane-content-bg-focus: oklch(0.26 0.008 255);
-  --lane-content-bg-border-faint: oklch(0.235 0.007 255);
-  --lane-content-bg-border: oklch(0.27 0.008 255);
-  --lane-content-bg-border-solid: oklch(0.29 0.008 255);
-  --lane-content-bg-border-strong: oklch(0.6 0.01 255);
+  --lane-content-bg-base: #141415;
+  --lane-content-bg-base-hover: #1f2022;
+  --lane-content-bg-shade: #202122;
+  --lane-content-bg-shade-hover: #28292b;
+  --lane-content-bg-focus: #2a2b2d;
+  --lane-content-bg-border-faint: #232426;
+  --lane-content-bg-border: #303134;
+  --lane-content-bg-border-solid: #3a3b3e;
+  --lane-content-bg-border-strong: #77797e;
   --lane-content-bg-selected: oklch(0.27 0.04 162);
   --lane-content-bg-selected-border: oklch(0.36 0.06 162);
-  --lane-content-label-title: oklch(0.98 0.004 255);
-  --lane-content-label-base: oklch(0.9 0.006 255);
-  --lane-content-label-muted: oklch(0.68 0.01 255);
+  --lane-content-label-title: #e5e6e9;
+  --lane-content-label-base: #d0d2d6;
+  --lane-content-label-muted: #9c9ea3;
   --lane-content-label-link: oklch(0.78 0.13 162);
   --lane-content-focus-color: oklch(0.74 0.13 162);
   --lane-content-control-primary: oklch(0.72 0.14 162);
   --lane-content-control-primary-label: oklch(0.17 0.02 162);
-  --lane-content-control-secondary: oklch(0.22 0.007 255);
-  --lane-content-control-secondary-hover: oklch(0.26 0.008 255);
-  --lane-sidebar-bg-base: oklch(0.16 0.006 255);
-  --lane-sidebar-bg-base-hover: oklch(0.2 0.007 255);
-  --lane-sidebar-bg-shade-hover: oklch(0.19 0.007 255);
-  --lane-menu-bg-base: oklch(0.235 0.007 255);
-  --lane-menu-bg-base-hover: oklch(0.275 0.008 255);
-  --lane-menu-bg-focus: oklch(0.3 0.008 255);
-  --lane-menu-bg-border: oklch(0.31 0.008 255);
-  --lane-menu-bg-border-faint: oklch(0.27 0.008 255);
-  --lane-menu-bg-border-strong: oklch(0.58 0.01 255);
-  --lane-menu-label-base: oklch(0.92 0.006 255);
-  --lane-menu-label-muted: oklch(0.7 0.01 255);
+  --lane-content-control-secondary: #2a2b2d;
+  --lane-content-control-secondary-hover: #343538;
+  --lane-sidebar-bg-base: #0c0c0d;
+  --lane-sidebar-bg-base-hover: #1a1a1b;
+  --lane-sidebar-bg-shade-hover: #161617;
+  --lane-menu-bg-base: #1a1a1b;
+  --lane-menu-bg-base-hover: #2a2b2d;
+  --lane-menu-bg-focus: #343538;
+  --lane-menu-bg-border: #343538;
+  --lane-menu-bg-border-faint: #292a2c;
+  --lane-menu-bg-border-strong: #77797e;
+  --lane-menu-label-base: #e5e6e9;
+  --lane-menu-label-muted: #9c9ea3;
+  /* Dark Request surfaces matched to the supplied 2026-10-11 reference.
+   * Primary actions are separate from Lane's green selection/status roles. */
+  --lane-action-primary: #5e6ad2;
+  --lane-action-primary-hover: #5964c7;
+  --lane-action-primary-pressed: #4f59b7;
+  --lane-action-primary-label: #ffffff;
+  --lane-content-label-placeholder: #85868a;
+  --lane-overlay-background: rgb(0 0 0 / .45);
   --lane-content-blue-base: oklch(0.72 0.15 250);
   --lane-content-blue-mid: oklch(0.66 0.14 250);
   --lane-content-blue-text: oklch(0.8 0.12 250);

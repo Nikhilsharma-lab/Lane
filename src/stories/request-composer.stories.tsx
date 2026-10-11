@@ -291,6 +291,57 @@ export const LongReviewKeepsActionsVisible: Story = {
   },
 };
 
+export const TriageImpactErrorOpensDisclosure: Story = {
+  beforeEach: () => {
+    mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the expected impact before reviewing this Request." } });
+  },
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    await fillComposer(composer);
+    const disclosure = composer.getByRole("button", { name: "Expected impact" });
+    await userEvent.click(disclosure);
+    await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    await expect(composer.queryByRole("region", { name: "Expected impact" })).not.toBeInTheDocument();
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    const impact = await composer.findByRole("region", { name: "Expected impact" });
+    await waitFor(() => expect(impact).toHaveFocus());
+    await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    await expect(within(impact).getByText("Check the expected impact before reviewing this Request.")).toBeVisible();
+    await expect(within(impact).getByRole("textbox", { name: "Metric" })).toHaveValue(metricImpact.metric);
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
+    await expect(runTriage).toHaveBeenCalledTimes(2);
+    await expect(saveRequest).not.toHaveBeenCalled();
+  },
+};
+
+export const SaveImpactErrorOpensDisclosure: Story = {
+  beforeEach: () => {
+    mocked(saveRequest).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Add the expected impact, then review this Request again before creating it." } });
+  },
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Expected impact" }));
+    await expect(composer.getByRole("button", { name: "Expected impact" })).toHaveAttribute("aria-expanded", "false");
+    await expect(composer.queryByRole("region", { name: "Expected impact" })).not.toBeInTheDocument();
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    await composer.findByRole("textbox", { name: "Request title" });
+    const impact = await composer.findByRole("region", { name: "Expected impact" });
+    await waitFor(() => expect(impact).toHaveFocus());
+    await expect(composer.getByRole("button", { name: "Expected impact" })).toHaveAttribute("aria-expanded", "true");
+    await expect(within(impact).getByText("Add the expected impact, then review this Request again before creating it.")).toBeVisible();
+    await expect(within(impact).getByRole("spinbutton", { name: "Target value" })).toHaveValue(metricImpact.target);
+    await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
+    await expect(runTriage).toHaveBeenCalledTimes(2);
+    await expect(saveRequest).toHaveBeenCalledTimes(1);
+  },
+};
+
 export const OptionalRequestProperties: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
@@ -442,6 +493,47 @@ export const FailedUploadStaysRecoverable: Story = {
   },
 };
 
+export const FiveFailedAttachmentsRemainReachable: Story = {
+  parameters: { viewport: { defaultViewport: "mobile" } },
+  play: async ({ canvasElement }) => {
+    const { page, composer, dialog, trigger } = await openComposer(canvasElement);
+    await fillComposer(composer);
+    const files = Array.from({ length: 5 }, (_, index) => new File([`Customer interview ${index + 1}`], `customer-interview-${index + 1}.txt`, { type: "text/plain" }));
+    await userEvent.upload(composer.getByLabelText("Choose Request files"), files);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    const heading = await composer.findByRole("heading", { name: "Some files weren’t uploaded" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    const uploads = composer.getByRole("list", { name: "Request file uploads" });
+    await expect(within(uploads).getAllByRole("listitem")).toHaveLength(5);
+    await expect(prepareAttachmentUpload).toHaveBeenCalledTimes(5);
+    const skip = composer.getByRole("button", { name: "Skip failed files" });
+    await expect(skip).toBeEnabled();
+    let scroller: HTMLElement | null = uploads.parentElement;
+    await waitFor(() => {
+      scroller = uploads.parentElement;
+      while (scroller && scroller !== dialog && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+      expect(scroller).not.toBeNull();
+      expect(scroller).not.toBe(dialog);
+    });
+    scroller!.scrollTop = 0;
+    for (let step = 0; step < 16 && document.activeElement !== skip; step += 1) await userEvent.tab();
+    await waitFor(() => {
+      expect(skip).toHaveFocus();
+      const bounds = skip.getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(window.innerHeight);
+    });
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await expect(saveRequest).toHaveBeenCalledTimes(1);
+    const openRequest = await page.findByRole("button", { name: "Open Request" });
+    await waitFor(() => expect(getComputedStyle(openRequest.closest("li")!).opacity).toBe("1"));
+    await expect(getRouter().push).not.toHaveBeenCalled();
+  },
+};
+
 export const ActiveRetryCannotDismiss: Story = {
   play: async ({ canvasElement }) => {
     const { composer, dialog } = await openComposer(canvasElement);
@@ -515,7 +607,8 @@ export const MobileComposerReturnsToNavigation: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
     await waitFor(() => expect(opener).toHaveFocus());
     await userEvent.keyboard("{Enter}");
-    await expect(await page.findByRole("dialog", { name: "Navigation" })).toBeVisible();
+    const reopenedNavigation = await page.findByRole("dialog", { name: "Navigation" });
+    await waitFor(() => expect(reopenedNavigation).toBeVisible());
   },
 };
 
@@ -528,16 +621,35 @@ export const StandaloneLinkFallback: Story = {
 
 export const DirectIntakeEntry: Story = {
   parameters: { nextjs: { appDirectory: true, navigation: { pathname: "/intake", query: {} } } },
-  render: () => <NewRequestProvider context={context} draftOwnerId={draftOwnerId}><main className="p-6"><NewRequestLink>New Request</NewRequestLink><Input id="intake-title" label="Existing Intake title" /></main></NewRequestProvider>,
+  render: () => <NewRequestProvider context={context} draftOwnerId={draftOwnerId}><main className="p-6"><NewRequestLink>Create Request</NewRequestLink></main></NewRequestProvider>,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const link = canvas.getByRole("link", { name: "New Request" });
-    await expect(link).not.toHaveAttribute("aria-haspopup");
+    const page = within(canvasElement.ownerDocument.body);
+    const link = within(canvasElement).getByRole("link", { name: "Create Request" });
+    await expect(page.queryByRole("textbox", { name: "Request title" })).not.toBeInTheDocument();
+    await expect(link).toHaveAttribute("aria-haspopup", "dialog");
     await userEvent.click(link);
-    await expect(within(document.body).queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
-    link.focus();
+    const dialog = await page.findByRole("dialog", { name: "New Request" });
+    await waitFor(() => expect(within(dialog).getByRole("textbox", { name: "Request title" })).toHaveFocus());
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(link).toHaveFocus());
     await userEvent.keyboard("c");
-    await expect(canvas.getByRole("textbox", { name: "Existing Intake title" })).toHaveFocus();
+    await waitFor(() => expect(page.getByRole("textbox", { name: "Request title" })).toHaveFocus());
+  },
+};
+
+export const CompactImpactValidation: Story = {
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    const impact = composer.getByRole("button", { name: "Expected impact" });
+    await expect(impact).toHaveAttribute("aria-expanded", "false");
+    await expect(composer.queryByRole("textbox", { name: /^Metric/ })).not.toBeInTheDocument();
+    await userEvent.type(composer.getByRole("textbox", { name: "Request title" }), source.title);
+    await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(impact).toHaveAttribute("aria-expanded", "true"));
+    await waitFor(() => expect(composer.getByRole("textbox", { name: /^Metric/ })).toHaveFocus());
+    await expect(runTriage).not.toHaveBeenCalled();
   },
 };
 

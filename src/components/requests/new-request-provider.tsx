@@ -2,11 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
-import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
 import { NewRequestContext } from "./new-request-context";
 import { usePendingMutationWriter } from "./pending-mutations-provider";
 import type { OverviewRequest } from "@/lib/request-overview";
@@ -32,7 +32,6 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const router = useRouter();
   const { toast } = useToastStack();
   const insert = usePendingMutationWriter()?.insert;
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const projectFilter = parseRequestProjectFilter(searchParams.get("project"));
   const projectId = projectIdOrNull(projectFilter);
@@ -46,13 +45,8 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const busy = useRef(false);
   const completed = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
-  const directEntry = pathname === "/intake";
 
   const openComposer = useCallback((element?: HTMLElement) => {
-    if (directEntry) {
-      document.getElementById("intake-title")?.focus();
-      return;
-    }
     trigger.current = element ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     // A retained composer belongs to its draft, even after navigating to a
     // different Project. Only a new generation inherits the current location.
@@ -64,10 +58,15 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       setGeneration((value) => value + 1);
       completed.current = false;
     }
-    setFormHost(current => current ?? document.createElement("div"));
+    setFormHost(current => {
+      if (current) return current;
+      const host = document.createElement("div");
+      host.className = "flex min-h-0 min-w-0 flex-1 flex-col";
+      return host;
+    });
     setHasOpened(true);
     setOpen(true);
-  }, [directEntry, hasOpened, projectFilter, projectId, statusFilter]);
+  }, [hasOpened, projectFilter, projectId, statusFilter]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -100,14 +99,14 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
 
   const value = useMemo(() => ({ openComposer }), [openComposer]);
   return (
-    <NewRequestContext.Provider value={directEntry ? null : value}>
+    <NewRequestContext.Provider value={value}>
       {children}
-      {hasOpened && !directEntry && formHost && <>
+      {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
-            Arc drawer closes. Its overlay and focus scope still unmount normally. */}
+            Arc dialog closes. Its overlay and focus scope still unmount normally. */}
         {createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} presentation="dialog" active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
-        <Drawer open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
-          <DrawerContent title="New Request" description="Describe your Request and the result you expect."
+        <Dialog open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
+          <DialogContent title="New Request" layout="composer" aria-describedby={undefined}
             onOpenAutoFocus={event => { event.preventDefault(); document.getElementById("intake-title")?.focus(); }}
             onCloseAutoFocus={event => {
               event.preventDefault();
@@ -127,9 +126,13 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
                 event.preventDefault();
               }
             }}>
-            <div ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
-          </DrawerContent>
-        </Drawer>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col" ref={element => {
+              if (element && formHost.parentElement !== element) {
+                element.appendChild(formHost);
+              }
+            }} />
+          </DialogContent>
+        </Dialog>
       </>}
     </NewRequestContext.Provider>
   );

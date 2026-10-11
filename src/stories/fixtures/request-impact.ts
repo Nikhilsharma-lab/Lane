@@ -19,6 +19,8 @@ export const verifiedImpact = {
 } satisfies ExpectedImpact;
 
 export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
+  const disclosure = canvas.queryByRole("button", { name: "Expected impact" });
+  if (disclosure?.getAttribute("aria-expanded") === "false") await userEvent.click(disclosure);
   await userEvent.type(canvas.getByRole("textbox", { name: /^Metric/ }), metricImpact.metric);
   await userEvent.type(canvas.getByRole("spinbutton", { name: /^Target value/ }), String(metricImpact.target));
   await userEvent.type(canvas.getByRole("textbox", { name: /^Unit/ }), metricImpact.unit);
