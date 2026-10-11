@@ -4,11 +4,13 @@ import { SidebarView } from "@/components/shell/sidebar-view";
 import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useState, type ComponentProps } from "react";
-import { clearUnfinishedUploads, readUnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
 import IntakeForm from "@/app/(app)/intake/intake-form";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
+import { PendingMutationsProvider, usePendingMutations } from "@/components/requests/pending-mutations-provider";
+import type { OverviewRequest } from "@/lib/request-overview";
 import {
   clearIntakeDraft,
   intakeDraftScope,
@@ -901,15 +903,18 @@ function UnmountableIntake(props: ComponentProps<typeof IntakeForm>) {
 
 let finishFirstPrepare: () => void = () => {};
 
+/** The first file stays in preparation until the story lets it fail. */
+function holdFirstPrepare() {
+  mocked(prepareAttachmentUpload).mockImplementationOnce(
+    () => new Promise((resolve) => {
+      finishFirstPrepare = () => resolve({ success: false, error: { code: "storage_unavailable", message: "Lane could not start this upload. The Request is safe. Try the file again." } });
+    }),
+  );
+}
+
 export const BackWhileUploadingFinishesTheRest: Story = {
   render: (args) => <UnmountableIntake {...args} />,
-  beforeEach: () => {
-    mocked(prepareAttachmentUpload).mockImplementationOnce(
-      () => new Promise((resolve) => {
-        finishFirstPrepare = () => resolve({ success: false, error: { code: "storage_unavailable", message: "Lane could not start this upload. The Request is safe. Try the file again." } });
-      }),
-    );
-  },
+  beforeEach: holdFirstPrepare,
   play: async ({ canvasElement }) => {
     const canvas = await fillRequest(canvasElement);
     await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
@@ -930,6 +935,84 @@ export const BackWhileUploadingFinishesTheRest: Story = {
     await waitFor(() => expect(prepareAttachmentUpload).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull());
     await expect(getRouter().push).not.toHaveBeenCalled();
+  },
+};
+
+// Back while the save is pending: the Request is still created and joins the
+// list through the overlay, but the composer that was left neither toasts nor
+// navigates, and its files still upload, recorded from the first one.
+const createdRow: OverviewRequest = { id: "00000000-0000-4000-8000-000000000123", requestNumber: 3, title: requestSource.title, reframedProblem: null, status: "open", createdAt: "2026-10-11T09:00:00.000Z", creatorName: null, assigneeName: null, assignedTo: null, projectId: null, projectName: null, requestType: null, priority: "none" };
+
+/** The rows the overlay adds to the list, as the Requests list would show them. */
+function ListedRequestsFixture() {
+  const rows = usePendingMutations()?.apply<OverviewRequest>([]) ?? [];
+  return <ul aria-label="Listed Requests fixture">{rows.map((row) => <li key={row.id}>{row.title}</li>)}</ul>;
+}
+
+let finishSave: () => void = () => {};
+
+function holdSave() {
+  mocked(saveRequest).mockImplementationOnce(() => new Promise((resolve) => {
+    finishSave = () => resolve({ success: true, requestId: createdRow.id, created: createdRow });
+  }));
+}
+
+async function backWhileSaving(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
+  await canvas.findByRole("button", { name: "Creating Request…" });
+  await userEvent.click(canvas.getByRole("button", { name: "Back navigation fixture" }));
+  await waitFor(() => expect(canvas.queryByRole("button", { name: "Creating Request…" })).not.toBeInTheDocument());
+  finishSave();
+  const listed = canvas.getByRole("list", { name: "Listed Requests fixture" });
+  await waitFor(() => expect(within(listed).getByText(requestSource.title)).toBeInTheDocument());
+}
+
+async function expectStayedWhereBackWent(canvasElement: HTMLElement) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await expect(getRouter().push).not.toHaveBeenCalled();
+  await expect(within(canvasElement.ownerDocument.body).queryByText("Request created")).not.toBeInTheDocument();
+}
+
+export const BackWhileSavingStaysWhereBackWent: Story = {
+  render: (args) => <PendingMutationsProvider><UnmountableIntake {...args} /><ListedRequestsFixture /></PendingMutationsProvider>,
+  beforeEach: () => {
+    restoreReview(problem);
+    holdSave();
+  },
+  play: async ({ canvasElement }) => {
+    await backWhileSaving(canvasElement);
+    await expectStayedWhereBackWent(canvasElement);
+    await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))).toBeNull();
+  },
+};
+
+export const BackWhileSavingWithFilesKeepsTheRecord: Story = {
+  render: BackWhileSavingStaysWhereBackWent.render,
+  beforeEach: () => {
+    holdSave();
+    holdFirstPrepare();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = await fillRequest(canvasElement);
+    await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
+      new File(["Evidence from a customer interview."], "interview-notes.txt", { type: "text/plain" }),
+      new File(["Notes from support."], "support-notes.md", { type: "text/markdown" }),
+    ]);
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    await backWhileSaving(canvasElement);
+    // The upload screen never rendered, yet the first upload starts with both
+    // files recorded: a reload now would name them. This document's own record
+    // is not a reload's.
+    const scope = intakeDraftScope(draftOwnerId, context.orgId);
+    await waitFor(() => expect(prepareAttachmentUpload).toHaveBeenCalledTimes(1));
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)?.files.map((file) => file.name)).toEqual(["interview-notes.txt", "support-notes.md"]);
+    await expect(readLostUploads(window.sessionStorage, scope)).toBeNull();
+    finishFirstPrepare();
+    // The next file still starts, and the record goes once the loop ends.
+    await waitFor(() => expect(prepareAttachmentUpload).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull());
+    await expectStayedWhereBackWent(canvasElement);
   },
 };
 

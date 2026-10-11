@@ -154,6 +154,9 @@ function recoveryHarness(files: Attachment[]) {
       files: files.map(({ key, file, attachmentId }) => ({ key, name: file?.name ?? key, attachmentId })),
     } as UploadsRecord | null,
     busy: [] as boolean[],
+    // Created rows handed to the list's overlay.
+    listed: [] as string[],
+    onSave: undefined as (() => void) | undefined,
     onUpload: undefined as (() => void) | undefined,
   };
   const operationInFlight = { current: false };
@@ -171,13 +174,14 @@ function recoveryHarness(files: Attachment[]) {
     reservations: { current: new Map<string, string>() },
     onBusyChange: (busy: boolean) => { state.busy.push(busy); },
     setMutationBusy: () => {},
-    source: {}, triage: { classification: "problem" }, token: "triage-token",
+    source: { title: "" }, triage: { classification: "problem" }, token: "triage-token",
     draftCleared: { current: false }, draftScope: "scope",
     createdRow: { current: null },
     window: { sessionStorage: {} }, clearIntakeDraft: () => {},
     // Plan item 2.3: the overlay insert and the unfinished-uploads record are
     // browser boundaries; the handlers only call them.
-    showCreatedInList: () => {}, refreshClerkToken: async () => {},
+    showCreatedInList: (created?: { id: string }) => { if (created) state.listed.push(created.id); },
+    refreshClerkToken: async () => {},
     readUnfinishedUploads: () => state.record,
     writeUnfinishedUploads: (_storage: unknown, _scope: string, record: UploadsRecord) => {
       state.record = record.files.length ? record : null;
@@ -191,7 +195,11 @@ function recoveryHarness(files: Attachment[]) {
     setAttachments: (update: (files: Attachment[]) => Attachment[]) => {
       state.files = update(state.files);
     },
-    saveRequest: async () => { state.saveCalls++; return { success: true, requestId: "saved-request" }; },
+    saveRequest: async () => {
+      state.saveCalls++;
+      state.onSave?.();
+      return { success: true, requestId: "saved-request", created: { id: "saved-request" } };
+    },
     prepareAttachmentUpload: async ({ fileName }: { fileName: string }) => ({
       success: true, attachmentId: `reservation-${fileName.split(".")[0]}`, signedUrl: "https://test.invalid/upload", mimeType: "image/png",
     }),
@@ -419,6 +427,68 @@ describe("leaving the upload screen (plan item 2.3, S3)", () => {
     expect(harness.state.record).toBeNull();
     expect(harness.state.navigations).toEqual([]);
     expect(harness.state.busy).toEqual([true]);
+  });
+
+  it("Back while the save is pending lists the Request but neither toasts nor navigates", async () => {
+    const harness = recoveryHarness([]);
+    harness.state.stage = "framing";
+    harness.state.record = null;
+    harness.state.onSave = () => harness.unmount();
+    await harness.confirm();
+    await settled();
+    expect(harness.state.saveCalls).toBe(1);
+    expect(harness.state.listed).toEqual(["saved-request"]);
+    // finishCreatedRequest owns the toast and the push; it never runs.
+    expect(harness.state.navigations).toEqual([]);
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.busy).toEqual([true]);
+    expect(harness.operationInFlight.current).toBe(false);
+  });
+
+  it("Back while the save is pending with files records them before the first upload, and the uploads go on", async () => {
+    const harness = recoveryHarness([queued("a"), queued("b")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    // The upload screen never renders, so its effect never writes the record.
+    harness.state.record = null;
+    harness.state.onSave = () => harness.unmount();
+    const records: unknown[] = [];
+    // Each upload sees the record as a reload would.
+    harness.state.onUpload = () => records.push(snapshot(harness.state.record));
+    await harness.confirm();
+    await settled();
+    expect(harness.state.uploadCalls).toBe(2);
+    expect(records).toEqual([
+      { requestId: "saved-request", title: "", files: [{ key: "a", name: "a.png", attachmentId: "reservation-a" }, { key: "b", name: "b.png", attachmentId: null }] },
+      { requestId: "saved-request", title: "", files: [{ key: "b", name: "b.png", attachmentId: "reservation-b" }] },
+    ]);
+    expect(harness.state.listed).toEqual(["saved-request"]);
+    // Every file was added: no record or reservation is left, and nothing navigates.
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.cleanupIds).toEqual([]);
+    expect(harness.state.navigations).toEqual([]);
+    expect(harness.state.busy).toEqual([true]);
+    expect(harness.operationInFlight.current).toBe(false);
+  });
+
+  it("Back while the save is pending with a file that fails clears its reservation and the record when the loop ends", async () => {
+    const harness = recoveryHarness([queued("a")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    harness.state.rejectFinalize = true;
+    harness.state.record = null;
+    harness.state.onSave = () => harness.unmount();
+    const records: unknown[] = [];
+    harness.state.onUpload = () => records.push(snapshot(harness.state.record));
+    await harness.confirm();
+    await settled();
+    expect(records).toEqual([
+      { requestId: "saved-request", title: "", files: [{ key: "a", name: "a.png", attachmentId: "reservation-a" }] },
+    ]);
+    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
+    expect(harness.state.recordCleared).toBe(1);
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.navigations).toEqual([]);
   });
 
   it.each(["leave", "unmount"] as const)("%s settles at once when no upload is running", async (action) => {

@@ -983,13 +983,27 @@ export default function IntakeForm({
       draftCleared.current = true;
       clearIntakeDraft(window.sessionStorage, draftScope);
 
+      // Back while the save was pending unmounted the composer. The row is in
+      // the list; no toast or navigation pulls the person from where Back went.
       if (attachments.length === 0) {
-        finishCreatedRequest(result.requestId);
+        if (!uploadsUnattended()) finishCreatedRequest(result.requestId);
         return;
       }
 
       setStage("uploading");
       uploadsRequest.current = result.requestId;
+      // The upload screen's effect keeps this record, but a composer unmounted
+      // during the save never renders it. Start the record before any upload,
+      // so a reload mid-upload still names the files.
+      if (!leftUploadScreen.current) {
+        writeUnfinishedUploads(window.sessionStorage, draftScope, {
+          requestId: result.requestId,
+          title: source.title,
+          files: attachments
+            .filter((attachment) => attachment.status !== "uploaded")
+            .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
+        });
+      }
       const results: boolean[] = [];
       for (const attachment of attachments) {
         // Only Leave page stops the uploads; an unmounted composer's go on.
