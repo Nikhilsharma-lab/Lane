@@ -215,6 +215,25 @@ export const FirstRequestInPlace: Story = {
   },
 }
 
+/** /?status=done on an empty workspace: the welcome hides the status control, so
+ * the view drops the status and the first Request (Open) lands in the "all" view. */
+export const FilteredEmptyWorkspace: Story = {
+  parameters: { nextjs: { navigation: { pathname: "/", query: { status: "done" } } } },
+  render: () => <Workspace role="admin" outside={<InsertFirstRequest />}>
+    <RequestsOverview requests={[]} isGuest={false} canInvite context={context} />
+  </Workspace>,
+  play: async ({ canvasElement }) => {
+    const main = mainOf(canvasElement)
+    await expectWelcome(canvasElement, "admin")
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Insert first Request" }))
+    await within(main).findByRole("link", { name: firstRequest.title }, { timeout: 3000 })
+    await expect(welcomeOf(main)).toBeNull()
+    await expect(within(main).queryByText("No matching Requests")).not.toBeInTheDocument()
+    await expect(within(main).queryByRole("button", { name: "Remove Status: Done" })).not.toBeInTheDocument()
+    await expect(main.querySelector('[aria-label="Active filters"]')).toBeNull()
+  },
+}
+
 /** Renders the list skeleton, then swaps in the empty workspace from a control outside <main>. */
 function SkeletonToWelcomeSwap() {
   const [loaded, setLoaded] = useState(false)

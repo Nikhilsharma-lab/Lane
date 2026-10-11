@@ -81,6 +81,15 @@ export function withListContext(view: ListViewState, next: Partial<RequestListCo
   return { ...view, status, project, pagination: { ...view.pagination, pageIndex: 0 } }
 }
 
+/**
+ * Plan item 2.1: a workspace with no Requests shows the welcome and no status
+ * control, so it keeps no status view. Otherwise /?status=done would turn the
+ * first Request (Open) into "No matching Requests". The Project filter stays.
+ */
+export function withEmptyWorkspaceStatus(view: ListViewState, workspaceEmpty: boolean): ListViewState {
+  return workspaceEmpty ? withListContext(view, { status: "all" }) : view
+}
+
 export type ListUrlSyncInput = {
   /** The URL query as useSearchParams reports it now. */
   search: string

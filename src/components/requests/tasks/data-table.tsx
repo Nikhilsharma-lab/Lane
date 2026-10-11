@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
@@ -8,7 +8,7 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { useRequestListUrlSync, useRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import { groupRequestRows, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
@@ -49,6 +49,12 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // status, Project or title filter never shows the welcome. Both states render
   // the same tree; only the records region's content swaps.
   const workspaceEmpty = welcome !== undefined && data.length === 0
+  // Nothing to filter yet, so a status from the URL goes before paint: the first
+  // Request then lands in the "all" view. The URL sync above mirrors it with
+  // replaceState (no navigation), and still holds while a mutation is pending.
+  useLayoutEffect(() => {
+    if (workspaceEmpty && filter !== "all") setView(view => withEmptyWorkspaceStatus(view, true))
+  }, [workspaceEmpty, filter, setView])
   const columnVisibility: Record<string, boolean> = { project: projectFilter === "all", ...view.columnVisibility }
   const valueFor = (id: string) => String(localFilters.find(item => item.id === id)?.value ?? "")
   const title = valueFor("title"), project = projectFilter === "all" ? "" : projectFilter, requestType = valueFor("requestType")
