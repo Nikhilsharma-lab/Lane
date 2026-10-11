@@ -67,7 +67,8 @@ export default function RootLayout({
           >
             <ToastStackProvider>
               {children}
-              <ToastStack />
+              {/* Plan item 2.4 (decision 8.22): toasts swap text and icons without a blur. */}
+              <ToastStack morph="plain" />
             </ToastStackProvider>
           </ThemeProvider>
         </ClerkProvider>

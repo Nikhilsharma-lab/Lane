@@ -41,5 +41,5 @@ export function LinearRequestsFixture(args: ComponentProps<typeof RequestsShellF
   })
   return <ToastStackProvider><NewRequestProvider context={args.context ?? { orgId: "org_storybook" }} draftOwnerId="linear-preview-person">
     <RequestsShellFixture {...args} requests={requests} linearPreviewAutoCollapse />
-  <ToastStack /></NewRequestProvider></ToastStackProvider>
+  <ToastStack morph="plain" /></NewRequestProvider></ToastStackProvider>
 }

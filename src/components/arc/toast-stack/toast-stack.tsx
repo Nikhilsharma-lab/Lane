@@ -60,6 +60,8 @@ export interface ToastStackProps {
   /** Alt+T moves focus into the stack. */
   hotkey?: boolean;
   className?: string;
+  /** Lane adaptation (plan item 2.4, decision 8.22): "plain" swaps a toast's icon and text with opacity, movement and scale only, no blur. Defaults to upstream's "blur". */
+  morph?: "blur" | "plain";
 }
 
 type ToastRecord = { id: string; type: ToastType; title: string; description?: string; action?: ToastAction; duration: number; seq: number; version: number };
@@ -94,6 +96,10 @@ const fadeOnly: MotionProps = { initial: { opacity: 0 }, animate: { opacity: 1 }
 const textSwap: MotionProps = { initial: textIn, animate: shown, exit: textOut, transition: { duration: motionTokens.duration.standard, ease: enterEase } };
 /** Scale rides the spring; opacity and blur tween so the blur never overshoots below zero. */
 const iconSwap: MotionProps = { initial: iconIn, animate: shown, exit: { ...iconIn, transition: exitFast }, transition: { ...motionTokens.spring.snappy, opacity: fade, filter: fade } };
+/* Lane adaptation (decision 8.22): the same swaps without the blur filter. */
+const plainShown: TargetAndTransition = { opacity: 1, y: "0em", scale: 1 };
+const plainTextSwap: MotionProps = { initial: { opacity: 0, y: "0.3em" }, animate: plainShown, exit: { opacity: 0, y: "-0.3em", transition: exitFast }, transition: textSwap.transition };
+const plainIconSwap: MotionProps = { initial: { opacity: 0, scale: .6 }, animate: plainShown, exit: { opacity: 0, scale: .6, transition: exitFast }, transition: { ...motionTokens.spring.snappy, opacity: fade } };
 
 const durationFor = (type: ToastType, base: number) => type === "loading" ? Infinity : type === "warning" || type === "error" ? base * 1.6 : base;
 /** Where a release at this velocity would come to rest, using a fast scroll deceleration. */
@@ -189,6 +195,7 @@ function Swap(props: HTMLMotionProps<"span">) {
 type Gesture = { pointerId: number; startX: number; startY: number; origin: number; active: boolean; samples: { t: number; x: number }[] };
 
 interface ToastItemProps {
+  plain: boolean;
   toast: ToastRecord;
   target: Target;
   expanded: boolean;
@@ -203,7 +210,7 @@ interface ToastItemProps {
   onHandOff: (leaving: HTMLElement, keyboard: boolean) => void;
 }
 
-function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, store, onMeasure, onDragChange, onTap, onHandOff }: ToastItemProps) {
+function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, plain, store, onMeasure, onDragChange, onTap, onHandOff }: ToastItemProps) {
   const { id } = toast;
   const [isPresent, safeToRemove] = usePresence();
   const itemRef = useRef<HTMLLIElement>(null);
@@ -361,7 +368,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, sto
 
   const markMoving = (moving: boolean) => { if (actionRef.current) actionRef.current.dataset.moving = moving ? "true" : "false"; };
   const Icon = toast.type === "loading" ? null : icons[toast.type];
-  const swap = reduce ? fadeOnly : textSwap;
+  const swap = reduce ? fadeOnly : plain ? plainTextSwap : textSwap;
 
   return <motion.li ref={itemRef} className={styles.item} style={{ y, scale, height, opacity, zIndex: toast.seq }} data-front={front} data-expanded={expanded} inert={hidden} onKeyDown={onKeyDown}>
     <motion.div ref={cardRef} className={styles.card} style={{ x, opacity: swipeFade }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={event => onPointerEnd(event, false)} onPointerCancel={event => onPointerEnd(event, true)} onClick={onCardClick}>
@@ -369,7 +376,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, sto
         {/* A new type morphs its icon in place: the old glyph shrinks into a blur while the new one grows out of it. */}
         <span className={styles.icon} data-type={toast.type} aria-hidden="true">
           <AnimatePresence mode="popLayout" initial={false}>
-            <Swap key={toast.type} className={styles.glyph} {...(reduce ? fadeOnly : iconSwap)}>{Icon ? <Icon width={18} height={18} strokeWidth={1.75} /> : <span className={styles.spinner} />}</Swap>
+            <Swap key={toast.type} className={styles.glyph} {...(reduce ? fadeOnly : plain ? plainIconSwap : iconSwap)}>{Icon ? <Icon width={18} height={18} strokeWidth={1.75} /> : <span className={styles.spinner} />}</Swap>
           </AnimatePresence>
         </span>
         <div className={styles.copy}>
@@ -391,7 +398,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, sto
   </motion.li>;
 }
 
-export function ToastStack({ label = "Notifications", position = "bottom-right", contained = false, visibleToasts = 3, hotkey = true, className }: ToastStackProps) {
+export function ToastStack({ label = "Notifications", position = "bottom-right", contained = false, visibleToasts = 3, hotkey = true, className, morph = "blur" }: ToastStackProps) {
   const store = useStore();
   const toasts = useSyncExternalStore(store.subscribe, store.getSnapshot, getServerSnapshot);
   const reduce = !!useReducedMotion();
@@ -462,7 +469,7 @@ export function ToastStack({ label = "Notifications", position = "bottom-right",
   return <section ref={regionRef} className={[styles.viewport, styles[position], contained && styles.contained, className].filter(Boolean).join(" ")} aria-label={hotkey ? `${label} (Alt+T)` : label} aria-live="polite" aria-relevant="additions text" aria-atomic="false" onFocus={onFocus} onBlur={onBlur}>
     <ol ref={listRef} className={styles.list} style={{ height: listHeight }} data-expanded={expanded} onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }} onPointerMove={event => { if (event.pointerType === "mouse" && !hovered) setHovered(true); }} onPointerLeave={event => { if (event.pointerType === "mouse") setHovered(false); }}>
       <AnimatePresence onExitComplete={prune}>
-        {toasts.map((item, index) => <ToastItem key={item.id} toast={item} target={targets[index]} expanded={expanded} front={index === 0} hidden={index >= visibleToasts} paused={paused} reduce={reduce} store={store} onMeasure={measure} onDragChange={setDragging} onTap={toggleTap} onHandOff={handOff} />)}
+        {toasts.map((item, index) => <ToastItem key={item.id} plain={morph === "plain"} toast={item} target={targets[index]} expanded={expanded} front={index === 0} hidden={index >= visibleToasts} paused={paused} reduce={reduce} store={store} onMeasure={measure} onDragChange={setDragging} onTap={toggleTap} onHandOff={handOff} />)}
       </AnimatePresence>
     </ol>
   </section>;

@@ -42,8 +42,9 @@ function RequestCodeControl({ code }: { code: string }) {
   // those pending clicks from reaching any containing row navigation handler.
   // data-state keeps the copy glyph visible while a result is showing.
   return <span className={styles.savedCode} data-state={state} onClick={event => event.stopPropagation()}>
-    <Tooltip content={state === "copied" ? "Copied. Copy again" : state === "error" ? "Retry copying code" : "Copy code"}>
-      <Button type="button" variant="ghost" size="sm" className={styles.codeButton}
+    {/* Plan item 2.4 (decision 8.22): no blur morphs in dense rows. */}
+    <Tooltip morph="plain" content={state === "copied" ? "Copied. Copy again" : state === "error" ? "Retry copying code" : "Copy code"}>
+      <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.codeButton}
         aria-label={`Copy code ${code}`} aria-describedby={feedbackId}
         loading={state === "copying"} onClick={() => { void copyCode() }}>
         <span data-request-code>{code}</span><Icon size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -63,7 +64,7 @@ function GlyphMenu({ label, items, tip, onOpenChange, children }: { label: strin
   // The span receives the menu's expanded state; the button is what assistive tech reads, so it repeats it.
   const [open, setOpen] = useState(false)
   return <ContextMenu label={label} items={items} asChild onOpenChange={next => { setOpen(next); onOpenChange?.(next) }}>
-    <span className={styles.menuSlot}><Tooltip content={tip}>{cloneElement(children, {
+    <span className={styles.menuSlot}><Tooltip morph="plain" content={tip}>{cloneElement(children, {
       "aria-expanded": open,
       // The menu hands focus back to the button when it closes. Radix opens the tooltip on
       // any focus unless the handler before it prevents default, so only keyboard focus does.
