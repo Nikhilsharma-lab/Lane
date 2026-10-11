@@ -138,9 +138,8 @@ export const DirectReview: Story = {
 export const Compose: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await visible(
-      canvas.getByRole("heading", { name: "New Request", level: 1 }),
-    );
+    // The page strip is the h1 (plan item 2.3); the form has no heading of its own.
+    await expect(canvas.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("tablist")).not.toBeInTheDocument();
     await visible(canvas.getByRole("textbox", { name: "Request title" }));
     await visible(canvas.getByRole("textbox", { name: "Description" }));
@@ -155,9 +154,6 @@ export const RequiredValidation: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "Request title" }),
     ).toHaveFocus();
-    await visible(
-      canvas.getByRole("heading", { name: "New Request", level: 1 }),
-    );
   },
 };
 
@@ -485,8 +481,8 @@ export const Checking: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
     await expect(
-      await canvas.findByRole("button", { name: "Preparing review…" }),
-    ).toBeDisabled();
+      await canvas.findByRole("button", { name: "Review Request" }),
+    ).toHaveAttribute("aria-busy", "true");
     await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveAttribute("readonly");
     await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveAttribute("readonly");
   },
@@ -541,7 +537,7 @@ export const Creating: Story = {
     );
     await expect(
       await canvas.findByRole("button", { name: "Creating Request…" }),
-    ).toBeDisabled();
+    ).toHaveAttribute("aria-disabled", "true");
     await expect(
       canvas.getByRole("button", { name: "Edit Request" }),
     ).toBeDisabled();
@@ -681,7 +677,7 @@ export const Loading: Story = {
   render: () => <IntakeLoading />,
   play: async ({ canvasElement }) => {
     await expect(
-      within(canvasElement).getByRole("status", { name: "Loading Intake" }),
+      within(canvasElement).getByRole("status", { name: "Loading New Request" }),
     ).toHaveAttribute("aria-busy", "true");
   },
 };
@@ -795,7 +791,7 @@ export const CreationNavigation: Story = {
     );
     await expect(
       canvas.getByRole("button", { name: "Creating Request…" }),
-    ).toBeDisabled();
+    ).toHaveAttribute("aria-disabled", "true");
   },
 };
 
@@ -848,8 +844,8 @@ export const WorkspaceIntake: Story = {
       statusFilter="all"
       onSignOut={() => {}}
     >
-      {/* As intake/page.tsx renders it (plan item 2.0). */}
-      <PageStrip title="New Request" />
+      {/* As intake/page.tsx renders it (plan items 2.0 and 2.3). */}
+      <PageStrip title="New Request" heading />
       <IntakeForm {...args} />
     </SidebarView>
   ),

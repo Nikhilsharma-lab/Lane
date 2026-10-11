@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -19,7 +20,6 @@ import {
   FileTextIcon,
   ImageIcon,
   LightbulbIcon,
-  LoaderCircleIcon,
   PaperclipIcon,
   RotateCcwIcon,
   Trash2Icon,
@@ -294,6 +294,9 @@ export default function IntakeForm({
   const leftUploadScreen = useRef(false);
   const draftCleared = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const failureRef = useRef<HTMLDivElement>(null);
+  const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
@@ -345,15 +348,14 @@ export default function IntakeForm({
 
   const checking = stage === "checking";
   const creating = stage === "creating";
-  const isMac = useSyncExternalStore(
+  // The shortcut hint names the platform's key. The server knows no platform,
+  // so the hint renders only on the client, to the left of a right-aligned
+  // button: its arrival moves nothing.
+  const shortcutHint = useSyncExternalStore(
     useCallback(() => () => {}, []),
-    () =>
-      /Mac|iPhone|iPad|iPod/.test(
-        `${navigator.platform} ${navigator.userAgent}`,
-      ),
-    () => false,
+    () => /Mac|iPhone|iPad|iPod/.test(`${navigator.platform} ${navigator.userAgent}`) ? "⌘ Enter" : "Ctrl Enter",
+    () => null,
   );
-  const modKey = isMac ? "⌘" : "Ctrl";
 
   useEffect(() => {
     const draft = readIntakeDraft(window.sessionStorage, draftScope);
@@ -943,26 +945,24 @@ export default function IntakeForm({
     });
   }
 
-  function onReviewKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (
-      event.key === "Enter" &&
-      (event.metaKey || event.ctrlKey) &&
-      !creating &&
-      active
-    ) {
+  // One handler for both steps: Cmd/Ctrl+Enter is the primary action wherever
+  // focus is in the composer, including its portalled property menus.
+  function onComposerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!active || event.key !== "Enter" || !(event.metaKey || event.ctrlKey) || event.defaultPrevented) return;
+    if (stage === "compose") {
       event.preventDefault();
-      if (failure?.code === "review_expired" && source) {
-        void checkFraming(source);
-      } else {
-        void onConfirm();
-      }
+      submitForReview();
+    } else if (stage === "framing") {
+      event.preventDefault();
+      if (failure?.code === "review_expired" && source) void checkFraming(source);
+      else void onConfirm();
     }
   }
 
   const composing = stage === "compose" || checking;
   const reviewing = stage === "framing" || creating;
-  const Surface = "div";
-  const ReviewFooter = "footer";
+  const dialog = presentation === "dialog";
+  const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
 
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;
@@ -996,7 +996,10 @@ export default function IntakeForm({
   }
 
   return (
-    <div className={presentation === "page" ? "mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
+    <div
+      className={cn(styles.composer, dialog ? styles.dialog : cn(styles.page, "mx-auto w-full max-w-2xl px-4 pt-6 sm:px-6 sm:pt-8"))}
+      onKeyDown={onComposerKeyDown}
+    >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
         <IntakeNavigationGuard
           creating={creating}
@@ -1008,30 +1011,16 @@ export default function IntakeForm({
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}
       </p>
-      {presentation === "dialog" && reviewing && <h2 ref={headingRef} tabIndex={-1} className="mb-5 text-lg font-medium">Review Request</h2>}
-      <Surface className={presentation === "page" ? "space-y-6" : cn("min-h-0 min-w-0 flex-1", reviewing ? "flex flex-col" : "space-y-5")}>
-        {presentation === "page" && composing && (
-          <header className="space-y-1.5">
-            <h1 className="text-xl font-medium tracking-tight">New Request</h1>
-            <p className="text-sm text-muted-foreground">
-              Describe your Request and the result you expect. Review it before sharing with your team.
-            </p>
-          </header>
-        )}
+      <div className={styles.scroll}>
         {composing && (
           <form
+            id={formId}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
             aria-busy={checking || projectBusy || undefined}
             onSubmit={(event) => {
               event.preventDefault();
               submitForReview();
-            }}
-            onKeyDown={(event) => {
-              if (active && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                submitForReview();
-              }
             }}
             onDragOver={(event) => {
               if (checking || !event.dataTransfer.types.includes("Files")) return;
@@ -1050,40 +1039,39 @@ export default function IntakeForm({
                 Your text and links were restored. Choose any files again before creating the Request.
               </IntakeNotice>
             )}
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.title)}>
+            <div className="space-y-2">
               <Input
                 label="Request title"
+                hideLabel
+                appearance="plain"
                 id="intake-title"
                 placeholder="Request title"
                 maxLength={TITLE_MAX}
                 readOnly={checking}
-                aria-invalid={Boolean(errors.title) || undefined}
-                aria-describedby={errors.title ? "intake-title-error" : undefined}
+                className={styles.title}
+                error={errors.title?.message}
+                data-composer-autofocus={stage === "compose" ? "" : undefined}
+                onKeyDown={(event) => {
+                  // Enter moves to the description; only Cmd/Ctrl+Enter submits.
+                  if (event.key !== "Enter" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  setFocus("description");
+                }}
                 {...register("title")}
               />
-              {errors.title && (
-                <p className="text-destructive-foreground" id="intake-title-error">
-                  {errors.title.message}
-                </p>
-              )}
-            </div>
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.description)}>
               <Textarea
                 label="Description"
+                hideLabel
+                appearance="plain"
                 id="intake-description"
                 placeholder="Add a description…"
                 rows={3}
                 maxLength={DESCRIPTION_MAX}
                 readOnly={checking}
-                aria-invalid={Boolean(errors.description) || undefined}
-                aria-describedby={errors.description ? "intake-description-error" : undefined}
+                className={styles.description}
+                error={errors.description?.message}
                 {...register("description")}
               />
-              {errors.description && (
-                <p className="text-destructive-foreground" id="intake-description-error">
-                  {errors.description.message}
-                </p>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
@@ -1140,40 +1128,32 @@ export default function IntakeForm({
               </div>
             )}
             {failure && (
-              <IntakeNotice error title="Could not prepare the review">
-                <span>{failure.message}</span>
-                {failure.code === "session_expired" && (
-                  <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
-                )}
-              </IntakeNotice>
+              <div ref={failureRef}>
+                <IntakeNotice error title="Could not prepare the review">
+                  <span>{failure.message}</span>
+                  {failure.code === "session_expired" && (
+                    <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
+                  )}
+                </IntakeNotice>
+              </div>
             )}
-            <footer className="flex justify-end border-t pt-4">
-              <Button type="submit" disabled={checking || projectBusy}>
-                {checking && <LoaderCircleIcon aria-hidden="true" data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />}
-                {checking ? "Preparing review…" : "Review Request"}
-              </Button>
-            </footer>
             {checking && showSlowCue && (
               <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
             )}
           </form>
         )}
-      {(stage === "framing" || stage === "creating") && triage && source && (
+      {reviewing && triage && source && (
         <div
-          className={cn(reveal, presentation === "dialog" ? "flex min-h-0 flex-1 flex-col" : "space-y-6")}
+          className={cn(reveal, "space-y-6")}
           aria-busy={creating || undefined}
-          onKeyDown={onReviewKeyDown}
         >
-          <div className={cn("space-y-6", presentation === "dialog" && "min-h-0 flex-1")}>
+          {dialog && <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium">Review Request</h2>}
           {(presentation === "page" || triage.classification !== "problem" || restoredDraft) && <header className="space-y-3">
             <div className="space-y-2">
               {presentation === "page" && <h2
                 ref={headingRef}
                 tabIndex={-1}
-                className={cn(
-                  "text-xl font-medium tracking-tight",
-                  "focus:outline-none",
-                )}
+                className="text-xl font-medium tracking-tight"
               >
                 {classificationPresentation[triage.classification].title}
               </h2>}
@@ -1193,7 +1173,6 @@ export default function IntakeForm({
               )}
             </div>
           </header>}
-
           <h3 className="break-words text-lg font-medium">{source.title}</h3>
 
           {(source.projectId || source.requestType) && <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
@@ -1317,56 +1296,6 @@ export default function IntakeForm({
             </IntakeNotice>
           )}
 
-          </div>
-          <ReviewFooter className={cn("flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-4", presentation === "dialog" && styles.reviewFooter)}>
-            <Button type="button" variant="ghost" onClick={() => {
-              setFailure(null);
-              setStage("compose");
-            }} disabled={creating}>Edit Request</Button>
-            <Button
-              type="button"
-              onClick={
-                failure?.code === "review_expired"
-                  ? () => source && void checkFraming(source)
-                  : () => void onConfirm()
-              }
-              disabled={creating}
-              aria-busy={creating || undefined}
-              aria-keyshortcuts="Control+Enter Meta+Enter"
-            >
-              {creating && (
-                <LoaderCircleIcon
-                  aria-hidden="true"
-                  data-icon="inline-start"
-                  className="animate-spin motion-reduce:animate-none"
-                />
-              )}
-              {creating
-                ? "Creating Request…"
-                : failure?.code === "review_expired"
-                  ? "Review again"
-                  : "Create Request"}
-            </Button>
-          </ReviewFooter>
-
-          {!creating && (
-            <p
-              className={cn(
-                "text-xs",
-                "sr-only",
-              )}
-            >
-              Press{" "}
-              <kbd className="rounded border border-input bg-muted px-1.5 py-0.5 font-mono">
-                {modKey}
-              </kbd>{" "}
-              +{" "}
-              <kbd className="rounded border border-input bg-muted px-1.5 py-0.5 font-mono">
-                Enter
-              </kbd>{" "}
-              to create.
-            </p>
-          )}
         </div>
       )}
 
@@ -1539,7 +1468,44 @@ export default function IntakeForm({
             )}
           </div>
         )}
-      </Surface>
+      </div>
+      {composing && (
+        <footer className={styles.footer}>
+          <div className={styles.actions}>
+            {shortcut}
+            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter">
+              Review Request
+            </Button>
+          </div>
+        </footer>
+      )}
+      {reviewing && triage && source && (
+        <footer className={styles.footer}>
+          <div className={styles.actions}>
+            <Button type="button" variant="ghost" className={styles.lead} onClick={() => {
+              setFailure(null);
+              setStage("compose");
+            }} disabled={creating}>Edit Request</Button>
+            {!creating && shortcut}
+            <Button
+              type="button"
+              onClick={
+                failure?.code === "review_expired"
+                  ? () => source && void checkFraming(source)
+                  : () => void onConfirm()
+              }
+              loading={creating}
+              aria-keyshortcuts="Meta+Enter Control+Enter"
+            >
+              {creating
+                ? "Creating Request…"
+                : failure?.code === "review_expired"
+                  ? "Review again"
+                  : "Create Request"}
+            </Button>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

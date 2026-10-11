@@ -40,7 +40,7 @@ describe("Pilot entry and transition contract", () => {
   })
 
   it("uses destination-specific geometry for Intake and Settings", () => {
-    expect(INTAKE_LOADING).toContain('label="Loading Intake"')
+    expect(INTAKE_LOADING).toContain('label="Loading New Request"')
     expect(INTAKE_LOADING).toContain("max-w-2xl")
     expect(INTAKE_LOADING).not.toContain("RequestsWorkspaceLoading")
 

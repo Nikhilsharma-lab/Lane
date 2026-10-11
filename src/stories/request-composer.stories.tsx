@@ -398,7 +398,7 @@ export const CheckingCannotDismiss: Story = {
     const { composer, dialog } = await openComposer(canvasElement);
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
-    await expect(await composer.findByRole("button", { name: "Preparing review…" })).toBeDisabled();
+    await expect(await composer.findByRole("button", { name: "Review Request" })).toHaveAttribute("aria-busy", "true");
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(dialog).toBeVisible());
     await expect(getRouter().push).not.toHaveBeenCalled();
@@ -413,7 +413,7 @@ export const CreatingCannotDismiss: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
-    await expect(await composer.findByRole("button", { name: "Creating Request…" })).toBeDisabled();
+    await expect(await composer.findByRole("button", { name: "Creating Request…" })).toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard("{Escape}");
     await expect(dialog).toBeVisible();
     await expect(getRouter().push).not.toHaveBeenCalled();

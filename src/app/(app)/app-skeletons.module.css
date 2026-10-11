@@ -16,3 +16,13 @@
 .rule { border-top: 1px solid var(--border); padding-top: var(--space-5); }
 .footer { display: flex; justify-content: flex-end; }
 .button { display: block; width: var(--space-24); height: var(--control-height-md); border: 1px solid var(--border); border-radius: var(--radius-control); }
+/* Plan item 2.3: the compose step. Heights follow the loaded composer: the title at --text-lg, three lines of
+ * description at --text-base, the 44px Expected impact row under its rule, and the footer's rule and padding. */
+.composeTitle { display: flex; width: 84%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
+.composeDescription { display: grid; height: calc(3 * var(--text-base) * var(--leading-body)); align-content: start; gap: var(--space-3); padding-top: var(--space-1); }
+.composeDescription > span { display: block; height: var(--space-3); border-radius: var(--radius-control); background: color-mix(in oklab, var(--border-strong) 38%, var(--surface)); }
+.composeDescription > span:last-child { width: 56%; }
+.impactRow { display: flex; min-height: var(--request-row-height, 44px); align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
+.impactRow > span:first-child { display: block; width: var(--space-24); height: var(--space-3); border-radius: var(--radius-control); background: color-mix(in oklab, var(--border-strong) 38%, var(--surface)); }
+.impactToggle { display: block; width: var(--space-12); height: var(--control-height-sm); border: 1px solid var(--border); border-radius: var(--radius-control); }
+.composeFooter { display: flex; justify-content: flex-end; margin-top: var(--space-6); padding-block: var(--space-3); border-top: 1px solid var(--border); }

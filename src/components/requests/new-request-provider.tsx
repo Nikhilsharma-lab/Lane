@@ -19,6 +19,16 @@ const IntakeForm = dynamic(() => import("@/app/(app)/intake/intake-form"), {
   loading: () => <Skeleton label="Loading New Request" lines={5} />,
 });
 
+// The compact drawer's body hands its height to its child, so the composer can
+// scroll its own content and keep the footer at the bottom of the panel.
+const fill = { display: "flex", flex: "1 1 auto", flexDirection: "column", minHeight: 0 } as const;
+
+function createFormHost() {
+  const host = document.createElement("div");
+  Object.assign(host.style, fill);
+  return host;
+}
+
 function isEditing(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox'], [role='combobox']"));
 }
@@ -66,7 +76,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       setGeneration((value) => value + 1);
       completed.current = false;
     }
-    setFormHost(current => current ?? document.createElement("div"));
+    setFormHost(current => current ?? createFormHost());
     setHasOpened(true);
     setOpen(true);
   }, [directEntry, hasOpened, projectFilter, projectId, statusFilter]);
@@ -110,7 +120,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
             Arc drawer closes. Its overlay and focus scope still unmount normally. */}
         {createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} presentation="dialog" active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
         <Drawer open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
-          <DrawerContent title="New Request" description="Describe your Request and the result you expect."
+          <DrawerContent compact title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => { event.preventDefault(); document.getElementById("intake-title")?.focus(); }}
             onCloseAutoFocus={event => {
               event.preventDefault();
@@ -133,7 +143,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
                 event.preventDefault();
               }
             }}>
-            <div ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
+            <div style={fill} ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
           </DrawerContent>
         </Drawer>
       </>}

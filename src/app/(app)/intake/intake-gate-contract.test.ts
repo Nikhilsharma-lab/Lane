@@ -48,7 +48,7 @@ describe("Intake Gate contract", () => {
   it("keeps loading and recovery states explicit and accessible", () => {
     expect(FORM).toContain("aria-busy");
     expect(FORM).toContain('role="status"');
-    expect(FORM).toContain("Preparing review…");
+    expect(FORM).toContain("loading={checking}");
     expect(FORM).toContain("Creating Request…");
     expect(ACTIONS).toContain('"timeout"');
     expect(ACTIONS).toContain('"rate_limited"');

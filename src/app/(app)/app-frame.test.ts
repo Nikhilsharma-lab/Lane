@@ -43,7 +43,7 @@ const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(
 const skeletons: [string, string, ComponentType, string, string][] = [
   ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
-  ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading Intake"],
+  ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
   ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "profile", "Loading Profile settings"],
   ["settings/members/loading.tsx", "/settings/members", MembersLoading, "members", "Loading Members"],
 ]
