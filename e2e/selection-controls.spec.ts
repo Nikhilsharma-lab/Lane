@@ -52,7 +52,8 @@ test("the Lane role selector preserves keyboard and visual behavior", async ({
     await signInTestUser(page, user, orgId);
     await page.goto("/onboarding");
 
-    const roleGroup = page.getByRole("radiogroup", { name: "Your role" });
+    // Arc's RadioGroup is a fieldset with a legend, so its role is "group".
+    const roleGroup = page.getByRole("group", { name: "Your role" });
     const pmRadio = roleGroup.getByRole("radio", { name: "PM" });
     const designerRadio = roleGroup.getByRole("radio", { name: "Designer" });
     await pmRadio.focus();
