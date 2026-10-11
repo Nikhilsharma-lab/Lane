@@ -160,6 +160,12 @@ export const Open: Story = {
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeEnabled();
     await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1);
+    // The strip title, the fields and the footer share one edge: 24px, or 16px on phones.
+    const edge = (element: Element) => element.getBoundingClientRect().left - dialog.getBoundingClientRect().left - dialog.clientLeft;
+    const stripTitle = within(dialog).getByRole("heading", { name: "New Request" });
+    const titleField = composer.getByRole("textbox", { name: "Request title" });
+    await waitFor(() => expect(Math.abs(edge(stripTitle) - edge(titleField))).toBeLessThanOrEqual(1));
+    await expect(Math.round(edge(titleField))).toBe(window.innerWidth <= 640 ? 16 : 24);
   },
 };
 

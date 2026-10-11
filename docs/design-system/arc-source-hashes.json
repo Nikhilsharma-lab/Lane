@@ -102,7 +102,7 @@
     "source": "https://uiarc.dev/r/drawer.json",
     "file": "src/components/arc/drawer/drawer.module.css",
     "upstreamSha256": "92378d24196077625b36f742474740977ef181e496abdc5b6eb6230b15ec2eea",
-    "localSha256": "92e5518dba2c8e453816c747729275e015b5441c959b2b876d6aeef744d6ac73"
+    "localSha256": "b6cd6847fc7f2fca985b245bc1966711e9da24ff68a96137f23f254c2b93069c"
   },
   {
     "id": "drawer",
