@@ -1,5 +1,7 @@
 .overview { display: flex; min-width: 0; min-height: 100%; flex-direction: column; }
 .newRequest { gap: var(--space-2); }
+/* Plan item 2.1: inert while the welcome offers the empty workspace's one New Request; hidden in place, so it keeps its box. */
+.newRequest[inert] { visibility: hidden; }
 .kbd { margin-inline-start: var(--space-3); font: inherit; color: color-mix(in oklab, var(--background) 58%, var(--foreground)); font-variant-numeric: tabular-nums; }
 .unavailable { display: flex; flex: 1; flex-direction: column; justify-content: center; padding: var(--space-6); }
 .limitNote { margin: 0; padding: 0 var(--space-6) var(--space-4); color: var(--text-secondary); font-size: var(--text-xs); }

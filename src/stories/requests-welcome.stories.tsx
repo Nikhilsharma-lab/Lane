@@ -74,6 +74,9 @@ const mainOf = (canvasElement: HTMLElement) => within(canvasElement).getByRole("
 const stripOf = (main: HTMLElement) => main.querySelector<HTMLElement>('[data-slot="page-strip"]')!
 const welcomeOf = (main: HTMLElement) => main.querySelector<HTMLElement>("[data-requests-welcome]")
 const hintOf = (main: HTMLElement) => within(main).getByText((_, element) => element?.tagName === "SPAN" && element.textContent === "Press C to create a Request.")
+/** The strip's New Request, found by its href: while the workspace is empty it has no accessible name. */
+const stripLinkOf = (main: HTMLElement) => stripOf(main).querySelector<HTMLElement>('a[href="/intake"]')!
+const visibleIntakeLinks = (main: HTMLElement) => [...main.querySelectorAll<HTMLElement>('a[href="/intake"]')].filter(link => link.checkVisibility({ visibilityProperty: true }))
 
 async function expectWelcome(canvasElement: HTMLElement, role: Role) {
   const main = mainOf(canvasElement)
@@ -87,6 +90,17 @@ async function expectWelcome(canvasElement: HTMLElement, role: Role) {
   const create = inWelcome.getByRole("link", { name: "New Request" })
   await expect(create).toHaveAttribute("href", "/intake")
   await expect(create).toHaveAttribute("aria-keyshortcuts", "C")
+  // Exactly one Intake link (2026-09-29 rule): the strip's keeps its box but is hidden, inert and unnamed.
+  const visible = visibleIntakeLinks(main), named = within(main).getAllByRole("link", { name: "New Request" })
+  await expect(visible).toHaveLength(1)
+  await expect(visible[0]).toBe(create)
+  await expect(named).toHaveLength(1)
+  await expect(named[0]).toBe(create)
+  const stripLink = stripLinkOf(main)
+  await expect(stripLink).toHaveAttribute("inert")
+  await expect(getComputedStyle(stripLink).visibility).toBe("hidden")
+  await expect(stripLink.getBoundingClientRect().width).toBeGreaterThan(0)
+  await expect(within(stripOf(main)).queryByRole("link")).not.toBeInTheDocument()
   if (role === "admin") await expect(inWelcome.getByRole("link", { name: "Invite teammates" })).toHaveAttribute("href", "/settings/members")
   else await expect(inWelcome.queryByRole("link", { name: "Invite teammates" })).not.toBeInTheDocument()
   // The toolbar row is drawn but empty: nothing to filter in an empty workspace.
@@ -115,12 +129,12 @@ export const KeyboardOnly: Story = {
     const create = inWelcome.getByRole("link", { name: "New Request" })
     const invite = inWelcome.getByRole("link", { name: "Invite teammates" })
     // Skip link target first, as the browser does after following it; then the
-    // strip's controls, then the welcome's primary action.
+    // strip's expand control where it shows, then the page's one New Request.
+    // The strip's own New Request is inert until the first Request arrives.
     main.focus()
     const strip = within(stripOf(main))
     for (const element of [
       ...(innerWidth <= 880 ? [strip.getByRole("button", { name: "Expand sidebar" })] : []),
-      strip.getByRole("link", { name: "New Request" }),
       create,
     ]) {
       await userEvent.tab()
@@ -163,6 +177,8 @@ export const FirstRequestInPlace: Story = {
     const main = mainOf(canvasElement)
     const frame = () => ({
       strip: box(stripOf(main)),
+      // Hidden in place while the welcome offers New Request, so showing it moves nothing.
+      stripAction: box(stripLinkOf(main)),
       toolbar: box(main.querySelector('[data-slot="requests-toolbar"]')),
       pane: box(main.querySelector(`.${tableStyles.listPane}`)),
     })
@@ -176,13 +192,17 @@ export const FirstRequestInPlace: Story = {
     await expect(row).toHaveAttribute("id", `request-${firstRequest.id}`)
     await expect(welcomeOf(main)).toBeNull()
     await expect(main.querySelector(`.${tableStyles.listPane}`)).not.toHaveAttribute("data-empty-workspace")
-    // The first Request brings the list's controls into the row that was waiting for them.
+    // The first Request brings the list's controls into the row that was waiting for them,
+    // and the strip's New Request back, in the same frame as the welcome goes.
     await expect(within(main).getByRole("button", { name: "Filter Requests by title" })).toBeVisible()
+    const stripLink = within(stripOf(main)).getByRole("link", { name: "New Request" })
+    await expect(stripLink).toBeVisible()
+    await expect(stripLink).not.toHaveAttribute("inert")
     // Two frames for any layout-shift entry to be delivered.
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     observer.disconnect()
     const after = frame()
-    for (const name of ["strip", "toolbar", "pane"] as const) {
+    for (const name of ["strip", "stripAction", "toolbar", "pane"] as const) {
       await expect(after[name].node, `${name} is the same element`).toBe(before[name].node)
       await expect(Math.abs(after[name].top - before[name].top), `${name} top`).toBeLessThanOrEqual(1)
       await expect(Math.abs(after[name].height - before[name].height), `${name} height`).toBeLessThanOrEqual(1)

@@ -39,6 +39,9 @@ const render = async (props: Parameters<typeof RequestsWorkspace>[0], search = "
   return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, await RequestsWorkspace(props))))
 }
 
+const intakeLinksOf = (html: string) => html.match(/<a [^>]*href="\/intake"[^>]*>/g) ?? []
+const isInert = (tag: string) => /\binert=""/.test(tag)
+
 describe("Requests first-use landing", () => {
   // Plan item 2.1: an empty workspace renders the list's own strip and toolbar
   // row with the welcome in its records region, so the first Request lands in place.
@@ -55,10 +58,14 @@ describe("Requests first-use landing", () => {
     expect(html).not.toContain("Filter Requests by title")
     expect(html).not.toContain("Active filters")
     expect(html).not.toContain("Select a Request")
-    // A way into Intake. How many New Request links the empty page shows (the
-    // strip's and the welcome's) waits on Nikhil's decision (risk 3 in the 2.1
-    // spec; docs/design-system/page-quality.md), so the count is not pinned here.
-    expect(html.match(/href="\/intake"/g)?.length ?? 0).toBeGreaterThanOrEqual(1)
+    // Exactly one Intake link (docs/superpowers/plans/2026-09-29-requests-welcome.md):
+    // the welcome's. The strip's keeps its box for the first Request, but inert
+    // (hidden by CSS), so it is neither reachable nor announced.
+    const intakeLinks = intakeLinksOf(html)
+    expect(intakeLinks.filter(link => !isInert(link))).toHaveLength(1)
+    expect(html).toMatch(/data-requests-welcome[\s\S]*<a [^>]*href="\/intake"/)
+    expect(intakeLinks.filter(isInert)).toHaveLength(1)
+    expect(html).toMatch(/data-slot="page-strip"[\s\S]*<a (?=[^>]*\binert="")[^>]*href="\/intake"[\s\S]*data-requests-welcome/)
     expect(html.includes('href="/settings/members"')).toBe(role === "admin")
     expect(html).toContain("to create a Request.")
     expect(html).toMatch(/<kbd[^>]*>C<\/kbd> to create a Request\./)
@@ -109,5 +116,8 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("Add filter")
     expect(html).not.toContain("data-requests-welcome")
     expect(html).not.toContain("data-empty-workspace")
+    // With Requests, the strip's New Request is live again.
+    expect(html).toMatch(/data-slot="page-strip"[\s\S]*<a [^>]*href="\/intake"/)
+    expect(intakeLinksOf(html).filter(isInert)).toHaveLength(0)
   })
 })
