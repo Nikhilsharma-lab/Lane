@@ -8,6 +8,7 @@ import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { useOptimisticAction, useOptimisticBatch, useServerRefresh } from "./use-optimistic-action"
 import { useListAnnouncer } from "./list-announcer"
 import { requestCount } from "./request-row-label"
+import { isShown, restoreRequestFocus } from "./list-focus"
 
 type SelectionState = {
   scope: string; ids: string[]; error: string; failedCount: number; message: string
@@ -45,8 +46,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (busy || !restoreAfterCommit.current) return
     restoreAfterCommit.current = false
     const original = returnFocus.current
-    if (original?.isConnected && !original.closest("[hidden], [inert]") && !original.matches(":disabled")) original.focus({ preventScroll: true })
-    else document.querySelector<HTMLElement>('[data-slot="requests-workspace"] [aria-label="Filter Requests by title"]')?.focus({ preventScroll: true })
+    // The control the selection started from (a row or its checkbox), else the grid's tab stop, else the title filter (plan item 2.4).
+    if (original?.isConnected && isShown(original) && !original.matches(":disabled")) original.focus({ preventScroll: true })
+    else restoreRequestFocus("", { force: true })
   }, [busy, current.ids, scope])
 
   function clear() {

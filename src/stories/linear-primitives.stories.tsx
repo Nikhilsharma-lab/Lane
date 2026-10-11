@@ -14,6 +14,7 @@ import { Alert } from "@/components/arc/alert/alert"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import AppError from "@/app/(app)/error"
 import { LinearRequestsFixture, revalidateLinearPreview } from "./helpers/linear-requests-fixture"
+import { announcer, queryRequestGroup, requestGroup, requestRow, requestRows } from "./helpers/request-grid"
 
 const meta = {
   ...requestsMeta,
@@ -41,7 +42,7 @@ export const Requests: Story = {
     const main = canvas.getByRole("main")
     expect(getComputedStyle(main).borderRadius).toBe("12px")
     expect(textContrast(main)).toBeGreaterThanOrEqual(4.5)
-    expect(canvas.getByRole("list", { name: "Open Requests" })).toBeVisible()
+    expect(requestGroup(context.canvasElement, "Open Requests")).toBeVisible()
     for (const icon of canvasElementIdentityControls(context.canvasElement)) {
       expect(controlContrast(icon, getComputedStyle(icon).color), icon.getAttribute("aria-label") ?? "Row icon").toBeGreaterThanOrEqual(3)
     }
@@ -64,7 +65,7 @@ export const Selected: Story = {
   play: async ({ canvasElement }) => {
     expect(document.documentElement).toHaveAttribute("data-visual-system", "lane")
     const canvas = within(canvasElement)
-    const rows = within(canvas.getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")
+    const rows = requestRows(requestGroup(canvasElement, "Open Requests"))
     await userEvent.click(within(rows[0]).getByRole("checkbox"))
     await userEvent.click(within(rows[1]).getByRole("checkbox"))
     await userEvent.unhover(within(rows[1]).getByRole("checkbox"))
@@ -91,24 +92,29 @@ export const Selected: Story = {
 
 export const Deselected: Story = {
   play: async ({ canvasElement }) => {
-    const rows = within(within(canvasElement).getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")
+    const rows = requestRows(requestGroup(canvasElement, "Open Requests"))
+    const grid = within(canvasElement).getByRole("treegrid")
     const box = within(rows[0]).getByRole("checkbox")
     await userEvent.click(box)
     await userEvent.click(box)
     await userEvent.unhover(box)
     expect(rows[0]).not.toHaveAttribute("data-selected")
+    expect(rows[0]).toHaveAttribute("aria-selected", "false")
     expect(getComputedStyle(rows[0]).backgroundColor).toBe(getComputedStyle(rows[1]).backgroundColor)
+    // Plan item 2.4: the row is the list's one tab stop, so Tab leaves the grid and Shift+Tab comes back to the row.
     await userEvent.tab()
-    const priority = within(rows[0]).getByRole("button", { name: "Priority: No priority" })
-    expect(priority).toHaveFocus()
-    // Keyboard focus draws Arc's shared outline; the glyph keeps its transparent fill.
-    expect(getComputedStyle(priority).outlineStyle).toBe("solid")
-    expect(getComputedStyle(priority).outlineWidth).toBe("2px")
+    expect(grid.contains(document.activeElement)).toBe(false)
+    await userEvent.tab({ shift: true })
+    expect(rows[0]).toHaveFocus()
+    // Keyboard focus draws Arc's shared outline on the row; the glyphs inside are not tab stops.
+    expect(getComputedStyle(rows[0]).outlineStyle).toBe("solid")
+    expect(getComputedStyle(rows[0]).outlineWidth).toBe("2px")
+    expect(within(rows[0]).getByRole("button", { name: "Priority: No priority" })).toHaveAttribute("tabindex", "-1")
   },
 }
 export const SeparateSelections: Story = {
   play: async ({ canvasElement }) => {
-    const rows = within(within(canvasElement).getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")
+    const rows = requestRows(requestGroup(canvasElement, "Open Requests"))
     await userEvent.click(within(rows[0]).getByRole("checkbox"))
     await userEvent.click(within(rows[2]).getByRole("checkbox"))
     expect(getComputedStyle(rows[0]).borderBottomLeftRadius).toBe("8px")
@@ -176,18 +182,17 @@ export const AccountMenu: Story = {
   },
 }
 export const PropertyMenus: Story = { args: PropertyDetails.args, play: async ({ canvasElement, args }) => {
-  const canvas = within(canvasElement)
   const row = canvasElement.querySelector<HTMLElement>('[data-request-id]')!
   await userEvent.pointer({ target: within(row).getByRole("link"), keys: "[MouseRight]" })
   const page = within(document.body)
-  // The production menu: the one lifecycle move, the saved properties and Copy. Nothing it cannot save.
+  // The production menu: the one lifecycle move, the saved properties, Copy, then the two row keys it stands in for. Nothing it cannot save.
   const menu = await page.findByRole("menu", { name: "Request LAN-1" })
-  await waitFor(() => { for (const name of ["Pick up", "Status", "Priority", "Copy"]) expect(within(menu).getByRole("menuitem", { name })).toBeVisible() })
-  expect(within(menu).getAllByRole("menuitem")).toHaveLength(4)
+  await waitFor(() => { for (const name of ["Pick up", "Status", "Priority", "Copy", "Select", "Open Request"]) expect(within(menu).getByRole("menuitem", { name })).toBeVisible() })
+  expect(within(menu).getAllByRole("menuitem")).toHaveLength(6)
   await userEvent.click(within(menu).getByRole("menuitem", { name: "Priority" }))
   await userEvent.click(await page.findByRole("menuitemcheckbox", { name: "Urgent" }))
   await waitFor(() => expect(mocked(setRequestPriority)).toHaveBeenCalledWith(row.dataset.requestId, "urgent", args.context))
-  await waitFor(() => expect(canvas.getByText("Priority set to urgent.")).toBeInTheDocument())
+  await waitFor(() => expect(announcer(canvasElement)).toHaveTextContent("Priority set to urgent."))
   await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
 } }
 export const Empty: Story = { args: { requests: [] } }
@@ -209,10 +214,10 @@ export const StatusChips: Story = {
     }
     await choose("Open")
     await waitFor(() => expect(within(group()).getByRole("button", { name: "Open" })).toHaveAttribute("aria-pressed", "true"))
-    await waitFor(() => expect(canvas.queryByRole("list", { name: "Done Requests" })).not.toBeInTheDocument())
+    await waitFor(() => expect(queryRequestGroup(canvasElement, "Done Requests")).not.toBeInTheDocument())
     await userEvent.click(within(group()).getByRole("button", { name: "Open" }))
     await waitFor(() => expect(within(group()).getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true"))
-    await waitFor(() => expect(canvas.getByRole("list", { name: "Done Requests" })).toBeVisible())
+    await waitFor(() => expect(requestGroup(canvasElement, "Done Requests")).toBeVisible())
     if (folded) return
     within(group()).getByRole("button", { name: "Open" }).focus()
     await userEvent.keyboard("{ArrowRight}{Enter}")
@@ -239,7 +244,7 @@ export const DrawerLayout: Story = {
     await userEvent.click(toggle)
     await userEvent.click(toggle)
     await waitFor(() => expect(canvas.queryByRole("region", { name: "List summary" })).not.toBeInTheDocument())
-    expect(canvas.getByRole("list", { name: "Open Requests" })).toBeVisible()
+    expect(requestGroup(canvasElement, "Open Requests")).toBeVisible()
     await userEvent.click(toggle)
     await userEvent.click(toggle)
     await userEvent.click(toggle)
@@ -254,9 +259,11 @@ export const GroupComposer: Story = {
     const page = within(document.body)
     // Only the Open group offers the plus: a new Request always starts Open.
     for (const status of ["In Progress", "Done"]) {
-      expect(within(canvas.getByRole("region", { name: `${status} Requests` })).queryByRole("link", { name: "New Request" })).not.toBeInTheDocument()
+      expect(within(requestGroup(canvasElement, `${status} Requests`)).queryByRole("link", { name: "New Request" })).not.toBeInTheDocument()
     }
-    const trigger = within(canvas.getByRole("region", { name: "Open Requests" })).getByRole("link", { name: "New Request" })
+    // Plan item 2.4: the plus is not a tab stop (C does the same); focus it as a pointer or script would.
+    const trigger = within(requestGroup(canvasElement, "Open Requests")).getByRole("link", { name: "New Request" })
+    expect(trigger).toHaveAttribute("tabindex", "-1")
     trigger.focus()
     await userEvent.keyboard("{Enter}")
     const dialog = await page.findByRole("dialog", { name: "New Request" })
@@ -277,10 +284,10 @@ export const ListSummary: Story = {
     await waitFor(() => expect(summary).toHaveFocus())
     expect(within(summary).getByText("12 matching Requests")).toBeVisible()
     await userEvent.click(within(summary).getByRole("button", { name: "Filter Status: Open, 4 Requests" }))
-    await waitFor(() => expect(canvasElement.querySelector('ul[aria-label="In Progress Requests"]')).not.toBeInTheDocument())
-    expect(canvasElement.querySelector('ul[aria-label="Open Requests"]')).toBeInTheDocument()
+    await waitFor(() => expect(canvasElement.querySelector('[role="rowgroup"][aria-label="In Progress Requests"]')).not.toBeInTheDocument())
+    expect(canvasElement.querySelector('[role="rowgroup"][aria-label="Open Requests"]')).toBeInTheDocument()
     await userEvent.click(within(summary).getByRole("button", { name: "Filter Status: Open, 4 Requests" }))
-    await waitFor(() => expect(canvasElement.querySelector('ul[aria-label="In Progress Requests"]')).toBeInTheDocument())
+    await waitFor(() => expect(canvasElement.querySelector('[role="rowgroup"][aria-label="In Progress Requests"]')).toBeInTheDocument())
     await userEvent.click(within(summary).getByRole("button", { name: "Project" }))
     await userEvent.click(within(summary).getByRole("button", { name: "Filter Project: Website, 3 Requests" }))
     await waitFor(() => expect(within(summary).getByText("3 matching Requests")).toBeVisible())
@@ -305,7 +312,7 @@ export const DisplayStatus: Story = {
     await userEvent.click(within(panel).getByRole("button", { name: "Status" }))
     await userEvent.keyboard("{Escape}")
     expect(canvas.queryAllByRole("button", { name: "Status: Open" })).toHaveLength(0)
-    expect(canvas.getByRole("list", { name: "Open Requests" })).toBeVisible()
+    expect(requestGroup(canvasElement, "Open Requests")).toBeVisible()
   },
 }
 export const Loading: Story = { render: () => <RequestsWorkspaceLoading /> }
@@ -323,14 +330,13 @@ export const LongTitle: Story = { args: { requests: [{ ...requestsMeta.args.requ
 export const ResponsiveRows: Story = {
   args: LongTitle.args,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    const row = canvas.getAllByRole("listitem").find(item => item.hasAttribute("data-request-id"))!
+    const row = requestRows(canvasElement)[0]
     const title = within(row).getByRole("link")
     expect(getComputedStyle(title).whiteSpace).toBe("nowrap")
     expect(getComputedStyle(title).textOverflow).toBe("ellipsis")
     expect(row.getBoundingClientRect().height).toBe(44)
     expect(within(row).getByRole("button", { name: "Assignee: Unassigned" })).toBeVisible()
-    const width = row.closest("ul")!.getBoundingClientRect().width
+    const width = row.closest('[role="treegrid"], [role="grid"]')!.getBoundingClientRect().width
     const project = row.querySelector('[data-property="project"]')!
     if (width <= 640) expect(project).not.toBeVisible()
     else expect(project).toBeVisible()
@@ -340,7 +346,6 @@ export const ResponsiveRows: Story = {
 
 export const RowContextMenu: Story = {
   play: async ({ canvasElement, args }) => {
-    const canvas = within(canvasElement)
     const page = within(document.body)
     // Each mocked action saves its change into the preview, so the refreshed list shows what the server would.
     mocked(setRequestPriority).mockImplementation(async (id, priority) => {
@@ -369,7 +374,8 @@ export const RowContextMenu: Story = {
     // The revalidated render is the only render: a successful action never
     // refreshes the router a second time (plan item 1.3).
     expect(getRouter().refresh).not.toHaveBeenCalled()
-    title.focus()
+    // Plan item 2.4: the row is the tab stop; Shift+F10 on it opens the same menu.
+    row.focus()
     await userEvent.keyboard("{Shift>}{F10}{/Shift}")
     await userEvent.click(within(await page.findByRole("menu", { name: "Request LAN-1" })).getByRole("menuitem", { name: "Status" }))
     // Only the next lifecycle step is offered; it names its verb.
@@ -377,9 +383,11 @@ export const RowContextMenu: Story = {
     await userEvent.click(page.getByRole("menuitemcheckbox", { name: "In Progress (pick up)" }))
     await waitFor(() => expect(page.queryAllByRole("menu")).toHaveLength(0))
     await waitFor(() => expect(mocked(pickUpRequest)).toHaveBeenCalledWith("fixture-1", args.context))
-    await waitFor(() => expect(canvas.getByRole("list", { name: "In Progress Requests" }).querySelector('[data-request-id="fixture-1"]')).not.toBeNull())
+    await waitFor(() => expect(requestGroup(canvasElement, "In Progress Requests").querySelector('[data-request-id="fixture-1"]')).not.toBeNull())
     expect(getRouter().refresh).not.toHaveBeenCalled()
-    await waitFor(() => expect(canvas.getByRole("link", { name: title.textContent! })).toHaveFocus())
+    // Focus follows the row into its new group (the row remounts there).
+    await waitFor(() => expect(requestRow(canvasElement, "fixture-1")).toHaveFocus())
+    expect(announcer(canvasElement)).toHaveTextContent("Picked up. The Request is now In Progress.")
   },
 }
 

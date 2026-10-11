@@ -21,7 +21,10 @@ import { RequestRow } from "../request-row"
 import { useRequestSelection } from "../use-request-selection"
 import { RequestSelectionBar } from "../request-selection-bar"
 import { useListAnnouncer } from "../list-announcer"
-import { matchCountText } from "../request-row-label"
+import { matchCountText, requestCount } from "../request-row-label"
+import { useRequestGrid } from "../use-request-grid"
+import { gridKeysFor } from "../request-grid-keys"
+import { isShown, requestRowSelector } from "../list-focus"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
@@ -36,6 +39,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   /** Plan item 2.1: shown in the records region while the workspace has no Requests at all. */
   welcome?: ReactNode }) {
   const presentation = useRequestRowPresentation()
+  const layoutRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const summaryTrigger = useRef<HTMLButtonElement>(null)
   const groupId = useId()
@@ -72,6 +77,23 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const visibleRows = grouping === "none" ? currentRows : groups.filter(group => !collapsedGroups.includes(group.key)).flatMap(group => group.rows.filter(row => pageIds.has(row.id)))
   const selectionScope = JSON.stringify([context?.orgId, isGuest, filter, projectFilter, localFilters, ordering, grouping, collapsedGroups, pagination])
   const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest)
+  const announce = useListAnnouncer()
+  // Plan item 2.4 (decision 8.24): the list is a treegrid when grouped and a
+  // grid when not, with the row as its one tab stop (use-request-grid.ts).
+  const grouped = grouping !== "none"
+  const gridKeys = useMemo(() => gridKeysFor(grouped ? groups : null, currentRows, collapsedGroups), [grouped, groups, currentRows, collapsedGroups])
+  const rowGroups = useMemo(() => new Map<string, string>(groups.flatMap(group => group.rows.map(row => [`r:${row.id}`, group.key] as const))), [groups])
+  const grid = useRequestGrid({
+    gridRef, scopeRef: layoutRef, keys: gridKeys,
+    keysForPage: index => gridKeysFor(grouped ? groups : null, paginateRequests(matching, index, pagination.pageSize).rows, collapsedGroups),
+    groupOf: key => grouped ? rowGroups.get(key) ?? null : null,
+    isCollapsed: group => collapsedGroups.includes(group),
+    setCollapsed: (group, collapse) => setView(previous => ({ ...previous, collapsedGroups: collapse ? [...previous.collapsedGroups.filter(key => key !== group), group] : previous.collapsedGroups.filter(key => key !== group) })),
+    toggleSelected: id => selection.toggle(id, !selection.selected.some(row => row.id === id)),
+    page: { index: pageIndex, count: pageCount, go: index => setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: index } })) },
+    announce: text => announce(text, { key: "page" }),
+  })
+  const setGridActive = grid.setActive
   const setFilter = (id: string, value: string) => {
     if (id === "project") {
       setView(previous => withListContext(previous, { project: value || "all" }))
@@ -86,7 +108,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     const index = matching.findIndex(row => row.id === id)
     const group = groups.find(item => item.rows.some(row => row.id === id))
     if (index >= 0) setView(previous => ({ ...previous, collapsedGroups: previous.collapsedGroups.filter(key => key !== group?.key), pagination: { ...previous.pagination, pageIndex: Math.floor(index / previous.pagination.pageSize) } }))
-  }, [matching, groups, setView])
+    // The returning row also takes the grid's tab stop.
+    if (index >= 0) setGridActive(`r:${id}`)
+  }, [matching, groups, setView, setGridActive])
   // Plan item 2.3: "Show it" on the composer's toast moved the view to one that
   // holds the new Request. Bring its group and page into view, focus it, and
   // clear the request, as the return-focus marker does.
@@ -98,10 +122,12 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     let frame = 0, attempts = 0
     const done = () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous)
     const focusRow = () => {
-      const link = document.getElementById(`request-${reveal}`)
-      if (link?.getClientRects().length && !link.closest("[hidden], [inert]")) {
-        link.focus()
-        if (document.activeElement === link) return done()
+      // Plan item 2.4: the row, the list's one tab stop, not its title link.
+      const row = document.querySelector(requestRowSelector(reveal))
+      if (isShown(row)) {
+        row.focus({ preventScroll: true })
+        row.scrollIntoView({ block: "nearest" })
+        if (document.activeElement === row) return done()
       }
       if (++attempts < 20) frame = window.requestAnimationFrame(focusRow)
       else done()
@@ -113,7 +139,6 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // announced once the person stops changing filters; removing the last one
   // says so. A count that changes only because the data did is not announced,
   // and nothing is said on the first render.
-  const announce = useListAnnouncer()
   const filterSignature = JSON.stringify([filter, projectFilter, title, requestType])
   const announcedFilters = useRef(filterSignature)
   const matchCount = matching.length
@@ -126,10 +151,10 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
   const hasFilter = filter !== "all" || !!title || !!requestType
   const emptyTitle = hasFilter ? "No matching Requests" : projectFilter === "none" ? "No Requests without a Project" : projectFilter !== "all" ? "No Requests in this Project yet" : "No Requests yet"
-  const renderRows = (rows: OverviewRequest[], label: string, id?: string) => <ul id={id} className={styles.list} aria-label={label}>
-    {rows.map(request => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} filter={filter} projectFilter={projectFilter} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />)}
-  </ul>
-  return <div className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
+  const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
+  const renderRow = (request: OverviewRequest, level?: number) => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} filter={filter} projectFilter={projectFilter} level={level}
+    tabbable={grid.tabbable === `r:${request.id}`} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
+  return <div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={setSummaryOpen} summaryTrigger={summaryTrigger}
@@ -143,20 +168,28 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
       {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
-        : grouping === "none" ? renderRows(currentRows, "Requests")
+        : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps}>
+          {!grouped ? currentRows.map(request => renderRow(request))
           : groups.map(group => {
             const rows = group.rows.filter(row => pageIds.has(row.id))
             if (!rows.length) return null
             const collapsed = collapsedGroups.includes(group.key)
             const id = `${groupId}-${group.key}`
-            return <section key={group.key} className={styles.group} aria-label={`${group.label} Requests`}>
-              <div className={presentation ? styles.groupHeader : undefined}><h2 className={styles.groupHeading}><button type="button" className={styles.groupButton} aria-expanded={!collapsed} aria-controls={id} aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.label} group`} onClick={() => setView(previous => ({ ...previous, collapsedGroups: collapsed ? previous.collapsedGroups.filter(key => key !== group.key) : [...previous.collapsedGroups, group.key] }))}>
-                {collapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}<span>{group.label}</span>
-                <span className={styles.groupCount}>{rows.length < group.rows.length ? `${rows.length} of ` : ""}{group.rows.length} {group.rows.length === 1 ? "Request" : "Requests"}</span>
-              </button></h2>{presentation && group.key === "status:open" && <Tooltip content="New Request"><NewRequestLink className={styles.groupAdd} aria-label="New Request"><Plus size={16} aria-hidden="true" /></NewRequestLink></Tooltip>}</div>
-              <div id={id} hidden={collapsed}>{renderRows(rows, `${group.label} Requests`)}</div>
-            </section>
+            const count = `${rows.length < group.rows.length ? `${rows.length} of ` : ""}${requestCount(group.rows.length)}`
+            const headerKey = `g:${group.key}`
+            return <div key={group.key} role="rowgroup" className={styles.group} aria-label={`${group.label} Requests`}>
+              <div role="row" aria-level={1} aria-expanded={!collapsed} aria-label={`${group.label}, ${count}`} tabIndex={grid.tabbable === headerKey ? 0 : -1} data-grid-row={headerKey}
+                className={presentation ? `${styles.groupRow} ${styles.groupHeader}` : styles.groupRow}>
+                <div role="gridcell" className={styles.groupCell}><h2 className={styles.groupHeading}><button type="button" tabIndex={-1} className={styles.groupButton} aria-expanded={!collapsed} aria-controls={id} aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.label} group`} onClick={() => grid.toggleGroup(group.key, !collapsed)}>
+                  {collapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}<span>{group.label}</span>
+                  <span className={styles.groupCount}>{count}</span>
+                </button></h2></div>
+                {presentation && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip content="New Request"><NewRequestLink tabIndex={-1} className={styles.groupAdd} aria-label="New Request"><Plus size={16} aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+              </div>
+              <div id={id} hidden={collapsed}>{rows.map(request => renderRow(request, 2))}</div>
+            </div>
           })}
+        </div>}
     {footer}
     </div>
     {pageCount > 1 && <div className={`${styles.footer} ${layoutStyles.tableFooter}`}>

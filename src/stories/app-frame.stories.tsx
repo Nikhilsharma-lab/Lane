@@ -248,7 +248,7 @@ export const ListSkeletonMatchesLoaded: Story = {
   parameters: { nextjs: { navigation: { pathname: "/", query: {} } } },
   render: () => <SkeletonSwap pathname="/" skeleton={<ListLoading />} page={<RequestsOverview requests={listRows} isGuest={false} context={context} />} />,
   play: async ({ canvasElement }) => {
-    const shared = { strip: '[data-slot="page-strip"]', toolbar: `.${tableStyles.toolbar}`, group: `.${rowStyles.groupHeader}`, row: "li[data-compact-row]" }
+    const shared = { strip: '[data-slot="page-strip"]', toolbar: `.${tableStyles.toolbar}`, group: `.${rowStyles.groupHeader}`, row: "[data-compact-row]" }
     await swapAndCompare(canvasElement, shared, shared, [["strip", "top"], ["strip", "height"], ["toolbar", "top"], ["toolbar", "height"], ["group", "top"], ["row", "top"]])
   },
 }

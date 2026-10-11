@@ -3,6 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import type { OverviewRequest } from "@/lib/request-overview"
 import requestsMeta from "./requests.stories"
 import { LinearRequestsFixture } from "./helpers/linear-requests-fixture"
+import { requestGroup, requestRows } from "./helpers/request-grid"
 
 // Explicit illustrative saved numbers, deliberately different from display order.
 const requests: OverviewRequest[] = [
@@ -32,7 +33,7 @@ export const SavedCodes: Story = {
   args: { context: { orgId: "org_storybook" } },
   render: args => <LinearRequestsFixture {...args} />,
   play: async ({ canvasElement }) => {
-    const links = within(within(canvasElement).getByRole("list", { name: "Open Requests" })).getAllByRole("link")
+    const links = within(requestGroup(canvasElement, "Open Requests")).getAllByRole("link", { name: /problem/ })
     if (canvasElement.clientWidth > 880) {
       const titleStart = links[0].getBoundingClientRect().left
       for (const link of links) expect(link.getBoundingClientRect().left).toBe(titleStart)
@@ -88,8 +89,8 @@ export const StableThroughSortAndFilter: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const page = within(document.body)
-    const list = within(canvas.getByRole("list", { name: "Open Requests" }))
-    await expect(within(list.getAllByRole("listitem")[0]).getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
+    const list = () => requestGroup(canvasElement, "Open Requests")
+    await expect(within(requestRows(list())[0]).getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
     await userEvent.click(canvas.getByRole("button", { name: "Display" }))
     const display = within(await page.findByRole("dialog", { name: "Display Requests" }))
     await userEvent.click(display.getByRole("combobox", { name: "Order by" }))
@@ -97,14 +98,14 @@ export const StableThroughSortAndFilter: Story = {
     await waitFor(() => expect(page.queryByRole("listbox")).not.toBeInTheDocument())
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Display Requests" })).not.toBeInTheDocument())
-    const sorted = list.getAllByRole("listitem")
+    const sorted = requestRows(list())
     await expect(within(sorted[0]).getByRole("button", { name: "Copy code LAN-7" })).toBeVisible()
     await expect(within(sorted[0]).getByRole("link", { name: requests[1].title })).toHaveAttribute("href", `/requests/${requests[1].id}`)
     await expect(within(sorted[2]).getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
     await userEvent.click(canvas.getByRole("button", { name: "Filter Requests by title" }))
     await userEvent.type(await page.findByRole("searchbox", { name: "Filter Requests by title" }), "Alpha")
     await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(list.getAllByRole("listitem")).toHaveLength(1))
+    await waitFor(() => expect(requestRows(list())).toHaveLength(1))
     await expect(canvas.getByRole("button", { name: "Copy code LAN-42" })).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/${requests[0].id}`)
   },
@@ -151,7 +152,7 @@ export const CopyFailureAndRetry: Story = {
       const button = canvas.getByRole("button", { name: "Copy code LAN-42" })
       await userEvent.click(button)
       // The error shows beside the code and describes the button; the list's one region also says it once.
-      const error = await within(button.closest<HTMLElement>("[data-state]")!).findByText("Copy failed. Try again.")
+      const error = await within(button.closest<HTMLElement>("span[data-state]")!).findByText("Copy failed. Try again.")
       await expect(error).toBeVisible()
       await expect(button).toHaveAttribute("aria-describedby", error.id)
       await waitFor(() => expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Copy failed. Try again."))

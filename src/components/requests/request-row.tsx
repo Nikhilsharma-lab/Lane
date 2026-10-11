@@ -5,8 +5,10 @@ import { Check, Copy, Ellipsis, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
-import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
-import type { RequestColumn } from "./tasks/columns"
+import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { ROW_MENU_HINTS } from "@/lib/keyboard-shortcuts"
+import { useIntentPrefetch, type RequestColumn } from "./tasks/columns"
+import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Button } from "@/components/arc/button/button"
@@ -51,7 +53,7 @@ function RequestCodeControl({ code }: { code: string }) {
   return <span className={styles.savedCode} data-state={state} onClick={event => event.stopPropagation()}>
     {/* Plan item 2.4 (decision 8.22): no blur morphs in dense rows. */}
     <Tooltip morph="plain" content={state === "copied" ? "Copied. Copy again" : state === "error" ? "Retry copying code" : "Copy code"}>
-      <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.codeButton}
+      <Button type="button" variant="ghost" size="sm" morph="plain" tabIndex={-1} className={styles.codeButton}
         aria-label={`Copy code ${code}`} aria-describedby={state === "error" ? feedbackId : undefined}
         loading={state === "copying"} onClick={() => { void copyCode() }}>
         <span data-request-code>{code}</span><Icon size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -86,6 +88,10 @@ type RequestRowProps = {
   projectFilter: RequestProjectFilter
   checked: boolean
   disabled: boolean
+  /** Plan item 2.4: this row holds the grid's one tab stop. */
+  tabbable?: boolean
+  /** The treegrid level (2 under a group header); left out when the list is not grouped. */
+  level?: number
   /** Excluded from the memo comparison: callers pass a fresh closure each render,
    * so the handler must act on the latest selection itself (useRequestSelection does). */
   onCheckedChange: (checked: boolean) => void
@@ -105,6 +111,8 @@ const shallowEqual = (a: object, b: object) => {
 function sameRow(previous: RequestRowProps, next: RequestRowProps) {
   return previous.checked === next.checked
     && previous.disabled === next.disabled
+    && previous.tabbable === next.tabbable
+    && previous.level === next.level
     && previous.filter === next.filter
     && previous.projectFilter === next.projectFilter
     && previous.columns === next.columns
@@ -112,38 +120,56 @@ function sameRow(previous: RequestRowProps, next: RequestRowProps) {
     && (previous.request === next.request || shallowEqual(previous.request, next.request))
 }
 
-export const RequestRow = memo(function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, onCheckedChange }: RequestRowProps) {
+export const RequestRow = memo(function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
   const presentation = useRequestRowPresentation()
   const identity = presentation?.identities[request.id]
   const savedCode = request.requestNumber === undefined ? null : formatRequestCode(request.requestNumber)
   const code = savedCode ?? identity?.code ?? ""
-  const menuItems = presentation?.menuItems(request) ?? []
+  const rowRef = useRef<HTMLDivElement>(null)
+  // Plan item 2.4: keyboard focus rests on the row, so the row prefetches its detail once the person stops on it.
+  const prefetch = useIntentPrefetch(requestDetailHref(request.id, "all"))
+  const actionItems = presentation?.menuItems(request) ?? []
+  // The row menu names the two keys it can stand in for; nothing else carries a hint.
+  const menuItems: ContextMenuItem[] = presentation ? [...actionItems,
+    { id: "select", label: checked ? "Deselect" : "Select", shortcut: ROW_MENU_HINTS.select, separatorBefore: true, disabled, onSelect: () => onCheckedChange(!checked) },
+    { id: "open", label: "Open Request", shortcut: ROW_MENU_HINTS.open, onSelect: () => rowRef.current?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click() },
+  ] : []
   const status = statuses.find(item => item.value === request.status)!
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
   // An open row menu keeps the row lit and its menu button shown while the pointer is on the menu.
   const [menuOpen, setMenuOpen] = useState(false)
   // Compact rows carry only saved facts; an unset type or Project is not one.
   const unset = (key: string) => key === "requestType" ? !request.requestType : key === "project" ? !request.projectId : false
-  const row = <li className={styles.row} data-compact-row={presentation ? "true" : undefined} tabIndex={presentation ? -1 : undefined} data-request-id={request.id} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}>
-    <Checkbox checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
-    <div className={styles.rowContent}>
+  // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
+  // stop and carries every value in its name; each control inside it is
+  // tabIndex -1 and stays reachable through the row menu or a key.
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity)} tabIndex={tabbable ? 0 : -1}
+    id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
+    className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
+    onFocus={event => { if (event.target === event.currentTarget) prefetch.schedule() }}
+    onBlur={event => { if (event.target === event.currentTarget) prefetch.cancel() }}>
+    <div role="gridcell" className={styles.selectCell}>
+      <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
+    </div>
+    <div role="gridcell" className={styles.rowContent}>
     {identity &&
-      <GlyphMenu label="Request priority" items={menuItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
-        <button type="button" className={styles.identityControl} data-priority={identity.priority} aria-haspopup="menu" aria-label={`Priority: ${priorityLabel}`}><PriorityGlyph priority={identity.priority} /></button>
+      <GlyphMenu label="Request priority" items={actionItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
+        <button type="button" tabIndex={-1} className={styles.identityControl} data-priority={identity.priority} aria-haspopup="menu" aria-label={`Priority: ${priorityLabel}`}><PriorityGlyph priority={identity.priority} /></button>
       </GlyphMenu>
     }
     {savedCode ? <RequestCodeControl key={savedCode} code={savedCode} /> : identity ? <span className={styles.requestCode} data-request-code>{identity.code}</span> : null}
-    {identity && visibility.status !== false && <GlyphMenu label="Request status" items={menuItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
-        <button type="button" className={styles.identityControl} data-status={request.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={request.status} /></button>
+    {identity && visibility.status !== false && <GlyphMenu label="Request status" items={actionItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
+        <button type="button" tabIndex={-1} className={styles.identityControl} data-status={request.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={request.status} /></button>
       </GlyphMenu>}
     {columns[0].render(request, filter, projectFilter)}
+    {/* Sketch reservation (2026-10-11): a later "waiting" token joins these as data-row-property="waiting"; see request-rows.module.css. */}
     <div className={styles.properties}>
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}
     </div>
     {presentation && <GlyphMenu label={`Request ${code} actions`} items={menuItems} tip="More actions" onOpenChange={setMenuOpen}>
-      <button type="button" className={styles.rowMenu} aria-haspopup="menu" aria-label={`More actions for ${code}`}><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></button>
+      <button type="button" tabIndex={-1} className={styles.rowMenu} aria-haspopup="menu" aria-label={`More actions for ${code}`}><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></button>
     </GlyphMenu>}
     </div>
-  </li>
+  </div>
   return presentation ? <ContextMenu label={`Request ${code || "actions"}`} items={menuItems} asChild openOnClick={false} onOpenChange={setMenuOpen}>{row}</ContextMenu> : row
 }, sameRow)

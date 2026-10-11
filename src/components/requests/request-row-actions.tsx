@@ -11,6 +11,7 @@ import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } fro
 import { allowedMove, type AllowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
+import { restoreRequestFocus, rowIndexOf } from "./list-focus"
 import { FAILURE_TITLE, useOptimisticAction } from "./use-optimistic-action"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
@@ -51,15 +52,16 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   const identities = useStableIdentities(rows)
 
   // A status change regroups the row and can replace its DOM. Keep the person
-  // on the moved Request, or on the filter control when it is no longer shown.
-  const restoreFocus = useCallback((id: string) => {
+  // on the moved Request's row, which follows it into its new group (plan
+  // item 2.4). When the view no longer shows it (a status filter, another
+  // page), focus the row that took its place and say where it went.
+  const restoreFocus = useCallback((id: string, name: string) => {
+    const index = rowIndexOf(id)
     requestAnimationFrame(() => {
-      const link = document.getElementById(`request-${id}`)
-      const visible = link?.getClientRects().length && !link.closest("[hidden],[inert]")
-      const target = visible ? link : document.querySelector<HTMLButtonElement>('[aria-label="Filter Requests by title"]')
-      target?.focus({ preventScroll: true })
+      const restored = restoreRequestFocus(id, { index })
+      if (restored !== "row" && restored !== "none") announce(`${name} left this view.`, { key: "row-left" })
     })
-  }, [])
+  }, [announce])
 
   // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
   // Undo is sent only after the Done move it reverses has succeeded.
@@ -74,7 +76,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
     })
     if (outcome.status !== "success") return
     toast({ id: toastId, type: "success", title: "Back In Progress", description: `${name} is In Progress again.` })
-    restoreFocus(requestId)
+    restoreFocus(requestId, name)
   }, [optimistic, orgId, restoreFocus, toast, update])
 
   /** One toast per move: Done confirms at once with Undo, and a failure replaces that same toast. */
@@ -100,7 +102,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
       // The failure toast speaks for itself; the region drops the claim it made.
       if (outcome.status === "error" && kind === "pick-up") announce("", { key: "row-change" })
     }).finally(() => { busy.current.delete(key) })
-    restoreFocus(request.id)
+    restoreFocus(request.id, name)
   }, [announce, identities, optimistic, orgId, restoreFocus, toast, undo])
 
   const setPriority = useCallback((request: OverviewRequest, priority: RequestPriority) => {

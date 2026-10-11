@@ -20,7 +20,9 @@ import { useRequestRowPresentation } from "./row-presentation"
 export type RequestPropertyKey = "status" | "project" | "pickedUpBy" | "createdAt" | "requestType" | "submittedBy"
 
 /** Read-only saved properties. Lifecycle actions remain in Request detail. */
-export function RequestProperty({ request, property, filter = "all" }: { request: OverviewRequest; property: RequestPropertyKey; filter?: RequestStatusFilter }) {
+export function RequestProperty({ request, property, filter = "all", tabIndex }: { request: OverviewRequest; property: RequestPropertyKey; filter?: RequestStatusFilter;
+  /** Plan item 2.4: -1 inside a Request row, whose row is the one tab stop. Standalone triggers keep the Tab order. */
+  tabIndex?: number }) {
   const compact = Boolean(useRequestRowPresentation())
   const [, setListView] = useRequestListView()
   const status = statuses.find(item => item.value === request.status)!
@@ -36,7 +38,7 @@ export function RequestProperty({ request, property, filter = "all" }: { request
   }
   const item = properties[property]
   return <Popover>
-    <PopoverTrigger asChild><button type="button" data-property={property} className={[styles.propertyTrigger, property === "pickedUpBy" && avatarStyles.trigger].filter(Boolean).join(" ")} aria-label={`${item.label}: ${item.value}`}>
+    <PopoverTrigger asChild><button type="button" tabIndex={tabIndex} data-property={property} className={[styles.propertyTrigger, property === "pickedUpBy" && avatarStyles.trigger].filter(Boolean).join(" ")} aria-label={`${item.label}: ${item.value}`}>
       {compact && property === "createdAt" ? <time className={styles.submittedDate} dateTime={request.createdAt}>{date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</time>
         : property === "pickedUpBy" ? request.assignedTo
         ? <Avatar name={pickerName} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={avatarStyles.avatar} data-avatar-tone={compact ? projectToneForId(request.assignedTo) : undefined} aria-hidden="true" />
