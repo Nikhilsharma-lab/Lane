@@ -879,6 +879,14 @@ increment at a time.
   **2026-10-10:** that replan is scheduled as a sketch session before Phase 2 of the launch plan (where
   alignment and outcome will sit on the composer and on detail); Phases 0 and 1 are plumbing, not page
   polish.
+  **2026-10-11:** Nikhil signed the sketch (`docs/superpowers/plans/2026-10-11-creation-to-outcome-sketch.md`).
+  Detail reads in journey order with Alignment and Outcome sections; the panel and the 44px strip summarize
+  them. Decisions: naming the other two seats is optional at creation; the creator always holds one seat,
+  never taken from the profile label; after a recorded concern only the creator revises the Request; the
+  assignee label is "Assignee", not "Owner"; and only a workspace admin changes an existing assignee or
+  replaces a named PM, Designer or Developer (this narrows §4.6: the creator still assigns into an empty slot
+  and an unassigned Designer may still pick up; replacement still never erases a concern). Phase 2 reserves
+  this structure and renders none of it until the alignment and outcome increments are approved.
 
 ### Scope amendment — 2026-09-28
 

@@ -1,12 +1,20 @@
 # Creation-to-outcome sketch
 
-Status: draft for Nikhil's sign-off, 2026-10-11. Once signed it satisfies launch plan decision 8.5 and records the Request detail go-ahead (LP:298, LP:373, LP:598). It authorizes no code, schema, route or AI call.
+Status: signed off by Nikhil on 2026-10-11, with the decisions below. It satisfies launch plan decision 8.5 and records the Request detail go-ahead (LP:298, LP:373, LP:598). It authorizes no code, schema, route or AI call.
 
 Short references: R is `REQUIREMENTS.md`, LP is `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`, RM is `lane-roadmap.md`, AR is `docs/superpowers/plans/2026-10-09-ask-for-review.md`. Every alignment and outcome label here is provisional (R:265-266, R:853).
 
 ## Placement decision
 
 Request detail reads as one document in journey order (Problem, Expected impact, Alignment, Work, Outcome, Conversation), so each agreement, concern and result sits beside the prediction it refers to. The right panel holds properties plus one summary row each for Alignment and Outcome, and the single 44px strip holds the viewer's one primary action or, when they owe nothing, one quiet line naming who does. In the composer, Expected impact stays required on the compose step and the trio is named on the review step just above Create Request, so creating the Request is visibly the creator's agreement to that version.
+
+## Decisions (Nikhil, 2026-10-11)
+
+1. Naming the other two seats is optional at creation. While a seat is empty, "Name participants" is the creator's next action on detail.
+2. The creator always holds one seat, chosen on the review step and never filled from the profile label.
+3. After a concern is recorded, only the creator revises the Request.
+4. The assignee label "Owner" becomes "Assignee" in the list and the detail panel, so "owner" only means the outcome owner.
+5. Only a workspace admin changes an existing assignee or replaces a named PM, Designer or Developer. Filling an empty slot is unchanged: the creator names the trio and may assign the Designer, and an unassigned Designer may pick up (R:322-324). A replacement must still agree, and replacement never erases a concern (R:276-277).
 
 ## Rules this sketch keeps
 
@@ -36,7 +44,7 @@ Review step, in order: title with Project and Request type; Problem (read-only, 
 Alignment block, alignment increment only:
 - "Your seat": PM, Designer or Developer. No default. Never filled from the profile label (R:112, R:239-241).
 - Two member pickers named for the other two seats. Members only. Each excludes you and the person already chosen.
-- Optional at creation (open question 1), since naming before agreement is allowed (R:234). Hidden for guests until sponsorship is decided (R:231, R:242).
+- Optional at creation (decision 1), since naming before agreement is allowed (R:234). Hidden for guests until sponsorship is decided (R:231, R:242).
 - Never sent to the AI. Seats post with the signed review and the server checks them, as it checks `editedProblemText` today (`intake/actions.ts:248-269`).
 - One line above the footer buttons: "Creating this records your agreement to this version." (R:265).
 - The create toast stops saying "Open and ready to be picked up." once the guard ships.
@@ -69,15 +77,15 @@ At 390px the drawer is full width with a 16px gutter. Chips wrap. The impact num
 
 - Strip: Workspace / Project / LAN-n, Copy link, Copy code, "2 / 5" with previous and next, one action slot, and an overflow menu only when it has items. The slot holds one filled button, or one quiet line saying who owes the next step.
 - Main column (about 720px), each part a labelled region with an h2 and a stable id: problem (description, Original Request, Suggested change, Supporting details), expected-impact, alignment, files, ask-for-review, outcome, conversation.
-- Right panel (about 280px): Status (glyph with its one allowed move as a quiet menu, LP:383), Alignment, Outcome, a divider, then Priority, Assignee (today "Owner", open question 4), Project, Type, Submitted. Alignment and Outcome rows are links that move focus to their section.
+- Right panel (about 280px): Status (glyph with its one allowed move as a quiet menu, LP:383), Alignment, Outcome, a divider, then Priority, Assignee (today "Owner", decision 4), Project, Type, Submitted. Alignment and Outcome rows are links that move focus to their section.
 - An action that needs input opens a form inside its section. While it is open the strip button hides, so the form's submit is the only primary on screen.
-- Overflow, target only: Withdraw Request (creator, reason required, R:278-279), Create follow-up Request (R:480-482), Add correction (R:469-472), Transfer outcome owner (admin, R:462-464).
+- Overflow, target only: Withdraw Request (creator, reason required, R:278-279), Create follow-up Request (R:480-482), Add correction (R:469-472), Transfer outcome owner (admin, R:462-464), Change assignee or participant (admin, decision 5).
 
 | State | Panel rows | Primary action | Owner | Everyone else sees in the slot |
 |---|---|---|---|---|
 | Not aligned | Open; 1 of 3 agreed | Respond | each named person who has not answered | "Waiting on Ravi and Mei" |
 | Seat empty | Open; Needs people | Name participants | creator | "Waiting on Asha to name people" |
-| Concern recorded | Open; Concern | Revise Request | creator (open question 3) | "Waiting on Asha to revise" |
+| Concern recorded | Open; Concern | Revise Request | creator (decision 3) | "Waiting on Asha to revise" |
 | Aligned | Open; Aligned, v2 | Pick up | eligible member today; target rules in R:322-324 | "Available to pick up" |
 | In progress | In Progress; Aligned, v2 | Mark Done, with Undo | any non-guest (8.23, R:811-814) | "Ravi picked this up 3 days ago" |
 | Done, launch not recorded | Done; Not started | none until the release increment | none | "Measuring starts when the launch is recorded" |
@@ -230,11 +238,11 @@ Outcome increment, shipped only with exceptions, no-reopen and follow-ups (R:789
 - Editing Problem and Expected impact in place on detail: the material-edit rule is still open (R:853). Revision goes through the composer.
 - Placeholder Alignment or Outcome rows in Phase 2: LP:92 and R:795-798 forbid promising or pre-building them.
 
-## Plan fixes on sign-off
+## Plan fixes applied on sign-off
 
-- LP:298 and LP:598 cite R:856-857 for the replan. The text is now R:877-881.
-- LP:340 cites 8.23 for the Expected impact disclosure. It is 8.26.
-- LP:379 says Undo on detail needs a ledger amendment. R:811-814 already allows it.
+- LP:298 and LP:598 cited R:856-857 for the replan. They now cite R:877-881.
+- LP:340 cited 8.23 for the Expected impact disclosure. It now cites 8.26.
+- LP:379 said Undo on detail needs a ledger amendment. It now notes R:811-814 already allows it.
 
 ## References (REQUIREMENTS.md)
 
