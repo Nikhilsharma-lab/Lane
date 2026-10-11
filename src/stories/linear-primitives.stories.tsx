@@ -365,6 +365,42 @@ export const ResponsiveRows: Story = {
   },
 }
 
+/**
+ * Sketch reservation (2026-10-11 creation-to-outcome sketch, plan item 2.4): a
+ * later trailing token ("Result due 14 Dec") must fit beside the widest row's
+ * properties at 1440 without shrinking them, and stay hidden on phones. The
+ * token here is test-only and removed afterwards; no production UI renders it.
+ */
+export const TrailingTokenRoom: Story = {
+  args: { requests: [{ ...requestsMeta.args.requests[1], requestType: "new_feature" as const, projectId: "11111111-1111-4111-8111-111111111111", projectName: "Customer onboarding and activation", assignedTo: "person-sam", assigneeName: "Alexandria Long Workspace Member Name" }] },
+  play: async ({ canvasElement }) => {
+    await document.fonts.ready
+    const row = requestRows(canvasElement)[0]
+    const container = row.querySelector<HTMLElement>("[data-row-property]")!.parentElement!
+    const properties = [...container.children] as HTMLElement[]
+    const before = properties.map(span => span.getBoundingClientRect().width)
+    const token = document.createElement("span")
+    token.dataset.rowProperty = "waiting"
+    token.textContent = "Result due 14 Dec"
+    Object.assign(token.style, { fontSize: "var(--text-xs)", whiteSpace: "nowrap", color: "var(--text-secondary)" })
+    container.append(token)
+    try {
+      if (container.closest("[data-request-grid]")!.getBoundingClientRect().width <= 640) {
+        expect(getComputedStyle(token).display).toBe("none")
+        return
+      }
+      if (innerWidth < 1440) return
+      properties.forEach((span, index) => expect(span.getBoundingClientRect().width, span.dataset.rowProperty).toBeGreaterThanOrEqual(before[index] - .5))
+      expect(token.scrollWidth).toBeLessThanOrEqual(token.clientWidth)
+      expect(token.getBoundingClientRect().width).toBeGreaterThan(0)
+      expect(row.getBoundingClientRect().height).toBe(44)
+      const title = within(row).getByRole("link")
+      expect(getComputedStyle(title).whiteSpace).toBe("nowrap")
+      expect(title.getBoundingClientRect().height).toBeLessThanOrEqual(44)
+    } finally { token.remove() }
+  },
+}
+
 export const RowContextMenu: Story = {
   play: async ({ canvasElement, args }) => {
     const page = within(document.body)

@@ -1,9 +1,9 @@
 "use client"
 
-import { Fragment, useEffect, useEffectEvent, useState } from "react"
+import { Fragment, useEffect, useEffectEvent, useRef, useState } from "react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { isTypingTarget } from "@/components/requests/request-grid-keys"
-import { overlayOpen } from "@/components/requests/list-focus"
+import { isShown, overlayOpen } from "@/components/requests/list-focus"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import styles from "./keyboard-shortcuts.module.css"
 
@@ -15,13 +15,16 @@ import styles from "./keyboard-shortcuts.module.css"
  */
 export function KeyboardShortcuts() {
   const [open, setOpen] = useState(false)
+  // No trigger button opens it, so it hands focus back to where `?` was pressed itself.
+  const returnFocus = useRef<HTMLElement | null>(null)
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     // "?" arrives as its own key; Shift is how most layouts type it, so Shift is allowed.
     if (event.key !== "?" || event.defaultPrevented || event.isComposing || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return
     // Open, the overlay is itself the visible dialog, so `?` closes it. Closed, another dialog, menu or listbox keeps the key.
     if (!open && overlayOpen()) return
     event.preventDefault()
-    setOpen(value => !value)
+    if (!open) returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setOpen(!open)
   })
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKeyDown(event)
@@ -30,7 +33,14 @@ export function KeyboardShortcuts() {
   }, [])
 
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog}>
+    <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog}
+      onCloseAutoFocus={event => {
+        const target = returnFocus.current
+        returnFocus.current = null
+        if (!isShown(target)) return
+        event.preventDefault()
+        target.focus({ preventScroll: true })
+      }}>
       <div className={styles.groups}>
         {SHORTCUT_GROUPS.map(group => <section key={group.scope} className={styles.group} aria-labelledby={`shortcuts-${group.scope}`}>
           <h3 id={`shortcuts-${group.scope}`} className={styles.heading}>{group.title}</h3>

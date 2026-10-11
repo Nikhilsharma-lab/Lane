@@ -170,6 +170,7 @@ An Impeccable critique of the production Requests list (25/40, two P1) scoped a 
 - Distill: the copy glyph appears on hover or focus only and the code is text-only under 880px of record width; unset type and Project pills are omitted in compact rows; the pagination footer renders only when there is more than one page.
 - One labelled New Request in the page strip carries the C shortcut in its tooltip; the sidebar rail uses the same label and shortcut; the group plus appears on the Open group only.
 - Production enables the shell's automatic collapse at 880px and below.
+- Sketch reservation (plan item 2.4): the row's trailing metadata keeps room for one later token, `span[data-row-property="waiting"]` ("Result due 14 Dec"). It is hidden at 640px of record width and below by the existing rule that keeps only the assignee, and the `TrailingTokenRoom` story checks at 1440 that it fits without shrinking the other properties. No production UI renders it yet.
 
 Verified: TypeScript, ESLint, Arc provenance, the full Vitest suite (542), the Impeccable detector over the changed files (no findings), and in the browser at 375/768/1087/1440px in both themes: focus ring, menus, Done → Undo, the bulk bar, and the phone layout.
 

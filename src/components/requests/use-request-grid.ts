@@ -62,13 +62,15 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     element.scrollIntoView({ block: "nearest" })
   }, [focusTick, keys, gridRef])
 
-  /** Collapsing the group that holds the tab stop gives the stop to its header, as in APG. */
+  /** Collapsing the group that holds the tab stop or focus gives both to its header, as in APG. */
   const toggleGroup = useCallback((group: string, collapse: boolean) => {
     const header = `g:${group}`
-    const current = active?.key
+    // Focus is read from the page, so a focus that has not re-rendered yet still counts.
+    const focusedElement = document.activeElement instanceof Element && gridRef.current?.contains(document.activeElement) ? document.activeElement : null
+    const focusedRow = focusedElement?.closest<HTMLElement>("[data-grid-row]")?.dataset.gridRow
+    const current = focusedRow ?? active?.key
     if (collapse && current && current !== header && groupOf(current) === group) {
-      const focused = document.activeElement instanceof Element && gridRef.current?.contains(document.activeElement)
-      if (focused) focusKey(header)
+      if (focusedRow) focusKey(header)
       else setActive(header)
     }
     setCollapsed(group, collapse)
