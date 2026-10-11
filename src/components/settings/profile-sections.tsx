@@ -21,6 +21,9 @@ export function ProfileSections({ profileForm, appearance }: { profileForm: Reac
   </div>;
 }
 
+/** The real two-section grid with its static headings; only the controls wait (plan item 2.0). */
 export function ProfileSkeleton() {
-  return <Skeleton label="Loading Profile settings" lines={6} />;
+  return <div data-skeleton="profile" aria-busy="true">
+    <ProfileSections profileForm={<Skeleton label="Loading Profile settings" lines={2} />} appearance={<div aria-hidden="true"><Skeleton lines={2} /></div>} />
+  </div>;
 }

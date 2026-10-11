@@ -169,6 +169,15 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
     </div>
   </section>
 }
+/** Plan item 2.0: the detail page's own strip and body padding, so the swap to the loaded page does not move the frame. */
 export function RequestDetailSkeleton() {
-  return <div aria-label="Loading selected Request" aria-busy="true" className="min-w-0 flex-1 space-y-8 p-6"><Skeleton label="Loading selected Request" lines={2} /><Skeleton lines={5} /><Skeleton avatar lines={3} /></div>
+  return <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-skeleton="detail" aria-busy="true">
+    <PageStrip leading={<CloseDetail href="/" label="Close Request detail" />} title="Request detail" />
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-3xl space-y-7">
+        <Skeleton label="Loading selected Request" lines={2} />
+        <div aria-hidden="true" className="space-y-7"><Skeleton lines={1} /><Skeleton lines={5} /><Skeleton avatar lines={2} /></div>
+      </div>
+    </div>
+  </section>
 }
