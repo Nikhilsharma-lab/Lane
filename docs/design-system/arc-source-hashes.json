@@ -157,7 +157,7 @@
     "source": "https://uiarc.dev/r/input.json",
     "file": "src/components/arc/input/input.module.css",
     "upstreamSha256": "ef6716aa7b9f45898859735f416ac932517b94e66bed6b3d23d7aed180529bdf",
-    "localSha256": "8bc37d18f4c5dbae8c20e7418a7265af99c4d8affde28fce9e77d64958009669"
+    "localSha256": "171d674d2d3e93ea57eda9f6b337d2413c4a88448945c96f1b4f34214d8d7916"
   },
   {
     "id": "input",
@@ -313,7 +313,7 @@
     "source": "https://uiarc.dev/r/textarea.json",
     "file": "src/components/arc/textarea/textarea.module.css",
     "upstreamSha256": "57a9294f6f7eea903296334bf1203982b41736aa1082a83af4dc2e8bbc6a144c",
-    "localSha256": "490dd6a20ee9a7dd150fe7298fec6e7354396f87751dd2c314bdb253b1118169"
+    "localSha256": "7443d5ab554c52600f200217566b0d7ddf52cb708ced251c1a71385130b9d497"
   },
   {
     "id": "textarea",
