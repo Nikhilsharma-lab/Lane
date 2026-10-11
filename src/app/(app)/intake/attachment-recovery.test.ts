@@ -59,8 +59,10 @@ function retryHarness(attachments: Attachment[], outcomes: boolean[]) {
     createdRequestId: "saved-request",
     context: { orgId: "org-test" },
     operationInFlight,
-    // Plan item 2.3 (S3): leaving the upload screen; never set in these cases.
+    // Plan item 2.3 (S3): leaving the upload screen or unmounting; never set in these cases.
     leftUploadScreen: { current: false },
+    unmounted: { current: false },
+    uploadsUnattended: () => false,
     reservations: { current: new Map<string, string>() },
     settleLeftUploads: () => {},
     onBusyChange: undefined,
@@ -93,6 +95,7 @@ function retryHarness(attachments: Attachment[], outcomes: boolean[]) {
 }
 
 const failed = (key: string): Attachment => ({ key, status: "failed", attachmentId: null });
+type UploadsRecord = { requestId: string; title: string; files: { key: string; name: string; attachmentId: string | null }[] };
 
 describe("attachment retry completion", () => {
   it("keeps recovery open when one of two failed files succeeds", async () => {
@@ -144,19 +147,29 @@ function recoveryHarness(files: Attachment[]) {
     failFinalize: false,
     rejectFinalize: false,
     recordCleared: 0,
+    // The unfinished-uploads record as the upload screen last wrote it.
+    record: {
+      requestId: "saved-request",
+      title: "",
+      files: files.map(({ key, file, attachmentId }) => ({ key, name: file?.name ?? key, attachmentId })),
+    } as UploadsRecord | null,
+    busy: [] as boolean[],
     onUpload: undefined as (() => void) | undefined,
   };
   const operationInFlight = { current: false };
   const leftUploadScreen = { current: false };
+  const unmounted = { current: false };
+  const uploadsRequest = { current: null as string | null };
   const sandbox = {
     attachments: state.files,
     createdRequestId: state.createdRequestId,
     context: { orgId: "org-test" },
     operationInFlight,
     leftUploadScreen,
-    uploadsRequest: { current: null as string | null },
+    unmounted,
+    uploadsRequest,
     reservations: { current: new Map<string, string>() },
-    onBusyChange: undefined,
+    onBusyChange: (busy: boolean) => { state.busy.push(busy); },
     setMutationBusy: () => {},
     source: {}, triage: { classification: "problem" }, token: "triage-token",
     draftCleared: { current: false }, draftScope: "scope",
@@ -165,9 +178,12 @@ function recoveryHarness(files: Attachment[]) {
     // Plan item 2.3: the overlay insert and the unfinished-uploads record are
     // browser boundaries; the handlers only call them.
     showCreatedInList: () => {}, refreshClerkToken: async () => {},
-    writeUnfinishedUploads: () => true,
-    readUnfinishedUploads: () => ({ requestId: state.createdRequestId }),
-    clearUnfinishedUploads: () => { state.recordCleared++; },
+    readUnfinishedUploads: () => state.record,
+    writeUnfinishedUploads: (_storage: unknown, _scope: string, record: UploadsRecord) => {
+      state.record = record.files.length ? record : null;
+      return true;
+    },
+    clearUnfinishedUploads: () => { state.recordCleared++; state.record = null; },
     setRestoredDraft: () => {}, setProblemError: () => {},
     setFailure: (failure: unknown) => { state.failure = failure; },
     setStage: (stage: string) => { state.stage = stage; },
@@ -175,12 +191,9 @@ function recoveryHarness(files: Attachment[]) {
     setAttachments: (update: (files: Attachment[]) => Attachment[]) => {
       state.files = update(state.files);
     },
-    updateAttachment: (key: string, patch: Partial<Attachment>) => {
-      state.files = state.files.map((item) => item.key === key ? { ...item, ...patch } : item);
-    },
     saveRequest: async () => { state.saveCalls++; return { success: true, requestId: "saved-request" }; },
-    prepareAttachmentUpload: async () => ({
-      success: true, attachmentId: "reservation-a", signedUrl: "https://test.invalid/upload", mimeType: "image/png",
+    prepareAttachmentUpload: async ({ fileName }: { fileName: string }) => ({
+      success: true, attachmentId: `reservation-${fileName.split(".")[0]}`, signedUrl: "https://test.invalid/upload", mimeType: "image/png",
     }),
     uploadToSignedUrl: async () => {
       state.uploadCalls++;
@@ -204,16 +217,18 @@ function recoveryHarness(files: Attachment[]) {
   };
   const context = loadHandlers([
     "uploadAttachment", "onConfirm", "retryAttachments", "removeFailedFile",
-    "continueWithoutFailedFiles", "discardFailedAttachment",
-    "settleLeftUploads", "leaveUploadScreen",
+    "continueWithoutFailedFiles", "discardFailedAttachment", "updateAttachment",
+    "followUnmountedUpload", "uploadsUnattended", "settleLeftUploads",
+    "leaveUploadScreen", "leaveOnUnmount",
   ], sandbox);
   function render() {
     context.attachments = state.files;
     context.createdRequestId = state.createdRequestId;
   }
   return {
-    state, operationInFlight, leftUploadScreen,
+    state, operationInFlight, leftUploadScreen, uploadsRequest,
     leave: () => (context.leaveUploadScreen as () => void)(),
+    unmount: () => (context.leaveOnUnmount as () => void)(),
     confirm: () => (context.onConfirm as () => Promise<void>)(),
     retry: (files: Attachment[]) => { render(); return (context.retryAttachments as (files: Attachment[]) => Promise<void>)(files); },
     remove: (file: Attachment) => { render(); return (context.removeFailedFile as (file: Attachment) => Promise<void>)(file); },
@@ -323,8 +338,9 @@ describe("attachment cleanup failure recovery", () => {
 describe("leaving the upload screen (plan item 2.3, S3)", () => {
   const queued = (key: string): Attachment => ({ ...reserved(key), status: "queued", attachmentId: null });
   const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const snapshot = (value: unknown) => JSON.parse(JSON.stringify(value)) as unknown;
 
-  it("finishes the file in flight, starts no other, then clears its reservation and the record", async () => {
+  it("Leave page finishes the file in flight, starts no other, then clears its reservation and the record", async () => {
     const harness = recoveryHarness([queued("a"), queued("b")]);
     harness.state.stage = "framing";
     harness.state.failUpload = false;
@@ -338,10 +354,74 @@ describe("leaving the upload screen (plan item 2.3, S3)", () => {
     expect(harness.state.navigations).toEqual([]);
     expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
     expect(harness.state.recordCleared).toBe(1);
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.busy).toEqual([true, false]);
     expect(harness.operationInFlight.current).toBe(false);
   });
 
-  it("settles at once when no upload is running", async () => {
+  it("unmounting lets the uploads go on, follows them in the record, and clears it when they end", async () => {
+    const harness = recoveryHarness([queued("a"), queued("b"), queued("c")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    const records: unknown[] = [];
+    // Back during the first upload; each later upload sees the record as a reload would.
+    harness.state.onUpload = () => {
+      if (harness.state.uploadCalls === 1) harness.unmount();
+      else records.push(snapshot(harness.state.record));
+    };
+    await harness.confirm();
+    await settled();
+    expect(harness.state.uploadCalls).toBe(3);
+    expect(records).toEqual([
+      { requestId: "saved-request", title: "", files: [{ key: "b", name: "b.png", attachmentId: "reservation-b" }, { key: "c", name: "c.png", attachmentId: null }] },
+      { requestId: "saved-request", title: "", files: [{ key: "c", name: "c.png", attachmentId: "reservation-c" }] },
+    ]);
+    // Every file was added, so nothing is reported later and no reservation is left.
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.cleanupIds).toEqual([]);
+    // Nothing renders, navigates or releases the busy flag after unmount.
+    expect(harness.state.files.map((file) => file.status)).toEqual(["uploading", "queued", "queued"]);
+    expect(harness.state.stage).toBe("uploading");
+    expect(harness.state.navigations).toEqual([]);
+    expect(harness.state.busy).toEqual([true]);
+    expect(harness.operationInFlight.current).toBe(false);
+  });
+
+  it("an unmounted composer's failed upload loses its reservation and the record when the loop ends", async () => {
+    const harness = recoveryHarness([queued("a"), queued("b")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    harness.state.onUpload = () => {
+      if (harness.state.uploadCalls === 1) harness.unmount();
+      // The second file is stored but its finalization is refused.
+      else harness.state.rejectFinalize = true;
+    };
+    await harness.confirm();
+    expect(harness.state.uploadCalls).toBe(2);
+    await settled();
+    expect(harness.state.cleanupIds).toEqual(["reservation-b"]);
+    expect(harness.state.recordCleared).toBe(1);
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.stage).toBe("uploading");
+    expect(harness.state.navigations).toEqual([]);
+  });
+
+  it("a retry under way when the composer unmounts goes on and does not end the flow", async () => {
+    const harness = recoveryHarness([reserved("a"), reserved("b")]);
+    harness.uploadsRequest.current = "saved-request";
+    harness.state.failUpload = false;
+    harness.state.onUpload = () => { if (harness.state.uploadCalls === 1) harness.unmount(); };
+    await harness.retry(harness.state.files);
+    await settled();
+    expect(harness.state.uploadCalls).toBe(2);
+    // Each earlier reservation is cleared before its file is tried again.
+    expect(harness.state.cleanupIds).toEqual(["reservation-a", "reservation-b"]);
+    expect(harness.state.record).toBeNull();
+    expect(harness.state.navigations).toEqual([]);
+    expect(harness.state.busy).toEqual([true]);
+  });
+
+  it.each(["leave", "unmount"] as const)("%s settles at once when no upload is running", async (action) => {
     const harness = recoveryHarness([queued("a")]);
     harness.state.stage = "framing";
     harness.state.failUpload = false;
@@ -350,7 +430,7 @@ describe("leaving the upload screen (plan item 2.3, S3)", () => {
     await harness.confirm();
     expect(harness.state.stage).toBe("attachment_recovery");
     expect(harness.state.recordCleared).toBe(0);
-    harness.leave();
+    harness[action]();
     await settled();
     expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
     expect(harness.state.recordCleared).toBe(1);

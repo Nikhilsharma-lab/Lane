@@ -779,9 +779,20 @@ export const DraftRestored: Story = {
     await waitFor(() => expect(title).toHaveValue(source.title));
     await expect(composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
     await expect(composer.getByText("Draft restored")).toBeVisible();
-    // The visible notice is the one announcement; the composer's live region stays quiet.
-    await expect(composer.getByText("Draft restored").closest('[role="status"]')).not.toBeNull();
-    await expect(composer.queryByText(/was restored\./, { selector: ".sr-only" })).not.toBeInTheDocument();
+    // One announcement: the composer's always-mounted live region says the
+    // restore once, and the visible notice, inserted with its text while focus
+    // moves, is not a live region (NVDA and JAWS often skip those).
+    const restoredLine = "Your unsaved Request was restored.";
+    const live = composer.getByText(restoredLine);
+    await expect(live).toHaveAttribute("role", "status");
+    await expect(live).toHaveAttribute("aria-live", "polite");
+    await expect(live).toHaveClass("sr-only");
+    await expect(live.textContent).toBe(restoredLine);
+    await expect(canvasElement.ownerDocument.body.textContent?.split(restoredLine)).toHaveLength(2);
+    const notice = composer.getByText("Draft restored").closest('[role="note"]');
+    await expect(notice).not.toBeNull();
+    await expect(notice!.closest('[role="status"], [role="alert"], [aria-live]')).toBeNull();
+    await expect(notice!.querySelector('[role="status"], [role="alert"], [aria-live]')).toBeNull();
     // Expected impact starts folded after a restore, as its two-line summary (decision 8.26).
     const toggle = composer.getByRole("button", { name: "Edit expected impact" });
     await expect(toggle).toHaveAttribute("aria-expanded", "false");

@@ -221,8 +221,11 @@ function IntakeNotice({
   title?: string;
   children: React.ReactNode;
 }) {
+  // The restored-draft notice is not a live region. It arrives with its text
+  // while focus moves, which NVDA and JAWS often skip, so the composer's
+  // always-mounted live region says the restore once instead.
   return (
-    <Alert tone={error ? "danger" : attention ? "warning" : "info"} title={title ?? (error ? "Action needed" : attention ? "Draft restored" : "Request update")}>
+    <Alert tone={error ? "danger" : attention ? "warning" : "info"} role={attention ? "note" : undefined} title={title ?? (error ? "Action needed" : attention ? "Draft restored" : "Request update")}>
       {children}
     </Alert>
   );
@@ -288,7 +291,11 @@ export default function IntakeForm({
   const [impactInstant, setImpactInstant] = useState(false);
 
   const operationInFlight = useRef(false);
+  // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
+  // which stops the uploads; or this composer unmounted (Back, or /intake
+  // taking the drawer's place), which lets them finish without it.
   const leftUploadScreen = useRef(false);
+  const unmounted = useRef(false);
   // Plan item 2.3 (S3): the created Request whose files this composer still
   // owes, from the first upload until they finish or are left; and the upload
   // reservations not yet finalized or discarded, by file key.
@@ -550,22 +557,43 @@ export default function IntakeForm({
     });
   }, [attachments, createdRequestId, draftScope, source, stage]);
 
-  // A restored draft announces itself once, through its visible notice.
+  // A restored draft is announced here, once: this region is always mounted,
+  // so its new text is read, and the visible notice is not a live region.
   const liveStatus =
-    stage === "framing" && triage && !restoredDraft
-      ? "Your Request is ready to review."
-      : creating
-        ? "Creating the Request."
-        : stage === "uploading"
-          ? "Uploading Request files."
-          : "";
+    restoredDraft && !checking && !creating
+      ? "Your unsaved Request was restored."
+      : stage === "framing" && triage
+        ? "Your Request is ready to review."
+        : creating
+          ? "Creating the Request."
+          : stage === "uploading"
+            ? "Uploading Request files."
+            : "";
 
   function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
+    // After unmount nothing renders. The record follows the uploads instead,
+    // so a reload before they end names only the files that weren't added.
+    if (unmounted.current) {
+      followUnmountedUpload(key, update);
+      return;
+    }
     setAttachments((current) =>
       current.map((attachment) =>
         attachment.key === key ? { ...attachment, ...update } : attachment,
       ),
     );
+  }
+
+  function followUnmountedUpload(key: string, update: Partial<QueuedAttachment>) {
+    if (update.status !== "uploaded" && update.attachmentId === undefined) return;
+    const record = readUnfinishedUploads(window.sessionStorage, draftScope);
+    if (!record || record.requestId !== uploadsRequest.current) return;
+    writeUnfinishedUploads(window.sessionStorage, draftScope, {
+      ...record,
+      files: update.status === "uploaded"
+        ? record.files.filter((file) => file.key !== key)
+        : record.files.map((file) => file.key === key ? { ...file, attachmentId: update.attachmentId ?? null } : file),
+    });
   }
 
   function addFiles(files: File[]) {
@@ -836,14 +864,17 @@ export default function IntakeForm({
     router.push(`/requests/${requestId}`);
   }
 
-  /** Plan item 2.3 (S3): leaving a created Request's unfinished files (Leave
-   * page, Back, or /intake taking the drawer's place) ends them in this
-   * document. A running upload loop finishes its file in flight, starts no
-   * other, and then comes here. Open reservations are cleared and so is the
-   * record: no reload happened, so no later reload may report these files. */
+  /** Nobody sees the upload screen any more: Leave page was chosen, or the composer unmounted. */
+  function uploadsUnattended() {
+    return leftUploadScreen.current || unmounted.current;
+  }
+
+  /** Plan item 2.3 (S3): a created Request's files that nobody attends end in
+   * this document. Once no upload loop runs, open reservations are cleared and
+   * so is the record: no reload happened, so no later reload may report them. */
   function settleLeftUploads() {
     const requestId = uploadsRequest.current;
-    if (!leftUploadScreen.current || operationInFlight.current || !requestId) return;
+    if (!uploadsUnattended() || operationInFlight.current || !requestId) return;
     uploadsRequest.current = null;
     const open = [...reservations.current.values()];
     reservations.current.clear();
@@ -852,16 +883,28 @@ export default function IntakeForm({
     });
   }
 
+  /** Leave page in the navigation guard, whose copy says files not yet uploaded
+   * won't be added. A running loop finishes its file in flight and starts no other. */
   function leaveUploadScreen() {
     leftUploadScreen.current = true;
     settleLeftUploads();
   }
 
-  const leaveOnUnmount = useEffectEvent(() => {
+  /** Back, or /intake taking the drawer's place, cancels nothing: the upload
+   * loops go on in the background, render nothing, and settle when they end. */
+  function leaveOnUnmount() {
+    unmounted.current = true;
+    settleLeftUploads();
+  }
+
+  const onUnmount = useEffectEvent(() => {
     lostCheck.current += 1;
-    if (uploadsRequest.current) leaveUploadScreen();
+    leaveOnUnmount();
   });
-  useEffect(() => () => leaveOnUnmount(), []);
+  useEffect(() => {
+    unmounted.current = false;
+    return () => onUnmount();
+  }, []);
 
   function openLostRequest() {
     if (!lostUploads) return;
@@ -949,11 +992,12 @@ export default function IntakeForm({
       uploadsRequest.current = result.requestId;
       const results: boolean[] = [];
       for (const attachment of attachments) {
+        // Only Leave page stops the uploads; an unmounted composer's go on.
         if (leftUploadScreen.current) break;
         results.push(await uploadAttachment(attachment, result.requestId));
       }
 
-      if (leftUploadScreen.current) return;
+      if (uploadsUnattended()) return;
       if (results.every(Boolean)) {
         finishCreatedRequest(result.requestId);
       } else {
@@ -968,7 +1012,8 @@ export default function IntakeForm({
       setStage("framing");
     } finally {
       operationInFlight.current = false;
-      onBusyChange?.(false);
+      // A composer mounted since then owns the busy flag.
+      if (!unmounted.current) onBusyChange?.(false);
       settleLeftUploads();
     }
   }
@@ -982,6 +1027,7 @@ export default function IntakeForm({
 
     try {
       for (const attachment of failed) {
+        // Only Leave page stops the retries; an unmounted composer's go on.
         if (leftUploadScreen.current) break;
         const cleanup = await discardFailedAttachment(
           attachment,
@@ -998,11 +1044,14 @@ export default function IntakeForm({
       }
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
       settleLeftUploads();
     }
 
+    if (uploadsUnattended()) return;
     // A per-file retry must not abandon another failed file. Use the retry
     // outcomes as well as the render snapshot; React state updates may lag.
     if (
@@ -1029,7 +1078,8 @@ export default function IntakeForm({
     try {
       if (
         (await discardFailedAttachment(attachment, createdRequestId)) !==
-        "discarded"
+          "discarded" ||
+        unmounted.current
       )
         return;
       setAttachments((current) =>
@@ -1037,8 +1087,10 @@ export default function IntakeForm({
       );
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
       settleLeftUploads();
     }
   }
@@ -1059,12 +1111,14 @@ export default function IntakeForm({
           discardFailedAttachment(attachment, createdRequestId),
         ),
       );
-      if (discarded.every((result) => result !== "failed"))
+      if (!uploadsUnattended() && discarded.every((result) => result !== "failed"))
         finishCreatedRequest(createdRequestId);
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
       settleLeftUploads();
     }
   }

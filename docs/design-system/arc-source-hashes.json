@@ -10,7 +10,8 @@
     "id": "alert",
     "source": "https://uiarc.dev/r/alert.json",
     "file": "src/components/arc/alert/alert.tsx",
-    "upstreamSha256": "9274031ede5420e54a3a65825e19062c12443731d4171143054f9104f8fc946c"
+    "upstreamSha256": "9274031ede5420e54a3a65825e19062c12443731d4171143054f9104f8fc946c",
+    "localSha256": "b1609ccb8d5517c74d1e5ab4432eae62033fed7a934716d1e99ded7d474f0fb9"
   },
   {
     "id": "arc-foundation",

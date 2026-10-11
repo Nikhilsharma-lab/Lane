@@ -3,6 +3,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { SidebarView } from "@/components/shell/sidebar-view";
 import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useState, type ComponentProps } from "react";
 import { clearUnfinishedUploads, readUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
@@ -872,6 +873,9 @@ export const LeaveWhileUploadingStopsTheRest: Story = {
     await userEvent.click(canvas.getByRole("link", { name: "Profile navigation fixture" }));
     const page = within(canvasElement.ownerDocument.body);
     const dialog = await page.findByRole("dialog", { name: "Leave unfinished uploads?" });
+    // Only this explicit choice stops the uploads, and the dialog says what it costs.
+    // Back or an unmount lets them finish (attachment-recovery.test.ts).
+    await expect(dialog).toHaveAccessibleDescription("Your Request is saved. Files not yet uploaded won’t be added if you leave this page.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Leave page" }));
     await waitFor(() => expect(getRouter().push).toHaveBeenCalledWith("/settings/profile"));
     // The file in flight ends; the next one never starts, and the record goes.
@@ -880,6 +884,52 @@ export const LeaveWhileUploadingStopsTheRest: Story = {
     await new Promise((resolve) => setTimeout(resolve, 100));
     await expect(prepareAttachmentUpload).toHaveBeenCalledTimes(1);
     await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
+  },
+};
+
+// Back, or /intake taking the drawer's place, unmounts the composer. That is
+// not a choice to drop files: the uploads go on without it (plan item 2.3, S3).
+function UnmountableIntake(props: ComponentProps<typeof IntakeForm>) {
+  const [mounted, setMounted] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setMounted(false)}>Back navigation fixture</button>
+      {mounted && <IntakeForm {...props} />}
+    </>
+  );
+}
+
+let finishFirstPrepare: () => void = () => {};
+
+export const BackWhileUploadingFinishesTheRest: Story = {
+  render: (args) => <UnmountableIntake {...args} />,
+  beforeEach: () => {
+    mocked(prepareAttachmentUpload).mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finishFirstPrepare = () => resolve({ success: false, error: { code: "storage_unavailable", message: "Lane could not start this upload. The Request is safe. Try the file again." } });
+      }),
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = await fillRequest(canvasElement);
+    await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
+      new File(["Evidence from a customer interview."], "interview-notes.txt", { type: "text/plain" }),
+      new File(["Notes from support."], "support-notes.md", { type: "text/markdown" }),
+    ]);
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
+    await visible(canvas.findByRole("heading", { name: "Uploading files", level: 2 }));
+    const scope = intakeDraftScope(draftOwnerId, context.orgId);
+    await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)?.files).toHaveLength(2));
+    await userEvent.click(canvas.getByRole("button", { name: "Back navigation fixture" }));
+    await waitFor(() => expect(canvas.queryByRole("heading", { name: "Uploading files" })).not.toBeInTheDocument());
+    // Still owed: a reload now would name both files.
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)?.files).toHaveLength(2);
+    finishFirstPrepare();
+    // The next file still starts, and the record goes once the loop ends.
+    await waitFor(() => expect(prepareAttachmentUpload).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull());
+    await expect(getRouter().push).not.toHaveBeenCalled();
   },
 };
 
