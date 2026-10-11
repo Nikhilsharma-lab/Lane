@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -164,28 +165,13 @@ function EarlierDraftDetails({
   );
 }
 
-const classificationPresentation: Record<
-  TriageResult["classification"],
-  {
-    title: string;
-    description: string;
-  }
-> = {
-  problem: {
-    title: "Review your Request",
-    description:
-      "Check the details before sharing this Request with your team.",
-  },
-  solution: {
-    title: "Check the suggested problem",
-    description:
-      "Lane’s AI suggested a problem to solve from your description. Edit anything that doesn’t match what you know.",
-  },
-  hybrid: {
-    title: "Check the suggested problem",
-    description:
-      "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
-  },
+// The review says when Lane's AI suggested the problem; a problem-shaped
+// Request needs no line of its own.
+const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, string> = {
+  solution:
+    "Lane’s AI suggested a problem to solve from your description. Edit anything that doesn’t match what you know.",
+  hybrid:
+    "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
 };
 
 function uploadToSignedUrl(
@@ -1197,42 +1183,38 @@ export default function IntakeForm({
           </div>
         )}
       {reviewing && triage && source && (
+        // Plan item 2.3: one ordered list of blocks on both surfaces, then the
+        // footer. The alignment increment's block will slot in before the footer.
         <div
           className={cn(reveal, "space-y-6")}
           aria-busy={creating || undefined}
         >
-          {dialog && <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium">Review Request</h2>}
-          {(presentation === "page" || triage.classification !== "problem" || restoredDraft) && <header className="space-y-3">
-            <div className="space-y-2">
-              {presentation === "page" && <h2
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-xl font-medium tracking-tight"
-              >
-                {classificationPresentation[triage.classification].title}
-              </h2>}
-              {(presentation === "page" || triage.classification !== "problem") && <p
-                className={cn(
-                  "text-sm leading-relaxed",
-                  "max-w-[62ch] text-pretty text-muted-foreground",
-                )}
-              >
-                {classificationPresentation[triage.classification].description}
-              </p>}
-              {restoredDraft && (
-                <IntakeNotice attention>
-                  Your review was restored. Text and links are still here.
-                  Choose any files again before creating the Request.
-                </IntakeNotice>
-              )}
-            </div>
-          </header>}
-          <h3 className="break-words text-lg font-medium">{source.title}</h3>
+          <header className="space-y-2">
+            <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
+            {triage.classification !== "problem" && (
+              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+                {aiAttribution[triage.classification]}
+              </p>
+            )}
+            {restoredDraft && (
+              <IntakeNotice attention>
+                Your review was restored. Text and links are still here.
+                Choose any files again before creating the Request.
+              </IntakeNotice>
+            )}
+          </header>
 
-          {(source.projectId || source.requestType) && <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {source.projectId && <div><dt className="text-xs text-muted-foreground">Project</dt><dd>{projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project"}</dd></div>}
-            {source.requestType && <div><dt className="text-xs text-muted-foreground">Request type</dt><dd>{REQUEST_TYPE_LABELS[source.requestType]}</dd></div>}
-          </dl>}
+          <div className="space-y-1">
+            <h3 className="break-words text-lg font-medium">{source.title}</h3>
+            {(source.projectId || source.requestType) && (
+              <p className="text-sm text-muted-foreground">
+                {[
+                  source.projectId ? projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project" : null,
+                  source.requestType ? REQUEST_TYPE_LABELS[source.requestType] : null,
+                ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
+              </p>
+            )}
+          </div>
 
           {triage.classification === "problem" ? (
             <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>

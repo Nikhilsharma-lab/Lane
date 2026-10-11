@@ -128,7 +128,7 @@ export const DirectReview: Story = {
     );
     await fillMetricImpact(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(runTriage).toHaveBeenCalledTimes(1);
     await expect(saveRequest).not.toHaveBeenCalled();
     await expect(canvas.getByRole("button", { name: "Create Request" })).toBeEnabled();
@@ -199,14 +199,14 @@ export const LegacyDraftPreserved: Story = {
     }
     await expect(earlierDetails.queryByRole("textbox")).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining(legacySource), context);
     await expect(within(canvas.getByRole("region", { name: "Details from your earlier draft" })).getByText(legacySource.observedEvidence)).toBeVisible();
     await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))?.source).toMatchObject(legacySource);
     await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
     await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), " The customer returned the next day.");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({
       ...legacySource,
       description: `${legacySource.description} The customer returned the next day.`,
@@ -298,7 +298,7 @@ export const RelatedLink: Story = {
 export const ReviewWithoutOptionalDetails: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(
       canvas.getByRole("button", { name: "Create Request" }),
     ).toBeEnabled();
@@ -327,7 +327,7 @@ async function reviewSupportingDetails(
     new File(["x".repeat(2048)], fileName, { type: "text/plain" }),
   );
   await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-  const reviewHeading = triage.classification === "problem" ? "Review your Request" : "Check the suggested problem";
+  const reviewHeading = "Review Request";
   await visible(await canvas.findByRole("heading", { name: reviewHeading }));
 
   const assertReview = async () => {
@@ -398,7 +398,7 @@ export const ProblemReview: Story = {
     const canvas = within(canvasElement);
     await visible(
       await canvas.findByRole("heading", {
-        name: "Review your Request",
+        name: "Review Request",
         level: 2,
       }),
     );
@@ -422,13 +422,15 @@ export const SolutionReview: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await visible(
       await canvas.findByRole("heading", {
-        name: "Check the suggested problem",
+        name: "Review Request",
         level: 2,
       }),
     );
     await expect(
       canvas.getByRole("textbox", { name: "Problem to solve" }),
     ).toHaveValue(solution.reframedProblem);
+    // The AI attribution line follows the one review heading (plan item 2.3).
+    await visible(canvas.getByText(/^Lane’s AI suggested a problem to solve from your description\./));
     await visible(canvas.getByRole("heading", { name: "Your original Request" }));
   },
 };
@@ -439,7 +441,7 @@ export const HybridReview: Story = {
     const canvas = within(canvasElement);
     await visible(
       await canvas.findByRole("heading", {
-        name: "Check the suggested problem",
+        name: "Review Request",
         level: 2,
       }),
     );
@@ -907,7 +909,7 @@ export const ServerLinkValidation: Story = {
     await waitFor(() => expect(input).toHaveFocus());
     await userEvent.type(input, "https://example.test/customer-feedback");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ usefulLink: "https://example.test/customer-feedback" }), context);
   },
 };
@@ -946,7 +948,7 @@ export const ExpectedImpactRequired: Story = {
 export const ExpectedMetricImpactReview: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     const impact = within(canvas.getByRole("region", { name: "Expected impact" }));
     await expect(impact.getByText("Not measured yet")).toBeVisible();
     await expect(impact.getByText("90 %")).toBeVisible();
@@ -974,7 +976,7 @@ export const ExpectedVerifiedImpactReview: Story = {
     await userEvent.type(canvas.getByRole("textbox", { name: /^Data source/ }), verifiedImpact.source);
     await userEvent.type(canvas.getByRole("spinbutton", { name: /^Measure after launch/ }), String(verifiedImpact.reviewAfterDays));
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     const impact = within(canvas.getByRole("region", { name: "Expected impact" }));
     await expect(impact.getByText(verifiedImpact.result)).toBeVisible();
     await expect(impact.getByText("1 day after launch")).toBeVisible();
@@ -1007,7 +1009,7 @@ export const LegacyReviewNeedsImpact: Story = {
     await expect(runTriage).not.toHaveBeenCalled();
     await fillMetricImpact(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Check the suggested problem" }));
+    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(canvas.getByRole("textbox", { name: "Problem to solve" })).toHaveValue("Returning customers cannot identify which saved draft contains their latest changes.");
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining(legacySource), context);
     await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
