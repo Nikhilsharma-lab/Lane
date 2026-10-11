@@ -13,3 +13,4 @@ gitignored, so the summary lives here.
 | Item | Date | Detector | Critique | Staging perf | Visual approval |
 |---|---|---|---|---|---|
 | 2.0 App frame and states | 2026-10-11 | 0 findings over 22 changed files | Pending | Pending: detail CLS at 1440 and 390, list CLS at 390, click to skeleton (budget 100 ms) | Pending (Nikhil) |
+| 2.1 Requests welcome and 2.2 Onboarding | 2026-10-11 | 0 findings over 17 changed files | Pending | Pending: first Request CLS at 1440 and 390, role saved to welcome in one navigation (the onboarding e2e, which needs Clerk) | Pending (Nikhil): visuals, the onboarding copy, the two New Request links on the empty page, and one-click role choice (not built) |

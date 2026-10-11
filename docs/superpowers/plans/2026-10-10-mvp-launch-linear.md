@@ -313,7 +313,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Skeleton appears ≤ 100 ms after navigation.
   - Error and not-found stories render with the layout failing.
 
-### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6)
+### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Welcome:**
   - Render the list's title strip and the empty `DataTable` region, so the first Request appears in place.
   - Drop `min-h-dvh` (`requests-welcome.tsx:12`).

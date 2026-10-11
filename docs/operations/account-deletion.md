@@ -57,7 +57,7 @@ Bucket `request-attachments` (private). Object path is `<org_id>/<request_id>/<a
 
 **Clerk first, then Lane.**
 
-1. Profile data flows one way, Clerk → Lane. `saveOnboardingRole` upserts `full_name`, `email` and `avatar_url` from Clerk every time it runs (`onboarding/actions.ts:33-51`). If Lane were cleaned first and the person could still sign in, one visit to `/onboarding` would write their name and email back.
+1. Profile data flows one way, Clerk → Lane. `saveOnboardingRole` upserts `full_name`, `email` and `avatar_url` from Clerk every time it runs (`onboarding/actions.ts:31-49`). If Lane were cleaned first and the person could still sign in, one visit to `/onboarding` would write their name and email back.
 2. Deleting the Clerk user ends every session at once. From that moment no server action can run as that user, so the Lane rows are stable while the SQL runs.
 3. Nothing in Lane calls Clerk for a user that no longer exists. Profiles are read by id only; the Members page and reviewer picker list Clerk memberships and skip anyone without a profile or membership (`src/lib/request-review-members.ts:10-37`).
 4. The foreign keys without `ON DELETE` (section 1.2) mean a plain `DELETE FROM profiles` fails for anyone who created a Request, a comment, an attachment or a Project. The default is therefore to **anonymise** the profile row and **keep** the person's contributions attributed to a tombstone (section 6 is the open decision). Notifications cascade when a profile is deleted; for the anonymise path they are deleted explicitly.
