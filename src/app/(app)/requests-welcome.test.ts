@@ -71,8 +71,10 @@ describe("Requests first-use landing", () => {
     expect(html).toMatch(/<kbd[^>]*>C<\/kbd> to create a Request\./)
     expect(html).not.toContain("min-h-dvh")
     if (role === "guest") {
-      expect(html).toContain("Only Requests you submit appear here")
-      expect(html).toContain("Requests you submit appear here.")
+      // The strip's note (above 640px) and the body line say different things.
+      expect(html).toContain("Only Requests you submit appear here.")
+      expect(html).toContain("Create a Request and follow it here.")
+      expect(html).not.toMatch(/(?<!Only )Requests you submit appear here/)
     } else {
       expect(html).toContain("Create a Request for your team to review and pick up.")
     }

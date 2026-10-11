@@ -16,8 +16,9 @@ export function RequestsWelcome({ canInvite, isGuest }: { canInvite: boolean; is
       <EmptyState
         label="No Requests yet"
         title="No Requests yet"
-        // The strip's guest note is hidden at 640px and below, so the body says it for guests.
-        description={isGuest ? "Requests you submit appear here." : "Create a Request for your team to review and pick up."}
+        // Guests: the strip's note says whose Requests show here, so this line does not repeat it,
+        // and it still reads on its own at 640px and below, where that note is hidden.
+        description={isGuest ? "Create a Request and follow it here." : "Create a Request for your team to review and pick up."}
         icon={<Inbox size={24} />}
         action={<>
           <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink>

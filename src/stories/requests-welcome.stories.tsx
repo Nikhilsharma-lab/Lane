@@ -86,7 +86,7 @@ async function expectWelcome(canvasElement: HTMLElement, role: Role) {
   await expect(main.querySelectorAll('[data-slot="page-strip"]')).toHaveLength(1)
   await expect(within(stripOf(main)).getByRole("heading", { level: 1 })).toHaveTextContent(role === "guest" ? "My Requests" : "Requests")
   await expect(inWelcome.getByRole("heading", { name: "No Requests yet" })).toBeVisible()
-  await expect(inWelcome.getByText(role === "guest" ? "Requests you submit appear here." : "Create a Request for your team to review and pick up.")).toBeVisible()
+  await expect(inWelcome.getByText(role === "guest" ? "Create a Request and follow it here." : "Create a Request for your team to review and pick up.")).toBeVisible()
   const create = inWelcome.getByRole("link", { name: "New Request" })
   await expect(create).toHaveAttribute("href", "/intake")
   await expect(create).toHaveAttribute("aria-keyshortcuts", "C")
@@ -115,9 +115,12 @@ export const Guest: Story = {
   render: () => <EmptyList role="guest" />,
   play: async ({ canvasElement }) => {
     await expectWelcome(canvasElement, "guest")
-    // The strip keeps its note where it fits; the welcome says it at every width.
-    const note = within(stripOf(mainOf(canvasElement))).getByText("Only Requests you submit appear here.")
+    // The strip keeps its note where it fits. The welcome's line does not repeat
+    // it and still reads on its own on phones, where the note is hidden.
+    const main = mainOf(canvasElement)
+    const note = within(stripOf(main)).getByText("Only Requests you submit appear here.")
     await expect(getComputedStyle(note).display).toBe(innerWidth <= 640 ? "none" : "block")
+    await expect(within(welcomeOf(main)!).queryByText(/Requests you submit appear here/)).not.toBeInTheDocument()
   },
 }
 
