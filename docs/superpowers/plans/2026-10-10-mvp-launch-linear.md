@@ -11,7 +11,7 @@
 **Tech stack:** Next.js 16.2.7 App Router, React 19, TypeScript, Tailwind v4, Arc UI (free + Pro) with the provenance ledger, Clerk, Supabase Postgres + Drizzle, Vitest, Storybook 10, Playwright, Vercel Hobby.
 
 **Date:** 2026-10-10
-**Status:** Accepted 2026-10-10; Phase 0 in progress (S0 decisions recorded in `REQUIREMENTS.md`, `AGENTS.md`, `lane-roadmap.md` and `DEFERRED.md` the same day). Nothing below Phase 0 has been implemented, verified or deployed. The branch is `codex/requests-plane-sidebar` at `8fe585b` with 30 uncommitted files. Production still serves `main` at `826e509` (2026-08-12), the pre-Clerk app (`clerk-clean-cutover.md:213-215`).
+**Status:** Accepted 2026-10-10. Phase 0, item 1.0 and Phases 1a and 1b are done (PR #35 merged as `1aad382`, PR #36 as `13c7462`, both 2026-10-10). Decision 8.5 was settled on 2026-10-11 by the signed creation-to-outcome sketch (`2026-10-11-creation-to-outcome-sketch.md`); Phase 2 starts with 2.0. `vercel.json` keeps automatic deployments from `main` off, so production still serves `826e509` until the cutover runbook runs.
 
 ---
 
@@ -295,7 +295,7 @@ The Undo-window and `markDone` transaction gaps (prod A4, A5) are fixed once, in
 
 ## 5. Phase 2: page-by-page migration in user-journey order
 
-**Precondition: decision 8.5.** `REQUIREMENTS.md:856-857` says "Replan the creation-to-outcome UX before continuing page polish." That covers every page below, not just detail. Nikhil either runs the replan, at minimum a one-session sketch of where alignment and outcome will live on composer and detail, or waives it in writing.
+**Precondition: decision 8.5.** `REQUIREMENTS.md:877-881` says "Replan the creation-to-outcome UX before continuing page polish." That covers every page below, not just detail. Nikhil either runs the replan, at minimum a one-session sketch of where alignment and outcome will live on composer and detail, or waives it in writing. *(Settled 2026-10-11: Nikhil signed the sketch, `2026-10-11-creation-to-outcome-sketch.md`.)*
 
 **Shipping.** Each increment is its own small PR to the protected `main`. It is verified on staging, walked through by Nikhil, and promoted to production on its own (`REQUIREMENTS.md:747-758`). Cadence follows "one user-touchable thing per week" (`AGENTS.md:43`). Batching is allowed only where decision 8.6 says so.
 
@@ -337,7 +337,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
 - **Changes:**
   - Borderless large title and description with visually hidden labels. Keep the existing property-chip row (Project, Type) and footer actions.
   - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.20).
-  - **Expected impact stays required.** It becomes a progressively disclosed section, and validation focuses it on submit (8.23).
+  - **Expected impact stays required.** It becomes a progressively disclosed section, and validation focuses it on submit (8.26).
   - AI gate: show the review-step skeleton with "Checking whether this describes a problem…", not just a button spinner. On timeout or spend cap: "Review unavailable right now. Your draft is kept."
   - After Create, the Request appears in the Open group through the pending overlay.
   - **S3:** correct the "View Request" label, and give an honest warning plus recovery when a reload loses retry state.
@@ -376,7 +376,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - **One 44px header:**
     - `Workspace / Project / LAN-n`
     - Copy-link and copy-code buttons
-    - Pick up or Mark Done with the Undo toast. Undo on detail needs a ledger amendment, because Undo is recorded as offered "from the Requests list" (8.10).
+    - Pick up or Mark Done with the Undo toast. Undo on detail is already allowed by the ledger (`REQUIREMENTS.md:811-814`, amended 2026-10-10).
     - A "2 / 5" previous/next counter with J/K or ↑/↓, using the list context in layout state, prefetched.
   - **Main column:** title (reframed problem), description, context, Expected impact, files, comments (appended through the overlay), and the Ask for review panel.
   - **Right properties panel:**
@@ -595,7 +595,7 @@ Each decision has a recommended default. Group A blocks Phase 0 and needs one or
 2. **Server and DB region.** Decide before any Phase 1 measurement, and keep staging and production in the same region. *Default:* `hnd1` for both Vercel projects, with the DB kept in Tokyo. Consider Mumbai (`bom1` + `ap-south-1`) only if most pilot users are in India. Cutover day is the cheapest moment to move, because 0013 wipes the data anyway.
 3. **Clerk plan for pilot team sizes.** This is not covered by the free-tier approval at `lane-roadmap.md:138-140`. *Default:* pilot zero runs with ≤ 5 seats per workspace. Budget for Clerk Pro before the wider soft launch and record it against the roadmap.
 4. **Un-defer optimistic UI** (`DEFERRED.md:37-42`). *Default: yes.* Record that "superfast" is a launch requirement. The overlay lands after co-location (1.1), which respects the original trigger order.
-5. **Replan the creation-to-outcome UX, or waive it in writing, for all Phase 2 pages** (`REQUIREMENTS.md:856-857`). This includes the detail redesign go-ahead (`2026-10-07-…sidebar.md:12`). *Default:* one sketch session showing where alignment and outcome will sit on composer and detail, then proceed.
+5. **Replan the creation-to-outcome UX, or waive it in writing, for all Phase 2 pages** (`REQUIREMENTS.md:877-881`). This includes the detail redesign go-ahead (`2026-10-07-…sidebar.md:12`). *Default:* one sketch session showing where alignment and outcome will sit on composer and detail, then proceed. *Settled 2026-10-11: sketch signed, with five decisions recorded in it and in `REQUIREMENTS.md` §15.*
 6. **Waive the one-subsystem rule for Phase 1** (`REQUIREMENTS.md:790`), and set the increment cadence (`AGENTS.md:43`). *Default:* waive for Phase 1 only. Keep one increment per week for list and detail. Allow batching of welcome + onboarding and Profile + Members.
 7. **Linear-derived tokens and records in a public repo**, and repo visibility (prod R1–R4). *Default:* re-author a Lane-owned palette (`--lane-*`) in item 1.0, before any Phase 2 baseline. Remove the source and live-audit records and delete the local Linear JS artifacts. Get legal advice before public marketing. Do no further live-app inspection of Linear. If the repo goes private, add GitHub Pro or move to an org on Team so that item 0.1 keeps working.
 8. **Arc Pro licence** allows source in a public repo (`docs/licenses/` is empty). *Default:* check with uiarc before anything else ships. If redistribution is not allowed, go private (see 8.7).

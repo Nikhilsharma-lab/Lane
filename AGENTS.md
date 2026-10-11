@@ -91,7 +91,7 @@ The confirmed Request success/readiness/outcome/follow-up contract supersedes th
 
 
 ## Roadmap & phases
-- **Current phase: MVP launch plan accepted 2026-10-10; Phase 0 (green, protected baseline) in progress.** The sequence, budgets and decisions are in `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`. Shipped since 2026-10-06: Expected impact, saved Request codes (`0017`), Ask for review (`0018`), saved priority (`0019`), the Linear visual system in production, and the Requests list polish.
+- **Current phase: MVP launch plan accepted 2026-10-10; Phases 0, 1a and 1b done; the creation-to-outcome sketch signed 2026-10-11; Phase 2 (page by page, starting with 2.0 app frame and states) is current.** The sequence, budgets and decisions are in `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`. Shipped since 2026-10-06: Expected impact, saved Request codes (`0017`), Ask for review (`0018`), saved priority (`0019`), the Linear visual system in production, and the Requests list polish.
   Current implementation is not the confirmed target pipeline. Release evidence remains in the cutover plan;
   operational gates and the alignment-first sequence live in `lane-roadmap.md` §3.
   Full sequence + the thesis filter (adopt / reconceive / refuse) live in `lane-roadmap.md`.
