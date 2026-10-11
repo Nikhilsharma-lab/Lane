@@ -158,7 +158,7 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 - **Large surfaces animate only `transform` and `opacity`.** Springs are banned on surfaces wider than about 200 px.
   - **Sidebar.** Today it is a flex sibling (`workspace-shell.module.css:2`) springing `--sidebar-width` on `spring.smooth`, `visualDuration` 0.4 (`motion-tokens.ts:17`, `use-sidebar-resize.ts:36-46`). Change it so the panel translates and the content width changes once per toggle: at the start of collapse and at the end of expand.
   - **List summary.** Today it springs the list's width (`request-list-summary.tsx:45-47`). It should overlay the list instead.
-- **Durations apply to settle time,** including any spring tail. Feedback takes 120–200 ms. A panel enters in ≤ 240 ms. The 480 ms `--duration-considered` (`foundation.css:80`) stays off everyday paths. The audits disagree on the composer drawer entrance: one says 480 ms, the other about a 400 ms spring at `drawer.tsx:179`. Confirm it in code before acting (decision 8.20).
+- **Durations apply to settle time,** including any spring tail. Feedback takes 120–200 ms. A panel enters in ≤ 240 ms. The 480 ms `--duration-considered` (`foundation.css:80`) stays off everyday paths. The audits disagree on the composer drawer entrance: one says 480 ms, the other about a 400 ms spring at `drawer.tsx:179`. Confirm it in code before acting (decision 8.22). *Confirmed 2026-10-11 (item 2.3): Lane's drawer ran the 400 ms smooth spring; the 480 ms keyframes run only under a bare Radix root.*
 - **No backdrop blur** on overlays (Dialog 7px, Drawer 4px). **No `filter: blur` label or icon morphs inside dense rows.** Arc's `button.tsx:29-32`, ChipGroup, ToastStack and Tooltip would otherwise play them on every optimistic regroup.
 - **No layout shift.** Skeletons match the final layout. CLS ≤ 0.02. The welcome → list transition does not jump.
 - **60 fps.** At most 2 dropped frames in a 300 ms transition at 4× CPU, measured automatically with the Long Animation Frames API in the perf spec.
@@ -334,10 +334,10 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Keyboard-only story.
   - Admin and member stories.
 
-### 2.3 New Request composer and `/intake` (M; L if Expected impact changes shape)
+### 2.3 New Request composer and `/intake` (M; L if Expected impact changes shape) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Changes:**
   - Borderless large title and description with visually hidden labels. Keep the existing property-chip row (Project, Type) and footer actions.
-  - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.20).
+  - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.22).
   - **Expected impact stays required.** It becomes a progressively disclosed section, and validation focuses it on submit (8.26).
   - AI gate: show the review-step skeleton with "Checking whether this describes a problem…", not just a button spinner. On timeout or spend cap: "Review unavailable right now. Your draft is kept."
   - After Create, the Request appears in the Open group through the pending overlay.
