@@ -1,6 +1,6 @@
 /* Lane visual primitives: colour, geometry, type and spacing roles for the dense
- * product shell. Authored for Lane on 2026-10-10 as OKLCH ramps on one cool neutral
- * axis (hue 255) with a green-teal accent (hue 162); status and Project hues are
+ * product shell. Authored for Lane on 2026-10-10 (accent changed 2026-10-11) as OKLCH ramps on one cool neutral
+ * axis (hue 255) with a blue-violet accent (hue 275); status and Project hues are
  * generic families. Dark neutrals and primary actions were revised against the
  * supplied Linear screenshot on 2026-10-11; readable text contrast is retained.
  * Three contexts share the roles: content, sidebar and the
@@ -16,15 +16,15 @@
   --lane-content-bg-border: oklch(0.885 0.003 255);
   --lane-content-bg-border-solid: oklch(0.84 0.004 255);
   --lane-content-bg-border-strong: oklch(0.55 0.006 255);
-  --lane-content-bg-selected: oklch(0.93 0.035 162);
-  --lane-content-bg-selected-border: oklch(0.82 0.05 162);
+  --lane-content-bg-selected: oklch(0.93 0.032 275);
+  --lane-content-bg-selected-border: oklch(0.82 0.05 275);
   --lane-content-label-title: oklch(0.17 0.01 255);
   --lane-content-label-base: oklch(0.3 0.012 255);
   --lane-content-label-muted: oklch(0.47 0.012 255);
-  --lane-content-label-link: oklch(0.5 0.13 162);
-  --lane-content-focus-color: oklch(0.56 0.13 162);
-  --lane-content-control-primary: oklch(0.54 0.14 162);
-  --lane-content-control-primary-label: oklch(0.995 0.005 162);
+  --lane-content-label-link: oklch(0.5 0.13 275);
+  --lane-content-focus-color: oklch(0.56 0.13 275);
+  --lane-content-control-primary: oklch(0.54 0.14 275);
+  --lane-content-control-primary-label: oklch(0.995 0.002 275);
   --lane-content-control-secondary: oklch(1 0 255);
   --lane-content-control-secondary-hover: oklch(0.96 0.003 255);
   --lane-sidebar-bg-base: oklch(0.965 0.003 255);
@@ -75,15 +75,15 @@
   --lane-content-bg-border: #303134;
   --lane-content-bg-border-solid: #3a3b3e;
   --lane-content-bg-border-strong: #77797e;
-  --lane-content-bg-selected: oklch(0.27 0.04 162);
-  --lane-content-bg-selected-border: oklch(0.36 0.06 162);
+  --lane-content-bg-selected: oklch(0.27 0.04 275);
+  --lane-content-bg-selected-border: oklch(0.36 0.06 275);
   --lane-content-label-title: #e5e6e9;
   --lane-content-label-base: #d0d2d6;
   --lane-content-label-muted: #9c9ea3;
-  --lane-content-label-link: oklch(0.78 0.13 162);
-  --lane-content-focus-color: oklch(0.74 0.13 162);
-  --lane-content-control-primary: oklch(0.72 0.14 162);
-  --lane-content-control-primary-label: oklch(0.17 0.02 162);
+  --lane-content-label-link: oklch(0.78 0.11 275);
+  --lane-content-focus-color: oklch(0.74 0.13 275);
+  --lane-content-control-primary: oklch(0.72 0.14 275);
+  --lane-content-control-primary-label: oklch(0.17 0.02 275);
   --lane-content-control-secondary: #2a2b2d;
   --lane-content-control-secondary-hover: #343538;
   --lane-sidebar-bg-base: #0c0c0d;
@@ -98,7 +98,7 @@
   --lane-menu-label-base: #e5e6e9;
   --lane-menu-label-muted: #9c9ea3;
   /* Dark Request surfaces matched to the supplied 2026-10-11 reference.
-   * Primary actions are separate from Lane's green selection/status roles. */
+   * Primary actions are separate from Lane's blue-violet selection and focus roles. */
   --lane-action-primary: #5e6ad2;
   --lane-action-primary-hover: #5964c7;
   --lane-action-primary-pressed: #4f59b7;
