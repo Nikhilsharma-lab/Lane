@@ -40,16 +40,42 @@ const render = async (props: Parameters<typeof RequestsWorkspace>[0], search = "
 }
 
 describe("Requests first-use landing", () => {
-  it.each(["admin", "member", "guest"])("gives an empty %s workspace one Intake action and appropriate navigation", async (role) => {
+  // Plan item 2.1: an empty workspace renders the list's own strip and toolbar
+  // row with the welcome in its records region, so the first Request lands in place.
+  it.each(["admin", "member", "guest"])("gives an empty %s workspace the list's frame with the welcome inside it", async (role) => {
     state.role = role
     state.rows = []
     const html = await render({})
-    expect(html.match(/href="\/intake"/g)).toHaveLength(1)
+    expect(html.match(/data-slot="page-strip"/g)).toHaveLength(1)
+    expect(html).toMatch(new RegExp(`<h1[^>]*>${role === "guest" ? "My Requests" : "Requests"}</h1>`))
+    expect(html).toContain("data-requests-welcome")
+    expect(html).toContain('data-slot="requests-toolbar"')
+    expect(html).toContain("data-empty-workspace")
+    // The 2026-09-29 rule stands: nothing to filter in a truly empty workspace.
+    expect(html).not.toContain("Filter Requests by title")
+    expect(html).not.toContain("Active filters")
     expect(html).not.toContain("Select a Request")
-    expect(html).not.toContain('aria-label="Active filters"')
-    expect(html).not.toContain('aria-label="Filter Requests by title"')
+    // The strip's New Request and the welcome's primary one (risk 3 in the 2.1 spec).
+    expect(html.match(/href="\/intake"/g)).toHaveLength(2)
     expect(html.includes('href="/settings/members"')).toBe(role === "admin")
-    if (role === "guest") expect(html).toContain("Only Requests you submit appear here")
+    expect(html).toContain("to create a Request.")
+    expect(html).toMatch(/<kbd[^>]*>C<\/kbd> to create a Request\./)
+    expect(html).not.toContain("min-h-dvh")
+    if (role === "guest") {
+      expect(html).toContain("Only Requests you submit appear here")
+      expect(html).toContain("Requests you submit appear here.")
+    } else {
+      expect(html).toContain("Create a Request for your team to review and pick up.")
+    }
+  })
+
+  it("keeps the welcome for a filtered view of an empty workspace", async () => {
+    state.role = "member"
+    state.rows = []
+    const html = await render({}, "status=done")
+    expect(html).toContain("data-requests-welcome")
+    expect(html).not.toContain("No matching Requests")
+    expect(html).not.toContain("Active filters")
   })
 
   it("does not mistake a status with no matches for a new workspace", async () => {
@@ -62,6 +88,7 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("No matching Requests")
     expect(html).toContain("Change or clear your filters.")
     expect(html).not.toContain("No Requests yet")
+    expect(html).not.toContain("data-requests-welcome")
   })
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
@@ -78,6 +105,7 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("Existing problem")
     expect(html).toContain('aria-label="Filter Requests by title"')
     expect(html).toContain("Add filter")
-    expect(html).not.toContain("requests-welcome-title")
+    expect(html).not.toContain("data-requests-welcome")
+    expect(html).not.toContain("data-empty-workspace")
   })
 })

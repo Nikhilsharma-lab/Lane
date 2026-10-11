@@ -20,7 +20,9 @@ import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViews } from "./status-pills"
 
-export function DataTableToolbar({ data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
+export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
+  /** False in an empty workspace (plan item 2.1): the row keeps its height with nothing to filter, so the first Request's controls fill it without moving the list. */
+  controls?: boolean;
   summaryOpen?: boolean; onSummaryChange?: (open: boolean) => void; summaryTrigger?: RefObject<HTMLButtonElement | null>;
   data: OverviewRequest[]; filter: RequestStatusFilter; title: string; project: string; projectName?: string; requestType: string; matchCount: number; columns: RequestColumn[]; columnVisibility: Record<string, boolean>;
   ordering: RequestOrdering; grouping: RequestGrouping; onOrderingChange: (value: RequestOrdering) => void; onGroupingChange: (value: RequestGrouping) => void;
@@ -53,6 +55,7 @@ export function DataTableToolbar({ data, filter, title, project, projectName, re
     if (chip.id === "status") onStatusChange(value as RequestStatusFilter)
     else onFilterChange(chip.id, value)
   }
+  if (!controls) return <div className={styles.toolbarStack}><div data-slot="requests-toolbar" className={styles.toolbar} /></div>
   return <div className={styles.toolbarStack}>
     <div data-slot="requests-toolbar" className={styles.toolbar}>
       {preview ? <div className={styles.status}><StatusPills filter={filter} onStatusChange={onStatusChange} /></div> : <SegmentedControl className={styles.status} label="Request status" options={statusViews} value={filter} onValueChange={next => {

@@ -1,37 +1,35 @@
 import Link from "next/link"
-import { NewRequestLink } from "@/components/requests/new-request-link"
 import { Inbox } from "lucide-react"
+import { NewRequestLink } from "@/components/requests/new-request-link"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import buttonStyles from "@/components/arc/button/button.module.css"
-import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
+import styles from "./requests-overview.module.css"
 
-export function RequestsWelcome({ role }: { role: "admin" | "member" | "guest" }) {
-  const isGuest = role === "guest"
-
+/** Plan item 2.1: the body of an empty workspace's records region. The list's
+ * strip above it supplies the title, the guest note and the expand control, so
+ * the first Request replaces only this content and nothing around it moves.
+ * The C hint is CSS-gated to fine pointers, so server and client markup match;
+ * on touch, `aria-keyshortcuts` on the links still exposes the shortcut. */
+export function RequestsWelcome({ canInvite, isGuest }: { canInvite: boolean; isGuest: boolean }) {
   return (
-    <div data-slot="requests-workspace" className="min-h-dvh w-full min-w-0 p-4 md:p-6">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-5xl flex-col">
-      <header className="space-y-1">
-        <div className="flex items-center gap-3"><SidebarExpandButton /><h1 className="text-xl font-medium tracking-tight">{isGuest ? "My Requests" : "Requests"}</h1></div>
-        {isGuest && <p className="text-sm text-muted-foreground">Only Requests you submit appear here.</p>}
-      </header>
-
+    <div data-requests-welcome className={styles.welcome}>
       <EmptyState
-        className="my-auto"
         label="No Requests yet"
         title="No Requests yet"
-        description="Create a Request for your team to review and pick up."
+        // The strip's guest note is hidden at 640px and below, so the body says it for guests.
+        description={isGuest ? "Requests you submit appear here." : "Create a Request for your team to review and pick up."}
         icon={<Inbox size={24} />}
         action={<>
           <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink>
-          {role === "admin" && (
+          {canInvite && (
             <Link href="/settings/members" className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.md}`}>
               Invite teammates
             </Link>
           )}
+          {/* A span, not a p: EmptyState's `.root p` rule would restyle a paragraph. */}
+          <span className={styles.shortcutHint}>Press <kbd className={styles.key}>C</kbd> to create a Request.</span>
         </>}
       />
-      </div>
     </div>
   )
 }

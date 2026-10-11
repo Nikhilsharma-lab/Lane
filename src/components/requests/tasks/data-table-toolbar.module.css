@@ -44,6 +44,9 @@
 .tableLayout[data-preview-table] .toolbarStack { flex: none; }
 .tableLayout[data-preview-table] .listAndSummary { flex: 1; min-height: 0; overflow: hidden; }
 .tableLayout[data-preview-table] .listPane { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+/* Plan item 2.1: an empty workspace centres its welcome in the same list pane the first row lands in. */
+.listPane[data-empty-workspace] { display: flex; flex-direction: column; }
+.listPane[data-empty-workspace] > .recordRegion { display: flex; flex: 1; flex-direction: column; justify-content: center; }
 .summaryViewport { position: relative; flex: none; max-width: 100%; overflow: hidden; }
 .summary { position: absolute; inset: 0 auto var(--space-2) 0; width: 342px; max-width: calc(100cqw - var(--space-2)); overflow-y: auto; overscroll-behavior: contain; padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-raised); }
 .summaryHeading { position: relative; margin-bottom: var(--space-2); }

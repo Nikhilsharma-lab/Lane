@@ -8,7 +8,6 @@ import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { DesignReview } from "./requests/[id]/design-review-lazy"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
-import { RequestsWelcome } from "./requests-welcome"
 import { RequestsOverview } from "./requests-overview"
 
 function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
@@ -46,13 +45,15 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
   const isGuest = member.role === "guest"
 
   if (list) {
-    // The welcome is about the workspace, never about the current filter.
-    if (list.rows.length === 0) return <RequestsWelcome role={member.role} />
+    // Plan item 2.1: an empty workspace renders the same list, whose records
+    // region shows the welcome, so the first Request lands in place.
     return <RequestsOverview
       requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
       activeCapped={list.activeCapped}
       hasOlderDone={list.hasOlderDone}
       isGuest={isGuest}
+      // The welcome is about the workspace, never about the current filter.
+      canInvite={member.role === "admin"}
       context={{ orgId: member.orgId }}
     />
   }

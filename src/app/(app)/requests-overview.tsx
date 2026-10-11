@@ -16,6 +16,7 @@ import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-wo
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
+import { RequestsWelcome } from "./requests-welcome"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -27,9 +28,11 @@ async function fetchOlderDone(orgId: string, beforeId: string): Promise<{ rows: 
   return { rows: body.rows, hasOlderDone: Boolean(body.hasOlderDone) }
 }
 
-export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false }: {
+export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false, canInvite = false }: {
   requests: OverviewRequest[]
   isGuest: boolean
+  /** The empty workspace's welcome offers Invite teammates (admins only). */
+  canInvite?: boolean
   context?: { orgId: string }
   /** More Open and In Progress Requests exist than the list loads. */
   activeCapped?: boolean
@@ -81,6 +84,10 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
     {older.error && <p role="alert" className="m-0">{older.error}</p>}
   </div> : null
 
+  // Plan item 2.1: the table shows this only while the whole workspace, with
+  // composer inserts applied, has no Requests; filters never bring it back.
+  const welcome = <RequestsWelcome canInvite={canInvite} isGuest={isGuest} />
+
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
       <PageStrip title={heading} heading
@@ -90,8 +97,8 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
           <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
       {context
-        ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} /></RequestRowActions>
-        : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} />}
+        ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} /></RequestRowActions>
+        : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
     </div>
   )
 }
