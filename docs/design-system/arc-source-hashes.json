@@ -229,13 +229,15 @@
     "id": "radio-group",
     "source": "https://uiarc.dev/r/radio-group.json",
     "file": "src/components/arc/radio-group/radio-group.module.css",
-    "upstreamSha256": "b5a7ececee88f400799ee00c1a710a278a776a5930f76388f8f0fe99c7602929"
+    "upstreamSha256": "b5a7ececee88f400799ee00c1a710a278a776a5930f76388f8f0fe99c7602929",
+    "localSha256": "73fb474a90854849993f8d88df9469d9b6b839b5c83ac52e080b56e563466dd3"
   },
   {
     "id": "radio-group",
     "source": "https://uiarc.dev/r/radio-group.json",
     "file": "src/components/arc/radio-group/radio-group.tsx",
-    "upstreamSha256": "b64932d460b1366d5bd057af9bb372003380da8afb3ec306754fafa025d8a3eb"
+    "upstreamSha256": "b64932d460b1366d5bd057af9bb372003380da8afb3ec306754fafa025d8a3eb",
+    "localSha256": "2421af26fde08174683d3302c86410bc0a00a37c93e551b372e1ae6b5ba198a3"
   },
   {
     "id": "search-field",
