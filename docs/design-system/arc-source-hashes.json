@@ -230,7 +230,7 @@
     "source": "https://uiarc.dev/r/radio-group.json",
     "file": "src/components/arc/radio-group/radio-group.module.css",
     "upstreamSha256": "b5a7ececee88f400799ee00c1a710a278a776a5930f76388f8f0fe99c7602929",
-    "localSha256": "73fb474a90854849993f8d88df9469d9b6b839b5c83ac52e080b56e563466dd3"
+    "localSha256": "9b55f26afce416f086300f24ebab837b3e922cf3e0cba23c47242e61a48fbd72"
   },
   {
     "id": "radio-group",

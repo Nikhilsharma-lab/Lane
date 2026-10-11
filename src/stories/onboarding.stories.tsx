@@ -177,6 +177,49 @@ export const PointerChoose: Story = {
   },
 }
 
+/** The shared :focus-visible ring (foundation.css) is drawn by the radio itself,
+ * so it shows only where the radio is painted at full opacity around its row. */
+async function expectFocusRing(input: HTMLElement) {
+  await expect(input).toHaveFocus()
+  await expect(input.matches(":focus-visible"), "keyboard focus matches :focus-visible").toBe(true)
+  const style = getComputedStyle(input)
+  await expect(style.outlineStyle, "the shared ring is drawn").toBe("solid")
+  await expect(Number.parseFloat(style.outlineWidth)).toBeGreaterThanOrEqual(2)
+  let opacity = 1
+  for (let node: Element | null = input; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity)
+  await expect(opacity, "the ring is painted at full opacity").toBe(1)
+  await expect(style.visibility).toBe("visible")
+  // No fill: the radio paints nothing but the ring.
+  await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+  // The ring frames the whole row, outside its border, and no ancestor clips it.
+  const row = input.closest("label")!.getBoundingClientRect(), box = input.getBoundingClientRect()
+  for (const side of ["top", "right", "bottom", "left"] as const) await expect(Math.abs(box[side] - row[side]), `ring ${side}`).toBeLessThanOrEqual(1)
+  const reach = Number.parseFloat(style.outlineOffset) + Number.parseFloat(style.outlineWidth)
+  const ring = { top: box.top - reach, right: box.right + reach, bottom: box.bottom + reach, left: box.left - reach }
+  for (let node = input.parentElement; node; node = node.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(node)
+    if (overflowX === "visible" && overflowY === "visible") continue
+    const clip = node.getBoundingClientRect()
+    await expect(ring.top >= clip.top && ring.bottom <= clip.bottom && ring.left >= clip.left && ring.right <= clip.right, "no ancestor clips the ring").toBe(true)
+  }
+}
+
+/** WCAG 2.4.7: keyboard focus shows on an unchecked role (nothing is chosen yet) and on a checked one. */
+export const KeyboardFocusRing: Story = {
+  play: async ({ canvasElement }) => {
+    const pm = radio(canvasElement, "PM"), designer = radio(canvasElement, "Designer"), developer = radio(canvasElement, "Developer")
+    within(canvasElement).getByRole("link", { name: "Lane sign in" }).focus()
+    await userEvent.tab()
+    await expect(pm).not.toBeChecked()
+    await expectFocusRing(pm)
+    // Focus adds no fill: the focused row matches an unfocused one.
+    await expect(getComputedStyle(pm.closest("label")!).backgroundColor).toBe(getComputedStyle(developer.closest("label")!).backgroundColor)
+    await userEvent.keyboard("{ArrowDown}")
+    await expect(designer).toBeChecked()
+    await expectFocusRing(designer)
+  },
+}
+
 /** Keyboard hints are for fine pointers; Storybook's Chromium always reports one (risk 5). */
 export const ShortcutHints: Story = {
   play: async ({ canvasElement }) => {
