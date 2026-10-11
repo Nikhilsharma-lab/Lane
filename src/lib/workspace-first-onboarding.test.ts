@@ -24,11 +24,13 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { revalidatePath } from "next/cache";
 import { getWorkspace } from "./ensure-workspace";
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions";
 
 beforeEach(() => {
   session = { userId: USER_ID, orgId: "org_test_a", orgRole: "org:member" };
+  vi.mocked(revalidatePath).mockClear();
 });
 
 afterEach(async () => {
@@ -64,6 +66,9 @@ describe("workspace-first onboarding", () => {
 
   it("saves a functional label without changing the Clerk permission", async () => {
     expect(await saveOnboardingRole({ role: "pm" })).toEqual({ success: true });
+    // Plan item 2.2: the form navigates to / itself. A revalidation would
+    // re-render /onboarding in the action response and redirect a second time.
+    expect(revalidatePath).not.toHaveBeenCalled();
     expect(await getWorkspace()).toMatchObject({
       needsOnboarding: false,
       userId: USER_ID,

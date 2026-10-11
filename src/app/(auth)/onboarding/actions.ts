@@ -1,7 +1,6 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db, profiles } from "@/db";
@@ -49,6 +48,8 @@ export async function saveOnboardingRole(data: { role: string }) {
       },
     });
 
-  revalidatePath("/onboarding");
+  // Plan item 2.2: no revalidation and no redirect. Revalidating would re-render
+  // /onboarding inside this response, whose page then redirects to /, and a
+  // redirect rejects the client's promise. RoleForm navigates to / itself.
   return { success: true as const };
 }
