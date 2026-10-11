@@ -129,7 +129,7 @@ export const StripDoneRequest: Story = {
   play: async ({ canvasElement }) => {
     const [strip] = pageStrips(within(canvasElement).getByRole("main"))
     await expect(within(strip).getByText("Done", { exact: true })).toBeVisible()
-    await expect(within(strip).queryByRole("button", { name: /Pick up|Mark done/ })).not.toBeInTheDocument()
+    await expect(within(strip).queryByRole("button", { name: /Pick up|Mark Done/ })).not.toBeInTheDocument()
     await expectStripHeight(strip)
     await expectNoTrailingGap(strip)
   },

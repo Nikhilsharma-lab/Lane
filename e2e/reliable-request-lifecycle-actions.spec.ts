@@ -74,7 +74,7 @@ async function clickTwice(button: Locator) {
   });
 }
 
-test("Pick up and Mark done recover reliably across responsive themes", async ({
+test("Pick up and Mark Done recover reliably across responsive themes", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -154,7 +154,7 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
 
       const failedCompletion = await holdAndFailNextAction(page, actionPath);
       const markDone = lifecycle.getByRole("button", {
-        name: "Mark done",
+        name: "Mark Done",
         exact: true,
       });
       await clickTwice(markDone);

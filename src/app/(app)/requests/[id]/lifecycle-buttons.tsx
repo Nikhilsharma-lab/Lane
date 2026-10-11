@@ -15,6 +15,7 @@ import {
   type RequestStatusFilter,
 } from "@/lib/request-workspace";
 import { cn } from "@/lib/utils";
+import { allowedMove, type RequestStatus } from "@/lib/request-lifecycle";
 import { pickUpRequest, markDone } from "./actions";
 
 export function LifecycleButtons({
@@ -25,6 +26,7 @@ export function LifecycleButtons({
   projectFilter = "all",
   fullWidth = false,
   placement = "block",
+  isGuest = false,
 }: {
   requestId: string;
   status: string;
@@ -36,6 +38,8 @@ export function LifecycleButtons({
    * goes to a toast, the channel the list rows use. "block" keeps the inline
    * alerts (plan item 2.0). */
   placement?: "block" | "strip";
+  /** A guest has no lifecycle move (plan item 2.4); detail also hides the slot for guests. */
+  isGuest?: boolean;
 }) {
   const { pending, run } = useRecoverableAction();
   const { toast } = useToastStack();
@@ -105,7 +109,9 @@ export function LifecycleButtons({
     );
   }
 
-  if (buttonStatus === "done" && !error && !movedTo) return null;
+  // The one shared rule (plan item 2.4): the row menu, the bulk bar and this strip offer the same move.
+  const move = allowedMove({ status: buttonStatus as RequestStatus }, { isGuest });
+  if (!move && !error && !movedTo) return null;
 
   return (
     <div
@@ -135,10 +141,12 @@ export function LifecycleButtons({
         </Alert>
       )}
 
-      {buttonStatus === "open" && (
+      {move && (
+        // Keyed by the move, so a finished pick up mounts a fresh Mark Done button, as before.
         <Button
+          key={move.move}
           size="sm"
-          onClick={handlePickUp}
+          onClick={move.move === "pick-up" ? handlePickUp : handleMarkDone}
           disabled={pending}
           aria-busy={pending || undefined}
           className={cn(fullWidth && "w-full")}
@@ -150,26 +158,7 @@ export function LifecycleButtons({
               className="animate-spin motion-reduce:animate-none"
             />
           )}
-          {pending ? "Picking up…" : "Pick up"}
-        </Button>
-      )}
-
-      {buttonStatus === "in_progress" && (
-        <Button
-          size="sm"
-          onClick={handleMarkDone}
-          disabled={pending}
-          aria-busy={pending || undefined}
-          className={cn(fullWidth && "w-full")}
-        >
-          {pending && (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              data-icon="inline-start"
-              className="animate-spin motion-reduce:animate-none"
-            />
-          )}
-          {pending ? "Completing…" : "Mark done"}
+          {pending ? (move.move === "pick-up" ? "Picking up…" : "Completing…") : move.label}
         </Button>
       )}
     </div>

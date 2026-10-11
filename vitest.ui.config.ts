@@ -25,6 +25,7 @@ export default defineConfig({
       "src/components/shell/page-strip.test.ts",
       "src/components/shell/sidebar-view-frame.test.ts",
       "src/app/**/app-frame.test.ts",
+      "src/lib/request-lifecycle.test.ts",
     ],
   },
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },

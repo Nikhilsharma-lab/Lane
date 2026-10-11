@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "re
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDoneMany, pickUpRequests, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { useOptimisticAction, useOptimisticBatch, useServerRefresh } from "./use-optimistic-action"
 
 type SelectionState = {
@@ -71,9 +72,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (!busy) setState(previous => ({ ...previous, ids: rows.map(row => row.id), error: "", failedCount: 0, message: "" }))
   }
 
-  const availableAction = !isGuest && context && selected.length
-    ? selected.every(row => row.status === "open") ? "pick-up" : selected.every(row => row.status === "in_progress") ? "done" : null
-    : null
+  // The bulk bar offers a move only when every selected row allows the same one (plan item 2.4).
+  const moves = context ? selected.map(row => allowedMove(row, { isGuest })?.move ?? null) : []
+  const availableAction: LifecycleMove | null = moves.length && moves.every(move => move !== null && move === moves[0]) ? moves[0] : null
   const action = current.pending && current.pending.kind !== "copy" ? current.pending.kind : availableAction
 
   // One statement moves every selected row (plan item 1.6), and the overlay

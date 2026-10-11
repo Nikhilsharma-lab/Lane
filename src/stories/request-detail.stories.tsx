@@ -157,7 +157,7 @@ export const LifecycleRetry: Story = {
   },
 }
 
-/** The acknowledgement contract (plan §2.4) for Mark done: the action stays
+/** The acknowledgement contract (plan §2.4) for Mark Done: the action stays
  * pending, the UI shows the move at once, a second press sends nothing, and a
  * refusal rolls back with a message and returns the button. */
 export const MarkDoneAcknowledged: Story = {
@@ -166,18 +166,18 @@ export const MarkDoneAcknowledged: Story = {
     let settle!: (result: { error: string }) => void
     mocked(markDone).mockImplementation(() => new Promise(resolve => { settle = resolve }))
     const canvas = within(canvasElement)
-    const button = canvas.getByRole("button", { name: "Mark done" })
+    const button = canvas.getByRole("button", { name: "Mark Done" })
     button.click(); button.click()
     const completing = await canvas.findByRole("button", { name: "Completing…" })
     await expect(completing).toBeDisabled()
     await expect(completing).toHaveAttribute("aria-busy", "true")
     await expect(markDone).toHaveBeenCalledOnce()
-    // The overlay already shows Done: the other lifecycle slot has no Mark done left.
-    await expect(canvas.queryAllByRole("button", { name: "Mark done", hidden: true })).toHaveLength(0)
+    // The overlay already shows Done: the other lifecycle slot has no Mark Done left.
+    await expect(canvas.queryAllByRole("button", { name: "Mark Done", hidden: true })).toHaveLength(0)
     settle({ error: "This Request changed before Lane could mark it Done." })
     await expectLifecycleFeedback(canvasElement, /changed before Lane could mark it Done/, "failure")
     await expect(canvas.getByText("Action failed")).toBeVisible()
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Mark done" })).toBeEnabled())
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Mark Done" })).toBeEnabled())
     await expect(markDone).toHaveBeenCalledOnce()
   },
 }

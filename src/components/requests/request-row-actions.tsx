@@ -8,13 +8,13 @@ import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app
 import type { OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
+import { allowedMove, type AllowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { FAILURE_TITLE, useOptimisticAction } from "./use-optimistic-action"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
 
-type Status = OverviewRequest["status"]
-type Move = "pick-up" | "done"
+type Move = LifecycleMove
 
 /** Identities depend only on each row's code and priority, so a response that
  * only moved statuses keeps the same object and does not re-render every row. */
@@ -117,18 +117,10 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   // memoised rows call it only when they re-render (plan item 1.14).
   const menuItems = useMemo(() => {
 
-    /** The one lifecycle move a member can make from this row, if any. */
-    function nextStep(request: OverviewRequest): { status: Status; label: string; move: Move } | null {
-      if (isGuest) return null
-      if (request.status === "open") return { status: "in_progress", label: "Pick up", move: "pick-up" }
-      if (request.status === "in_progress") return { status: "done", label: "Mark Done", move: "done" }
-      return null
-    }
-
-    function statusItems(request: OverviewRequest, next: ReturnType<typeof nextStep>): ContextMenuItem[] {
+    function statusItems(request: OverviewRequest, next: AllowedMove | null): ContextMenuItem[] {
       return statuses.map(status => {
         const current = request.status === status.value
-        const transition = next?.status === status.value ? next : undefined
+        const transition = next?.to === status.value ? next : undefined
         return {
           id: status.value,
           label: current || !transition ? status.label : `${status.label} (${transition.label.toLowerCase()})`,
@@ -153,10 +145,11 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
 
     return (request: OverviewRequest): ContextMenuItem[] => {
       const identity = identities[request.id] ?? { code: "", priority: request.priority ?? "none" }
-      const next = nextStep(request)
+      // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move.
+      const next = allowedMove(request, { isGuest })
       return [
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
-        ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.status} />, onSelect: () => move(request, next.move) }] : []),
+        ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, onSelect: () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next) },
         { id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) },
         { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy size={16} />, children: [
