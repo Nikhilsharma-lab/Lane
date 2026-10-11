@@ -3,7 +3,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { SidebarView } from "@/components/shell/sidebar-view";
 import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { clearUnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
 import IntakeForm from "@/app/(app)/intake/intake-form";
@@ -839,6 +839,47 @@ export const LeaveUploadRecovery: Story = {
       expect(getRouter().push).toHaveBeenCalledWith("/settings/profile"),
     );
     await expect(saveRequest).toHaveBeenCalledTimes(1);
+    // Leaving ends the uploads in this document, so no later reload reports them (plan item 2.3, S3).
+    await waitFor(() =>
+      expect(readUnfinishedUploads(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))).toBeNull(),
+    );
+  },
+};
+
+let failFirstUpload: () => void = () => {};
+
+export const LeaveWhileUploadingStopsTheRest: Story = {
+  decorators: LeaveUploadRecovery.decorators,
+  beforeEach: () => {
+    // The first file is still being prepared when the person leaves.
+    mocked(prepareAttachmentUpload).mockImplementationOnce(
+      () => new Promise((resolve) => {
+        failFirstUpload = () => resolve({ success: false, error: { code: "storage_unavailable", message: "Lane could not start this upload. The Request is safe. Try the file again." } });
+      }),
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = await fillRequest(canvasElement);
+    await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
+      new File(["Evidence from a customer interview."], "interview-notes.txt", { type: "text/plain" }),
+      new File(["Notes from support."], "support-notes.md", { type: "text/markdown" }),
+    ]);
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
+    await visible(canvas.findByRole("heading", { name: "Uploading files", level: 2 }));
+    const scope = intakeDraftScope(draftOwnerId, context.orgId);
+    await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)?.files).toHaveLength(2));
+    await userEvent.click(canvas.getByRole("link", { name: "Profile navigation fixture" }));
+    const page = within(canvasElement.ownerDocument.body);
+    const dialog = await page.findByRole("dialog", { name: "Leave unfinished uploads?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Leave page" }));
+    await waitFor(() => expect(getRouter().push).toHaveBeenCalledWith("/settings/profile"));
+    // The file in flight ends; the next one never starts, and the record goes.
+    failFirstUpload();
+    await waitFor(() => expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(prepareAttachmentUpload).toHaveBeenCalledTimes(1);
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
   },
 };
 

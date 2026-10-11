@@ -993,17 +993,25 @@ export const AllFailedFilesRemovedOpensRequest: Story = {
   },
 };
 
+// Stories share one document, so a record "left before a reload" names an earlier one.
+const beforeReload = () => performance.timeOrigin - 60_000;
+
+function leaveLostUploads() {
+  writeUnfinishedUploads(window.sessionStorage, scope, {
+    requestId,
+    title: source.title,
+    origin: beforeReload(),
+    files: [
+      { key: "lost-finished", name: "interview-notes.txt", attachmentId: "00000000-0000-4000-8000-0000000000a1" },
+      { key: "lost-reserved", name: "checkout-flow.png", attachmentId: "00000000-0000-4000-8000-0000000000a2" },
+      { key: "lost-unstarted", name: "support-tickets.csv", attachmentId: null },
+    ],
+  });
+}
+
 export const UploadsLostAfterReload: Story = {
   beforeEach: () => {
-    writeUnfinishedUploads(window.sessionStorage, scope, {
-      requestId,
-      title: source.title,
-      files: [
-        { key: "lost-finished", name: "interview-notes.txt", attachmentId: "00000000-0000-4000-8000-0000000000a1" },
-        { key: "lost-reserved", name: "checkout-flow.png", attachmentId: "00000000-0000-4000-8000-0000000000a2" },
-        { key: "lost-unstarted", name: "support-tickets.csv", attachmentId: null },
-      ],
-    });
+    leaveLostUploads();
     // The first file did finish before the reload; the second was only reserved.
     mocked(discardAttachmentUpload).mockImplementation(async ({ attachmentId }) => attachmentId.endsWith("a1") ? { success: true, alreadyUploaded: true } : { success: true });
   },
@@ -1016,8 +1024,9 @@ export const UploadsLostAfterReload: Story = {
     await waitFor(() => expect(heading).toHaveFocus());
     // The step fades in, so its copy is checked once the fade is done.
     await waitFor(() => expect(composer.getByText(/the page reloaded before these files finished uploading/)).toBeVisible());
+    // The list shows only once every reservation is checked: the finished file never appears.
     const files = within(composer.getByRole("list", { name: "Files that weren’t added" }));
-    await waitFor(() => expect(files.queryByText("interview-notes.txt")).not.toBeInTheDocument());
+    await expect(files.queryByText("interview-notes.txt")).not.toBeInTheDocument();
     await expect(files.getByText("checkout-flow.png")).toBeVisible();
     await expect(files.getByText("support-tickets.csv")).toBeVisible();
     await expect(discardAttachmentUpload).toHaveBeenCalledTimes(2);
@@ -1041,6 +1050,83 @@ export const UploadsLostDismissed: Story = {
     await expect(title).toHaveValue("");
     await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
     await expect(getRouter().push).not.toHaveBeenCalled();
+  },
+};
+
+let pendingCheck: () => void = () => {};
+
+export const UploadsLostWaitsForTheCheck: Story = {
+  beforeEach: () => {
+    leaveLostUploads();
+    let release: () => void = () => {};
+    const checked = new Promise<void>((resolve) => { release = resolve; });
+    mocked(discardAttachmentUpload).mockImplementation(async ({ attachmentId }) => {
+      await checked;
+      return attachmentId.endsWith("a1") ? { success: true, alreadyUploaded: true } : { success: true };
+    });
+    pendingCheck = () => release();
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    // While the reservations are checked, no list and no action can show, so
+    // nothing can resolve the step before the check writes its answer.
+    await expect(await composer.findByRole("status", { name: "Checking your files" })).toBeVisible();
+    await expect(composer.queryByRole("heading", { name: "Some files weren’t added" })).not.toBeInTheDocument();
+    await expect(composer.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+    await expect(composer.queryByRole("button", { name: "Open Request" })).not.toBeInTheDocument();
+    pendingCheck();
+    await waitFor(() => expect(composer.getByRole("heading", { name: "Some files weren’t added" })).toHaveFocus());
+    await expect(within(composer.getByRole("list", { name: "Files that weren’t added" })).getAllByRole("listitem")).toHaveLength(2);
+    await userEvent.click(composer.getByRole("button", { name: "Dismiss" }));
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
+  },
+};
+
+export const UploadsAllFinishedAfterReload: Story = {
+  beforeEach: () => {
+    writeUnfinishedUploads(window.sessionStorage, scope, {
+      requestId,
+      title: source.title,
+      origin: beforeReload(),
+      files: [{ key: "lost-finished", name: "interview-notes.txt", attachmentId: "00000000-0000-4000-8000-0000000000a1" }],
+    });
+    mocked(discardAttachmentUpload).mockResolvedValue({ success: true, alreadyUploaded: true });
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    // Every file had finished before the reload: nothing was lost, so the flow
+    // ends as a creation does, with no list and no empty composer.
+    await expect(await page.findByText("Open and ready to be picked up.")).toBeVisible();
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await expect(page.queryByText("Some files weren’t added")).not.toBeInTheDocument();
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
+    await userEvent.click(page.getByRole("button", { name: "Open Request" }));
+    await expect(getRouter().push).toHaveBeenCalledWith(`/requests/${requestId}`);
+  },
+};
+
+export const UploadsFromThisDocumentAreNotLost: Story = {
+  // A record this document wrote, as one left by /intake after Leave page or
+  // Back while its files were still uploading. No reload happened.
+  beforeEach: () => {
+    writeUnfinishedUploads(window.sessionStorage, scope, {
+      requestId,
+      title: source.title,
+      files: [{ key: "in-flight", name: "interview-notes.txt", attachmentId: "00000000-0000-4000-8000-0000000000a1" }],
+    });
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(page.getByText("Existing workspace Requests remain here while you compose.")).toBeVisible());
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
+    const { composer } = await openComposer(canvasElement);
+    await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue("");
+    await expect(composer.queryByText("Some files weren’t added")).not.toBeInTheDocument();
+    // The upload still running elsewhere in this document keeps its reservation.
+    await expect(discardAttachmentUpload).not.toHaveBeenCalled();
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)?.requestId).toBe(requestId);
   },
 };
 

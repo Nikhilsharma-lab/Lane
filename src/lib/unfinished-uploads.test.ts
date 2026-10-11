@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { intakeDraftScope } from "./intake-draft";
-import { clearUnfinishedUploads, readUnfinishedUploads, unfinishedUploadsKey, unfinishedUploadsScope, writeUnfinishedUploads, type UnfinishedUploads } from "./unfinished-uploads";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, unfinishedUploadsKey, unfinishedUploadsScope, writeUnfinishedUploads, type UnfinishedUploads } from "./unfinished-uploads";
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -26,10 +26,27 @@ const record: UnfinishedUploads = {
 };
 
 describe("Unfinished uploads record (plan item 2.3, S3)", () => {
-  it("round-trips the Request and the files that had not finished", () => {
+  it("round-trips the Request and the files that had not finished, stamped with this document", () => {
     const storage = memoryStorage();
     expect(writeUnfinishedUploads(storage, SCOPE, record, NOW)).toBe(true);
-    expect(readUnfinishedUploads(storage, SCOPE, NOW + 1000)).toEqual(record);
+    expect(readUnfinishedUploads(storage, SCOPE, NOW + 1000)).toEqual({ ...record, origin: performance.timeOrigin });
+  });
+
+  it("is reload evidence only when an earlier document wrote it", () => {
+    const storage = memoryStorage();
+    // This document's own record: its composer may still be uploading, or was just left.
+    writeUnfinishedUploads(storage, SCOPE, record, NOW);
+    expect(readLostUploads(storage, SCOPE, NOW)).toBeNull();
+    expect(readUnfinishedUploads(storage, SCOPE, NOW)).not.toBeNull();
+    // A record the document before a reload left keeps its origin when rewritten.
+    const earlier = { ...record, origin: performance.timeOrigin - 60_000 };
+    writeUnfinishedUploads(storage, SCOPE, earlier, NOW);
+    expect(readLostUploads(storage, SCOPE, NOW)).toEqual(earlier);
+    writeUnfinishedUploads(storage, SCOPE, { ...earlier, files: earlier.files.slice(1) }, NOW);
+    expect(readLostUploads(storage, SCOPE, NOW)?.origin).toBe(earlier.origin);
+    // A record without an origin came from an earlier document too.
+    storage.setItem(unfinishedUploadsKey(SCOPE), JSON.stringify({ version: 1, savedAt: NOW, ...record }));
+    expect(readLostUploads(storage, SCOPE, NOW)).toEqual(record);
   });
 
   it("uses the Intake draft's person-and-workspace scope", () => {

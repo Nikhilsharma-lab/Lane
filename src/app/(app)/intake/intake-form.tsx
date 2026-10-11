@@ -60,7 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
-import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
@@ -94,6 +94,7 @@ type Stage =
   | "creating"
   | "uploading"
   | "attachment_recovery"
+  | "uploads_checking"
   | "uploads_lost"
   | "complete";
 
@@ -288,6 +289,14 @@ export default function IntakeForm({
 
   const operationInFlight = useRef(false);
   const leftUploadScreen = useRef(false);
+  // Plan item 2.3 (S3): the created Request whose files this composer still
+  // owes, from the first upload until they finish or are left; and the upload
+  // reservations not yet finalized or discarded, by file key.
+  const uploadsRequest = useRef<string | null>(null);
+  const reservations = useRef(new Map<string, string>());
+  // Each lost-uploads check takes a number; resolving the step or unmounting
+  // takes the next, so an older check never writes the record again.
+  const lostCheck = useRef(0);
   const draftCleared = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
@@ -358,36 +367,39 @@ export default function IntakeForm({
 
   // Plan item 2.3 (S3): after a reload, each recorded reservation is cleared;
   // a file that did finish drops off the list, and the rest are named honestly.
+  // The list waits for the answer. When every file had finished, nothing was
+  // lost and the flow ends as a creation does.
   const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
-    const kept: UnfinishedUploads["files"] = [];
-    for (const file of lost.files) {
-      if (!file.attachmentId) { kept.push(file); continue; }
+    const check = ++lostCheck.current;
+    const settled = await Promise.all(lost.files.map(async (file): Promise<UnfinishedUpload | null> => {
+      if (!file.attachmentId) return file;
       try {
         const result = await discardAttachmentUpload({ requestId: lost.requestId, attachmentId: file.attachmentId }, context);
-        if (result.success && result.alreadyUploaded) continue;
-        kept.push(result.success ? { ...file, attachmentId: null } : file);
+        if (result.success && result.alreadyUploaded) return null;
+        return result.success ? { ...file, attachmentId: null } : file;
       } catch {
-        kept.push(file);
+        return file;
       }
-    }
+    }));
+    if (check !== lostCheck.current) return;
+    const kept = settled.filter((file): file is UnfinishedUpload => file !== null);
     if (!kept.length) {
-      clearUnfinishedUploads(window.sessionStorage, draftScope);
-      setLostUploads(null);
-      setStage("compose");
+      finishCreatedRequest(lost.requestId);
       return;
     }
     writeUnfinishedUploads(window.sessionStorage, draftScope, { ...lost, files: kept });
     setLostUploads({ requestId: lost.requestId, files: kept.map(({ key, name }) => ({ key, name })) });
+    setStage("uploads_lost");
   });
 
   useEffect(() => {
-    // A record of interrupted uploads comes before any draft: its Request exists.
-    const lost = readUnfinishedUploads(window.sessionStorage, draftScope);
+    // A record of interrupted uploads comes before any draft: its Request
+    // exists. Only a record an earlier document left means a reload.
+    const lost = readLostUploads(window.sessionStorage, draftScope);
     const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
       if (lost) {
-        setLostUploads({ requestId: lost.requestId, files: lost.files.map(({ key, name }) => ({ key, name })) });
-        setStage("uploads_lost");
+        setStage("uploads_checking");
         void settleLostUploads(lost);
       } else if (draft) {
         reset(draft.source);
@@ -437,7 +449,7 @@ export default function IntakeForm({
   }, [active, attachments.length, currentValues.projectId, draftReady, initialProjectId, projects.projects, restoredDraft, setValue, stage]);
 
   const persistDraft = useEffectEvent(() => {
-    if (!draftReady || draftCleared.current || stage === "uploads_lost") return true;
+    if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
     const review =
       (stage === "framing" || stage === "creating") && triage && token
         ? { triage, token, editedProblem }
@@ -528,7 +540,7 @@ export default function IntakeForm({
   // Plan item 2.3 (S3): while files upload after creation, this tab remembers
   // which have not finished, so a reload can say so instead of losing them silently.
   useEffect(() => {
-    if (!createdRequestId || (stage !== "uploading" && stage !== "attachment_recovery")) return;
+    if (!createdRequestId || leftUploadScreen.current || (stage !== "uploading" && stage !== "attachment_recovery")) return;
     writeUnfinishedUploads(window.sessionStorage, draftScope, {
       requestId: createdRequestId,
       title: source?.title ?? "",
@@ -696,6 +708,7 @@ export default function IntakeForm({
         });
         return "failed";
       }
+      reservations.current.delete(attachment.key);
       if (result.alreadyUploaded) {
         updateAttachment(attachment.key, {
           status: "uploaded",
@@ -748,6 +761,7 @@ export default function IntakeForm({
       }
 
       attachmentId = prepared.attachmentId;
+      reservations.current.set(attachment.key, attachmentId);
       updateAttachment(attachment.key, { attachmentId });
       const uploadFile =
         attachment.file.type === prepared.mimeType
@@ -773,6 +787,7 @@ export default function IntakeForm({
         return false;
       }
 
+      reservations.current.delete(attachment.key);
       updateAttachment(attachment.key, {
         status: "uploaded",
         progress: 100,
@@ -810,6 +825,7 @@ export default function IntakeForm({
 
   function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
     if (leftUploadScreen.current) return;
+    uploadsRequest.current = null;
     clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
     if (onCreated) {
@@ -821,8 +837,36 @@ export default function IntakeForm({
     router.push(`/requests/${requestId}`);
   }
 
+  /** Plan item 2.3 (S3): leaving a created Request's unfinished files (Leave
+   * page, Back, or /intake taking the drawer's place) ends them in this
+   * document. A running upload loop finishes its file in flight, starts no
+   * other, and then comes here. Open reservations are cleared and so is the
+   * record: no reload happened, so no later reload may report these files. */
+  function settleLeftUploads() {
+    const requestId = uploadsRequest.current;
+    if (!leftUploadScreen.current || operationInFlight.current || !requestId) return;
+    uploadsRequest.current = null;
+    const open = [...reservations.current.values()];
+    reservations.current.clear();
+    void Promise.allSettled(open.map((attachmentId) => discardAttachmentUpload({ requestId, attachmentId }, context))).then(() => {
+      if (readUnfinishedUploads(window.sessionStorage, draftScope)?.requestId === requestId) clearUnfinishedUploads(window.sessionStorage, draftScope);
+    });
+  }
+
+  function leaveUploadScreen() {
+    leftUploadScreen.current = true;
+    settleLeftUploads();
+  }
+
+  const leaveOnUnmount = useEffectEvent(() => {
+    lostCheck.current += 1;
+    if (uploadsRequest.current) leaveUploadScreen();
+  });
+  useEffect(() => () => leaveOnUnmount(), []);
+
   function openLostRequest() {
     if (!lostUploads) return;
+    lostCheck.current += 1;
     clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
     if (onCreated) onCreated(lostUploads.requestId, { open: true });
@@ -830,6 +874,7 @@ export default function IntakeForm({
   }
 
   function dismissLostUploads() {
+    lostCheck.current += 1;
     clearUnfinishedUploads(window.sessionStorage, draftScope);
     setLostUploads(null);
     setStage("compose");
@@ -902,11 +947,14 @@ export default function IntakeForm({
       }
 
       setStage("uploading");
+      uploadsRequest.current = result.requestId;
       const results: boolean[] = [];
       for (const attachment of attachments) {
+        if (leftUploadScreen.current) break;
         results.push(await uploadAttachment(attachment, result.requestId));
       }
 
+      if (leftUploadScreen.current) return;
       if (results.every(Boolean)) {
         finishCreatedRequest(result.requestId);
       } else {
@@ -922,6 +970,7 @@ export default function IntakeForm({
     } finally {
       operationInFlight.current = false;
       onBusyChange?.(false);
+      settleLeftUploads();
     }
   }
 
@@ -934,6 +983,7 @@ export default function IntakeForm({
 
     try {
       for (const attachment of failed) {
+        if (leftUploadScreen.current) break;
         const cleanup = await discardFailedAttachment(
           attachment,
           createdRequestId,
@@ -951,6 +1001,7 @@ export default function IntakeForm({
       operationInFlight.current = false;
       setMutationBusy(false);
       onBusyChange?.(false);
+      settleLeftUploads();
     }
 
     // A per-file retry must not abandon another failed file. Use the retry
@@ -989,6 +1040,7 @@ export default function IntakeForm({
       operationInFlight.current = false;
       setMutationBusy(false);
       onBusyChange?.(false);
+      settleLeftUploads();
     }
   }
 
@@ -1014,6 +1066,7 @@ export default function IntakeForm({
       operationInFlight.current = false;
       setMutationBusy(false);
       onBusyChange?.(false);
+      settleLeftUploads();
     }
   }
 
@@ -1097,12 +1150,7 @@ export default function IntakeForm({
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard
-          creating={creating}
-          onLeave={() => {
-            leftUploadScreen.current = true;
-          }}
-        />
+        <IntakeNavigationGuard creating={creating} onLeave={leaveUploadScreen} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}
@@ -1568,6 +1616,11 @@ export default function IntakeForm({
               </Button>
             )}
           </div>
+        )}
+        {stage === "uploads_checking" && (
+          // Plan item 2.3 (S3): which files were lost is known once each
+          // reservation is checked, so no list shows before then.
+          <Skeleton label="Checking your files" lines={3} />
         )}
         {stage === "uploads_lost" && lostUploads && (
           <div className={cn(reveal, "space-y-6")}>

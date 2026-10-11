@@ -11,7 +11,7 @@ import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContex
 import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
-import { readUnfinishedUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
+import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
 import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
 
 export { NewRequestLink } from "./new-request-link";
@@ -155,14 +155,20 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
 
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
-  // created. Once per document, after hydration, open the composer so it can
-  // say which files weren't added. /intake shows it in the page itself.
+  // created. Once per document load, after hydration, open the composer so it
+  // can say which files weren't added. /intake shows it in the page itself, and
+  // a document that loaded /intake has had its check: a record found after an
+  // in-app navigation is this document's own, not evidence of a reload.
   const checkedLostUploads = useRef(false);
   useEffect(() => {
-    if (checkedLostUploads.current || directEntry) return;
+    if (checkedLostUploads.current) return;
+    if (directEntry) {
+      checkedLostUploads.current = true;
+      return;
+    }
     const timer = window.setTimeout(() => {
       checkedLostUploads.current = true;
-      if (readUnfinishedUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId))) openComposer();
+      if (readLostUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId))) openComposer();
     }, 0);
     return () => window.clearTimeout(timer);
   }, [context.orgId, directEntry, draftOwnerId, openComposer]);

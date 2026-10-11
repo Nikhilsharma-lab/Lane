@@ -59,6 +59,10 @@ function retryHarness(attachments: Attachment[], outcomes: boolean[]) {
     createdRequestId: "saved-request",
     context: { orgId: "org-test" },
     operationInFlight,
+    // Plan item 2.3 (S3): leaving the upload screen; never set in these cases.
+    leftUploadScreen: { current: false },
+    reservations: { current: new Map<string, string>() },
+    settleLeftUploads: () => {},
     onBusyChange: undefined,
     setMutationBusy: () => {},
     discardAttachmentUpload: async () => ({ success: true }),
@@ -138,13 +142,20 @@ function recoveryHarness(files: Attachment[]) {
     saveCalls: 0,
     failUpload: true,
     failFinalize: false,
+    rejectFinalize: false,
+    recordCleared: 0,
+    onUpload: undefined as (() => void) | undefined,
   };
   const operationInFlight = { current: false };
+  const leftUploadScreen = { current: false };
   const sandbox = {
     attachments: state.files,
     createdRequestId: state.createdRequestId,
     context: { orgId: "org-test" },
     operationInFlight,
+    leftUploadScreen,
+    uploadsRequest: { current: null as string | null },
+    reservations: { current: new Map<string, string>() },
     onBusyChange: undefined,
     setMutationBusy: () => {},
     source: {}, triage: { classification: "problem" }, token: "triage-token",
@@ -154,7 +165,9 @@ function recoveryHarness(files: Attachment[]) {
     // Plan item 2.3: the overlay insert and the unfinished-uploads record are
     // browser boundaries; the handlers only call them.
     showCreatedInList: () => {}, refreshClerkToken: async () => {},
-    writeUnfinishedUploads: () => true, clearUnfinishedUploads: () => {},
+    writeUnfinishedUploads: () => true,
+    readUnfinishedUploads: () => ({ requestId: state.createdRequestId }),
+    clearUnfinishedUploads: () => { state.recordCleared++; },
     setRestoredDraft: () => {}, setProblemError: () => {},
     setFailure: (failure: unknown) => { state.failure = failure; },
     setStage: (stage: string) => { state.stage = stage; },
@@ -171,10 +184,12 @@ function recoveryHarness(files: Attachment[]) {
     }),
     uploadToSignedUrl: async () => {
       state.uploadCalls++;
+      state.onUpload?.();
       if (state.failUpload) throw new Error("upload network failure");
     },
     finalizeAttachmentUpload: async () => {
       if (state.failFinalize) throw new Error("Finalization response lost");
+      if (state.rejectFinalize) return { success: false, error: { code: "storage_unavailable", message: "Lane could not finish this upload." } };
       return { success: true };
     },
     discardAttachmentUpload: async ({ attachmentId }: { attachmentId: string }) => {
@@ -190,13 +205,15 @@ function recoveryHarness(files: Attachment[]) {
   const context = loadHandlers([
     "uploadAttachment", "onConfirm", "retryAttachments", "removeFailedFile",
     "continueWithoutFailedFiles", "discardFailedAttachment",
+    "settleLeftUploads", "leaveUploadScreen",
   ], sandbox);
   function render() {
     context.attachments = state.files;
     context.createdRequestId = state.createdRequestId;
   }
   return {
-    state, operationInFlight,
+    state, operationInFlight, leftUploadScreen,
+    leave: () => (context.leaveUploadScreen as () => void)(),
     confirm: () => (context.onConfirm as () => Promise<void>)(),
     retry: (files: Attachment[]) => { render(); return (context.retryAttachments as (files: Attachment[]) => Promise<void>)(files); },
     remove: (file: Attachment) => { render(); return (context.removeFailedFile as (file: Attachment) => Promise<void>)(file); },
@@ -300,5 +317,43 @@ describe("attachment cleanup failure recovery", () => {
     await harness.skip();
     expect(harness.state.cleanupIds).toEqual(["reservation-a", "reservation-b", "reservation-b"]);
     expect(harness.state.navigations).toEqual(["saved-request"]);
+  });
+});
+
+describe("leaving the upload screen (plan item 2.3, S3)", () => {
+  const queued = (key: string): Attachment => ({ ...reserved(key), status: "queued", attachmentId: null });
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("finishes the file in flight, starts no other, then clears its reservation and the record", async () => {
+    const harness = recoveryHarness([queued("a"), queued("b")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    // The file in flight is stored but its finalization is refused, so its reservation stays open.
+    harness.state.rejectFinalize = true;
+    harness.state.onUpload = () => harness.leave();
+    await harness.confirm();
+    await settled();
+    expect(harness.state.uploadCalls).toBe(1);
+    expect(harness.state.stage).toBe("uploading");
+    expect(harness.state.navigations).toEqual([]);
+    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
+    expect(harness.state.recordCleared).toBe(1);
+    expect(harness.operationInFlight.current).toBe(false);
+  });
+
+  it("settles at once when no upload is running", async () => {
+    const harness = recoveryHarness([queued("a")]);
+    harness.state.stage = "framing";
+    harness.state.failUpload = false;
+    // A refused finalization leaves the Request in recovery with an open reservation.
+    harness.state.rejectFinalize = true;
+    await harness.confirm();
+    expect(harness.state.stage).toBe("attachment_recovery");
+    expect(harness.state.recordCleared).toBe(0);
+    harness.leave();
+    await settled();
+    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
+    expect(harness.state.recordCleared).toBe(1);
+    expect(harness.state.navigations).toEqual([]);
   });
 });
