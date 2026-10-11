@@ -14,7 +14,11 @@ import "@/styles/lane-arc-theme.css";
 // has to render <html> and <body> itself. Next only shows it in production; in
 // development the overlay takes over. Nothing here depends on Clerk, the theme
 // provider or the database, so it stays a plain button on the foundation tokens.
-// The page strip imports only React, next/link and its CSS module (plan item 2.0).
+// The page strip imports only React and its CSS module (plan item 2.0); the shell
+// hands it next/link with the trail through context. This file, the root error and
+// not-found render the strip with no provider, and the root boundaries load with
+// every route, so the strip must not import next/link: doing so measured +5.4 KB
+// gzip on every route's first load, over the 2 KB client JS budget.
 export default function GlobalError({
   error,
 }: {

@@ -23,30 +23,16 @@ import AppError from "./error"
 import RootError from "../error"
 import NotFound from "../not-found"
 import GlobalError from "../global-error"
+import { RequestUnavailable } from "@/components/requests/detail-view"
+import { ProjectUnavailable } from "./requests-overview"
+import { statusLabels, withoutHidden } from "@/test/exposed-markup"
 
 // Plan item 2.0 (risk 1): with the shell topbar gone, the page strip is the only
 // carrier of the expand control on phones, so every frame under the (app)
 // layout must render exactly one. These render each frame as the server sends it.
-const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"])
-
-/** Drops every element marked aria-hidden="true", with its subtree. */
-function withoutHidden(html: string) {
-  let out = "", depth = 0, last = 0
-  for (const tag of html.matchAll(/<(\/?)([a-zA-Z][\w:-]*)\b[^>]*>/g)) {
-    const [text, closing, name] = tag
-    const index = tag.index!
-    if (depth === 0) out += html.slice(last, index)
-    last = index + text.length
-    const opens = !closing && !VOID.has(name.toLowerCase()) && !text.endsWith("/>")
-    if (depth > 0) { if (opens) depth++; else if (closing) depth--; continue }
-    if (!closing && /\baria-hidden="true"/.test(text)) { if (opens) depth = 1; continue }
-    out += text
-  }
-  return depth === 0 ? out + html.slice(last) : out
-}
 /** The page inside the shell's <main>; the sidebar keeps live regions of its own. */
 const page = (html: string) => /<main\b[\s\S]*<\/main>/.exec(html)?.[0] ?? ""
-const exposedStatuses = (html: string) => [...withoutHidden(page(html)).matchAll(/<[^>]*\brole="status"[^>]*>/g)].map(([tag]) => /aria-label="([^"]*)"/.exec(tag)?.[1] ?? "")
+const exposedStatuses = (html: string) => statusLabels(withoutHidden(page(html)))
 const strips = (html: string) => html.match(/data-slot="page-strip"/g)?.length ?? 0
 
 const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
@@ -122,6 +108,20 @@ describe("error frames", () => {
     expect(alert).toMatch(/<h2\b[^>]*>Lane can’t load right now<\/h2>/)
     expect(alert).toContain("Your data is safe.")
     expect(alert).not.toContain('data-slot="page-strip"')
+  })
+
+  it.each([
+    ["Request", "/requests/x", () => createElement(RequestUnavailable, { returnHref: "/" }), "Request unavailable"],
+    ["Project", "/", () => createElement(ProjectUnavailable), "Project unavailable"],
+  ])("%s unavailable names its page once, as the strip's h1, and the body says what happened", (_name, pathname, element, title) => {
+    const main = page(inShell(pathname, element()))
+    expect(strips(main)).toBe(1)
+    const h1s = [...main.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(match => match[1])
+    expect(h1s).toEqual([title])
+    expect(/<header\b[^>]*data-slot="page-strip"[^>]*>[\s\S]*?<\/header>/.exec(main)?.[0]).toMatch(new RegExp(`<h1\\b[^>]*>${title}</h1>`))
+    const body = main.slice(main.indexOf("</header>"))
+    expect(body).not.toContain(title)
+    expect(body).toMatch(/<h2\b/)
   })
 
   it("leaves the global error's focus ring to the shared keyboard outline", () => {

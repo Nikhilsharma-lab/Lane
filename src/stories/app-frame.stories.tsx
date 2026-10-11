@@ -63,6 +63,15 @@ async function expectPinnedViewport({ globals, parameters }: Pick<StoryContext, 
 }
 const pageStrips = (main: HTMLElement) => main.querySelectorAll<HTMLElement>('[data-slot="page-strip"]')
 const noHorizontalScroll = () => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+/** 44px at every pointer type: the strip's rule is not a border, so 44px touch controls fit inside. */
+const expectStripHeight = (strip: Element) => expect(Math.round(strip.getBoundingClientRect().height)).toBe(44)
+/** The end group stops at its last painted control: a hidden or empty action slot adds no gap. */
+async function expectNoTrailingGap(strip: HTMLElement) {
+  const end = strip.lastElementChild!
+  const painted = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
+  await expect(painted.length).toBeGreaterThan(0)
+  await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...painted.map(box => box.right)))).toBeLessThanOrEqual(0.5)
+}
 
 /** Skip link, then each strip control in order: expand, leading, crumbs, action. */
 async function keyboardPath(canvasElement: HTMLElement, expected: HTMLElement[]) {
@@ -102,7 +111,8 @@ export const StripAnatomy: Story = {
     await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("Request detail")
     if (innerWidth > 640) await expect(inStrip.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Lane StudioRequestsRequest detail")
     if (innerWidth >= 768) await expect(inStrip.getByText(/^Submitted /)).toBeVisible()
-    await expect(Math.round(strip.getBoundingClientRect().height)).toBe(44)
+    await expectStripHeight(strip)
+    await expectNoTrailingGap(strip)
     await keyboardPath(canvasElement, [
       ...(innerWidth <= 880 ? [within(main).getByRole("button", { name: "Expand sidebar" })] : []),
       inStrip.getByRole("link", { name: "Close Request detail" }),
@@ -110,6 +120,18 @@ export const StripAnatomy: Story = {
       inStrip.getByRole("link", { name: "Requests" }),
       ...(innerWidth >= 1024 ? [inStrip.getByRole("button", { name: "Pick up" })] : []),
     ])
+  },
+}
+
+/** A Done Request has no lifecycle move, so the strip ends at its status and date. */
+export const StripDoneRequest: Story = {
+  render: () => <Frame pathname="/requests/fixture-request"><DetailPage current={{ ...request, status: "done", assignedTo: "fixture-person-2", assigneeName: "Sam Lee" }} /></Frame>,
+  play: async ({ canvasElement }) => {
+    const [strip] = pageStrips(within(canvasElement).getByRole("main"))
+    await expect(within(strip).getByText("Done", { exact: true })).toBeVisible()
+    await expect(within(strip).queryByRole("button", { name: /Pick up|Mark done/ })).not.toBeInTheDocument()
+    await expectStripHeight(strip)
+    await expectNoTrailingGap(strip)
   },
 }
 
@@ -145,7 +167,7 @@ async function expectLongContentFits(context: StoryContext) {
   const main = within(context.canvasElement).getByRole("main")
   const [strip] = pageStrips(main)
   await context.canvasElement.ownerDocument.fonts.ready
-  await expect(Math.round(strip.getBoundingClientRect().height)).toBe(44)
+  await expectStripHeight(strip)
   noHorizontalScroll()
   const shown = [...strip.querySelectorAll("nav li")].filter(item => item.getClientRects().length > 0)
   // Phones drop the workspace crumb but keep the parent, so the list stays one tap away.
@@ -170,6 +192,7 @@ function skeletonStory(pathname: string, Loading: ComponentType, status: string,
       await expectPinnedViewport(context)
       const main = within(context.canvasElement).getByRole("main")
       await expect(pageStrips(main)).toHaveLength(1)
+      await expectStripHeight(pageStrips(main)[0])
       // Decorative bars sit in aria-hidden blocks, so the page exposes one live region.
       const statuses = within(main).getAllByRole("status")
       await expect(statuses).toHaveLength(1)
@@ -215,6 +238,7 @@ async function swapAndCompare(canvasElement: HTMLElement, skeletonSelectors: Rec
   const main = within(canvasElement).getByRole("main")
   await waitFor(() => expect(main.querySelector("[data-skeleton]")).toBeNull())
   const after = measure(canvasElement, pageSelectors)
+  await expectStripHeight(main.querySelector('[data-slot="page-strip"]')!)
   for (const [name, edge] of checks) {
     await expect(Math.abs(after[name][edge] - before[name][edge]), `${name} ${edge}: skeleton ${before[name][edge]}, page ${after[name][edge]}`).toBeLessThanOrEqual(1)
   }

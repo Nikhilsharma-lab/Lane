@@ -131,13 +131,19 @@ export const CommentPending: Story = {
   },
 }
 /** From 1024px the lifecycle slot is in the page strip and reports through a
- * toast; below it the in-page block keeps its inline alerts (plan item 2.0). */
-async function expectLifecycleFeedback(canvasElement: HTMLElement, text: RegExp) {
+ * toast; below it the in-page block keeps its inline alerts (plan item 2.0),
+ * where a failure is an Arc danger Alert, announced as role="alert". */
+async function expectLifecycleFeedback(canvasElement: HTMLElement, text: RegExp, kind: "failure" | "success") {
   const canvas = within(canvasElement)
   await waitFor(() => expect(canvas.getByText(text)).toBeVisible())
   const toasts = canvas.getByRole("region", { name: /^Notifications/ })
-  if (window.innerWidth >= 1024) await expect(toasts).toContainElement(canvas.getByText(text))
-  else await expect(toasts).not.toContainElement(canvas.getByText(text))
+  if (window.innerWidth >= 1024) {
+    await expect(toasts).toContainElement(canvas.getByText(text))
+    return
+  }
+  await expect(toasts).not.toContainElement(canvas.getByText(text))
+  if (kind === "failure") await expect(canvas.getByRole("alert")).toHaveTextContent(text)
+  else await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
 }
 
 export const LifecycleRetry: Story = {
@@ -145,9 +151,9 @@ export const LifecycleRetry: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
-    await expectLifecycleFeedback(canvasElement, /Couldn’t confirm pickup/)
+    await expectLifecycleFeedback(canvasElement, /Couldn’t confirm pickup/, "failure")
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
-    await expectLifecycleFeedback(canvasElement, /Moved to In Progress/)
+    await expectLifecycleFeedback(canvasElement, /Moved to In Progress/, "success")
   },
 }
 
@@ -169,7 +175,7 @@ export const MarkDoneAcknowledged: Story = {
     // The overlay already shows Done: the other lifecycle slot has no Mark done left.
     await expect(canvas.queryAllByRole("button", { name: "Mark done", hidden: true })).toHaveLength(0)
     settle({ error: "This Request changed before Lane could mark it Done." })
-    await expectLifecycleFeedback(canvasElement, /changed before Lane could mark it Done/)
+    await expectLifecycleFeedback(canvasElement, /changed before Lane could mark it Done/, "failure")
     await expect(canvas.getByText("Action failed")).toBeVisible()
     await waitFor(() => expect(canvas.getByRole("button", { name: "Mark done" })).toBeEnabled())
     await expect(markDone).toHaveBeenCalledOnce()

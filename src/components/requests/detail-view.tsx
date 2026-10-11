@@ -124,8 +124,9 @@ export function RequestListPane({ requests, selectedRequestId, filter, projectFi
 function CloseDetail({ href, label }: { href: string; label: string }) {
   return <Link href={href} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm}`} aria-label={label}><ArrowLeft size={16} aria-hidden="true" className="lg:hidden" /><X size={16} aria-hidden="true" className="hidden lg:block" /></Link>
 }
+/** The strip names the state as the page h1; the body says what happened, as the error frames do. */
 export function RequestUnavailable({ returnHref }: { returnHref: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col"><PageStrip leading={<CloseDetail href={returnHref} label="Back to Request list" />} title="Request detail" /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="Request unavailable" description="This Request could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
+  return <section className="flex min-w-0 flex-1 flex-col"><PageStrip leading={<CloseDetail href={returnHref} label="Back to Request list" />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
 }
 function Comments({ comments }: { comments: RequestComment[] }) {
   return <section aria-labelledby="request-conversation" className="space-y-4">
@@ -147,7 +148,9 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
       title="Request detail"
       tools={<><Badge tone={status.tone}><StatusIcon status={request.status} />{status.label}</Badge>
         <span className={styles.stripMeta}>Submitted {relativeTime(request.createdAt)}</span></>}
-      action={isGuest ? undefined : <div className="hidden lg:flex">{lifecycleActions}</div>} />
+      // From 1024px the strip holds the lifecycle buttons; below it the wrapper is hidden. It adds no box at
+      // 1024px and up either, so a Done Request, where the buttons render nothing, leaves the slot empty.
+      action={isGuest ? undefined : <div className="hidden lg:contents">{lifecycleActions}</div>} />
     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
       <article className="mx-auto max-w-3xl space-y-7 break-words [&>section+section]:border-t [&>section+section]:pt-6">
         <section aria-labelledby="request-problem" className="space-y-4"><h1 id="request-problem" className="text-2xl font-medium">{problem}</h1>

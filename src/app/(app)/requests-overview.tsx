@@ -96,11 +96,12 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   )
 }
 
-/** A Project filter that names no Project in this workspace. Clearing it stays on this page with no request. */
+/** A Project filter that names no Project in this workspace. Clearing it stays on this page with no request.
+ * The strip names the state as the page h1; the body says what happened, as the error frames do. */
 export function ProjectUnavailable() {
   const setView = useSetRequestListView()
   return <div data-slot="requests-workspace" className={styles.overview}>
     <PageStrip title="Project unavailable" heading />
-    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="Project unavailable" description="This Project could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
+    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
   </div>
 }
