@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, userEvent, waitFor, within } from "storybook/test"
 import { SidebarView } from "@/components/shell/sidebar-view"
+import { PageStrip } from "@/components/shell/page-strip"
 import { Input } from "@/components/arc/input/input"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog"
@@ -13,7 +14,8 @@ const meta = {
   args: {
     workspaceName: "Lane Studio", fullName: "Alex Morgan", email: "alex@example.test", role: "member",
     pathname: "/settings/profile", statusFilter: "all", projects: [], notifications: null,
-    children: <div className="p-6"><Input label="Notes" placeholder="Type here" /></div>,
+    // Plan item 2.0: the page strip carries the expand control, as on every page.
+    children: <><PageStrip title="Profile" /><div className="p-6"><Input label="Notes" placeholder="Type here" /></div></>,
   },
 } satisfies Meta<typeof SidebarView>
 export default meta
@@ -76,12 +78,12 @@ export const KeyboardLimits: Story = {
 }
 
 export const TypingKeepsLayout: Story = {
-  args: { children: <div className="grid gap-4 p-6">
+  args: { children: <><PageStrip title="Profile" /><div className="grid gap-4 p-6">
     <Input label="Notes" placeholder="Type here" />
     <Dialog><DialogTrigger asChild><Button variant="secondary">Open example dialog</Button></DialogTrigger>
       <DialogContent title="Example dialog" description="Check that a dialog keeps keyboard focus."><p>Sidebar shortcuts stay inactive here.</p></DialogContent>
     </Dialog>
-  </div> },
+  </div></> },
   play: async ({ canvasElement }) => {
     if (innerWidth <= 640) return
     const canvas = within(canvasElement)

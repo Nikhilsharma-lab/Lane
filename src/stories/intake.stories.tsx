@@ -1,6 +1,7 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { SidebarView } from "@/components/shell/sidebar-view";
+import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
@@ -847,6 +848,8 @@ export const WorkspaceIntake: Story = {
       statusFilter="all"
       onSignOut={() => {}}
     >
+      {/* As intake/page.tsx renders it (plan item 2.0). */}
+      <PageStrip title="New Request" />
       <IntakeForm {...args} />
     </SidebarView>
   ),
@@ -855,6 +858,13 @@ export const WorkspaceIntake: Story = {
     await visible(
       canvas.getByRole("heading", { name: "New Request", level: 1 }),
     );
+    const strip = canvasElement.querySelector<HTMLElement>('[data-slot="page-strip"]')!;
+    await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("New Request");
+    if (window.innerWidth > 640) {
+      const crumbs = within(strip).getByRole("navigation", { name: "Breadcrumb" });
+      await expect([...crumbs.querySelectorAll("li")].map((item) => item.textContent)).toEqual(["Lane Studio", "New Request"]);
+      await expect(within(crumbs).getByRole("link", { name: "Lane Studio" })).toHaveAttribute("href", "/");
+    }
     await expect(
       canvasElement.ownerDocument.documentElement.scrollWidth,
     ).toBeLessThanOrEqual(window.innerWidth + 1);
