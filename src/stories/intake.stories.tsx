@@ -860,11 +860,11 @@ export const WorkspaceIntake: Story = {
     );
     const strip = canvasElement.querySelector<HTMLElement>('[data-slot="page-strip"]')!;
     await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("New Request");
-    if (window.innerWidth > 640) {
-      const crumbs = within(strip).getByRole("navigation", { name: "Breadcrumb" });
-      await expect([...crumbs.querySelectorAll("li")].map((item) => item.textContent)).toEqual(["Lane Studio", "New Request"]);
-      await expect(within(crumbs).getByRole("link", { name: "Lane Studio" })).toHaveAttribute("href", "/");
-    }
+    // Phones keep the parent crumb too, so Requests is one tap away at every width.
+    const crumbs = within(strip).getByRole("navigation", { name: "Breadcrumb" });
+    await expect([...crumbs.querySelectorAll("li")].map((item) => item.textContent)).toEqual(["Lane Studio", "New Request"]);
+    await expect(within(crumbs).getByRole("link", { name: "Lane Studio" })).toHaveAttribute("href", "/");
+    await expect(within(crumbs).getByRole("link", { name: "Lane Studio" })).toBeVisible();
     await expect(
       canvasElement.ownerDocument.documentElement.scrollWidth,
     ).toBeLessThanOrEqual(window.innerWidth + 1);

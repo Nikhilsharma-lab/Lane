@@ -19,6 +19,7 @@ import IntakeLoading from "@/app/(app)/intake/loading"
 import ProfileLoading from "@/app/(app)/settings/profile/loading"
 import MembersLoading from "@/app/(app)/settings/members/loading"
 import requestsMeta from "./requests.stories"
+import { background } from "./helpers/rendered-colours"
 
 // Plan item 2.0: one 44px strip per page, built from the shell's trail and the
 // page's own title, tools, action and overflow; skeletons render the same strip.
@@ -41,7 +42,7 @@ function Frame({ pathname, children, workspaceName = "Lane Studio", projects = [
 
 /** The loaded detail exactly as requests-workspace.tsx composes it. */
 function DetailPage({ current = request, projectFilter = "all" }: { current?: RequestDetail; projectFilter?: string }) {
-  return <div data-slot="requests-workspace" className="flex min-h-0 flex-1 bg-background sm:h-full sm:overflow-hidden">
+  return <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestDetailView request={current} comments={[]} attachments={[]} filter="all" projectFilter={projectFilter} isGuest={false}
       lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
       mobileLifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" fullWidth />}
@@ -105,7 +106,8 @@ export const StripAnatomy: Story = {
     await keyboardPath(canvasElement, [
       ...(innerWidth <= 880 ? [within(main).getByRole("button", { name: "Expand sidebar" })] : []),
       inStrip.getByRole("link", { name: "Close Request detail" }),
-      ...(innerWidth > 640 ? [inStrip.getByRole("link", { name: "Lane Studio" }), inStrip.getByRole("link", { name: "Requests" })] : []),
+      ...(innerWidth > 640 ? [inStrip.getByRole("link", { name: "Lane Studio" })] : []),
+      inStrip.getByRole("link", { name: "Requests" }),
       ...(innerWidth >= 1024 ? [inStrip.getByRole("button", { name: "Pick up" })] : []),
     ])
   },
@@ -146,15 +148,14 @@ async function expectLongContentFits(context: StoryContext) {
   await expect(Math.round(strip.getBoundingClientRect().height)).toBe(44)
   noHorizontalScroll()
   const shown = [...strip.querySelectorAll("nav li")].filter(item => item.getClientRects().length > 0)
-  if (innerWidth <= 640) {
-    await expect(shown).toHaveLength(1)
-    await expect(shown[0]).toHaveAttribute("aria-current", "page")
-  } else {
-    await expect(shown).toHaveLength(3)
-    // Long names truncate in place instead of wrapping the strip.
-    const project = within(strip).getByRole("link", { name: longProject })
-    await expect(project.scrollWidth).toBeGreaterThan(project.clientWidth)
-  }
+  // Phones drop the workspace crumb but keep the parent, so the list stays one tap away.
+  await expect(shown).toHaveLength(innerWidth <= 640 ? 2 : 3)
+  await expect(shown.at(-1)).toHaveAttribute("aria-current", "page")
+  await expect(getComputedStyle(shown[0], "::before").content, "The first shown crumb has no leading separator").toBe("none")
+  // Long names truncate in place instead of wrapping the strip.
+  const project = within(strip).getByRole("link", { name: longProject })
+  await expect(shown.at(-2)).toContainElement(project)
+  await expect(project.scrollWidth).toBeGreaterThan(project.clientWidth)
 }
 // The layout's list view state holds the Project, as it does after choosing one in the sidebar.
 const longContentNavigation = { nextjs: { navigation: { pathname: "/requests/fixture-request", query: { project: websiteId } } } }
@@ -228,10 +229,34 @@ export const ListSkeletonMatchesLoaded: Story = {
   },
 }
 
+/** Detail sits on the pane's surface, as the strip does: no second tone below the
+ * strip, and none at the foot of the pane where a short skeleton ends. */
+async function expectOneSurface(canvasElement: HTMLElement, state: string, checkFoot: boolean) {
+  const main = within(canvasElement).getByRole("main")
+  const [strip] = pageStrips(main)
+  const colour = (element: Element | null) => element ? background(element).map(Math.round).join(", ") : "nothing"
+  const stripColour = colour(strip)
+  const pane = main.getBoundingClientRect()
+  const x = pane.left + pane.width / 2
+  await expect(colour(main), `${state}: the pane`).toBe(stripColour)
+  await expect(colour(strip.nextElementSibling), `${state}: the body below the strip`).toBe(stripColour)
+  await expect(colour(document.elementFromPoint(x, strip.getBoundingClientRect().bottom + 2)), `${state}: just below the strip`).toBe(stripColour)
+  if (checkFoot) await expect(colour(document.elementFromPoint(x, pane.bottom - 8)), `${state}: the foot of the pane`).toBe(stripColour)
+}
+async function detailSwap({ canvasElement, ...context }: StoryContext) {
+  if (context.globals.viewport?.value) await expectPinnedViewport(context)
+  // The loaded page's foot holds its own controls, so only the skeleton checks it.
+  await expectOneSurface(canvasElement, "skeleton", true)
+  const strip = '[data-slot="page-strip"]'
+  await swapAndCompare(canvasElement, { strip, article: '[data-skeleton="detail"] .max-w-3xl' }, { strip, article: "article" }, [["strip", "height"], ["article", "left"], ["article", "top"]])
+  await expectOneSurface(canvasElement, "loaded", false)
+}
 export const DetailSkeletonMatchesLoaded: Story = {
   render: () => <SkeletonSwap pathname="/requests/fixture-request" skeleton={<DetailLoading />} page={<DetailPage />} />,
-  play: async ({ canvasElement }) => {
-    const strip = '[data-slot="page-strip"]'
-    await swapAndCompare(canvasElement, { strip, article: '[data-skeleton="detail"] .max-w-3xl' }, { strip, article: "article" }, [["strip", "height"], ["article", "left"], ["article", "top"]])
-  },
+  play: detailSwap,
+}
+export const DetailSkeletonMatchesLoaded390: Story = {
+  globals: phoneDark,
+  render: () => <SkeletonSwap pathname="/requests/fixture-request" skeleton={<DetailLoading />} page={<DetailPage />} />,
+  play: detailSwap,
 }

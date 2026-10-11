@@ -121,11 +121,10 @@ export const AppPageErrorInShell: Story = {
     const heading = main.getByRole("heading", { level: 1, name: "Page unavailable" })
     await expect(heading.closest('[data-slot="page-strip"]')).not.toBeNull()
     const alert = main.getByRole("alert")
-    if (window.innerWidth > 640) {
-      const crumbs = main.getByRole("navigation", { name: "Breadcrumb" })
-      await expect(within(crumbs).getAllByRole("link").map(link => link.textContent)).toEqual(["Lane Studio", "Requests"])
-      await expect(alert).not.toContainElement(crumbs)
-    }
+    // Phones hide the workspace crumb but keep the parent, so Requests stays one tap away.
+    const crumbs = main.getByRole("navigation", { name: "Breadcrumb" })
+    await expect(within(crumbs).getAllByRole("link").map(link => link.textContent)).toEqual(window.innerWidth > 640 ? ["Lane Studio", "Requests"] : ["Requests"])
+    await expect(alert).not.toContainElement(crumbs)
     await expect(within(alert).queryByRole("navigation")).not.toBeInTheDocument()
     await userEvent.click(within(alert).getByRole("button", { name: "Try again" }))
     await expect(args.reset).toHaveBeenCalledOnce()

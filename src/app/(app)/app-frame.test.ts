@@ -107,13 +107,21 @@ describe("error frames", () => {
   it.each([
     ["error.tsx", () => createElement(RootError, { error: new Error("Illustrative"), reset: () => {} }), "Database unavailable"],
     ["not-found.tsx", () => createElement(NotFound), "Page not found"],
-    ["global-error.tsx", () => createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }), "Lane can’t load right now"],
+    ["global-error.tsx", () => createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }), "Lane unavailable"],
   ])("root %s renders the strip with its h1 and no expand control", (_file, element, title) => {
     const html = renderToStaticMarkup(element())
     expect(strips(html)).toBe(1)
     expect(/<header\b[^>]*data-slot="page-strip"[^>]*>[\s\S]*?<\/header>/.exec(html)?.[0]).toMatch(new RegExp(`<h1\\b[^>]*>${title}</h1>`))
     expect(html).not.toContain("Expand sidebar")
     expect(html).not.toContain('aria-label="Breadcrumb"')
+  })
+
+  it("names the global error's failure inside its alert, as a heading below the strip's h1", () => {
+    const html = renderToStaticMarkup(createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }))
+    const alert = /<div\b[^>]*role="alert"[^>]*>[\s\S]*<\/div>/.exec(html)?.[0] ?? ""
+    expect(alert).toMatch(/<h2\b[^>]*>Lane can’t load right now<\/h2>/)
+    expect(alert).toContain("Your data is safe.")
+    expect(alert).not.toContain('data-slot="page-strip"')
   })
 
   it("leaves the global error's focus ring to the shared keyboard outline", () => {

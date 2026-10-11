@@ -64,7 +64,7 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
   return (
     <div
       data-slot="requests-workspace"
-      className="flex min-h-0 flex-1 bg-background sm:h-full sm:overflow-hidden"
+      className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"
     >
       <RequestWorkspaceKeyboard
         selectedRequestId={selectedRequestId}

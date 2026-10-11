@@ -17,8 +17,9 @@
 @media (max-width: 640px) {
   .strip { padding-inline: var(--space-4); }
   .note { display: none; }
-  .crumbs li:not(:last-child) { display: none; }
-  .crumbs li:last-child::before { content: none; }
+  /* Phones keep the parent crumb, so Intake and Settings still link back in one tap. */
+  .crumbs li:nth-last-child(n + 3) { display: none; }
+  .crumbs li:nth-last-child(2)::before { content: none; }
 }
 /* Reserve the expand control where the shell auto-collapses, so it never pushes the strip after hydration. */
 @media (max-width: 880px) {

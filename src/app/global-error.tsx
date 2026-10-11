@@ -29,8 +29,10 @@ export default function GlobalError({
     <html lang="en" data-visual-system="lane" data-ui-state-contract="semantic" className={`${fontVariables} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <main className={frame.page}>
-          <PageStrip title="Lane can’t load right now" heading />
+          <PageStrip title="Lane unavailable" heading />
+          {/* The alert names the failure itself; EmptyState would add motion to this bundle. */}
           <div className={frame.body} role="alert">
+            <h2 className={frame.heading}>Lane can’t load right now</h2>
             <p className={frame.message}>Your data is safe. Reload the page, and if this keeps happening let us know.</p>
             <div className={frame.actions}>
               <button
