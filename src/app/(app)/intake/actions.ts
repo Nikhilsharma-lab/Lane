@@ -1,5 +1,7 @@
 "use server";
 
+import type { OverviewRequest } from "@/lib/request-overview";
+
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -51,8 +53,33 @@ export type TriageResponse =
   | { success: false; error: IntakeFailure };
 
 export type SaveResponse =
-  | { success: true; requestId: string }
+  | { success: true; requestId: string; created?: OverviewRequest }
   | { success: false; error: IntakeFailure };
+
+/** The saved Request in the list's row shape, so the composer can show it in the
+ * Open group before the revalidated list arrives (plan item 1.5). Names come
+ * from the client; the server row replaces this one as soon as it lands. */
+function savedListRow(
+  row: { id: string; requestNumber?: number | null; createdAt?: Date | null },
+  payload: { title: string; projectId: string | null; requestType: OverviewRequest["requestType"] },
+  reframedProblem: string | null
+): OverviewRequest {
+  return {
+    id: row.id,
+    requestNumber: row.requestNumber ?? undefined,
+    title: payload.title,
+    reframedProblem,
+    status: "open",
+    createdAt: (row.createdAt ?? new Date()).toISOString(),
+    creatorName: null,
+    assigneeName: null,
+    assignedTo: null,
+    projectId: payload.projectId,
+    projectName: null,
+    requestType: payload.requestType ?? null,
+    priority: "none",
+  };
+}
 
 const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
   timeout: {
@@ -271,15 +298,15 @@ export async function saveRequest(
         createdBy: auth.userId,
       })
       .onConflictDoNothing({ target: requests.id })
-      .returning({ id: requests.id });
+      .returning({ id: requests.id, requestNumber: requests.requestNumber, createdAt: requests.createdAt });
 
     if (created) {
       revalidateSavedRequest(created.id);
-      return { success: true, requestId: created.id };
+      return { success: true, requestId: created.id, created: savedListRow(created, payload, reframedProblem) };
     }
 
     const [existing] = await db
-      .select({ id: requests.id })
+      .select({ id: requests.id, requestNumber: requests.requestNumber, createdAt: requests.createdAt })
       .from(requests)
       .where(
         and(
@@ -292,7 +319,7 @@ export async function saveRequest(
 
     if (existing) {
       revalidateSavedRequest(existing.id);
-      return { success: true, requestId: existing.id };
+      return { success: true, requestId: existing.id, created: savedListRow(existing, payload, reframedProblem) };
     }
 
     return {

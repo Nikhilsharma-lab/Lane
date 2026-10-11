@@ -149,6 +149,7 @@ function recoveryHarness(files: Attachment[]) {
     setMutationBusy: () => {},
     source: {}, triage: { classification: "problem" }, token: "triage-token",
     draftCleared: { current: false }, draftScope: "scope",
+    createdRow: { current: null },
     window: { sessionStorage: {} }, clearIntakeDraft: () => {},
     setRestoredDraft: () => {}, setProblemError: () => {},
     setFailure: (failure: unknown) => { state.failure = failure; },

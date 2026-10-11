@@ -1,7 +1,7 @@
 import { listProjects } from "@/app/(app)/intake/project-actions"
 import { pickUpRequest, setRequestPriority } from "@/app/(app)/requests/[id]/actions"
 import { clearIntakeDraft, intakeDraftScope } from "@/lib/intake-draft"
-import type { RequestPriority } from "@/lib/request-properties"
+import type { RequestPriority } from "@/lib/request-constants"
 import type { StoryObj } from "@storybook/nextjs-vite"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"

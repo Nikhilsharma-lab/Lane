@@ -1,0 +1,62 @@
+{
+  "description": "First-load client JS per route, gzip. Written by `node scripts/bundle-baseline.mjs --update`; checked by `pnpm bundle:check`.",
+  "next": "16.2.7",
+  "toleranceBytes": 2048,
+  "routes": {
+    "/": {
+      "gzipBytes": 409174,
+      "uncompressedBytes": 1347939,
+      "chunks": 28
+    },
+    "/_not-found": {
+      "gzipBytes": 266234,
+      "uncompressedBytes": 896027,
+      "chunks": 17
+    },
+    "/forgot-password": {
+      "gzipBytes": 292561,
+      "uncompressedBytes": 976642,
+      "chunks": 21
+    },
+    "/intake": {
+      "gzipBytes": 453218,
+      "uncompressedBytes": 1574467,
+      "chunks": 28
+    },
+    "/login": {
+      "gzipBytes": 284926,
+      "uncompressedBytes": 951687,
+      "chunks": 20
+    },
+    "/onboarding": {
+      "gzipBytes": 292365,
+      "uncompressedBytes": 973471,
+      "chunks": 21
+    },
+    "/requests/[id]": {
+      "gzipBytes": 409174,
+      "uncompressedBytes": 1347939,
+      "chunks": 28
+    },
+    "/reset-password": {
+      "gzipBytes": 293097,
+      "uncompressedBytes": 978064,
+      "chunks": 21
+    },
+    "/settings/members": {
+      "gzipBytes": 350123,
+      "uncompressedBytes": 1154681,
+      "chunks": 25
+    },
+    "/settings/profile": {
+      "gzipBytes": 351644,
+      "uncompressedBytes": 1158668,
+      "chunks": 25
+    },
+    "/signup": {
+      "gzipBytes": 287077,
+      "uncompressedBytes": 956277,
+      "chunks": 21
+    }
+  }
+}

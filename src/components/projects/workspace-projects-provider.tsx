@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { listProjects } from "@/app/(app)/intake/project-actions";
-import type { ProjectOption } from "@/lib/request-properties";
+import type { ProjectOption } from "@/lib/request-constants";
 
 type WorkspaceProjectsState = {
   projects: ProjectOption[];

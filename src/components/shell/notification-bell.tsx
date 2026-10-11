@@ -4,14 +4,31 @@ import { Suspense, use, useState, useEffect, useCallback, useTransition, useRef 
 import { useRouter } from "next/navigation";
 import { NotificationBellView, type NotificationItem } from "./notification-bell-view";
 import {
-  getNotifications,
-  getUnreadCount,
   markNotificationRead,
   markNotificationUnread,
   markAllNotificationsRead,
 } from "@/app/(app)/notifications/actions";
 
 const noop = () => {};
+
+type NotificationRow = Omit<NotificationItem, "readAt" | "createdAt"> & { readAt: string | null; createdAt: string };
+
+/**
+ * Plan item 1.16 (decision 8.15): the list and the unread count are read from
+ * GET route handlers, so opening the bell never queues behind a pending
+ * mutation. Each read replaces the previous one in flight through its
+ * AbortController. Mutations (mark read, mark all read) stay server actions.
+ */
+function readRoute(path: string, orgId: string, controller: AbortController) {
+  return fetch(`${path}?${new URLSearchParams({ org: orgId })}`, { signal: controller.signal, headers: { accept: "application/json" }, credentials: "same-origin" });
+}
+
+function replace(slot: { current: AbortController | null }) {
+  slot.current?.abort();
+  const controller = new AbortController();
+  slot.current = controller;
+  return controller;
+}
 
 /**
  * Plan item 1.8: the (app) layout streams the unread count as a promise. The
@@ -46,8 +63,8 @@ function LoadedNotificationBell({
 }) {
   const router = useRouter();
   // Only the first promise is read: a later server render hands over a new one
-  // and the bell must not suspend again for it. Later counts come from the
-  // action when the bell opens or a read state changes.
+  // and the bell must not suspend again for it. Later counts come from
+  // GET /api/notifications/unread when the bell opens or a read state changes.
   const [initialCount] = useState(unreadCount);
   const serverUnread = initialCount ? use(initialCount) : undefined;
   const [open, setOpen] = useState(false);
@@ -56,44 +73,50 @@ function LoadedNotificationBell({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const retryUpdate = useRef<(() => void) | null>(null);
+  const countRequest = useRef<AbortController | null>(null);
+  const listRequest = useRef<AbortController | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const refreshCount = useCallback(async () => {
+    const controller = replace(countRequest);
     try {
-      const result = await getUnreadCount({ orgId });
-      if ("count" in result) setUnread(result.count ?? 0);
+      const response = await readRoute("/api/notifications/unread", orgId, controller);
+      const body = response.ok ? await response.json() : null;
+      if (!controller.signal.aborted && typeof body?.count === "number") setUnread(body.count);
     } catch {
-      // Keep the last known count; a failed refresh must not imply zero unread.
+      // Keep the last known count; a failed or aborted refresh must not imply zero unread.
     }
   }, [orgId]);
 
   const refreshList = useCallback(async (isActive: () => boolean = () => true) => {
+    const controller = replace(listRequest);
+    const live = () => isActive() && !controller.signal.aborted;
     try {
-      const result = await getNotifications({ orgId });
-      if (!isActive()) return;
-      if ("error" in result) throw new Error("Notification load failed");
-      setItems(result.notifications);
+      const response = await readRoute("/api/notifications", orgId, controller);
+      const body = response.ok ? await response.json() : null;
+      if (!live()) return;
+      if (!Array.isArray(body?.notifications)) throw new Error("Notification load failed");
+      setItems((body.notifications as NotificationRow[]).map((row) => ({ ...row, readAt: row.readAt ? new Date(row.readAt) : null, createdAt: new Date(row.createdAt) })));
       setError(null);
     } catch {
-      if (!isActive()) return;
+      if (!live()) return;
       retryUpdate.current = null;
       setError("Notifications could not be loaded. Try again.");
     } finally {
-      if (isActive()) setLoaded(true);
+      if (live()) setLoaded(true);
     }
   }, [orgId]);
 
   useEffect(() => {
     // The layout supplied the count; the next read happens when the bell opens.
     if (initialCount) return;
-    let active = true;
-    void getUnreadCount({ orgId }).then((result) => {
-      if (active && "count" in result) setUnread(result.count ?? 0);
-    }).catch(() => { /* The list remains available to retry when opened. */ });
-    return () => {
-      active = false;
-    };
-  }, [orgId, initialCount]);
+    void refreshCount();
+  }, [refreshCount, initialCount]);
+
+  useEffect(() => () => {
+    countRequest.current?.abort();
+    listRequest.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (!open || loaded) return;
@@ -165,7 +188,7 @@ function LoadedNotificationBell({
     error={error}
     onOpenChange={(nextOpen) => {
       setOpen(nextOpen);
-      if (!nextOpen) { setLoaded(false); setError(null); retryUpdate.current = null; }
+      if (!nextOpen) { listRequest.current?.abort(); setLoaded(false); setError(null); retryUpdate.current = null; }
     }}
     onSelect={handleClickNotification}
     onMarkAllRead={handleMarkAllRead}

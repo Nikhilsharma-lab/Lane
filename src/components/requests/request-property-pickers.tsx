@@ -12,7 +12,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import {
   REQUEST_TYPES, REQUEST_TYPE_DESCRIPTIONS, REQUEST_TYPE_LABELS,
   type ProjectOption, type RequestType,
-} from "@/lib/request-properties";
+} from "@/lib/request-constants";
 import styles from "./request-property-pickers.module.css";
 
 export function useWorkspaceProjects(orgId: string, active: boolean) {

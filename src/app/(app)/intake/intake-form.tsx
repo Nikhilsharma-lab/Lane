@@ -56,9 +56,10 @@ import {
   type RequestInput,
 } from "@/lib/request-schema";
 import { cn } from "@/lib/utils";
+import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
-import { REQUEST_TYPE_LABELS } from "@/lib/request-properties";
+import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
 import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
 import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -260,7 +261,7 @@ export default function IntakeForm({
   draftOwnerId: string;
   presentation?: "page" | "dialog";
   active?: boolean;
-  onCreated?: (requestId: string) => void;
+  onCreated?: (requestId: string, created?: OverviewRequest) => void;
   onBusyChange?: (busy: boolean) => void;
   initialProjectId?: string | null;
 }) {
@@ -281,6 +282,8 @@ export default function IntakeForm({
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
+  // The saved row, handed to the composer so the list shows it at once.
+  const createdRow = useRef<OverviewRequest | null>(null);
   const [projectBusy, setProjectBusy] = useState(false);
   const projectInFlight = useRef(false);
   const projectDefaultApplied = useRef(false);
@@ -739,7 +742,8 @@ export default function IntakeForm({
     setStage("complete");
     if (onCreated) {
       onBusyChange?.(false);
-      onCreated(requestId);
+      const row = createdRow.current?.id === requestId ? createdRow.current : null;
+      onCreated(requestId, row ? { ...row, projectName: projects.projects.find((project) => project.id === row.projectId)?.name ?? row.projectName } : undefined);
       return;
     }
     toast({ type: "success", title: "Request created",
@@ -800,6 +804,7 @@ export default function IntakeForm({
       }
 
       setCreatedRequestId(result.requestId);
+      createdRow.current = result.created ?? null;
       draftCleared.current = true;
       clearIntakeDraft(window.sessionStorage, draftScope);
 

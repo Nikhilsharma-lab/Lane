@@ -7,7 +7,7 @@ import { RequestListViewProvider, useRequestListView } from "@/components/reques
 import { Button } from "@/components/arc/button/button"
 import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
 
-import type { ProjectOption } from "@/lib/request-properties"
+import type { ProjectOption } from "@/lib/request-constants"
 
 const signOut = fn()
 const websiteId = "11111111-1111-4111-8111-111111111111"

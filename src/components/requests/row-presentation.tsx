@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import type { OverviewRequest } from "@/lib/request-overview"
-import type { RequestPriority } from "@/lib/request-properties"
+import type { RequestPriority } from "@/lib/request-constants"
 
 export type { RequestPriority }
 export type RequestIdentity = { code: string; priority: RequestPriority }

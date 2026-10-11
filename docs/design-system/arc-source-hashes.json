@@ -335,7 +335,8 @@
     "id": "tooltip",
     "source": "https://uiarc.dev/r/tooltip.json",
     "file": "src/components/arc/tooltip/tooltip.tsx",
-    "upstreamSha256": "982b4929bfe8201ebd57d52ca11fc5bf617062e845b78e30509c5136c2e7af48"
+    "upstreamSha256": "982b4929bfe8201ebd57d52ca11fc5bf617062e845b78e30509c5136c2e7af48",
+    "localSha256": "06ba0953c4979f5abc7e9c0a57c63b3b09cdc06c1034d5dadacd0c048bce878d"
   },
   {
     "id": "user-menu",

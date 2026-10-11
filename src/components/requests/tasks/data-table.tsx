@@ -1,7 +1,6 @@
 "use client"
 
-import { useCallback, useId, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
@@ -9,10 +8,11 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { useRequestListView } from "@/components/requests/list-view-state"
+import { useRequestListUrlSync, useRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import { groupRequestRows, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
-import { requestListHref, parseRequestStatusFilter, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { requestListHref, parseRequestStatusFilter } from "@/lib/request-workspace"
 import { NewRequestLink } from "../new-request-link"
 import { useRequestRowPresentation } from "../row-presentation"
 import { RequestListSummary } from "../request-list-summary"
@@ -24,14 +24,24 @@ import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
 
-export function DataTable({ columns, data, filter, projectFilter = "all", projectName, context, isGuest = false }: { columns: RequestColumn[]; data: OverviewRequest[]; filter: RequestStatusFilter; projectFilter?: RequestProjectFilter; projectName?: string; context?: { orgId: string }; isGuest?: boolean }) {
-  const router = useRouter()
+/**
+ * Plan item 1.7: the status view and Project filter come from the layout's
+ * list view state, not from server props, so switching either (and group,
+ * sort and the in-list filter) re-renders here with no network request. The
+ * "/" URL mirrors that state through useRequestListUrlSync.
+ */
+export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode }) {
   const presentation = useRequestRowPresentation()
   const [summaryOpen, setSummaryOpen] = useState(false)
   const summaryTrigger = useRef<HTMLButtonElement>(null)
   const groupId = useId()
   const [view, setView] = useRequestListView()
-  const { localFilters, ordering, grouping, collapsedGroups, pagination } = view
+  const { localFilters, ordering, grouping, collapsedGroups, pagination, status: filter, project: projectFilter } = view
+  // Plan item 1.5: pending lifecycle and priority moves apply before grouping
+  // and sorting, so an optimistic change regroups the row in the next frame.
+  const pendingMutations = usePendingMutations()
+  const data = useMemo(() => pendingMutations?.apply(serverRows) ?? serverRows, [pendingMutations, serverRows])
+  useRequestListUrlSync(view, setView, (pendingMutations?.unconfirmed ?? 0) > 0)
   const columnVisibility: Record<string, boolean> = { project: projectFilter === "all", ...view.columnVisibility }
   const valueFor = (id: string) => String(localFilters.find(item => item.id === id)?.value ?? "")
   const title = valueFor("title"), project = projectFilter === "all" ? "" : projectFilter, requestType = valueFor("requestType")
@@ -51,15 +61,13 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
   const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest)
   const setFilter = (id: string, value: string) => {
     if (id === "project") {
-      setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 } }))
-      router.replace(requestListHref(filter, value || "all"), { scroll: false })
+      setView(previous => withListContext(previous, { project: value || "all" }))
       return
     }
     setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 }, localFilters: [...previous.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }))
   }
   const clearFilters = () => {
-    setView(previous => ({ ...previous, localFilters: [], pagination: { ...previous.pagination, pageIndex: 0 } }))
-    if (filter !== "all" || projectFilter !== "all") router.replace(requestListHref("all"), { scroll: false })
+    setView(previous => ({ ...withListContext(previous, { status: "all", project: "all" }), localFilters: [], pagination: { ...previous.pagination, pageIndex: 0 } }))
   }
   const restoreRequest = useCallback((id: string) => {
     const index = matching.findIndex(row => row.id === id)
@@ -76,7 +84,7 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
     <DataTableToolbar data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={setSummaryOpen} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter}
-      onStatusChange={next => { setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 } })); router.replace(requestListHref(next, projectFilter), { scroll: false }) }}
+      onStatusChange={next => setView(previous => withListContext(previous, { status: next }))}
       onVisibilityChange={next => setView(previous => ({ ...previous, columnVisibility: { ...previous.columnVisibility, ...Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== (columnVisibility[key] !== false))) } }))}
       onOrderingChange={next => setView(previous => ({ ...previous, ordering: next, pagination: { ...previous.pagination, pageIndex: 0 } }))}
       onGroupingChange={next => setView(previous => ({ ...previous, grouping: next, collapsedGroups: [], pagination: { ...previous.pagination, pageIndex: 0 } }))}
@@ -99,6 +107,7 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
               <div id={id} hidden={collapsed}>{renderRows(rows, `${group.label} Requests`)}</div>
             </section>
           })}
+    {footer}
     </div>
     {pageCount > 1 && <div className={`${styles.footer} ${layoutStyles.tableFooter}`}>
       <div className={styles.pageInfo}><Select label="Requests per page" value={String(pagination.pageSize)} options={[10, 20, 25, 30, 40, 50].map(size => ({ value: String(size), label: String(size) }))} onValueChange={value => setView(previous => ({ ...previous, pagination: { pageIndex: 0, pageSize: Number(value) } }))} />
@@ -108,7 +117,7 @@ export function DataTable({ columns, data, filter, projectFilter = "all", projec
     </div>
     <AnimatePresence initial={false}>
     {presentation && summaryOpen && <RequestListSummary rows={matching} filter={filter} project={project} requestType={requestType}
-      onFilter={(field, value) => { if (field === "status") { setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 } })); router.replace(requestListHref(parseRequestStatusFilter(value), projectFilter), { scroll: false }) } else setFilter(field, value) }}
+      onFilter={(field, value) => { if (field === "status") setView(previous => withListContext(previous, { status: parseRequestStatusFilter(value) })); else setFilter(field, value) }}
       onClose={() => { setSummaryOpen(false); summaryTrigger.current?.focus() }} />}
     </AnimatePresence>
     </div>

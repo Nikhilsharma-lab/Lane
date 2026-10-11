@@ -1,15 +1,14 @@
 "use client";
 
 import { useClerk, useOrganization } from "@clerk/nextjs";
-import { useCallback } from "react";
+import { useMemo } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { parseRequestStatusFilter, parseRequestProjectFilter, requestListHref } from "@/lib/request-workspace";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { NotificationBell } from "./notification-bell";
 import { SidebarView } from "./sidebar-view";
-import { searchWorkspace } from "@/app/(app)/workspace-search-actions";
-import type { WorkspaceSearchInput } from "@/lib/workspace-search";
+import { fetchWorkspaceSearch } from "./workspace-search-pane";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 
 export function Sidebar({
@@ -37,7 +36,8 @@ export function Sidebar({
   const { isLoaded, organization } = useOrganization();
   const { signOut } = useClerk();
   const workspaceSwitcher = useWorkspaceSwitcher(orgId);
-  const search = useCallback((input: WorkspaceSearchInput) => searchWorkspace(input, { orgId }), [orgId]);
+  // Plan item 1.16: search reads the GET route, so it never queues behind a mutation.
+  const search = useMemo(() => fetchWorkspaceSearch(orgId), [orgId]);
   // Clerk owns the current name. Only a matching loaded organization may
   // replace the server fallback; a display update never selects a workspace.
   const displayedWorkspaceName =

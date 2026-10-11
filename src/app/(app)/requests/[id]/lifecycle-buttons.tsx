@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
+import { usePendingMutations } from "@/components/requests/pending-mutations-provider";
+import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
 import {
   requestListHref,
   type RequestProjectFilter,
@@ -31,11 +32,21 @@ export function LifecycleButtons({
   fullWidth?: boolean;
 }) {
   const { pending, run } = useRecoverableAction();
+  const optimistic = useOptimisticAction();
+  const overlay = usePendingMutations();
   const [error, setError] = useState<string | null>(null);
   const [movedTo, setMovedTo] = useState<
     "in_progress" | "done" | null
   >(null);
-  const router = useRouter();
+  // The status the button was pressed from, so the pressed button keeps its
+  // pending label while the overlay already shows the new status elsewhere.
+  const [pressedFrom, setPressedFrom] = useState<string | null>(null);
+  // The overlay shows a move from the list or this page before the server
+  // confirms it, and keeps it if a navigation drops the action's payload.
+  const shownStatus = overlay
+    ? overlay.applyOne({ id: requestId, status: status as "open" | "in_progress" | "done" }).status
+    : status;
+  const buttonStatus = pending && pressedFrom ? pressedFrom : shownStatus;
 
   async function runLifecycleAction(
     action: () => Promise<{ error?: string; success?: boolean }>,
@@ -44,25 +55,25 @@ export function LifecycleButtons({
   ) {
     setError(null);
     setMovedTo(null);
+    setPressedFrom(shownStatus);
 
-    const outcome = await run(action);
-    if (outcome.status === "failed") {
-      setError(networkError);
-      router.refresh();
-      return;
-    }
+    // On a refusal or a lost response useOptimisticAction rolls the patch back
+    // and calls router.refresh() so the detail re-syncs with the server; a
+    // success already carries the revalidated tree, so nothing refreshes then.
+    const outcome = await run(() =>
+      optimistic({
+        id: requestId,
+        patch:
+          target === "done"
+            ? { kind: "done", status: "done" }
+            : { kind: "pick-up", status: "in_progress" },
+        run: action,
+        waitForPending: true,
+        onError: (message, { thrown }) => setError(thrown ? networkError : message),
+      })
+    );
     if (outcome.status !== "completed") return;
-
-    const result = outcome.value;
-    if ("error" in result && result.error) {
-      // The server did not revalidate on a conflict, so re-sync the detail here.
-      setError(result.error);
-      router.refresh();
-    } else {
-      // A successful action already revalidated the detail and list paths, and
-      // its response carries the refreshed tree. A refresh here would render twice.
-      setMovedTo(target);
-    }
+    if (outcome.value.status === "success") setMovedTo(target);
   }
 
   async function handlePickUp() {
@@ -81,7 +92,7 @@ export function LifecycleButtons({
     );
   }
 
-  if (status === "done" && !error && !movedTo) return null;
+  if (buttonStatus === "done" && !error && !movedTo) return null;
 
   return (
     <div
@@ -110,7 +121,7 @@ export function LifecycleButtons({
         </Alert>
       )}
 
-      {status === "open" && (
+      {buttonStatus === "open" && (
         <Button
           size="sm"
           onClick={handlePickUp}
@@ -129,7 +140,7 @@ export function LifecycleButtons({
         </Button>
       )}
 
-      {status === "in_progress" && (
+      {buttonStatus === "in_progress" && (
         <Button
           size="sm"
           onClick={handleMarkDone}

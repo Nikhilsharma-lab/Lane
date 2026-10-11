@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useContext, type ComponentProps } from "react";
 import { NewRequestContext } from "./new-request-context";
-import { projectIdSchema } from "@/lib/request-properties";
+import { projectIdOrNull } from "@/lib/request-constants";
 import { parseRequestProjectFilter } from "@/lib/request-workspace";
 
 /** Keeps direct/new-tab navigation working while ordinary activation opens Intake in context. */
 export function NewRequestLink({ onClick, ...props }: Omit<ComponentProps<typeof Link>, "href">) {
   const composer = useContext(NewRequestContext);
   const searchParams = useSearchParams();
-  const project = projectIdSchema.safeParse(parseRequestProjectFilter(searchParams.get("project")));
-  const href = project.success && project.data ? `/intake?project=${project.data}` : "/intake";
+  const projectId = projectIdOrNull(parseRequestProjectFilter(searchParams.get("project")));
+  const href = projectId ? `/intake?project=${projectId}` : "/intake";
   return (
     <Link
       {...props}

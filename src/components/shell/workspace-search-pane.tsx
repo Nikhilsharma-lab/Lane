@@ -28,10 +28,36 @@ import { SidebarExpandButton } from "./sidebar-controls";
 
 export type WorkspaceSearchPaneProps = {
   active?: boolean;
-  onSearch: (input: WorkspaceSearchInput) => Promise<WorkspaceSearchResponse>;
+  /** Resolves one search. The signal aborts it when a newer query replaces it (plan item 1.16). */
+  onSearch: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
   onClose: () => void;
   onNavigate?: (href: string) => void;
 };
+
+/** Typing pauses this long before a search is sent; Enter searches at once. */
+export const SEARCH_DEBOUNCE_MS = 150;
+
+const sessionExpired: WorkspaceSearchResponse = { success: false, error: { code: "session_expired", message: "Your workspace session changed. Refresh the page to search again." } };
+const searchFailed: WorkspaceSearchResponse = { success: false, error: { code: "search_failed", message: "Search could not be completed. Try again." } };
+
+/**
+ * Plan item 1.16 (decision 8.15): search reads GET /api/search instead of a
+ * server action, so typing never queues behind a pending mutation and a
+ * stale request is aborted instead of finishing first. Status codes map to
+ * the same response shape the action returned.
+ */
+export function fetchWorkspaceSearch(orgId: string) {
+  return async (input: WorkspaceSearchInput, signal?: AbortSignal): Promise<WorkspaceSearchResponse> => {
+    const params = new URLSearchParams({ org: orgId, q: input.query });
+    if (input.requestsPage) params.set("requestsPage", String(input.requestsPage));
+    if (input.projectsPage) params.set("projectsPage", String(input.projectsPage));
+    const response = await fetch(`/api/search?${params}`, { signal, headers: { accept: "application/json" }, credentials: "same-origin" });
+    if (response.status === 401 || response.status === 403) return sessionExpired;
+    const body = await response.json().catch(() => null) as WorkspaceSearchResponse | null;
+    if (!body || typeof body !== "object" || !("success" in body)) return searchFailed;
+    return body;
+  };
+}
 
 type SearchData = Extract<WorkspaceSearchResponse, { success: true }>;
 type Category = "all" | "requests" | "projects";
@@ -66,6 +92,8 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const sequence = useRef(0);
+  const inflight = useRef<AbortController | null>(null);
+  const debounce = useRef(0);
   const pendingFocus = useRef<{ sequence: number; trigger: HTMLButtonElement; resultId?: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [category, setCategory] = useState<Category>("all");
@@ -83,7 +111,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
   useEffect(() => {
     if (active) inputRef.current?.focus();
     // A response from before close or unmount must never populate a later view.
-    return () => { sequence.current += 1; };
+    return () => { sequence.current += 1; window.clearTimeout(debounce.current); inflight.current?.abort(); inflight.current = null; };
   }, [active]);
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
@@ -99,23 +127,35 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
   const currentFailure = failure?.input.query === normalized ? failure : null;
   const total = current ? category === "all" ? current.requests.total + current.projects.total : current[category].total : 0;
 
-  function edit(value: string) {
+  function cancel() {
     sequence.current += 1;
+    window.clearTimeout(debounce.current);
+    inflight.current?.abort(); inflight.current = null;
+  }
+  function edit(value: string) {
+    cancel();
     setDraft(value); setLoading(null); setFailure(null);
-    if (!value.trim()) setData(null);
+    const query = value.trim();
+    if (!query) { setData(null); return; }
+    // Search as you type: a short pause, then one request that replaces any
+    // older one still in flight.
+    debounce.current = window.setTimeout(() => { void run({ query, requestsPage: 0, projectsPage: 0 }); }, SEARCH_DEBOUNCE_MS);
   }
   function clear() { edit(""); inputRef.current?.focus(); }
-  function close() { sequence.current += 1; setLoading(null); onClose(); }
+  function close() { cancel(); setLoading(null); onClose(); }
 
   async function run(input: WorkspaceSearchInput, operation: Operation = "search") {
     if (!input.query.trim()) { clear(); return; }
-    const id = ++sequence.current;
+    cancel();
+    const id = sequence.current;
+    const controller = new AbortController();
+    inflight.current = controller;
     const trigger = document.activeElement;
     if (trigger instanceof HTMLButtonElement && trigger.dataset.searchRetry !== undefined) inputRef.current?.focus();
     setLoading(operation); setFailure(null);
     if (operation === "search") setData(null);
     try {
-      const response = await onSearch(input);
+      const response = await onSearch(input, controller.signal);
       if (id !== sequence.current) return;
       if (!response.success) { setFailure({ message: response.error.message, input, operation }); return; }
       setData(previous => {
@@ -133,7 +173,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     } catch {
       if (id === sequence.current) setFailure({ message: "Search could not be completed. Try again.", input, operation });
     } finally {
-      if (id === sequence.current) setLoading(null);
+      if (id === sequence.current) { setLoading(null); if (inflight.current === controller) inflight.current = null; }
     }
   }
   function loadMore(kind: Exclude<Category, "all">) {
@@ -206,7 +246,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
         </> : !currentFailure ? <div className={styles.empty}><EmptyState
           icon={current ? <SearchX size={24} strokeWidth={1.75} /> : <Search size={24} strokeWidth={1.75} />}
           title={current ? "No results found" : "Search your workspace"}
-          description={current ? "Try another word or check the spelling." : "Find Requests and Projects. Type a search and press Enter."}
+          description={current ? "Try another word or check the spelling." : "Find Requests and Projects. Results appear as you type."}
         /></div> : null}
     </section>
   </section>;
