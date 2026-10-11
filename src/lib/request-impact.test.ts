@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectedImpactDraftSchema, expectedImpactSchema } from "./request-impact";
+import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, impactDraftState, impactSummaryLines } from "./request-impact";
 
 const metric = { kind: "metric", metric: "Signup completion", baseline: null, target: 65, unit: "%", source: "Signup completed / signup started events", reviewAfterDays: 30 };
 const verification = { kind: "verification", result: "Keyboard users can complete signup without a mouse", source: "Keyboard-only acceptance check on the released experience", reviewAfterDays: 7 };
@@ -32,5 +32,48 @@ describe("expected impact", () => {
     expect(expectedImpactDraftSchema.parse(draft)).toEqual(draft);
     expect(expectedImpactSchema.safeParse(draft).success).toBe(false);
     expect(expectedImpactDraftSchema.parse(undefined)).toBeNull();
+  });
+});
+
+describe("Expected impact disclosure helpers (plan item 2.3)", () => {
+  const emptyMetric = { kind: "metric" as const, metric: "", baseline: null, target: null, unit: "", source: "", reviewAfterDays: null };
+
+  it("reads an absent or untouched draft as empty, whatever its kind", () => {
+    expect(impactDraftState(null)).toBe("empty");
+    expect(impactDraftState(undefined)).toBe("empty");
+    expect(impactDraftState(EMPTY_METRIC_IMPACT)).toBe("empty");
+    expect(impactDraftState({ kind: "verification", result: "  ", source: "", reviewAfterDays: null })).toBe("empty");
+  });
+
+  it("reads any typed text or number as partial until the strict schema accepts it", () => {
+    expect(impactDraftState({ ...emptyMetric, metric: "Signup completion" })).toBe("partial");
+    expect(impactDraftState({ ...emptyMetric, target: 0 })).toBe("partial");
+    expect(impactDraftState({ ...metric, kind: "metric", reviewAfterDays: null })).toBe("partial");
+    expect(impactDraftState({ ...metric, kind: "metric", reviewAfterDays: 0 })).toBe("partial");
+  });
+
+  it("reads a draft the strict schema accepts as complete", () => {
+    expect(impactDraftState({ ...metric, kind: "metric" })).toBe("complete");
+    expect(impactDraftState({ ...verification, kind: "verification" })).toBe("complete");
+  });
+
+  it("summarises a metric with a baseline as a change, with % joined and other units spaced", () => {
+    expect(impactSummaryLines({ ...metric, kind: "metric", baseline: 62, target: 80 })).toEqual([
+      "Signup completion, 62% to 80%",
+      "Signup completed / signup started events, 30 days after launch",
+    ]);
+    expect(impactSummaryLines({ ...metric, kind: "metric", baseline: 420, target: 250, unit: "ms" })[0]).toBe("Signup completion, 420 ms to 250 ms");
+  });
+
+  it("summarises a metric with no baseline by its target alone", () => {
+    expect(impactSummaryLines({ ...metric, kind: "metric" })[0]).toBe("Signup completion, target 65%");
+    expect(impactSummaryLines({ ...metric, kind: "metric", target: -2.5, unit: "s" })[0]).toBe("Signup completion, target -2.5 s");
+  });
+
+  it("summarises a verified result by its criterion, and says 1 day in the singular", () => {
+    expect(impactSummaryLines({ ...verification, kind: "verification", reviewAfterDays: 1 })).toEqual([
+      "Keyboard users can complete signup without a mouse",
+      "Keyboard-only acceptance check on the released experience, 1 day after launch",
+    ]);
   });
 });

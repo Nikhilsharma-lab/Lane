@@ -12,6 +12,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { flushSync } from "react-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -61,11 +62,11 @@ import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
 import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
-import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 import type { z } from "zod";
 import styles from "./intake-form.module.css";
+import { ExpectedImpactDisclosure, firstImpactField, IMPACT_PANEL_ID } from "./expected-impact-disclosure";
 
 import {
   discardAttachmentUpload,
@@ -289,6 +290,9 @@ export default function IntakeForm({
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
   const [mutationBusy, setMutationBusy] = useState(false);
+  // Expected impact starts folded, also after a draft is restored (decision 8.26).
+  const [impactOpen, setImpactOpen] = useState(false);
+  const [impactInstant, setImpactInstant] = useState(false);
 
   const operationInFlight = useRef(false);
   const leftUploadScreen = useRef(false);
@@ -970,13 +974,21 @@ export default function IntakeForm({
     onBusyChange?.(value);
   }
 
+  /** A failed submit opens Expected impact at once and focuses its first invalid field, or its first field. */
+  function revealImpact() {
+    flushSync(() => {
+      setImpactInstant(true);
+      setImpactOpen(true);
+    });
+    const panel = document.getElementById(IMPACT_PANEL_ID);
+    const kind = expectedImpactDraftSchema.parse(getValues("expectedImpact"))?.kind ?? "metric";
+    (panel?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? firstImpactField(kind))?.focus();
+  }
+
   function focusRequestField(field: keyof RequestInput) {
     if (field === "projectId") document.getElementById("intake-project")?.focus();
     else if (field === "requestType") document.getElementById("intake-request-type")?.focus();
-    else if (field === "expectedImpact") {
-      const section = document.getElementById("intake-expected-impact");
-      (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section)?.focus();
-    }
+    else if (field === "expectedImpact") revealImpact();
     else if (earlierDraftFields.some(({ name }) => name === field)) document.getElementById("intake-earlier-details")?.focus();
     else setFocus(field);
   }
@@ -1088,11 +1100,14 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            <ExpectedImpactFields
+            <ExpectedImpactDisclosure
               value={expectedImpactDraftSchema.parse(currentValues.expectedImpact) ?? EMPTY_METRIC_IMPACT}
               onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
               disabled={checking}
               errors={errors.expectedImpact}
+              open={impactOpen}
+              instant={impactInstant}
+              onOpenChange={(open) => { setImpactInstant(false); setImpactOpen(open); }}
             />
             <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
               <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>

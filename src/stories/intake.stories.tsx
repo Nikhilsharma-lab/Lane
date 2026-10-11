@@ -22,7 +22,7 @@ import {
 } from "@/app/(app)/intake/attachment-actions";
 import IntakeLoading from "@/app/(app)/intake/loading";
 import type { TriageResult } from "@/lib/ai/triage";
-import { fillMetricImpact, metricImpact, verifiedImpact } from "./fixtures/request-impact";
+import { fillMetricImpact, metricImpact, openImpact, verifiedImpact } from "./fixtures/request-impact";
 
 const requestSource = {
   expectedImpact: metricImpact,
@@ -962,6 +962,7 @@ export const ExpectedVerifiedImpactReview: Story = {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
     await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
+    await openImpact(canvas);
     await userEvent.click(canvas.getByRole("radio", { name: "Verified result" }));
     await userEvent.type(canvas.getByRole("textbox", { name: /^Success criterion/ }), verifiedImpact.result);
     await userEvent.type(canvas.getByRole("textbox", { name: /^Data source/ }), verifiedImpact.source);
