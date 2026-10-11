@@ -1,0 +1,54 @@
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+}));
+
+import { SidebarView } from "./sidebar-view";
+import { PageStrip } from "./page-strip";
+
+// Plan item 2.0: the shell no longer renders a topbar; each page's strip shows
+// the shell's trail followed by its own name.
+const websiteId = "11111111-1111-4111-8111-111111111111";
+const render = (pathname: string, children?: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
+  workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member",
+  pathname, statusFilter: "in_progress", projectFilter: websiteId,
+  projects: [{ id: websiteId, name: "Website", description: null }], notifications: null, children,
+}));
+const crumbs = (html: string) => {
+  const nav = /<nav aria-label="Breadcrumb"[^>]*>[\s\S]*?<\/nav>/.exec(html)?.[0];
+  if (!nav) return null;
+  return [...nav.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)].map(([, item]) => {
+    const link = /<a\b[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/.exec(item);
+    return link ? [link[2], link[1].replaceAll("&amp;", "&")] : [item.replace(/<[^>]+>/g, "")];
+  });
+};
+
+describe("SidebarView frame", () => {
+  it.each(["/requests/x", "/intake", "/settings/profile", "/"])("renders no topbar and no crumbs of its own at %s", (pathname) => {
+    const html = render(pathname);
+    expect(html).not.toContain("<header");
+    expect(html).not.toContain('aria-label="Breadcrumb"');
+  });
+
+  it.each([
+    ["/requests/x", "Request detail", [["Lane Studio", "/"], ["Website", `/?status=in_progress&project=${websiteId}`], ["Request detail"]]],
+    ["/intake", "New Request", [["Lane Studio", "/"], ["New Request"]]],
+    ["/settings/members", "Members", [["Lane Studio", "/"], ["Settings", "/settings/profile"], ["Members"]]],
+  ])("gives the page strip at %s the shell's trail", (pathname, title, expected) => {
+    const html = render(pathname, createElement(PageStrip, { title }));
+    expect(html.match(/data-slot="page-strip"/g)).toHaveLength(1);
+    expect(crumbs(html)).toEqual(expected);
+  });
+
+  it("shows the list's title alone on /", () => {
+    const html = render("/", createElement(PageStrip, { title: "Requests", heading: true }));
+    expect(crumbs(html)).toBeNull();
+    expect(html).toMatch(/<h1\b[^>]*>Requests<\/h1>/);
+  });
+});
