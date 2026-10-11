@@ -1,6 +1,6 @@
 /* Lane visual primitives: colour, geometry, type and spacing roles for the dense
- * product shell. Authored for Lane on 2026-10-10 as OKLCH ramps on one cool neutral
- * axis (hue 255) with a green-teal accent (hue 162); status and Project hues are
+ * product shell. Authored for Lane on 2026-10-10 (accent changed 2026-10-11) as OKLCH ramps on one cool neutral
+ * axis (hue 255) with a blue-violet accent (hue 275); status and Project hues are
  * generic families. Every text-on-surface pair here passes 4.5:1 in both modes (the
  * generator asserts it). Three contexts share the roles: content, sidebar and the
  * floating menu. Activated by data-visual-system="lane" on <html>; the mapping into
@@ -15,15 +15,15 @@
   --lane-content-bg-border: oklch(0.885 0.003 255);
   --lane-content-bg-border-solid: oklch(0.84 0.004 255);
   --lane-content-bg-border-strong: oklch(0.55 0.006 255);
-  --lane-content-bg-selected: oklch(0.93 0.035 162);
-  --lane-content-bg-selected-border: oklch(0.82 0.05 162);
+  --lane-content-bg-selected: oklch(0.93 0.032 275);
+  --lane-content-bg-selected-border: oklch(0.82 0.05 275);
   --lane-content-label-title: oklch(0.17 0.01 255);
   --lane-content-label-base: oklch(0.3 0.012 255);
   --lane-content-label-muted: oklch(0.47 0.012 255);
-  --lane-content-label-link: oklch(0.5 0.13 162);
-  --lane-content-focus-color: oklch(0.56 0.13 162);
-  --lane-content-control-primary: oklch(0.54 0.14 162);
-  --lane-content-control-primary-label: oklch(0.995 0.005 162);
+  --lane-content-label-link: oklch(0.5 0.13 275);
+  --lane-content-focus-color: oklch(0.56 0.13 275);
+  --lane-content-control-primary: oklch(0.54 0.14 275);
+  --lane-content-control-primary-label: oklch(0.995 0.002 275);
   --lane-content-control-secondary: oklch(1 0 255);
   --lane-content-control-secondary-hover: oklch(0.96 0.003 255);
   --lane-sidebar-bg-base: oklch(0.965 0.003 255);
@@ -74,15 +74,15 @@
   --lane-content-bg-border: oklch(0.27 0.008 255);
   --lane-content-bg-border-solid: oklch(0.29 0.008 255);
   --lane-content-bg-border-strong: oklch(0.6 0.01 255);
-  --lane-content-bg-selected: oklch(0.27 0.04 162);
-  --lane-content-bg-selected-border: oklch(0.36 0.06 162);
+  --lane-content-bg-selected: oklch(0.27 0.04 275);
+  --lane-content-bg-selected-border: oklch(0.36 0.06 275);
   --lane-content-label-title: oklch(0.98 0.004 255);
   --lane-content-label-base: oklch(0.9 0.006 255);
   --lane-content-label-muted: oklch(0.68 0.01 255);
-  --lane-content-label-link: oklch(0.78 0.13 162);
-  --lane-content-focus-color: oklch(0.74 0.13 162);
-  --lane-content-control-primary: oklch(0.72 0.14 162);
-  --lane-content-control-primary-label: oklch(0.17 0.02 162);
+  --lane-content-label-link: oklch(0.78 0.11 275);
+  --lane-content-focus-color: oklch(0.74 0.13 275);
+  --lane-content-control-primary: oklch(0.72 0.14 275);
+  --lane-content-control-primary-label: oklch(0.17 0.02 275);
   --lane-content-control-secondary: oklch(0.22 0.007 255);
   --lane-content-control-secondary-hover: oklch(0.26 0.008 255);
   --lane-sidebar-bg-base: oklch(0.16 0.006 255);
