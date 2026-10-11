@@ -2,15 +2,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { AuthHeaderLink, AuthShell } from "@/components/auth/auth-shell";
-import { AuthFormCard } from "@/components/auth/auth-form-card";
-import { AuthAction } from "@/components/auth/auth-action";
 import { AuthLoading } from "@/components/auth/auth-loading";
 import { PasswordRecoveryView, type PasswordRecoveryViewProps } from "@/components/auth/password-recovery-view";
-import { RoleSelection, type FunctionalRole } from "@/components/auth/role-selection";
-import { OnboardingChrome } from "@/components/auth/onboarding-chrome";
 import MembersLoading from "@/app/(app)/settings/members/loading";
 
-const meta = { title: "Auth/Arc flows", parameters: { layout: "fullscreen", docs: { description: { component: "Actual Lane presentation components using the official Arc input, password field, radio group, button, alert and skeleton. These stories make no Clerk network calls and do not claim authentication, invitation acceptance, or role persistence succeeded." } } } } satisfies Meta;
+const meta = { title: "Auth/Arc flows", parameters: { layout: "fullscreen", docs: { description: { component: "Actual Lane presentation components using the official Arc input, password field, button, alert and skeleton. These stories make no Clerk network calls and do not claim authentication, invitation acceptance, or role persistence succeeded." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -36,18 +32,6 @@ export const RecoveryPending: Story = { render: () => <RecoveryPreview pending s
 export const FinishSignIn: Story = { render: () => <RecoveryPreview step="activate" error="Your password was updated, but sign-in did not finish. Continue to try again." /> };
 export const ContinueVerification: Story = { render: () => <RecoveryPreview step="continue" /> };
 
-function RolePreview({ pending = false, error }: { pending?: boolean; error?: string }) {
-  const [role, setRole] = useState<FunctionalRole | null>(null);
-  return <OnboardingChrome current={2} total={2}><AuthFormCard title="How do you work?" description="Choose your role. You can change it in Profile settings. It does not change what you can see or do.">
-    <div className="grid gap-6"><RoleSelection value={role} onValueChange={setRole} disabled={pending} invalid={Boolean(error)} />
-      {error && <p role="alert" className="text-sm text-[var(--danger)]">{error}</p>}
-      <AuthAction loading={pending} loadingLabel="Saving role…">Continue</AuthAction>
-    </div>
-  </AuthFormCard></OnboardingChrome>;
-}
-export const ChooseRole: Story = { render: () => <RolePreview />,
-  play: async ({ canvasElement }) => { const c = within(canvasElement); const role = c.getByRole("radio", { name: /^Designer/ }); await userEvent.click(role); await expect(role).toBeChecked(); } };
-export const RoleSavePending: Story = { render: () => <RolePreview pending /> };
-export const RoleSaveFailure: Story = { render: () => <RolePreview error="Your role selection is still here. Check your connection and try again." /> };
+// The onboarding role step's stories render the real RoleForm: src/stories/onboarding.stories.tsx.
 export const SignupLoading: Story = { render: () => <AuthShell><AuthLoading label="Loading account creation" /></AuthShell> };
 export const MembersLoadingState: Story = { render: () => <MembersLoading /> };
