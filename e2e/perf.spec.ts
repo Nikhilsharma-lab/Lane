@@ -1,4 +1,4 @@
-import { expect, test, type CDPSession, type Page, type Request } from "@playwright/test"
+import { expect, test, type Browser, type CDPSession, type Page, type Request } from "@playwright/test"
 
 /**
  * Plan item 1.15b: the §2.2 performance budgets, measured against a running
@@ -36,6 +36,7 @@ const BUDGET = {
   ttfb: 400,
   cls: 0.02,
   markDoneOnScreen: { target: 50, limit: 100 }, // optimistic change in the next frame, p75
+  skeleton: 100, // click to the loading frame (or the page) on screen, p75 (plan item 2.0)
   longFramesPerTransition: 2, // at 4x CPU, in a 300 ms transition
 }
 
@@ -266,4 +267,89 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
   test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
   report("Mark Done, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
+})
+
+// Plan item 2.0: cold loads in a fresh context (empty cache), the frame's CLS
+// on Request detail at desktop and phone widths, the list at phone width, and
+// the skeleton after a client navigation.
+const detailLinks = (page: Page) => page.locator("li[data-request-id] a[href^='/requests/']")
+
+async function coldLoadCls(browser: Browser, url: string, viewport: { width: number; height: number }, ready: string) {
+  const cls: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    const context = await browser.newContext({ storageState: STORAGE_STATE, viewport, baseURL: BASE_URL })
+    try {
+      const page = await context.newPage()
+      await page.addInitScript(installObservers)
+      await page.goto(url)
+      await expect(page.locator(ready).first()).toBeVisible()
+      // The lazy Ask for review panel, the toolbar pills and the fonts settle.
+      await page.waitForTimeout(1500)
+      cls.push(await page.evaluate(() => (window as unknown as PerfWindow).__lanePerf.cls))
+    } finally {
+      await context.close()
+    }
+  }
+  return cls
+}
+
+test("Request detail cold loads stay within the CLS budget at 1440 and 390", async ({ browser, page }) => {
+  await openList(page)
+  const href = await detailLinks(page).first().getAttribute("href")
+  expect(href, "The workspace needs at least one Request").toBeTruthy()
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    const cls = await coldLoadCls(browser, href!, viewport, "#request-problem")
+    report(`Request detail CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
+    expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+  }
+})
+
+test("Requests list cold loads at 390 stay within the CLS budget", async ({ browser }) => {
+  const cls = await coldLoadCls(browser, "/", { width: 390, height: 844 }, "li[data-request-id]")
+  report("Requests list CLS, cold load at 390", cls, "", BUDGET.cls)
+  expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+})
+
+test("a Request page shows its skeleton within 100 ms, and the swap does not shift", async ({ page }) => {
+  await openList(page)
+  const links = detailLinks(page)
+  const count = Math.min(await links.count(), RUNS)
+  expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
+  // Hold every RSC response for a Request page, so the loading frame has to show.
+  const hold = "**/requests/**"
+  await page.route(hold, async route => {
+    if (isRscRequest(route.request())) await new Promise(resolve => setTimeout(resolve, 800))
+    await route.continue()
+  })
+
+  const timings: number[] = [], shifts: number[] = []
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      const shown = page.evaluate(() => new Promise<{ onScreen: number; clsBefore: number }>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const done = () => {
+          if (!document.querySelector('[data-skeleton] [data-slot="page-strip"], #request-problem')) return
+          observer.disconnect()
+          resolve({ onScreen: performance.now() - perf.lastInput, clsBefore: perf.cls })
+        }
+        const observer = new MutationObserver(done)
+        observer.observe(document.body, { childList: true, subtree: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("Neither the skeleton nor the Request appeared")) }, 10_000)
+      }))
+      await links.nth(run % count).click()
+      const { onScreen, clsBefore } = await shown
+      timings.push(onScreen)
+      await expect(page.locator("#request-problem")).toBeVisible({ timeout: 10_000 })
+      await page.waitForTimeout(1000)
+      shifts.push(await page.evaluate(before => (window as unknown as PerfWindow).__lanePerf.cls - before, clsBefore))
+      await page.goBack()
+      await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+    }
+  } finally {
+    await page.unroute(hold)
+  }
+  report("click to the Request skeleton on screen", timings, "ms", BUDGET.skeleton)
+  report("CLS over the skeleton to Request swap", shifts, "", BUDGET.cls)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.skeleton * TOLERANCE)
+  expect(p75(shifts)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
 })
