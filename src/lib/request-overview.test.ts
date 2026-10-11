@@ -39,14 +39,14 @@ it("clamps pagination after filtering and preserves all requests across pages", 
 })
 
 describe("Request row grouping and order", () => {
-  it("keeps owners with the same display name in separate identity groups", () => {
+  it("keeps assignees with the same display name in separate identity groups", () => {
     const rows = [
       { ...requests[0], assignedTo: "person-a", assigneeName: "Sam" },
       { ...requests[1], assignedTo: "person-b", assigneeName: "Sam" },
       { ...requests[2], assignedTo: null, assigneeName: null },
     ]
-    expect(groupRequestRows(rows, "owner").map(group => [group.key, group.label, group.rows.map(row => row.id)])).toEqual([
-      ["owner:person-a", "Sam", ["a"]], ["owner:person-b", "Sam", ["b"]], ["owner:none", "Unassigned", ["c"]],
+    expect(groupRequestRows(rows, "assignee").map(group => [group.key, group.label, group.rows.map(row => row.id)])).toEqual([
+      ["assignee:person-a", "Sam", ["a"]], ["assignee:person-b", "Sam", ["b"]], ["assignee:none", "Unassigned", ["c"]],
     ])
   })
   it("groups Projects by ID and keeps No Project explicit", () => {

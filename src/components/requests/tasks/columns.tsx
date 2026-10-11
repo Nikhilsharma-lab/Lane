@@ -46,7 +46,7 @@ export const columns: RequestColumn[] = [
   { key: "title", label: "Request", value: row => row.reframedProblem ?? row.title, render: row => <RequestTitleLink id={`request-${row.id}`} href={requestDetailHref(row.id, "all")} title={row.reframedProblem ?? row.title} className={styles.title}>{row.reframedProblem ?? row.title}</RequestTitleLink> },
   { key: "status", label: "Status", value: row => row.status, render: row => <RequestProperty request={row} property="status" /> },
   { key: "project", label: "Project", value: row => row.projectName ?? "", render: (row, filter) => <RequestProperty request={row} property="project" filter={filter} /> },
-  { key: "pickedUpBy", label: "Owner", value: row => row.assigneeName ?? "", render: row => <RequestProperty request={row} property="pickedUpBy" /> },
+  { key: "pickedUpBy", label: "Assignee", value: row => row.assigneeName ?? "", render: row => <RequestProperty request={row} property="pickedUpBy" /> },
   { key: "createdAt", label: "Submitted", value: row => row.createdAt, render: row => <RequestProperty request={row} property="createdAt" /> },
   { key: "requestType", label: "Request type", value: row => row.requestType ?? "", render: row => <RequestProperty request={row} property="requestType" /> },
   { key: "submittedBy", label: "Submitted by", value: row => row.creatorName ?? "", render: row => <RequestProperty request={row} property="submittedBy" /> },

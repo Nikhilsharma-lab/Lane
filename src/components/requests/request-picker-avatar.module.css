@@ -1,4 +1,4 @@
-/* Keep the Owner target stable while Arc renders a photo or initials. */
+/* Keep the Assignee target stable while Arc renders a photo or initials. */
 .trigger { min-width: var(--space-8); }
 /* Arc Badge size="sm" is 22px tall. Match the visible avatar, not its hit area. */
 .trigger .avatar, .unassigned { width: var(--request-avatar-size, 22px); height: var(--request-avatar-size, 22px); }

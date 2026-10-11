@@ -329,7 +329,7 @@ export const ResponsiveRows: Story = {
     expect(getComputedStyle(title).whiteSpace).toBe("nowrap")
     expect(getComputedStyle(title).textOverflow).toBe("ellipsis")
     expect(row.getBoundingClientRect().height).toBe(44)
-    expect(within(row).getByRole("button", { name: "Owner: Unassigned" })).toBeVisible()
+    expect(within(row).getByRole("button", { name: "Assignee: Unassigned" })).toBeVisible()
     const width = row.closest("ul")!.getBoundingClientRect().width
     const project = row.querySelector('[data-property="project"]')!
     if (width <= 640) expect(project).not.toBeVisible()

@@ -29,7 +29,7 @@ export function RequestProperty({ request, property, filter = "all" }: { request
   const properties = {
     status: { label: "Status", value: status.label, icon: <status.icon size={12} />, tone: status.tone },
     project: { label: "Project", value: request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"), icon: request.projectId ? <span className={dotStyles.dot} data-tone={projectToneForId(request.projectId)} aria-hidden="true" /> : <Folder size={12} />, tone: "neutral" as const },
-    pickedUpBy: { label: "Owner", value: pickerName, icon: <UserRound size={12} />, tone: "neutral" as const },
+    pickedUpBy: { label: "Assignee", value: pickerName, icon: <UserRound size={12} />, tone: "neutral" as const },
     createdAt: { label: "Submitted", value: date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), icon: <CalendarDays size={12} />, tone: "neutral" as const },
     requestType: { label: "Request type", value: request.requestType ? REQUEST_TYPE_LABELS[request.requestType] : "No type", icon: compact && request.requestType ? <span className={styles.typeDot} data-type={request.requestType} aria-hidden="true" /> : <Tag size={12} />, tone: "neutral" as const },
     submittedBy: { label: "Submitted by", value: request.creatorName ?? "Unknown member", icon: <UserRound size={12} />, tone: "neutral" as const },

@@ -210,7 +210,7 @@ export const PopulatedInShell: Story = {
     await expect(within(firstRow).getByRole("link", { name: requests[0].title })).toBeVisible()
     await expect(within(firstRow).getByRole("button", { name: "Status: Open" })).toBeVisible()
     await expect(within(firstRow).getByRole("button", { name: "Project: Website" })).toBeVisible()
-    await expect(within(firstRow).getByRole("button", { name: "Owner: Unassigned" })).toBeVisible()
+    await expect(within(firstRow).getByRole("button", { name: "Assignee: Unassigned" })).toBeVisible()
     await expect(within(firstRow).queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Display" })).toBeVisible()
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
