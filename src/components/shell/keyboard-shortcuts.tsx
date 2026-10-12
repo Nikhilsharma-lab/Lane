@@ -2,8 +2,7 @@
 
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from "react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
-import { isTypingTarget } from "@/components/requests/request-grid-keys"
-import { isShown, overlayOpen } from "@/components/requests/list-focus"
+import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import styles from "./keyboard-shortcuts.module.css"
 

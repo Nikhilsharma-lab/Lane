@@ -3,29 +3,16 @@
  * list's one tab stop, so every restoration targets the row, not its title link.
  */
 
+import { isShown } from "@/lib/keyboard-guards"
+
+export { isShown, overlayOpen } from "@/lib/keyboard-guards"
+
 export const requestRowSelector = (id: string) => `[role="row"][data-request-id="${CSS.escape(id)}"]`
 const WORKSPACE = '[data-slot="requests-workspace"]'
 const TAB_STOP = '[role="row"][tabindex="0"]'
 const TITLE_FILTER = 'button[aria-label="Filter Requests by title"]'
 // Arc ToastStack's region: the only live section that lists additions (Undo, Show it).
 const TOAST_STACK = 'section[aria-live][aria-relevant]'
-
-const OVERLAYS = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
-
-/**
- * The C shortcut's check: a visible dialog, menu or listbox owns the keyboard.
- * A closed panel that stays laid out but inert or visibility: hidden (the
- * phone navigation sheet) does not count.
- */
-export function overlayOpen() {
-  return Array.from(document.querySelectorAll<HTMLElement>(OVERLAYS)).some(element => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true"
-    && !element.closest("[inert]") && getComputedStyle(element).visibility !== "hidden")
-}
-
-/** Laid out and not inside a hidden or inert subtree. */
-export function isShown(element: Element | null | undefined): element is HTMLElement {
-  return element instanceof HTMLElement && element.getClientRects().length > 0 && !element.closest("[hidden], [inert]")
-}
 
 /** Focus may be moved for the person only when it is nowhere they chose: the page, the list, or a toast. */
 export function mayRestoreFocus() {

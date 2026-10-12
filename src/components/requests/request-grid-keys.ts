@@ -4,6 +4,8 @@
  * row is the one tab stop. use-request-grid.ts applies these to the DOM.
  */
 
+export { isTypingTarget } from "@/lib/keyboard-guards"
+
 /** A row in the grid: "r:{Request id}" or "g:{group key}". */
 export type GridKey = string
 
@@ -20,13 +22,6 @@ export type KeyLike = {
   repeat?: boolean
   isComposing?: boolean
   defaultPrevented?: boolean
-}
-
-const TYPING = "input, textarea, select, [role='textbox'], [role='combobox'], [contenteditable]:not([contenteditable='false'])"
-
-/** A field the person is typing in; no single-key shortcut applies there. */
-export function isTypingTarget(target: EventTarget | null) {
-  return typeof Element !== "undefined" && target instanceof Element && (target.closest(TYPING) !== null || (target instanceof HTMLElement && target.isContentEditable))
 }
 
 const LETTER = /^[a-z]$/i
