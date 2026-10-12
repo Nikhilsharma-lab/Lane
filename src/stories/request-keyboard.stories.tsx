@@ -326,8 +326,9 @@ export const MarkDoneAcknowledged: Story = {
     await waitFor(() => expect(menu.getByRole("menuitem", { name: "Mark Done" })).toHaveFocus())
     await userEvent.keyboard("{Enter}")
     await waitFor(() => expect(requestRow(canvasElement, id).querySelector('button[data-status="done"]')).not.toBeNull())
-    await expect(await page.findByText("Marked Done")).toBeVisible()
-    await expect(page.getByRole("button", { name: "Undo" })).toBeVisible()
+    // The toast fades in under reduced motion; it is in the page, with Undo, before the server answers.
+    await waitFor(() => expect(page.getByText("Marked Done")).toBeVisible())
+    await waitFor(() => expect(page.getByRole("button", { name: "Undo" })).toBeVisible())
     // Pending, the row is Done, so its menu offers no second Mark Done to send.
     const again = await openRowMenu(requestRow(canvasElement, id))
     await expect(again.queryByRole("menuitem", { name: "Mark Done" })).not.toBeInTheDocument()
