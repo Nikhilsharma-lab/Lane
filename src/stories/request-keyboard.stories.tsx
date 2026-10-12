@@ -167,7 +167,7 @@ export const EnterOpens: Story = {
   },
 }
 
-/** X selects the focused row, in step with its checkbox; Esc clears; each change is announced once. */
+/** X selects the focused row, in step with its checkbox; Esc clears and leaves focus where it is; each change is announced once. */
 export const SelectWithXAndEsc: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -183,10 +183,49 @@ export const SelectWithXAndEsc: Story = {
     await expect(within(canvas.getByRole("toolbar", { name: "Selected Requests" })).getByText("2 selected")).toBeVisible()
     await userEvent.click(within(first).getByRole("checkbox"))
     await expect(first).toHaveAttribute("aria-selected", "false")
+    // The selection started on the first row; the person is now on the second.
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(second).toHaveFocus())
     await userEvent.keyboard("{Escape}")
     await expect(second).toHaveAttribute("aria-selected", "false")
     await expect(within(second).getByRole("checkbox")).not.toBeChecked()
     await expect(announcer(canvasElement)).toHaveTextContent("Selection cleared.")
+    // Esc leaves focus, and the tab stop, on the row the person is on.
+    await expect(second).toHaveFocus()
+    await expect(tabStops(canvasElement)[0]).toBe(second)
+  },
+}
+
+/** A view change from the keyboard drops the selection out loud: J past the page edge says so with the page, a collapse on its own. */
+export const SelectionClearedByViewChange: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const bar = () => canvas.queryByRole("toolbar", { name: "Selected Requests" })
+    const last = requestRow(canvasElement, idOf(24))
+    last.focus()
+    await userEvent.keyboard("x")
+    await expect(last).toHaveAttribute("aria-selected", "true")
+    await expect(bar()).toBeInTheDocument()
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page"))
+    await waitFor(() => expect(focusedKey()).toBe("g:status:done"))
+    await expect(bar()).not.toBeInTheDocument()
+    await expect(announcer(canvasElement)).toHaveTextContent("Page 2 of 2. Selection cleared.")
+    // Without a selection, crossing back says only the page.
+    await userEvent.keyboard("k")
+    await waitFor(() => expect(focusedKey()).toBe(`r:${idOf(24)}`))
+    await expect(announcer(canvasElement)).toHaveTextContent(/^Page 1 of 2\.$/)
+    // Left goes to the row's group header, a second Left collapses it.
+    await userEvent.keyboard("x")
+    await expect(bar()).toBeInTheDocument()
+    await userEvent.keyboard("{ArrowLeft}")
+    await waitFor(() => expect(focusedKey()).toBe("g:status:done"))
+    await expect(bar()).toBeInTheDocument()
+    await userEvent.keyboard("{ArrowLeft}")
+    await waitFor(() => expect(header(canvasElement, "done")).toHaveAttribute("aria-expanded", "false"))
+    await expect(bar()).not.toBeInTheDocument()
+    await waitFor(() => expect(announcer(canvasElement)).toHaveTextContent("Selection cleared."))
+    await expect(header(canvasElement, "done")).toHaveFocus()
   },
 }
 

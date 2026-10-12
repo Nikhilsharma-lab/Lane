@@ -18,6 +18,10 @@ describe("sidebar motion", () => {
     expect(planToggle({ collapsed: true, motion: "collapsing", reduced: false })).toEqual({ motion: "expanding", slide: "reverse" })
     expect(planToggle({ collapsed: false, motion: "expanding", reduced: false })).toEqual({ motion: "collapsing", slide: "reverse" })
   })
+  it("leaves a running slide alone when the same toggle comes again", () => {
+    expect(planToggle({ collapsed: true, motion: "expanding", reduced: false })).toEqual({ motion: "expanding", slide: "keep" })
+    expect(planToggle({ collapsed: false, motion: "collapsing", reduced: false })).toEqual({ motion: "collapsing", slide: "keep" })
+  })
   it("jumps for reduced motion, a drag and a pinned peek", () => {
     expect(planToggle({ collapsed: false, motion: null, reduced: true })).toEqual({ motion: null, slide: "none" })
     expect(planToggle({ collapsed: true, motion: null, reduced: true })).toEqual({ motion: null, slide: "none" })

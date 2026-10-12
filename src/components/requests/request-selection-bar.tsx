@@ -1,10 +1,11 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { memo, useSyncExternalStore } from "react"
 import { CheckCheck, Link, RefreshCw, X } from "lucide-react"
 import { FloatingButtonGroup, type FloatingButtonGroupItem } from "@/components/arc/floating-button-group/floating-button-group"
 import { StatusGlyph } from "./row-presentation"
-import type { useRequestSelection } from "./use-request-selection"
+import type { LifecycleMove } from "@/lib/request-lifecycle"
+import type { RequestSelectionActions } from "./use-request-selection"
 import styles from "./request-selection.module.css"
 
 const PHONE = "(max-width: 640px)"
@@ -14,8 +15,10 @@ const subscribePhone = (change: () => void) => {
   return () => query.removeEventListener("change", change)
 }
 
-export function RequestSelectionBar({ selection }: { selection: ReturnType<typeof useRequestSelection> }) {
-  const { busy, count, action, allSelected, error, message } = selection
+type RequestSelectionBarProps = { busy: boolean; count: number; action: LifecycleMove | null; allSelected: boolean; error: string; message: string; actions: RequestSelectionActions }
+
+/** Memoised on what it shows: a J or a pointer focus on a row re-renders the list, not the bar (plan item 2.4). */
+export const RequestSelectionBar = memo(function RequestSelectionBar({ busy, count, action, allSelected, error, message, actions: selection }: RequestSelectionBarProps) {
   // A phone-width tray keeps only the lifecycle verb as words; the rest keep their glyphs and tooltips.
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
   const items: FloatingButtonGroupItem[] = [
@@ -33,4 +36,4 @@ export function RequestSelectionBar({ selection }: { selection: ReturnType<typeo
         leading={<span className={styles.count}>{count ? `${count} selected` : "Update failed"}</span>} />
     </div>}
   </>
-}
+})

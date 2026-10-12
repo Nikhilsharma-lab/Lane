@@ -16,19 +16,21 @@ export function layoutWidthFor({ width, autoCollapsed, motion }: { width: number
 export type TogglePlan = {
   /** The motion state after the toggle. */
   motion: SidebarMotion
-  /** Start a slide, turn the running one around, or jump straight to the new width. */
-  slide: "start" | "reverse" | "none"
+  /** Start a slide, turn the running one around, keep the one already heading there, or jump straight to the new width. */
+  slide: "start" | "reverse" | "keep" | "none"
 }
 
 /**
  * What a toggle does. `collapsed` is the target state before the toggle (a
  * collapse in flight already targets collapsed). A toggle during a slide turns
- * it around rather than restarting from an edge. Reduced motion, a drag, and
- * pinning a visible peek jump.
+ * it around rather than restarting from an edge; a second press in the same
+ * direction (a double-click on Expand sidebar) leaves the running slide alone.
+ * Reduced motion, a drag, and pinning a visible peek jump.
  */
 export function planToggle({ collapsed, motion, reduced, fromPeek = false, dragging = false }: { collapsed: boolean; motion: SidebarMotion; reduced: boolean; fromPeek?: boolean; dragging?: boolean }): TogglePlan {
   const next = collapsed ? "expanding" : "collapsing"
-  if (motion && motion !== next) return { motion: next, slide: "reverse" }
+  if (motion === next) return { motion, slide: "keep" }
+  if (motion) return { motion: next, slide: "reverse" }
   if (reduced || dragging || (collapsed && fromPeek)) return { motion: null, slide: "none" }
   return { motion: next, slide: "start" }
 }

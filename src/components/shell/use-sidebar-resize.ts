@@ -79,6 +79,8 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   /** A toggle's slide: start one, turn the running one around, or jump. */
   function toggleWidth(next: number, fromPeek = false) {
     const plan = planToggle({ collapsed: next !== 0, motion: motionRef.current, reduced: Boolean(reduced), fromPeek });
+    // The running slide already lands on this width: nothing to settle or restart.
+    if (plan.slide === "keep") return;
     const panel = shellRef.current?.querySelector<HTMLElement>("[data-sidebar-panel]");
     if (plan.slide === "reverse" && slide.current) {
       slide.current.reverse();

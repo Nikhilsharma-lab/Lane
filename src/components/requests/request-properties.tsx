@@ -14,7 +14,7 @@ import styles from "./request-rows.module.css"
 import avatarStyles from "./request-picker-avatar.module.css"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { requestListHref, type RequestStatusFilter } from "@/lib/request-workspace"
-import { useRequestListView } from "./list-view-state"
+import { useSetRequestListView } from "./list-view-state"
 import { useRequestRowPresentation } from "./row-presentation"
 
 export type RequestPropertyKey = "status" | "project" | "pickedUpBy" | "createdAt" | "requestType" | "submittedBy"
@@ -24,7 +24,8 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
   /** Plan item 2.4: -1 inside a Request row, whose row is the one tab stop. Standalone triggers keep the Tab order. */
   tabIndex?: number }) {
   const compact = Boolean(useRequestRowPresentation())
-  const [, setListView] = useRequestListView()
+  // The setter only: a filter keystroke, a page or a collapse must not re-render every row's pills (plan item 1.14).
+  const setListView = useSetRequestListView()
   const status = statuses.find(item => item.value === request.status)!
   const date = new Date(request.createdAt)
   const pickerName = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : "Unassigned"

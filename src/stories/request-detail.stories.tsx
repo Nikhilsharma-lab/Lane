@@ -24,7 +24,7 @@ const requests: RequestListItem[] = [request, { ...request, id: "fixture-progres
 
 // The strip's lifecycle slot reports through toasts (plan item 2.0), so the shell mounts the stack.
 function Shell({ children, guest = false }: { children: ReactNode; guest?: boolean }) {
-  return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack /></>
+  return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack label="Messages" /></>
 }
 
 function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
@@ -136,7 +136,7 @@ export const CommentPending: Story = {
 async function expectLifecycleFeedback(canvasElement: HTMLElement, text: RegExp, kind: "failure" | "success") {
   const canvas = within(canvasElement)
   await waitFor(() => expect(canvas.getByText(text)).toBeVisible())
-  const toasts = canvas.getByRole("region", { name: /^Notifications/ })
+  const toasts = canvas.getByRole("region", { name: /^Messages/ })
   if (window.innerWidth >= 1024) {
     await expect(toasts).toContainElement(canvas.getByText(text))
     return

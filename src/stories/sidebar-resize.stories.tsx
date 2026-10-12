@@ -271,6 +271,7 @@ export const CollapseTranslatesPanel: Story = {
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     await expectWidth(handle, sidebar, 272)
     const before = main.getBoundingClientRect().width
+    let settledAt = 0
     handle.focus()
     const started = performance.now()
     await userEvent.keyboard("[BracketLeft]")
@@ -281,14 +282,19 @@ export const CollapseTranslatesPanel: Story = {
       await expect(animations).toHaveLength(1)
       const keyframes = (animations[0].effect as KeyframeEffect).getKeyframes()
       for (const frame of keyframes) await expect(Object.keys(frame).filter(key => !["offset", "computedOffset", "easing", "composite"].includes(key))).toEqual(["transform"])
+      void animations[0].finished.then(() => { settledAt = performance.now() })
     }
     const widths = await sampleFrames(() => Math.round(main.getBoundingClientRect().width), 320)
     // At most two widths: the one before the toggle, if a frame caught it, and the one after.
     await expect(new Set(widths).size).toBeLessThanOrEqual(2)
     await expect(widths.at(-1)).toBeGreaterThan(before)
     await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
-    await expect(performance.now() - started).toBeLessThan(1000)
     await expect(panelOf(canvasElement).getAnimations()).toHaveLength(0)
+    // The slide settles in its 180 ms (plus a frame of slack for the test's own clock, as for the expand).
+    if (!reducedMotion()) {
+      await expect(settledAt).toBeGreaterThan(0)
+      await expect(settledAt - started).toBeLessThanOrEqual(180 + 50)
+    }
   },
 }
 
@@ -323,6 +329,42 @@ export const ExpandChangesWidthOnce: Story = {
     await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
     // The slide settles in its 240 ms (plus a frame of slack for the test's own clock).
     if (!reducedMotion()) await expect(settledAt - started).toBeLessThanOrEqual(240 + 50)
+  },
+}
+
+/** Plan item 2.4: a second press on Expand sidebar while the panel slides in (a double-click) leaves that slide alone. */
+export const DoubleExpandSlidesOnce: Story = {
+  play: async ({ canvasElement }) => {
+    if (innerWidth <= 640 || reducedMotion()) return
+    const canvas = within(canvasElement)
+    const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
+    const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
+    handle.focus()
+    await userEvent.keyboard("{Home}")
+    await expectWidth(handle, sidebar, 0)
+    const expand = within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" })
+    const panel = panelOf(canvasElement)
+    // The WAAPI slide only: the panel's own CSS transitions (the peek's) also show up in getAnimations().
+    const slides = () => panel.getAnimations().filter(animation => !(animation instanceof CSSTransition) && !(animation instanceof CSSAnimation))
+    let settledAt = 0
+    // Clicked without a hover, so no peek opens first; the strip keeps the button while the panel slides in.
+    const started = performance.now()
+    expand.click()
+    const [slide] = slides()
+    await expect(slides()).toHaveLength(1)
+    void slide.finished.then(() => { settledAt = performance.now() })
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    await expect(expand).toBeInTheDocument()
+    const offset = () => new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
+    const offsets = [offset()]
+    expand.click()
+    // One slide: the same animation keeps running, and the panel never jumps back towards its off-screen edge.
+    await expect(slides()).toEqual([slide])
+    offsets.push(...await sampleFrames(offset, 320))
+    for (let index = 1; index < offsets.length; index++) await expect(offsets[index]).toBeGreaterThanOrEqual(offsets[index - 1])
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
+    await expectWidth(handle, sidebar, 272)
+    await expect(settledAt - started).toBeLessThanOrEqual(240 + 50)
   },
 }
 

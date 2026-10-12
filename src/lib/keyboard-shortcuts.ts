@@ -6,7 +6,7 @@
 export type ShortcutScope = "anywhere" | "list" | "detail" | "forms"
 
 export type Shortcut = {
-  /** The keys as shown, one entry per alternative ("J" or "↓"); a chord is one string ("Shift F10"). */
+  /** The keys as shown, one entry per interchangeable alternative ("J" or "↓"); a chord is one string ("Shift F10"). Keys that do different things get their own entries. */
   keys: string[]
   label: string
 }
@@ -19,12 +19,14 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["/"], label: "Search workspace" },
     { keys: ["["], label: "Show or hide sidebar" },
     { keys: ["?"], label: "Show or hide keyboard shortcuts" },
+    // The toast region's name is "Messages (Alt+T)" (src/app/layout.tsx), apart from the sidebar's Notifications inbox.
     { keys: ["Alt T"], label: "Go to messages, such as Undo" },
   ] },
   { scope: "list", title: "Requests list", shortcuts: [
     { keys: ["J", "↓"], label: "Next row" },
     { keys: ["K", "↑"], label: "Previous row" },
-    { keys: ["Home", "End"], label: "First or last row on the page" },
+    { keys: ["Home"], label: "First row on the page" },
+    { keys: ["End"], label: "Last row on the page" },
     { keys: ["→"], label: "Expand a group, then go to its first Request" },
     { keys: ["←"], label: "Collapse a group, or go to the Request's group" },
     { keys: ["Enter"], label: "Open the Request, or show or hide the group" },

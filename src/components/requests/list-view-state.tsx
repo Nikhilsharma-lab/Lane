@@ -16,7 +16,7 @@ export type ListViewState = RequestListContext & {
   /** Plan item 2.3: a Request the list should bring into view and focus once, then clear. */
   reveal?: string
 }
-type SetListView = Dispatch<SetStateAction<ListViewState>>
+export type SetListView = Dispatch<SetStateAction<ListViewState>>
 
 const initialView: ListViewState = {
   // Keep the first scan about the Request and its current assignee. The other

@@ -85,6 +85,8 @@ export const SelectWithX: Story = {
     await expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument()
     await expect(first).toHaveAttribute("aria-selected", "false")
     await expect(announcer(canvasElement)).toHaveTextContent("Selection cleared.")
+    // Focus stays on the row the person moved to, not the one the selection started on.
+    await expect(second).toHaveFocus()
   },
 }
 
