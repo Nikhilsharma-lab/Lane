@@ -32,5 +32,11 @@ export default defineConfig({
       "src/components/shell/sidebar-motion.test.ts",
     ],
   },
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      // As in vitest.config.ts: Next resolves this marker itself; these checks import server loaders directly.
+      "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
+    },
+  },
 })
