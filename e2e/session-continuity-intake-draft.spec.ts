@@ -106,8 +106,11 @@ test("the session-expiry link signs back in to the exact Intake review without a
         { key: storageKey, value: draft }
       );
       await page.reload();
+      // /intake is a launcher under the page strip (2026-10-13). The restored
+      // review is in the composer dialog it opens.
+      await page.getByRole("link", { name: "Create Request", exact: true }).click();
 
-      // Plan item 2.3: one review heading on both surfaces.
+      // Plan item 2.3: the composer's one review heading.
       const reviewHeading = page.getByRole("heading", {
         name: "Review Request",
         level: 2,
@@ -155,6 +158,7 @@ test("the session-expiry link signs back in to the exact Intake review without a
 
       // No helper or manual navigation may supply the missing return route.
       await expect(page).toHaveURL("/intake");
+      await page.getByRole("link", { name: "Create Request", exact: true }).click();
 
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();
@@ -168,6 +172,8 @@ test("the session-expiry link signs back in to the exact Intake review without a
       await page
         .getByRole("button", { name: "Create Request", exact: true })
         .click();
+      // The dialog closes on creation and its toast offers the new Request.
+      await page.getByRole("button", { name: "Open Request", exact: true }).click();
       await page.waitForURL("**/requests/**", { timeout: 20_000 });
       await expect(
         page.getByRole("heading", { name: editedProblem })

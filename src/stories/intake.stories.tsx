@@ -919,8 +919,9 @@ export const LeaveWhileUploadingStopsTheRest: Story = {
   },
 };
 
-// Back, or /intake taking the drawer's place, unmounts the composer. That is
-// not a choice to drop files: the uploads go on without it (plan item 2.3, S3).
+// The composer's host unmounting (the layout leaves, or a workspace switch
+// re-keys it) unmounts the composer. That is not a choice to drop files: the
+// uploads go on without it (plan item 2.3, S3). This fixture stands in for it.
 function UnmountableIntake(props: ComponentProps<typeof IntakeForm>) {
   const [mounted, setMounted] = useState(true);
   return (

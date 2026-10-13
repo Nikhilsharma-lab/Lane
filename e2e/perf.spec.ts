@@ -473,7 +473,7 @@ test("C opens the composer with its title focused within 100 ms, with no loading
   expect(p75(timings[4])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
 })
 
-test("the composer drawer enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
+test("the composer dialog enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
   const longFrames: number[] = []
   for (let run = 0; run < RUNS; run++) {
     await openListForComposer(page)
@@ -495,7 +495,8 @@ test("the composer drawer enters with at most 2 long animation frames at 4x CPU"
 
 test("/intake cold loads stay within the CLS budget at 1440 and 390", async ({ browser }) => {
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
-    const cls = await coldLoadCls(browser, "/intake", viewport, "#intake-title")
+    // /intake is a launcher under the page strip (2026-10-13); its Create Request link is the loaded content.
+    const cls = await coldLoadCls(browser, "/intake", viewport, 'section[aria-label="Start a Request"] a[aria-haspopup="dialog"]')
     report(`/intake CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
     expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
   }

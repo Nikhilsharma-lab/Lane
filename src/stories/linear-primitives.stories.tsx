@@ -268,7 +268,7 @@ export const GroupComposer: Story = {
     trigger.focus()
     await userEvent.keyboard("{Enter}")
     const dialog = await page.findByRole("dialog", { name: "New Request" })
-    // The drawer only fades under reduced motion, so the title is visible once it settles.
+    // The composer dialog only fades under reduced motion, so the title is visible once it settles.
     const title = await within(dialog).findByLabelText("Request title", {}, { timeout: 5000 })
     await waitFor(() => expect(title).toBeVisible())
     await userEvent.keyboard("{Escape}")

@@ -16,7 +16,7 @@ import styles from "./tasks/data-table-toolbar.module.css"
 const dimensions = [{ value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "requestType", label: "Request type" }]
 type Dimension = "status" | "project" | "requestType"
 // Plan item 2.4 (plan §2.3): the summary overlays the list and moves on transform only,
-// entering in 240 ms on the enter curve and leaving in 180 ms on the exit curve, like the drawer.
+// entering in 240 ms on the enter curve and leaving in 180 ms on the exit curve, like every Arc Dialog.
 const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
 const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
 
