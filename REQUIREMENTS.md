@@ -887,6 +887,7 @@ increment at a time.
   replaces a named PM, Designer or Developer (this narrows §4.6: the creator still assigns into an empty slot
   and an unassigned Designer may still pick up; replacement still never erases a concern). Phase 2 reserves
   this structure and renders none of it until the alignment and outcome increments are approved.
+  **2026-10-13:** Nikhil chose a centred dialog for the New Request composer; /intake is a launcher under the page strip.
 
 ### Scope amendment — 2026-09-28
 
