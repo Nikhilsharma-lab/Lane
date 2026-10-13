@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, formatGuardrail, hasGuardrailEdits, impactDraftState, impactSummaryLines, requiredExpectedImpactSchema } from "./request-impact";
+import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, formatGuardrail, hasGuardrailEdits, hasImpactWork, impactDraftState, impactSummaryLines, requiredExpectedImpactSchema } from "./request-impact";
 
 const metric = { kind: "metric", metric: "Signup completion", baseline: null, target: 65, unit: "%", source: "Signup completed / signup started events", reviewAfterDays: 30 };
 const verification = { kind: "verification", result: "Keyboard users can complete signup without a mouse", source: "Keyboard-only acceptance check on the released experience", reviewAfterDays: 7 };
@@ -159,7 +159,8 @@ describe("expected impact", () => {
 });
 
 describe("Expected impact disclosure helpers (plan item 2.3)", () => {
-  const emptyMetric = { kind: "metric" as const, metric: "", baseline: null, target: null, unit: "", source: "", reviewAfterDays: null };
+  const emptyMetric = { kind: "metric" as const, metric: "", baseline: null, target: null, unit: "%", source: "", reviewAfterDays: null };
+  const committedGuardrail = { metric: "Weekly support requests", operator: "at_most" as const, limit: 20, unit: "requests per week" };
 
   it("reads an absent or untouched draft as empty, whatever its kind", () => {
     expect(impactDraftState(null)).toBe("empty");
@@ -175,9 +176,28 @@ describe("Expected impact disclosure helpers (plan item 2.3)", () => {
     expect(impactDraftState({ ...metric, kind: "metric", reviewAfterDays: 0 })).toBe("partial");
   });
 
+  it("does not count the default % unit as work, but counts a changed or cleared unit, as draft storage does", () => {
+    expect(impactDraftState(emptyMetric)).toBe("empty");
+    expect(hasImpactWork(emptyMetric)).toBe(false);
+    for (const unit of ["ms", ""]) {
+      expect(impactDraftState({ ...emptyMetric, unit })).toBe("partial");
+      expect(hasImpactWork({ ...emptyMetric, unit })).toBe(true);
+    }
+  });
+
+  it("reads an added guardrail or an open guardrail editor as partial until Add or Cancel settles it", () => {
+    expect(impactDraftState({ ...emptyMetric, guardrail: EMPTY_GUARDRAIL, guardrailEdit: { previous: null } })).toBe("partial");
+    expect(impactDraftState({ ...emptyMetric, guardrail: committedGuardrail })).toBe("partial");
+    // A complete impact with a valid but unconfirmed guardrail edit is not complete: review would refuse it.
+    expect(impactDraftState({ ...metric, kind: "metric", guardrail: committedGuardrail, guardrailEdit: { previous: null } })).toBe("partial");
+    expect(impactDraftState({ ...metric, kind: "metric", guardrail: { ...committedGuardrail, limit: null } })).toBe("partial");
+  });
+
   it("reads a draft the strict schema accepts as complete", () => {
     expect(impactDraftState({ ...metric, kind: "metric" })).toBe("complete");
     expect(impactDraftState({ ...verification, kind: "verification" })).toBe("complete");
+    expect(impactDraftState({ ...metric, kind: "metric", source: "" })).toBe("complete");
+    expect(impactDraftState({ ...metric, kind: "metric", guardrail: committedGuardrail })).toBe("complete");
   });
 
   it("summarises a metric with a baseline as a change, with % joined and other units spaced", () => {
@@ -197,6 +217,28 @@ describe("Expected impact disclosure helpers (plan item 2.3)", () => {
     expect(impactSummaryLines({ ...verification, kind: "verification", reviewAfterDays: 1 })).toEqual([
       "Keyboard users can complete signup without a mouse",
       "Keyboard-only acceptance check on the released experience, 1 day after launch",
+    ]);
+  });
+
+  it("reads the check as detail's Check in when there is no source, never a dangling comma", () => {
+    for (const source of ["", "  "]) {
+      expect(impactSummaryLines({ ...metric, kind: "metric", source })).toEqual(["Signup completion, target 65%", "Check in 30 days"]);
+      expect(impactSummaryLines({ ...verification, kind: "verification", source, reviewAfterDays: 1 })[1]).toBe("Check in 1 day");
+    }
+    expect(impactSummaryLines(expectedImpactSchema.parse({ ...metric, source: undefined }))[1]).toBe("Check in 30 days");
+    expect(impactSummaryLines({ ...metric, kind: "metric", source: "" }).join(" ")).not.toMatch(/^,|, \d+ days? after launch/);
+  });
+
+  it("keeps an existing source with the check and adds a guardrail as its sentence on a third line", () => {
+    expect(impactSummaryLines({ ...metric, kind: "metric", guardrail: committedGuardrail })).toEqual([
+      "Signup completion, target 65%",
+      "Signup completed / signup started events, 30 days after launch",
+      "Weekly support requests must stay at or below 20 requests per week.",
+    ]);
+    expect(impactSummaryLines({ ...verification, kind: "verification", source: "", guardrail: { ...committedGuardrail, operator: "at_least" } })).toEqual([
+      "Keyboard users can complete signup without a mouse",
+      "Check in 7 days",
+      "Weekly support requests must stay at or above 20 requests per week.",
     ]);
   });
 });

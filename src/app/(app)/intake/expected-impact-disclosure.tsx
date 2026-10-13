@@ -25,8 +25,9 @@ const still: Transition = { duration: 0 };
  * disclosure row. A Lane composition of the Arc Button and motion tokens: Arc's
  * accordion is uncontrolled and its expandable card is a card surface with one
  * summary line, and this row needs a controlled panel (a failed submit opens it)
- * and a two-line summary in the composer's flow. Collapsed, the panel unmounts;
- * its values live in the composer's form state.
+ * and a two-line summary in the composer's flow, three with a guardrail (its
+ * sentence). The guardrail editor lives in the open panel after the primary
+ * fields. Collapsed, the panel unmounts; its values live in the composer's form state.
  */
 export function ExpectedImpactDisclosure({ value, onChange, disabled, errors, open, instant = false, onOpenChange }: {
   value: ExpectedImpactDraft;
@@ -62,8 +63,7 @@ export function ExpectedImpactDisclosure({ value, onChange, disabled, errors, op
       </Button>
     </div>
     {!open && lines && <div className={styles.summary}>
-      <p className={styles.line} title={lines[0]}>{lines[0]}</p>
-      <p className={styles.line} title={lines[1]}>{lines[1]}</p>
+      {lines.map((line, index) => <p key={index} className={styles.line} title={line}>{line}</p>)}
     </div>}
     <AnimatePresence initial={false}>
       {open && <motion.div

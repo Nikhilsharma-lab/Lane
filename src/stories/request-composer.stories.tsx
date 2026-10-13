@@ -1015,7 +1015,9 @@ export const DraftRestored: Story = {
     const toggle = composer.getByRole("button", { name: "Edit expected impact" });
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(composer.getByText(`${metricImpact.metric}, target 90%`)).toBeVisible();
-    await expect(composer.getByText(`${metricImpact.source}, 14 days after launch`)).toBeVisible();
+    // No evidence source is asked at creation (2026-10-13), so the check reads as detail's "Check in", never ", 14 days".
+    await expect(composer.getByText("Check in 14 days")).toBeVisible();
+    await expect(composer.queryByText(/^, |, 14 days after launch/)).not.toBeInTheDocument();
     await expect(composer.queryByRole("textbox", { name: "What should improve?" })).not.toBeInTheDocument();
     await waitFor(() => expect(title).toHaveFocus());
     await userEvent.click(toggle);

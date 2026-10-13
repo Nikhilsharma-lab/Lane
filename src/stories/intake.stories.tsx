@@ -1292,6 +1292,10 @@ export const ExpectedImpactRestoredZeroBaseline: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    // Folded, the complete impact reads as its summary: the restored source keeps its line, with no dangling comma.
+    const impactRow = within(await canvas.findByRole("region", { name: "Expected impact" }));
+    await expect(impactRow.getByText("Customers finding a saved draft, 0% to 90%")).toBeVisible();
+    await expect(impactRow.getByText("Saved-draft usability check, 14 days after launch")).toBeVisible();
     await openImpact(canvas);
     await expect(await canvas.findByRole("spinbutton", { name: "Today (optional)" })).toHaveValue(0);
     await expect(canvas.queryByRole("button", { name: "Add current value" })).not.toBeInTheDocument();
@@ -1337,6 +1341,8 @@ export const ExpectedImpactModeSwitch: Story = {
 export const ExpectedGuardrailReview: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    // The default % unit alone is not work: the folded row still reads as required.
+    await expect(within(canvas.getByRole("region", { name: "Expected impact" })).getByText("Required")).toBeVisible();
     await openImpact(canvas);
     await expect(canvas.getByRole("textbox", { name: "Measured in" })).toHaveValue("%");
     await fillRequest(canvasElement);
@@ -1358,6 +1364,14 @@ export const ExpectedGuardrailReview: Story = {
     await expect(canvas.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
     await expect(within(canvas.getByRole("region", { name: "Guardrail" })).getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
     await expect(canvas.queryByText("Add or cancel the guardrail to review your Request.")).not.toBeInTheDocument();
+    // Folded, the disclosure reads the impact, then the check (no source: detail's "Check in"), then the guardrail sentence.
+    await userEvent.click(canvas.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(canvas.queryByRole("region", { name: "Guardrail" })).not.toBeInTheDocument());
+    const impactRow = within(canvas.getByRole("region", { name: "Expected impact" }));
+    await expect(impactRow.getByText("Customers finding a saved draft, target 90%")).toBeVisible();
+    await expect(impactRow.getByText("Check in 14 days")).toBeVisible();
+    await expect(impactRow.getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
+    await expect(impactRow.queryByText(/, 14 days after launch/)).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     const guardrail = { metric: "Support requests", operator: "at_most", limit: 20, unit: "requests per week" };
