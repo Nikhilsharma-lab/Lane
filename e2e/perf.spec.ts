@@ -519,11 +519,10 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
     await dialog.getByRole("textbox", { name: "Request title" }).fill(draft.title)
     await dialog.getByRole("textbox", { name: "Description" }).fill(draft.description)
     await dialog.getByRole("button", { name: "Add expected impact" }).click()
-    await dialog.getByRole("textbox", { name: /^Metric/ }).fill(draft.metric)
-    await dialog.getByRole("spinbutton", { name: /^Target value/ }).fill("80")
-    await dialog.getByRole("textbox", { name: /^Unit/ }).fill("%")
-    await dialog.getByRole("textbox", { name: /^Data source/ }).fill("Perf check source")
-    await dialog.getByRole("spinbutton", { name: /^Measure after launch/ }).fill("30")
+    await dialog.getByRole("textbox", { name: "What should improve?" }).fill(draft.metric)
+    await dialog.getByRole("spinbutton", { name: "Goal" }).fill("80")
+    await dialog.getByRole("textbox", { name: "Measured in" }).fill("%")
+    await dialog.getByRole("spinbutton", { name: "Check in days" }).fill("30")
 
     // Hold every server action from here on in the browser, then abort it.
     const held: Route[] = []
@@ -548,7 +547,7 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
       await expect(dialog.getByText("Your draft is kept.")).toBeVisible()
       await expect(dialog.getByRole("textbox", { name: "Request title" })).toHaveValue(draft.title)
       await expect(dialog.getByRole("textbox", { name: "Description" })).toHaveValue(draft.description)
-      await expect(dialog.getByRole("textbox", { name: /^Metric/ })).toHaveValue(draft.metric)
+      await expect(dialog.getByRole("textbox", { name: "What should improve?" })).toHaveValue(draft.metric)
     } finally {
       await page.unroute("**/*", hold)
       for (const route of held.splice(0)) await route.abort("failed")
