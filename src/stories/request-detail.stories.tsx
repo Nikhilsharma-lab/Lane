@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
-import { RequestDetailSkeleton, RequestUnavailable } from "@/components/requests/detail-view"
+import { RequestUnavailable } from "@/components/requests/detail-view"
+import { RequestDetailSkeleton } from "@/components/requests/detail-skeleton"
 import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { RequestPriority } from "@/lib/request-constants"
 import {

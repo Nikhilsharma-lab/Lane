@@ -1,27 +1,18 @@
 "use client"
 
-import Link from "next/link"
 import type { ReactNode } from "react"
-import { ArrowLeft, Ellipsis, Hash, Link2 } from "lucide-react"
+import { Ellipsis, Hash, Link2 } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { DropdownMenu, type DropdownItem } from "@/components/arc/dropdown-menu/dropdown-menu"
-import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { requestListHref } from "@/lib/request-workspace"
 import { CopyButton } from "./copy-button"
+import { DetailBackLink } from "./detail-back-link"
 import { useDetailRequest } from "./detail-context"
 import { DetailSequence, useDetailSequence } from "./detail-sequence"
 import { useRequestListContext } from "./list-view-state"
 import { useCopy } from "./use-copy"
 import styles from "./detail.module.css"
-
-/** The phone's way back. Desktop has no close control: the crumbs and Esc return to the list.
- * `always` shows it at every width (Request unavailable, which has no content to return from). */
-export function DetailBackLink({ href, always = false }: { href: string; always?: boolean }) {
-  return <Link href={href} aria-label="Back to Requests" className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm} ${styles.iconButton} ${always ? "" : styles.back}`}>
-    <ArrowLeft size={16} aria-hidden="true" />
-  </Link>
-}
 
 /** The canonical link the row menu also copies, read at the press: the origin is a browser-only value. */
 const requestLink = (id: string) => new URL(`/requests/${id}`, window.location.origin).href

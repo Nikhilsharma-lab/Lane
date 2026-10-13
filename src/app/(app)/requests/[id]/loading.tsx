@@ -1,4 +1,4 @@
-import { RequestDetailSkeleton } from "@/components/requests/detail-view"
+import { RequestDetailSkeleton } from "@/components/requests/detail-skeleton"
 
 // The same wrapper as the loaded detail in requests-workspace.tsx, so the frame
 // does not move when the page replaces the skeleton (plan item 2.0). Neither sets
