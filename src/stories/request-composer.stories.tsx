@@ -6,10 +6,11 @@ import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
 import { runTriage, saveRequest } from "@/app/(app)/intake/actions";
 import { prepareAttachmentUpload, finalizeAttachmentUpload, discardAttachmentUpload } from "@/app/(app)/intake/attachment-actions";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard";
 import { RequestsOverview } from "@/app/(app)/requests-overview";
 import { NewRequestLink, NewRequestProvider, preloadComposer } from "@/components/requests/new-request-provider";
+import { IntakeLauncher } from "@/components/requests/intake-launcher";
 import { RequestListViewProvider, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import type { OverviewRequest } from "@/lib/request-overview";
@@ -68,7 +69,7 @@ const meta = {
   decorators: [(Story) => <ToastStackProvider><Story /><ToastStack /></ToastStackProvider>],
   beforeEach: async () => {
     // Production preloads the form on idle after the layout mounts (plan item
-    // 2.3), so C renders it in the same commit as the drawer.
+    // 2.3), so C renders it in the same commit as the dialog.
     await preloadComposer();
     mocked(listProjects).mockReset().mockResolvedValue({ success: true, projects: [{ id: "00000000-0000-4000-8000-000000000456", name: "Website", description: null }] });
     mocked(createProject).mockReset().mockResolvedValue({ success: true, project: { id: "00000000-0000-4000-8000-000000000789", name: "Marketing", description: null } });
@@ -156,6 +157,17 @@ export const Open: Story = {
     // One stable dialog name, a 44px strip, and the description kept for assistive tech.
     await expect(within(dialog).getByRole("heading", { name: "New Request" })).toBeVisible();
     await expect(dialog).toHaveAccessibleDescription("Describe your Request and the result you expect.");
+    // The centred composer dialog (2026-10-13), not a drawer at the edge.
+    await expect(dialog).toHaveAttribute("data-layout", "composer");
+    const box = dialog.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    await waitFor(() => {
+      const settled = dialog.getBoundingClientRect();
+      expect(Math.abs(settled.left - (viewport - settled.right))).toBeLessThanOrEqual(1);
+    });
+    await expect(box.left).toBeGreaterThan(0);
+    const header = within(dialog).getByRole("heading", { name: "New Request" }).parentElement!.parentElement!;
+    await expect(Math.round(header.getBoundingClientRect().height)).toBe(44);
     await expect(composer.getByRole("textbox", { name: "Description" })).toBeVisible();
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeEnabled();
     await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
@@ -331,6 +343,24 @@ export const LongReviewKeepsActionsVisible: Story = {
   },
 };
 
+/** Folds the complete Expected impact with Done, as a person who filled it would. */
+async function foldImpact(composer: ReturnType<typeof within>) {
+  await userEvent.click(composer.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(composer.queryByRole("textbox", { name: /^Metric/ })).not.toBeInTheDocument());
+  await expect(composer.getByRole("button", { name: "Edit expected impact" })).toHaveAttribute("aria-expanded", "false");
+}
+
+/** A server rejection of Expected impact opens the panel at once, focuses its first field and shows the message inside it. */
+async function expectImpactRevealed(composer: ReturnType<typeof within>, message: string) {
+  const metric = await composer.findByRole("textbox", { name: /^Metric/ });
+  await waitFor(() => expect(metric).toHaveFocus());
+  await expect(metric).toHaveValue(metricImpact.metric);
+  await expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true");
+  const impact = composer.getByRole("region", { name: "Expected impact" });
+  await expect(within(impact).getByText(message)).toBeVisible();
+  return impact;
+}
+
 export const TriageImpactErrorOpensDisclosure: Story = {
   beforeEach: () => {
     mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the expected impact before reviewing this Request." } });
@@ -338,16 +368,9 @@ export const TriageImpactErrorOpensDisclosure: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await fillComposer(composer);
-    const disclosure = composer.getByRole("button", { name: "Expected impact" });
-    await userEvent.click(disclosure);
-    await expect(disclosure).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.queryByRole("region", { name: "Expected impact" })).not.toBeInTheDocument();
+    await foldImpact(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
-    const impact = await composer.findByRole("region", { name: "Expected impact" });
-    await waitFor(() => expect(impact).toHaveFocus());
-    await expect(disclosure).toHaveAttribute("aria-expanded", "true");
-    await expect(within(impact).getByText("Check the expected impact before reviewing this Request.")).toBeVisible();
-    await expect(within(impact).getByRole("textbox", { name: "Metric" })).toHaveValue(metricImpact.metric);
+    await expectImpactRevealed(composer, "Check the expected impact before reviewing this Request.");
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
@@ -363,17 +386,12 @@ export const SaveImpactErrorOpensDisclosure: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await fillComposer(composer);
-    await userEvent.click(composer.getByRole("button", { name: "Expected impact" }));
-    await expect(composer.getByRole("button", { name: "Expected impact" })).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.queryByRole("region", { name: "Expected impact" })).not.toBeInTheDocument();
+    await foldImpact(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
     await composer.findByRole("textbox", { name: "Request title" });
-    const impact = await composer.findByRole("region", { name: "Expected impact" });
-    await waitFor(() => expect(impact).toHaveFocus());
-    await expect(composer.getByRole("button", { name: "Expected impact" })).toHaveAttribute("aria-expanded", "true");
-    await expect(within(impact).getByText("Add the expected impact, then review this Request again before creating it.")).toBeVisible();
-    await expect(within(impact).getByRole("spinbutton", { name: "Target value" })).toHaveValue(metricImpact.target);
+    const impact = await expectImpactRevealed(composer, "Add the expected impact, then review this Request again before creating it.");
+    await expect(within(impact).getByRole("spinbutton", { name: /^Target value/ })).toHaveValue(metricImpact.target);
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
@@ -681,21 +699,6 @@ export const DirectIntakeEntry: Story = {
     await waitFor(() => expect(link).toHaveFocus());
     await userEvent.keyboard("c");
     await waitFor(() => expect(page.getByRole("textbox", { name: "Request title" })).toHaveFocus());
-  },
-};
-
-export const CompactImpactValidation: Story = {
-  play: async ({ canvasElement }) => {
-    const { composer } = await openComposer(canvasElement);
-    const impact = composer.getByRole("button", { name: "Expected impact" });
-    await expect(impact).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.queryByRole("textbox", { name: /^Metric/ })).not.toBeInTheDocument();
-    await userEvent.type(composer.getByRole("textbox", { name: "Request title" }), source.title);
-    await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
-    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
-    await waitFor(() => expect(impact).toHaveAttribute("aria-expanded", "true"));
-    await waitFor(() => expect(composer.getByRole("textbox", { name: /^Metric/ })).toHaveFocus());
-    await expect(runTriage).not.toHaveBeenCalled();
   },
 };
 
@@ -1296,8 +1299,9 @@ export const UploadsAllFinishedAfterReload: Story = {
 };
 
 export const UploadsFromThisDocumentAreNotLost: Story = {
-  // A record this document wrote, as one left by /intake after Leave page or
-  // Back while its files were still uploading. No reload happened.
+  // A record this document wrote, as one left after Leave page, or by a
+  // composer whose host unmounted while its files were still uploading. No
+  // reload happened.
   beforeEach: () => {
     writeUnfinishedUploads(window.sessionStorage, scope, {
       requestId,
@@ -1319,12 +1323,12 @@ export const UploadsFromThisDocumentAreNotLost: Story = {
   },
 };
 
-/** Samples the open drawer panel in every frame for `ms` after `start` runs. */
-async function sampleDrawer(start: () => Promise<unknown>, ms: number) {
+/** Samples the open composer dialog in every frame for `ms` after `start` runs. */
+async function samplePanel(start: () => Promise<unknown>, ms: number) {
   const samples: { at: number; transform: string; opacity: number }[] = [];
   let running = true;
   const frame = (at: number) => {
-    const panel = document.querySelector<HTMLElement>('[role="dialog"][data-compact]');
+    const panel = document.querySelector<HTMLElement>('[role="dialog"][data-layout="composer"]');
     if (panel) { const style = getComputedStyle(panel); samples.push({ at, transform: style.transform, opacity: Number(style.opacity) }); }
     if (running) requestAnimationFrame(frame);
   };
@@ -1344,14 +1348,14 @@ export const ReducedMotion: Story = {
   // 240 ms panel budget, plus three frames of sampling slack.
   play: async ({ canvasElement }) => {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const samples = await sampleDrawer(() => openComposer(canvasElement), 450);
+    const samples = await samplePanel(() => openComposer(canvasElement), 450);
     await expect(samples.length).toBeGreaterThan(0);
     await expect(still(samples.at(-1)!.transform)).toBe(true);
     await expect(samples.at(-1)!.opacity).toBe(1);
     if (reduce) {
       await expect(samples.every((sample) => still(sample.transform))).toBe(true);
     } else {
-      // Timed from the last frame at the closed edge: the frame that mounts the
+      // Timed from the last frame at the entrance's start: the frame that mounts the
       // form comes first and is the C budget's concern, not the motion's.
       const moving = samples.findIndex((sample) => sample.transform !== samples[0].transform);
       const settled = samples.find((sample) => still(sample.transform));
@@ -1372,3 +1376,105 @@ export const ReducedMotion: Story = {
   },
 };
 
+// The centred dialog (2026-10-13): /intake is a launcher under the page strip,
+// and the composer opens over whatever page holds it.
+
+/** The list context a person brings from "/" when they reach /intake in the app: every Project. */
+function ListViewFromTheList() {
+  const setView = useSetRequestListView();
+  useEffect(() => { setView((view) => withListContext(view, { status: "all", project: "all" })); }, [setView]);
+  return null;
+}
+
+/** /intake as intake/page.tsx renders it, under the (app) layout's list state and composer. */
+function IntakeLauncherFixture() {
+  return <RequestListViewProvider><ListViewFromTheList /><PendingMutationsProvider>
+    <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
+      <main className="p-6"><IntakeLauncher /></main>
+    </NewRequestProvider>
+  </PendingMutationsProvider></RequestListViewProvider>;
+}
+
+export const IntakeProjectPreselects: Story = {
+  // NewRequestLink writes /intake?project=; the layout's list context mirrors only "/", so the URL names the Project here.
+  parameters: { nextjs: { appDirectory: true, navigation: { pathname: "/intake", query: { project: "00000000-0000-4000-8000-000000000456" } } } },
+  render: () => <IntakeLauncherFixture />,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const link = within(canvasElement).getByRole("link", { name: "Create Request" });
+    await expect(link).toHaveAttribute("href", "/intake?project=00000000-0000-4000-8000-000000000456");
+    await expect(link).toHaveAttribute("aria-haspopup", "dialog");
+    await userEvent.click(link);
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    await expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible();
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(composer.getByRole("button", { name: "Create Request" })).toBeVisible());
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ projectId: "00000000-0000-4000-8000-000000000456" }), context);
+  },
+};
+
+export const UploadsLostOpensOnIntake: Story = {
+  // A reload on /intake also opens the composer once by itself (plan item 2.3, S3).
+  parameters: { nextjs: { appDirectory: true, navigation: { pathname: "/intake", query: {} } } },
+  render: () => <IntakeLauncherFixture />,
+  beforeEach: UploadsLostAfterReload.beforeEach,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    const heading = await composer.findByRole("heading", { name: "Some files weren’t added", level: 2 });
+    await waitFor(() => expect(heading).toHaveFocus());
+    const files = within(composer.getByRole("list", { name: "Files that weren’t added" }));
+    await expect(files.getAllByRole("listitem")).toHaveLength(2);
+    await expect(files.getByRole("listitem", { name: "checkout-flow.png" })).toHaveTextContent("Not added");
+    await expect(files.queryByRole("button")).not.toBeInTheDocument();
+    await userEvent.click(composer.getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
+    await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
+  },
+};
+
+let leaveForAnotherPage: (() => void) | undefined;
+let finishSave: (() => void) | undefined;
+
+/** The composer over a page the person then leaves with the browser's Back: the layout, and the composer, stay. */
+function RouteChangeFixture() {
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    leaveForAnotherPage = () => setAway(true);
+    return () => { leaveForAnotherPage = undefined; };
+  }, []);
+  return <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
+    <main className="space-y-6 p-6">
+      {away ? <h1>Another page</h1> : <><h1>Requests</h1><NewRequestLink>New Request</NewRequestLink></>}
+    </main>
+  </NewRequestProvider>;
+}
+
+export const RouteChangeWhileSaving: Story = {
+  render: () => <RouteChangeFixture />,
+  beforeEach: () => {
+    finishSave = undefined;
+    mocked(saveRequest).mockImplementation(() => new Promise((resolve) => { finishSave = () => resolve({ success: true, requestId }); }));
+    return () => { mocked(usePathname).mockRestore(); };
+  },
+  play: async ({ canvasElement }) => {
+    const { composer, page } = await reachReview(canvasElement);
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    await waitFor(() => expect(finishSave).toBeDefined());
+    // The route changes under the open dialog while the save is pending.
+    mocked(usePathname).mockReturnValue("/settings/profile");
+    leaveForAnotherPage?.();
+    // Radix hides the page behind the modal from assistive tech, so the page is found by its text.
+    await expect(await within(canvasElement).findByText("Another page")).toBeInTheDocument();
+    await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
+    finishSave?.();
+    // The save ends the composer: it closes, the toast speaks, and nothing navigates.
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await expect(await page.findByText("Request created")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open Request" })).toBeVisible();
+    await expect(getRouter().push).not.toHaveBeenCalled();
+    await expect(getRouter().refresh).not.toHaveBeenCalled();
+    await expect(saveRequest).toHaveBeenCalledTimes(1);
+  },
+};

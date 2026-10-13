@@ -709,9 +709,14 @@ export const Uploading: Story = {
 export const Loading: Story = {
   render: () => <IntakeLoading />,
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await expect(
-      within(canvasElement).getByRole("status", { name: "Loading New Request" }),
+      canvas.getByRole("status", { name: "Loading New Request" }),
     ).toHaveAttribute("aria-busy", "true");
+    // The launcher's frame (2026-10-13): the strip's h1, then the centred state's shape.
+    await expect(canvas.getByRole("heading", { name: "New Request", level: 1 })).toBeVisible();
+    await expect(canvas.getAllByRole("status")).toHaveLength(1);
+    await expect(canvasElement.querySelector('[data-skeleton="intake"]')).toHaveAttribute("aria-busy", "true");
   },
 };
 
