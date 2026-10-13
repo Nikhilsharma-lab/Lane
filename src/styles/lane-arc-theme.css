@@ -7,7 +7,7 @@
   --surface: var(--lane-content-bg-base);
   --surface-raised: var(--lane-menu-bg-base);
   --surface-muted: var(--lane-content-bg-shade);
-  /* Read by the adapted Arc Drawer and Dialog overlays (plan item 2.3). */
+  /* Read by the adapted Arc Dialog overlay (plan item 2.3). */
   --overlay: var(--lane-overlay);
   --foreground: var(--lane-content-label-title);
   --text-secondary: var(--lane-content-label-muted);
@@ -183,8 +183,6 @@
   --secondary-hover-background: var(--lane-content-control-secondary-hover);
   --secondary-focus-background: var(--lane-content-control-secondary-hover);
   --secondary-pressed-background: var(--lane-content-bg-focus);
-  --text-placeholder: var(--lane-content-label-placeholder);
-  --overlay-background: var(--lane-overlay-background);
 }
 
 /* Portals inherit the document theme, then use the floating menu context. */
