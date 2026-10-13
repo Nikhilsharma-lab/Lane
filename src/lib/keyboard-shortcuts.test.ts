@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { ROW_MENU_HINTS, SHORTCUT_GROUPS } from "./keyboard-shortcuts"
 import { gridCommand, listCommand } from "@/components/requests/request-grid-keys"
+import { detailCommand } from "@/components/requests/request-detail-keys"
 
 const keysOf = (scope: string) => SHORTCUT_GROUPS.filter(group => group.scope === scope).flatMap(group => group.shortcuts.flatMap(item => item.keys))
 // How each shown key arrives in a keydown event.
@@ -30,6 +31,16 @@ describe("keyboard shortcut map", () => {
       expect(gridCommand({ key: key.toLowerCase() }), key).toBeNull()
       expect(listCommand({ key: key.toLowerCase() }), key).toBeNull()
     }
+  })
+  // Plan item 2.5: Esc on detail is request-workspace-keyboard.tsx's (a form or menu first, then the list).
+  it("gives every detail key a detail command", () => {
+    for (const key of keysOf("detail")) {
+      if (key === "Esc") continue
+      expect(detailCommand({ key: key.toLowerCase() }), key).not.toBeNull()
+    }
+  })
+  it("keeps the app-wide letters out of detail's commands", () => {
+    for (const key of keysOf("anywhere").filter(key => key.length === 1)) expect(detailCommand({ key: key.toLowerCase() }, false, true), key).toBeNull()
   })
   it("hints only the row menu's supported actions", () => {
     expect(ROW_MENU_HINTS).toEqual({ select: "X", open: "Enter" })

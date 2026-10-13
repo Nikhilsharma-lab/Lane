@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
+import { isShown, overlayOpen } from "@/lib/keyboard-guards"
 import { requestDetailHref } from "@/lib/request-workspace"
+import { useListAnnouncer } from "./list-announcer"
+import { detailCommand, isTypingTarget } from "./request-detail-keys"
 import { useDetailSession, useSetDetailSession } from "./list-view-state"
 import { advanceSequence, sequencePosition, type SequencePosition } from "./request-sequence"
 import { FULL_PREFETCH, useIntentPrefetch } from "./use-intent-prefetch"
@@ -52,6 +55,29 @@ function useNeighbourPrefetch(position: SequencePosition | null) {
   }, [nextId, previousId, router])
 }
 
+/**
+ * J and K anywhere on detail; the arrows only from the previous and next
+ * buttons, where focus then stays on the matching button on the new page.
+ * At either end nothing moves and the polite region says so. Nothing runs
+ * while a dialog, menu or listbox is open, or while search hides the page.
+ */
+function useSequenceKeys(position: SequencePosition | null, go: ReturnType<typeof useDetailSequence>["go"]) {
+  const announce = useListAnnouncer()
+  useEffect(() => {
+    if (!position) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (overlayOpen() || !isShown(document.querySelector("[data-detail]"))) return
+      const onNavButtons = event.target instanceof Element && event.target.closest("[data-detail-sequence]") !== null
+      const command = detailCommand(event, isTypingTarget(event.target), onNavButtons)
+      if (!command) return
+      event.preventDefault()
+      if (!go(command, { keepFocusOnButton: onNavButtons })) announce(command === "next" ? "Last Request in the list." : "First Request in the list.", { key: "sequence" })
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [announce, go, position])
+}
+
 function SequenceButton({ direction, targetId, onGo }: { direction: SequenceDirection; targetId: string | null; onGo: (direction: SequenceDirection) => void }) {
   const href = targetId ? requestDetailHref(targetId, "all") : ""
   const prefetch = useIntentPrefetch(href)
@@ -74,6 +100,7 @@ function SequenceButton({ direction, targetId, onGo }: { direction: SequenceDire
 export function DetailSequence({ requestId }: { requestId: string }) {
   const { position, go } = useDetailSequence(requestId)
   useNeighbourPrefetch(position)
+  useSequenceKeys(position, go)
   if (!position) return null
   const { index, total } = position
   return <div role="group" aria-label={`Request ${index + 1} of ${total} in the list`} className={styles.sequence} data-detail-sequence-group="">

@@ -26,8 +26,8 @@ export type KeyLike = {
 
 const LETTER = /^[a-z]$/i
 
-/** The checks every new key shares: nothing typed, composed, already handled, or chorded. */
-function plain(event: KeyLike, typing: boolean) {
+/** The checks every new key shares: nothing typed, composed, already handled, or chorded. Request detail's keys share them (plan item 2.5). */
+export function plain(event: KeyLike, typing: boolean) {
   if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || typing) return false
   // Shift turns a letter into another key (Shift J is not J).
   if (event.shiftKey && LETTER.test(event.key)) return false

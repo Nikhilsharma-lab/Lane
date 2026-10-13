@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { isShown, requestRowSelector, restoreRequestFocus } from "@/components/requests/list-focus"
+import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
 
@@ -16,14 +17,6 @@ function rememberReturnFocus(id: string) {
 
 function clearReturnFocus() {
   try { window.sessionStorage.removeItem(RETURN_FOCUS_KEY) } catch { /* Storage may be disabled. */ }
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      target.matches("input, textarea, select, [role='textbox']"))
-  )
 }
 
 export function RequestWorkspaceKeyboard({
@@ -86,13 +79,29 @@ export function RequestWorkspaceKeyboard({
     if (!selectedRequestId) return
     const requestId = selectedRequestId
 
+    // Plan item 2.5: Esc on detail does the first thing that applies. An open
+    // menu, popover, drawer or dialog closes itself (and prevents default); a
+    // section form or the comment box with focus handles its own Esc. Then an
+    // open section form the person opened is cancelled; only then does Esc
+    // return to the list, which focuses this Request's row.
     function handleKeyDown(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
         event.defaultPrevented ||
+        event.isComposing ||
         (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"], [role="alertdialog"]'))) ||
-        isTypingTarget(event.target)
+        isTypingTarget(event.target) ||
+        overlayOpen()
       ) {
+        return
+      }
+      // Search hides the page; Esc then belongs to the search pane.
+      if (!isShown(document.querySelector('[data-slot="requests-workspace"]'))) return
+
+      const form = document.querySelector("[data-detail] [data-detail-form]")
+      if (form) {
+        event.preventDefault()
+        form.querySelector<HTMLButtonElement>("[data-detail-form-cancel]:not(:disabled)")?.click()
         return
       }
 
