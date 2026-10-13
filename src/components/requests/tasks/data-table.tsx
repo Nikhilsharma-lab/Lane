@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { memo, useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
@@ -8,7 +8,7 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
+import { useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import { groupRequestRows, matchesListFilters, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
@@ -25,6 +25,7 @@ import { matchCountText, requestCount } from "../request-row-label"
 import { useRequestGrid } from "../use-request-grid"
 import { gridKeysFor } from "../request-grid-keys"
 import { isShown, requestRowSelector } from "../list-focus"
+import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
@@ -111,6 +112,17 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     announce: text => announce(selection.withDropNotice(text), { key: "page" }),
   })
   const setGridActive = grid.setActive
+  // Plan item 2.5: opening a Request from the list records the order it shows,
+  // across every page, so detail can offer previous and next. The row menu's
+  // "Open Request" and Enter both click the title link, so one capture covers all three.
+  const setDetailSession = useSetDetailSession()
+  const captureOpen = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const link = event.target instanceof Element ? event.target.closest("a[data-request-title]") : null
+    const openedId = link?.closest<HTMLElement>("[data-request-id]")?.dataset.requestId
+    if (!openedId) return
+    setDetailSession({ sequence: captureSequence(matching.map(row => row.id), openedId), focusTitleOnArrival: true })
+  }, [matching, setDetailSession])
   const setFilter = useCallback((id: string, value: string) => {
     if (id === "project") {
       setView(previous => withListContext(previous, { project: value || "all" }))
@@ -189,7 +201,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
       {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
-        : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps}>
+        : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}>
           {!grouped ? currentRows.map(request => renderRow(request))
           : groups.map(group => {
             const rows = group.rows.filter(row => pageIds.has(row.id))

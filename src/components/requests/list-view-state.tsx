@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import type { DetailSequence } from "./request-sequence"
 
 export type ListViewState = RequestListContext & {
   columnVisibility: ColumnVisibilityState
@@ -39,11 +40,35 @@ ListViewSnapshotContext.displayName = "RequestListViewSnapshot"
 ListViewSetterContext.displayName = "RequestListViewSetter"
 ListContextContext.displayName = "RequestListContext"
 
+/**
+ * Plan item 2.5: what Request detail keeps between Requests. The sequence the
+ * list was showing when a Request was opened from it (previous and next),
+ * whether the next detail should focus its title on arrival (opened from the
+ * list, or J and K), and each Request's unsent comment draft. Memory only,
+ * keyed with the layout, so sign-out and a workspace switch drop it.
+ */
+export type DetailSession = {
+  sequence: DetailSequence | null
+  focusTitleOnArrival: boolean
+  /** Unsent comment drafts by Request id. A ref-held map: writing a draft re-renders nothing. */
+  commentDrafts: Map<string, string>
+}
+export type DetailSessionPatch = Partial<Pick<DetailSession, "sequence" | "focusTitleOnArrival">>
+type SetDetailSession = (patch: DetailSessionPatch) => void
+
+// Separate contexts again (the item 1.14 pattern): the list never re-renders when detail's session changes.
+const DetailSessionContext = createContext<DetailSession | null>(null)
+const DetailSessionSetterContext = createContext<SetDetailSession | null>(null)
+DetailSessionContext.displayName = "RequestDetailSession"
+DetailSessionSetterContext.displayName = "RequestDetailSessionSetter"
+
 // Lives in the authenticated layout, keyed by workspace and user. Search text
 // stays in memory; it is never persisted across sign-out or workspace changes.
 // Plan item 1.7: the status view and Project filter live here too, so they
 // survive a visit to a Request and the list URL is only a mirror of them.
-export function RequestListViewProvider({ children, initialColumnVisibility }: { children: ReactNode; initialColumnVisibility?: ColumnVisibilityState }) {
+export function RequestListViewProvider({ children, initialColumnVisibility, initialDetailSession }: { children: ReactNode; initialColumnVisibility?: ColumnVisibilityState
+  /** Fixtures only: a detail session as if a Request had been opened from the list. */
+  initialDetailSession?: DetailSessionPatch }) {
   const searchParams = useSearchParams()
   const [state, setState] = useState<ListViewState>(() => ({
     ...initialView,
@@ -54,10 +79,18 @@ export function RequestListViewProvider({ children, initialColumnVisibility }: {
   const latest = useRef(state)
   useLayoutEffect(() => { latest.current = state }, [state])
   const snapshot = useCallback(() => latest.current, [])
+  const [drafts] = useState(() => new Map<string, string>())
+  const [session, setSession] = useState<Omit<DetailSession, "commentDrafts">>(() => ({ sequence: null, focusTitleOnArrival: false, ...initialDetailSession }))
+  const detailSession = useMemo<DetailSession>(() => ({ ...session, commentDrafts: drafts }), [session, drafts])
+  const setDetailSession = useCallback<SetDetailSession>(patch => setSession(current => ({ ...current, ...patch })), [])
   return <ListViewSetterContext.Provider value={setState}>
     <ListViewSnapshotContext.Provider value={snapshot}>
       <ListContextContext.Provider value={listContext}>
-        <ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider>
+        <DetailSessionSetterContext.Provider value={setDetailSession}>
+          <DetailSessionContext.Provider value={detailSession}>
+            <ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider>
+          </DetailSessionContext.Provider>
+        </DetailSessionSetterContext.Provider>
       </ListContextContext.Provider>
     </ListViewSnapshotContext.Provider>
   </ListViewSetterContext.Provider>
@@ -108,6 +141,19 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
   const narrowed = localFilters.length !== view.localFilters.length
   return { ...moved, localFilters, pagination: narrowed ? { ...moved.pagination, pageIndex: 0 } : moved.pagination, reveal: row.id }
 }
+
+/** Plan item 2.5: Request detail's session. Outside the provider (older fixtures) it has no sequence and keeps drafts locally. */
+export function useDetailSession(): DetailSession {
+  const session = useContext(DetailSessionContext)
+  const [local] = useState<DetailSession>(() => ({ sequence: null, focusTitleOnArrival: false, commentDrafts: new Map() }))
+  return session ?? local
+}
+
+/** Only the setter: never re-renders when the session changes. Does nothing outside the provider. */
+export function useSetDetailSession(): SetDetailSession {
+  return useContext(DetailSessionSetterContext) ?? noSession
+}
+const noSession: SetDetailSession = () => {}
 
 /** The status view and Project filter, or null outside the provider. Re-renders only when either changes. */
 export function useRequestListContext() {
