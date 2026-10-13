@@ -28,6 +28,8 @@ export default defineConfig({
       "src/components/requests/request-grid-keys.test.ts",
       "src/components/requests/request-row-label.test.ts",
       "src/components/shell/sidebar-motion.test.ts",
+      "src/components/requests/request-detail-keys.test.ts",
+      "src/components/requests/request-sequence.test.ts",
     ],
   },
   resolve: {
