@@ -162,6 +162,110 @@ describe("pending-mutation overlay: clearing", () => {
   })
 })
 
+// Plan item 2.5: Request detail reads one row through applyOne. Its select must
+// carry priority, or a confirmed priority patch never sees itself land.
+describe("pending-mutation overlay: a Request detail row", () => {
+  const detail = (priority?: "none" | "high") => ({ id: "a", status: "open" as const, ...(priority ? { priority } : {}) })
+
+  it("clears a confirmed priority patch once the detail row shows the priority", () => {
+    const { view, flush } = setup()
+    const token = view().begin("a", { kind: "priority", priority: "high" })
+    view().confirm("a", token)
+    expect(view().applyOne(detail("none")).priority).toBe("high")
+    flush()
+    expect(view().patches.a).toBeDefined()
+    const fresh = detail("high")
+    expect(view().applyOne(fresh)).toBe(fresh)
+    flush()
+    expect(view().patches.a).toBeUndefined()
+  })
+
+  it("keeps a confirmed priority patch for good on a row without priority, which is why detail selects it", () => {
+    const { view, flush } = setup()
+    const token = view().begin("a", { kind: "priority", priority: "high" })
+    view().confirm("a", token)
+    view().applyOne(detail())
+    flush()
+    view().applyOne(detail())
+    flush()
+    expect(view().patches.a).toBeDefined()
+  })
+})
+
+describe("pending-mutation overlay: comments", () => {
+  const server = (...ids: string[]) => ids.map(id => ({ id, body: `Comment ${id}`, createdAt: new Date("2026-10-01T00:00:00Z"), authorName: "Sam Lee" }))
+
+  function commentSetup() {
+    let clock = 1_000
+    const queue: (() => void)[] = []
+    const store = createPendingMutationsStore({ schedule: task => { queue.push(task) }, now: () => 1, clock: () => clock })
+    const view = () => store.view(store.getSnapshot())
+    return { store, view, flush: () => { while (queue.length) queue.shift()!() }, advance: (ms: number) => { clock += ms } }
+  }
+
+  it("returns the server array untouched when nothing is pending", () => {
+    const { view } = commentSetup()
+    const comments = server("c1")
+    expect(view().commentsFor("a", comments)).toBe(comments)
+  })
+
+  it("shows an appended comment at once, after the server's, as sending", () => {
+    const { view } = commentSetup()
+    const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
+    const shown = view().commentsFor("a", server("c1"))
+    expect(shown.map(comment => comment.id)).toEqual(["c1", key])
+    expect(shown[1]).toMatchObject({ body: "New note", authorName: "Alex Morgan", pending: "sending" })
+    expect(view().unconfirmed).toBe(1)
+  })
+
+  it("keeps a confirmed comment while the server list lacks its id, then clears it after the render that shows it", () => {
+    const { store, view, flush } = commentSetup()
+    const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
+    view().confirmComment("a", key, { id: "c2", createdAt: new Date("2026-10-13T09:00:00Z") })
+    expect(view().unconfirmed).toBe(0)
+    // A stale render (the payload was dropped by a navigation) still shows it, now under its server id.
+    const stale = view().commentsFor("a", server("c1"))
+    flush()
+    expect(stale.map(comment => comment.id)).toEqual(["c1", "c2"])
+    expect(stale[1]).toMatchObject({ pending: "sent" })
+    // The fresh render lists it: exactly one row with that id, and the pending copy clears afterwards.
+    const fresh = server("c1", "c2")
+    expect(view().commentsFor("a", fresh)).toBe(fresh)
+    expect(view().commentsFor("a", fresh).filter(comment => comment.id === "c2")).toHaveLength(1)
+    expect(view().commentsFor("a", fresh)).toHaveLength(2)
+    flush()
+    expect(store.getSnapshot().comments).toEqual({})
+  })
+
+  it("drops a comment when addComment fails", () => {
+    const { view } = commentSetup()
+    const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
+    view().dropComment("a", key)
+    const comments = server("c1")
+    expect(view().commentsFor("a", comments)).toBe(comments)
+  })
+
+  it("stops showing a confirmed comment the server never lists", () => {
+    const { store, view, flush, advance } = commentSetup()
+    const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
+    view().confirmComment("a", key, { id: "c2", createdAt: new Date() })
+    advance(120_001)
+    const comments = server("c1")
+    expect(view().commentsFor("a", comments)).toBe(comments)
+    flush()
+    expect(store.getSnapshot().comments).toEqual({})
+  })
+
+  it("leaves another Request's comments alone", () => {
+    const { view } = commentSetup()
+    view().appendComment("a", { body: "On a", authorName: "Alex Morgan" })
+    const other = view().appendComment("b", { body: "On b", authorName: "Alex Morgan" })
+    view().dropComment("a", "pending-comment-404")
+    expect(view().commentsFor("b", server()).map(comment => comment.id)).toEqual([other])
+    expect(view().commentsFor("a", server())).toHaveLength(1)
+  })
+})
+
 describe("useOptimisticAction core", () => {
   it("applies the patch before the action resolves and keeps it after success", async () => {
     const { view } = setup()
