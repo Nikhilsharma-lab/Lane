@@ -1,5 +1,6 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
+import { PageStrip } from "@/components/shell/page-strip";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 
@@ -873,6 +874,8 @@ export const WorkspaceIntake: Story = {
       linearPreviewAutoCollapse
       pathname="/intake"
     >
+      {/* As intake/page.tsx renders it (plan item 2.0). */}
+      <PageStrip title="New Request" />
       <IntakeLauncher />
     </RequestsShellFixture>
     </NewRequestProvider>
@@ -882,6 +885,12 @@ export const WorkspaceIntake: Story = {
     await visible(canvas.getByRole("heading", { name: "Start a new Request" }));
     await expect(canvas.getByRole("link", { name: "Create Request" })).toHaveAttribute("aria-haspopup", "dialog");
     await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
+    const strip = canvasElement.querySelector<HTMLElement>('[data-slot="page-strip"]')!;
+    await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("New Request");
+    // Phones keep the parent crumb too, so Requests is one tap away at every width.
+    const crumbs = within(strip).getByRole("navigation", { name: "Breadcrumb" });
+    await expect([...crumbs.querySelectorAll("li")].map((item) => item.textContent).at(-1)).toBe("New Request");
+    await expect(crumbs.querySelectorAll("li").length).toBeGreaterThanOrEqual(2);
     await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1);
   },
 };

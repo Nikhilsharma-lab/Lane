@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import { Badge } from "@/components/arc/badge/badge"
 import buttonStyles from "@/components/arc/button/button.module.css"
+import { PageStrip } from "@/components/shell/page-strip"
 import { statuses } from "./tasks/statuses"
 import { RequestStatusFilter as StatusFilter } from "@/app/(app)/request-status-filter"
 import { REQUEST_TYPE_LABELS, type RequestType } from "@/lib/request-constants"
@@ -123,8 +124,9 @@ export function RequestListPane({ requests, selectedRequestId, filter, projectFi
 function CloseDetail({ href, label }: { href: string; label: string }) {
   return <Link href={href} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm}`} aria-label={label}><ArrowLeft size={16} aria-hidden="true" className="lg:hidden" /><X size={16} aria-hidden="true" className="hidden lg:block" /></Link>
 }
+/** The strip names the state as the page h1; the body says what happened, as the error frames do. */
 export function RequestUnavailable({ returnHref }: { returnHref: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col p-5"><div><CloseDetail href={returnHref} label="Back to Request list" /></div><div className="flex flex-1 items-center justify-center"><EmptyState icon={<Inbox />} title="Request unavailable" description="This Request could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
+  return <section className="flex min-w-0 flex-1 flex-col"><PageStrip leading={<CloseDetail href={returnHref} label="Back to Request list" />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
 }
 function Comments({ comments }: { comments: RequestComment[] }) {
   return <section aria-labelledby="request-conversation" className="space-y-4">
@@ -142,10 +144,13 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
   const status = statuses.find(item => item.value === request.status)!
   const context = [{ label: "Users", value: request.affectedPeople }, { label: "Expected result", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
   return <section aria-label={`Request detail: ${problem}`} className="flex min-h-0 min-w-0 flex-1 flex-col">
-    <header className="flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-3">
-      <CloseDetail href={requestListHref(filter, projectFilter)} label="Close Request detail" /><Badge tone={status.tone}><StatusIcon status={request.status} />{status.label}</Badge><span className="text-sm text-muted-foreground">Submitted {relativeTime(request.createdAt)}</span>
-      {!isGuest && <div className="ml-auto hidden lg:block">{lifecycleActions}</div>}
-    </header>
+    <PageStrip leading={<CloseDetail href={requestListHref(filter, projectFilter)} label="Close Request detail" />}
+      title="Request detail"
+      tools={<><Badge tone={status.tone}><StatusIcon status={request.status} />{status.label}</Badge>
+        <span className={styles.stripMeta}>Submitted {relativeTime(request.createdAt)}</span></>}
+      // From 1024px the strip holds the lifecycle buttons; below it the wrapper is hidden. It adds no box at
+      // 1024px and up either, so a Done Request, where the buttons render nothing, leaves the slot empty.
+      action={isGuest ? undefined : <div className="hidden lg:contents">{lifecycleActions}</div>} />
     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
       <article className="mx-auto max-w-3xl space-y-7 break-words [&>section+section]:border-t [&>section+section]:pt-6">
         <section aria-labelledby="request-problem" className="space-y-4"><h1 id="request-problem" className="text-2xl font-medium">{problem}</h1>
@@ -167,6 +172,15 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
     </div>
   </section>
 }
+/** Plan item 2.0: the detail page's own strip and body padding, so the swap to the loaded page does not move the frame. */
 export function RequestDetailSkeleton() {
-  return <div aria-label="Loading selected Request" aria-busy="true" className="min-w-0 flex-1 space-y-8 p-6"><Skeleton label="Loading selected Request" lines={2} /><Skeleton lines={5} /><Skeleton avatar lines={3} /></div>
+  return <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-skeleton="detail" aria-busy="true">
+    <PageStrip leading={<CloseDetail href="/" label="Close Request detail" />} title="Request detail" />
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
+      <div className="mx-auto max-w-3xl space-y-7">
+        <Skeleton label="Loading selected Request" lines={2} />
+        <div aria-hidden="true" className="space-y-7"><Skeleton lines={1} /><Skeleton lines={5} /><Skeleton avatar lines={2} /></div>
+      </div>
+    </div>
+  </section>
 }

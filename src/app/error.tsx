@@ -4,10 +4,13 @@ import { useEffect } from "react";
 import { DatabaseZap } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { PageStrip } from "@/components/shell/page-strip";
+import frame from "./app-frame.module.css";
 
 // Catches a throw in (app)/layout.tsx, most often getWorkspace() against a paused
 // database (Supabase free tier auto-pauses; plan item 1.12). The root layout stays
 // mounted, so ClerkProvider, the theme attributes and the fonts are still in place.
+// The (app) shell is not, so the page strip shows its title with no trail (plan item 2.0).
 export default function RootError({
   error,
   reset,
@@ -20,9 +23,9 @@ export default function RootError({
   }, [error]);
 
   return (
-    <main className="flex min-h-dvh flex-1 flex-col bg-background px-4 py-6 font-sans text-foreground sm:px-6">
-      <div className="my-auto" role="alert">
-        <h1 className="sr-only">Database unavailable</h1>
+    <main className={frame.page}>
+      <PageStrip title="Database unavailable" heading />
+      <div className={frame.body} role="alert">
         <EmptyState
           title="Lane can’t reach its database right now"
           description="Your data is safe. Try again in a minute, and if this keeps happening let us know."

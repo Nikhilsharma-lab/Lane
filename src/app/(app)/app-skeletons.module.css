@@ -1,0 +1,18 @@
+/* Plan item 2.0: shapes the Arc Skeleton cannot draw on its own. Each one sits
+ * inside the real layout classes of its page, so only the bars are new. Tokens
+ * only and no animation here: Arc's pulse already honours reduced motion. */
+.titleSkeleton { display: block; width: 160px; max-width: 100%; }
+.toolbarStatus { display: block; width: 240px; max-width: 60%; }
+/* The loaded group header is as tall as its 44px group button. */
+.groupHeader { min-height: var(--request-row-height); }
+.groupLabel { display: block; width: 140px; max-width: 50%; padding-inline: var(--space-2); }
+.rowTitle { display: block; flex: 1 1 0; min-width: 0; padding-inline: var(--space-2); }
+.rowMeta { display: block; flex: none; width: 25%; max-width: 160px; }
+@media (max-width: 640px) { .rowMeta { display: none; } }
+.field { display: block; height: var(--control-height-md); border: 1px solid var(--border); border-radius: var(--radius-control); }
+/* Arc Textarea's resting box: its 110px minimum is taller than three rows of small text. */
+.area { display: block; height: 110px; border: 1px solid var(--border); border-radius: var(--radius-control); }
+.chip { display: block; width: var(--space-24); height: var(--control-height-sm); border: 1px solid var(--border); border-radius: var(--radius-pill); }
+.rule { border-top: 1px solid var(--border); padding-top: var(--space-5); }
+.footer { display: flex; justify-content: flex-end; }
+.button { display: block; width: var(--space-24); height: var(--control-height-md); border: 1px solid var(--border); border-radius: var(--radius-control); }

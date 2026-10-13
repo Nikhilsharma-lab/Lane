@@ -110,6 +110,17 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
       });
       await expect(lifecycle).toHaveCount(1);
       await expect(detail).toBeVisible();
+      // Plan item 2.0: from 1024px the visible lifecycle slot sits in the page
+      // strip and reports through a toast; the phone block keeps inline alerts.
+      const inStrip = surface.viewport.width >= 1024;
+      const toasts = page.getByRole("region", { name: /^Notifications/ });
+      const failure = inStrip ? toasts : lifecycle.getByRole("alert");
+      const success = inStrip ? toasts : lifecycle;
+      if (inStrip) {
+        await expect(
+          detail.locator('[data-slot="page-strip"]').locator(lifecycle)
+        ).toHaveCount(1);
+      }
 
       const failedPickup = await holdAndFailNextAction(page, actionPath);
       const pickUp = lifecycle.getByRole("button", {
@@ -128,9 +139,9 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
       expect(failedPickup.count(), surface.name).toBe(1);
 
       failedPickup.release();
-      await expect(
-        lifecycle.locator('[data-slot="feedback"][role="alert"]')
-      ).toContainText("try again if this Request remains Open");
+      await expect(failure).toContainText(
+        "Try again if this Request is still Open"
+      );
       await expect(pickUp).toBeEnabled();
       await expect(detail.getByText("Open", { exact: true })).toBeVisible();
       await page.unroute(actionPath);
@@ -139,7 +150,7 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
       await expect(
         detail.getByText("In Progress", { exact: true })
       ).toBeVisible({ timeout: 20_000 });
-      await expect(lifecycle).toContainText("Moved to In Progress.");
+      await expect(success).toContainText("Moved to In Progress.");
 
       const failedCompletion = await holdAndFailNextAction(page, actionPath);
       const markDone = lifecycle.getByRole("button", {
@@ -158,9 +169,9 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
       expect(failedCompletion.count(), surface.name).toBe(1);
 
       failedCompletion.release();
-      await expect(
-        lifecycle.locator('[data-slot="feedback"][role="alert"]')
-      ).toContainText("try again if this Request remains In Progress");
+      await expect(failure).toContainText(
+        "Try again if this Request is still In Progress"
+      );
       await expect(markDone).toBeEnabled();
       await expect(
         detail.getByText("In Progress", { exact: true })
@@ -171,7 +182,7 @@ test("Pick up and Mark done recover reliably across responsive themes", async ({
       await expect(detail.getByText("Done", { exact: true })).toBeVisible({
         timeout: 20_000,
       });
-      await expect(lifecycle).toContainText("Moved to Done.");
+      await expect(success).toContainText("Moved to Done.");
     }
   } finally {
     await cleanupTestWorkspace(user.id);

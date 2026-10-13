@@ -10,7 +10,8 @@ function over(front: number[], back: number[]) {
   return front.slice(0, 3).map((value, index) => value * front[3] / 255 + back[index] * (1 - front[3] / 255))
 }
 
-function background(element: Element) {
+/** The colour an element sits on, composited over every ancestor's background. */
+export function background(element: Element) {
   const ancestors: Element[] = []
   for (let node: Element | null = element; node; node = node.parentElement) ancestors.unshift(node)
   return ancestors.reduce((back, node) => over(rgba(getComputedStyle(node).backgroundColor), back), [255, 255, 255])

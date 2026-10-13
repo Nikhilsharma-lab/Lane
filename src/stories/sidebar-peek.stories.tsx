@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import { useState } from "react"
 import { SidebarView } from "@/components/shell/sidebar-view"
+import { PageStrip } from "@/components/shell/page-strip"
 import { Input } from "@/components/arc/input/input"
 import { NotificationBellView } from "@/components/shell/notification-bell-view"
 
@@ -17,7 +18,8 @@ const meta = {
   args: {
     workspaceName: "Lane Studio", fullName: "Alex Morgan", email: "alex@example.test", role: "member",
     pathname: "/settings/profile", statusFilter: "all", projects: [], notifications: <NotificationsFixture />,
-    children: <div className="p-6"><Input label="Notes" placeholder="Page content" /></div>,
+    // Plan item 2.0: the page strip carries the expand control, as on every page.
+    children: <><PageStrip title="Profile" /><div className="p-6"><Input label="Notes" placeholder="Page content" /></div></>,
   },
 } satisfies Meta<typeof SidebarView>
 export default meta

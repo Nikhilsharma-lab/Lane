@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
@@ -23,6 +24,7 @@ export function LifecycleButtons({
   filter,
   projectFilter = "all",
   fullWidth = false,
+  placement = "block",
 }: {
   requestId: string;
   status: string;
@@ -30,8 +32,13 @@ export function LifecycleButtons({
   filter: RequestStatusFilter;
   projectFilter?: RequestProjectFilter;
   fullWidth?: boolean;
+  /** "strip" sits in the detail page strip, a fixed 44px row, so its feedback
+   * goes to a toast, the channel the list rows use. "block" keeps the inline
+   * alerts (plan item 2.0). */
+  placement?: "block" | "strip";
 }) {
   const { pending, run } = useRecoverableAction();
+  const { toast } = useToastStack();
   const optimistic = useOptimisticAction();
   const overlay = usePendingMutations();
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +76,17 @@ export function LifecycleButtons({
             : { kind: "pick-up", status: "in_progress" },
         run: action,
         waitForPending: true,
-        onError: (message, { thrown }) => setError(thrown ? networkError : message),
+        onError: (message, { thrown }) => {
+          const text = thrown ? networkError : message;
+          if (placement === "strip") toast({ type: "error", title: "Action failed", description: text });
+          else setError(text);
+        },
       })
     );
     if (outcome.status !== "completed") return;
-    if (outcome.value.status === "success") setMovedTo(target);
+    if (outcome.value.status !== "success") return;
+    if (placement === "strip") toast({ type: "success", title: "Request updated", description: `Moved to ${target === "done" ? "Done" : "In Progress"}.` });
+    else setMovedTo(target);
   }
 
   async function handlePickUp() {
@@ -98,8 +111,9 @@ export function LifecycleButtons({
     <div
       data-slot="request-lifecycle-actions"
       className={cn(
-        "flex flex-col gap-2",
-        fullWidth ? "w-full items-start" : "max-w-[320px] items-end"
+        placement === "strip"
+          ? "flex items-center"
+          : ["flex flex-col gap-2", fullWidth ? "w-full items-start" : "max-w-[320px] items-end"]
       )}
     >
       {error && (

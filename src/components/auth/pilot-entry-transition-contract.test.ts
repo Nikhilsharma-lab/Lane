@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { describe, expect, it, vi } from "vitest"
+
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }))
+
+import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
+import { statusLabels, withoutHidden } from "@/test/exposed-markup"
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8")
@@ -8,14 +15,12 @@ function source(path: string) {
 
 const SKELETON = source("src/components/arc/skeleton/skeleton.tsx")
 const SKELETON_STYLES = source("src/components/arc/skeleton/skeleton.module.css")
-const REQUESTS_LOADING = source(
-  "src/app/(app)/requests-workspace-loading.tsx"
-)
 const INTAKE_LOADING = source("src/app/(app)/intake/loading.tsx")
-const PROFILE_LOADING = source(
-  "src/app/(app)/settings/profile/loading.tsx"
-)
+const PROFILE_LOADING = source("src/app/(app)/settings/profile/loading.tsx")
 
+// Plan item 2.0: every skeleton is also rendered inside the shell by
+// src/app/(app)/app-frame.test.ts. This file keeps the Arc Skeleton contract
+// they rely on and the destination-specific waits.
 describe("Pilot entry and transition contract", () => {
   it("announces every skeleton wait and honors reduced motion", () => {
     expect(SKELETON).toContain('role="status"')
@@ -24,10 +29,14 @@ describe("Pilot entry and transition contract", () => {
     expect(SKELETON).toContain("useReducedMotion()")
     expect(SKELETON_STYLES).toContain("prefers-reduced-motion: reduce")
 
-    expect(REQUESTS_LOADING).toContain(
-      'aria-label="Loading Requests"'
-    )
-    expect(REQUESTS_LOADING).not.toContain('aria-hidden="true"')
+    // The Requests wait is announced and never hidden: its status sits in the
+    // strip, outside the aria-hidden block that holds the decorative bars.
+    const html = renderToStaticMarkup(createElement(RequestsWorkspaceLoading))
+    expect(html).toContain('aria-busy="true"')
+    const exposed = withoutHidden(html)
+    expect(statusLabels(exposed)).toEqual(["Loading Requests"])
+    expect(exposed).toContain('data-slot="page-strip"')
+    expect(exposed).toContain('href="/intake"')
   })
 
   it("uses destination-specific geometry for Intake and Settings", () => {
@@ -38,5 +47,4 @@ describe("Pilot entry and transition contract", () => {
     expect(source("src/components/settings/profile-sections.tsx")).toContain('label="Loading Profile settings"')
     expect(PROFILE_LOADING).not.toContain("RequestsWorkspaceLoading")
   })
-
 })
