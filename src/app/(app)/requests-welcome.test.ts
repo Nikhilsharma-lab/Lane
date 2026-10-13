@@ -27,7 +27,6 @@ vi.mock("./requests/[id]/attachment-download", () => ({ AttachmentDownload: () =
 vi.mock("./requests/[id]/lifecycle-buttons", () => ({ LifecycleButtons: () => null }))
 vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
 // Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
-vi.mock("./request-status-filter", () => ({ RequestStatusFilter: () => null }))
 
 import { RequestsWorkspace } from "./requests-workspace"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"

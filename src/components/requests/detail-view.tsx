@@ -1,43 +1,24 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { NewRequestLink } from "./new-request-link"
-import { ChevronRight, ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon, Plus } from "lucide-react"
+import { ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
-import { statuses } from "./tasks/statuses"
-import { RequestStatusFilter as StatusFilter } from "@/app/(app)/request-status-filter"
-import { REQUEST_TYPE_LABELS, type RequestPriority, type RequestType } from "@/lib/request-constants"
+import type { RequestPriority, RequestType } from "@/lib/request-constants"
 import type { ExpectedImpact } from "@/lib/request-impact"
 import type { DesignReview } from "@/lib/request-review"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { relativeTime } from "@/lib/relative-time"
 import { formatAttachmentSize } from "@/lib/request-attachments"
-import { requestDetailHref, requestListHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { DetailConversation, type ConversationComment } from "./detail-conversation"
 import { DetailRequestProvider, type DetailViewer } from "./detail-context"
 import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailBackLink, DetailStrip } from "./detail-strip"
 import detailStyles from "./detail.module.css"
-import { statusLabel } from "@/lib/request-status"
-import { cn } from "@/lib/utils"
 import styles from "./requests.module.css"
 
 export type RequestStatus = "open" | "in_progress" | "done"
-
-export type RequestListItem = {
-  id: string
-  title: string
-  reframedProblem: string | null
-  status: RequestStatus
-  createdAt: Date
-  creatorName: string | null
-  assigneeName: string | null
-  projectId?: string | null
-  projectName?: string | null
-  requestType?: RequestType | null
-}
 
 export type RequestDetail = {
   designReviews?: DesignReview[]
@@ -86,48 +67,7 @@ export type RequestAttachment = {
 }
 
 
-function StatusIcon({ status }: { status: RequestStatus }) {
-  const presentation = statuses.find(item => item.value === status)!
-  const Icon = presentation.icon
-  return <Icon aria-hidden="true" className={cn("size-4 shrink-0", presentation.colorClassName)} />
-}
-const primaryLink = `${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`
 const secondaryLink = `${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`
-
-function RequestListEmpty({ isGuest, filter, projectFilter }: { isGuest: boolean; filter: RequestStatusFilter; projectFilter: RequestProjectFilter }) {
-  return <EmptyState icon={<Inbox />} title={filter === "all" ? "No Requests yet" : `No ${statusLabel(filter)} Requests`} description={filter !== "all" ? "Change the filter to check other statuses." : isGuest ? "Requests you submit will appear here." : "Describe a problem your team needs to solve."} action={filter !== "all" ? <Link className={secondaryLink} href={requestListHref("all", projectFilter)}>Show all statuses</Link> : <NewRequestLink className={primaryLink}>{isGuest ? "Submit a Request" : "Submit the first Request"}</NewRequestLink>} />
-}
-
-export function RequestListPane({ requests, selectedRequestId, filter, projectFilter = "all", projectName, isGuest }: {
-  requests: RequestListItem[]; selectedRequestId?: string; filter: RequestStatusFilter; projectFilter?: RequestProjectFilter; projectName?: string; isGuest: boolean
-}) {
-  const groups = (["open", "in_progress", "done"] as const).filter(status => filter === "all" || filter === status).map(status => ({ status, requests: requests.filter(request => request.status === status) }))
-  const visibleCount = groups.reduce((count, group) => count + group.requests.length, 0)
-  return <aside aria-label="Request list" className={cn("min-h-0 min-w-0 flex-1 flex-col border-r lg:w-80 lg:flex-none xl:w-96", selectedRequestId ? "hidden lg:flex" : "flex")}>
-    <header className="space-y-4 border-b p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-base font-medium">{projectName ?? (projectFilter === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")}</h2><p className="text-sm text-muted-foreground">{filter === "all" ? `${requests.length} loaded` : `${visibleCount} ${statusLabel(filter).toLocaleLowerCase()}`}</p></div>
-        <NewRequestLink className={primaryLink}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
-      </div>
-      <StatusFilter value={filter} />
-    </header>
-    {visibleCount === 0 ? <RequestListEmpty isGuest={isGuest} filter={filter} projectFilter={projectFilter} /> : <div className="min-h-0 flex-1 overflow-y-auto p-2">
-      {groups.map(group => <section key={group.status} aria-labelledby={`requests-${group.status}`} className="mb-4">
-        <div className="flex items-center gap-2 px-3 py-2"><StatusIcon status={group.status} /><h3 id={`requests-${group.status}`} className="text-sm font-medium">{statusLabel(group.status)}</h3><span className="text-sm text-muted-foreground">{group.requests.length}</span></div>
-        {group.requests.length ? <ul className="space-y-1">{group.requests.map(request => <li key={request.id}>
-          <Link id={`request-${request.id}`} href={requestDetailHref(request.id, filter, projectFilter)} aria-current={request.id === selectedRequestId ? "page" : undefined} className={styles.requestLink}>
-            <StatusIcon status={request.status} /><span className="sr-only">{statusLabel(request.status)}</span>
-            <span className="min-w-0 flex-1 space-y-1"><span className="line-clamp-2 block font-medium">{request.reframedProblem ?? request.title}</span>
-              {request.reframedProblem && <span className="line-clamp-1 block text-sm text-muted-foreground">{request.title}</span>}
-              {(request.projectName || request.requestType) && <span className="line-clamp-1 block text-sm text-muted-foreground">{[request.projectName, request.requestType ? REQUEST_TYPE_LABELS[request.requestType] : null].filter(Boolean).join(" · ")}</span>}
-              <span className="block text-sm text-muted-foreground">{request.reframedProblem ? "Reframed · " : ""}{request.creatorName || "Unknown member"} · {relativeTime(request.createdAt)}{request.status === "in_progress" && request.assigneeName ? ` · ${request.assigneeName}` : ""}</span>
-            </span><ChevronRight size={16} aria-hidden="true" />
-          </Link>
-        </li>)}</ul> : <p className="p-3 text-sm text-muted-foreground">No {statusLabel(group.status).toLocaleLowerCase()} Requests</p>}
-      </section>)}
-    </div>}
-  </aside>
-}
 
 /** The strip names the state as the page h1; the body says what happened, as the error frames do.
  * Plan item 2.5: a missing Request and one this person may not see read the same, with no existence leak. */

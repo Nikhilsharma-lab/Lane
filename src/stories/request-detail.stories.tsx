@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
-import { RequestDetailView, RequestDetailSkeleton, RequestListPane, RequestUnavailable, type RequestDetail, type RequestListItem } from "@/components/requests/detail-view"
+import { RequestDetailView, RequestDetailSkeleton, RequestUnavailable, type RequestDetail } from "@/components/requests/detail-view"
 import { SidebarView } from "@/components/shell/sidebar-view"
 import { CommentForm } from "@/app/(app)/requests/[id]/comment-form"
 import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-download"
@@ -20,16 +20,14 @@ const request: RequestDetail = {
 const context = { orgId: "fixture-workspace" }
 const comments = [{ id: "fixture-comment", body: "Could we compare the product-page and checkout experiences before deciding where this belongs?", createdAt: new Date("2026-10-01T10:00:00Z"), authorName: "Sam Lee" }]
 const attachments = [{ id: "fixture-file", fileName: "Delivery context.png", mimeType: "image/png", sizeBytes: 182400, uploadedAt: new Date("2026-10-01T09:00:00Z") }]
-const requests: RequestListItem[] = [request, { ...request, id: "fixture-progress", title: "New teammates cannot find the right workspace", reframedProblem: null, status: "in_progress", assigneeName: "Sam Lee" }, { ...request, id: "fixture-done", title: "People lose their draft after an upload fails", reframedProblem: null, status: "done" }]
 
 // The strip's lifecycle slot reports through toasts (plan item 2.0), so the shell mounts the stack.
 function Shell({ children, guest = false }: { children: ReactNode; guest?: boolean }) {
   return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack label="Messages" /></>
 }
 
-function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
+function Detail({ current = request, guest = false, minimal = false, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; designReview?: ReactNode }) {
   return <Shell guest={guest}><div className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
-    <RequestListPane requests={list} selectedRequestId={current.id} filter="all" isGuest={guest} />
     <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} isGuest={guest} viewer={{ id: "fixture-viewer", name: "Alex Morgan" }} orgId={context.orgId}
       lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
@@ -88,20 +86,8 @@ export const LongContent: Story = {
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
   },
 }
-export const Unavailable: Story = { render: () => <Shell><div className="flex min-h-0 flex-1"><RequestListPane requests={requests} selectedRequestId="missing" filter="all" isGuest={false} /><RequestUnavailable returnHref="/" /></div></Shell> }
+export const Unavailable: Story = { render: () => <Shell><div className="flex min-h-0 flex-1"><RequestUnavailable returnHref="/" /></div></Shell> }
 export const Loading: Story = { render: () => <Shell><RequestDetailSkeleton /></Shell> }
-export const LateDoneRequest: Story = {
-  render: () => {
-    const list = Array.from({ length: 31 }, (_, index) => ({ ...request, id: `done-${index}`, title: `Resolved delivery question ${index + 1}`, reframedProblem: null, status: "done" as const }))
-    return <Detail current={{ ...request, ...list[30] }} list={list} />
-  },
-  play: async ({ canvasElement }) => {
-    if (window.innerWidth >= 1024) {
-      const list = within(within(canvasElement).getByRole("complementary", { name: "Request list" }))
-      await expect(list.getByRole("link", { name: /Resolved delivery question 31/ })).toHaveAttribute("aria-current", "page")
-    }
-  },
-}
 export const CommentRetry: Story = {
   beforeEach: () => { mocked(addComment).mockRejectedValueOnce(new Error("Fixture connection interrupted")) },
   play: async ({ canvasElement }) => {
