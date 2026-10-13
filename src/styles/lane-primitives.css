@@ -123,8 +123,8 @@
   --lane-content-yellow-mid: oklch(0.66 0.134 92);
   --lane-content-yellow-text: oklch(0.8 0.12 92);
   --lane-content-yellow-tint: oklch(0.27 0.05 92);
-  /* The dark scrim matched to the 2026-10-11 reference: neutral black, no blur. */
-  --lane-overlay: rgb(0 0 0 / .45);
+  /* Dark keeps Arc's own dialog scrim value, no blur. PR #45 removed the screenshot-sampled dark values. */
+  --lane-overlay: oklch(0.1 0 0 / 0.46);
 }
 
 :root[data-visual-system="lane"] {
