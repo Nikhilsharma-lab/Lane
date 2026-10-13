@@ -127,7 +127,7 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 - [ ] Every action is reachable from the keyboard. The visible focus ring uses `--focus-outline`. Esc closes and focus returns. Composite widgets follow the named ARIA pattern (decision 8.21).
 - [ ] Every state exists: loading (skeleton shaped like the final layout), empty, error, forbidden/not-found and success. Duplicate submission is blocked.
 - [ ] Optimistic changes are announced in a live region. A failed action reverts with a message that says what happened. An expired session never shows up as "Not found" (item 1.5).
-- [ ] At narrow widths the whole task stays available and the main action stays reachable. Today detail's lifecycle button sits below all the comments (`detail-view.tsx:150` vs `:168`). Keyboard hints are hidden on coarse pointers.
+- [ ] At narrow widths the whole task stays available and the main action stays reachable. Today detail's lifecycle button sits below all the comments (`detail-view.tsx:150` vs `:168`). *(2026-10-13, item 2.5: the action now sits in the strip at every width; the duplicate phone block was at `detail-view.tsx:170`, fed by `requests-workspace.tsx:19`.)* Keyboard hints are hidden on coarse pointers.
 
 **Verification matrix** (`DESIGN.md:29`; `phase-0-ux-skeleton.md:146-149`): light and dark; 390, 768, 1024 and 1440 px; long content; zoom; reload, back and deep link; member, admin and guest; reduced motion.
 
@@ -372,7 +372,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
 
 **Usability round (5 people) runs here,** after 2.3 and 2.4, on staging or with pilot-zero teams. That way it finds issues before the remaining polish (critique 1 #19).
 
-### 2.5 Request detail (L), the most important page below the bar
+### 2.5 Request detail (L), the most important page below the bar *(built 2026-10-13; waiting on Nikhil's sign-off)*
 Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he asks" (`2026-10-07-requests-list-and-workspace-sidebar.md:12`).
 
 - **Changes:**
@@ -389,7 +389,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
     - Space reserved for future alignment and outcome blocks
   - **Phone:** properties collapse under the title, and the lifecycle action stays in the header.
   - Remove the legacy `RequestListPane`.
-  - Add `requestNumber` and `priority` to the detail select. This is not a schema change: they are missing from `requests-workspace.tsx:106-131` and from `RequestDetail` at `detail-view.tsx:38-62`.
+  - Add `requestNumber` and `priority` to the detail select. This is not a schema change: they are missing from `requests-workspace.tsx:106-131` and from `RequestDetail` at `detail-view.tsx:38-62`. *(Citation corrected 2026-10-13: since item 1.9 the select lives in `loadRequestDetail`, `src/lib/data/requests.ts`; 2.5 added `requestNumber`, `priority` and `assigneeAvatarUrl` there with no new statement.)*
   - Remove the duplicate People/submitter.
   - A skeleton that matches the new layout.
 - **Not adopted:** sub-issues, estimates, subscribe, due date, activity events, side peek.

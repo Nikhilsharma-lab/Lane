@@ -178,3 +178,15 @@ Verified: TypeScript, ESLint, Arc provenance, the full Vitest suite (542), the I
 ## Storybook default, 2026-10-10
 
 Storybook now renders every story in the Linear system by default. `.storybook/preview.tsx` sets `data-visual-system="linear"` and `data-ui-state-contract="semantic"` on the root, as `src/app/layout.tsx` does in production, so stories no longer need `parameters.visualSystem: "linear"`. Decision 8.12 in `../superpowers/plans/2026-10-10-mvp-launch-linear.md` retires the Geist preview: `src/stories/geist-colours.stories.tsx`, `src/stories/geist-selection-states.stories.tsx`, their module CSS and `src/styles/geist-colors.css` are removed, along with the preview's Geist branch; the Arc module CSS keeps its inert `[data-color-system="geist"]` selectors, recorded in `arc-sources.md`. One Arc reference story is kept: Primitives/Controls opts out with `parameters.visualSystem: "arc"` and renders the plain Arc foundation. The preview's `afterEach` now waits for running animations, motion exits and closing Radix overlays to settle before the a11y addon runs axe.
+
+## Request detail keyboard model (plan item 2.5, 2026-10-13)
+
+Request detail follows the list's key rules (`src/components/requests/request-detail-keys.ts` mirrors `request-grid-keys.ts`: no Ctrl, Meta or Alt, no Shift with a letter, nothing while typing or composing, nothing already handled).
+
+- **J and K** move to the next and previous Request anywhere on detail, in the order the list showed when the Request was opened from it (filtered, sorted and grouped, across every page). The list records that order when its title link is clicked, which Enter and the row menu's Open Request also do. It is a snapshot in layout memory: a reload, a deep link or an arrival from search or a notification has no order, so no counter, no previous or next, and J does nothing. A held key moves once.
+- **↑ and ↓** do the same only while focus is on the strip's previous or next button, and focus stays on that button on the new page (decision D1). Elsewhere the arrows keep scrolling the reading column.
+- Previous and next **replace** the history entry (decision D4), so Back and Esc both return to the list in one step and the list focuses the last Request viewed. Both neighbours are fully prefetched once the page is idle, at most two per detail view.
+- **Esc** does the first thing that applies: an open menu, popover, drawer or dialog closes itself; focus in an open Ask for review, Withdraw or Respond form cancels that form and focuses the section heading; focus in the comment box keeps the draft and moves to the Conversation heading; a review form the person opened with focus elsewhere is cancelled; only then does Esc return to Requests. Nothing runs while the search pane hides the page.
+- **Focus on arrival:** opening a Request from the list, or J and K, focuses the title (`#request-title`, tabindex -1, no ring); a deep link or a reload does not move focus.
+- The strip's action reads the same shared rule as the row menu and the bulk bar (`allowedMove`), through the pending-mutation overlay, and the `?` overlay lists J, K and the new Esc.
+
