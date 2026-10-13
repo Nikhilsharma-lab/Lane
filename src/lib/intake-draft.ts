@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { expectedImpactDraftSchema } from "./request-impact";
+import { DEFAULT_IMPACT_UNIT, expectedImpactDraftSchema } from "./request-impact";
 import { projectIdSchema, requestTypeSchema } from "./request-properties";
 
 import type { TriageResult } from "@/lib/ai/triage";
@@ -146,8 +146,15 @@ export function writeIntakeDraft(
   now = Date.now()
 ): boolean {
   const key = intakeDraftStorageKey(scope);
-  const hasImpact = draft.source.expectedImpact != null && Object.entries(draft.source.expectedImpact).some(
-    ([key, value]) => key !== "kind" && (typeof value === "number" || (typeof value === "string" && value.trim().length > 0))
+  const impact = draft.source.expectedImpact;
+  // The default unit is not user work. An open guardrail pane, an added
+  // guardrail or an explicitly cleared/custom unit is.
+  const hasImpact = impact != null && (
+    impact.guardrailEdit !== undefined ||
+    impact.guardrail !== undefined ||
+    (impact.kind === "metric" && impact.unit !== undefined && impact.unit !== DEFAULT_IMPACT_UNIT) ||
+    Object.entries(impact).some(([key, value]) => key !== "kind" && key !== "unit" &&
+      (typeof value === "number" || (typeof value === "string" && value.trim().length > 0)))
   );
   const hasSource =
     hasImpact ||

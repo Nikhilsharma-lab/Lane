@@ -1,4 +1,4 @@
-import type { ExpectedImpact } from "@/lib/request-impact"
+import { formatGuardrail, type ExpectedImpact } from "@/lib/request-impact"
 
 export function ExpectedImpactSummary({ impact }: { impact: ExpectedImpact }) {
   const values = impact.kind === "metric"
@@ -13,8 +13,9 @@ export function ExpectedImpactSummary({ impact }: { impact: ExpectedImpact }) {
     <h2 className="text-base font-medium">Expected impact</h2>
     <dl className="grid gap-4 sm:grid-cols-2">
       {[...values,
-        { label: "Data source", value: impact.source },
-        { label: "Measure after launch", value: `${impact.reviewAfterDays} ${impact.reviewAfterDays === 1 ? "day" : "days"} after launch` },
+        ...(impact.guardrail ? [{ label: "Guardrail metric", value: formatGuardrail(impact.guardrail) }] : []),
+        ...(impact.source ? [{ label: "Data source", value: impact.source }] : []),
+        { label: "Check in", value: `${impact.reviewAfterDays} ${impact.reviewAfterDays === 1 ? "day" : "days"}` },
       ].map(({ label, value }) => <div key={label} className="min-w-0 space-y-1 sm:first:col-span-2">
         <dt className="text-sm font-medium">{label}</dt>
         <dd className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{value}</dd>

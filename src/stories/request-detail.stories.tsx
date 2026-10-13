@@ -202,7 +202,7 @@ export const ExpectedMetricImpact: Story = {
     await expect(impact.getByText("Not measured yet")).toBeVisible()
     await expect(impact.getByText("90 %")).toBeVisible()
     await expect(impact.getByText("Saved-draft usability check")).toBeVisible()
-    await expect(impact.getByText("14 days after launch")).toBeVisible()
+    await expect(impact.getByText("14 days")).toBeVisible()
     await expect(impact.queryByRole("textbox")).not.toBeInTheDocument()
   },
 }
@@ -213,7 +213,7 @@ export const ExpectedVerifiedImpact: Story = {
     const impact = within(await within(canvasElement).findByRole("region", { name: "Expected impact" }))
     await expect(impact.getByText("Customers can reopen an unfinished draft after signing in again.")).toBeVisible()
     await expect(impact.getByText("Verify on the supported browsers with a saved draft.")).toBeVisible()
-    await expect(impact.getByText("1 day after launch")).toBeVisible()
+    await expect(impact.getByText("1 day")).toBeVisible()
     await expect(impact.queryByText("Current value")).not.toBeInTheDocument()
   },
 }

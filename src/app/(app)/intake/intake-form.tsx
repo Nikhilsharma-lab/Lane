@@ -60,7 +60,7 @@ import { usePendingMutationWriter } from "@/components/requests/pending-mutation
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
-import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
+import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 import type { z } from "zod";
@@ -399,6 +399,7 @@ export default function IntakeForm({
         setProblemError(null);
         setRestoredDraft(true);
         setLinkOpen(Boolean(draft.source.usefulLink));
+        setImpactOpen(hasGuardrailEdits(draft.source.expectedImpact));
         setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
         // A stored review knows which text produced its framing. Older compose
         // drafts may retain wording without an origin; show it, but never
@@ -407,7 +408,7 @@ export default function IntakeForm({
           ? { title: draft.source.title, description: draft.source.description }
           : draft.previousProblemSource ?? null);
 
-        if (draft.review && expectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
+        if (draft.review && requiredExpectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
           setTriage(draft.review.triage);
           setToken(draft.review.token);
           setEditedProblem(draft.review.editedProblem);
@@ -1152,6 +1153,8 @@ export default function IntakeForm({
   }
 
   const composing = stage === "compose" || checking;
+  // Review waits while the guardrail editor is open: Add or Cancel settles it first.
+  const guardrailEditing = hasGuardrailEdits(currentValues.expectedImpact);
   const reviewing = stage === "framing" || creating;
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
@@ -1183,7 +1186,7 @@ export default function IntakeForm({
   }
 
   function submitForReview() {
-    if (!active || checking || projectInFlight.current) return;
+    if (!active || checking || projectInFlight.current || hasGuardrailEdits(getValues("expectedImpact"))) return;
     onBusyChange?.(true);
     void handleSubmit(checkFraming, (fieldErrors) => {
       onBusyChange?.(false);
@@ -1593,8 +1596,10 @@ export default function IntakeForm({
       {composing && (
         <footer className={styles.footer}>
           <div className={styles.actions}>
+            {guardrailEditing && !checking && <p id="intake-guardrail-pending" className={styles.footerNote}>Add or cancel the guardrail to review your Request.</p>}
             {shortcut}
-            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter">
+            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
+              aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
               Review Request
             </Button>
           </div>
