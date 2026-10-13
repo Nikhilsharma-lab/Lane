@@ -157,8 +157,9 @@ export const Open: Story = {
     // One stable dialog name, a 44px strip, and the description kept for assistive tech.
     await expect(within(dialog).getByRole("heading", { name: "New Request" })).toBeVisible();
     await expect(dialog).toHaveAccessibleDescription("Describe your Request and the result you expect.");
-    // The centred composer dialog (2026-10-13), not a drawer at the edge.
+    // The centred composer dialog (2026-10-13), not a drawer at the edge. Geometry is read once its entrance settles.
     await expect(dialog).toHaveAttribute("data-layout", "composer");
+    await waitFor(() => expect(getComputedStyle(dialog).transform).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/));
     const box = dialog.getBoundingClientRect();
     const viewport = document.documentElement.clientWidth;
     await waitFor(() => {
@@ -167,7 +168,7 @@ export const Open: Story = {
     });
     await expect(box.left).toBeGreaterThan(0);
     const header = within(dialog).getByRole("heading", { name: "New Request" }).parentElement!.parentElement!;
-    await expect(Math.round(header.getBoundingClientRect().height)).toBe(44);
+    await expect(header.offsetHeight).toBe(44);
     await expect(composer.getByRole("textbox", { name: "Description" })).toBeVisible();
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeEnabled();
     await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
