@@ -46,6 +46,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const busy = useRef(false);
   const completed = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
+  const createdId = useRef<string | null>(null);
   const directEntry = pathname === "/intake";
 
   const openComposer = useCallback((element?: HTMLElement) => {
@@ -54,6 +55,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       return;
     }
     trigger.current = element ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    createdId.current = null;
     // A retained composer belongs to its draft, even after navigating to a
     // different Project. Only a new generation inherits the current location.
     if (!hasOpened || completed.current) {
@@ -89,6 +91,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   // Open group at once and keeps it there if a navigation drops that response.
   const onCreated = useCallback((requestId: string, created?: OverviewRequest) => {
     if (created?.id === requestId) insert?.(created);
+    createdId.current = requestId;
     completed.current = true;
     busy.current = false;
     setOpen(false);
@@ -113,7 +116,10 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
               event.preventDefault();
               // Mobile navigation stays mounted while closed. Its original
               // compose link cannot receive focus once the drawer is inert.
-              const targets = [trigger.current, document.querySelector<HTMLElement>('button[aria-label="Open navigation"]'), document.getElementById("lane-main")];
+              // The welcome's New Request unmounts when the first Request lands
+              // in its place (plan item 2.1), so that row's title link is next.
+              const created = createdId.current ? document.getElementById(`request-${createdId.current}`) : null;
+              const targets = [trigger.current, created, document.querySelector<HTMLElement>('button[aria-label="Open navigation"]'), document.getElementById("lane-main")];
               for (const target of targets) {
                 if (!target?.isConnected || !target.getClientRects().length || target.closest("[hidden], [inert]") || getComputedStyle(target).visibility !== "visible") continue;
                 target.focus({ preventScroll: true });

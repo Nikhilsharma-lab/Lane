@@ -44,12 +44,13 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
     userId = await page.evaluate(() => window.Clerk.user?.id ?? null);
     expect(userId).toMatch(/^user_/);
     await registerBrowserTestUser(userId!, email);
-    await expect(page.getByRole("radiogroup", { name: "Your role" })).toHaveCount(0);
+    // Arc's RadioGroup is a fieldset (role "group"); its radios are the reliable signal.
+    await expect(page.getByRole("radio", { name: "PM" })).toHaveCount(0);
     expect(await getProfileFullName(userId!)).toBeNull();
 
     await page.locator('input[name="name"]').fill(workspaceName);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "How do you work?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => window.Clerk.organization?.id))
       .toMatch(/^org_/);

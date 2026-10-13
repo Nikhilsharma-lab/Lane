@@ -24,11 +24,13 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+import { revalidatePath } from "next/cache";
 import { getWorkspace } from "./ensure-workspace";
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions";
 
 beforeEach(() => {
   session = { userId: USER_ID, orgId: "org_test_a", orgRole: "org:member" };
+  vi.mocked(revalidatePath).mockClear();
 });
 
 afterEach(async () => {
@@ -59,11 +61,18 @@ describe("workspace-first onboarding", () => {
   ])("rejects a direct role submission without recognized membership: %j", async (auth) => {
     session = auth;
     expect(await saveOnboardingRole({ role: "pm" })).toHaveProperty("error");
+    expect(revalidatePath).not.toHaveBeenCalled();
     expect(await db.select().from(profiles).where(eq(profiles.id, USER_ID))).toEqual([]);
   });
 
   it("saves a functional label without changing the Clerk permission", async () => {
-    expect(await saveOnboardingRole({ role: "pm" })).toEqual({ success: true });
+    // Plan item 2.2: a saved role answers with / itself. The revalidation clears
+    // the client's cached redirect from / back to /onboarding (staleTimes.dynamic
+    // is 30 s), and the redirect carries a fresh render of / in the response.
+    await expect(saveOnboardingRole({ role: "pm" })).rejects.toMatchObject({
+      digest: expect.stringMatching(/^NEXT_REDIRECT;replace;\/;/),
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(await getWorkspace()).toMatchObject({
       needsOnboarding: false,
       userId: USER_ID,
@@ -76,7 +85,9 @@ describe("workspace-first onboarding", () => {
   });
 
   it("does not grant app access to an existing profile after its active workspace is lost", async () => {
-    await saveOnboardingRole({ role: "designer" });
+    await expect(saveOnboardingRole({ role: "designer" })).rejects.toMatchObject({
+      digest: expect.stringMatching(/^NEXT_REDIRECT;/),
+    });
     session = { userId: USER_ID, orgId: null, orgRole: null };
     expect(await getWorkspace()).toBeNull();
   });

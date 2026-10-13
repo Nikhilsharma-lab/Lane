@@ -313,7 +313,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Skeleton appears ≤ 100 ms after navigation.
   - Error and not-found stories render with the layout failing.
 
-### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6)
+### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Welcome:**
   - Render the list's title strip and the empty `DataTable` region, so the first Request appears in place.
   - Drop `min-h-dvh` (`requests-welcome.tsx:12`).
@@ -321,6 +321,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Add the hint "Press C to create a Request." on fine pointers only.
 - **Onboarding:**
   - After saving, `router.replace("/")` directly. This removes the double refresh (`onboarding/actions.ts:52` + `role-form.tsx:42`).
+    *Built 2026-10-11 as a redirect to / from the save itself, with `revalidatePath("/")`: the response carries the welcome, so it is still one navigation. A client `router.replace("/")` within 30 s of signing in could replay the cached redirect from / back to /onboarding (`staleTimes.dynamic` is 30).*
   - Optionally choose and continue in one click.
   - Keys 1, 2 and 3 pick a role. This needs the interaction-scope extension in 8.10.
   - On fine pointers, one line: "C to create, / to search".

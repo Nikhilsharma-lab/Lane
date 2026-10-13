@@ -1,9 +1,17 @@
 .overview { display: flex; min-width: 0; min-height: 100%; flex-direction: column; }
 .newRequest { gap: var(--space-2); }
+/* Plan item 2.1: inert while the welcome offers the empty workspace's one New Request; hidden in place, so it keeps its box. */
+.newRequest[inert] { visibility: hidden; }
 .kbd { margin-inline-start: var(--space-3); font: inherit; color: color-mix(in oklab, var(--background) 58%, var(--foreground)); font-variant-numeric: tabular-nums; }
 .unavailable { display: flex; flex: 1; flex-direction: column; justify-content: center; padding: var(--space-6); }
 .limitNote { margin: 0; padding: 0 var(--space-6) var(--space-4); color: var(--text-secondary); font-size: var(--text-xs); }
 :global(:root[data-visual-system="lane"]) .overview:has([data-preview-table]) { height: 100%; min-height: 0; overflow: hidden; }
+/* Plan item 2.1: the empty workspace's welcome, centred in the list pane by data-table-toolbar.module.css. */
+.welcome { min-width: 0; }
+/* Keyboard hints show on fine pointers only; on touch the links' aria-keyshortcuts still name C. */
+.shortcutHint { display: none; flex-basis: 100%; color: var(--text-secondary); font-size: var(--text-xs); }
+@media (pointer: fine) { .shortcutHint { display: block; } }
+.key { font: inherit; font-weight: 500; color: var(--foreground); }
 @media (max-width: 640px) {
   .limitNote { padding-inline: var(--space-4); }
 }

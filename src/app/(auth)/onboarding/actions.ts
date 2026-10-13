@@ -2,6 +2,7 @@
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db, profiles } from "@/db";
@@ -49,6 +50,16 @@ export async function saveOnboardingRole(data: { role: string }) {
       },
     });
 
-  revalidatePath("/onboarding");
-  return { success: true as const };
+  // Plan item 2.2: the saved role and the welcome arrive in one response.
+  // Signing in soft-navigates to /, whose layout redirects here, and with
+  // staleTimes.dynamic at 30 s the client router keeps that redirect for /.
+  // A client navigation to / inside those 30 s would replay it.
+  // - The redirect makes this response carry a fresh render of /, so
+  //   /onboarding is never rendered again and no second request is needed.
+  // - The revalidation is what stops the cached segments winning: a navigation
+  //   seeded by an action that did not revalidate still reads the client's
+  //   cache before the seed (Next 16.2 ppr-navigations, FreshnessPolicy.Default).
+  // RoleForm treats the redirect's rejection as the success.
+  revalidatePath("/");
+  redirect("/", RedirectType.replace);
 }

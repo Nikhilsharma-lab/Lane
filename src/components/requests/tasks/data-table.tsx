@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
@@ -8,7 +8,7 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { useRequestListUrlSync, useRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import { groupRequestRows, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
@@ -30,7 +30,9 @@ import layoutStyles from "./data-table-toolbar.module.css"
  * sort and the in-list filter) re-renders here with no network request. The
  * "/" URL mirrors that state through useRequestListUrlSync.
  */
-export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode }) {
+export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer, welcome }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode;
+  /** Plan item 2.1: shown in the records region while the workspace has no Requests at all. */
+  welcome?: ReactNode }) {
   const presentation = useRequestRowPresentation()
   const [summaryOpen, setSummaryOpen] = useState(false)
   const summaryTrigger = useRef<HTMLButtonElement>(null)
@@ -42,6 +44,17 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const pendingMutations = usePendingMutations()
   const data = useMemo(() => pendingMutations?.apply(serverRows) ?? serverRows, [pendingMutations, serverRows])
   useRequestListUrlSync(view, setView, (pendingMutations?.unconfirmed ?? 0) > 0)
+  // Plan item 2.1: `data` already carries composer inserts, so the first Request
+  // ends the empty state in the same frame. It is read before any filter, so a
+  // status, Project or title filter never shows the welcome. Both states render
+  // the same tree; only the records region's content swaps.
+  const workspaceEmpty = welcome !== undefined && data.length === 0
+  // Nothing to filter yet, so a status from the URL goes before paint: the first
+  // Request then lands in the "all" view. The URL sync above mirrors it with
+  // replaceState (no navigation), and still holds while a mutation is pending.
+  useLayoutEffect(() => {
+    if (workspaceEmpty && filter !== "all") setView(view => withEmptyWorkspaceStatus(view, true))
+  }, [workspaceEmpty, filter, setView])
   const columnVisibility: Record<string, boolean> = { project: projectFilter === "all", ...view.columnVisibility }
   const valueFor = (id: string) => String(localFilters.find(item => item.id === id)?.value ?? "")
   const title = valueFor("title"), project = projectFilter === "all" ? "" : projectFilter, requestType = valueFor("requestType")
@@ -81,7 +94,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   </ul>
   return <div className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
-    <DataTableToolbar data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
+    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={setSummaryOpen} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter}
       onStatusChange={next => setView(previous => withListContext(previous, { status: next }))}
@@ -90,9 +103,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
       onGroupingChange={next => setView(previous => ({ ...previous, grouping: next, collapsedGroups: [], pagination: { ...previous.pagination, pageIndex: 0 } }))}
       onClear={clearFilters} />
     <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined}>
-    <div className={layoutStyles.listPane}>
+    <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
-      {!matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
+      {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
         : grouping === "none" ? renderRows(currentRows, "Requests")
           : groups.map(group => {
             const rows = group.rows.filter(row => pageIds.has(row.id))

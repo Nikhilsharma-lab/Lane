@@ -10,7 +10,7 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, planListUrlSync, useRequestListContext, useRequestListView, useSetRequestListView, withListContext, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, planListUrlSync, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, type ListViewState } from "./list-view-state"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
 
@@ -59,5 +59,27 @@ describe("Request list context (plan item 1.7)", () => {
   it("does not adopt the query it wrote itself, and writes nothing off the list", () => {
     expect(planListUrlSync({ ...base, search: "status=open", written: "status=open", current: { status: "done", project: "all" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", write: "/?status=done" })
     expect(planListUrlSync({ ...base, search: "", current: { status: "open", project: "all" }, pathname: "/requests/request-1" })).toEqual({ seen: "" })
+  })
+})
+
+describe("An empty workspace's status view (plan item 2.1)", () => {
+  const view = { status: "done", project: "none", pagination: { pageIndex: 2, pageSize: 25 } } as ListViewState
+
+  it("drops a status view while the workspace has no Requests, keeping the Project", () => {
+    expect(withEmptyWorkspaceStatus(view, true)).toMatchObject({ status: "all", project: "none", pagination: { pageIndex: 0, pageSize: 25 } })
+    expect(withEmptyWorkspaceStatus(view, false)).toBe(view)
+    const all = { ...view, status: "all" } as ListViewState
+    expect(withEmptyWorkspaceStatus(all, true)).toBe(all)
+  })
+
+  it("mirrors the dropped status into the URL without adopting it back, and only once no mutation is pending", () => {
+    const base = { written: null, hold: false, pathname: "/" }
+    // First paint of /?status=done: the view already matches the URL.
+    const first = planListUrlSync({ ...base, search: "status=done", seen: null, current: { status: "done", project: "all" }, locationSearch: "?status=done" })
+    expect(first).toEqual({ seen: "status=done" })
+    // The empty workspace drops it. The same query is not adopted again; "/" is written, or held.
+    const current = withEmptyWorkspaceStatus({ ...view, status: "done", project: "all" }, true)
+    expect(planListUrlSync({ ...base, search: "status=done", seen: first.seen, current, hold: true, locationSearch: "?status=done" })).toEqual({ seen: "status=done" })
+    expect(planListUrlSync({ ...base, search: "status=done", seen: first.seen, current, locationSearch: "?status=done" })).toEqual({ seen: "status=done", write: "/" })
   })
 })
