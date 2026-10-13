@@ -13,9 +13,8 @@ export const REVIEWER_QUERY_MAX = 100;
 function person(member: ReviewMember): ReviewPerson { return { id: member.id, name: member.name }; }
 
 /**
- * Plan item 1.16: the reviewer type-ahead, with the same checks as
- * listDesignReviewers in src/app/(app)/requests/[id]/review-actions.ts. The
- * caller has already passed requireMemberOrAbove (guests never ask for a
+ * The reviewer type-ahead for GET /api/reviewers. The caller has already
+ * passed requireMemberOrAbove (guests never ask for a
  * review). Throws ReviewRuleError for a Request outside the workspace or a
  * caller whose membership Clerk no longer confirms; other errors propagate.
  */

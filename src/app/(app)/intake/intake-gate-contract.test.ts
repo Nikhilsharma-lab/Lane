@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const PAGE = source("src/app/(app)/intake/page.tsx");
+const LAYOUT = source("src/app/(app)/layout.tsx");
 const FORM = source("src/app/(app)/intake/intake-form.tsx");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
 const TRIAGE = source("src/lib/ai/triage.ts");
@@ -27,7 +28,7 @@ describe("Intake Gate contract", () => {
   });
 
   it("derives identity from the session and binds review state to context", () => {
-    expect(PAGE).toContain('context={{ orgId: result.orgId }}');
+    expect(LAYOUT).toContain('context={{ orgId: result.orgId }}');
     expect(PAGE).not.toContain("userId:");
     expect(ACTIONS).toContain("requireActiveMember(context.orgId)");
     expect(ACTIONS).toContain("userId: auth.userId");
@@ -59,8 +60,8 @@ describe("Intake Gate contract", () => {
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {
-    expect(PAGE).toContain("draftOwnerId={result.userId}");
-    expect(PAGE).toContain("context={{ orgId: result.orgId }}");
+    expect(LAYOUT).toContain("draftOwnerId={result.userId}");
+    expect(LAYOUT).toContain("context={{ orgId: result.orgId }}");
     expect(FORM).toContain("window.sessionStorage");
     expect(FORM).toContain("readIntakeDraft");
     expect(FORM).toContain("writeIntakeDraft");

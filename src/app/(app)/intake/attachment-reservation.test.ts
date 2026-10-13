@@ -9,6 +9,7 @@ type Reservation = {
   uploadedBy: string;
   sizeBytes: number;
   uploadedAt?: Date;
+  uploadExpiresAt?: Date;
 };
 
 const state = vi.hoisted(() => ({
@@ -18,6 +19,10 @@ const state = vi.hoisted(() => ({
   returnedFailure: false,
   cleanupFailure: false,
   queryFailure: false,
+  expiryWriteFailure: false,
+  expiryWriteMissing: false,
+  signedUrl: "",
+  signingOptions: [] as unknown[],
   cleanupAttempts: 0,
 }));
 
@@ -28,11 +33,12 @@ vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => {
     if (state.clientFailure) throw new Error("Storage client unavailable");
     return { storage: { from: () => ({
-      createSignedUploadUrl: async () => {
+      createSignedUploadUrl: async (_path: string, options: unknown) => {
+        state.signingOptions.push(options);
         if (state.signingFailure) throw new Error("Storage signer unavailable");
         return state.returnedFailure
           ? { data: null, error: new Error("Storage declined signing") }
-          : { data: { signedUrl: "https://storage.example.test/signed" }, error: null };
+          : { data: { signedUrl: state.signedUrl }, error: null };
       },
     }) } };
   },
@@ -57,24 +63,38 @@ vi.mock("@/db", async () => {
         if (state.queryFailure) throw new Error("Reservation transaction unavailable");
         return run(tx);
       },
+      update: () => ({ set: (values: Partial<Reservation>) => ({ where: (predicate: SQL) => ({
+        returning: async () => {
+          if (state.expiryWriteFailure) throw new Error("Expiry persistence unavailable");
+          if (state.expiryWriteMissing) return [];
+          const rows = state.rows.filter((row) => matches(row, predicate));
+          rows.forEach((row) => Object.assign(row, values));
+          return rows.map((row) => ({ id: row.id }));
+        },
+      }) }) }),
       delete: () => ({ where: async (predicate: SQL) => {
         state.cleanupAttempts += 1;
         if (state.cleanupFailure) throw new Error("Cleanup database unavailable");
         // Interpret the real Drizzle predicate against in-memory rows, so a
         // broadened cleanup would actually remove the unrelated fixture.
-        const query = new PgDialect().sqlToQuery(predicate);
-        const fields = { id: "id", org_id: "orgId", request_id: "requestId", uploaded_by: "uploadedBy" } as const;
-        const equalities = [...query.sql.matchAll(/"(id|org_id|request_id|uploaded_by)" = \$(\d+)/g)];
-        state.rows = state.rows.filter((row) => {
-          const matches = equalities.every((match) =>
-            row[fields[match[1] as keyof typeof fields]] === query.params[Number(match[2]) - 1]
-          ) && (!query.sql.includes('"uploaded_at" is null') || !row.uploadedAt);
-          return !matches;
-        });
+        state.rows = state.rows.filter((row) => !matches(row, predicate));
       } }),
     },
   };
 });
+
+function matches(row: Reservation, predicate: SQL) {
+  const query = new PgDialect().sqlToQuery(predicate);
+  const fields = { id: "id", org_id: "orgId", request_id: "requestId", uploaded_by: "uploadedBy" } as const;
+  return [...query.sql.matchAll(/"(id|org_id|request_id|uploaded_by)" = \$(\d+)/g)]
+    .every((match) => row[fields[match[1] as keyof typeof fields]] === query.params[Number(match[2]) - 1])
+    && (!query.sql.includes('"uploaded_at" is null') || !row.uploadedAt);
+}
+
+function signedUrl(payload: unknown) {
+  const tokenPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `https://storage.example.test/signed?token=header.${tokenPayload}.signature`;
+}
 
 const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 const other: Reservation = {
@@ -88,16 +108,24 @@ const existing: Reservation = {
 const input = { requestId: REQUEST_ID, fileName: "evidence.txt", mimeType: "text/plain", sizeBytes: 100 };
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-11T10:00:00.000Z"));
   state.rows = [{ ...other }, { ...existing }];
   state.clientFailure = state.signingFailure = state.returnedFailure = false;
   state.cleanupFailure = state.queryFailure = false;
+  state.expiryWriteFailure = state.expiryWriteMissing = false;
+  state.signedUrl = signedUrl({ exp: 1791720000 }); // 2026-10-11 12:00 UTC
+  state.signingOptions = [];
   state.cleanupAttempts = 0;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("attachment reservation cleanup", () => {
-  it.each(["clientFailure", "signingFailure", "returnedFailure"] as const)(
+  it.each(["clientFailure", "signingFailure", "returnedFailure", "expiryWriteFailure", "expiryWriteMissing"] as const)(
     "releases only its reservation after %s, allowing a healthy retry",
     async (failure) => {
       const { prepareAttachmentUpload } = await import("./attachment-actions");
@@ -111,6 +139,40 @@ describe("attachment reservation cleanup", () => {
       expect(state.rows).toHaveLength(3);
     }
   );
+
+  it("records the provider expiry before returning a non-overwriting upload capability", async () => {
+    const { prepareAttachmentUpload } = await import("./attachment-actions");
+    const result = await prepareAttachmentUpload(input, { orgId: "org-test" });
+    expect(result).toMatchObject({ success: true, signedUrl: state.signedUrl });
+    if (!result.success) throw new Error("Expected prepared upload");
+    expect(state.rows.find((row) => row.id === result.attachmentId)).toMatchObject({
+      orgId: "org-test", uploadedBy: "user-test", requestId: REQUEST_ID,
+      uploadExpiresAt: new Date("2026-10-11T12:00:00.000Z"),
+    });
+    expect(state.signingOptions).toEqual([{ upsert: false }]);
+    expect(state.rows).toContainEqual(existing);
+    expect(state.rows).toContainEqual(other);
+    expect(state.cleanupAttempts).toBe(0);
+  });
+
+  it.each([
+    ["missing token", "https://storage.example.test/signed"],
+    ["invalid URL", "not-a-url"],
+    ["invalid JSON", "https://storage.example.test/signed?token=header.bm90LWpzb24.signature"],
+    ["missing expiry", signedUrl({})],
+    ["string expiry", signedUrl({ exp: "1791720000" })],
+    ["expired capability", signedUrl({ exp: 1791712800 })],
+    ["fractional expiry", signedUrl({ exp: 1791720000.5 })],
+    ["out-of-range date", signedUrl({ exp: Number.MAX_SAFE_INTEGER })],
+  ])("does not disclose a capability with %s and releases only its reservation", async (_label, url) => {
+    const { prepareAttachmentUpload } = await import("./attachment-actions");
+    state.signedUrl = url;
+    const result = await prepareAttachmentUpload(input, { orgId: "org-test" });
+    expect(result).toMatchObject({ success: false, error: { code: "storage_unavailable" } });
+    expect(result).not.toHaveProperty("signedUrl");
+    expect(state.rows).toEqual([other, existing]);
+    expect(state.cleanupAttempts).toBe(1);
+  });
 
   it("does not exhaust the five-file quota after repeated thrown signing failures", async () => {
     const { prepareAttachmentUpload } = await import("./attachment-actions");

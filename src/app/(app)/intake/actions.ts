@@ -187,6 +187,9 @@ export async function runTriage(
 
   const rateCheck = await checkAiRateLimit(auth.userId);
   if (!rateCheck.allowed) {
+    if (rateCheck.reason === "unavailable") {
+      return { success: false, error: TRIAGE_FAILURES.network };
+    }
     const retryAfterSeconds = Math.max(
       1,
       Math.ceil(rateCheck.retryAfterMs / 1000)

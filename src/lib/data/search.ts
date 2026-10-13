@@ -35,9 +35,7 @@ function resultPage<T>(items: T[], total: number, page: number): WorkspaceSearch
 }
 
 /**
- * Plan item 1.16: the workspace search query, moved unchanged out of
- * src/app/(app)/workspace-search-actions.ts so the GET route handler and the
- * server action run the same SQL under the same guards. The caller has
+ * The workspace search query for GET /api/search. The caller has
  * already checked membership and validated the input; database errors are
  * thrown and must not be logged, because they may include the bound search text.
  */

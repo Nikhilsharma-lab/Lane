@@ -1,7 +1,7 @@
 /**
  * Statement ceilings and guard checks for the server loaders (plan items 1.8,
  * 1.9 and 1.15a). Every loader takes the Clerk-derived MemberAuth explicitly,
- * so the only session mock here serves the getUnreadCount parity check.
+ * and the count route also exercises session-derived authorization.
  *
  * ISOLATION: seeds its own guest, Projects, Requests, comments, attachments
  * and notifications inside the shared org_test_a / org_test_b fixtures and
@@ -21,11 +21,11 @@ vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
 
 import { db, queryCounter, comments, notifications, profiles, projects, requestAttachments, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
-import { getUnreadCount } from "@/app/(app)/notifications/actions";
+import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
 import { loadProjects } from "./projects";
 import { loadUnreadCount } from "./notifications";
-import { DONE_PAGE_SIZE, loadOlderDoneRequests, loadProjectScope, loadRequestDetail, loadRequestList } from "./requests";
+import { DONE_PAGE_SIZE, loadOlderDoneRequests, loadRequestDetail, loadRequestList } from "./requests";
 
 const ORG = "org_test_a", OTHER_ORG = "org_test_b";
 const ADMIN = "user_test_admin_a", MEMBER = "user_test_member_a", OTHER_ADMIN = "user_test_admin_b";
@@ -41,6 +41,7 @@ const memberRequest = randomUUID(), guestRequest = randomUUID(), foreignRequest 
 // Enough Done Requests for one full page plus two older ones, oldest first.
 const doneRequests = Array.from({ length: DONE_PAGE_SIZE + 2 }, () => randomUUID());
 const foreignDone = randomUUID();
+const guestDone = [randomUUID(), randomUUID()];
 const uploadedAttachment = randomUUID(), pendingAttachment = randomUUID();
 const notificationIds = Array.from({ length: 7 }, () => randomUUID());
 
@@ -58,6 +59,7 @@ beforeAll(async () => {
     // Done Requests sit far in the future so they are the newest in org_test_a.
     ...doneRequests.map((id, index) => ({ id, orgId: ORG, title: `Loader Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: MEMBER, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1, 0, 0, index)) })),
     { id: foreignDone, orgId: OTHER_ORG, title: "Loader foreign Done", description: "Seeded by loaders.test.ts", createdBy: OTHER_ADMIN, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1)) },
+    ...guestDone.map((id, index) => ({ id, orgId: ORG, title: `Loader guest Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: GUEST, status: "done" as const, createdAt: new Date(Date.UTC(2080, 0, index + 1)) })),
   ]);
   await db.insert(comments).values([
     { requestId: memberRequest, authorId: MEMBER, body: "First comment", createdAt: new Date("2026-01-01T08:00:00Z") },
@@ -82,7 +84,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.delete(notifications).where(inArray(notifications.id, notificationIds));
-  await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, foreignRequest, foreignDone, ...doneRequests]));
+  await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, foreignRequest, foreignDone, ...doneRequests, ...guestDone]));
   await db.delete(projects).where(inArray(projects.id, [memberProject, guestProject, foreignProject]));
   await db.delete(profiles).where(inArray(profiles.id, [GUEST]));
 });
@@ -133,30 +135,13 @@ describe("loadUnreadCount", () => {
     expect(await loadUnreadCount(guest)).toBe(1);
   });
 
-  it("agrees with the getUnreadCount action, whose visibility rule it repeats", async () => {
+  it("serves the same scoped unread count through the current GET endpoint", async () => {
     for (const auth of [admin, guest]) {
       Object.assign(session, { userId: auth.userId, orgId: auth.orgId, orgRole: `org:${auth.role}` });
-      expect(await getUnreadCount({ orgId: ORG })).toEqual({ success: true, count: await loadUnreadCount(auth) });
+      const response = await unreadCount(new Request(`http://lane.test/api/notifications/unread?${new URLSearchParams({ org: ORG })}`));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ count: auth.role === "guest" ? 1 : 2 });
     }
-  });
-});
-
-describe("loadProjectScope", () => {
-  it("needs no statement for all, none or a malformed id", async () => {
-    for (const [filter, unavailable] of [["all", false], ["none", false], ["bad-id", true]] as const) {
-      const { result, statements } = await queryCounter.measure(() => loadProjectScope(member, filter));
-      expect(statements).toBe(0);
-      expect(result).toEqual({ unavailable });
-    }
-  });
-
-  it("names an accessible Project in one statement and keeps a guest out of others", async () => {
-    const { result, statements } = await queryCounter.measure(() => loadProjectScope(member, memberProject));
-    expect(statements).toBeLessThanOrEqual(1);
-    expect(result).toEqual({ unavailable: false, name: "Loader member project" });
-    expect(await loadProjectScope(guest, memberProject)).toEqual({ unavailable: true, name: undefined });
-    expect(await loadProjectScope(guest, guestProject)).toEqual({ unavailable: false, name: "Loader guest project" });
-    expect(await loadProjectScope(member, foreignProject)).toEqual({ unavailable: true, name: undefined });
   });
 });
 
@@ -206,6 +191,18 @@ describe("loadRequestList", () => {
     const malformed = await queryCounter.measure(() => loadOlderDoneRequests(member, "not-a-uuid"));
     expect(malformed.statements).toBe(0);
     expect(malformed.result).toEqual({ rows: [], hasOlderDone: false });
+  });
+
+  it("does not use a hidden Request as a guest pagination cursor", async () => {
+    // Both guest rows predate the hidden member cursor. Without cursor visibility,
+    // the hidden UUID reveals itself by returning these otherwise authorized rows.
+    for (const cursorId of [doneRequests[2], foreignDone, randomUUID()]) {
+      expect(await loadOlderDoneRequests(guest, cursorId)).toEqual({ rows: [], hasOlderDone: false });
+    }
+    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(guest, guestDone[1]));
+    expect(statements).toBeLessThanOrEqual(1);
+    expect(result.rows.map(row => row.id)).toEqual([guestDone[0]]);
+    expect(result.hasOlderDone).toBe(false);
   });
 });
 

@@ -1,3 +1,80 @@
+.page {
+  width: 100%;
+  max-width: 768px;
+  min-height: 100%;
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-6) 0;
+}
+
+.pageSurface,
+.composeForm,
+.composeBody,
+.dialog,
+.details,
+.supporting {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.pageSurface,
+.composeBody { gap: var(--space-6); }
+.details,
+.supporting { gap: var(--space-4); }
+
+.composeForm :is(input, textarea, button, [tabindex]) {
+  scroll-margin-block: var(--space-6) calc(var(--space-16) + var(--space-8));
+}
+
+.supporting { gap: var(--space-3); }
+
+.titleEditor,
+.descriptionEditor {
+  /* These are writing surfaces: the native caret identifies editing focus. */
+  --focus-outline: transparent;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-2) 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  line-height: var(--leading-body);
+  outline: none;
+  box-shadow: none;
+}
+
+.titleEditor::placeholder,
+.descriptionEditor::placeholder {
+  color: var(--text-placeholder, var(--text-muted));
+}
+
+.titleEditor { min-height: var(--space-12); font-size: var(--text-xl); font-weight: 500; }
+.descriptionEditor { min-height: var(--space-24); resize: none; font-size: var(--text-sm); }
+
+.composeFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-block: var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
+  background: var(--surface-raised);
+}
+
+.page .composeFooter { background: var(--surface); }
+.composeFooter p { flex: 1 1 16rem; }
+
+@media (max-width: 640px) {
+  .page { padding: var(--space-6) var(--space-4) 0; }
+}
+
 .reviewFooter {
   position: sticky;
   bottom: 0;
@@ -5,3 +82,14 @@
   padding-bottom: var(--space-4);
   background: var(--surface-raised);
 }
+
+.dialog { min-height: 0; flex: 1; }
+.dialog .composeForm { min-height: 0; overflow: hidden; }
+.dialog .composeBody { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.dialog .details { gap: var(--space-2); }
+.dialog .descriptionEditor { min-height: var(--space-16); }
+.dialog .composeFooter { flex: 0 0 auto; margin-top: var(--space-4); }
+.reviewBody { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.dialog .reviewFooter { flex: 0 0 auto; padding-top: var(--space-4); }
+
+.recoveryBody { min-height: 0; overflow: auto; padding-block: var(--space-3) var(--space-6); overscroll-behavior: contain; scrollbar-width: thin; }

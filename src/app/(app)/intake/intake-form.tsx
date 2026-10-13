@@ -16,23 +16,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckIcon,
   PlusIcon,
-  FileTextIcon,
-  ImageIcon,
   LightbulbIcon,
   LoaderCircleIcon,
   PaperclipIcon,
   RotateCcwIcon,
-  Trash2Icon,
-  XIcon,
+  TargetIcon,
 } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
-import { Progress } from "@/components/arc/progress/progress";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
+import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
 import {
   clearIntakeDraft,
@@ -42,7 +39,6 @@ import {
 } from "@/lib/intake-draft";
 import {
   ATTACHMENT_ACCEPT,
-  formatAttachmentSize,
   MAX_ATTACHMENT_FILES,
   validateAttachmentMetadata,
   validateAttachmentSelection,
@@ -237,17 +233,6 @@ function IntakeNotice({
   );
 }
 
-function AttachmentIcon({ file }: { file: File }) {
-  if (file.type.startsWith("image/")) {
-    return (
-      <ImageIcon aria-hidden="true" className="size-4" />
-    );
-  }
-  return (
-    <FileTextIcon aria-hidden="true" className="size-4" />
-  );
-}
-
 export default function IntakeForm({
   context,
   draftOwnerId,
@@ -269,6 +254,7 @@ export default function IntakeForm({
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
+  const [impactOpen, setImpactOpen] = useState(false);
   const projects = useWorkspaceProjects(context.orgId, active);
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -296,6 +282,7 @@ export default function IntakeForm({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachFilesButtonRef = useRef<HTMLButtonElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId);
@@ -578,6 +565,7 @@ export default function IntakeForm({
               message: result.error.message,
             });
             if (result.error.field === "usefulLink") setLinkOpen(true);
+            if (result.error.field === "expectedImpact") setImpactOpen(true);
             setStage("compose");
             const field = result.error.field;
             // Optional controls may have just expanded. Wait for their render
@@ -786,6 +774,7 @@ export default function IntakeForm({
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;
           setError(field, { type: "server", message: result.error.message });
+          if (field === "expectedImpact") setImpactOpen(true);
           setStage("compose");
           window.setTimeout(() => focusRequestField(field), 0);
           return;
@@ -986,6 +975,7 @@ export default function IntakeForm({
     onBusyChange?.(true);
     void handleSubmit(checkFraming, (fieldErrors) => {
       onBusyChange?.(false);
+      if (fieldErrors.expectedImpact) setImpactOpen(true);
       const firstField = Object.keys(fieldErrors)[0] as keyof RequestInput | undefined;
       if (!firstField) return;
       if (firstField !== "title" && firstField !== "description") {
@@ -996,7 +986,7 @@ export default function IntakeForm({
   }
 
   return (
-    <div className={presentation === "page" ? "mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
+    <div className={presentation === "page" ? styles.page : styles.dialog}>
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
         <IntakeNavigationGuard
           creating={creating}
@@ -1009,7 +999,7 @@ export default function IntakeForm({
         {active ? liveStatus : ""}
       </p>
       {presentation === "dialog" && reviewing && <h2 ref={headingRef} tabIndex={-1} className="mb-5 text-lg font-medium">Review Request</h2>}
-      <Surface className={presentation === "page" ? "space-y-6" : cn("min-h-0 min-w-0 flex-1", reviewing ? "flex flex-col" : "space-y-5")}>
+      <Surface className={presentation === "page" ? styles.pageSurface : "flex min-h-0 min-w-0 flex-1 flex-col"}>
         {presentation === "page" && composing && (
           <header className="space-y-1.5">
             <h1 className="text-xl font-medium tracking-tight">New Request</h1>
@@ -1043,102 +1033,101 @@ export default function IntakeForm({
               event.preventDefault();
               addFiles(Array.from(event.dataTransfer.files));
             }}
-            className="space-y-5"
+            className={styles.composeForm}
           >
+            <div className={styles.composeBody}>
             {restoredDraft && (
               <IntakeNotice attention>
                 Your text and links were restored. Choose any files again before creating the Request.
               </IntakeNotice>
             )}
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.title)}>
-              <Input
-                label="Request title"
-                id="intake-title"
-                placeholder="Request title"
-                maxLength={TITLE_MAX}
-                readOnly={checking}
-                aria-invalid={Boolean(errors.title) || undefined}
-                aria-describedby={errors.title ? "intake-title-error" : undefined}
-                {...register("title")}
-              />
-              {errors.title && (
-                <p className="text-destructive-foreground" id="intake-title-error">
-                  {errors.title.message}
-                </p>
-              )}
-            </div>
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.description)}>
-              <Textarea
-                label="Description"
-                id="intake-description"
-                placeholder="Add a description…"
-                rows={3}
-                maxLength={DESCRIPTION_MAX}
-                readOnly={checking}
-                aria-invalid={Boolean(errors.description) || undefined}
-                aria-describedby={errors.description ? "intake-description-error" : undefined}
-                {...register("description")}
-              />
-              {errors.description && (
-                <p className="text-destructive-foreground" id="intake-description-error">
-                  {errors.description.message}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
-              <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
-              <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => { draftEdited.current = true; setValue("requestType", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} error={errors.requestType?.message} />
-              <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
-                {currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}Add link
-              </Button>
-              <Button type="button" variant="ghost" size="sm"  onClick={() => fileInputRef.current?.click()} disabled={checking}>
-                <PaperclipIcon aria-hidden="true" data-icon="inline-start" />Attach files
-              </Button>
-              <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
-                onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
-            </div>
-            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
-            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
+            <section aria-label="Request details" className={styles.details}>
+              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.title)}>
+                <label htmlFor="intake-title" className="sr-only">Request title</label>
+                <input
+                  id="intake-title"
+                  className={styles.titleEditor}
+                  placeholder="Request title"
+                  maxLength={TITLE_MAX}
+                  readOnly={checking}
+                  aria-invalid={Boolean(errors.title) || undefined}
+                  aria-describedby={errors.title ? "intake-title-error" : undefined}
+                  {...register("title")}
+                />
+                {errors.title && (
+                  <p className="text-destructive-foreground" id="intake-title-error">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.description)}>
+                <label htmlFor="intake-description" className="sr-only">Description</label>
+                <textarea
+                  id="intake-description"
+                  className={styles.descriptionEditor}
+                  placeholder="Add a description…"
+                  rows={3}
+                  maxLength={DESCRIPTION_MAX}
+                  readOnly={checking}
+                  aria-invalid={Boolean(errors.description) || undefined}
+                  aria-describedby={errors.description ? "intake-description-error" : undefined}
+                  {...register("description")}
+                />
+                {errors.description && (
+                  <p className="text-destructive-foreground" id="intake-description-error">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
+              <section aria-label="Supporting details" className={styles.supporting}>
+                <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
+                  <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
+                  <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => { draftEdited.current = true; setValue("requestType", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} error={errors.requestType?.message} />
+                  <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
+                    {currentValues.usefulLink ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <PlusIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Add link
+                  </Button>
+                  {presentation === "dialog" && <Button type="button" variant="secondary" size="sm" aria-expanded={impactOpen} aria-controls="intake-impact-disclosure" onClick={() => setImpactOpen(open => !open)} disabled={checking}>
+                    {expectedImpactSchema.safeParse(currentValues.expectedImpact).success ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <TargetIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Expected impact
+                  </Button>}
+                  <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
+                    <PaperclipIcon size={14} strokeWidth={1.75} aria-hidden="true" data-icon="inline-start" />Attach files
+                  </Button>
+                  <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
+                    onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
+                </div>
+                {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
+                {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
+                <section id="intake-link-section" hidden={!linkOpen} aria-label="Request link">
+                  <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
+                    <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
+                      aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
+                    {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
+                  </div>
+                </section>
+                {fileFailure && <IntakeNotice error>{fileFailure}</IntakeNotice>}
+                <IntakeAttachmentList items={attachments} mode="queued" disabled={checking}
+                  onRemove={(item) => removeQueuedFile(item.key)} emptyFocusRef={attachFilesButtonRef} />
+                {attachments.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
+                  </p>
+                )}
+              </section>
+            </section>
+            <div id="intake-impact-disclosure" hidden={presentation === "dialog" && !impactOpen}>
             <ExpectedImpactFields
               value={expectedImpactDraftSchema.parse(currentValues.expectedImpact) ?? EMPTY_METRIC_IMPACT}
               onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
               disabled={checking}
               errors={errors.expectedImpact}
             />
-            <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
-              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
-                <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
-                  aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
-                {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
-              </div>
-            </section>
+            </div>
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
             {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
               <h2 className="text-sm font-medium">Problem from your earlier review</h2>
               <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{previousProblem}</p>
             </section>}
 
-            {fileFailure && <IntakeNotice error>{fileFailure}</IntakeNotice>}
-            {attachments.length > 0 && (
-              <div className="space-y-2">
-                <ul aria-label="Files ready to upload" className="divide-y">
-                  {attachments.map((attachment) => (
-                    <li key={attachment.key} className="flex items-center gap-3 py-2">
-                      <span className="shrink-0 text-muted-foreground"><AttachmentIcon file={attachment.file} /></span>
-                      <span className="min-w-0 flex-1 truncate text-sm">{attachment.file.name}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatAttachmentSize(attachment.file.size)}</span>
-                      <Button type="button" size="sm" variant="ghost" aria-label={`Remove ${attachment.file.name}`} onClick={() => removeQueuedFile(attachment.key)} disabled={checking}>
-                        <XIcon aria-hidden="true" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">
-                  Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
-                </p>
-              </div>
-            )}
             {failure && (
               <IntakeNotice error title="Could not prepare the review">
                 <span>{failure.message}</span>
@@ -1147,15 +1136,16 @@ export default function IntakeForm({
                 )}
               </IntakeNotice>
             )}
-            <footer className="flex justify-end border-t pt-4">
+            </div>
+            <footer className={styles.composeFooter}>
+              {checking && showSlowCue && (
+                <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
+              )}
               <Button type="submit" disabled={checking || projectBusy}>
                 {checking && <LoaderCircleIcon aria-hidden="true" data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />}
                 {checking ? "Preparing review…" : "Review Request"}
               </Button>
             </footer>
-            {checking && showSlowCue && (
-              <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
-            )}
           </form>
         )}
       {(stage === "framing" || stage === "creating") && triage && source && (
@@ -1164,7 +1154,7 @@ export default function IntakeForm({
           aria-busy={creating || undefined}
           onKeyDown={onReviewKeyDown}
         >
-          <div className={cn("space-y-6", presentation === "dialog" && "min-h-0 flex-1")}>
+          <div className={cn("space-y-6", presentation === "dialog" && styles.reviewBody)}>
           {(presentation === "page" || triage.classification !== "problem" || restoredDraft) && <header className="space-y-3">
             <div className="space-y-2">
               {presentation === "page" && <h2
@@ -1372,7 +1362,7 @@ export default function IntakeForm({
 
       {(stage === "uploading" || stage === "attachment_recovery") &&
         createdRequestId && (
-          <div className={cn(reveal, "mx-auto max-w-[680px] space-y-6")}>
+          <div className={cn(reveal, "mx-auto w-full max-w-[680px] space-y-6", presentation === "dialog" && styles.recoveryBody)}>
             <header className="space-y-2">
               <p
                 className={cn(
@@ -1410,99 +1400,9 @@ export default function IntakeForm({
               </p>
             </header>
 
-            <ul aria-label="Request file uploads" className="space-y-3">
-              {attachments.map((attachment) => (
-                <li
-                  key={attachment.key}
-                  className="flex items-start gap-3 border-b py-3 last:border-0"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
-                    <AttachmentIcon file={attachment.file} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("text-sm font-medium", "truncate")}>
-                      {attachment.file.name}
-                    </p>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <p
-                        className={cn(
-                          "text-xs",
-                          cn(
-                            "text-muted-foreground",
-                            attachment.status === "failed" &&
-                              "text-destructive-foreground",
-                            attachment.status === "uploaded" &&
-                              "text-success-foreground",
-                          ),
-                        )}
-                      >
-                        {attachment.status === "queued"
-                          ? "Waiting"
-                          : attachment.status === "uploading"
-                            ? `${attachment.progress}% uploaded`
-                            : attachment.status === "uploaded"
-                              ? "Uploaded"
-                              : "Upload failed"}
-                      </p>
-                      {attachment.status === "uploaded" && (
-                        <CheckIcon
-                          aria-hidden="true"
-                          className="size-4 shrink-0 text-success-foreground"
-                        />
-                      )}
-                    </div>
-                    {attachment.status === "uploading" && (
-                      <Progress
-                        value={attachment.progress}
-                        aria-label={`Uploading ${attachment.file.name}`}
-                        className="mt-2"
-                      />
-                    )}
-                    {attachment.error && (
-                      <p
-                        className={cn(
-                          "text-xs",
-                          "mt-2 text-destructive-foreground",
-                        )}
-                      >
-                        {attachment.error}
-                      </p>
-                    )}
-                    {stage === "attachment_recovery" &&
-                      attachment.status === "failed" && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => void retryAttachments([attachment])}
-                            disabled={mutationBusy}
-                          >
-                            <RotateCcwIcon
-                              aria-hidden="true"
-                              data-icon="inline-start"
-                            />
-                            Retry upload
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => void removeFailedFile(attachment)}
-                            disabled={mutationBusy}
-                          >
-                            <Trash2Icon
-                              aria-hidden="true"
-                              data-icon="inline-start"
-                            />
-                            Remove
-                          </Button>
-                        </div>
-                      )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <IntakeAttachmentList items={attachments} mode={stage === "uploading" ? "uploading" : "recovery"}
+              disabled={mutationBusy} onRetry={(item) => retryAttachments([item])}
+              onRemove={removeFailedFile} emptyFocusRef={headingRef} />
 
             {stage === "attachment_recovery" && hasPendingUploads && (
               <div className="flex flex-col gap-3 sm:flex-row">

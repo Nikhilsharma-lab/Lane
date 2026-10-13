@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { GET as reviewerList } from "@/app/api/reviewers/route";
+import type { ReviewPerson } from "@/lib/request-review";
+
+async function readDesignReviewers(requestId: string, query: string, context: { orgId: string }) {
+  const params = new URLSearchParams({ org: context.orgId, request: requestId, q: query });
+  const response = await reviewerList(new Request(`http://lane.test/api/reviewers?${params}`));
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  return await response.json() as { members: ReviewPerson[] } | { error: string };
+}
 
 const boundary = vi.hoisted(() => ({
   session: { userId: "", orgId: "", orgRole: "org:member" },
@@ -61,10 +70,9 @@ afterAll(async () => {
 
 describe("Ask for review authorization and persistence", () => {
   it("lists current onboarded non-guests in this workspace, excluding the requester", async () => {
-    const { listDesignReviewers } = await api();
-    const result = await listDesignReviewers(requestId, "", { orgId: ORG });
+    const result = await readDesignReviewers(requestId, "", { orgId: ORG });
     expect(result).toEqual({ members: [{ id: ADMIN, name: "Admin" }, { id: FIRST, name: "Reviewer First" }, { id: SECOND, name: "Reviewer Second" }] });
-    expect(await listDesignReviewers(requestId, "Reviewer Second", { orgId: ORG })).toEqual({ members: [{ id: SECOND, name: "Reviewer Second" }] });
+    expect(await readDesignReviewers(requestId, "Reviewer Second", { orgId: ORG })).toEqual({ members: [{ id: SECOND, name: "Reviewer Second" }] });
   });
 
   it.each([FIRST, ADMIN])("saves a real review and notifies selected member %s without changing work status", async reviewer => {
@@ -85,28 +93,28 @@ describe("Ask for review authorization and persistence", () => {
   });
 
   it("revalidates a selected member who left after the picker opened", async () => {
-    const { listDesignReviewers, requestDesignReview } = await api();
-    expect(await listDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("members");
+    const { requestDesignReview } = await api();
+    expect(await readDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("members");
     boundary.memberships = boundary.memberships.filter(item => item.publicUserData.userId !== FIRST);
     expect(await requestDesignReview(requestId, input(), { orgId: ORG })).toHaveProperty("error");
     expect(await state()).toMatchObject({ version: 0, reviews: [] });
   });
 
   it("denies guest actions and foreign Request access, including the member picker", async () => {
-    const { listDesignReviewers, requestDesignReview } = await api();
+    const { requestDesignReview } = await api();
     actAs(GUEST, "org:guest");
-    expect(await listDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("error");
+    expect(await readDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("error");
     expect(await requestDesignReview(requestId, input(), { orgId: ORG })).toHaveProperty("error");
     actAs(FOREIGN, "org:member", FOREIGN_ORG);
-    expect(await listDesignReviewers(requestId, "", { orgId: FOREIGN_ORG })).toHaveProperty("error");
+    expect(await readDesignReviewers(requestId, "", { orgId: FOREIGN_ORG })).toHaveProperty("error");
     expect(await requestDesignReview(requestId, input(), { orgId: FOREIGN_ORG })).toHaveProperty("error");
     expect(await state()).toMatchObject({ version: 0, reviews: [] });
   });
 
   it("fails closed on Clerk failure and preserves the saved state", async () => {
-    const { requestDesignReview, listDesignReviewers } = await api();
+    const { requestDesignReview } = await api();
     boundary.clerkFailure = true;
-    expect(await listDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("error");
+    expect(await readDesignReviewers(requestId, "", { orgId: ORG })).toHaveProperty("error");
     expect(await requestDesignReview(requestId, input(), { orgId: ORG })).toHaveProperty("error");
     expect(await state()).toMatchObject({ version: 0, reviews: [] });
   });

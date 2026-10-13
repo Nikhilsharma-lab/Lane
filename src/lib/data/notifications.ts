@@ -6,12 +6,10 @@ import { db, notifications, profiles, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 
 /**
- * The same visibility rule as src/app/(app)/notifications/actions.ts. That
- * file is a "use server" module, which may only export async functions, so
- * the predicate is repeated here; src/lib/data/loaders.test.ts checks that the
- * loader and getUnreadCount agree on the same fixtures.
+ * Shared by notification reads and mutations so a historical delivery never
+ * grants access to a Request the caller can no longer see.
  */
-function notificationVisibility(auth: MemberAuth) {
+export function notificationVisibility(auth: MemberAuth) {
   const visibleRequest = exists(
     db
       .select({ id: requests.id })
@@ -64,9 +62,7 @@ export type NotificationRow = {
 };
 
 /**
- * Plan item 1.16: the notification list for the bell, the same statement as
- * getNotifications in src/app/(app)/notifications/actions.ts so the GET route
- * and the action agree. src/app/api/read-routes.test.ts covers its org and
+ * The notification list for the bell. src/app/api/read-routes.test.ts covers its org and
  * guest scoping through GET /api/notifications.
  */
 export async function loadNotifications(auth: MemberAuth): Promise<NotificationRow[]> {

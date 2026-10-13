@@ -86,21 +86,20 @@ async function transitionRequest(
   return rows[0];
 }
 
-/** Runs only after the one-statement transition matched no row, to say why
- * in the same words as before: missing, another workspace's, already moved
- * on, or changed between the two statements. */
+/** Diagnoses a missed transition only within the authorized workspace.
+ * Missing and invisible Requests have the same response; visible Requests
+ * retain the status and race messages that explain how to recover. */
 async function explainFailedTransition(
   transition: LifecycleTransition,
   requestId: string,
   orgId: string
 ): Promise<string> {
   const [req] = await db
-    .select({ status: requests.status, orgId: requests.orgId })
+    .select({ status: requests.status })
     .from(requests)
-    .where(eq(requests.id, requestId));
+    .where(and(eq(requests.id, requestId), eq(requests.orgId, orgId)));
 
-  if (!req) return "Request not found";
-  if (req.orgId !== orgId) return "Not found";
+  if (!req) return "Not found";
   if (req.status !== transition.from) {
     return `This Request is no longer ${transition.label}. Refresh to see its current state.`;
   }
@@ -217,15 +216,17 @@ async function transitionRequests(
   let failed = invalid;
   if (missed.length) {
     const found = await db
-      .select({ id: requests.id, status: requests.status, orgId: requests.orgId })
+      .select({ id: requests.id, status: requests.status })
       .from(requests)
-      .where(sql`${requests.id} = any(${`{${missed.join(",")}}`}::uuid[])`);
+      .where(and(
+        eq(requests.orgId, auth.orgId),
+        sql`${requests.id} = any(${`{${missed.join(",")}}`}::uuid[])`,
+      ));
     failed = [
       ...invalid,
       ...missed.map((id) => {
         const req = found.find((row) => row.id === id);
-        if (!req) return { id, error: "Request not found" };
-        if (req.orgId !== auth.orgId) return { id, error: "Not found" };
+        if (!req) return { id, error: "Not found" };
         if (req.status !== transition.from) {
           return { id, error: `This Request is no longer ${transition.label}. Refresh to see its current state.` };
         }
@@ -313,12 +314,11 @@ export async function undoMarkDone(
 
   if (!updated) {
     const [req] = await db
-      .select({ status: requests.status, orgId: requests.orgId, updatedAt: requests.updatedAt })
+      .select({ status: requests.status, updatedAt: requests.updatedAt })
       .from(requests)
-      .where(eq(requests.id, requestId));
+      .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)));
 
-    if (!req) return { error: "Request not found" };
-    if (req.orgId !== auth.orgId) return { error: "Not found" };
+    if (!req) return { error: "Not found" };
     if (req.status !== "done") {
       return { error: "This Request is not Done. Refresh to see its current state." };
     }
@@ -351,15 +351,15 @@ export async function addComment(
   }
 
   const [req] = await db
-    .select({ orgId: requests.orgId, createdBy: requests.createdBy, assignedTo: requests.assignedTo })
+    .select({ createdBy: requests.createdBy, assignedTo: requests.assignedTo })
     .from(requests)
-    .where(eq(requests.id, requestId));
+    .where(and(
+      eq(requests.id, requestId),
+      eq(requests.orgId, auth.orgId),
+      auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
+    ));
 
-  if (!req || req.orgId !== auth.orgId) {
-    return { error: "Request not found" };
-  }
-
-  if (auth.role === "guest" && req.createdBy !== auth.userId) {
+  if (!req) {
     return { error: "Not found" };
   }
 

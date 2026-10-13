@@ -17,6 +17,21 @@ import {
   notifications,
 } from "@/db";
 import { eq } from "drizzle-orm";
+import { GET as notificationList } from "@/app/api/notifications/route";
+import { GET as unreadCount } from "@/app/api/notifications/unread/route";
+import type { NotificationRow } from "@/lib/data/notifications";
+
+type ReadNotification = Omit<NotificationRow, "createdAt" | "readAt"> & { createdAt: string; readAt: string | null };
+async function readNotifications(context: { orgId: string }) {
+  const response = await notificationList(new Request(`http://lane.test/api/notifications?${new URLSearchParams({ org: context.orgId })}`));
+  expect(response.status).toBe(200);
+  return await response.json() as { notifications: ReadNotification[] };
+}
+async function readUnreadCount(context: { orgId: string }) {
+  const response = await unreadCount(new Request(`http://lane.test/api/notifications/unread?${new URLSearchParams({ org: context.orgId })}`));
+  expect(response.status).toBe(200);
+  return await response.json() as { count: number };
+}
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -84,12 +99,10 @@ afterAll(async () => {
   await db.delete(workspaces).where(eq(workspaces.id, WS_ID));
 });
 
-describe("getNotifications — own-scoped reads", () => {
+describe("GET /api/notifications — own-scoped reads", () => {
   it("user A sees only their own notifications", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
-    const { getNotifications } = await import("@/app/(app)/notifications/actions");
-    const result = await getNotifications({ orgId: WS_ID });
-    expect(result).toHaveProperty("success", true);
+    const result = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(2);
     expect(result.notifications.every((n) => n.actorName === "User B")).toBe(true);
@@ -98,9 +111,7 @@ describe("getNotifications — own-scoped reads", () => {
 
   it("user B sees only their own notifications", async () => {
     mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
-    const { getNotifications } = await import("@/app/(app)/notifications/actions");
-    const result = await getNotifications({ orgId: WS_ID });
-    expect(result).toHaveProperty("success", true);
+    const result = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(1);
     expect(result.notifications[0].actorName).toBe("User A");
@@ -108,21 +119,17 @@ describe("getNotifications — own-scoped reads", () => {
 
   it("guest sees only own-request notifications", async () => {
     mockSession = { userId: GUEST_USER, orgId: WS_ID, orgRole: "org:guest" };
-    const { getNotifications } = await import("@/app/(app)/notifications/actions");
-    const result = await getNotifications({ orgId: WS_ID });
-    expect(result).toHaveProperty("success", true);
+    const result = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications).toHaveLength(1);
     expect(result.notifications[0].requestTitle).toBe("Guest request");
   });
 });
 
-describe("getUnreadCount", () => {
+describe("GET /api/notifications/unread", () => {
   it("returns correct unread count for user A", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
-    const { getUnreadCount } = await import("@/app/(app)/notifications/actions");
-    const result = await getUnreadCount({ orgId: WS_ID });
-    expect(result).toHaveProperty("success", true);
+    const result = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in result)) throw new Error("missing count");
     expect(result.count).toBe(2);
   });
@@ -131,7 +138,7 @@ describe("getUnreadCount", () => {
 describe("markNotificationRead — own-scoped writes", () => {
   it("user A marks own notification as read", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
-    const { markNotificationRead, getUnreadCount } = await import("@/app/(app)/notifications/actions");
+    const { markNotificationRead } = await import("@/app/(app)/notifications/actions");
     const result = await markNotificationRead(NOTIF_A1, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
 
@@ -141,7 +148,7 @@ describe("markNotificationRead — own-scoped writes", () => {
       .where(eq(notifications.id, NOTIF_A1));
     expect(row.readAt).not.toBeNull();
 
-    const count = await getUnreadCount({ orgId: WS_ID });
+    const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(1);
   });
@@ -163,11 +170,11 @@ describe("markNotificationRead — own-scoped writes", () => {
 describe("markAllNotificationsRead", () => {
   it("marks all of user A's unread notifications as read", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
-    const { markAllNotificationsRead, getUnreadCount } = await import("@/app/(app)/notifications/actions");
+    const { markAllNotificationsRead } = await import("@/app/(app)/notifications/actions");
     const result = await markAllNotificationsRead({ orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
 
-    const count = await getUnreadCount({ orgId: WS_ID });
+    const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(0);
   });
@@ -192,7 +199,7 @@ describe("markAllNotificationsRead", () => {
 describe("markNotificationUnread — own-scoped writes", () => {
   it("user A marks own read notification as unread", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
-    const { markNotificationUnread, getUnreadCount } = await import("@/app/(app)/notifications/actions");
+    const { markNotificationUnread } = await import("@/app/(app)/notifications/actions");
 
     const [before] = await db
       .select({ readAt: notifications.readAt })
@@ -209,7 +216,7 @@ describe("markNotificationUnread — own-scoped writes", () => {
       .where(eq(notifications.id, NOTIF_A1));
     expect(after.readAt).toBeNull();
 
-    const count = await getUnreadCount({ orgId: WS_ID });
+    const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(1);
   });
@@ -279,24 +286,22 @@ describe("notification visibility after a member becomes a guest", () => {
 
   it("members retain workspace notifications but cannot read a cross-workspace Request title", async () => {
     mockSession.orgRole = "org:member";
-    const { getNotifications, getUnreadCount } = await import("@/app/(app)/notifications/actions");
-    const result = await getNotifications({ orgId: WS_ID });
+    const result = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
     expect(result.notifications.map((row) => row.id).sort()).toEqual(
       [ownNotification, otherRequestNotification, workspaceNotification].sort()
     );
-    expect(await getUnreadCount({ orgId: WS_ID })).toEqual({ success: true, count: 3 });
+    expect(await readUnreadCount({ orgId: WS_ID })).toEqual({ count: 3 });
   });
 
   it("a downgrade immediately hides previous notifications about other Requests and non-Request events", async () => {
-    const { getNotifications } = await import("@/app/(app)/notifications/actions");
     mockSession.orgRole = "org:member";
-    const before = await getNotifications({ orgId: WS_ID });
+    const before = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in before) || !before.notifications) throw new Error("missing notifications");
     expect(before.notifications.some((row) => row.id === otherRequestNotification)).toBe(true);
 
     mockSession.orgRole = "org:guest";
-    const after = await getNotifications({ orgId: WS_ID });
+    const after = await readNotifications({ orgId: WS_ID });
     if (!("notifications" in after) || !after.notifications) throw new Error("missing notifications");
     expect(after.notifications.map((row) => ({ id: row.id, title: row.requestTitle }))).toEqual([
       { id: ownNotification, title: "Still visible" },
@@ -304,8 +309,7 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 
   it("the guest unread count includes only currently visible Requests", async () => {
-    const { getUnreadCount } = await import("@/app/(app)/notifications/actions");
-    expect(await getUnreadCount({ orgId: WS_ID })).toEqual({ success: true, count: 1 });
+    expect(await readUnreadCount({ orgId: WS_ID })).toEqual({ count: 1 });
   });
 
   it("mark-read does not mutate a hidden notification even when its id is known", async () => {
@@ -328,10 +332,10 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 
   it("mark-all-read mutates exactly the guest-visible notifications", async () => {
-    const { markAllNotificationsRead, getUnreadCount } = await import("@/app/(app)/notifications/actions");
+    const { markAllNotificationsRead } = await import("@/app/(app)/notifications/actions");
     await markAllNotificationsRead({ orgId: WS_ID });
     const rows = await db.select().from(notifications).where(eq(notifications.userId, downgradedUser));
     expect(rows.filter((row) => row.readAt !== null).map((row) => row.id)).toEqual([ownNotification]);
-    expect(await getUnreadCount({ orgId: WS_ID })).toEqual({ success: true, count: 0 });
+    expect(await readUnreadCount({ orgId: WS_ID })).toEqual({ count: 0 });
   });
 });

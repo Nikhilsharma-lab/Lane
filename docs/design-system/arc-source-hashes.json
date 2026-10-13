@@ -63,7 +63,7 @@
     "source": "https://uiarc.dev/r/button.json",
     "file": "src/components/arc/button/button.module.css",
     "upstreamSha256": "61ea6f33ef8dcf2e8335967c30e9ec4ca211ec06ee6a81fde3239b0d2c8bcb84",
-    "localSha256": "abd8e01e0a606825d9f74426cd8ceb3fa995ee2faf069cf1de92cd2a7bcb097e"
+    "localSha256": "711eb13f88ceda6dd0a3ac1cbbff2b209cae9ec057c94aecd9d75a6fd6dabd01"
   },
   {
     "id": "button",
@@ -88,13 +88,15 @@
     "id": "dialog",
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.module.css",
-    "upstreamSha256": "b43cd10ab34fad31445686c5681e5938c2245c10c465a2b2e3774d802a81e603"
+    "upstreamSha256": "b43cd10ab34fad31445686c5681e5938c2245c10c465a2b2e3774d802a81e603",
+    "localSha256": "31ac2c70d41532f42565e4dc9cccf493ea986c035549066c9d6ac1907c203cf2"
   },
   {
     "id": "dialog",
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.tsx",
-    "upstreamSha256": "eb84a7eb2ac864dc07f2825eab252eac78e9c6b889d0e9f00bf6b2b799975ade"
+    "upstreamSha256": "eb84a7eb2ac864dc07f2825eab252eac78e9c6b889d0e9f00bf6b2b799975ade",
+    "localSha256": "54850f8cbb42446a8546160c8f5809aaad4d905735cf55afc8fca0be33b59214"
   },
   {
     "id": "drawer",

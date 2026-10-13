@@ -2,11 +2,11 @@
 
 import { randomUUID } from "node:crypto";
 
-import { and, count, eq, sql, sum } from "drizzle-orm";
+import { and, count, eq, gt, isNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, requestAttachments, requests } from "@/db";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import {
   MAX_ATTACHMENT_FILES,
   MAX_ATTACHMENTS_TOTAL_BYTES,
@@ -60,6 +60,74 @@ function sessionFailure(): AttachmentActionFailure {
     code: "session_expired",
     message: "Your session ended. Sign in again to finish adding this file.",
   };
+}
+
+// The provider returned this URL to our server. Decode only its expiry for
+// accounting; it is never an authentication token supplied by a Lane client.
+function signedUploadExpiry(signedUrl: string): Date {
+  const token = new URL(signedUrl).searchParams.get("token");
+  const payload = token?.split(".")[1];
+  const exp: unknown = payload && JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).exp;
+  if (typeof exp !== "number" || !Number.isSafeInteger(exp) || exp * 1000 <= Date.now()) {
+    throw new Error("Storage did not return a valid upload expiration");
+  }
+  const expires = new Date(exp * 1000);
+  if (!Number.isFinite(expires.getTime())) throw new Error("Invalid upload expiration");
+  return expires;
+}
+
+type AttachmentInput = { requestId: string; attachmentId: string };
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+async function managedAttachment(connection: typeof db | Transaction, input: AttachmentInput, auth: MemberAuth) {
+  const [attachment] = await connection.select({
+    id: requestAttachments.id,
+    storagePath: requestAttachments.storagePath,
+    mimeType: requestAttachments.mimeType,
+    sizeBytes: requestAttachments.sizeBytes,
+    uploadedAt: requestAttachments.uploadedAt,
+    discardedAt: requestAttachments.discardedAt,
+    uploadBlockedAt: requestAttachments.uploadBlockedAt,
+  }).from(requestAttachments)
+    .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
+    .where(and(
+      eq(requestAttachments.id, input.attachmentId),
+      eq(requestAttachments.requestId, input.requestId),
+      eq(requestAttachments.orgId, auth.orgId),
+      eq(requestAttachments.uploadedBy, auth.userId),
+      eq(requests.createdBy, auth.userId),
+    )).limit(1);
+  return attachment;
+}
+
+async function cancelUpload(input: AttachmentInput, auth: MemberAuth): Promise<DiscardAttachmentResponse> {
+  const attachment = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.requestId}))`);
+    const row = await managedAttachment(tx, input, auth);
+    if (row && !row.uploadedAt && !row.discardedAt) {
+      await tx.update(requestAttachments).set({ discardedAt: new Date() })
+        .where(eq(requestAttachments.id, row.id));
+    }
+    return row;
+  });
+  if (!attachment) return { success: true };
+  if (attachment.uploadedAt) return { success: true, alreadyUploaded: true };
+  if (attachment.uploadBlockedAt) return { success: true };
+
+  // Deletion cannot revoke a signed URL. Occupy its path permanently instead:
+  // Supabase's object commit lock rejects every old upsert:false capability,
+  // even a PUT/TUS request accepted before cancellation and completed later.
+  // Keep this private zero-byte object and its row when releasing quota.
+  const storage = createServiceClient().storage.from(REQUEST_ATTACHMENTS_BUCKET);
+  const { error } = await storage.upload(attachment.storagePath, new Blob([], { type: attachment.mimeType }), {
+    upsert: true,
+    contentType: attachment.mimeType,
+  });
+  if (error) throw error;
+  const { data, error: verificationError } = await storage.info(attachment.storagePath);
+  if (verificationError || !data || data.size !== 0) throw new Error("Storage did not confirm upload cancellation");
+  await db.update(requestAttachments).set({ uploadBlockedAt: new Date() })
+    .where(and(eq(requestAttachments.id, attachment.id), isNull(requestAttachments.uploadedAt)));
+  return { success: true };
 }
 
 async function canManageRequest(
@@ -152,7 +220,15 @@ export async function prepareAttachmentUpload(
         .where(
           and(
             eq(requestAttachments.requestId, parsed.data.requestId),
-            eq(requestAttachments.orgId, auth.orgId)
+            eq(requestAttachments.orgId, auth.orgId),
+            // Cancelled paths are reusable in quota only after both provider
+            // expiry and a confirmed non-overwritable zero-byte placeholder.
+            or(
+              isNull(requestAttachments.discardedAt),
+              isNull(requestAttachments.uploadBlockedAt),
+              isNull(requestAttachments.uploadExpiresAt),
+              gt(requestAttachments.uploadExpiresAt, new Date()),
+            ),
           )
         );
 
@@ -185,7 +261,7 @@ export async function prepareAttachmentUpload(
         success: false,
         error: {
           code: "limit_reached",
-          message: "Add up to 5 files and keep them together under 25 MB.",
+          message: "Add up to 5 files and keep them together under 25 MB. Recent cancelled uploads may hold space for up to 2 hours.",
         },
       };
     }
@@ -201,6 +277,12 @@ export async function prepareAttachmentUpload(
     if (error || !data) {
       throw error ?? new Error("Storage did not return a signed upload URL");
     }
+
+    const recorded = await db.update(requestAttachments)
+      .set({ uploadExpiresAt: signedUploadExpiry(data.signedUrl) })
+      .where(and(eq(requestAttachments.id, attachmentId), eq(requestAttachments.orgId, auth.orgId)))
+      .returning({ id: requestAttachments.id });
+    if (!recorded.length) throw new Error("Upload reservation no longer exists");
 
     return {
       success: true,
@@ -256,25 +338,7 @@ export async function finalizeAttachmentUpload(
     };
   }
 
-  const [attachment] = await db
-    .select({
-      id: requestAttachments.id,
-      storagePath: requestAttachments.storagePath,
-      mimeType: requestAttachments.mimeType,
-      sizeBytes: requestAttachments.sizeBytes,
-    })
-    .from(requestAttachments)
-    .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
-    .where(
-      and(
-        eq(requestAttachments.id, parsed.data.attachmentId),
-        eq(requestAttachments.requestId, parsed.data.requestId),
-        eq(requestAttachments.orgId, auth.orgId),
-        eq(requestAttachments.uploadedBy, auth.userId),
-        eq(requests.createdBy, auth.userId)
-      )
-    )
-    .limit(1);
+  const attachment = await managedAttachment(db, parsed.data, auth);
 
   if (!attachment) {
     return {
@@ -285,6 +349,11 @@ export async function finalizeAttachmentUpload(
       },
     };
   }
+
+  if (attachment.uploadedAt) return { success: true };
+  if (attachment.discardedAt) return {
+    success: false, error: { code: "upload_incomplete", message: "This upload was cancelled. Choose the file again." },
+  };
 
   try {
     const storage = createServiceClient().storage.from(
@@ -299,10 +368,7 @@ export async function finalizeAttachmentUpload(
       data.size !== attachment.sizeBytes ||
       contentType !== attachment.mimeType
     ) {
-      if (data) await storage.remove([attachment.storagePath]);
-      await db
-        .delete(requestAttachments)
-        .where(eq(requestAttachments.id, attachment.id));
+      await cancelUpload(parsed.data, auth);
       return {
         success: false,
         error: {
@@ -313,12 +379,17 @@ export async function finalizeAttachmentUpload(
       };
     }
 
-    await db
-      .update(requestAttachments)
-      .set({ uploadedAt: new Date() })
-      .where(eq(requestAttachments.id, attachment.id));
-
-    return { success: true };
+    return await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${parsed.data.requestId}))`);
+      const current = await managedAttachment(tx, parsed.data, auth);
+      if (!current || current.discardedAt) return {
+        success: false as const,
+        error: { code: "upload_incomplete" as const, message: "This upload was cancelled. Choose the file again." },
+      };
+      if (!current.uploadedAt) await tx.update(requestAttachments)
+        .set({ uploadedAt: new Date() }).where(eq(requestAttachments.id, current.id));
+      return { success: true as const };
+    });
   } catch (error) {
     console.error("[intake/attachments] finalize failed:", error);
     return {
@@ -348,50 +419,7 @@ export async function discardAttachmentUpload(
   }
 
   try {
-    const [attachment] = await db
-      .select({
-        id: requestAttachments.id,
-        storagePath: requestAttachments.storagePath,
-        uploadedAt: requestAttachments.uploadedAt,
-      })
-      .from(requestAttachments)
-      .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
-      .where(
-        and(
-          eq(requestAttachments.id, parsed.data.attachmentId),
-          eq(requestAttachments.requestId, parsed.data.requestId),
-          eq(requestAttachments.orgId, auth.orgId),
-          eq(requestAttachments.uploadedBy, auth.userId),
-          eq(requests.createdBy, auth.userId)
-        )
-      )
-      .limit(1);
-
-    // An authenticated, scoped repeat can succeed after an earlier cleanup.
-    if (!attachment) return { success: true };
-    if (attachment.uploadedAt) {
-      // Finalization may have committed before its response was lost. Report
-      // that state distinctly; the client must not replace or hide this file.
-      return { success: true, alreadyUploaded: true };
-    }
-
-    const { error } = await createServiceClient()
-      .storage.from(REQUEST_ATTACHMENTS_BUCKET)
-      .remove([attachment.storagePath]);
-    if (error) throw error;
-
-    await db
-      .delete(requestAttachments)
-      .where(
-        and(
-          eq(requestAttachments.id, attachment.id),
-          eq(requestAttachments.orgId, auth.orgId),
-          eq(requestAttachments.requestId, parsed.data.requestId),
-          eq(requestAttachments.uploadedBy, auth.userId),
-          sql`${requestAttachments.uploadedAt} is null`
-        )
-      );
-    return { success: true };
+    return await cancelUpload(parsed.data, auth);
   } catch (error) {
     console.error("[intake/attachments] discard failed:", error);
     return {

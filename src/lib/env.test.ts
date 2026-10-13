@@ -47,7 +47,7 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env, vercelEnv: "development" }).ok).toBe(true);
   });
 
-  it("requires KV in production because the rate limiter fails open without it", () => {
+  it("requires KV at production startup so AI review is available", () => {
     const env = completeEnv();
     delete env.KV_REST_API_URL;
     env.KV_REST_API_TOKEN = "";
