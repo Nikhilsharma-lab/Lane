@@ -24,6 +24,9 @@
   /* Phones keep the parent crumb, so Intake and Settings still link back in one tap. */
   .crumbs li:nth-last-child(n + 3) { display: none; }
   .crumbs li:nth-last-child(2)::before { content: none; }
+  /* Plan item 2.5: Request detail keeps only its own name; its back link stands in for the trail. */
+  .strip[data-compact-trail] .crumbs li:not([aria-current]) { display: none; }
+  .strip[data-compact-trail] .crumbs li[aria-current]::before { content: none; }
 }
 /* Reserve the expand control where the shell auto-collapses, so it never pushes the strip after hydration. */
 @media (max-width: 880px) {
