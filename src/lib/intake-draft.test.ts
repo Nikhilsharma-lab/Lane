@@ -5,6 +5,7 @@ import { EMPTY_METRIC_IMPACT, IMPACT_RESULT_MAX, IMPACT_SOURCE_MAX } from "./req
 
 import {
   clearIntakeDraft,
+  hasIntakeDraft,
   intakeDraftScope,
   intakeDraftStorageKey,
   readIntakeDraft,
@@ -217,6 +218,26 @@ describe("Intake draft recovery", () => {
 
     storage.setItem(key, "{not-json");
     expect(readIntakeDraft(storage, SCOPE, NOW)).toBeNull();
+  });
+
+  it("tells the composer provider whether a current draft is there, without a schema", () => {
+    const storage = memoryStorage();
+    const key = intakeDraftStorageKey(SCOPE);
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+
+    writeIntakeDraft(storage, SCOPE, { source: source("Draft", "Waiting on /intake"), review: null }, NOW);
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(true);
+    expect(hasIntakeDraft(storage, intakeDraftScope("79b84ae8-19a2-48c4-8d83-338463616c28", "00c80f80-693d-49c1-a9dd-dff0cebd660b"), NOW)).toBe(false);
+    // The same age and clock limits as readIntakeDraft.
+    expect(hasIntakeDraft(storage, SCOPE, NOW + 24 * 60 * 60 * 1000)).toBe(true);
+    expect(hasIntakeDraft(storage, SCOPE, NOW + 24 * 60 * 60 * 1000 + 1)).toBe(false);
+    expect(hasIntakeDraft(storage, SCOPE, NOW - 60_001)).toBe(false);
+
+    storage.setItem(key, JSON.stringify({ version: 1, savedAt: NOW }));
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+    storage.setItem(key, "{not-json");
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+    expect(hasIntakeDraft({ getItem: () => { throw new DOMException("Blocked", "SecurityError"); } }, SCOPE, NOW)).toBe(false);
   });
 
   it("keeps drafts isolated by person and workspace and clears explicitly", () => {

@@ -12,7 +12,8 @@ const FORM = source("src/app/(app)/intake/intake-form.tsx");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
 const TRIAGE = source("src/lib/ai/triage.ts");
 const TOKEN = source("src/lib/triage-token.ts");
-const DRAFT = source("src/lib/intake-draft.ts");
+// The draft's scope and age live in the schema-free key module the composer provider also reads.
+const DRAFT = source("src/lib/intake-draft.ts") + source("src/lib/intake-draft-key.ts");
 
 describe("Intake Gate contract", () => {
   it("uses shared icons without custom SVG markup", () => {

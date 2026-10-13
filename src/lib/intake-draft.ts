@@ -10,10 +10,14 @@ import {
   USEFUL_LINK_MAX,
   type RequestInput,
 } from "@/lib/request-schema";
+import {
+  INTAKE_DRAFT_CLOCK_SKEW_MS as CLOCK_SKEW_MS,
+  INTAKE_DRAFT_MAX_AGE_MS,
+  INTAKE_DRAFT_VERSION,
+  intakeDraftStorageKey,
+} from "./intake-draft-key";
 
-const INTAKE_DRAFT_VERSION = 2;
-const INTAKE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const CLOCK_SKEW_MS = 60 * 1000;
+export { hasIntakeDraft, intakeDraftScope, intakeDraftStorageKey } from "./intake-draft-key";
 // Covers every bounded source/impact/AI field even when JSON uses six-byte
 // escapes per character and base64 expands it again. The former 20k limit
 // discarded valid long reviews on recovery.
@@ -102,14 +106,6 @@ export type IntakeDraft = {
     editedProblem: string;
   } | null;
 };
-
-export function intakeDraftScope(userId: string, orgId: string): string {
-  return `${userId}:${orgId}`;
-}
-
-export function intakeDraftStorageKey(scope: string): string {
-  return `lane:intake-draft:v${INTAKE_DRAFT_VERSION}:${scope}`;
-}
 
 export function readIntakeDraft(
   storage: DraftStorage,

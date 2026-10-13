@@ -18,6 +18,12 @@ describe("New Request composer preload", () => {
     expect(provider).not.toContain("modulepreload")
   })
 
+  it("checks for a saved draft without the draft schema, so Zod stays out of the layout", () => {
+    expect(provider).not.toMatch(/from ["']@\/lib\/intake-draft["']/)
+    expect(provider).toMatch(/from ["']@\/lib\/intake-draft-key["']/)
+    expect(read("src/lib/intake-draft-key.ts")).not.toMatch(/^\s*import\s/m)
+  })
+
   it("loads the form once through a memoised dynamic import, with no next/dynamic Suspense boundary", () => {
     expect(provider).not.toContain("next/dynamic")
     // The type-only `typeof import(...)` brings in no code; the one runtime import is memoised.

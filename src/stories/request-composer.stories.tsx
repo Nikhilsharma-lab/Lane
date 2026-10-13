@@ -1130,6 +1130,51 @@ export const ShowItAfterLeavingTheList: Story = {
   },
 };
 
+/** Plan item 2.4: the row is the list's one tab stop, so focus comes back to the row, not its title link. */
+const createdRowOf = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>(`[role="row"][data-request-id="${requestId}"]`);
+
+export const CFromThePageFocusesTheNewRow: Story = {
+  render: () => <ListFixture />,
+  beforeEach: () => { mocked(saveRequest).mockResolvedValue({ success: true, requestId, created: createdRow }); },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    // C with nothing focused names no trigger. Closing must never leave focus on the document.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    await expect(document.activeElement).toBe(document.body);
+    await userEvent.keyboard("c");
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(createdRowOf(canvasElement)).toHaveFocus());
+  },
+};
+
+/** An empty workspace: the welcome's New Request leaves when the first Request lands (plan item 2.1). */
+function WelcomeFixture() {
+  return <RequestListViewProvider><PendingMutationsProvider>
+    <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
+      <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role="admin" pathname="/" statusFilter="all" projectFilter="all" projects={[]} notifications={null} onSignOut={() => {}} linearPreviewAutoCollapse>
+        <RequestsOverview requests={[]} isGuest={false} canInvite context={context} />
+      </SidebarView>
+    </NewRequestProvider>
+  </PendingMutationsProvider></RequestListViewProvider>;
+}
+
+export const WelcomeCreateFocusesTheNewRow: Story = {
+  render: () => <WelcomeFixture />,
+  beforeEach: () => { mocked(saveRequest).mockResolvedValue({ success: true, requestId, created: { ...createdRow, requestNumber: 1 } }); },
+  play: async ({ canvasElement }) => {
+    const { trigger } = await createFromList(canvasElement);
+    await waitFor(() => expect(trigger).not.toBeInTheDocument());
+    const row = await waitFor(() => { const found = createdRowOf(canvasElement); expect(found).not.toBeNull(); return found!; });
+    await waitFor(() => expect(row).toHaveFocus());
+    await expect(row.querySelector(`#request-${requestId}`)).not.toHaveFocus();
+  },
+};
+
 async function reachUploads(canvasElement: HTMLElement) {
   const opened = await openComposer(canvasElement);
   await fillComposer(opened.composer);
@@ -1432,6 +1477,98 @@ export const UploadsLostOpensOnIntake: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Dismiss" }));
     await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
     await expect(readUnfinishedUploads(window.sessionStorage, scope)).toBeNull();
+    // The composer opened by itself, so closing it returns focus to the launcher, not the document.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(within(canvasElement).getByRole("link", { name: "Create Request" })).toHaveFocus());
+  },
+};
+
+const intakeArrival = { nextjs: { appDirectory: true, navigation: { pathname: "/intake", query: {} } } };
+const storedReview = { triage: { classification: "problem" as const, reframedProblem: null, extractedSolution: null }, token: "story-composer-review-token", editedProblem: "" };
+const launcherOf = (canvasElement: HTMLElement) => within(canvasElement).getByRole("link", { name: "Create Request" });
+
+export const IntakeRestoresReviewOnArrival: Story = {
+  // A reload or Sign in again on /intake brings back this tab's review, as 2.3's page did:
+  // the composer opens by itself with the review heading focused.
+  parameters: intakeArrival,
+  render: () => <IntakeLauncherFixture />,
+  beforeEach: () => {
+    writeIntakeDraft(window.sessionStorage, scope, { source: { ...bareSource, expectedImpact: metricImpact }, review: storedReview });
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    const heading = await composer.findByRole("heading", { name: "Review Request", level: 2 });
+    await waitFor(() => expect(heading).toHaveFocus());
+    await waitFor(() => expect(composer.getByText(/Your review was restored\./)).toBeVisible());
+    await expect(composer.getByRole("heading", { name: source.title, level: 3 })).toBeVisible();
+    await expect(composer.getByRole("button", { name: "Create Request" })).toBeVisible();
+    await expect(runTriage).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(launcherOf(canvasElement)).toHaveFocus());
+    // Once per arrival: the launcher stays, and the review waits behind Create Request.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
+    await expect(readIntakeDraft(window.sessionStorage, scope)?.review?.token).toBe(storedReview.token);
+    await userEvent.click(launcherOf(canvasElement));
+    const reopened = within(await page.findByRole("dialog", { name: "New Request" }));
+    await waitFor(() => expect(reopened.getByRole("heading", { name: "Review Request", level: 2 })).toHaveFocus());
+  },
+};
+
+export const IntakeRestoresDraftOnArrival: Story = {
+  parameters: intakeArrival,
+  render: () => <IntakeLauncherFixture />,
+  beforeEach: () => {
+    writeIntakeDraft(window.sessionStorage, scope, { source: { ...bareSource, expectedImpact: metricImpact }, review: null });
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    const title = await composer.findByRole("textbox", { name: "Request title" });
+    await waitFor(() => expect(title).toHaveValue(source.title));
+    await waitFor(() => expect(title).toHaveFocus());
+    await expect(composer.getByText("Draft restored")).toBeVisible();
+    // One announcement, as when Create Request opens it (DraftRestored).
+    const restoredLine = "Your unsaved Request was restored.";
+    await expect(composer.getByText(restoredLine)).toHaveAttribute("role", "status");
+    await expect(canvasElement.ownerDocument.body.textContent?.split(restoredLine)).toHaveLength(2);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
+    await waitFor(() => expect(launcherOf(canvasElement)).toHaveFocus());
+  },
+};
+
+export const IntakeWithoutDraftShowsLauncher: Story = {
+  parameters: intakeArrival,
+  render: () => <IntakeLauncherFixture />,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    // The arrival check runs in a task after hydration.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument();
+    await expect(launcherOf(canvasElement)).toBeVisible();
+  },
+};
+
+export const IntakeCreateOpensRequest: Story = {
+  // /intake has no list to show the new Request in. As 2.3's page did, creating there opens it.
+  parameters: intakeArrival,
+  render: () => <IntakeLauncherFixture />,
+  beforeEach: () => { mocked(saveRequest).mockResolvedValue({ success: true, requestId, created: createdRow }); },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.click(launcherOf(canvasElement));
+    const composer = within(await page.findByRole("dialog", { name: "New Request" }));
+    await composer.findByRole("textbox", { name: "Request title" });
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    await waitFor(() => expect(getRouter().push).toHaveBeenCalledWith(`/requests/${requestId}`));
+    await expect(await page.findByText("Request created")).toBeVisible();
+    await expect(page.queryByRole("button", { name: "Open Request" })).not.toBeInTheDocument();
   },
 };
 

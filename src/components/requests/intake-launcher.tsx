@@ -14,7 +14,8 @@ export function IntakeLauncher() {
         description="Describe a problem for your team to solve."
         icon={<Inbox size={24} strokeWidth={1.5} />}
         action={
-          <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>
+          // The composer returns focus here when it opened by itself (new-request-provider.tsx).
+          <NewRequestLink data-intake-launcher="" className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>
             Create Request
           </NewRequestLink>
         }

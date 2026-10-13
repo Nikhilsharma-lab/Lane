@@ -12,7 +12,10 @@ import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
 import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
+import { hasIntakeDraft, intakeDraftScope } from "@/lib/intake-draft-key";
+import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 import { parseRequestListContext, requestDetailHref, requestListHref, type RequestListContext } from "@/lib/request-workspace";
+import { requestRowSelector } from "./list-focus";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -44,9 +47,15 @@ function createFormHost() {
   return host;
 }
 
-function isEditing(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox'], [role='combobox']"));
+/** The page itself is never a place to return focus to: a closed composer would leave focus on nothing. */
+function focusable(element: Element | null): HTMLElement | null {
+  return element instanceof HTMLElement && element !== document.body && element !== document.documentElement ? element : null;
 }
+
+/** /intake's Create Request (intake-launcher.tsx). */
+const intakeLauncher = () => document.querySelector<HTMLElement>("[data-intake-launcher]");
+/** An automatic open on /intake returns focus to the launcher, which may still be streaming in when the composer opens. */
+const LAUNCHER = "intake-launcher";
 
 /** Lives with the authenticated workspace, so closing a composer does not discard File objects. */
 export function NewRequestProvider({ children, context, draftOwnerId }: {
@@ -82,14 +91,15 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   }, []);
   const busy = useRef(false);
   const completed = useRef(false);
-  const trigger = useRef<HTMLElement | null>(null);
+  const trigger = useRef<HTMLElement | typeof LAUNCHER | null>(null);
   const createdId = useRef<string | null>(null);
   // Where the person is now, for a toast action that runs after a navigation.
   const onList = useRef(pathname === "/");
   useEffect(() => { onList.current = pathname === "/"; }, [pathname]);
 
-  const openComposer = useCallback((element?: HTMLElement) => {
-    trigger.current = element ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const openComposer = useCallback((element?: HTMLElement | typeof LAUNCHER) => {
+    // C pressed with nothing focused names no trigger, and close falls back below.
+    trigger.current = element ?? focusable(document.activeElement);
     createdId.current = null;
     // A retained composer belongs to its draft, even after navigating to a
     // different Project. Only a new generation inherits the current location.
@@ -119,10 +129,9 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat || event.isComposing || event.key.toLowerCase() !== "c" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || isEditing(event.target)) return;
-      const overlayOpen = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'))
-        .some((element) => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true");
-      if (overlayOpen) return;
+      if (event.defaultPrevented || event.repeat || event.isComposing || event.key.toLowerCase() !== "c" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || isTypingTarget(event.target)) return;
+      // Plan item 2.4: C, ? and the list keys share one guard.
+      if (overlayOpen()) return;
       event.preventDefault();
       openComposer();
     };
@@ -145,6 +154,13 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       router.push(href);
       return;
     }
+    // /intake is a launcher with no list to show the new Request in. As 2.3's
+    // /intake page did, creating there opens the Request.
+    if (pathname === "/intake") {
+      toast(requestCreatedToast({}));
+      router.push(href);
+      return;
+    }
     // Plan item 2.3 (S4): on the list, say when the current filters leave the
     // new Request out, and offer to show it. Filters never clear silently.
     const view = pathname === "/" && created?.id === requestId ? listSnapshot?.() : undefined;
@@ -163,20 +179,32 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     }));
   }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
 
+  // After hydration, the composer opens by itself for what this tab kept.
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
-  // created. Once per document load, after hydration and on any page, /intake
-  // included, open the composer so it can say which files weren't added. A
-  // record found later, after an in-app navigation, is this document's own, not
-  // evidence of a reload.
-  const checkedLostUploads = useRef(false);
+  // created. Once per document load, on any page, /intake included, the
+  // composer says which files weren't added. A record found later, after an
+  // in-app navigation, is this document's own, not evidence of a reload.
+  // And /intake, a launcher since 2026-10-13, still restores this workspace's
+  // draft or review as 2.3's page did, after a reload or Sign in again: each
+  // arrival there with one opens the composer once, its restored step focused.
+  // Closing it returns focus to Create Request; a visit with no draft shows
+  // the launcher only.
+  const checkedLoad = useRef(false);
+  const checkedIntake = useRef(false);
   useEffect(() => {
-    if (checkedLostUploads.current) return;
+    const onIntake = pathname === "/intake";
+    if (!onIntake) checkedIntake.current = false;
+    if (checkedLoad.current && (!onIntake || checkedIntake.current)) return;
     const timer = window.setTimeout(() => {
-      checkedLostUploads.current = true;
-      if (readLostUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId))) openComposer();
+      const firstCheck = !checkedLoad.current;
+      checkedLoad.current = true;
+      if (onIntake) checkedIntake.current = true;
+      const lostUploads = firstCheck && readLostUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId));
+      const draft = onIntake && hasIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId));
+      if (lostUploads || draft) openComposer(onIntake ? LAUNCHER : undefined);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [context.orgId, draftOwnerId, openComposer]);
+  }, [context.orgId, draftOwnerId, openComposer, pathname]);
 
   const value = useMemo(() => ({ openComposer, preload }), [openComposer, preload]);
   return (
@@ -200,16 +228,25 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
             }}
             onCloseAutoFocus={event => {
               event.preventDefault();
-              // Mobile navigation stays mounted while closed. Its original
-              // compose link cannot receive focus once the dialog is inert.
-              // The welcome's New Request unmounts when the first Request lands
-              // in its place (plan item 2.1), so that row's title link is next.
-              const created = createdId.current ? document.getElementById(`request-${createdId.current}`) : null;
-              const targets = [trigger.current, created, document.querySelector<HTMLElement>('button[aria-label="Open navigation"]'), document.getElementById("lane-main")];
-              for (const target of targets) {
+              // Focus goes back to the trigger. The welcome's New Request
+              // unmounts when the first Request lands in its place (plan item
+              // 2.1), so the new Request is next: its row, the list's one tab
+              // stop (plan item 2.4), or the detail pane's link to it. Mobile
+              // navigation stays mounted while closed, and its compose link
+              // cannot receive focus once the dialog is inert, so its opener
+              // stands in. /intake's Create Request and the page's main region
+              // come last. The document itself is never a target.
+              const opener = trigger.current === LAUNCHER ? intakeLauncher() : trigger.current;
+              const id = createdId.current;
+              const created = id ? document.querySelector<HTMLElement>(requestRowSelector(id)) ?? document.getElementById(`request-${id}`) : null;
+              const targets = [opener, created, document.querySelector<HTMLElement>('button[aria-label="Open navigation"]'), intakeLauncher(), document.getElementById("lane-main")];
+              for (const candidate of targets) {
+                const target = focusable(candidate);
                 if (!target?.isConnected || !target.getClientRects().length || target.closest("[hidden], [inert]") || getComputedStyle(target).visibility !== "visible") continue;
                 target.focus({ preventScroll: true });
-                if (document.activeElement === target) break;
+                if (document.activeElement !== target) continue;
+                if (target === created) target.scrollIntoView({ block: "nearest" });
+                break;
               }
             }}
             onEscapeKeyDown={event => { if (busy.current) event.preventDefault(); }}
