@@ -123,7 +123,8 @@ const emptyRequest: RequestInput = {
 
 const earlierDraftFields = [
   { name: "affectedPeople", label: "Users" },
-  { name: "desiredChange", label: "Expected result" },
+  // Plan item 2.5 (decision D5): the same words as Request detail.
+  { name: "desiredChange", label: "Desired change" },
   { name: "observedEvidence", label: "Supporting information" },
   { name: "uncertainty", label: "Open questions" },
 ] as const;

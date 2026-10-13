@@ -89,6 +89,9 @@
   .desktopTools, :global([data-slot="page-strip"]) div:has(> .desktopTools) { display: none; }
 }
 
+/* Ask for review loads below the fold; its fallback keeps the closed panel's height (a 44px header row, then the hint). */
+.reviewFallback { min-height: calc(44px + var(--space-4) + var(--text-xs) * var(--leading-body)); }
+
 /* The skeleton draws the loaded page's boxes. */
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
 .skeletonBlocks { display: grid; gap: var(--space-6); }

@@ -31,7 +31,7 @@ function Detail({ current = request, guest = false, minimal = false, list = requ
   return <Shell guest={guest}><div className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestListPane requests={list} selectedRequestId={current.id} filter="all" isGuest={guest} />
     <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} isGuest={guest} viewer={{ id: "fixture-viewer", name: "Alex Morgan" }} orgId={context.orgId}
-      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
+      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
       designReview={designReview}

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react"
 import { DesignReviewPanel } from "@/components/requests/design-review-panel"
+import { useOptionalDetailRequest } from "@/components/requests/detail-context"
 import { useServerRefresh } from "@/components/requests/use-optimistic-action"
 import type { RequestReviewState, ReviewActionResult, ReviewPerson } from "@/lib/request-review"
 import { requestDesignReview, respondToDesignReview, withdrawDesignReview } from "./review-actions"
@@ -14,6 +15,8 @@ export function DesignReview({ requestId, initialState, currentUserId, canReques
   canRequest: boolean; canManage: boolean; context: { orgId: string };
 }) {
   const serverRefresh = useServerRefresh()
+  // Plan item 2.5: an open review form hides the strip's filled action, so the page keeps one primary.
+  const reportForm = useOptionalDetailRequest()?.reportForm
   // Plan item 1.16: the type-ahead reads GET /api/reviewers, so it never queues
   // behind a pending mutation and a stale query is aborted by the panel.
   const findReviewers = useCallback(async (query: string, signal?: AbortSignal): Promise<ReviewerList> => {
@@ -31,7 +34,7 @@ export function DesignReview({ requestId, initialState, currentUserId, canReques
     if ("error" in response) serverRefresh()
     return response
   }
-  return <DesignReviewPanel key={requestId} initialState={initialState} currentUserId={currentUserId} canRequest={canRequest} canManage={canManage}
+  return <DesignReviewPanel key={requestId} id="ask-for-review" onFormOpenChange={reportForm} initialState={initialState} currentUserId={currentUserId} canRequest={canRequest} canManage={canManage}
     onFindReviewers={findReviewers}
     onRequest={input => refresh(requestDesignReview(requestId, input, context))}
     onRespond={input => refresh(respondToDesignReview(requestId, input, context))}

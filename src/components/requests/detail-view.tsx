@@ -184,7 +184,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
                 </div>
               </details>}
             </section>
-            {request.expectedImpact && <ExpectedImpactSummary impact={request.expectedImpact} />}
+            {request.expectedImpact && <ExpectedImpactSummary id="expected-impact" impact={request.expectedImpact} />}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
               <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
               <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>

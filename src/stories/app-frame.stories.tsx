@@ -44,7 +44,7 @@ function Frame({ pathname, children, workspaceName = "Lane Studio", projects = [
 function DetailPage({ current = request }: { current?: RequestDetail }) {
   return <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestDetailView request={current} comments={[]} attachments={[]} isGuest={false} viewer={{ id: "fixture-viewer", name: "Alex Morgan" }} orgId={context.orgId}
-      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
+      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={() => null} />
   </div>

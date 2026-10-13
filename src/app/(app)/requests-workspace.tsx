@@ -19,7 +19,7 @@ function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props
   // Plan item 2.5 (decision D9): a guest cannot ask for review, so the section shows only once a review exists.
   const showReview = !isGuest || (request.designReviews?.length ?? 0) > 0
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName }}
-    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} filter="all" isGuest={isGuest} placement="strip" />}
+    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} />}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
     designReview={showReview ? <DesignReview requestId={request.id} initialState={{ version: request.designReviewVersion ?? 0, reviews: request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!isGuest} canManage={!isGuest && (isAdmin || request.createdBy === currentUserId)} context={{ orgId }} /> : undefined}
