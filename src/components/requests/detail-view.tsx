@@ -10,7 +10,7 @@ import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { statuses } from "./tasks/statuses"
 import { RequestStatusFilter as StatusFilter } from "@/app/(app)/request-status-filter"
-import { REQUEST_TYPE_LABELS, type RequestType } from "@/lib/request-constants"
+import { REQUEST_TYPE_LABELS, type RequestPriority, type RequestType } from "@/lib/request-constants"
 import type { ExpectedImpact } from "@/lib/request-impact"
 import type { DesignReview } from "@/lib/request-review"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
@@ -40,6 +40,10 @@ export type RequestDetail = {
   designReviews?: DesignReview[]
   designReviewVersion?: number
   id: string
+  /** Saved workspace-local number (LAN-n). NOT NULL, CHECK > 0 in the schema. */
+  requestNumber: number
+  /** Saved triage signal. The overlay reads it to clear a confirmed priority patch. */
+  priority: RequestPriority
   title: string
   description: string
   affectedPeople: string | null
@@ -57,6 +61,7 @@ export type RequestDetail = {
   createdAt: Date
   creatorName: string | null
   assigneeName: string | null
+  assigneeAvatarUrl: string | null
   projectId?: string | null
   projectName?: string | null
   requestType?: RequestType | null

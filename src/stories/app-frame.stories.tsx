@@ -27,10 +27,10 @@ import { background } from "./helpers/rendered-colours"
 const context = { orgId: "org_storybook" }
 const websiteId = "11111111-1111-4111-8111-111111111111"
 const request: RequestDetail = {
-  id: "fixture-request", title: "Show a delivery date before checkout", description: "Customers have to begin checkout before they can see when their order will arrive.",
+  id: "fixture-request", requestNumber: 12, priority: "none", title: "Show a delivery date before checkout", description: "Customers have to begin checkout before they can see when their order will arrive.",
   reframedProblem: "Customers cannot find the delivery date before checkout", extractedSolution: null, classification: "hybrid",
   affectedPeople: null, desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null,
-  status: "open", assignedTo: null, createdBy: "fixture-person", createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: "Alex Morgan", assigneeName: null,
+  status: "open", assignedTo: null, createdBy: "fixture-person", createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: "Alex Morgan", assigneeName: null, assigneeAvatarUrl: null,
 }
 // The production list's compact rows need saved codes; these numbers are illustrative.
 const listRows = requestsMeta.args.requests.slice(0, 12).map((row, index) => ({ ...row, requestNumber: index + 1 }))

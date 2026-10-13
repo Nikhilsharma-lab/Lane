@@ -63,6 +63,10 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     const [detail, commentRows, attachmentRows] = recorded.queries
     expect(detail.sql).toMatch(/left join "projects" on \("requests"\."project_id" = "projects"\."id" and "projects"\."org_id" = \$\d+\)/)
     expect(detail.sql).toContain('"requests"."request_type"')
+    // Plan item 2.5: the code, priority and Assignee avatar ride the same statement.
+    expect(detail.sql).toContain('"requests"."request_number"')
+    expect(detail.sql).toContain('"requests"."priority"')
+    expect(detail.sql).toContain('"request_detail_assignee"."avatar_url"')
     expect(commentRows.sql).toMatch(/from "comments" inner join "requests" on "comments"\."request_id" = "requests"\."id"/)
     expect(attachmentRows.sql).toMatch(/from "request_attachments" inner join "requests" on "request_attachments"\."request_id" = "requests"\."id"/)
   })

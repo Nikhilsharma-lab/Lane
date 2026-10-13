@@ -12,10 +12,10 @@ import type { ReactNode } from "react"
 import { DesignReviewFixture } from "./design-review.stories"
 
 const request: RequestDetail = {
-  id: "fixture-request", title: "Show a delivery date before checkout", description: "Customers have to begin checkout before they can see when their order will arrive.",
+  id: "fixture-request", requestNumber: 12, priority: "none", title: "Show a delivery date before checkout", description: "Customers have to begin checkout before they can see when their order will arrive.",
   reframedProblem: "Customers cannot find the delivery date before checkout", extractedSolution: "Show the expected delivery date on the product page.", classification: "hybrid",
   affectedPeople: "Customers comparing products with different delivery dates.", desiredChange: "Know the expected delivery date before starting checkout.", observedEvidence: "Support conversations mention uncertainty about delivery dates.", uncertainty: "We do not yet know how often this prevents a purchase.", usefulLink: "https://example.com/research/delivery",
-  status: "open", assignedTo: null, createdBy: "fixture-person", createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: "Alex Morgan", assigneeName: null,
+  status: "open", assignedTo: null, createdBy: "fixture-person", createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: "Alex Morgan", assigneeName: null, assigneeAvatarUrl: null,
 }
 const context = { orgId: "fixture-workspace" }
 const comments = [{ id: "fixture-comment", body: "Could we compare the product-page and checkout experiences before deciding where this belongs?", createdAt: new Date("2026-10-01T10:00:00Z"), authorName: "Sam Lee" }]
