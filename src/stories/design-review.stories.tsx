@@ -175,7 +175,7 @@ export const MemberSearchRetry: Story = {
 export const GuestReadOnly: Story = {
   args: { initialState: waiting, viewer: "sam", guest: true },
   play: async ({ canvasElement }) => {
-    const panel = within(within(canvasElement).getByRole("region", { name: "Design review" }))
+    const panel = within(within(canvasElement).getByRole("region", { name: "Ask for review" }))
     await expect(panel.getByRole("link", { name: "Open design version" })).toBeVisible()
     await expect(panel.queryByRole("button")).not.toBeInTheDocument()
     await expect(panel.queryByRole("textbox")).not.toBeInTheDocument()

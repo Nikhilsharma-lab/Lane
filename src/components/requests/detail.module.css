@@ -9,11 +9,6 @@
 .main > section { padding-top: var(--space-6); border-top: 1px solid var(--border-subtle); }
 .main > header + section { padding-top: 0; border-top: 0; }
 .panel { display: none; }
-@container detail (min-width: 960px) {
-  .layout { grid-template-columns: minmax(0, 720px) 280px; }
-  .panel { position: sticky; top: var(--space-6); display: block; min-width: 0; }
-  .stateLine { display: none; }
-}
 
 /* Title and the narrow-width state line. */
 .titleBlock { display: grid; justify-items: start; gap: var(--space-3); }
@@ -99,3 +94,11 @@
 .skeletonRow { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 32px; align-items: center; gap: var(--space-2); }
 @media (pointer: coarse) { .skeletonRow { min-height: 44px; } }
 @container detail (min-width: 960px) { .skeletonStateLine { display: none; } }
+
+/* From 960px of content width the panel shows and the state line gives way. Last, so it wins over the base rules above. */
+@container detail (min-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 720px) 280px; }
+  /* Sticky offsets count from the scroll container's padding, which already holds the column's top space. */
+  .panel { position: sticky; top: 0; display: block; min-width: 0; }
+  .stateLine { display: none; }
+}

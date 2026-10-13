@@ -51,7 +51,7 @@ function Value({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 }
 
 /** A quiet trigger for the panel's two editable properties. */
-function PropertyButton({ label, icon, children, ...props }: { label: string; icon: ReactNode; children: ReactNode } & Omit<ComponentProps<typeof Button>, "children">) {
+function PropertyButton({ label, icon, children, ...props }: { label?: string; icon: ReactNode; children: ReactNode } & Omit<ComponentProps<typeof Button>, "children">) {
   return <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.propertyButton} aria-label={label} {...props}>
     {icon}<span className={styles.propertyText}>{children}</span>
   </Button>
@@ -97,7 +97,8 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
   const priorityControl = isGuest ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : inSheet ? <Select label="Priority" value={priority} options={REQUEST_PRIORITIES.map(value => ({ value, label: REQUEST_PRIORITY_LABELS[value] }))}
       onValueChange={value => setPriority(value as RequestPriority)}
-      trigger={<PropertyButton label={priorityLabelText} icon={priorityGlyph}>{priorityText}</PropertyButton>} />
+      // A combobox: Select's label names it "Priority" and its text is the value.
+      trigger={<PropertyButton icon={priorityGlyph}>{priorityText}</PropertyButton>} />
     : <GlyphMenu label="Change priority" tip="Change priority" items={REQUEST_PRIORITIES.map(value => ({
       id: value, label: REQUEST_PRIORITY_LABELS[value], icon: <PriorityGlyph priority={value} />, checked: value === priority,
       onSelect: value === priority ? undefined : () => setPriority(value),

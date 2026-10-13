@@ -99,6 +99,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+// Plan item 2.5: detail's strip reads Workspace / Project / LAN-12 (only LAN-12 at 640px and below, where the back
+// link stands in for the trail), holds the copy and sequence tools from 641px, and keeps its action at every width.
 export const StripAnatomy: Story = {
   render: () => <Frame pathname="/requests/fixture-request"><DetailPage /></Frame>,
   play: async ({ canvasElement }) => {
@@ -106,28 +108,26 @@ export const StripAnatomy: Story = {
     const [strip] = pageStrips(main)
     const inStrip = within(strip)
     await expect(pageStrips(main)).toHaveLength(1)
-    await expect(inStrip.getByText("Open", { exact: true })).toBeVisible()
-    await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("Request detail")
-    if (innerWidth > 640) await expect(inStrip.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Lane StudioRequestsRequest detail")
-    if (innerWidth >= 768) await expect(inStrip.getByText(/^Submitted /)).toBeVisible()
+    await expect(strip.querySelector('li[aria-current="page"]')).toHaveTextContent("LAN-12")
+    if (innerWidth > 640) await expect(inStrip.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent("Lane StudioLAN-12")
+    await expect(inStrip.queryByText(/^Submitted /)).not.toBeInTheDocument()
     await expectStripHeight(strip)
     await expectNoTrailingGap(strip)
     await keyboardPath(canvasElement, [
       ...(innerWidth <= 880 ? [within(main).getByRole("button", { name: "Expand sidebar" })] : []),
-      inStrip.getByRole("link", { name: "Close Request detail" }),
-      ...(innerWidth > 640 ? [inStrip.getByRole("link", { name: "Lane Studio" })] : []),
-      inStrip.getByRole("link", { name: "Requests" }),
-      ...(innerWidth >= 1024 ? [inStrip.getByRole("button", { name: "Pick up" })] : []),
+      ...(innerWidth <= 640 ? [inStrip.getByRole("link", { name: "Back to Requests" })] : [inStrip.getByRole("link", { name: "Lane Studio" }), inStrip.getByRole("button", { name: "Copy link" }), inStrip.getByRole("button", { name: "Copy code LAN-12" })]),
+      inStrip.getByRole("button", { name: "Pick up" }),
+      ...(innerWidth <= 640 ? [inStrip.getByRole("button", { name: "More actions" })] : []),
     ])
   },
 }
 
-/** A Done Request has no lifecycle move, so the strip ends at its status and date. */
+/** A Done Request has no lifecycle move: the strip ends at its tools, with no status badge or date. */
 export const StripDoneRequest: Story = {
   render: () => <Frame pathname="/requests/fixture-request"><DetailPage current={{ ...request, status: "done", assignedTo: "fixture-person-2", assigneeName: "Sam Lee" }} /></Frame>,
   play: async ({ canvasElement }) => {
     const [strip] = pageStrips(within(canvasElement).getByRole("main"))
-    await expect(within(strip).getByText("Done", { exact: true })).toBeVisible()
+    await expect(within(strip).queryByText("Done", { exact: true })).not.toBeInTheDocument()
     await expect(within(strip).queryByRole("button", { name: /Pick up|Mark Done/ })).not.toBeInTheDocument()
     await expectStripHeight(strip)
     await expectNoTrailingGap(strip)
@@ -169,10 +169,14 @@ async function expectLongContentFits(context: StoryContext) {
   await expectStripHeight(strip)
   noHorizontalScroll()
   const shown = [...strip.querySelectorAll("nav li")].filter(item => item.getClientRects().length > 0)
-  // Phones drop the workspace crumb but keep the parent, so the list stays one tap away.
-  await expect(shown).toHaveLength(innerWidth <= 640 ? 2 : 3)
+  // Plan item 2.5: phones keep only LAN-12; the back link stands in for the trail.
+  await expect(shown).toHaveLength(innerWidth <= 640 ? 1 : 3)
   await expect(shown.at(-1)).toHaveAttribute("aria-current", "page")
   await expect(getComputedStyle(shown[0], "::before").content, "The first shown crumb has no leading separator").toBe("none")
+  if (innerWidth <= 640) {
+    await expect(within(strip).getByRole("link", { name: "Back to Requests" })).toBeVisible()
+    return
+  }
   // Long names truncate in place instead of wrapping the strip.
   const project = within(strip).getByRole("link", { name: longProject })
   await expect(shown.at(-2)).toContainElement(project)
@@ -270,8 +274,13 @@ async function detailSwap({ canvasElement, ...context }: StoryContext) {
   if (context.globals.viewport?.value) await expectPinnedViewport(context)
   // The loaded page's foot holds its own controls, so only the skeleton checks it.
   await expectOneSurface(canvasElement, "skeleton", true)
-  const strip = '[data-slot="page-strip"]'
-  await swapAndCompare(canvasElement, { strip, article: '[data-skeleton="detail"] .max-w-3xl' }, { strip, article: "article" }, [["strip", "height"], ["article", "left"], ["article", "top"]])
+  // Plan item 2.5: the reading column, the title block and, from 960px of content, the panel keep their place.
+  const shared = { strip: '[data-slot="page-strip"]', column: "[data-detail-main]", title: "[data-detail-title]" }
+  const main = within(canvasElement).getByRole("main")
+  const panelShown = main.querySelector("[data-detail-panel]")!.getClientRects().length > 0
+  const selectors = panelShown ? { ...shared, panel: "[data-detail-panel]" } : shared
+  const checks: [string, "top" | "height" | "left"][] = [["strip", "height"], ["column", "left"], ["column", "top"], ["title", "top"], ...(panelShown ? [["panel", "left"], ["panel", "top"]] as [string, "left" | "top"][] : [])]
+  await swapAndCompare(canvasElement, selectors, selectors, checks)
   await expectOneSurface(canvasElement, "loaded", false)
 }
 export const DetailSkeletonMatchesLoaded: Story = {
@@ -283,3 +292,4 @@ export const DetailSkeletonMatchesLoaded390: Story = {
   render: () => <SkeletonSwap pathname="/requests/fixture-request" skeleton={<DetailLoading />} page={<DetailPage />} />,
   play: detailSwap,
 }
+
