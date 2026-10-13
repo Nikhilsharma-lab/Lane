@@ -41,11 +41,10 @@ function Frame({ pathname, children, workspaceName = "Lane Studio", projects = [
 }
 
 /** The loaded detail exactly as requests-workspace.tsx composes it. */
-function DetailPage({ current = request, projectFilter = "all" }: { current?: RequestDetail; projectFilter?: string }) {
+function DetailPage({ current = request }: { current?: RequestDetail }) {
   return <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
-    <RequestDetailView request={current} comments={[]} attachments={[]} filter="all" projectFilter={projectFilter} isGuest={false}
+    <RequestDetailView request={current} comments={[]} attachments={[]} isGuest={false} viewer={{ id: "fixture-viewer", name: "Alex Morgan" }} orgId={context.orgId}
       lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
-      mobileLifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" fullWidth />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={() => null} />
   </div>
@@ -159,7 +158,7 @@ const longWorkspace = "Northwind Platform Design Operations and Research Workspa
 const longProject = "Checkout, delivery promises and post-purchase communication across every market"
 function LongContent() {
   return <Frame pathname="/requests/fixture-request" workspaceName={longWorkspace} projects={[{ id: websiteId, name: longProject, description: null }]} projectFilter={websiteId}>
-    <DetailPage projectFilter={websiteId} />
+    <DetailPage current={{ ...request, projectId: websiteId, projectName: longProject }} />
   </Frame>
 }
 async function expectLongContentFits(context: StoryContext) {

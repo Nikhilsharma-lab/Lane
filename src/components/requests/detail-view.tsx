@@ -1,11 +1,9 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { NewRequestLink } from "./new-request-link"
-import { ArrowLeft, ChevronRight, ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon, MessageSquare, Paperclip, Plus, X } from "lucide-react"
-import { Avatar } from "@/components/arc/avatar/avatar"
+import { ChevronRight, ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon, Plus } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
-import { Badge } from "@/components/arc/badge/badge"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { statuses } from "./tasks/statuses"
@@ -17,6 +15,11 @@ import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { relativeTime } from "@/lib/relative-time"
 import { formatAttachmentSize } from "@/lib/request-attachments"
 import { requestDetailHref, requestListHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { DetailConversation, type ConversationComment } from "./detail-conversation"
+import { DetailRequestProvider, type DetailViewer } from "./detail-context"
+import { DetailProperties, DetailStateLine } from "./detail-properties"
+import { DetailBackLink, DetailStrip } from "./detail-strip"
+import detailStyles from "./detail.module.css"
 import { statusLabel } from "@/lib/request-status"
 import { cn } from "@/lib/utils"
 import styles from "./requests.module.css"
@@ -126,65 +129,98 @@ export function RequestListPane({ requests, selectedRequestId, filter, projectFi
   </aside>
 }
 
-function CloseDetail({ href, label }: { href: string; label: string }) {
-  return <Link href={href} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm}`} aria-label={label}><ArrowLeft size={16} aria-hidden="true" className="lg:hidden" /><X size={16} aria-hidden="true" className="hidden lg:block" /></Link>
-}
-/** The strip names the state as the page h1; the body says what happened, as the error frames do. */
+/** The strip names the state as the page h1; the body says what happened, as the error frames do.
+ * Plan item 2.5: a missing Request and one this person may not see read the same, with no existence leak. */
 export function RequestUnavailable({ returnHref }: { returnHref: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col"><PageStrip leading={<CloseDetail href={returnHref} label="Back to Request list" />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
+  return <section className="flex min-w-0 flex-1 flex-col"><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
 }
-function Comments({ comments }: { comments: RequestComment[] }) {
-  return <section aria-labelledby="request-conversation" className="space-y-4">
-    <div className="flex items-center gap-2"><MessageSquare size={16} aria-hidden="true" /><h2 id="request-conversation" className="text-base font-medium">Conversation</h2><span className="text-sm text-muted-foreground">{comments.length}</span></div>
-    {comments.length ? <ul aria-label="Request comments" className="space-y-5">{comments.map(comment => <li key={comment.id} className="flex items-start gap-3">
-      <Avatar name={comment.authorName ?? "Unknown member"} size="sm" /><div className="min-w-0 flex-1 space-y-1"><div className="flex flex-wrap items-baseline gap-2"><span className="font-medium">{comment.authorName ?? "Unknown member"}</span><time dateTime={comment.createdAt.toISOString()} className="text-sm text-muted-foreground">{relativeTime(comment.createdAt)}</time></div><p className="whitespace-pre-wrap break-words text-sm">{comment.body}</p></div>
-    </li>)}</ul> : <p className="text-sm text-muted-foreground">No comments yet. Add a question or update below.</p>}
-  </section>
-}
-export function RequestDetailView({ request, comments, attachments, filter, projectFilter = "all", isGuest, lifecycleActions, mobileLifecycleActions, commentForm, attachmentAction, designReview }: {
-  request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; filter: RequestStatusFilter; projectFilter?: RequestProjectFilter; isGuest: boolean;
-  lifecycleActions: ReactNode; mobileLifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; designReview?: ReactNode;
+
+/**
+ * Plan item 2.5: Request detail. One 44px strip, a reading column and a
+ * property panel. The column holds labelled regions with stable ids, in
+ * order: problem, expected-impact, files, ask-for-review and conversation.
+ * Alignment (after expected-impact) and outcome (after ask-for-review) are
+ * reserved by this order and render nothing in Phase 2.
+ *
+ * A server component: the attachment action stays a render prop, and the
+ * times are phrased here so the client islands never disagree with the
+ * server about "3h ago".
+ */
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, designReview }: {
+  request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
+  /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
+  viewer: DetailViewer; orgId: string; returnHref?: string;
+  lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; designReview?: ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.title
-  const status = statuses.find(item => item.value === request.status)!
-  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Expected result", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
-  return <section aria-label={`Request detail: ${problem}`} className="flex min-h-0 min-w-0 flex-1 flex-col">
-    <PageStrip leading={<CloseDetail href={requestListHref(filter, projectFilter)} label="Close Request detail" />}
-      title="Request detail"
-      tools={<><Badge tone={status.tone}><StatusIcon status={request.status} />{status.label}</Badge>
-        <span className={styles.stripMeta}>Submitted {relativeTime(request.createdAt)}</span></>}
-      // From 1024px the strip holds the lifecycle buttons; below it the wrapper is hidden. It adds no box at
-      // 1024px and up either, so a Done Request, where the buttons render nothing, leaves the slot empty.
-      action={isGuest ? undefined : <div className="hidden lg:contents">{lifecycleActions}</div>} />
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
-      <article className="mx-auto max-w-3xl space-y-7 break-words [&>section+section]:border-t [&>section+section]:pt-6">
-        <section aria-labelledby="request-problem" className="space-y-4"><h1 id="request-problem" className="text-2xl font-medium">{problem}</h1>
-          <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm"><div className="min-w-0 space-y-1"><dt className="text-muted-foreground">Project</dt><dd>{request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project")}</dd></div><div className="space-y-1"><dt className="text-muted-foreground">Request type</dt><dd>{request.requestType ? REQUEST_TYPE_LABELS[request.requestType] : "No type"}</dd></div></dl>
-          {!request.reframedProblem && <p className="whitespace-pre-wrap text-sm leading-relaxed">{request.description}</p>}
-        </section>
-        {request.reframedProblem && <section aria-labelledby="request-original" className="space-y-3"><h2 id="request-original" className="text-base font-medium">Original Request</h2><p className="text-sm font-medium">{request.title}</p><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{request.description}</p></section>}
-        {request.extractedSolution && <section aria-labelledby="request-solution" className="space-y-3"><h2 id="request-solution" className="text-base font-medium">Suggested change</h2><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{request.extractedSolution}</p></section>}
-        {request.expectedImpact && <ExpectedImpactSummary impact={request.expectedImpact} />}
-        {(context.length > 0 || request.usefulLink) && <section aria-labelledby="request-context" className="space-y-4"><h2 id="request-context" className="text-base font-medium">Supporting details</h2><dl className="grid gap-4 sm:grid-cols-2">{context.map(item => <div key={item.label} className="space-y-1"><dt className="text-sm font-medium">{item.label}</dt><dd className="whitespace-pre-wrap text-sm text-muted-foreground">{item.value}</dd></div>)}</dl>
-          {request.usefulLink && <a href={request.usefulLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon size={16} aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{request.usefulLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink size={16} aria-hidden="true" /></a>}
-        </section>}
-        {attachments.length > 0 && <section aria-labelledby="request-files" className="space-y-3"><div className="flex items-center gap-2"><Paperclip size={16} aria-hidden="true" /><h2 id="request-files" className="text-base font-medium">Files</h2><span className="text-sm text-muted-foreground">{attachments.length}</span></div><ul aria-label="Request files" className="divide-y">{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}<div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{attachment.fileName}</p><p className="text-sm text-muted-foreground">{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul></section>}
-        <section aria-labelledby="request-people" className="space-y-3"><h2 id="request-people" className="text-base font-medium">People</h2><ul aria-label="Request people" className="space-y-3"><li className="flex items-center gap-3"><Avatar name={request.creatorName ?? "Unknown member"} size="sm" /><div><p className="text-sm font-medium">{request.creatorName ?? "Unknown member"}</p><p className="text-sm text-muted-foreground">Submitted this Request · {relativeTime(request.createdAt)}</p></div></li>{!isGuest && <li className="flex items-center gap-3"><Avatar name={request.assigneeName ?? "Unassigned"} size="sm" /><div><p className="text-sm font-medium">{request.assigneeName ?? "No one yet"}</p><p className="text-sm text-muted-foreground">{request.assigneeName ? "Picked up this Request" : "Available for anyone to pick up"}</p></div></li>}</ul></section>
-        {designReview}
-        <Comments comments={comments} />
-        <section className="space-y-4">{!isGuest && <div className="lg:hidden">{mobileLifecycleActions ?? lifecycleActions}</div>}{commentForm}</section>
-      </article>
-    </div>
-  </section>
+  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
+  const timed: ConversationComment[] = comments.map(comment => ({ ...comment, timeLabel: relativeTime(comment.createdAt) }))
+  return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)}>
+    <section aria-label={`Request detail: ${problem}`} className={detailStyles.root} data-detail="" data-request-id={request.id}>
+      <DetailStrip returnHref={returnHref} action={isGuest ? undefined : lifecycleActions} />
+      <div className={`${detailStyles.body} px-5 py-6 md:px-8`}>
+        <div className={detailStyles.layout}>
+          <div className={detailStyles.main} data-detail-main="">
+            <header className={detailStyles.titleBlock} data-detail-title="">
+              <h1 id="request-title" tabIndex={-1} className={detailStyles.title}>{problem}</h1>
+              <DetailStateLine />
+            </header>
+            <section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
+              <h2 id="problem-heading" className="sr-only">Problem</h2>
+              <p className={detailStyles.description}>{request.description}</p>
+              {request.reframedProblem && <details className={detailStyles.disclosure}>
+                <summary><h3>Original Request</h3></summary>
+                <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}>{request.title}</p></div>
+              </details>}
+              {request.extractedSolution && <div className={detailStyles.block}>
+                <h3 className={detailStyles.blockHeading}>Suggested change</h3>
+                <p className={detailStyles.secondaryText}>{request.extractedSolution}</p>
+              </div>}
+              {(context.length > 0 || request.usefulLink) && <details className={detailStyles.disclosure}>
+                <summary><h3>Supporting details</h3></summary>
+                <div className={detailStyles.disclosureBody}>
+                  {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
+                  {request.usefulLink && <a href={request.usefulLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon size={16} aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{request.usefulLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink size={16} aria-hidden="true" /></a>}
+                </div>
+              </details>}
+            </section>
+            {request.expectedImpact && <ExpectedImpactSummary impact={request.expectedImpact} />}
+            {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
+              <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
+              <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>
+            </section>}
+            {designReview}
+            <DetailConversation comments={timed}>{commentForm}</DetailConversation>
+          </div>
+          <aside id="properties" aria-label="Properties" className={detailStyles.panel} data-detail-panel="">
+            <DetailProperties />
+          </aside>
+        </div>
+      </div>
+    </section>
+  </DetailRequestProvider>
 }
-/** Plan item 2.0: the detail page's own strip and body padding, so the swap to the loaded page does not move the frame. */
+
+/** Plan item 2.5: the loaded page's boxes, so the swap to the page does not move the column or the panel.
+ * No copy, sequence or action placeholders: the strip is fixed-height and those controls sit at its end. */
 export function RequestDetailSkeleton() {
-  return <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-skeleton="detail" aria-busy="true">
-    <PageStrip leading={<CloseDetail href="/" label="Close Request detail" />} title="Request detail" />
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
-      <div className="mx-auto max-w-3xl space-y-7">
-        <Skeleton label="Loading selected Request" lines={2} />
-        <div aria-hidden="true" className="space-y-7"><Skeleton lines={1} /><Skeleton lines={5} /><Skeleton avatar lines={2} /></div>
+  return <section className={detailStyles.root} data-skeleton="detail" aria-busy="true">
+    <PageStrip compactTrail leading={<DetailBackLink href="/" />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} />
+    <div className={`${detailStyles.body} px-5 py-6 md:px-8`}>
+      <div className={detailStyles.layout}>
+        <div className={detailStyles.main} data-detail-main="">
+          <div className={detailStyles.titleBlock} data-detail-title="">
+            <div className={detailStyles.skeletonLine}><Skeleton label="Loading selected Request" lines={1} /></div>
+            <div aria-hidden="true" className={detailStyles.skeletonStateLine} />
+          </div>
+          <div aria-hidden="true" className={detailStyles.skeletonBlocks}><Skeleton lines={3} /><Skeleton lines={4} /></div>
+        </div>
+        <div aria-hidden="true" className={detailStyles.panel} data-detail-panel="">
+          <div className={detailStyles.properties}>
+            <div className={detailStyles.propertyGroup}><div className={detailStyles.skeletonRow}><Skeleton lines={1} /><Skeleton lines={1} /></div></div>
+            <div className={detailStyles.propertyGroup}>{Array.from({ length: 5 }, (_, index) => <div key={index} className={detailStyles.skeletonRow}><Skeleton lines={1} /><Skeleton lines={1} /></div>)}</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>

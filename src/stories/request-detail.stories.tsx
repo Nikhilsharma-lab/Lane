@@ -30,9 +30,8 @@ function Shell({ children, guest = false }: { children: ReactNode; guest?: boole
 function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
   return <Shell guest={guest}><div className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestListPane requests={list} selectedRequestId={current.id} filter="all" isGuest={guest} />
-    <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} filter="all" isGuest={guest}
+    <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} isGuest={guest} viewer={{ id: "fixture-viewer", name: "Alex Morgan" }} orgId={context.orgId}
       lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
-      mobileLifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" fullWidth />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
       designReview={designReview}

@@ -57,8 +57,9 @@ describe("New Request composer host", () => {
     expect(provider).toMatch(/<DialogContent layout="composer"/)
   })
 
-  it("leaves the Arc Drawer with no importer and /intake with no form of its own", () => {
-    expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path)).toEqual([])
+  it("keeps the composer out of the Arc Drawer and /intake with no form of its own", () => {
+    // Plan item 2.5: Request detail's phone Properties sheet, loaded on first open, is the Drawer's only importer.
+    expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path.replaceAll("\\", "/"))).toEqual([expect.stringMatching(/components\/requests\/detail-properties-drawer\.tsx$/)])
     const intakePage = read("src/app/(app)/intake/page.tsx")
     expect(intakePage).toContain("<IntakeLauncher />")
     expect(intakePage).not.toContain("intake-form")

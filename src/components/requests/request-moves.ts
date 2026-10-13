@@ -6,6 +6,7 @@ import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { Announce } from "./list-announcer"
+import { useCopy } from "./use-copy"
 import { FAILURE_TITLE, useOptimisticAction, type OptimisticOutcome } from "./use-optimistic-action"
 
 /** The Request a move acts on: its id and the name its toasts use (the saved code, else the title). */
@@ -14,6 +15,8 @@ export type MoveTarget = { id: string; name: string }
 export type MoveOptions = {
   /** Replaces the failure description when the action threw (a lost response), so the copy can say what to check. */
   networkError?: string
+  /** Pick up only: who becomes the Assignee, shown in the same frame (Request detail's panel). */
+  assignee?: { id: string; name: string }
 }
 
 type MoveOutcome = OptimisticOutcome<unknown> | { status: "busy" }
@@ -53,7 +56,7 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   }, [afterMove, optimistic, orgId, toast, update])
 
   /** One toast per move: Done confirms at once with Undo, and a failure replaces that same toast. */
-  const move = useCallback((request: MoveTarget, kind: LifecycleMove, { networkError }: MoveOptions = {}): Promise<MoveOutcome> => {
+  const move = useCallback((request: MoveTarget, kind: LifecycleMove, { networkError, assignee }: MoveOptions = {}): Promise<MoveOutcome> => {
     const key = `${request.id}:${kind}`
     if (busy.current.has(key)) return Promise.resolve({ status: "busy" })
     busy.current.add(key)
@@ -68,7 +71,8 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
     const describe = (message: string, thrown: boolean) => thrown && networkError ? networkError : message
     const outcome = optimistic({
       id: request.id,
-      patch: kind === "done" ? { kind: "done", status: "done" } : { kind: "pick-up", status: "in_progress" },
+      patch: kind === "done" ? { kind: "done", status: "done" }
+        : { kind: "pick-up", status: "in_progress", ...(assignee ? { assignedTo: assignee.id, assigneeName: assignee.name, assigneeAvatarUrl: null } : {}) },
       run: () => (kind === "done" ? markDone : pickUpRequest)(request.id, { orgId }),
       waitForPending: true,
       onError: toastId
@@ -95,16 +99,8 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
     })
   }, [announce, optimistic, orgId])
 
-  const copy = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      announce(`${label} copied.`, { key: "copy" })
-      return true
-    } catch {
-      toast({ type: "error", title: "Could not copy", description: "Select the text and copy it instead." })
-      return false
-    }
-  }, [announce, toast])
+  const copyText = useCopy()
+  const copy = useCallback((value: string, label: string) => copyText(value, `${label} copied.`), [copyText])
 
   return { move, undo, setPriority, copy }
 }

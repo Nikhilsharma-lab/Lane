@@ -50,10 +50,12 @@ ListContextContext.displayName = "RequestListContext"
 export type DetailSession = {
   sequence: DetailSequence | null
   focusTitleOnArrival: boolean
+  /** J or K pressed as an arrow on the previous or next button: the new detail focuses that button instead of the title. */
+  focusOnArrival: "previous" | "next" | null
   /** Unsent comment drafts by Request id. A ref-held map: writing a draft re-renders nothing. */
   commentDrafts: Map<string, string>
 }
-export type DetailSessionPatch = Partial<Pick<DetailSession, "sequence" | "focusTitleOnArrival">>
+export type DetailSessionPatch = Partial<Pick<DetailSession, "sequence" | "focusTitleOnArrival" | "focusOnArrival">>
 type SetDetailSession = (patch: DetailSessionPatch) => void
 
 // Separate contexts again (the item 1.14 pattern): the list never re-renders when detail's session changes.
@@ -80,7 +82,7 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
   useLayoutEffect(() => { latest.current = state }, [state])
   const snapshot = useCallback(() => latest.current, [])
   const [drafts] = useState(() => new Map<string, string>())
-  const [session, setSession] = useState<Omit<DetailSession, "commentDrafts">>(() => ({ sequence: null, focusTitleOnArrival: false, ...initialDetailSession }))
+  const [session, setSession] = useState<Omit<DetailSession, "commentDrafts">>(() => ({ sequence: null, focusTitleOnArrival: false, focusOnArrival: null, ...initialDetailSession }))
   const detailSession = useMemo<DetailSession>(() => ({ ...session, commentDrafts: drafts }), [session, drafts])
   const setDetailSession = useCallback<SetDetailSession>(patch => setSession(current => ({ ...current, ...patch })), [])
   return <ListViewSetterContext.Provider value={setState}>
@@ -145,7 +147,7 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
 /** Plan item 2.5: Request detail's session. Outside the provider (older fixtures) it has no sequence and keeps drafts locally. */
 export function useDetailSession(): DetailSession {
   const session = useContext(DetailSessionContext)
-  const [local] = useState<DetailSession>(() => ({ sequence: null, focusTitleOnArrival: false, commentDrafts: new Map() }))
+  const [local] = useState<DetailSession>(() => ({ sequence: null, focusTitleOnArrival: false, focusOnArrival: null, commentDrafts: new Map() }))
   return session ?? local
 }
 
