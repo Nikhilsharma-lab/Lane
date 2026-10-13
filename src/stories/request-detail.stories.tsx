@@ -6,6 +6,8 @@ import { CommentForm } from "@/app/(app)/requests/[id]/comment-form"
 import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-download"
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
 import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest } from "@/app/(app)/requests/[id]/actions"
+import { ToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider"
 import type { ReactNode } from "react"
 import { DesignReviewFixture } from "./design-review.stories"
 
@@ -20,15 +22,16 @@ const comments = [{ id: "fixture-comment", body: "Could we compare the product-p
 const attachments = [{ id: "fixture-file", fileName: "Delivery context.png", mimeType: "image/png", sizeBytes: 182400, uploadedAt: new Date("2026-10-01T09:00:00Z") }]
 const requests: RequestListItem[] = [request, { ...request, id: "fixture-progress", title: "New teammates cannot find the right workspace", reframedProblem: null, status: "in_progress", assigneeName: "Sam Lee" }, { ...request, id: "fixture-done", title: "People lose their draft after an upload fails", reframedProblem: null, status: "done" }]
 
+// The strip's lifecycle slot reports through toasts (plan item 2.0), so the shell mounts the stack.
 function Shell({ children, guest = false }: { children: ReactNode; guest?: boolean }) {
-  return <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView>
+  return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack /></>
 }
 
 function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
   return <Shell guest={guest}><div className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
     <RequestListPane requests={list} selectedRequestId={current.id} filter="all" isGuest={guest} />
     <RequestDetailView request={current} comments={minimal ? [] : comments} attachments={minimal ? [] : attachments} filter="all" isGuest={guest}
-      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" />}
+      lifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" placement="strip" />}
       mobileLifecycleActions={<LifecycleButtons requestId={current.id} status={current.status} context={context} filter="all" fullWidth />}
       commentForm={<CommentForm requestId={current.id} context={context} />}
       attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
@@ -127,14 +130,55 @@ export const CommentPending: Story = {
     await waitFor(() => expect(canvas.getByRole("textbox", { name: "Comment" })).toHaveValue(""))
   },
 }
+/** From 1024px the lifecycle slot is in the page strip and reports through a
+ * toast; below it the in-page block keeps its inline alerts (plan item 2.0),
+ * where a failure is an Arc danger Alert, announced as role="alert". */
+async function expectLifecycleFeedback(canvasElement: HTMLElement, text: RegExp, kind: "failure" | "success") {
+  const canvas = within(canvasElement)
+  await waitFor(() => expect(canvas.getByText(text)).toBeVisible())
+  const toasts = canvas.getByRole("region", { name: /^Notifications/ })
+  if (window.innerWidth >= 1024) {
+    await expect(toasts).toContainElement(canvas.getByText(text))
+    return
+  }
+  await expect(toasts).not.toContainElement(canvas.getByText(text))
+  if (kind === "failure") await expect(canvas.getByRole("alert")).toHaveTextContent(text)
+  else await expect(canvas.queryByRole("alert")).not.toBeInTheDocument()
+}
+
 export const LifecycleRetry: Story = {
   beforeEach: () => { mocked(pickUpRequest).mockRejectedValueOnce(new Error("Fixture connection interrupted")) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
-    await waitFor(() => expect(canvas.getByRole("alert")).toHaveTextContent("Couldn’t confirm pickup"))
+    await expectLifecycleFeedback(canvasElement, /Couldn’t confirm pickup/, "failure")
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
-    await waitFor(() => expect(canvas.getByText(/Moved to In Progress/)).toBeVisible())
+    await expectLifecycleFeedback(canvasElement, /Moved to In Progress/, "success")
+  },
+}
+
+/** The acknowledgement contract (plan §2.4) for Mark done: the action stays
+ * pending, the UI shows the move at once, a second press sends nothing, and a
+ * refusal rolls back with a message and returns the button. */
+export const MarkDoneAcknowledged: Story = {
+  render: () => <PendingMutationsProvider><Detail current={{ ...request, status: "in_progress", assignedTo: "fixture-person-2", assigneeName: "Sam Lee" }} /></PendingMutationsProvider>,
+  play: async ({ canvasElement }) => {
+    let settle!: (result: { error: string }) => void
+    mocked(markDone).mockImplementation(() => new Promise(resolve => { settle = resolve }))
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole("button", { name: "Mark done" })
+    button.click(); button.click()
+    const completing = await canvas.findByRole("button", { name: "Completing…" })
+    await expect(completing).toBeDisabled()
+    await expect(completing).toHaveAttribute("aria-busy", "true")
+    await expect(markDone).toHaveBeenCalledOnce()
+    // The overlay already shows Done: the other lifecycle slot has no Mark done left.
+    await expect(canvas.queryAllByRole("button", { name: "Mark done", hidden: true })).toHaveLength(0)
+    settle({ error: "This Request changed before Lane could mark it Done." })
+    await expectLifecycleFeedback(canvasElement, /changed before Lane could mark it Done/, "failure")
+    await expect(canvas.getByText("Action failed")).toBeVisible()
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Mark done" })).toBeEnabled())
+    await expect(markDone).toHaveBeenCalledOnce()
   },
 }
 

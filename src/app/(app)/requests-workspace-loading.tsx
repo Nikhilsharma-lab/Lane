@@ -1,7 +1,39 @@
+import { Plus } from "lucide-react"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
-import styles from "@/components/requests/request-rows.module.css"
-import { SidebarExpandButton } from "@/components/shell/sidebar-controls"
+import buttonStyles from "@/components/arc/button/button.module.css"
+import { NewRequestLink } from "@/components/requests/new-request-link"
+import rowStyles from "@/components/requests/request-rows.module.css"
+import tableStyles from "@/components/requests/tasks/data-table-toolbar.module.css"
+import { PageStrip } from "@/components/shell/page-strip"
+import overviewStyles from "./requests-overview.module.css"
+import styles from "./app-skeletons.module.css"
+
+const ROWS = Array.from({ length: 12 }, (_, index) => index)
+
 // The Request detail route has its own loading.tsx; this skeleton only ever stands in for the list.
+// Plan item 2.0: the same strip, toolbar row, group header and 44px compact rows
+// as the loaded list, so the first row lands where the loaded one does. The one
+// live region is the strip's title; every bar below it is decorative.
 export function RequestsWorkspaceLoading() {
-  return <div aria-label="Loading Requests" aria-busy="true" className="space-y-6 p-4 md:p-6"><div className="flex items-center gap-3"><SidebarExpandButton /><Skeleton label="Loading Requests" lines={2} className="flex-1" /></div><div className={styles.records}>{[0, 1, 2, 3, 4].map(row => <div key={row} className={styles.row}><div className={styles.title}><Skeleton lines={1} className="w-full" /></div><div className={`${styles.properties} w-48`}><Skeleton lines={1} className="w-full" /></div></div>)}</div></div>
+  return <div data-slot="requests-workspace" data-skeleton="list" aria-busy="true" className={overviewStyles.overview}>
+    <PageStrip title={<span className={styles.titleSkeleton}><Skeleton label="Loading Requests" lines={1} /></span>}
+      action={<NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${overviewStyles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>} />
+    <div aria-hidden="true" className={tableStyles.tableLayout} data-preview-table="">
+      <div className={tableStyles.toolbarStack}>
+        <div className={tableStyles.toolbar}><span className={styles.toolbarStatus}><Skeleton lines={1} /></span></div>
+      </div>
+      <div className={tableStyles.listAndSummary}>
+        <div className={tableStyles.listPane}>
+          <div className={`${rowStyles.records} ${tableStyles.recordRegion}`}>
+            <section className={rowStyles.group}>
+              <div className={`${rowStyles.groupHeader} ${styles.groupHeader}`}><span className={styles.groupLabel}><Skeleton lines={1} /></span></div>
+              <div><ul className={rowStyles.list}>{ROWS.map(row => <li key={row} className={rowStyles.row} data-compact-row="true">
+                <div className={rowStyles.rowContent}><span className={styles.rowTitle}><Skeleton lines={1} /></span><span className={styles.rowMeta}><Skeleton lines={1} /></span></div>
+              </li>)}</ul></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 }

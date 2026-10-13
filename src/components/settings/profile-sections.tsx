@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { PageStrip } from "@/components/shell/page-strip";
 import styles from "./profile.module.css";
 
 // Layout follows Arc's documented settings composition.
 export function ProfileLayout({ children }: { children: ReactNode }) {
-  return <div className={styles.page}><h1 className={styles.title}>Settings</h1>{children}</div>;
+  return <><PageStrip title="Profile" /><div className={styles.page}><h1 className={styles.title}>Settings</h1>{children}</div></>;
 }
 
 export function ProfileSections({ profileForm, appearance }: { profileForm: ReactNode; appearance: ReactNode }) {
@@ -20,6 +21,9 @@ export function ProfileSections({ profileForm, appearance }: { profileForm: Reac
   </div>;
 }
 
+/** The real two-section grid with its static headings; only the controls wait (plan item 2.0). */
 export function ProfileSkeleton() {
-  return <Skeleton label="Loading Profile settings" lines={6} />;
+  return <div data-skeleton="profile" aria-busy="true">
+    <ProfileSections profileForm={<Skeleton label="Loading Profile settings" lines={2} />} appearance={<div aria-hidden="true"><Skeleton lines={2} /></div>} />
+  </div>;
 }

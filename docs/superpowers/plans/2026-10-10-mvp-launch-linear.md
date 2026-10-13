@@ -303,7 +303,7 @@ Every page inherits the §2.4 definition of done: Linear-system stories, acknowl
 
 Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
 
-### 2.0 App frame and states (S–M), first because every page sits on it
+### 2.0 App frame and states (S–M), first because every page sits on it *(built 2026-10-11; waiting on Nikhil's visual approval, staging CLS and skeleton timings, and his walk-through, see `docs/design-system/page-quality.md`)*
 - **Changes:**
   - **Header-strip rule:** each page owns a single 44px strip. The shell topbar shows only on pages without one, or the crumbs become the strip.
   - **Skeletons from real primitives:** strip, toolbar and 44px rows for `(app)/loading.tsx` (today `space-y-6 p-4`, which shifts), detail and intake.

@@ -1,0 +1,34 @@
+/* Plan item 2.0: one fixed 44px strip per page. No wrapping, so skeletons and pages share its height. */
+.strip { position: sticky; top: 0; z-index: 2; display: flex; flex: none; min-width: 0; min-height: var(--workspace-header-height, 44px); align-items: center; gap: var(--space-3); padding-inline: var(--space-6); background: var(--surface); }
+/* The rule is drawn over the strip's last pixel, not as a border: a border would leave 43px for content,
+ * so a 44px touch control would grow the strip to 45px. Drawn last, it stays unbroken across controls. */
+.strip::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 1px; background: var(--border-subtle); pointer-events: none; }
+.expandSlot { display: flex; flex: none; }
+.expandSlot:empty { display: none; }
+.title { min-width: 0; margin: 0; overflow: hidden; color: var(--foreground); font-size: var(--text-base); font-weight: 500; line-height: var(--leading-body); text-overflow: ellipsis; white-space: nowrap; }
+.note { min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.crumbs { min-width: 0; font-size: var(--text-sm); }
+.crumbs ol { display: flex; min-width: 0; margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
+.crumbs li { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+.crumbs li + li::before { content: "/"; margin: 0 10px; color: var(--text-muted); }
+.crumbs a { overflow: hidden; text-overflow: ellipsis; border-radius: var(--radius-control); }
+.crumbs [aria-current] { color: var(--foreground); }
+.current { min-width: 0; margin: 0; overflow: hidden; font: inherit; color: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.end { display: flex; flex: none; align-items: center; gap: var(--space-2); margin-inline-start: auto; }
+.tools { display: flex; min-width: 0; align-items: center; gap: var(--space-2); }
+/* The action slot adds no box of its own, so an empty or hidden action leaves no gap at the end. */
+.action { display: contents; }
+@media (max-width: 640px) {
+  .strip { padding-inline: var(--space-4); }
+  .note { display: none; }
+  /* Phones keep the parent crumb, so Intake and Settings still link back in one tap. */
+  .crumbs li:nth-last-child(n + 3) { display: none; }
+  .crumbs li:nth-last-child(2)::before { content: none; }
+}
+/* Reserve the expand control where the shell auto-collapses, so it never pushes the strip after hydration. */
+@media (max-width: 880px) {
+  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { display: flex; width: 32px; height: 32px; }
+}
+@media (max-width: 880px) and (pointer: coarse) {
+  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { width: 44px; height: 44px; }
+}
