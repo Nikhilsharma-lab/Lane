@@ -107,6 +107,20 @@ describe("triage-token signing", () => {
     expect(verifyTriageToken(`${encoded}.${signature}`, context)).toEqual({ valid: false, reason: "impact_required" });
   });
 
+  it("signs the complete guardrail and rejects tampering with any guardrail field", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const guardrail = { metric: "Error rate", operator: "at_most" as const, limit: 2, unit: "%" };
+    const token = createTriageToken({ ...input, expectedImpact: { ...impact, guardrail } }, triageResult, context);
+    const result = verifyTriageToken(token, context);
+    expect(result.valid && result.payload.expectedImpact).toEqual({ ...impact, guardrail });
+    const [encoded, signature] = token.split(".");
+    for (const change of [{ metric: "Timeout rate" }, { operator: "at_least" }, { limit: 20 }, { unit: "ms" }]) {
+      const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
+      payload.expectedImpact.guardrail = { ...guardrail, ...change };
+      expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
+    }
+  });
+
   it("rejects a token signed with a different secret", async () => {
     const { createTriageToken, verifyTriageToken } = await import(
       "./triage-token"

@@ -48,7 +48,7 @@
 
 .titleEditor::placeholder,
 .descriptionEditor::placeholder {
-  color: var(--text-placeholder, var(--text-muted));
+  color: var(--text-muted);
 }
 
 .titleEditor { min-height: var(--space-12); font-size: var(--text-xl); font-weight: 500; }
@@ -85,10 +85,10 @@
 
 .dialog { min-height: 0; flex: 1; }
 .dialog .composeForm { min-height: 0; overflow: hidden; }
-.dialog .composeBody { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.dialog .composeBody { min-height: 0; gap: var(--space-3); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .dialog .details { gap: var(--space-2); }
 .dialog .descriptionEditor { min-height: var(--space-16); }
-.dialog .composeFooter { flex: 0 0 auto; margin-top: var(--space-4); }
+.dialog .composeFooter { flex: 0 0 auto; margin-top: var(--space-2); padding-top: var(--space-3); }
 .reviewBody { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .dialog .reviewFooter { flex: 0 0 auto; padding-top: var(--space-4); }
 

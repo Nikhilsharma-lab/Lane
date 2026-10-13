@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useId, useState } from "react";
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
@@ -15,6 +15,9 @@ export interface SelectProps extends Omit<ComponentPropsWithoutRef<typeof Select
   placeholder?: string;
   id?: string;
   className?: string;
+  /** Reuse an existing control while retaining the Select menu and keyboard behavior. */
+  trigger?: ReactElement;
+  onContentKeyDown?: ComponentPropsWithoutRef<typeof SelectPrimitive.Content>["onKeyDown"];
   options: { value: string; label: string; disabled?: boolean }[];
 }
 
@@ -28,7 +31,7 @@ const valueRoll: Variants = {
 const valueFade: Variants = { enter: { opacity: 0 }, center: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.instant } }, exit: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
-  { label, description, placeholder = "Select an option", options, id, className, disabled, onValueChange, ...rootProps },
+  { label, description, placeholder = "Select an option", options, id, className, trigger, onContentKeyDown, disabled, onValueChange, ...rootProps },
   ref,
 ) {
   const generatedId = useId();
@@ -45,14 +48,16 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
 
   return (
     <div className={styles.field}>
-      <label htmlFor={controlId}>{label}</label>
+      <label htmlFor={controlId} className={trigger ? styles.srOnly : undefined}>{label}</label>
       <SelectPrimitive.Root {...rootProps} disabled={disabled} onValueChange={(next) => { setUncontrolledValue(next); onValueChange?.(next); }}>
         <SelectPrimitive.Trigger
           ref={ref}
+          asChild={Boolean(trigger)}
           id={controlId}
           aria-describedby={hintId}
-          className={[styles.trigger, className].filter(Boolean).join(" ")}
+          className={trigger ? className : [styles.trigger, className].filter(Boolean).join(" ")}
         >
+          {trigger ?? <>
           {/* Radix keeps the real value for assistive tech; the visible copy below animates between values. */}
           <span className={styles.srOnly}><SelectPrimitive.Value placeholder={placeholder} /></span>
           <span className={styles.valueText} aria-hidden="true">
@@ -63,9 +68,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           <SelectPrimitive.Icon className={styles.chevron}>
             <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </SelectPrimitive.Icon>
+          </>}
         </SelectPrimitive.Trigger>
         <SelectPrimitive.Portal>
-          <SelectPrimitive.Content data-ui-surface="floating" className={styles.content} position="popper" sideOffset={4} collisionPadding={12}>
+          <SelectPrimitive.Content aria-label={label} data-ui-surface="floating" data-custom-trigger={trigger ? "" : undefined} className={styles.content} position="popper" sideOffset={4} collisionPadding={12} onKeyDown={onContentKeyDown}>
             <SelectPrimitive.ScrollUpButton className={styles.scrollButton}>
               <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
             </SelectPrimitive.ScrollUpButton>

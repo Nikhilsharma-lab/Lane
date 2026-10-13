@@ -164,6 +164,22 @@ progress. Alignment inside existing Requests remains a separately scoped target;
 proposal, acceptance tests and implementation plan must be approved before coding. Later parts of this target are
 sequenced in `lane-roadmap.md`, not independently authorized by this contract.
 
+2026-10-11 bounded Intake addition, explicitly approved by Nikhil: new primary metric units default
+to `%` and remain editable. Either Expected impact kind may include one optional guardrail with
+an absolute At most / At least numeric limit and an explicitly entered unit. The Expected impact
+options menu opens a separate inset editor after the complete primary fields. Add/Save changes
+collapses it to a sentence with Edit/Remove; Cancel restores the prior guardrail. Pending edits
+survive draft recovery and must be added or cancelled before review. Committed guardrails are
+preserved through signed review and saved Request detail. Count units should state their period;
+percentage definitions should name their population. Relative change limits are deferred. This
+uses the existing Expected impact JSON record and adds no monitoring or outcome closure.
+
+2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where
+they will check the result. Source/method is no longer required at creation; previously saved
+source details remain preserved and readable. Keep the compact “Check in [X] days” interval.
+This retains the existing post-launch review interval; it does not schedule notifications or
+automatically close Requests. The creator still owns results and closure.
+
 ### Explicitly not authorized yet
 
 - Any alignment, readiness, outcome, amendment or follow-up storage/screens, or success-criterion work beyond
@@ -284,8 +300,9 @@ align. All three must agree to material subsequent versions. Final control label
 improvement submissions; it is not first collected after design or launch. The PM supplies the product
 prediction when involved in submission. The submitter remains accountable for its recording and follow-through;
 being a named PM or having a PM profile label does not transfer closure ownership. Drafts may remain incomplete.
-The compact form now implements Metric or Verified result, source/method and days after launch, with an
-optional unknown numeric baseline. The same snapshot is preserved through signed review and shown read-only
+The compact form implements Metric or Verified result and a “Check in [X] days” interval, with an
+optional unknown numeric baseline. Source/method is no longer requested at creation (2026-10-12);
+existing source details remain preserved. The same snapshot is preserved through signed review and shown read-only
 on saved detail. This bounded code is implemented and locally verified. Trio agreement, launch,
 actual-result collection/closure and period totals remain target only.
 

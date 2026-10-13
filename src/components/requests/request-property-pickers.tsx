@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
 import { Check, Layers2, Plus, Rows3 } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
-import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { Select } from "@/components/arc/select/select";
 import { Alert } from "@/components/arc/alert/alert";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import {
-  REQUEST_TYPES, REQUEST_TYPE_DESCRIPTIONS, REQUEST_TYPE_LABELS,
+  REQUEST_TYPES, REQUEST_TYPE_LABELS,
   type ProjectOption, type RequestType,
 } from "@/lib/request-constants";
 import styles from "./request-property-pickers.module.css";
@@ -63,13 +64,18 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
 }) {
   const [open, setOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [query, setQuery] = useState("");
+  const [naming, setNaming] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   useEffect(() => {
-    if (open && createError && !creating) searchRef.current?.focus();
-  }, [open, createError, creating]);
+    if (open) (naming ? nameRef : searchRef).current?.focus();
+  }, [open, naming]);
+  useEffect(() => {
+    if (open && createError && !creating) (naming ? nameRef : searchRef).current?.focus();
+  }, [open, createError, creating, naming]);
   const normalized = query.trim().replace(/\s+/g, " ");
   const selected = state.projects.find((project) => project.id === value);
   const matches = state.projects.filter((project) => project.name.toLocaleLowerCase().includes(normalized.toLocaleLowerCase()));
@@ -106,7 +112,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
 
   return <Popover open={open} onOpenChange={(next) => {
     if (creating) return;
-    setOpen(next); if (next) { setQuery(""); setCreateError(null); }
+    setOpen(next); if (next) { setQuery(""); setNaming(false); setCreateError(null); }
   }}>
     <PopoverTrigger asChild>
       <Button type="button" id="intake-project" variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-project-error" : undefined} aria-label={selected ? `Project: ${selected.name}` : value ? "Project: unavailable" : "Project"}>
@@ -116,6 +122,22 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
     <PopoverContent data-lane-request-property-popover aria-label="Choose a Project"
       onOpenAutoFocus={(event) => { event.preventDefault(); searchRef.current?.focus(); }}
       onKeyDown={(event) => event.stopPropagation()} className="space-y-3">
+      {naming ? <div className={styles.projectName}>
+        <Input ref={nameRef} label="Project name" value={query} maxLength={80} disabled={creating} error={createError ?? undefined}
+          onChange={(event) => { setQuery(event.target.value); setCreateError(null); }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              if (normalized && !creating) void choose({ id: "create", name: normalized, kind: "create" });
+            }
+          }} />
+        <div className={styles.projectActions}>
+          <Button type="button" variant="ghost" size="sm" disabled={creating}
+            onClick={() => { setNaming(false); setQuery(""); setCreateError(null); }}>Cancel</Button>
+          <Button type="button" size="sm" disabled={creating || !normalized}
+            onClick={() => void choose({ id: "create", name: normalized, kind: "create" })}>Create Project</Button>
+        </div>
+      </div> : <>
       <SearchField ref={searchRef} label="Project" aria-label="Search Projects" placeholder="Search or create…" disabled={creating} maxLength={80}
         value={query} onValueChange={(next) => { setQuery(next); setCreateError(null); }}
         onKeyDown={(event) => {
@@ -137,28 +159,32 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       </div>}
       {state.loading && <p role="status" className="text-sm text-muted-foreground">Loading Projects…</p>}
       {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => void state.reload()}>Retry Projects</Button></>}
-      {creating && <p role="status" className="text-sm text-muted-foreground">Creating Project…</p>}
       {createError && <Alert title="Project not created" tone="danger">{createError}</Alert>}
       {!state.loading && !state.error && state.projects.length === 0 && !normalized && <p className="text-sm text-muted-foreground">Type a name to create your first Project.</p>}
+      <div className={styles.newProject}>
+        <Button type="button" variant="ghost" size="sm" className={styles.option} disabled={creating}
+          onClick={() => { setNaming(true); setCreateError(null); }}>
+          <Plus size={16} aria-hidden="true" />New Project
+        </Button>
+      </div>
+      </>}
+      {creating && <p role="status" className="text-sm text-muted-foreground">Creating Project…</p>}
     </PopoverContent>
   </Popover>;
 }
 
-const typeOptions: { value: RequestType | null; label: string; description: string }[] = [
-  { value: null, label: "No type", description: "You can leave this undecided." },
-  ...REQUEST_TYPES.map((value) => ({ value, label: REQUEST_TYPE_LABELS[value], description: REQUEST_TYPE_DESCRIPTIONS[value] })),
+const typeOptions = [
+  { value: "none", label: "No type" },
+  ...REQUEST_TYPES.map((value) => ({ value, label: REQUEST_TYPE_LABELS[value] })),
 ];
 
 export function RequestTypePicker({ value, onChange, disabled, error }: {
   value: RequestType | null; onChange: (value: RequestType | null) => void; disabled: boolean; error?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild><Button type="button" id="intake-request-type" variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-request-type-error" : undefined} aria-label={value ? `Request type: ${REQUEST_TYPE_LABELS[value]}` : "Request type"}>
+  return <Select label="Request type" id="intake-request-type" options={typeOptions} value={value ?? "none"} disabled={disabled}
+    onValueChange={(next) => onChange(next === "none" ? null : next as RequestType)}
+    onContentKeyDown={(event) => event.stopPropagation()}
+    trigger={<Button type="button" variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-request-type-error" : undefined} aria-label={value ? `Request type: ${REQUEST_TYPE_LABELS[value]}` : "Request type"}>
       <Rows3 size={16} aria-hidden="true" />{value ? REQUEST_TYPE_LABELS[value] : "Request type"}
-    </Button></PopoverTrigger>
-    <PopoverContent data-lane-request-property-popover aria-label="Choose a Request type" onKeyDown={(event) => event.stopPropagation()}>
-      <RadioGroup label="Request type" name="request-type" options={typeOptions.map(option => ({ ...option, value: option.value ?? "none" }))} value={value ?? "none"} onValueChange={next => { onChange(next === "none" ? null : next as RequestType); setOpen(false); }} />
-    </PopoverContent>
-  </Popover>;
+    </Button>} />;
 }

@@ -7,23 +7,24 @@ export const metricImpact = {
   baseline: null,
   target: 90,
   unit: "%",
-  source: "Saved-draft usability check",
+  source: "",
   reviewAfterDays: 14,
 } satisfies ExpectedImpact;
 
 export const verifiedImpact = {
   kind: "verification",
   result: "Customers can reopen an unfinished draft after signing in again.",
-  source: "Verify on the supported browsers with a saved draft.",
+  source: "",
   reviewAfterDays: 1,
 } satisfies ExpectedImpact;
 
 export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
   const disclosure = canvas.queryByRole("button", { name: "Expected impact" });
   if (disclosure?.getAttribute("aria-expanded") === "false") await userEvent.click(disclosure);
-  await userEvent.type(canvas.getByRole("textbox", { name: /^Metric/ }), metricImpact.metric);
-  await userEvent.type(canvas.getByRole("spinbutton", { name: /^Target value/ }), String(metricImpact.target));
-  await userEvent.type(canvas.getByRole("textbox", { name: /^Unit/ }), metricImpact.unit);
-  await userEvent.type(canvas.getByRole("textbox", { name: /^Data source/ }), metricImpact.source);
-  await userEvent.type(canvas.getByRole("spinbutton", { name: /^Measure after launch/ }), String(metricImpact.reviewAfterDays));
+  await userEvent.type(canvas.getByRole("textbox", { name: "What should improve?" }), metricImpact.metric);
+  await userEvent.type(canvas.getByRole("spinbutton", { name: "Goal" }), String(metricImpact.target));
+  const unit = canvas.getByRole("textbox", { name: "Measured in" });
+  await userEvent.clear(unit);
+  await userEvent.type(unit, metricImpact.unit);
+  await userEvent.type(canvas.getByRole("spinbutton", { name: "Check in days" }), String(metricImpact.reviewAfterDays));
 }

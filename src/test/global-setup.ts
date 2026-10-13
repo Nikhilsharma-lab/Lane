@@ -19,6 +19,7 @@ const REQUEST_CODES_PATH = path.resolve(__dirname, "../db/migrations/0017_reques
 const DESIGN_REVIEWS_PATH = path.resolve(__dirname, "../db/migrations/0018_request_design_reviews.sql");
 const REQUEST_PRIORITY_PATH = path.resolve(__dirname, "../db/migrations/0019_request_priority.sql");
 const ATTACHMENT_CAPABILITIES_PATH = path.resolve(__dirname, "../db/migrations/0020_attachment_capability_accounting.sql");
+const OPTIONAL_IMPACT_SOURCE_PATH = path.resolve(__dirname, "../db/migrations/0021_request_impact_optional_source.sql");
 const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
@@ -94,6 +95,7 @@ export async function setup() {
   sql(["-f", DESIGN_REVIEWS_PATH]);
   sql(["-f", REQUEST_PRIORITY_PATH]);
   sql(["-f", ATTACHMENT_CAPABILITIES_PATH]);
+  sql(["-f", OPTIONAL_IMPACT_SOURCE_PATH]);
   sql(["-f", FIXTURES_PATH]);
 
   console.log(

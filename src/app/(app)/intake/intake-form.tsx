@@ -56,7 +56,7 @@ import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
-import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
+import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
 import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
@@ -352,6 +352,7 @@ export default function IntakeForm({
         setProblemError(null);
         setRestoredDraft(true);
         setLinkOpen(Boolean(draft.source.usefulLink));
+        setImpactOpen(hasGuardrailEdits(draft.source.expectedImpact));
         setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
         // A stored review knows which text produced its framing. Older compose
         // drafts may retain wording without an origin; show it, but never
@@ -360,7 +361,7 @@ export default function IntakeForm({
           ? { title: draft.source.title, description: draft.source.description }
           : draft.previousProblemSource ?? null);
 
-        if (draft.review && expectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
+        if (draft.review && requiredExpectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
           setTriage(draft.review.triage);
           setToken(draft.review.token);
           setEditedProblem(draft.review.editedProblem);
@@ -971,7 +972,7 @@ export default function IntakeForm({
   }
 
   function submitForReview() {
-    if (!active || checking || projectInFlight.current) return;
+    if (!active || checking || projectInFlight.current || hasGuardrailEdits(getValues("expectedImpact"))) return;
     onBusyChange?.(true);
     void handleSubmit(checkFraming, (fieldErrors) => {
       onBusyChange?.(false);
@@ -1087,7 +1088,7 @@ export default function IntakeForm({
                     {currentValues.usefulLink ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <PlusIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Add link
                   </Button>
                   {presentation === "dialog" && <Button type="button" variant="secondary" size="sm" aria-expanded={impactOpen} aria-controls="intake-impact-disclosure" onClick={() => setImpactOpen(open => !open)} disabled={checking}>
-                    {expectedImpactSchema.safeParse(currentValues.expectedImpact).success ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <TargetIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Expected impact
+                    {requiredExpectedImpactSchema.safeParse(currentValues.expectedImpact).success ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <TargetIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Expected impact
                   </Button>}
                   <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
                     <PaperclipIcon size={14} strokeWidth={1.75} aria-hidden="true" data-icon="inline-start" />Attach files
@@ -1141,7 +1142,8 @@ export default function IntakeForm({
               {checking && showSlowCue && (
                 <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
               )}
-              <Button type="submit" disabled={checking || projectBusy}>
+              {hasGuardrailEdits(currentValues.expectedImpact) && <p className="text-sm text-muted-foreground">Add or cancel the guardrail to review your Request.</p>}
+              <Button type="submit" disabled={checking || projectBusy || hasGuardrailEdits(currentValues.expectedImpact)}>
                 {checking && <LoaderCircleIcon aria-hidden="true" data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />}
                 {checking ? "Preparing review…" : "Review Request"}
               </Button>

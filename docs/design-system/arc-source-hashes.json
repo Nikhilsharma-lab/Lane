@@ -63,7 +63,7 @@
     "source": "https://uiarc.dev/r/button.json",
     "file": "src/components/arc/button/button.module.css",
     "upstreamSha256": "61ea6f33ef8dcf2e8335967c30e9ec4ca211ec06ee6a81fde3239b0d2c8bcb84",
-    "localSha256": "711eb13f88ceda6dd0a3ac1cbbff2b209cae9ec057c94aecd9d75a6fd6dabd01"
+    "localSha256": "abd8e01e0a606825d9f74426cd8ceb3fa995ee2faf069cf1de92cd2a7bcb097e"
   },
   {
     "id": "button",
@@ -89,7 +89,7 @@
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.module.css",
     "upstreamSha256": "b43cd10ab34fad31445686c5681e5938c2245c10c465a2b2e3774d802a81e603",
-    "localSha256": "31ac2c70d41532f42565e4dc9cccf493ea986c035549066c9d6ac1907c203cf2"
+    "localSha256": "ae05912f3d853130747eb4692ce23d65e86fae5819d8e150bf60e23991c3d6d3"
   },
   {
     "id": "dialog",
@@ -121,7 +121,8 @@
     "id": "dropdown-menu",
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
-    "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704"
+    "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
+    "localSha256": "d5cc026fb6eefd77c6ad27c35ddba1dcd0d1e7f3253c29110203f67de36de7c3"
   },
   {
     "id": "empty-state",
@@ -161,7 +162,8 @@
     "id": "input",
     "source": "https://uiarc.dev/r/input.json",
     "file": "src/components/arc/input/input.tsx",
-    "upstreamSha256": "cae629a315ef8cf999d8b5a987d800e55847f5ae2f317bc389b263bbcdea0da5"
+    "upstreamSha256": "cae629a315ef8cf999d8b5a987d800e55847f5ae2f317bc389b263bbcdea0da5",
+    "localSha256": "b84cf8791666e5d1d1209ce09e8701375cc015faf5b207239f7d56da19d5c0ac"
   },
   {
     "id": "notification-center",
@@ -269,14 +271,14 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.module.css",
     "upstreamSha256": "f700250cfa39db22e974f417d6d776e70b037e031500ca85c3c94e0c558a2b04",
-    "localSha256": "c964447ee9b94ad2b3347c74c25ec923573013689565ba9001044b9312f1d32b"
+    "localSha256": "6488734b298a859efbef1e718e5ccfffeb43ef91ad226d922b7120fb33b7ab87"
   },
   {
     "id": "select",
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "e33cfc299f98894b539c368923ead1966525bc6214cbfd5c2495e731ef85247e"
+    "localSha256": "42296d519cd63ba20bcbd13f9942ec3adef546c2761020360552821a69549773"
   },
   {
     "id": "skeleton",
