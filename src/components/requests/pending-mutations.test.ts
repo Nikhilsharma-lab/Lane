@@ -42,6 +42,17 @@ describe("pending-mutation overlay: apply()", () => {
     expect(view().apply(rows)).toBe(rows)
   })
 
+  it("does not inspect Request ids when the overlay has no work", () => {
+    const { view } = setup()
+    let reads = 0
+    const rows = Array.from({ length: 200 }, (_, index) => ({
+      ...row(String(index)),
+      get id() { reads++; return String(index) },
+    }))
+    expect(view().apply(rows)).toBe(rows)
+    expect(reads).toBe(0)
+  })
+
   it("returns a new object only for the patched row and keeps it stable across renders", () => {
     const { view, store } = setup()
     const rows = [row("a"), row("b")]
@@ -124,6 +135,30 @@ describe("pending-mutation overlay: clearing", () => {
     expect(view().apply([row("new", { status: "open" }), ...server]).map(item => item.id)).toEqual(["new", "a"])
     flush()
     expect(view().apply(server)).toBe(server)
+  })
+
+  it("applies pending changes to a composer insert before the server lists it", () => {
+    const { view } = setup()
+    const created = row("new", { status: "open" })
+    view().insert(created)
+    const token = view().begin("new", { kind: "priority", priority: "high" })
+    const server = [row("a")]
+    expect(view().apply(server)).toEqual([{ ...created, priority: "high" }, server[0]])
+    view().rollback("new", token)
+    expect(view().apply(server)).toEqual([created, server[0]])
+  })
+
+  it("expires an unseen composer insert even when no mutations are pending", () => {
+    let clock = 0
+    const queue: (() => void)[] = []
+    const store = createPendingMutationsStore({ schedule: task => queue.push(task), clock: () => clock })
+    const view = () => store.view(store.getSnapshot())
+    const server = [row("a")]
+    view().insert(row("new", { status: "open" }))
+    clock = 120_001
+    expect(view().apply(server)).toBe(server)
+    queue.forEach(task => task())
+    expect(store.getSnapshot().inserts).toEqual({})
   })
 })
 

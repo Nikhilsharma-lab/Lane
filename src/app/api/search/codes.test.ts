@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { searchWorkspace } from "./workspace-search-actions";
+import { GET } from "./route";
+import type { WorkspaceSearchResponse } from "@/lib/workspace-search";
 
 const session = vi.hoisted(() => ({ userId: "user_code_search_member", orgId: "org_code_search_a", orgRole: "org:member" }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
@@ -12,6 +13,13 @@ const GUEST = "user_code_search_guest";
 let connection: ReturnType<typeof postgres>;
 let memberRequestId: string;
 let guestRequestId: string;
+
+async function search(query: string) {
+  const params = new URLSearchParams({ org: ORG_A, q: query });
+  const response = await GET(new Request(`http://lane.test/api/search?${params}`));
+  expect(response.status).toBe(200);
+  return await response.json() as WorkspaceSearchResponse;
+}
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
@@ -44,21 +52,21 @@ afterAll(async () => {
 
 describe("saved code retrieval with actual workspace data", () => {
   it("retrieves only the active workspace's Request when codes collide across workspaces", async () => {
-    const result = await searchWorkspace({ query: " lan-1 " }, { orgId: ORG_A });
+    const result = await search(" lan-1 ");
     expect(result).toMatchObject({ success: true, requests: { total: 1, items: [{ id: memberRequestId, requestNumber: 1 }] } });
     if (result.success) expect(result.requests.items).toHaveLength(1);
   });
 
   it("does not expose another submitter's Request or its total when a guest knows its code", async () => {
     session.userId = GUEST; session.orgRole = "org:guest";
-    expect(await searchWorkspace({ query: "LAN-1" }, { orgId: ORG_A })).toMatchObject({
+    expect(await search("LAN-1")).toMatchObject({
       success: true, requests: { items: [], total: 0, hasMore: false },
     });
   });
 
   it("lets a guest retrieve their own Request by code using the UUID detail identity", async () => {
     session.userId = GUEST; session.orgRole = "org:guest";
-    expect(await searchWorkspace({ query: "LAN-2" }, { orgId: ORG_A })).toMatchObject({
+    expect(await search("LAN-2")).toMatchObject({
       success: true, requests: { total: 1, items: [{ id: guestRequestId, requestNumber: 2 }] },
     });
   });

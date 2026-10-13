@@ -20,7 +20,7 @@
 .title { flex: 1 1 20rem; min-width: 0; display: flex; align-items: center; min-height: 44px; padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: 500; line-height: var(--request-title-line-height, 1.5); text-decoration: none; overflow-wrap: anywhere; }
 .row[data-selected] .title { color: var(--selection-foreground, var(--foreground)); }
 /* Selected metadata shares the row's colour pair, including labels, glyphs and initials. */
-:global(:root[data-ui-state-contract="semantic"]) :is(.row[data-selected], .selectionSurface) {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] {
   --request-property-background: var(--selection-background);
   --request-property-foreground: var(--selection-foreground);
   --request-property-border: var(--selection-property-border);
@@ -32,7 +32,7 @@
   --project-slate: var(--selection-foreground);
   color: var(--selection-foreground);
 }
-:global(:root[data-ui-state-contract="semantic"]) :is(.row[data-selected], .selectionSurface) .propertyBadge {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyBadge {
   --badge-color: var(--selection-foreground);
   --badge-foreground: var(--selection-foreground);
   --badge-background: var(--selection-background);

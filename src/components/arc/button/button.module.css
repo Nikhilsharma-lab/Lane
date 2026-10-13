@@ -12,22 +12,24 @@
 .labelPhase { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); white-space: nowrap; }
 .labelPhase svg { flex: none; }
 .primary { color: var(--primary-label, var(--background)); background: var(--primary-background, var(--foreground)); border-color: var(--primary-background, var(--foreground)); }
-.secondary { color: var(--foreground); background: var(--surface); border-color: var(--border); }
+.secondary { color: var(--foreground); background: var(--secondary-background, var(--surface)); border-color: var(--border); }
 .ghost { color: var(--text-secondary); background: transparent; border-color: transparent; }
 .danger { color: var(--danger); background: var(--surface); border-color: var(--border); }
 @media (hover: hover) and (pointer: fine) {
   .primary:hover:not(:disabled) { opacity: var(--primary-hover-opacity, .91); background: var(--primary-hover-background, var(--foreground)); border-color: var(--primary-hover-background, var(--foreground)); box-shadow: var(--shadow-resting); }
-  .secondary:hover:not(:disabled) { background: var(--interaction-hover, var(--surface-muted)); box-shadow: var(--shadow-resting); }
+  .secondary:hover:not(:disabled) { background: var(--secondary-hover-background, var(--interaction-hover, var(--surface-muted))); box-shadow: var(--shadow-resting); }
   .ghost:hover:not(:disabled) { color: var(--foreground); background: var(--interaction-hover, var(--surface-muted)); }
   .danger:hover:not(:disabled) { border-color: var(--danger); background: var(--interaction-hover, var(--surface-muted)); }
 }
 /* Color feedback on press, so touch and menu triggers (which never scale) still answer the finger. */
 .primary:active:not(:disabled) { opacity: var(--primary-pressed-opacity, .84); background: var(--primary-pressed-background, var(--foreground)); border-color: var(--primary-pressed-background, var(--foreground)); }
-.secondary:active:not(:disabled), .ghost:active:not(:disabled) { color: var(--foreground); background: var(--interaction-pressed, var(--surface-muted)); }
+.secondary:active:not(:disabled) { color: var(--foreground); background: var(--secondary-pressed-background, var(--interaction-pressed, var(--surface-muted))); }
+.ghost:active:not(:disabled) { color: var(--foreground); background: var(--interaction-pressed, var(--surface-muted)); }
 .danger:active:not(:disabled) { border-color: var(--danger); background: var(--interaction-pressed, var(--surface-muted)); }
 /* The preview adds visible keyboard fills without changing the existing Arc focus cascade. */
 :global(:root[data-ui-state-contract="semantic"]) .primary:focus-visible:not(:disabled) { background: var(--primary-focus-background, var(--primary-hover-background, var(--foreground))); border-color: var(--primary-focus-background, var(--primary-hover-background, var(--foreground))); }
-:global(:root[data-ui-state-contract="semantic"]) .secondary:focus-visible:not(:disabled), :global(:root[data-ui-state-contract="semantic"]) .danger:focus-visible:not(:disabled) { background: var(--interaction-focus, var(--surface)); }
+:global(:root[data-ui-state-contract="semantic"]) .secondary:focus-visible:not(:disabled) { background: var(--secondary-focus-background, var(--interaction-focus, var(--surface))); }
+:global(:root[data-ui-state-contract="semantic"]) .danger:focus-visible:not(:disabled) { background: var(--interaction-focus, var(--surface)); }
 :global(:root[data-ui-state-contract="semantic"]) .ghost:focus-visible:not(:disabled) { background: var(--interaction-focus, transparent); }
 .sm { min-height: var(--control-height-sm); padding-inline: var(--space-3); font-size: var(--text-sm); }
 .md { min-height: var(--control-height-md); }

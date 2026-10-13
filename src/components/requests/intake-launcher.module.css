@@ -1,0 +1,21 @@
+.launcher {
+  display: grid;
+  min-width: 0;
+  min-height: 100%;
+  place-items: center;
+}
+
+.emptyState {
+  max-width: 32rem;
+}
+
+/* This launcher uses the existing Arc state with a plain monochrome glyph. */
+.emptyState > div:first-child {
+  width: var(--space-8);
+  height: var(--space-8);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.emptyState a { border-radius: var(--radius-pill); }

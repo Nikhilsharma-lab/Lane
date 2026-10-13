@@ -37,8 +37,8 @@ const baseSchema = z.object({
   NEXT_PUBLIC_APP_URL: present,
 });
 
-// The AI rate limiter fails open without KV (src/lib/rate-limit.ts). That is
-// tolerable on a laptop or a preview, never on production.
+// Missing KV disables AI review at runtime everywhere (src/lib/rate-limit.ts).
+// Production also rejects it at startup; local/preview can run non-AI screens.
 const productionSchema = baseSchema.extend({
   KV_REST_API_URL: present,
   KV_REST_API_TOKEN: present,

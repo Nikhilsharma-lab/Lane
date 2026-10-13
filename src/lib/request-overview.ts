@@ -84,24 +84,6 @@ export function matchesListFilters(row: OverviewRequest, filters: ListFilters) {
   return filtersHiding(row, filters).length === 0
 }
 
-export function selectOverviewRequests(
-  requests: OverviewRequest[],
-  status: RequestStatusFilter,
-  query: string,
-  sort: RequestSort,
-) {
-  const search = query.trim().toLocaleLowerCase()
-  return requests.filter(request => {
-    if (status !== "all" && request.status !== status) return false
-    return !search || [request.title, request.reframedProblem, request.creatorName, request.assigneeName]
-      .filter(Boolean).join(" ").toLocaleLowerCase().includes(search)
-  }).sort((a, b) => {
-    if (sort === "title") return (a.reframedProblem ?? a.title).localeCompare(b.reframedProblem ?? b.title)
-    const difference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    return sort === "oldest" ? -difference : difference
-  })
-}
-
 export function paginateRequests<T>(items: T[], requestedPage: number, pageSize: number) {
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
   const pageIndex = Math.max(0, Math.min(requestedPage, pageCount - 1))

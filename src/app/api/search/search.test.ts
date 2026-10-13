@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspaceSearchResponse } from "@/lib/workspace-search";
+
+vi.mock("server-only", () => ({}));
 
 const boundary = vi.hoisted(() => ({
   session: { userId: "user_member", orgId: "org_a", orgRole: "org:member" } as { userId: string | null; orgId: string | null; orgRole: string | null },
@@ -34,8 +37,16 @@ beforeEach(() => {
   boundary.requestTotal = 0; boundary.projectTotal = 0; boundary.failure = false;
 });
 
-async function search(input: Parameters<typeof import("./workspace-search-actions").searchWorkspace>[0], orgId = "org_a") {
-  return (await import("./workspace-search-actions")).searchWorkspace(input, { orgId });
+async function searchResponse(input: Record<string, unknown>, orgId = "org_a") {
+  const params = new URLSearchParams({ org: orgId });
+  for (const [key, value] of Object.entries(input)) params.set(key === "query" ? "q" : key, String(value));
+  const { GET } = await import("./route");
+  return GET(new Request(`http://lane.test/api/search?${params}`));
+}
+
+async function search(input: Record<string, unknown>) {
+  const response = await searchResponse(input);
+  return await response.json() as WorkspaceSearchResponse;
 }
 
 function queryFor(table: "requests" | "projects", count = false) {
@@ -48,7 +59,7 @@ function whereClause(sql: string) {
   return sql.split(" where ")[1].split(" order by ")[0].replace(/\$\d+/g, "$param");
 }
 
-describe("workspace search", () => {
+describe("GET /api/search query and authorization contract", () => {
   it.each([
     { userId: null, orgId: "org_a", orgRole: "org:member" },
     { userId: "user_member", orgId: null, orgRole: "org:member" },
@@ -56,7 +67,9 @@ describe("workspace search", () => {
     { userId: "user_member", orgId: "org_a", orgRole: "org:unknown" },
   ])("rejects an unavailable active membership before querying: %j", async (session) => {
     boundary.session = session;
-    expect(await search({ query: "signup" })).toMatchObject({ success: false, error: { code: "session_expired" } });
+    const response = await searchResponse({ query: "signup" });
+    expect(response.status).toBe(session.userId ? 403 : 401);
+    expect(await response.json()).toHaveProperty("error");
     expect(boundary.queries).toHaveLength(0);
   });
 
@@ -73,9 +86,12 @@ describe("workspace search", () => {
     { query: "x".repeat(201) }, { query: "bad\u0000query" },
     { query: "signup", requestsPage: -1 }, { query: "signup", projectsPage: 0.5 },
     { query: "signup", requestsPage: Number.MAX_SAFE_INTEGER },
-    { query: "signup", projectsPage: "1" }, { query: 123 }, null,
+    { query: "signup", projectsPage: "not-a-number" },
+    { query: "signup", requestsPage: "Infinity" }, { query: "signup", requestsPage: "NaN" },
   ])("rejects invalid search input before querying: %j", async (input) => {
-    expect(await search(input as Parameters<typeof search>[0])).toMatchObject({ success: false, error: { code: "validation" } });
+    const response = await searchResponse(input);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ success: false, error: { code: "validation" } });
     expect(boundary.queries).toHaveLength(0);
   });
 

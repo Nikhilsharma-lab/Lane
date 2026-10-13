@@ -31,6 +31,9 @@ export const requestAttachments = pgTable(
     mimeType: text("mime_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+    uploadExpiresAt: timestamp("upload_expires_at", { withTimezone: true }),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    uploadBlockedAt: timestamp("upload_blocked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -44,6 +47,10 @@ export const requestAttachments = pgTable(
     check(
       "request_attachments_size_check",
       sql`${table.sizeBytes} > 0 AND ${table.sizeBytes} <= 10485760`
+    ),
+    check(
+      "request_attachments_discard_state_check",
+      sql`(${table.discardedAt} IS NULL OR ${table.uploadedAt} IS NULL) AND (${table.uploadBlockedAt} IS NULL OR ${table.discardedAt} IS NOT NULL)`
     ),
   ]
 );

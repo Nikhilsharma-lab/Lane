@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { NotificationBell } from "@/components/shell/notification-bell"
-import { getNotifications, getUnreadCount, markNotificationRead } from "@/app/(app)/notifications/actions"
+import { markNotificationRead } from "@/app/(app)/notifications/actions"
 import { useState } from "react"
 import { NotificationBellView, type NotificationItem } from "@/components/shell/notification-bell-view"
 
@@ -144,9 +144,17 @@ export const ReadFailureStillOpensRequest: Story = {
   render: () => <NotificationBell orgId="fixture-workspace" />,
   beforeEach: () => {
     getRouter().push.mockClear()
-    mocked(getUnreadCount).mockResolvedValue({ success: true, count: 2 })
-    mocked(getNotifications).mockResolvedValue({ success: true, notifications })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
+      if (url.searchParams.get("org") === "fixture-workspace") {
+        if (url.pathname === "/api/notifications/unread") return Response.json({ count: 2 })
+        if (url.pathname === "/api/notifications") return Response.json({ notifications })
+      }
+      return originalFetch(input, init)
+    }
     mocked(markNotificationRead).mockResolvedValue({ error: "Network unavailable" })
+    return () => { globalThis.fetch = originalFetch }
   },
   play: async ({ canvasElement }) => {
     const page = await openNotifications(canvasElement)

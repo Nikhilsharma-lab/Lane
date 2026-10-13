@@ -64,7 +64,7 @@
     "source": "https://uiarc.dev/r/button.json",
     "file": "src/components/arc/button/button.module.css",
     "upstreamSha256": "61ea6f33ef8dcf2e8335967c30e9ec4ca211ec06ee6a81fde3239b0d2c8bcb84",
-    "localSha256": "abd8e01e0a606825d9f74426cd8ceb3fa995ee2faf069cf1de92cd2a7bcb097e"
+    "localSha256": "711eb13f88ceda6dd0a3ac1cbbff2b209cae9ec057c94aecd9d75a6fd6dabd01"
   },
   {
     "id": "button",
@@ -91,28 +91,26 @@
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.module.css",
     "upstreamSha256": "b43cd10ab34fad31445686c5681e5938c2245c10c465a2b2e3774d802a81e603",
-    "localSha256": "36fc5ab621ae1998f9e8c605f6e3de57b4b020d1fe4d9331f88512e8177773d1"
+    "localSha256": "730f762c7b075b900a1a64b7de2fc5d5f0fb7d34113580804df9f1961b6a144c"
   },
   {
     "id": "dialog",
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.tsx",
     "upstreamSha256": "eb84a7eb2ac864dc07f2825eab252eac78e9c6b889d0e9f00bf6b2b799975ade",
-    "localSha256": "c5a7eb000a5d27909036fa3f035091d7d80edfd4616469fe9178fb8faf22316d"
+    "localSha256": "053e8773204752c9bcdf800cd648865f4c7c900a3582b1c59213ccef58adca9f"
   },
   {
     "id": "drawer",
     "source": "https://uiarc.dev/r/drawer.json",
     "file": "src/components/arc/drawer/drawer.module.css",
-    "upstreamSha256": "92378d24196077625b36f742474740977ef181e496abdc5b6eb6230b15ec2eea",
-    "localSha256": "b6cd6847fc7f2fca985b245bc1966711e9da24ff68a96137f23f254c2b93069c"
+    "upstreamSha256": "92378d24196077625b36f742474740977ef181e496abdc5b6eb6230b15ec2eea"
   },
   {
     "id": "drawer",
     "source": "https://uiarc.dev/r/drawer.json",
     "file": "src/components/arc/drawer/drawer.tsx",
-    "upstreamSha256": "5c8ac09f2e8cc769972f53963823ce26a4ab4ab415b7f61d802faaa308e16ac5",
-    "localSha256": "3b42d1348c4e8d96719a56869029f3bc8ec849f2974bf916f70302abbe04912e"
+    "upstreamSha256": "5c8ac09f2e8cc769972f53963823ce26a4ab4ab415b7f61d802faaa308e16ac5"
   },
   {
     "id": "dropdown-menu",

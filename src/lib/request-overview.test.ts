@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, paginateRequests, selectOverviewRequests, type ListFilters, type OverviewRequest } from "./request-overview"
+import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, paginateRequests, type ListFilters, type OverviewRequest } from "./request-overview"
 
 const requests: OverviewRequest[] = [
   { id: "a", title: "Progress bar", reframedProblem: "Signup is confusing", status: "open", createdAt: "2026-09-28T10:00:00Z", creatorName: "Maya", assigneeName: null },
@@ -7,26 +7,17 @@ const requests: OverviewRequest[] = [
   { id: "c", title: "Account recovery", reframedProblem: null, status: "done", createdAt: "2026-09-27T10:00:00Z", creatorName: null, assigneeName: null },
 ]
 
-describe("Requests overview filtering and sorting", () => {
-  it("combines status with normalized problem search", () => {
-    expect(selectOverviewRequests(requests, "open", " SIGNUP ", "newest").map(r => r.id)).toEqual(["a"])
-    expect(selectOverviewRequests(requests, "done", "signup", "newest")).toEqual([])
-  })
-  it("finds original asks and the people involved", () => {
-    expect(selectOverviewRequests(requests, "all", "progress bar", "newest").map(r => r.id)).toEqual(["a"])
-    expect(selectOverviewRequests(requests, "all", "priya", "newest").map(r => r.id)).toEqual(["b"])
-  })
+describe("Requests overview sorting", () => {
   it("orders newest and oldest by submission without mutating input", () => {
-    expect(selectOverviewRequests(requests, "all", "", "newest").map(r => r.id)).toEqual(["b", "a", "c"])
-    expect(selectOverviewRequests(requests, "all", "", "oldest").map(r => r.id)).toEqual(["c", "a", "b"])
+    expect(sortRequestRows(requests, "newest").map(r => r.id)).toEqual(["b", "a", "c"])
+    expect(sortRequestRows(requests, "oldest").map(r => r.id)).toEqual(["c", "a", "b"])
     expect(requests.map(r => r.id)).toEqual(["a", "b", "c"])
   })
   it("sorts by the displayed problem rather than the original suggestion", () => {
-    expect(selectOverviewRequests(requests, "all", "", "title").map(r => r.id)).toEqual(["c", "b", "a"])
+    expect(sortRequestRows(requests, "title").map(r => r.id)).toEqual(["c", "b", "a"])
   })
-  it("handles empty datasets and searches with no matches", () => {
-    expect(selectOverviewRequests([], "all", "", "newest")).toEqual([])
-    expect(selectOverviewRequests(requests, "all", "missing", "newest")).toEqual([])
+  it("handles an empty dataset", () => {
+    expect(sortRequestRows([], "newest")).toEqual([])
   })
 })
 
@@ -96,11 +87,17 @@ describe("List filters for the list and the composer (plan item 2.3)", () => {
     expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "phone" })).toBe(false)
   })
 
-  it("agrees with the list's own status and title selection", () => {
+  it("selects by status view and by the displayed title, as the list does", () => {
+    const expected = {
+      all: { "": ["a", "b", "c"], signup: ["a"], PRICING: ["b"] },
+      open: { "": ["a"], signup: ["a"], PRICING: [] },
+      in_progress: { "": ["b"], signup: [], PRICING: ["b"] },
+      done: { "": ["c"], signup: [], PRICING: [] },
+    } as const
     for (const status of ["all", "open", "in_progress", "done"] as const) {
-      for (const title of ["", "signup", "PRICING"]) {
+      for (const title of ["", "signup", "PRICING"] as const) {
         const listed = requests.filter(row => matchesListFilters(row, { ...all, status, title })).map(row => row.id).sort()
-        expect(listed).toEqual(selectOverviewRequests(requests, status, title, "newest").filter(row => (row.reframedProblem ?? row.title).toLocaleLowerCase().includes(title.trim().toLocaleLowerCase())).map(row => row.id).sort())
+        expect(listed).toEqual(expected[status][title])
       }
     }
   })

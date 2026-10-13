@@ -107,7 +107,10 @@ export const FilterClearsSelection: Story = {
 
 export const PartialFailure: Story = {
   beforeEach: () => {
-    mocked(pickUpRequests).mockResolvedValueOnce({ moved: [requests[0].id], failed: [{ id: requests[1].id, error: "This Request changed before Lane could pick it up. Refresh and try again." }] })
+    mocked(pickUpRequests).mockResolvedValueOnce({
+      moved: [requests[0].id],
+      failed: [{ id: requests[1].id, error: "This Request is no longer Open. Refresh to see its current state." }],
+    })
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -137,6 +140,8 @@ export const Guest: Story = {
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     await expect(canvas.queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Copy links" })).toBeVisible()
+    await expect(mocked(pickUpRequests)).not.toHaveBeenCalled()
+    await expect(mocked(markDoneMany)).not.toHaveBeenCalled()
   },
 }
 
@@ -158,13 +163,19 @@ export const PageAndGroupScope: Story = {
 
 let finishPending: (() => void) | undefined
 export const PendingPreventsDuplicates: Story = {
-  beforeEach: () => { mocked(pickUpRequests).mockImplementationOnce(ids => new Promise(resolve => { finishPending = () => resolve({ moved: ids, failed: [] }) })) },
+  beforeEach: () => {
+    finishPending = undefined
+    mocked(pickUpRequests).mockImplementationOnce(ids => new Promise(resolve => {
+      finishPending = () => resolve({ moved: ids, failed: [] })
+    }))
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     const action = canvas.getByRole("button", { name: "Pick up" })
     await userEvent.dblClick(action)
     await expect(mocked(pickUpRequests)).toHaveBeenCalledTimes(1)
+    await expect(mocked(pickUpRequests)).toHaveBeenCalledWith([requests[0].id], context)
     await expect(action).toHaveAttribute("aria-disabled", "true")
     await expect(canvas.getAllByRole("checkbox")[0]).toBeDisabled()
     await userEvent.keyboard("{Escape}")
@@ -221,7 +232,7 @@ export const CompleteInProgress: Story = {
     await waitFor(() => expect(mocked(markDoneMany)).toHaveBeenCalledWith([requests[26].id], context))
     await expect(mocked(pickUpRequests)).not.toHaveBeenCalled()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
-    // markDone revalidated the list itself; success never refreshes the router again.
+    // The batch revalidated the list itself; success never refreshes it again.
     await expect(getRouter().refresh).not.toHaveBeenCalled()
   },
 }

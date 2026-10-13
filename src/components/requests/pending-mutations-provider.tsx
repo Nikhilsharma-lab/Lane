@@ -116,8 +116,10 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
 
   function view(current: PendingSnapshot): PendingMutations {
     const patches: Record<string, RequestPatch> = {}
+    const layerEntries = Object.entries(current.layers)
+    const inserts = Object.entries(current.inserts)
     let unconfirmed = 0
-    for (const [id, layers] of Object.entries(current.layers)) {
+    for (const [id, layers] of layerEntries) {
       patches[id] = layers.reduce<RequestPatch>((merged, layer) => ({ ...merged, ...layer.patch }), layers[0].patch)
       unconfirmed += layers.filter(layer => !layer.confirmed).length
     }
@@ -126,15 +128,19 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
       unconfirmed,
       applyOne: row => overlay(current, row),
       apply<T extends { id: string }>(rows: T[]): T[] {
+        // Most renders have no pending work. Preserve their array without
+        // scanning it; composer inserts still need the duplicate/expiry checks.
+        if (!layerEntries.length && !inserts.length) return rows
         let changed = false
-        const out = rows.map(row => {
+        const out = layerEntries.length ? rows.map(row => {
           const next = overlay(current, row)
           if (next !== row) changed = true
           return next
-        })
+        }) : rows
+        if (!inserts.length) return changed ? out : rows
         const present = new Set(rows.map(row => row.id))
         const added: T[] = []
-        for (const [id, insert] of Object.entries(current.inserts)) {
+        for (const [id, insert] of inserts) {
           const expired = clock() - insert.since > INSERT_TTL_MS
           if (present.has(id) || expired) {
             clearLater(`insert:${id}:${insert.since}`, () => {

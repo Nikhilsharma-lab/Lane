@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
-import { Drawer, DrawerContent } from "@/components/arc/drawer/drawer";
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
 import { NewRequestContext } from "./new-request-context";
 import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
@@ -34,7 +34,7 @@ export function preloadComposer(): Promise<IntakeFormComponent> {
   return formPromise;
 }
 
-// The compact drawer's body hands its height to its child, so the composer can
+// The composer dialog's body hands its height to its child, so the composer can
 // scroll its own content and keep the footer at the bottom of the panel.
 const fill = { display: "flex", flex: "1 1 auto", flexDirection: "column", minHeight: 0 } as const;
 
@@ -59,9 +59,13 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // Plan item 1.7 moved the list context into layout state; the URL is only a
-  // mirror of it, and the fallback outside the layout's provider.
+  // mirror of it, and the fallback outside the layout's provider. The layout
+  // mirrors only the "/" URL, so on /intake the URL's Project, which
+  // NewRequestLink writes as /intake?project=, names the new Request's Project.
   const listContext = useRequestListContext();
-  const { status: statusFilter, project: projectFilter } = listContext ?? parseRequestListContext(searchParams);
+  const urlContext = parseRequestListContext(searchParams);
+  const statusFilter = (listContext ?? urlContext).status;
+  const projectFilter = pathname === "/intake" && searchParams.has("project") ? urlContext.project : (listContext ?? urlContext).project;
   const projectId = projectIdOrNull(projectFilter);
   const listSnapshot = useListViewSnapshot();
   const setListView = useSetRequestListView();
@@ -80,16 +84,11 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   const completed = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
   const createdId = useRef<string | null>(null);
-  const directEntry = pathname === "/intake";
   // Where the person is now, for a toast action that runs after a navigation.
   const onList = useRef(pathname === "/");
   useEffect(() => { onList.current = pathname === "/"; }, [pathname]);
 
   const openComposer = useCallback((element?: HTMLElement) => {
-    if (directEntry) {
-      document.getElementById("intake-title")?.focus();
-      return;
-    }
     trigger.current = element ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     createdId.current = null;
     // A retained composer belongs to its draft, even after navigating to a
@@ -106,17 +105,17 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     if (!IntakeForm) preload();
     setHasOpened(true);
     setOpen(true);
-  }, [IntakeForm, directEntry, hasOpened, preload, projectFilter, projectId, statusFilter]);
+  }, [IntakeForm, hasOpened, preload, projectFilter, projectId, statusFilter]);
 
   useEffect(() => {
-    if (IntakeForm || directEntry) return;
+    if (IntakeForm) return;
     if (typeof window.requestIdleCallback === "function") {
       const idle = window.requestIdleCallback(preload, { timeout: 4000 });
       return () => window.cancelIdleCallback(idle);
     }
     const timer = window.setTimeout(preload, 1500);
     return () => window.clearTimeout(timer);
-  }, [IntakeForm, directEntry, preload]);
+  }, [IntakeForm, preload]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -165,36 +164,32 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
 
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
-  // created. Once per document load, after hydration, open the composer so it
-  // can say which files weren't added. /intake shows it in the page itself, and
-  // a document that loaded /intake has had its check: a record found after an
-  // in-app navigation is this document's own, not evidence of a reload.
+  // created. Once per document load, after hydration and on any page, /intake
+  // included, open the composer so it can say which files weren't added. A
+  // record found later, after an in-app navigation, is this document's own, not
+  // evidence of a reload.
   const checkedLostUploads = useRef(false);
   useEffect(() => {
     if (checkedLostUploads.current) return;
-    if (directEntry) {
-      checkedLostUploads.current = true;
-      return;
-    }
     const timer = window.setTimeout(() => {
       checkedLostUploads.current = true;
       if (readLostUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId))) openComposer();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [context.orgId, directEntry, draftOwnerId, openComposer]);
+  }, [context.orgId, draftOwnerId, openComposer]);
 
   const value = useMemo(() => ({ openComposer, preload }), [openComposer, preload]);
   return (
-    <NewRequestContext.Provider value={directEntry ? null : value}>
+    <NewRequestContext.Provider value={value}>
       {children}
       {/* For the perf spec (e2e/perf.spec.ts): C after this has no chunk to wait for. */}
       <span hidden data-composer-ready={IntakeForm ? "true" : undefined} />
-      {hasOpened && !directEntry && formHost && <>
+      {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
-            Arc drawer closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} presentation="dialog" active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
-        <Drawer open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
-          <DrawerContent compact title="New Request" description="Describe your Request and the result you expect."
+            Arc dialog closes. Its overlay and focus scope still unmount normally. */}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
+        <Dialog open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
+          <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {
               // The title in the compose step, the step's heading otherwise. Until
               // the form arrives, Radix focuses the close button.
@@ -206,7 +201,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
             onCloseAutoFocus={event => {
               event.preventDefault();
               // Mobile navigation stays mounted while closed. Its original
-              // compose link cannot receive focus once the drawer is inert.
+              // compose link cannot receive focus once the dialog is inert.
               // The welcome's New Request unmounts when the first Request lands
               // in its place (plan item 2.1), so that row's title link is next.
               const created = createdId.current ? document.getElementById(`request-${createdId.current}`) : null;
@@ -226,8 +221,8 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
             }}>
             {!IntakeForm && <div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div>}
             <div style={fill} ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
-          </DrawerContent>
-        </Drawer>
+          </DialogContent>
+        </Dialog>
       </>}
     </NewRequestContext.Provider>
   );

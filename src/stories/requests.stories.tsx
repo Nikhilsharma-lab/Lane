@@ -185,7 +185,11 @@ function NotificationsFixture() {
     onSelect={() => {}} onMarkAllRead={() => {}} onToggleRead={() => {}} onRetry={() => {}} />
 }
 
-export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & { linearPreviewAutoCollapse?: boolean }) {
+export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & {
+  linearPreviewAutoCollapse?: boolean
+  pathname?: string
+  children?: React.ReactNode
+}) {
   // The layout's list view state is the list's only route state (plan item 1.7): sidebar links set it in place.
   return <RequestListViewProvider initialColumnVisibility={args.linearPreviewAutoCollapse ? { requestType: true } : undefined}><ShellFixtureBody {...args} /></RequestListViewProvider>
 }
@@ -194,7 +198,7 @@ function ShellFixtureBody(args: React.ComponentProps<typeof RequestsShellFixture
   const [projects, setProjects] = useState(fixtureProjects)
   const setView = useSetRequestListView()
   return <SidebarView linearPreviewAutoCollapse={args.linearPreviewAutoCollapse} previewProjectTree={args.linearPreviewAutoCollapse} workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test"
-    role={args.isGuest ? "guest" : "member"} pathname="/" projects={projects}
+    role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} projects={projects}
     notifications={<NotificationsFixture />} onSignOut={() => {}} onSearch={input => Promise.resolve(fixtureWorkspaceSearch(input, args.requests, projects))}
     onCreateProject={async name => {
       const existing = projects.find(project => project.name.toLocaleLowerCase() === name.toLocaleLowerCase())
@@ -203,7 +207,7 @@ function ShellFixtureBody(args: React.ComponentProps<typeof RequestsShellFixture
       setView(view => withListContext(view, { status: "all", project: project.id }))
       return project
     }}>
-    <RequestsOverview {...args} />
+    {args.children ?? <RequestsOverview {...args} />}
   </SidebarView>
 }
 
@@ -583,6 +587,7 @@ export const ProjectNavigationInShell: Story = {
     await userEvent.click(navigation.getByRole("link", { name: "Website" }))
     if (window.innerWidth <= 640) await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
     await expect(canvas.getByRole("heading", { name: "Website", level: 1 })).toBeVisible()
+    // The shared layout retains the Project view; detail links stay canonical.
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(canvas.queryByRole("link", { name: requests[1].title })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("button", { name: "Project: Website" })).not.toBeInTheDocument()

@@ -19,22 +19,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckIcon,
   PlusIcon,
-  FileTextIcon,
-  ImageIcon,
   LightbulbIcon,
   PaperclipIcon,
   RotateCcwIcon,
-  Trash2Icon,
-  XIcon,
 } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
-import { Progress } from "@/components/arc/progress/progress";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
+import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
 import {
   clearIntakeDraft,
@@ -44,7 +40,6 @@ import {
 } from "@/lib/intake-draft";
 import {
   ATTACHMENT_ACCEPT,
-  formatAttachmentSize,
   MAX_ATTACHMENT_FILES,
   validateAttachmentMetadata,
   validateAttachmentSelection,
@@ -231,21 +226,9 @@ function IntakeNotice({
   );
 }
 
-function AttachmentIcon({ file }: { file: File }) {
-  if (file.type.startsWith("image/")) {
-    return (
-      <ImageIcon aria-hidden="true" className="size-4" />
-    );
-  }
-  return (
-    <FileTextIcon aria-hidden="true" className="size-4" />
-  );
-}
-
 export default function IntakeForm({
   context,
   draftOwnerId,
-  presentation = "page",
   active = true,
   onCreated,
   onBusyChange,
@@ -253,7 +236,6 @@ export default function IntakeForm({
 }: {
   context: { orgId: string };
   draftOwnerId: string;
-  presentation?: "page" | "dialog";
   active?: boolean;
   /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. */
   onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
@@ -292,8 +274,9 @@ export default function IntakeForm({
 
   const operationInFlight = useRef(false);
   // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
-  // which stops the uploads; or this composer unmounted (Back, or /intake
-  // taking the drawer's place), which lets them finish without it.
+  // which stops the uploads; or this composer unmounted (its host left: the
+  // layout leaves, or a workspace switch re-keys it), which lets them finish
+  // without it.
   const leftUploadScreen = useRef(false);
   const unmounted = useRef(false);
   // Plan item 2.3 (S3): the created Request whose files this composer still
@@ -314,6 +297,7 @@ export default function IntakeForm({
   const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachFilesButtonRef = useRef<HTMLButtonElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId);
@@ -841,7 +825,7 @@ export default function IntakeForm({
   }
 
   /** The saved row joins the list's Open group through the overlay at once,
-   * before any upload, on both surfaces (plan item 2.3). No router refresh: the
+   * before any upload (plan item 2.3). No router refresh: the
    * save already revalidated the list. */
   function showCreatedInList(created: OverviewRequest | undefined) {
     if (!created) return;
@@ -890,8 +874,9 @@ export default function IntakeForm({
     settleLeftUploads();
   }
 
-  /** Back, or /intake taking the drawer's place, cancels nothing: the upload
-   * loops go on in the background, render nothing, and settle when they end. */
+  /** The composer's host unmounting (the layout leaves, or a workspace switch
+   * re-keys it) cancels nothing: the upload loops go on in the background,
+   * render nothing, and settle when they end. */
   function leaveOnUnmount() {
     unmounted.current = true;
     settleLeftUploads();
@@ -983,8 +968,9 @@ export default function IntakeForm({
       draftCleared.current = true;
       clearIntakeDraft(window.sessionStorage, draftScope);
 
-      // Back while the save was pending unmounted the composer. The row is in
-      // the list; no toast or navigation pulls the person from where Back went.
+      // A composer whose host unmounted while the save was pending renders
+      // nothing. The row is in the list; no toast or navigation pulls the
+      // person from where they went.
       if (attachments.length === 0) {
         if (!uploadsUnattended()) finishCreatedRequest(result.requestId);
         return;
@@ -1167,7 +1153,6 @@ export default function IntakeForm({
 
   const composing = stage === "compose" || checking;
   const reviewing = stage === "framing" || creating;
-  const dialog = presentation === "dialog";
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
   const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
@@ -1213,7 +1198,7 @@ export default function IntakeForm({
 
   return (
     <div
-      className={cn(styles.composer, dialog ? styles.dialog : cn(styles.page, "mx-auto w-full max-w-2xl px-4 pt-6 sm:px-6 sm:pt-8"))}
+      className={cn(styles.composer, styles.dialog)}
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
@@ -1290,10 +1275,10 @@ export default function IntakeForm({
               <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
               <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => { draftEdited.current = true; setValue("requestType", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} error={errors.requestType?.message} />
               <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
-                {currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}Add link
+                {currentValues.usefulLink ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <PlusIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Add link
               </Button>
-              <Button type="button" variant="ghost" size="sm"  onClick={() => fileInputRef.current?.click()} disabled={checking}>
-                <PaperclipIcon aria-hidden="true" data-icon="inline-start" />Attach files
+              <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
+                <PaperclipIcon size={14} strokeWidth={1.75} aria-hidden="true" data-icon="inline-start" />Attach files
               </Button>
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
@@ -1323,24 +1308,12 @@ export default function IntakeForm({
             </section>}
 
             {fileFailure && <IntakeNotice error>{fileFailure}</IntakeNotice>}
+            <IntakeAttachmentList items={attachments} mode="queued" disabled={checking}
+              onRemove={(item) => removeQueuedFile(item.key)} emptyFocusRef={attachFilesButtonRef} />
             {attachments.length > 0 && (
-              <div className="space-y-2">
-                <ul aria-label="Files ready to upload" className="divide-y">
-                  {attachments.map((attachment) => (
-                    <li key={attachment.key} className="flex items-center gap-3 py-2">
-                      <span className="shrink-0 text-muted-foreground"><AttachmentIcon file={attachment.file} /></span>
-                      <span className="min-w-0 flex-1 truncate text-sm">{attachment.file.name}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatAttachmentSize(attachment.file.size)}</span>
-                      <Button type="button" size="sm" variant="ghost" aria-label={`Remove ${attachment.file.name}`} onClick={() => removeQueuedFile(attachment.key)} disabled={checking}>
-                        <XIcon aria-hidden="true" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">
-                  Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
+              </p>
             )}
             {gateNotice && (
               <div ref={failureRef}>
@@ -1375,7 +1348,7 @@ export default function IntakeForm({
           </div>
         )}
       {reviewing && triage && source && (
-        // Plan item 2.3: one ordered list of blocks on both surfaces, then the
+        // Plan item 2.3: one ordered list of blocks, then the
         // footer. The alignment increment's block will slot in before the footer.
         <div
           className={cn(reveal, "space-y-6")}
@@ -1529,7 +1502,7 @@ export default function IntakeForm({
 
       {(stage === "uploading" || stage === "attachment_recovery") &&
         createdRequestId && (
-          <div className={cn(reveal, "mx-auto max-w-[680px] space-y-6")}>
+          <div className={cn(reveal, "space-y-6")}>
             <header className="space-y-2">
               <h2
                 ref={headingRef}
@@ -1557,99 +1530,9 @@ export default function IntakeForm({
               </p>
             </header>
 
-            <ul aria-label="Request file uploads" className="space-y-3">
-              {attachments.map((attachment) => (
-                <li
-                  key={attachment.key}
-                  className="flex items-start gap-3 border-b py-3 last:border-0"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
-                    <AttachmentIcon file={attachment.file} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("text-sm font-medium", "truncate")}>
-                      {attachment.file.name}
-                    </p>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <p
-                        className={cn(
-                          "text-xs",
-                          cn(
-                            "text-muted-foreground",
-                            attachment.status === "failed" &&
-                              "text-destructive-foreground",
-                            attachment.status === "uploaded" &&
-                              "text-success-foreground",
-                          ),
-                        )}
-                      >
-                        {attachment.status === "queued"
-                          ? "Waiting"
-                          : attachment.status === "uploading"
-                            ? `${attachment.progress}% uploaded`
-                            : attachment.status === "uploaded"
-                              ? "Uploaded"
-                              : "Upload failed"}
-                      </p>
-                      {attachment.status === "uploaded" && (
-                        <CheckIcon
-                          aria-hidden="true"
-                          className="size-4 shrink-0 text-success-foreground"
-                        />
-                      )}
-                    </div>
-                    {attachment.status === "uploading" && (
-                      <Progress
-                        value={attachment.progress}
-                        aria-label={`Uploading ${attachment.file.name}`}
-                        className="mt-2"
-                      />
-                    )}
-                    {attachment.error && (
-                      <p
-                        className={cn(
-                          "text-xs",
-                          "mt-2 text-destructive-foreground",
-                        )}
-                      >
-                        {attachment.error}
-                      </p>
-                    )}
-                    {stage === "attachment_recovery" &&
-                      attachment.status === "failed" && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => void retryAttachments([attachment])}
-                            disabled={mutationBusy}
-                          >
-                            <RotateCcwIcon
-                              aria-hidden="true"
-                              data-icon="inline-start"
-                            />
-                            Retry upload
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => void removeFailedFile(attachment)}
-                            disabled={mutationBusy}
-                          >
-                            <Trash2Icon
-                              aria-hidden="true"
-                              data-icon="inline-start"
-                            />
-                            Remove
-                          </Button>
-                        </div>
-                      )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <IntakeAttachmentList items={attachments} mode={stage === "uploading" ? "uploading" : "recovery"}
+              disabled={mutationBusy} onRetry={(item) => retryAttachments([item])}
+              onRemove={removeFailedFile} emptyFocusRef={headingRef} />
 
             {stage === "attachment_recovery" && hasPendingUploads && (
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -1699,14 +1582,7 @@ export default function IntakeForm({
                 Your Request was created, but the page reloaded before these files finished uploading, so they weren’t added. Mention them in a comment if your team needs them.
               </p>
             </header>
-            <ul aria-label="Files that weren’t added" className="divide-y">
-              {lostUploads.files.map((file) => (
-                <li key={file.key} className="flex items-center gap-3 py-2">
-                  <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-                </li>
-              ))}
-            </ul>
+            <IntakeAttachmentList items={lostUploads.files} mode="lost" />
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={openLostRequest}>Open Request</Button>
               <Button type="button" variant="ghost" onClick={dismissLostUploads}>Dismiss</Button>

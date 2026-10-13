@@ -1,0 +1,37 @@
+.section,
+.embedded {
+  container: impact / inline-size;
+  min-width: 0;
+}
+
+.section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-6);
+}
+
+.heading {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.body,
+.fields {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.body { margin: 0; border: 0; padding: 0; gap: var(--space-6); }
+.body > * { min-width: 0; }
+.measure { display: grid; gap: var(--space-2); }
+.guidance { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }
+.values,
+.evidence { display: grid; gap: var(--space-4); }
+.values { align-items: start; }
+.evidence { align-items: start; }
+.timing { width: 100%; max-width: 14rem; }
+
+@container impact (min-width: 420px) {
+  .values { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 0.6fr); }
+}
