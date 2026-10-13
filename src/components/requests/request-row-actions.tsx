@@ -1,10 +1,8 @@
 "use client"
 
-import { useCallback, useMemo, useRef, type ReactNode } from "react"
+import { useCallback, useMemo, type ReactNode } from "react"
 import { Copy } from "lucide-react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
-import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
-import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
@@ -12,7 +10,7 @@ import { allowedMove, type AllowedMove, type LifecycleMove } from "@/lib/request
 import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
-import { FAILURE_TITLE, useOptimisticAction } from "./use-optimistic-action"
+import { useRequestMoves } from "./request-moves"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
 
@@ -39,12 +37,9 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   isGuest: boolean
   children: ReactNode
 }) {
-  const { toast, update } = useToastStack()
-  const optimistic = useOptimisticAction()
   const overlay = usePendingMutations()
   // Plan item 2.4: optimistic changes speak in the list's one region when the patch begins.
   const announce = useListAnnouncer()
-  const busy = useRef(new Set<string>())
   const { orgId } = context
 
   // Codes and priorities read through the overlay, so a priority change shows at once.
@@ -63,63 +58,14 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
     })
   }, [announce])
 
-  // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
-  // Undo is sent only after the Done move it reverses has succeeded.
-  const undo = useCallback(async (toastId: string, requestId: string, name: string) => {
-    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In Progress.`, action: undefined })
-    const outcome = await optimistic({
-      id: requestId,
-      patch: { kind: "undo", status: "in_progress" },
-      run: () => undoMarkDone(requestId, { orgId }),
-      waitForPending: true,
-      onError: description => { toast({ id: toastId, type: "error", title: "Could not undo", description }) },
-    })
-    if (outcome.status !== "success") return
-    toast({ id: toastId, type: "success", title: "Back In Progress", description: `${name} is In Progress again.` })
-    restoreFocus(requestId, name)
-  }, [optimistic, orgId, restoreFocus, toast, update])
-
-  /** One toast per move: Done confirms at once with Undo, and a failure replaces that same toast. */
+  // Plan item 2.5: the moves, their toasts and their copy live in request-moves.ts, shared with Request detail.
+  const moves = useRequestMoves({ orgId, announce, afterMove: restoreFocus })
+  const { copy, setPriority: setRequestPriority } = moves
+  const startMove = moves.move
   const move = useCallback((request: OverviewRequest, kind: Move) => {
-    const key = `${request.id}:${kind}`
-    if (busy.current.has(key)) return
-    busy.current.add(key)
-    const name = identities[request.id]?.code || (request.reframedProblem ?? request.title)
-    const toastId = kind === "done"
-      // Done leaves the working views, so its confirmation carries the way back.
-      ? toast({ type: "success", title: "Marked Done", description: `${name} is now Done.`, duration: 10_000,
-        action: { label: "Undo", onClick: id => void undo(id, request.id, name) } })
-      : null
-    // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
-    if (kind === "pick-up") announce("Picked up. The Request is now In Progress.", { key: "row-change" })
-    void optimistic({
-      id: request.id,
-      patch: kind === "done" ? { kind: "done", status: "done" } : { kind: "pick-up", status: "in_progress" },
-      run: () => (kind === "done" ? markDone : pickUpRequest)(request.id, { orgId }),
-      waitForPending: true,
-      onError: toastId ? description => { toast({ id: toastId, type: "error", title: FAILURE_TITLE, description, action: undefined }) } : undefined,
-    }).then(outcome => {
-      // The failure toast speaks for itself; the region drops the claim it made.
-      if (outcome.status === "error" && kind === "pick-up") announce("", { key: "row-change" })
-    }).finally(() => { busy.current.delete(key) })
-    restoreFocus(request.id, name)
-  }, [announce, identities, optimistic, orgId, restoreFocus, toast, undo])
-
-  const setPriority = useCallback((request: OverviewRequest, priority: RequestPriority) => {
-    announce(`Priority set to ${REQUEST_PRIORITY_LABELS[priority].toLowerCase()}.`, { key: "row-change" })
-    void optimistic({
-      id: request.id,
-      patch: { kind: "priority", priority },
-      run: () => setRequestPriority(request.id, priority, { orgId }),
-    }).then(outcome => {
-      if (outcome.status === "error") announce("", { key: "row-change" })
-    })
-  }, [announce, optimistic, orgId])
-
-  const copy = useCallback(async (value: string, label: string) => {
-    try { await navigator.clipboard.writeText(value); announce(`${label} copied.`, { key: "copy" }) }
-    catch { toast({ type: "error", title: "Could not copy", description: "Select the text and copy it instead." }) }
-  }, [announce, toast])
+    void startMove({ id: request.id, name: identities[request.id]?.code || (request.reframedProblem ?? request.title) }, kind)
+  }, [identities, startMove])
+  const setPriority = useCallback((request: OverviewRequest, priority: RequestPriority) => { void setRequestPriority(request.id, priority) }, [setRequestPriority])
 
   // One stable builder: it changes only with identities or the guest flag, and
   // memoised rows call it only when they re-render (plan item 1.14).

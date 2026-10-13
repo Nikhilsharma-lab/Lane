@@ -1,13 +1,15 @@
 "use client"
 
-import { cloneElement, memo, useEffect, useId, useRef, useState, type FocusEvent, type ReactElement } from "react"
+import { memo, useEffect, useId, useRef, useState } from "react"
 import { Check, Copy, Ellipsis, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
 import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { ROW_MENU_HINTS } from "@/lib/keyboard-shortcuts"
-import { useIntentPrefetch, type RequestColumn } from "./tasks/columns"
+import type { RequestColumn } from "./tasks/columns"
+import { useIntentPrefetch } from "./use-intent-prefetch"
+import { GlyphMenu } from "./glyph-menu"
 import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
@@ -61,23 +63,6 @@ function RequestCodeControl({ code }: { code: string }) {
     </Tooltip>
     {state === "error" && <span id={feedbackId} className={styles.codeError}>Copy failed. Try again.</span>}
   </span>
-}
-
-/** A glyph button that explains itself on hover and opens its menu on click.
- * Arc's ContextMenu clones one element and the Radix tooltip slots into one
- * element, so a layout-free span carries the menu handlers while the button
- * keeps focus, the tooltip and the menu's return focus. */
-function GlyphMenu({ label, items, tip, onOpenChange, children }: { label: string; items: ContextMenuItem[]; tip: string; onOpenChange?: (open: boolean) => void; children: ReactElement<{ "aria-expanded"?: boolean; onFocus?: (event: FocusEvent<HTMLButtonElement>) => void }> }) {
-  // The span receives the menu's expanded state; the button is what assistive tech reads, so it repeats it.
-  const [open, setOpen] = useState(false)
-  return <ContextMenu label={label} items={items} asChild onOpenChange={next => { setOpen(next); onOpenChange?.(next) }}>
-    <span className={styles.menuSlot}><Tooltip morph="plain" content={tip}>{cloneElement(children, {
-      "aria-expanded": open,
-      // The menu hands focus back to the button when it closes. Radix opens the tooltip on
-      // any focus unless the handler before it prevents default, so only keyboard focus does.
-      onFocus: event => { children.props.onFocus?.(event); if (!event.currentTarget.matches(":focus-visible")) event.preventDefault() },
-    })}</Tooltip></span>
-  </ContextMenu>
 }
 
 type RequestRowProps = {

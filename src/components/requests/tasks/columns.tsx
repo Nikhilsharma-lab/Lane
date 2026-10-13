@@ -1,45 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useRef, type ComponentProps, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
-import type { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types"
+import type { ComponentProps, ReactNode } from "react"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { RequestProperty } from "../request-properties"
+import { useIntentPrefetch } from "../use-intent-prefetch"
 import styles from "../request-rows.module.css"
-
-/** How long the pointer must rest on a title before the full detail route is prefetched. */
-export const PREFETCH_INTENT_MS = 80
-// PrefetchKind is a type-only enum in Next; "full" fetches the whole page,
-// not just the loading skeleton the viewport prefetch fetches.
-const FULL_PREFETCH = { kind: "full" as PrefetchKind }
-
-/**
- * A full router.prefetch of a Request's detail on intent: `now` at once,
- * `schedule` after the person rests for PREFETCH_INTENT_MS, `cancel` when they
- * move on. One href is fetched once per mount. Plan item 2.4: the row uses it
- * on keyboard focus, so holding J past ten rows starts at most one prefetch.
- */
-export function useIntentPrefetch(href: string) {
-  const router = useRouter()
-  const timer = useRef<number | undefined>(undefined)
-  const prefetched = useRef<string | null>(null)
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-  return useMemo(() => {
-    const now = () => {
-      window.clearTimeout(timer.current)
-      if (prefetched.current === href) return
-      prefetched.current = href
-      router.prefetch(href, FULL_PREFETCH)
-    }
-    return {
-      now,
-      schedule: () => { window.clearTimeout(timer.current); timer.current = window.setTimeout(now, PREFETCH_INTENT_MS) },
-      cancel: () => window.clearTimeout(timer.current),
-    }
-  }, [href, router])
-}
 
 /**
  * Plan item 1.11: the Link keeps Next's default viewport prefetch (the only
