@@ -1094,7 +1094,11 @@ export const WorkspaceActionsRemainVisible: Story = {
     const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "New Request" });
     const canvas = within(dialog);
     await userEvent.type(await canvas.findByRole("textbox", { name: "Request title" }), requestSource.title);
-    await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
+    const description = canvas.getByRole("textbox", { name: "Description" });
+    await userEvent.type(description, requestSource.description);
+    // #45's compact Expected impact fits a short draft in a 390 × 1000 dialog, so the
+    // description carries interview notes: a long Request must scroll on a phone.
+    await userEvent.paste(Array.from({ length: 4 }, (_, index) => `\n\nInterview ${index + 1}: customers reopen several drafts before they find their latest changes.`).join(""));
     await fillMetricImpact(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
     const relatedLink = canvas.getByRole("textbox", { name: "Related link" });
