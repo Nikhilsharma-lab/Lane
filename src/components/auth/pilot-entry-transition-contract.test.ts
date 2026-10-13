@@ -41,7 +41,9 @@ describe("Pilot entry and transition contract", () => {
 
   it("uses destination-specific geometry for Intake and Settings", () => {
     expect(INTAKE_LOADING).toContain('label="Loading New Request"')
-    expect(INTAKE_LOADING).toContain("max-w-2xl")
+    // /intake is a launcher (2026-10-13): its wait takes the launcher's centred layout.
+    expect(INTAKE_LOADING).toContain('from "@/components/requests/intake-launcher.module.css"')
+    expect(INTAKE_LOADING).toContain("className={launcher.launcher}")
     expect(INTAKE_LOADING).not.toContain("RequestsWorkspaceLoading")
 
     expect(source("src/components/settings/profile-sections.tsx")).toContain('label="Loading Profile settings"')

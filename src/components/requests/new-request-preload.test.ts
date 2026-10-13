@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
@@ -36,5 +36,25 @@ describe("New Request composer preload", () => {
   it("focuses the step's own target without scrolling the panel", () => {
     expect(provider).toContain('querySelector<HTMLElement>("[data-composer-autofocus]")')
     expect(provider).toContain("focus({ preventScroll: true })")
+  })
+})
+
+// 2026-10-13: Nikhil chose a centred dialog for the New Request composer, and
+// /intake became a launcher. The Arc Drawer has no consumer and stays upstream.
+describe("New Request composer host", () => {
+  const sources = (readdirSync(join(process.cwd(), "src"), { recursive: true }) as string[])
+    .filter(path => /\.(?:ts|tsx)$/.test(path))
+    .map(path => ({ path, source: read(join("src", path)) }))
+
+  it("opens the composer in the centred Arc Dialog", () => {
+    expect(provider).toContain('import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"')
+    expect(provider).toMatch(/<DialogContent layout="composer"/)
+  })
+
+  it("leaves the Arc Drawer with no importer and /intake with no form of its own", () => {
+    expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path)).toEqual([])
+    const intakePage = read("src/app/(app)/intake/page.tsx")
+    expect(intakePage).toContain("<IntakeLauncher />")
+    expect(intakePage).not.toContain("intake-form")
   })
 })
