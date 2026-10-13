@@ -948,7 +948,7 @@ export const CreatedVisibleInOpenGroup: Story = {
   play: async ({ canvasElement }) => {
     const { page } = await createFromList(canvasElement);
     // The saved row joins the Open group through the pending overlay, with no refresh.
-    const open = within(canvasElement).getByRole("list", { name: "Open Requests" });
+    const open = within(canvasElement).getByRole("rowgroup", { name: "Open Requests" });
     await expect(within(open).getByRole("link", { name: source.title })).toBeVisible();
     await expect(await page.findByText("Request created")).toBeVisible();
     await expect(page.getByText("Open and ready to be picked up.")).toBeVisible();
@@ -972,9 +972,11 @@ export const CreatedHiddenByFilters: Story = {
     await expect(page.queryByRole("button", { name: "Open Request" })).not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "Show it" }));
     // Show it moves to the smallest view that holds it and focuses the row.
-    const row = await canvas.findByRole("link", { name: source.title });
+    // Plan item 2.4: the row, the list's one tab stop, takes focus.
+    const link = await canvas.findByRole("link", { name: source.title });
+    const row = link.closest<HTMLElement>('[role="row"]')!;
     await waitFor(() => expect(row).toHaveFocus());
-    await expect(within(canvas.getByRole("list", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(row);
+    await expect(within(canvas.getByRole("rowgroup", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(link);
     await expect(canvas.queryByRole("link", { name: "Refund emails show the wrong total" })).not.toBeInTheDocument();
     await expect(getRouter().refresh).not.toHaveBeenCalled();
   },
@@ -997,16 +999,18 @@ export const ShowItAfterLeavingTheList: Story = {
     // The toast outlives the page: the person opens something else first.
     mocked(usePathname).mockReturnValue(`/requests/${listRows[1].id}`);
     await userEvent.click(canvas.getByRole("button", { name: "Leave the list fixture" }));
-    await expect(canvas.queryByRole("list", { name: "Done Requests" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("rowgroup", { name: "Done Requests" })).not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "Show it" }));
     // Show it goes back to the list, in the smallest view that holds the new Request.
     await expect(getRouter().push).toHaveBeenCalledWith("/?status=open");
     // The router is a fixture here, so the story makes the navigation itself.
     mocked(usePathname).mockReturnValue("/");
     await userEvent.click(canvas.getByRole("button", { name: "Back to the list fixture" }));
-    const row = await canvas.findByRole("link", { name: source.title });
+    // Plan item 2.4: the row, the list's one tab stop, takes focus.
+    const link = await canvas.findByRole("link", { name: source.title });
+    const row = link.closest<HTMLElement>('[role="row"]')!;
     await waitFor(() => expect(row).toHaveFocus());
-    await expect(within(canvas.getByRole("list", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(row);
+    await expect(within(canvas.getByRole("rowgroup", { name: "Open Requests" })).getByRole("link", { name: source.title })).toBe(link);
   },
 };
 

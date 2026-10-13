@@ -19,4 +19,5 @@
 .destructive .icon { color: currentColor; }
 @keyframes context-item-in { from { opacity: 0; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .item, .highlight { animation: none; transition: none; } }
-@media (pointer: coarse) { .item { min-height: 44px; } }
+/* Lane adaptation (plan item 2.4): keyboard hints hide on coarse pointers. */
+@media (pointer: coarse) { .item { min-height: 44px; } .shortcut { display: none; } }

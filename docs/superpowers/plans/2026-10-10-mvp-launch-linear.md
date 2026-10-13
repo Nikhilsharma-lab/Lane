@@ -352,7 +352,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - The new row is visible immediately.
   - Stories at 390/dark and 1440/light: draft restored, validation, slow gate (5 s), timeout, review unavailable, session expired, upload progress and recovery.
 
-### 2.4 Requests list: finish (M)
+### 2.4 Requests list: finish (M) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Changes (Phase 1 already provides client views, the overlay and batch bulk):**
   - **Keyboard model** (8.21): an **ARIA grid with roving tabindex** (default, to be confirmed). The row is the single tab stop. J/K or ↑/↓ move, Enter opens, X selects, Esc clears, F opens the filter. In-row controls become `tabIndex=-1` but stay reachable by menu and shortcut.
   - Shortcut hints in the row menu, for supported actions only.
@@ -383,7 +383,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - **Right properties panel:**
     - Status glyph with its one allowed move
     - Saved priority (editable)
-    - Owner, Project, Type and Submitted (read-only)
+    - Assignee, Project, Type and Submitted (read-only; "Assignee" since 2.4, as in the list)
     - Space reserved for future alignment and outcome blocks
   - **Phone:** properties collapse under the title, and the lifecycle action stays in the header.
   - Remove the legacy `RequestListPane`.

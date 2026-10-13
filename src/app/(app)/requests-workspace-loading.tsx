@@ -25,12 +25,13 @@ export function RequestsWorkspaceLoading() {
       <div className={tableStyles.listAndSummary}>
         <div className={tableStyles.listPane}>
           <div className={`${rowStyles.records} ${tableStyles.recordRegion}`}>
-            <section className={rowStyles.group}>
-              <div className={`${rowStyles.groupHeader} ${styles.groupHeader}`}><span className={styles.groupLabel}><Skeleton lines={1} /></span></div>
-              <div><ul className={rowStyles.list}>{ROWS.map(row => <li key={row} className={rowStyles.row} data-compact-row="true">
+            {/* Plan item 2.4: the same group, header row and row boxes as the loaded treegrid, without its roles. */}
+            <div className={rowStyles.group}>
+              <div className={`${rowStyles.groupRow} ${rowStyles.groupHeader} ${styles.groupHeader}`}><span className={styles.groupLabel}><Skeleton lines={1} /></span></div>
+              <div><div className={rowStyles.list}>{ROWS.map(row => <div key={row} className={rowStyles.row} data-compact-row="true">
                 <div className={rowStyles.rowContent}><span className={styles.rowTitle}><Skeleton lines={1} /></span><span className={styles.rowMeta}><Skeleton lines={1} /></span></div>
-              </li>)}</ul></div>
-            </section>
+              </div>)}</div></div>
+            </div>
           </div>
         </div>
       </div>

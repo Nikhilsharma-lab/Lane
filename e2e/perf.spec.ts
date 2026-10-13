@@ -40,6 +40,8 @@ const BUDGET = {
   longFramesPerTransition: 2, // at 4x CPU, in a 300 ms transition
   composerFocus: 100, // C to the focused title on the first open, p75, also at 4x CPU (plan item 2.3)
   gateAcknowledgement: 100, // Review Request to the visible checking status, p75 (plan item 2.3)
+  rowFocus: { target: 50, limit: 100 }, // J to the focused row on screen, p75 (plan item 2.4)
+  heldJPrefetches: 1, // full detail prefetches while J is held over 10 rows (plan item 2.4)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -117,7 +119,7 @@ const now = (page: Page) => page.evaluate(() => performance.now())
 
 async function openList(page: Page) {
   await page.goto("/")
-  await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+  await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
   // Let hydration, prefetch and the streamed unread count settle.
   await page.waitForLoadState("networkidle")
 }
@@ -153,7 +155,7 @@ test("status view switch responds in the next frame with zero network", async ({
 
 test("list to detail, warm and prefetched, shows content within budget", async ({ page }) => {
   await openList(page)
-  const links = page.locator("li[data-request-id] a[href^='/requests/']")
+  const links = page.locator("[role=row][data-request-id] a[href^='/requests/']")
   const count = Math.min(await links.count(), RUNS)
   expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
 
@@ -172,12 +174,53 @@ test("list to detail, warm and prefetched, shows content within budget", async (
     await link.click()
     timings.push(await content)
     await page.goBack()
-    await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+    await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
   }
   report("list to detail content (warm)", timings, "ms", BUDGET.detailContent.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.detailContent.limit * TOLERANCE)
   // The p95 hard limit, approximated by the maximum of a small sample.
   expect(Math.max(...timings)).toBeLessThanOrEqual(BUDGET.detailContentP95 * TOLERANCE)
+})
+
+// Plan item 2.4: every other way the list view changes in the browser, at 4x CPU:
+// the sidebar's Project and No Project links, Group by, and typing in the title filter.
+test("sidebar Project, No Project, Group by and title typing make zero network requests within the INP budget at 4x CPU", async ({ page }) => {
+  await openList(page)
+  const rsc: string[] = []
+  page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
+  const durations: number[] = []
+  const cdp = await throttle(page, 4)
+  try {
+    const sidebar = page.getByRole("navigation", { name: "Primary navigation" })
+    const measure = async (act: () => Promise<void>) => {
+      const since = await now(page)
+      await act()
+      durations.push(await interactionDuration(page, since))
+    }
+    for (let run = 0; run < RUNS; run++) {
+      if (await sidebar.isVisible()) {
+        const project = sidebar.getByRole("link").filter({ hasNotText: /^(All Requests|My Requests|No Project)$/ }).first()
+        if (await project.count()) await measure(() => project.click())
+        await measure(() => sidebar.getByRole("link", { name: "No Project" }).click())
+        await measure(() => sidebar.getByRole("link", { name: /^(All|My) Requests$/ }).click())
+      }
+      await page.getByRole("button", { name: "Display" }).click()
+      for (const option of ["No grouping", "Status"]) {
+        await page.getByRole("combobox", { name: "Group by" }).click()
+        await measure(() => page.getByRole("option", { name: option }).click())
+      }
+      await page.keyboard.press("Escape")
+      await page.getByRole("button", { name: "Filter Requests by title" }).click()
+      const title = page.getByRole("searchbox", { name: "Filter Requests by title" })
+      for (const key of ["e", "Backspace"]) await measure(() => title.press(key))
+      await page.keyboard.press("Escape")
+    }
+  } finally {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+  }
+  report("sidebar, Group by and title filter view changes at 4x CPU", durations, "ms", BUDGET.viewSwitchInp.target)
+  expect(rsc, "A view change must not request RSC or page data").toEqual([])
+  expect(p75(durations)).toBeLessThanOrEqual(BUDGET.viewSwitchInp.limit * TOLERANCE)
 })
 
 test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and long-frame budgets", async ({ page }) => {
@@ -187,7 +230,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   try {
     for (let run = 0; run < RUNS; run++) {
       await page.reload()
-      await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+      await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
       await page.waitForTimeout(1000) // LCP finalises on the first input; read it before interacting
       const load = await page.evaluate(() => {
         const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined
@@ -232,34 +275,50 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
 
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
-    const row = page.locator("li[data-request-id]:has(button[data-status='in_progress'])").first()
+    const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
     if (!(await row.count())) break
     const id = await row.getAttribute("data-request-id")
-    const glyph = page.locator(`li[data-request-id="${id}"] button[data-status]`)
+    const glyph = page.locator(`[role=row][data-request-id="${id}"] button[data-status]`)
     await glyph.click()
     const item = page.getByRole("menuitem", { name: /mark done/i }).first()
     await expect(item).toBeVisible()
 
     // Records the time from the input to the first frame that shows Done, and
     // every status the row shows for three seconds after it (the no-revert gate).
-    const watch = page.evaluate(rowId => new Promise<{ onScreen: number; sequence: string[] }>(resolve => {
+    const watch = page.evaluate(rowId => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
       const perf = (window as unknown as PerfWindow).__lanePerf
       const sequence: string[] = []
-      let onScreen = NaN, scheduled = false
-      const read = () => document.querySelector(`li[data-request-id="${rowId}"] button[data-status]`)?.getAttribute("data-status") ?? "gone"
+      let onScreen = NaN, scheduled = false, undoWithDone = false
+      const read = () => document.querySelector(`[role=row][data-request-id="${rowId}"] button[data-status]`)?.getAttribute("data-status") ?? "gone"
       const tick = () => {
         const status = read()
         if (sequence.at(-1) !== status) sequence.push(status)
-        if (status === "done" && !scheduled) { scheduled = true; requestAnimationFrame(() => { onScreen = performance.now() - perf.lastInput }) }
+        if (status === "done" && !scheduled) {
+          scheduled = true
+          // Plan item 2.4: the Undo toast is already on screen in the frame that shows Done.
+          requestAnimationFrame(() => {
+            onScreen = performance.now() - perf.lastInput
+            undoWithDone = [...document.querySelectorAll("button")].some(button => button.textContent === "Undo" && button.getClientRects().length > 0)
+          })
+        }
       }
       const observer = new MutationObserver(tick)
       observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-status"] })
       tick()
-      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence }) }, 3000)
+      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, undoWithDone }) }, 3000)
     }), id)
-    await item.click()
-    const { onScreen, sequence } = await watch
+    // Alternate the pointer path with the keyboard path: the row, Shift+F10, Enter on the lead item.
+    if (run % 2 === 0) await item.click()
+    else {
+      await page.keyboard.press("Escape")
+      await page.locator(`[role=row][data-request-id="${id}"]`).focus()
+      await page.keyboard.press("Shift+F10")
+      await expect(page.getByRole("menuitem", { name: "Mark Done" }).first()).toBeFocused()
+      await page.keyboard.press("Enter")
+    }
+    const { onScreen, sequence, undoWithDone } = await watch
     timings.push(onScreen)
+    expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
     expect(sequence.filter(status => status !== "gone"), "The row must go to Done once and stay there").toEqual(["in_progress", "done"])
 
     // Put the Request back.
@@ -274,7 +333,7 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
 // Plan item 2.0: cold loads in a fresh context (empty cache), the frame's CLS
 // on Request detail at desktop and phone widths, the list at phone width, and
 // the skeleton after a client navigation.
-const detailLinks = (page: Page) => page.locator("li[data-request-id] a[href^='/requests/']")
+const detailLinks = (page: Page) => page.locator("[role=row][data-request-id] a[href^='/requests/']")
 
 async function coldLoadCls(browser: Browser, url: string, viewport: { width: number; height: number }, ready: string) {
   const cls: number[] = []
@@ -307,7 +366,7 @@ test("Request detail cold loads stay within the CLS budget at 1440 and 390", asy
 })
 
 test("Requests list cold loads at 390 stay within the CLS budget", async ({ browser }) => {
-  const cls = await coldLoadCls(browser, "/", { width: 390, height: 844 }, "li[data-request-id]")
+  const cls = await coldLoadCls(browser, "/", { width: 390, height: 844 }, "[role=row][data-request-id]")
   report("Requests list CLS, cold load at 390", cls, "", BUDGET.cls)
   expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
 })
@@ -345,7 +404,7 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
       await page.waitForTimeout(1000)
       shifts.push(await page.evaluate(before => (window as unknown as PerfWindow).__lanePerf.cls - before, clsBefore))
       await page.goBack()
-      await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+      await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
     }
   } finally {
     await page.unroute(hold)
@@ -497,4 +556,69 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
   }
   report("Review Request to the visible checking status", timings, "ms", BUDGET.gateAcknowledgement)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.gateAcknowledgement * TOLERANCE)
+})
+
+// Plan item 2.4: the keyboard model on the production build.
+test("J moves focus to the next row and paints it within the visual budget", async ({ page }) => {
+  await openList(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press("j") // from outside the grid, J lands on its tab stop
+  await expect(page.locator('[role=row][tabindex="0"]')).toBeFocused()
+  const timings: number[] = []
+  for (let run = 0; run < Math.max(RUNS, 5); run++) {
+    const painted = page.evaluate(() => new Promise<number>(resolve => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const onFocus = () => { document.removeEventListener("focusin", onFocus); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) }
+      document.addEventListener("focusin", onFocus)
+    }))
+    await page.keyboard.press("j")
+    timings.push(await painted)
+  }
+  report("J to the next row focused and painted", timings, "ms", BUDGET.rowFocus.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.rowFocus.limit * TOLERANCE)
+})
+
+test("holding J over 10 rows starts at most one full detail prefetch", async ({ page }) => {
+  await openList(page) // the viewport prefetches settle here
+  const prefetched: string[] = []
+  page.on("request", request => {
+    if (isRscRequest(request) && new URL(request.url()).pathname.startsWith("/requests/")) prefetched.push(request.url())
+  })
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press("j")
+  // A held key repeats about every 30 ms; each row's 80 ms rest timer is cancelled by the next.
+  for (let step = 0; step < 10; step++) { await page.keyboard.press("j"); await page.waitForTimeout(30) }
+  await page.waitForTimeout(500) // the last row's rest prefetch, if any
+  report("full detail prefetches while J is held over 10 rows", [prefetched.length], "requests", BUDGET.heldJPrefetches)
+  expect(prefetched.length).toBeLessThanOrEqual(BUDGET.heldJPrefetches)
+})
+
+test("a sidebar toggle at 4x CPU changes the content width once with at most 2 long animation frames", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await openList(page)
+  const widthChanges: number[] = [], longFrames: number[] = []
+  const cdp = await throttle(page, 4)
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      const since = await now(page)
+      const sampled = page.evaluate(() => new Promise<number>(resolve => {
+        const main = document.querySelector("#lane-main")!
+        const widths = new Set<number>([Math.round(main.getBoundingClientRect().width)])
+        const end = performance.now() + 500
+        const sample = () => { widths.add(Math.round(main.getBoundingClientRect().width)); if (performance.now() < end) requestAnimationFrame(sample); else resolve(widths.size - 1) }
+        requestAnimationFrame(sample)
+      }))
+      await page.keyboard.press("BracketLeft")
+      widthChanges.push(await sampled)
+      longFrames.push(await page.evaluate(start => (window as unknown as PerfWindow).__lanePerf.longFrames
+        .filter(frame => frame.startTime >= start && frame.startTime <= start + 300).length, since))
+    }
+  } finally {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+  }
+  report("content width changes per sidebar toggle", widthChanges, "changes", 1)
+  report("long animation frames per sidebar toggle at 4x CPU", longFrames, "frames", BUDGET.longFramesPerTransition)
+  for (const changes of widthChanges) expect(changes).toBeLessThanOrEqual(1)
+  expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
 })

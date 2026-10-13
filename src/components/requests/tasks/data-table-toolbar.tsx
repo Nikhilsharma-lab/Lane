@@ -19,6 +19,7 @@ import { statuses } from "./statuses"
 import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViews } from "./status-pills"
+import { matchCountText } from "../request-row-label"
 
 export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
   /** False in an empty workspace (plan item 2.1): the row keeps its height with nothing to filter, so the first Request's controls fill it without moving the list. */
@@ -71,7 +72,7 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
         <FilterMenu presentation="popover" fields={fields} active={chips} onSelect={addFilter} triggerIcon={<ListFilter size={preview ? 14 : 17} aria-hidden="true" />} />
         <Popover><PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} aria-label="Display" title="Display"><SlidersHorizontal size={preview ? 14 : 17} aria-hidden="true" /></Button></PopoverTrigger><PopoverContent align="end" aria-label="Display Requests">
           <div className={rowStyles.displayPanel}>
-            <Select label="Group by" value={grouping} onValueChange={value => onGroupingChange(value as RequestGrouping)} options={[{ value: "none", label: "No grouping" }, { value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "owner", label: "Owner" }]} />
+            <Select label="Group by" value={grouping} onValueChange={value => onGroupingChange(value as RequestGrouping)} options={[{ value: "none", label: "No grouping" }, { value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "assignee", label: "Assignee" }]} />
             <Select label="Order by" value={ordering} onValueChange={value => onOrderingChange(value as RequestOrdering)} options={[{ value: "newest", label: "Newest first" }, { value: "oldest", label: "Oldest first" }, { value: "title", label: "Title A–Z" }, { value: "title_desc", label: "Title Z–A" }, { value: "status", label: "Status" }]} />
             <div><p className={rowStyles.displayLabel}>Properties</p><ChipGroup label="Visible properties" options={columns.filter(item => item.key !== "title").map(item => ({ value: item.key, label: item.label }))} value={columns.filter(item => item.key !== "title" && columnVisibility[item.key] !== false).map(item => item.key)} onValueChange={next => onVisibilityChange(Object.fromEntries(columns.map(item => [item.key, item.key === "title" || next.includes(item.key)])))} /></div>
           </div>
@@ -79,9 +80,10 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
         {summaryOpen !== undefined && <Button ref={summaryTrigger} variant="secondary" size="sm" className={styles.iconButton} data-active={summaryOpen || undefined} aria-label={summaryOpen ? "Close list summary" : "Open list summary"} aria-expanded={summaryOpen} onClick={() => onSummaryChange?.(!summaryOpen)}><PanelRight size={preview ? 14 : 17} aria-hidden="true" /></Button>}
       </div>
     </div>
-    {displayedChips.length > 0 && <div className={styles.activeFilters}><FilterToolbar filters={displayedChips} onRemove={id => id === "status" ? onStatusChange("all") : onFilterChange(id, "")} onClearAll={onClear}>
+    {/* Plan item 2.4: the list announces chip changes and the count in its one region, debounced, so neither speaks here. */}
+    {displayedChips.length > 0 && <div className={styles.activeFilters}><FilterToolbar announce={false} filters={displayedChips} onRemove={id => id === "status" ? onStatusChange("all") : onFilterChange(id, "")} onClearAll={onClear}>
       {/* Counts every matching row across pages while a filter is applied; the footer only shows page ranges. */}
-      <span role="status" className={styles.matchCount}>{matchCount} {matchCount === 1 ? "Request matches" : "Requests match"}</span>
+      <span className={styles.matchCount}>{matchCountText(matchCount)}</span>
     </FilterToolbar></div>}
   </div>
 }

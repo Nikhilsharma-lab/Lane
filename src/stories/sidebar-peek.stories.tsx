@@ -37,7 +37,7 @@ async function collapse(canvasElement: HTMLElement, rememberedWidth = 272) {
     await waitFor(() => expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(400))
   }
   await userEvent.keyboard("{Home}")
-  // Wait for the spring to settle, rather than rounding its final fractional pixel.
+  // Home changes the width in one jump (plan item 2.4); wait for that commit.
   await waitFor(() => expect(sidebar.getBoundingClientRect().width).toBe(0))
   const expand = within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" })
   return { canvas, sidebar, resize, expand, main: canvas.getByRole("main") }

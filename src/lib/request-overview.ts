@@ -22,7 +22,7 @@ export type OverviewRequest = {
 
 export type RequestSort = "newest" | "oldest" | "title"
 export type RequestOrdering = RequestSort | "title_desc" | "status"
-export type RequestGrouping = "none" | "status" | "project" | "owner"
+export type RequestGrouping = "none" | "status" | "project" | "assignee"
 export type RequestRowGroup = { key: string; label: string; rows: OverviewRequest[] }
 
 const statusOrder = { open: 0, in_progress: 1, done: 2 }

@@ -2,10 +2,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
-import { pickUpRequest, markDone } from "@/app/(app)/requests/[id]/actions"
+import { markDoneMany, pickUpRequests } from "@/app/(app)/requests/[id]/actions"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 import { SidebarView } from "@/components/shell/sidebar-view"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { announcer, requestRows } from "./helpers/request-grid"
 
 const requests: OverviewRequest[] = Array.from({ length: 28 }, (_, index) => ({
   id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
@@ -23,8 +24,9 @@ const meta = {
   args: { requests: [...requests.slice(0, 3), ...requests.slice(26)], filter: "all", isGuest: false, context },
   decorators: [(Story) => <RequestListViewProvider><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.com" role="admin" statusFilter="all" notifications={null} projects={[{ id: requests[0].projectId!, name: "Website", description: null }]} pathname="/"><Story /></SidebarView></RequestListViewProvider>],
   beforeEach: () => {
-    mocked(pickUpRequest).mockReset().mockResolvedValue({ success: true })
-    mocked(markDone).mockReset().mockResolvedValue({ success: true })
+    // Plan item 1.6: one statement moves every selected row.
+    mocked(pickUpRequests).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
+    mocked(markDoneMany).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
     getRouter().push.mockClear()
     getRouter().refresh.mockClear()
   },
@@ -63,6 +65,31 @@ export const KeyboardAndClear: Story = {
   },
 }
 
+/** Plan item 2.4: X on the focused row selects it, the same as its checkbox; Esc clears. */
+export const SelectWithX: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const [first, second] = requestRows(canvasElement)
+    first.focus()
+    await userEvent.keyboard("x")
+    await expect(first).toHaveAttribute("aria-selected", "true")
+    await expect(within(first).getByRole("checkbox")).toBeChecked()
+    await expect(announcer(canvasElement)).toHaveTextContent("1 Request selected.")
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(second).toHaveFocus())
+    await userEvent.keyboard("x")
+    await expect(within(await canvas.findByRole("toolbar", { name: "Selected Requests" })).getByText("2 selected")).toBeVisible()
+    await userEvent.keyboard("x")
+    await expect(second).toHaveAttribute("aria-selected", "false")
+    await userEvent.keyboard("{Escape}")
+    await expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument()
+    await expect(first).toHaveAttribute("aria-selected", "false")
+    await expect(announcer(canvasElement)).toHaveTextContent("Selection cleared.")
+    // Focus stays on the row the person moved to, not the one the selection started on.
+    await expect(second).toHaveFocus()
+  },
+}
+
 export const FilterClearsSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -80,24 +107,24 @@ export const FilterClearsSelection: Story = {
 
 export const PartialFailure: Story = {
   beforeEach: () => {
-    mocked(pickUpRequest).mockResolvedValueOnce({ success: true }).mockRejectedValueOnce(new Error("Network lost"))
+    mocked(pickUpRequests).mockResolvedValueOnce({ moved: [requests[0].id], failed: [{ id: requests[1].id, error: "This Request changed before Lane could pick it up. Refresh and try again." }] })
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     await userEvent.click(canvas.getAllByRole("checkbox")[1])
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
-    await waitFor(() => expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(2))
-    await expect(mocked(pickUpRequest)).toHaveBeenNthCalledWith(1, requests[0].id, context)
-    await expect(mocked(pickUpRequest)).toHaveBeenNthCalledWith(2, requests[1].id, context)
+    await waitFor(() => expect(mocked(pickUpRequests)).toHaveBeenCalledTimes(1))
+    await expect(mocked(pickUpRequests)).toHaveBeenCalledWith([requests[0].id, requests[1].id], context)
     await expect(await canvas.findByRole("alert")).toHaveTextContent("1 Request could not be updated. It is still selected. Try again.")
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(1)
-    // A batch with a failure re-syncs the view once, since the failed action
-    // did not revalidate it (plan item 1.3).
+    // A batch with a failure re-syncs the view once, since the rows it did
+    // not move were not revalidated (plan item 1.3).
     await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
-    await expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(3)
+    await expect(mocked(pickUpRequests)).toHaveBeenCalledTimes(2)
+    await expect(mocked(pickUpRequests)).toHaveBeenLastCalledWith([requests[1].id], context)
     // The retry succeeded and revalidated itself, so no further refresh.
     await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
   },
@@ -129,20 +156,20 @@ export const PageAndGroupScope: Story = {
   },
 }
 
-let finishPending: ((value: { success: boolean }) => void) | undefined
+let finishPending: (() => void) | undefined
 export const PendingPreventsDuplicates: Story = {
-  beforeEach: () => { mocked(pickUpRequest).mockImplementationOnce(() => new Promise(resolve => { finishPending = resolve })) },
+  beforeEach: () => { mocked(pickUpRequests).mockImplementationOnce(ids => new Promise(resolve => { finishPending = () => resolve({ moved: ids, failed: [] }) })) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     const action = canvas.getByRole("button", { name: "Pick up" })
     await userEvent.dblClick(action)
-    await expect(mocked(pickUpRequest)).toHaveBeenCalledTimes(1)
+    await expect(mocked(pickUpRequests)).toHaveBeenCalledTimes(1)
     await expect(action).toHaveAttribute("aria-disabled", "true")
     await expect(canvas.getAllByRole("checkbox")[0]).toBeDisabled()
     await userEvent.keyboard("{Escape}")
     await expect(canvas.getByRole("toolbar", { name: "Selected Requests" })).toBeVisible()
-    finishPending?.({ success: true })
+    finishPending?.()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
   },
 }
@@ -191,8 +218,8 @@ export const CompleteInProgress: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getAllByRole("checkbox")[0])
     await userEvent.click(canvas.getByRole("button", { name: "Mark Done" }))
-    await waitFor(() => expect(mocked(markDone)).toHaveBeenCalledWith(requests[26].id, context))
-    await expect(mocked(pickUpRequest)).not.toHaveBeenCalled()
+    await waitFor(() => expect(mocked(markDoneMany)).toHaveBeenCalledWith([requests[26].id], context))
+    await expect(mocked(pickUpRequests)).not.toHaveBeenCalled()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
     // markDone revalidated the list itself; success never refreshes the router again.
     await expect(getRouter().refresh).not.toHaveBeenCalled()

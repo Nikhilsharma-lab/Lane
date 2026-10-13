@@ -1,5 +1,6 @@
 /* Lane record composition. Pills, popovers and controls are native Arc items.
- * Keyboard focus shows Arc's shared outline; fills mark hover, open menus and selection. */
+ * Keyboard focus shows Arc's shared outline on the row, the list's one tab stop
+ * (plan item 2.4); fills mark hover, open menus and selection only. */
 .records { container-type: inline-size; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height, calc(var(--space-10) + var(--space-1))); padding: 0 var(--space-2) 0 0; border-radius: var(--request-row-radius, var(--radius-control)); }
@@ -8,10 +9,11 @@
 .savedCode .codeButton { min-height: 44px; justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
 .codeError { max-width: 12rem; padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .row[data-selected] .codeButton { color: var(--selection-foreground, var(--foreground)); }
-/* Checkbox focus stays on its square; it must not leave a deselected row highlighted. */
-.row:hover, .row[data-menu-open], .row:has(.title:focus-visible, .propertyTrigger:focus-visible, .rowMenu:focus-visible) { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
+.row:hover, .row[data-menu-open] { background: var(--interaction-hover, color-mix(in oklab, var(--foreground) 6%, var(--surface))); }
 .row[data-selected] { background: var(--selection-background, var(--accent-subtle)); }
-.row[data-selected]:hover, .row[data-selected]:focus-within { background: var(--selection-hover, var(--accent-subtle)); }
+.row[data-selected]:hover { background: var(--selection-hover, var(--accent-subtle)); }
+/* The select cell holds the checkbox's own box; the row draws the focus ring. */
+.selectCell { display: flex; flex: none; align-items: center; }
 .row[data-selected]:active { background: var(--selection-pressed, var(--accent-subtle)); }
 .row[data-selected]:has(+ .row[data-selected]) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -54,7 +56,11 @@
 .propertyLabel { color: var(--text-secondary); font-size: var(--text-xs); }
 .group { margin-block-end: var(--space-4); }
 .groupHeading { margin: 0; font-size: var(--text-sm); font-weight: 500; }
-.groupHeading + div:not([hidden]) { padding-block-start: var(--request-group-gap, 0px); }
+/* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
+.groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius, var(--radius-control)); }
+.groupCell { flex: 1; min-width: 0; }
+.groupAddCell { display: flex; flex: none; }
+.groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap, 0px); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
 .groupButton > span:first-of-type { min-width: 0; overflow-wrap: anywhere; }
@@ -125,6 +131,9 @@
   .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
 }
 @container (max-width: 640px) {
+  /* Sketch reservation (2026-10-11 creation-to-outcome sketch): a later trailing
+     token, span[data-row-property="waiting"], is hidden here with every other
+     property except the assignee, so phones never have to fit it. */
   .row[data-compact-row] .properties > span:not([data-row-property="pickedUpBy"]) { display: none; }
   .row[data-compact-row] .properties { flex: none; max-width: none; }
 }
@@ -144,8 +153,6 @@
 .row[data-compact-row] > :first-child { --control-height-md: 28px; }
 .row[data-compact-row] [role="checkbox"] { height: 44px; }
 .groupHeader { display: flex; align-items: center; border-radius: var(--request-row-radius); background: var(--surface-muted); }
-.groupHeader .groupHeading { flex: 1; min-width: 0; }
 .groupHeader .groupButton { background: transparent; }
 .groupAdd { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: var(--request-row-radius); color: var(--text-secondary); }
 .groupAdd:hover { background: var(--interaction-hover); color: var(--foreground); }
-.groupHeader + div:not([hidden]) { padding-block-start: var(--request-group-gap, 0px); }
