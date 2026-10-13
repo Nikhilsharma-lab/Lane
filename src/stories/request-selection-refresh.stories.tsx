@@ -5,9 +5,8 @@ import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
 import { markDoneMany, pickUpRequests } from "@/app/(app)/requests/[id]/actions"
-import { RequestListViewProvider, useRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { RequestListViewProvider, useRequestListView } from "@/components/requests/list-view-state"
 import type { OverviewRequest, RequestGrouping } from "@/lib/request-overview"
-import type { RequestStatusFilter } from "@/lib/request-workspace"
 
 const context = { orgId: "org_storybook" }
 const requests: OverviewRequest[] = [
@@ -18,14 +17,15 @@ const requests: OverviewRequest[] = [
 // Re-render the production list as a server-action revalidation would. No test
 // controls or server-response branches are added to the product component.
 let replaceRows: Dispatch<SetStateAction<OverviewRequest[]>> | undefined
-function RefreshFixture({ filter = "all", grouping = "status" }: { filter?: RequestStatusFilter; grouping?: RequestGrouping }) {
+function RefreshFixture({ grouping = "status" }: { grouping?: RequestGrouping }) {
   const [rows, setRows] = useState(requests)
   const [, setView] = useRequestListView()
   useEffect(() => {
     replaceRows = setRows
-    setView(previous => ({ ...withListContext(previous, { status: filter }), grouping }))
+    // The status view stays the list view state's, read from the URL once (plan item 1.7).
+    setView(previous => ({ ...previous, grouping }))
     return () => { replaceRows = undefined }
-  }, [filter, grouping, setView])
+  }, [grouping, setView])
   return <RequestsOverview requests={rows} isGuest={false} context={context} />
 }
 
