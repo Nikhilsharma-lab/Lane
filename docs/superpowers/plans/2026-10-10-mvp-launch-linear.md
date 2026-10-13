@@ -335,6 +335,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Admin and member stories.
 
 ### 2.3 New Request composer and `/intake` (M; L if Expected impact changes shape) *(built 2026-10-11; waiting on Nikhil's sign-off)*
+- **2026-10-13:** Nikhil chose a centred dialog for the composer (PR #42's direction), so this item's composer now opens in the Arc Dialog (`layout="composer"`) and `/intake` is a launcher under the page strip. Row 5 of the page table and decision 8.22's "drawer entrance" read as the composer dialog from here on.
 - **Changes:**
   - Borderless large title and description with visually hidden labels. Keep the existing property-chip row (Project, Type) and footer actions.
   - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.22).
