@@ -5,7 +5,6 @@ import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
-import { createNotifications } from "@/lib/notify";
 import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -51,7 +50,7 @@ const MARK_DONE: LifecycleTransition = {
  * concurrent callers can only win once: the second UPDATE re-checks the status
  * guard on the locked row and matches nothing. The outer SELECT reads from `u`
  * with a LEFT JOIN on the insert, so the caller still sees the update when the
- * insert skipped a self-notification (`created_by <> actor`, as notify.ts did).
+ * insert skipped a self-notification (`created_by <> actor`).
  *
  * Decision 8.17: a failed notification insert now fails the whole mutation.
  * Nothing swallows the error any more; a Done Request without its notification
@@ -336,6 +335,17 @@ export async function undoMarkDone(
   return { success: true as const, status: updated.status };
 }
 
+/** Adds a comment and its notifications in ONE statement (plan item 2.5).
+ * A data-modifying CTE reads the Request under the workspace guard (and, for
+ * a guest, the creator guard), inserts the comment from that row, and inserts
+ * a comment_added notification for the creator and the assignee, minus the
+ * author and minus nobody, from the same row. `distinct` writes one when the
+ * creator is also the assignee.
+ *
+ * Decision D2 (plan item 2.5, as decision 8.17 for lifecycle moves): the
+ * comment and its notifications commit or fail together, so a failed
+ * notification insert now fails the comment instead of being logged and
+ * dropped. The new comment's id comes back for the pending-comment overlay. */
 export async function addComment(
   requestId: string,
   formData: FormData,
@@ -350,47 +360,41 @@ export async function addComment(
     return { error: parsed.error.issues[0].message };
   }
 
-  const [req] = await db
-    .select({ createdBy: requests.createdBy, assignedTo: requests.assignedTo })
-    .from(requests)
-    .where(and(
-      eq(requests.id, requestId),
-      eq(requests.orgId, auth.orgId),
-      auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
-    ));
+  // A guest may comment only on a Request they created; anything else reads
+  // as missing, the same answer as another workspace's or a malformed id.
+  const guestGuard =
+    auth.role === "guest" ? sql`and ${requests.createdBy} = ${auth.userId}` : sql``;
+  const rows = await db.execute<{ id: string; created_at: Date | string }>(sql`
+    with r as (
+      select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}
+      from ${requests}
+      where ${requests.id} = ${requestId}
+        and ${requests.orgId} = ${auth.orgId}
+        ${guestGuard}
+    ), c as (
+      insert into ${comments} ("request_id", "author_id", "body")
+      select r.id, ${auth.userId}, ${parsed.data.body} from r
+      returning ${comments.id}, ${comments.createdAt}
+    ), n as (
+      insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
+      select distinct recipient, r.org_id, ${"comment_added"}::notification_type, r.id, ${auth.userId}
+      from r cross join c cross join unnest(array[r.created_by, r.assigned_to]) as recipient
+      where recipient is not null and recipient <> ${auth.userId}
+      returning ${notifications.id}
+    )
+    select c.id as id, c.created_at as created_at from c
+  `);
+  const created = rows[0];
 
-  if (!req) {
+  if (!created) {
     return { error: "Not found" };
   }
 
-  await db.insert(comments).values({
-    requestId,
-    authorId: auth.userId,
-    body: parsed.data.body,
-  });
-
-  const recipients: string[] = [];
-  if (auth.userId === req.createdBy) {
-    if (req.assignedTo) recipients.push(req.assignedTo);
-  } else if (auth.userId === req.assignedTo) {
-    recipients.push(req.createdBy);
-  } else {
-    recipients.push(req.createdBy);
-    if (req.assignedTo) recipients.push(req.assignedTo);
-  }
-
-  await createNotifications(
-    recipients.map((userId) => ({
-      userId,
-      orgId: auth.orgId,
-      type: "comment_added" as const,
-      requestId,
-      actorId: auth.userId,
-    }))
-  );
-
   revalidatePath(`/requests/${requestId}`);
-  return { success: true };
+  return {
+    success: true as const,
+    comment: { id: created.id, createdAt: new Date(created.created_at) },
+  };
 }
 
 export async function getAttachmentDownloadUrl(

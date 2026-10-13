@@ -45,7 +45,7 @@ const meta = {
   component: Detail,
   parameters: { layout: "fullscreen", nextjs: { navigation: { pathname: "/requests/fixture-request" } } },
   beforeEach: () => {
-    mocked(addComment).mockReset().mockResolvedValue({ success: true })
+    mocked(addComment).mockReset().mockResolvedValue({ success: true, comment: { id: "fixture-new-comment", createdAt: new Date("2026-10-13T09:00:00Z") } })
     mocked(pickUpRequest).mockReset().mockResolvedValue({ success: true })
     mocked(markDone).mockReset().mockResolvedValue({ success: true })
     mocked(getAttachmentDownloadUrl).mockReset().mockResolvedValue({ error: "Couldn’t prepare the download. Try again." })
@@ -119,14 +119,14 @@ export const CommentRetry: Story = {
 }
 export const CommentPending: Story = {
   play: async ({ canvasElement }) => {
-    let complete!: (value: { success: boolean }) => void
+    let complete!: (value: Awaited<ReturnType<typeof addComment>>) => void
     mocked(addComment).mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole("textbox", { name: "Comment" }), "Keep this draft until the save completes.")
     await userEvent.click(canvas.getByRole("button", { name: "Post comment" }))
     await expect(canvas.getByRole("button", { name: "Posting…" })).toBeDisabled()
     await expect(canvas.getByRole("textbox", { name: "Comment" })).toHaveAttribute("readonly")
-    complete({ success: true })
+    complete({ success: true, comment: { id: "fixture-new-comment", createdAt: new Date("2026-10-13T09:00:00Z") } })
     await waitFor(() => expect(canvas.getByRole("textbox", { name: "Comment" })).toHaveValue(""))
   },
 }

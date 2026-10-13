@@ -94,7 +94,7 @@ const meta = {
   beforeEach: () => {
     mocked(pickUpRequest).mockReset().mockResolvedValue({ success: true })
     mocked(markDone).mockReset().mockResolvedValue({ success: true })
-    mocked(addComment).mockReset().mockResolvedValue({ success: true })
+    mocked(addComment).mockReset().mockResolvedValue({ success: true, comment: { id: "fixture-new-comment", createdAt: new Date("2026-10-13T09:00:00Z") } })
   },
 } satisfies Meta
 export default meta
