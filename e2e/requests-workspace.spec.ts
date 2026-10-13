@@ -76,15 +76,8 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
       })
 
       const workspace = page.locator('[data-slot="requests-workspace"]')
-      const requestList = page.getByRole("complementary", {
-        name: "Request list",
-      })
       const detail = page.getByRole("region", {
         name: "Request detail: Help customers understand why their Requests changed",
-      })
-      const selectedLink = page.locator(`#request-${requestId}`)
-      const selectedRow = page.locator('[data-slot="row"]').filter({
-        has: selectedLink,
       })
       const globalNavigation = page.locator(
         '[data-slot="global-navigation"]'
@@ -103,24 +96,14 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
         await expect(mobileNavigation).toBeVisible()
       }
 
-      if (surface.viewport.width >= 1024) {
-        await expect(requestList).toBeVisible()
-        await expect(
-          page.getByRole("combobox", {
-            name: "Filter Requests by status",
-          })
-        ).toBeVisible()
-        await expect(selectedLink).toHaveAttribute("aria-current", "page")
-        await expect(selectedRow).toHaveCSS("border-left-width", "0px")
-        await expect(selectedRow).not.toHaveCSS(
-          "background-color",
-          "rgba(0, 0, 0, 0)"
-        )
+      // Plan item 2.5: detail has no list pane. The strip names LAN-n, and at
+      // 640px and below a back link stands in for the trail.
+      const strip = detail.locator('[data-slot="page-strip"]')
+      await expect(strip.locator('li[aria-current="page"]')).toHaveText(/^LAN-\d+$/)
+      if (surface.viewport.width <= 640) {
+        await expect(strip.getByRole("link", { name: "Back to Requests" })).toBeVisible()
       } else {
-        await expect(requestList).toBeHidden()
-        await expect(
-          page.getByRole("link", { name: "Close Request detail" })
-        ).toBeVisible()
+        await expect(strip.getByRole("link", { name: "Back to Requests" })).toBeHidden()
       }
 
       const visibleNavigation = page.locator(
@@ -182,13 +165,23 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
     // Plan item 2.4: focus returns to the Request's row, the list's one tab stop.
     await expect(page.locator(`#request-row-${requestId}`)).toBeFocused()
 
-    await page.goto(`${detailPath}?status=done`)
-    await expect(
-      page.getByRole("region", {
-        name: "Request detail: Help customers understand why their Requests changed",
-      })
-    ).toBeVisible()
-    await expect(page.getByText("Nothing in Done", { exact: true })).toBeVisible()
+    // Plan item 2.5: opened from the list, J moves to the next Request in the
+    // list's order (replacing the history entry) and Esc returns to the list
+    // with focus on the last Request viewed.
+    const rows = page.locator("[role=row][data-request-id]")
+    if ((await rows.count()) > 1) {
+      const firstId = await rows.nth(0).getAttribute("data-request-id")
+      const secondId = await rows.nth(1).getAttribute("data-request-id")
+      await rows.nth(0).locator("a[data-request-title]").click()
+      await expect(page).toHaveURL(`/requests/${firstId}`)
+      await expect(page.locator("#request-title")).toBeFocused()
+      await page.keyboard.press("j")
+      await expect(page).toHaveURL(`/requests/${secondId}`)
+      await expect(page.locator(`[data-detail][data-request-id="${secondId}"] #problem`)).toBeVisible()
+      await page.keyboard.press("Escape")
+      await expect(page).toHaveURL("/")
+      await expect(page.locator(`#request-row-${secondId}`)).toBeFocused()
+    }
   } finally {
     await cleanupTestWorkspace(user.id)
     await deleteTestUser(user.id)

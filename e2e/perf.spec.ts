@@ -42,6 +42,7 @@ const BUDGET = {
   gateAcknowledgement: 100, // Review Request to the visible checking status, p75 (plan item 2.3)
   rowFocus: { target: 50, limit: 100 }, // J to the focused row on screen, p75 (plan item 2.4)
   heldJPrefetches: 1, // full detail prefetches while J is held over 10 rows (plan item 2.4)
+  detailNeighbourPrefetches: 2, // full detail prefetches a Request page starts for its previous and next (plan item 2.5)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -166,7 +167,7 @@ test("list to detail, warm and prefetched, shows content within budget", async (
     await page.waitForTimeout(600) // intent prefetch (plan item 1.11) plus the viewport prefetch
     const content = page.evaluate(() => new Promise<number>((resolve, reject) => {
       const perf = (window as unknown as PerfWindow).__lanePerf
-      const done = () => { if (document.querySelector("#request-problem")) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const done = () => { if (document.querySelector("#problem")) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
       const observer = new MutationObserver(() => { done() })
       observer.observe(document.body, { childList: true, subtree: true })
       setTimeout(() => { observer.disconnect(); reject(new Error("Detail content did not appear")) }, 10_000)
@@ -330,6 +331,107 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
 })
 
+// Plan item 2.5: Request detail. Opening a Request from the list records the
+// list's order; J then moves to the next Request, whose page the detail has
+// already prefetched once idle. #problem marks the loaded page only.
+async function openDetailFromList(page: Page, index: number) {
+  await openList(page)
+  const rows = page.locator("[role=row][data-request-id]")
+  const count = await rows.count()
+  const row = rows.nth(index % Math.max(1, count - 1))
+  const id = await row.getAttribute("data-request-id")
+  await row.locator("a[data-request-title]").click()
+  await expect(page.locator(`[data-detail][data-request-id="${id}"] #problem`)).toBeVisible({ timeout: 10_000 })
+  return id
+}
+
+test("J on Request detail shows the next Request within budget when prefetched", async ({ page }) => {
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openDetailFromList(page, run)
+    await page.waitForTimeout(800) // the idle neighbour prefetch
+    const next = page.locator('[data-detail-sequence="next"]')
+    const href = await next.getAttribute("data-href")
+    test.skip(!href, "The workspace needs at least two Requests in the list's order.")
+    const nextId = href!.split("/").pop()
+    const content = page.evaluate(id => new Promise<number>((resolve, reject) => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const done = () => { if (document.querySelector(`[data-detail][data-request-id="${id}"] #problem`)) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const observer = new MutationObserver(() => { done() })
+      observer.observe(document.body, { childList: true, subtree: true })
+      setTimeout(() => { observer.disconnect(); reject(new Error("The next Request did not appear")) }, 10_000)
+    }), nextId)
+    await page.keyboard.press("j")
+    timings.push(await content)
+  }
+  report("J to the next Request's content (prefetched)", timings, "ms", BUDGET.detailContent.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.detailContent.limit * TOLERANCE)
+  expect(Math.max(...timings)).toBeLessThanOrEqual(BUDGET.detailContentP95 * TOLERANCE)
+})
+
+test("a Request page starts at most two full detail prefetches", async ({ page }) => {
+  await openList(page)
+  const prefetches = new Set<string>()
+  let current = ""
+  page.on("request", request => {
+    const url = new URL(request.url())
+    if (isRscRequest(request) && url.pathname.startsWith("/requests/") && url.pathname !== current) prefetches.add(url.pathname)
+  })
+  const row = page.locator("[role=row][data-request-id]").first()
+  current = `/requests/${await row.getAttribute("data-request-id")}`
+  await row.locator("a[data-request-title]").click()
+  await expect(page.locator("[data-detail] #problem")).toBeVisible({ timeout: 10_000 })
+  prefetches.clear() // only what the Request page starts itself
+  await page.waitForTimeout(1500)
+  report("full detail prefetches started by one Request page", [prefetches.size], "requests", BUDGET.detailNeighbourPrefetches)
+  expect(prefetches.size).toBeLessThanOrEqual(BUDGET.detailNeighbourPrefetches)
+})
+
+test("Mark Done on Request detail shows Done in the next frame with Undo, and never reverts", async ({ page }) => {
+  test.skip(!MUTATE, "Set LANE_PERF_MUTATE=1 to measure Mark Done on detail; it changes a Request and then undoes it.")
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openList(page)
+    await statusChip(page, "All").click()
+    const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
+    if (!(await row.count())) break
+    await row.locator("a[data-request-title]").click()
+    const status = page.locator("[data-detail-panel] [data-detail-status]")
+    await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
+    const watch = page.evaluate(() => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const sequence: string[] = []
+      let onScreen = NaN, scheduled = false, undoWithDone = false
+      const read = () => document.querySelector("[data-detail-panel] [data-detail-status]")?.getAttribute("data-status") ?? "gone"
+      const tick = () => {
+        const value = read()
+        if (sequence.at(-1) !== value) sequence.push(value)
+        if (value === "done" && !scheduled) {
+          scheduled = true
+          requestAnimationFrame(() => {
+            onScreen = performance.now() - perf.lastInput
+            undoWithDone = [...document.querySelectorAll("button")].some(button => button.textContent === "Undo" && button.getClientRects().length > 0)
+          })
+        }
+      }
+      const observer = new MutationObserver(tick)
+      observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-status"] })
+      tick()
+      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, undoWithDone }) }, 3000)
+    }))
+    await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Mark Done", exact: true }).click()
+    const { onScreen, sequence, undoWithDone } = await watch
+    timings.push(onScreen)
+    expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
+    expect(sequence.filter(value => value !== "gone"), "Detail must go to Done once and stay there").toEqual(["in_progress", "done"])
+    await page.getByRole("button", { name: "Undo" }).first().click()
+    await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
+  }
+  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  report("Mark Done on detail, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
+})
+
 // Plan item 2.0: cold loads in a fresh context (empty cache), the frame's CLS
 // on Request detail at desktop and phone widths, the list at phone width, and
 // the skeleton after a client navigation.
@@ -359,7 +461,7 @@ test("Request detail cold loads stay within the CLS budget at 1440 and 390", asy
   const href = await detailLinks(page).first().getAttribute("href")
   expect(href, "The workspace needs at least one Request").toBeTruthy()
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
-    const cls = await coldLoadCls(browser, href!, viewport, "#request-problem")
+    const cls = await coldLoadCls(browser, href!, viewport, "#problem")
     report(`Request detail CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
     expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
   }
@@ -389,7 +491,7 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
       const shown = page.evaluate(() => new Promise<{ onScreen: number; clsBefore: number }>((resolve, reject) => {
         const perf = (window as unknown as PerfWindow).__lanePerf
         const done = () => {
-          if (!document.querySelector('[data-skeleton] [data-slot="page-strip"], #request-problem')) return
+          if (!document.querySelector('[data-skeleton] [data-slot="page-strip"], #problem')) return
           observer.disconnect()
           resolve({ onScreen: performance.now() - perf.lastInput, clsBefore: perf.cls })
         }
@@ -400,7 +502,7 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
       await links.nth(run % count).click()
       const { onScreen, clsBefore } = await shown
       timings.push(onScreen)
-      await expect(page.locator("#request-problem")).toBeVisible({ timeout: 10_000 })
+      await expect(page.locator("#problem")).toBeVisible({ timeout: 10_000 })
       await page.waitForTimeout(1000)
       shifts.push(await page.evaluate(before => (window as unknown as PerfWindow).__lanePerf.cls - before, clsBefore))
       await page.goBack()

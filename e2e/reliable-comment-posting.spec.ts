@@ -117,19 +117,23 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
       })
       await heldPost.seen
 
+      // Plan item 2.5: the comment shows in the conversation with "Sending…"
+      // before the post answers, the box is already empty and editable, and
+      // the post stays locked.
+      const conversation = page.locator("#conversation")
+      const pendingRow = conversation.locator("li").filter({ hasText: slowComment })
+      await expect(pendingRow).toContainText("Sending…")
       await expect(
         page.getByRole("button", { name: "Posting…", exact: true })
       ).toBeDisabled()
-      await expect(textarea).toHaveAttribute("readonly", "")
-      await expect(textarea).toHaveValue(slowComment)
+      await expect(textarea).not.toHaveAttribute("readonly", "")
+      await expect(textarea).toHaveValue("")
       await expect(form).toHaveAttribute("aria-busy", "true")
       expect(heldPost.count()).toBe(1)
 
       heldPost.release()
-      await expect(
-        page.getByText(slowComment, { exact: true })
-      ).toBeVisible({ timeout: 20_000 })
-      await expect(textarea).toHaveValue("")
+      await expect(pendingRow).not.toContainText("Sending…", { timeout: 20_000 })
+      await expect(conversation.locator("li").filter({ hasText: slowComment })).toHaveCount(1)
       await page.unroute("**/requests/**")
 
       const failedComment = `${surface.name}: keep this failed draft`
@@ -153,6 +157,8 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
       await expect(
         form.locator('[data-slot="feedback"][role="alert"]')
       ).toContainText("Your draft is still here.")
+      // The pending comment goes and its text comes back into the box.
+      await expect(page.locator("#conversation li").filter({ hasText: failedComment })).toHaveCount(0)
       await expect(textarea).toHaveValue(failedComment)
       await expect(
         page.getByRole("button", { name: "Try again", exact: true })
