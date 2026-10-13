@@ -40,3 +40,33 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
   }
   return parsed.data;
 });
+
+/** How much of the Expected impact draft is filled in, for the composer's
+ * collapsed disclosure row (plan item 2.3, decision 8.26). "complete" means the
+ * strict schema accepts it; any typed value or number makes it "partial". */
+export type ImpactDraftState = "empty" | "partial" | "complete";
+
+export function impactDraftState(draft: ExpectedImpactDraft | null | undefined): ImpactDraftState {
+  if (!draft) return "empty";
+  if (expectedImpactSchema.safeParse(draft).success) return "complete";
+  const touched = Object.entries(draft).some(([key, value]) =>
+    key !== "kind" && (typeof value === "number" || (typeof value === "string" && value.trim().length > 0)));
+  return touched ? "partial" : "empty";
+}
+
+function impactValue(value: number, unit: string) {
+  const trimmed = unit.trim();
+  return trimmed === "%" ? `${value}%` : `${value} ${trimmed}`;
+}
+
+/** The two lines a complete Expected impact folds to: what changes, then how and
+ * when it is checked. Each line is plain text; the composer truncates it. */
+export function impactSummaryLines(impact: ExpectedImpact): [string, string] {
+  const first = impact.kind === "metric"
+    ? impact.baseline === null
+      ? `${impact.metric}, target ${impactValue(impact.target, impact.unit)}`
+      : `${impact.metric}, ${impactValue(impact.baseline, impact.unit)} to ${impactValue(impact.target, impact.unit)}`
+    : impact.result;
+  const days = impact.reviewAfterDays === 1 ? "1 day" : `${impact.reviewAfterDays} days`;
+  return [first, `${impact.source}, ${days} after launch`];
+}

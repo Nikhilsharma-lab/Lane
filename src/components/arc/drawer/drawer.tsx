@@ -41,12 +41,17 @@ export interface DrawerContentProps
   side?: "left" | "right" | "top" | "bottom";
   /** Renders the drawer inside this element instead of the page body, anchored to its edges. The element needs position: relative and overflow: hidden. */
   container?: HTMLElement | null;
+  /** Lane adaptation (plan item 2.3): a 44px header strip with the title at body size, the description visually hidden but still the dialog's description, and a body that hands its height and scrolling to its child. */
+  compact?: boolean;
 }
 
 const fade: Transition = { duration: motionTokens.duration.instant };
 /* A click or Escape returns the panel quickly; a flick keeps its velocity in a spring of the same length. The shadow fades over the last stretch so it leaves with the panel instead of popping away at unmount. */
 const shadowOut: Transition = { duration: motionTokens.duration.standard, times: [0, .65, 1], ease: "linear" };
-const leave: Transition = { default: { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.standard] }, opacity: shadowOut };
+/* Lane adaptation (decision 8.22): a click or Escape returns the panel in 180 ms on the exit curve. */
+const leave: Transition = { default: { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] }, opacity: { duration: motionTokens.duration.exit, times: [0, .65, 1], ease: "linear" } };
+/* Lane adaptation (decision 8.22): the panel settles in 240 ms on a tween instead of the 400 ms smooth spring. */
+const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
 const flingOut: Transition = { default: { ...motionTokens.spring.smooth, visualDuration: motionTokens.duration.standard }, opacity: shadowOut };
 
 /** When the title or description changes while open, the new copy rises in and the old copy leaves upward. */
@@ -74,6 +79,7 @@ export function DrawerContent({
   children,
   side = "right",
   container,
+  compact = false,
   className,
   onInteractOutside,
   ...props
@@ -136,7 +142,7 @@ export function DrawerContent({
     return (
       <DialogPrimitive.Portal container={container}>
         <DialogPrimitive.Overlay className={`${styles.overlay} ${styles.keyframes}`} data-contained={container ? "" : undefined} />
-        <DialogPrimitive.Content {...props} onInteractOutside={onInteractOutside} data-side={side} data-contained={container ? "" : undefined} className={`${classes} ${styles.keyframes}`}>{inner}</DialogPrimitive.Content>
+        <DialogPrimitive.Content {...props} onInteractOutside={onInteractOutside} data-side={side} data-contained={container ? "" : undefined} data-compact={compact ? "" : undefined} className={`${classes} ${styles.keyframes}`}>{inner}</DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     );
   }
@@ -171,12 +177,13 @@ export function DrawerContent({
               className={classes}
               data-side={side}
               data-contained={container ? "" : undefined}
+              data-compact={compact ? "" : undefined}
               style={{ [axis]: offset }}
               variants={{ exit: (flung: boolean) => reduced ? { opacity: 0, transition: fade } : { ...offscreen, opacity: [1, 1, 0], transition: flung ? flingOut : leave } }}
               initial={reduced ? { opacity: 0 } : { ...offscreen, opacity: 1 }}
               animate={reduced ? { opacity: 1 } : { [axis]: 0, opacity: 1 }}
               exit="exit"
-              transition={reduced ? fade : motionTokens.spring.smooth}
+              transition={reduced ? fade : enter}
             >
               {inner}
             </motion.div>

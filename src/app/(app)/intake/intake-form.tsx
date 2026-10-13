@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useEffectEvent,
+  useId,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
+import { flushSync } from "react-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -19,7 +22,6 @@ import {
   FileTextIcon,
   ImageIcon,
   LightbulbIcon,
-  LoaderCircleIcon,
   PaperclipIcon,
   RotateCcwIcon,
   Trash2Icon,
@@ -58,14 +60,17 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
+import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
 import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema } from "@/lib/request-impact";
-import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 import type { z } from "zod";
 import styles from "./intake-form.module.css";
+import { ExpectedImpactDisclosure, firstImpactField, IMPACT_PANEL_ID } from "./expected-impact-disclosure";
 
 import {
   discardAttachmentUpload,
@@ -75,10 +80,12 @@ import {
 import {
   runTriage,
   saveRequest,
-  type IntakeFailure,
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
+import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
+import { refreshClerkToken } from "@/components/requests/use-optimistic-action";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 
 type Stage =
   | "compose"
@@ -87,7 +94,12 @@ type Stage =
   | "creating"
   | "uploading"
   | "attachment_recovery"
+  | "uploads_checking"
+  | "uploads_lost"
   | "complete";
+
+/** Files a reload interrupted after the Request was created (plan item 2.3, S3). */
+type LostUploads = { requestId: string; files: { key: string; name: string }[] };
 
 type QueuedAttachment = {
   key: string;
@@ -161,34 +173,13 @@ function EarlierDraftDetails({
   );
 }
 
-const classificationPresentation: Record<
-  TriageResult["classification"],
-  {
-    title: string;
-    description: string;
-  }
-> = {
-  problem: {
-    title: "Review your Request",
-    description:
-      "Check the details before sharing this Request with your team.",
-  },
-  solution: {
-    title: "Check the suggested problem",
-    description:
-      "Lane’s AI suggested a problem to solve from your description. Edit anything that doesn’t match what you know.",
-  },
-  hybrid: {
-    title: "Check the suggested problem",
-    description:
-      "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
-  },
-};
-
-const clientNetworkFailure: IntakeFailure = {
-  code: "network",
-  message:
-    "The review could not finish. Your draft is still here. Check your connection and try again.",
+// The review says when Lane's AI suggested the problem; a problem-shaped
+// Request needs no line of its own.
+const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, string> = {
+  solution:
+    "Lane’s AI suggested a problem to solve from your description. Edit anything that doesn’t match what you know.",
+  hybrid:
+    "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
 };
 
 function uploadToSignedUrl(
@@ -230,8 +221,11 @@ function IntakeNotice({
   title?: string;
   children: React.ReactNode;
 }) {
+  // The restored-draft notice is not a live region. It arrives with its text
+  // while focus moves, which NVDA and JAWS often skip, so the composer's
+  // always-mounted live region says the restore once instead.
   return (
-    <Alert tone={error ? "danger" : attention ? "warning" : "info"} title={title ?? (error ? "Action needed" : attention ? "Draft restored" : "Request update")}>
+    <Alert tone={error ? "danger" : attention ? "warning" : "info"} role={attention ? "note" : undefined} title={title ?? (error ? "Action needed" : attention ? "Draft restored" : "Request update")}>
       {children}
     </Alert>
   );
@@ -261,7 +255,8 @@ export default function IntakeForm({
   draftOwnerId: string;
   presentation?: "page" | "dialog";
   active?: boolean;
-  onCreated?: (requestId: string, created?: OverviewRequest) => void;
+  /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. */
+  onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
   onBusyChange?: (busy: boolean) => void;
   initialProjectId?: string | null;
 }) {
@@ -275,7 +270,7 @@ export default function IntakeForm({
   const [source, setSource] = useState<RequestInput | null>(null);
   const [editedProblem, setEditedProblem] = useState("");
   const [problemError, setProblemError] = useState<string | null>(null);
-  const [failure, setFailure] = useState<IntakeFailure | null>(null);
+  const [failure, setFailure] = useState<GateFailure | null>(null);
   const [fileFailure, setFileFailure] = useState<string | null>(null);
   const [showSlowCue, setShowSlowCue] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
@@ -284,16 +279,39 @@ export default function IntakeForm({
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   // The saved row, handed to the composer so the list shows it at once.
   const createdRow = useRef<OverviewRequest | null>(null);
+  const pendingWriter = usePendingMutationWriter();
+  const [lostUploads, setLostUploads] = useState<LostUploads | null>(null);
   const [projectBusy, setProjectBusy] = useState(false);
   const projectInFlight = useRef(false);
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
   const [mutationBusy, setMutationBusy] = useState(false);
+  // Expected impact starts folded, also after a draft is restored (decision 8.26).
+  const [impactOpen, setImpactOpen] = useState(false);
+  const [impactInstant, setImpactInstant] = useState(false);
 
   const operationInFlight = useRef(false);
+  // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
+  // which stops the uploads; or this composer unmounted (Back, or /intake
+  // taking the drawer's place), which lets them finish without it.
   const leftUploadScreen = useRef(false);
+  const unmounted = useRef(false);
+  // Plan item 2.3 (S3): the created Request whose files this composer still
+  // owes, from the first upload until they finish or are left; and the upload
+  // reservations not yet finalized or discarded, by file key.
+  const uploadsRequest = useRef<string | null>(null);
+  const reservations = useRef(new Map<string, string>());
+  // Each lost-uploads check takes a number; resolving the step or unmounting
+  // takes the next, so an older check never writes the record again.
+  const lostCheck = useRef(0);
   const draftCleared = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const failureRef = useRef<HTMLDivElement>(null);
+  // Where focus goes when the compose step shows again: the title by default,
+  // the primary button after a gate failure, nowhere when a field takes it.
+  const focusAfterCompose = useRef<"title" | "submit" | "none">("title");
+  const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
@@ -345,20 +363,52 @@ export default function IntakeForm({
 
   const checking = stage === "checking";
   const creating = stage === "creating";
-  const isMac = useSyncExternalStore(
+  // The shortcut hint names the platform's key. The server knows no platform,
+  // so the hint renders only on the client, to the left of a right-aligned
+  // button: its arrival moves nothing.
+  const shortcutHint = useSyncExternalStore(
     useCallback(() => () => {}, []),
-    () =>
-      /Mac|iPhone|iPad|iPod/.test(
-        `${navigator.platform} ${navigator.userAgent}`,
-      ),
-    () => false,
+    () => /Mac|iPhone|iPad|iPod/.test(`${navigator.platform} ${navigator.userAgent}`) ? "⌘ Enter" : "Ctrl Enter",
+    () => null,
   );
-  const modKey = isMac ? "⌘" : "Ctrl";
+
+  // Plan item 2.3 (S3): after a reload, each recorded reservation is cleared;
+  // a file that did finish drops off the list, and the rest are named honestly.
+  // The list waits for the answer. When every file had finished, nothing was
+  // lost and the flow ends as a creation does.
+  const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
+    const check = ++lostCheck.current;
+    const settled = await Promise.all(lost.files.map(async (file): Promise<UnfinishedUpload | null> => {
+      if (!file.attachmentId) return file;
+      try {
+        const result = await discardAttachmentUpload({ requestId: lost.requestId, attachmentId: file.attachmentId }, context);
+        if (result.success && result.alreadyUploaded) return null;
+        return result.success ? { ...file, attachmentId: null } : file;
+      } catch {
+        return file;
+      }
+    }));
+    if (check !== lostCheck.current) return;
+    const kept = settled.filter((file): file is UnfinishedUpload => file !== null);
+    if (!kept.length) {
+      finishCreatedRequest(lost.requestId);
+      return;
+    }
+    writeUnfinishedUploads(window.sessionStorage, draftScope, { ...lost, files: kept });
+    setLostUploads({ requestId: lost.requestId, files: kept.map(({ key, name }) => ({ key, name })) });
+    setStage("uploads_lost");
+  });
 
   useEffect(() => {
-    const draft = readIntakeDraft(window.sessionStorage, draftScope);
+    // A record of interrupted uploads comes before any draft: its Request
+    // exists. Only a record an earlier document left means a reload.
+    const lost = readLostUploads(window.sessionStorage, draftScope);
+    const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
-      if (draft) {
+      if (lost) {
+        setStage("uploads_checking");
+        void settleLostUploads(lost);
+      } else if (draft) {
         reset(draft.source);
         setSource(draft.source);
         setFailure(null);
@@ -406,7 +456,7 @@ export default function IntakeForm({
   }, [active, attachments.length, currentValues.projectId, draftReady, initialProjectId, projects.projects, restoredDraft, setValue, stage]);
 
   const persistDraft = useEffectEvent(() => {
-    if (!draftReady || draftCleared.current) return true;
+    if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
     const review =
       (stage === "framing" || stage === "creating") && triage && token
         ? { triage, token, editedProblem }
@@ -438,8 +488,17 @@ export default function IntakeForm({
 
   useEffect(() => {
     if (!active || !draftReady) return;
-    if (stage === "compose") setFocus("title");
-    else headingRef.current?.focus();
+    if (stage !== "compose") {
+      headingRef.current?.focus();
+      return;
+    }
+    const target = focusAfterCompose.current;
+    focusAfterCompose.current = "title";
+    if (target === "title") setFocus("title");
+    else if (target === "submit") {
+      submitRef.current?.focus();
+      failureRef.current?.scrollIntoView({ block: "nearest" });
+    }
   }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
@@ -484,25 +543,57 @@ export default function IntakeForm({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [active, hasPendingUploads, stage]);
 
+  // The checking step announces itself through its own visible status.
+  // Plan item 2.3 (S3): while files upload after creation, this tab remembers
+  // which have not finished, so a reload can say so instead of losing them silently.
+  useEffect(() => {
+    if (!createdRequestId || leftUploadScreen.current || (stage !== "uploading" && stage !== "attachment_recovery")) return;
+    writeUnfinishedUploads(window.sessionStorage, draftScope, {
+      requestId: createdRequestId,
+      title: source?.title ?? "",
+      files: attachments
+        .filter((attachment) => attachment.status !== "uploaded")
+        .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
+    });
+  }, [attachments, createdRequestId, draftScope, source, stage]);
+
+  // A restored draft is announced here, once: this region is always mounted,
+  // so its new text is read, and the visible notice is not a live region.
   const liveStatus =
     restoredDraft && !checking && !creating
       ? "Your unsaved Request was restored."
-      : checking
-        ? "Preparing your Request for review."
-        : stage === "framing" && triage
-          ? "Your Request is ready to review."
-          : creating
-            ? "Creating the Request."
-            : stage === "uploading"
-              ? "Uploading Request files."
-              : "";
+      : stage === "framing" && triage
+        ? "Your Request is ready to review."
+        : creating
+          ? "Creating the Request."
+          : stage === "uploading"
+            ? "Uploading Request files."
+            : "";
 
   function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
+    // After unmount nothing renders. The record follows the uploads instead,
+    // so a reload before they end names only the files that weren't added.
+    if (unmounted.current) {
+      followUnmountedUpload(key, update);
+      return;
+    }
     setAttachments((current) =>
       current.map((attachment) =>
         attachment.key === key ? { ...attachment, ...update } : attachment,
       ),
     );
+  }
+
+  function followUnmountedUpload(key: string, update: Partial<QueuedAttachment>) {
+    if (update.status !== "uploaded" && update.attachmentId === undefined) return;
+    const record = readUnfinishedUploads(window.sessionStorage, draftScope);
+    if (!record || record.requestId !== uploadsRequest.current) return;
+    writeUnfinishedUploads(window.sessionStorage, draftScope, {
+      ...record,
+      files: update.status === "uploaded"
+        ? record.files.filter((file) => file.key !== key)
+        : record.files.map((file) => file.key === key ? { ...file, attachmentId: update.attachmentId ?? null } : file),
+    });
   }
 
   function addFiles(files: File[]) {
@@ -567,7 +658,13 @@ export default function IntakeForm({
     setStage("checking");
 
     try {
-      const result: TriageResponse = await runTriage(data, context);
+      let result: TriageResponse = await runTriage(data, context);
+      if (!result.success && result.error.code === "session_expired") {
+        // A tab left hidden is the likely cause: ask Clerk for a fresh token and
+        // check once more before asking the person to sign in.
+        await refreshClerkToken().catch(() => undefined);
+        result = await runTriage(data, context);
+      }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
           if (result.error.field === "editedProblemText") {
@@ -578,6 +675,7 @@ export default function IntakeForm({
               message: result.error.message,
             });
             if (result.error.field === "usefulLink") setLinkOpen(true);
+            focusAfterCompose.current = "none";
             setStage("compose");
             const field = result.error.field;
             // Optional controls may have just expanded. Wait for their render
@@ -588,6 +686,7 @@ export default function IntakeForm({
         } else {
           setFailure(result.error);
         }
+        focusAfterCompose.current = "submit";
         setStage("compose");
         return;
       }
@@ -609,7 +708,8 @@ export default function IntakeForm({
       }
       setStage("framing");
     } catch {
-      setFailure(clientNetworkFailure);
+      setFailure(thrownGateFailure(navigator.onLine !== false));
+      focusAfterCompose.current = "submit";
       setStage("compose");
     } finally {
       operationInFlight.current = false;
@@ -635,6 +735,7 @@ export default function IntakeForm({
         });
         return "failed";
       }
+      reservations.current.delete(attachment.key);
       if (result.alreadyUploaded) {
         updateAttachment(attachment.key, {
           status: "uploaded",
@@ -687,6 +788,7 @@ export default function IntakeForm({
       }
 
       attachmentId = prepared.attachmentId;
+      reservations.current.set(attachment.key, attachmentId);
       updateAttachment(attachment.key, { attachmentId });
       const uploadFile =
         attachment.file.type === prepared.mimeType
@@ -712,6 +814,7 @@ export default function IntakeForm({
         return false;
       }
 
+      reservations.current.delete(attachment.key);
       updateAttachment(attachment.key, {
         status: "uploaded",
         progress: 100,
@@ -737,19 +840,86 @@ export default function IntakeForm({
     }
   }
 
-  function finishCreatedRequest(requestId: string) {
+  /** The saved row joins the list's Open group through the overlay at once,
+   * before any upload, on both surfaces (plan item 2.3). No router refresh: the
+   * save already revalidated the list. */
+  function showCreatedInList(created: OverviewRequest | undefined) {
+    if (!created) return;
+    const row = { ...created, projectName: projects.projects.find((project) => project.id === created.projectId)?.name ?? created.projectName };
+    createdRow.current = row;
+    pendingWriter?.insert(row);
+  }
+
+  function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
     if (leftUploadScreen.current) return;
+    uploadsRequest.current = null;
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
     if (onCreated) {
       onBusyChange?.(false);
-      const row = createdRow.current?.id === requestId ? createdRow.current : null;
-      onCreated(requestId, row ? { ...row, projectName: projects.projects.find((project) => project.id === row.projectId)?.name ?? row.projectName } : undefined);
+      onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
       return;
     }
-    toast({ type: "success", title: "Request created",
-      description: "Open and ready to be picked up.",
-    });
+    if (!open) toast(requestCreatedToast({}));
     router.push(`/requests/${requestId}`);
+  }
+
+  /** Nobody sees the upload screen any more: Leave page was chosen, or the composer unmounted. */
+  function uploadsUnattended() {
+    return leftUploadScreen.current || unmounted.current;
+  }
+
+  /** Plan item 2.3 (S3): a created Request's files that nobody attends end in
+   * this document. Once no upload loop runs, open reservations are cleared and
+   * so is the record: no reload happened, so no later reload may report them. */
+  function settleLeftUploads() {
+    const requestId = uploadsRequest.current;
+    if (!uploadsUnattended() || operationInFlight.current || !requestId) return;
+    uploadsRequest.current = null;
+    const open = [...reservations.current.values()];
+    reservations.current.clear();
+    void Promise.allSettled(open.map((attachmentId) => discardAttachmentUpload({ requestId, attachmentId }, context))).then(() => {
+      if (readUnfinishedUploads(window.sessionStorage, draftScope)?.requestId === requestId) clearUnfinishedUploads(window.sessionStorage, draftScope);
+    });
+  }
+
+  /** Leave page in the navigation guard, whose copy says files not yet uploaded
+   * won't be added. A running loop finishes its file in flight and starts no other. */
+  function leaveUploadScreen() {
+    leftUploadScreen.current = true;
+    settleLeftUploads();
+  }
+
+  /** Back, or /intake taking the drawer's place, cancels nothing: the upload
+   * loops go on in the background, render nothing, and settle when they end. */
+  function leaveOnUnmount() {
+    unmounted.current = true;
+    settleLeftUploads();
+  }
+
+  const onUnmount = useEffectEvent(() => {
+    lostCheck.current += 1;
+    leaveOnUnmount();
+  });
+  useEffect(() => {
+    unmounted.current = false;
+    return () => onUnmount();
+  }, []);
+
+  function openLostRequest() {
+    if (!lostUploads) return;
+    lostCheck.current += 1;
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
+    setStage("complete");
+    if (onCreated) onCreated(lostUploads.requestId, { open: true });
+    else router.push(`/requests/${lostUploads.requestId}`);
+  }
+
+  function dismissLostUploads() {
+    lostCheck.current += 1;
+    clearUnfinishedUploads(window.sessionStorage, draftScope);
+    setLostUploads(null);
+    setStage("compose");
   }
 
   async function onConfirm() {
@@ -773,19 +943,24 @@ export default function IntakeForm({
     setStage("creating");
 
     try {
-      const result: SaveResponse = await saveRequest(
-        {
-          token,
-          editedProblemText:
-            triage.classification === "problem" ? null : editedProblem,
-        },
-        context,
-      );
+      const payload = {
+        token,
+        editedProblemText:
+          triage.classification === "problem" ? null : editedProblem,
+      };
+      // Saving is idempotent by the review's requestId, so an ended session
+      // gets one silent retry with a fresh Clerk token, as the gate does.
+      const result: SaveResponse = await saveRequest(payload, context).then(async (first) => {
+        if (first.success || first.error.code !== "session_expired") return first;
+        await refreshClerkToken().catch(() => undefined);
+        return saveRequest(payload, context);
+      });
 
       if (!result.success) {
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;
           setError(field, { type: "server", message: result.error.message });
+          focusAfterCompose.current = "none";
           setStage("compose");
           window.setTimeout(() => focusRequestField(field), 0);
           return;
@@ -804,21 +979,39 @@ export default function IntakeForm({
       }
 
       setCreatedRequestId(result.requestId);
-      createdRow.current = result.created ?? null;
+      showCreatedInList(result.created);
       draftCleared.current = true;
       clearIntakeDraft(window.sessionStorage, draftScope);
 
+      // Back while the save was pending unmounted the composer. The row is in
+      // the list; no toast or navigation pulls the person from where Back went.
       if (attachments.length === 0) {
-        finishCreatedRequest(result.requestId);
+        if (!uploadsUnattended()) finishCreatedRequest(result.requestId);
         return;
       }
 
       setStage("uploading");
+      uploadsRequest.current = result.requestId;
+      // The upload screen's effect keeps this record, but a composer unmounted
+      // during the save never renders it. Start the record before any upload,
+      // so a reload mid-upload still names the files.
+      if (!leftUploadScreen.current) {
+        writeUnfinishedUploads(window.sessionStorage, draftScope, {
+          requestId: result.requestId,
+          title: source.title,
+          files: attachments
+            .filter((attachment) => attachment.status !== "uploaded")
+            .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
+        });
+      }
       const results: boolean[] = [];
       for (const attachment of attachments) {
+        // Only Leave page stops the uploads; an unmounted composer's go on.
+        if (leftUploadScreen.current) break;
         results.push(await uploadAttachment(attachment, result.requestId));
       }
 
+      if (uploadsUnattended()) return;
       if (results.every(Boolean)) {
         finishCreatedRequest(result.requestId);
       } else {
@@ -833,7 +1026,9 @@ export default function IntakeForm({
       setStage("framing");
     } finally {
       operationInFlight.current = false;
-      onBusyChange?.(false);
+      // A composer mounted since then owns the busy flag.
+      if (!unmounted.current) onBusyChange?.(false);
+      settleLeftUploads();
     }
   }
 
@@ -846,6 +1041,8 @@ export default function IntakeForm({
 
     try {
       for (const attachment of failed) {
+        // Only Leave page stops the retries; an unmounted composer's go on.
+        if (leftUploadScreen.current) break;
         const cleanup = await discardFailedAttachment(
           attachment,
           createdRequestId,
@@ -861,10 +1058,14 @@ export default function IntakeForm({
       }
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
+      settleLeftUploads();
     }
 
+    if (uploadsUnattended()) return;
     // A per-file retry must not abandon another failed file. Use the retry
     // outcomes as well as the render snapshot; React state updates may lag.
     if (
@@ -891,7 +1092,8 @@ export default function IntakeForm({
     try {
       if (
         (await discardFailedAttachment(attachment, createdRequestId)) !==
-        "discarded"
+          "discarded" ||
+        unmounted.current
       )
         return;
       setAttachments((current) =>
@@ -899,8 +1101,11 @@ export default function IntakeForm({
       );
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
+      settleLeftUploads();
     }
   }
 
@@ -920,12 +1125,15 @@ export default function IntakeForm({
           discardFailedAttachment(attachment, createdRequestId),
         ),
       );
-      if (discarded.every((result) => result !== "failed"))
+      if (!uploadsUnattended() && discarded.every((result) => result !== "failed"))
         finishCreatedRequest(createdRequestId);
     } finally {
       operationInFlight.current = false;
-      setMutationBusy(false);
-      onBusyChange?.(false);
+      if (!unmounted.current) {
+        setMutationBusy(false);
+        onBusyChange?.(false);
+      }
+      settleLeftUploads();
     }
   }
 
@@ -943,26 +1151,26 @@ export default function IntakeForm({
     });
   }
 
-  function onReviewKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (
-      event.key === "Enter" &&
-      (event.metaKey || event.ctrlKey) &&
-      !creating &&
-      active
-    ) {
+  // One handler for both steps: Cmd/Ctrl+Enter is the primary action wherever
+  // focus is in the composer, including its portalled property menus.
+  function onComposerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!active || event.key !== "Enter" || !(event.metaKey || event.ctrlKey) || event.defaultPrevented) return;
+    if (stage === "compose") {
       event.preventDefault();
-      if (failure?.code === "review_expired" && source) {
-        void checkFraming(source);
-      } else {
-        void onConfirm();
-      }
+      submitForReview();
+    } else if (stage === "framing") {
+      event.preventDefault();
+      if (failure?.code === "review_expired" && source) void checkFraming(source);
+      else void onConfirm();
     }
   }
 
   const composing = stage === "compose" || checking;
   const reviewing = stage === "framing" || creating;
-  const Surface = "div";
-  const ReviewFooter = "footer";
+  const dialog = presentation === "dialog";
+  // Compose shows gate failures; review-step failures keep their own alert.
+  const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
+  const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
 
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;
@@ -970,13 +1178,21 @@ export default function IntakeForm({
     onBusyChange?.(value);
   }
 
+  /** A failed submit opens Expected impact at once and focuses its first invalid field, or its first field. */
+  function revealImpact() {
+    flushSync(() => {
+      setImpactInstant(true);
+      setImpactOpen(true);
+    });
+    const panel = document.getElementById(IMPACT_PANEL_ID);
+    const kind = expectedImpactDraftSchema.parse(getValues("expectedImpact"))?.kind ?? "metric";
+    (panel?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? firstImpactField(kind))?.focus();
+  }
+
   function focusRequestField(field: keyof RequestInput) {
     if (field === "projectId") document.getElementById("intake-project")?.focus();
     else if (field === "requestType") document.getElementById("intake-request-type")?.focus();
-    else if (field === "expectedImpact") {
-      const section = document.getElementById("intake-expected-impact");
-      (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section)?.focus();
-    }
+    else if (field === "expectedImpact") revealImpact();
     else if (earlierDraftFields.some(({ name }) => name === field)) document.getElementById("intake-earlier-details")?.focus();
     else setFocus(field);
   }
@@ -996,42 +1212,27 @@ export default function IntakeForm({
   }
 
   return (
-    <div className={presentation === "page" ? "mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
+    <div
+      className={cn(styles.composer, dialog ? styles.dialog : cn(styles.page, "mx-auto w-full max-w-2xl px-4 pt-6 sm:px-6 sm:pt-8"))}
+      onKeyDown={onComposerKeyDown}
+    >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard
-          creating={creating}
-          onLeave={() => {
-            leftUploadScreen.current = true;
-          }}
-        />
+        <IntakeNavigationGuard creating={creating} onLeave={leaveUploadScreen} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}
       </p>
-      {presentation === "dialog" && reviewing && <h2 ref={headingRef} tabIndex={-1} className="mb-5 text-lg font-medium">Review Request</h2>}
-      <Surface className={presentation === "page" ? "space-y-6" : cn("min-h-0 min-w-0 flex-1", reviewing ? "flex flex-col" : "space-y-5")}>
-        {presentation === "page" && composing && (
-          <header className="space-y-1.5">
-            <h1 className="text-xl font-medium tracking-tight">New Request</h1>
-            <p className="text-sm text-muted-foreground">
-              Describe your Request and the result you expect. Review it before sharing with your team.
-            </p>
-          </header>
-        )}
+      <div className={styles.scroll}>
         {composing && (
           <form
+            id={formId}
+            hidden={checking}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
             aria-busy={checking || projectBusy || undefined}
             onSubmit={(event) => {
               event.preventDefault();
               submitForReview();
-            }}
-            onKeyDown={(event) => {
-              if (active && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                submitForReview();
-              }
             }}
             onDragOver={(event) => {
               if (checking || !event.dataTransfer.types.includes("Files")) return;
@@ -1050,40 +1251,39 @@ export default function IntakeForm({
                 Your text and links were restored. Choose any files again before creating the Request.
               </IntakeNotice>
             )}
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.title)}>
+            <div className="space-y-2">
               <Input
                 label="Request title"
+                hideLabel
+                appearance="plain"
                 id="intake-title"
                 placeholder="Request title"
                 maxLength={TITLE_MAX}
                 readOnly={checking}
-                aria-invalid={Boolean(errors.title) || undefined}
-                aria-describedby={errors.title ? "intake-title-error" : undefined}
+                className={styles.title}
+                error={errors.title?.message}
+                data-composer-autofocus={stage === "compose" ? "" : undefined}
+                onKeyDown={(event) => {
+                  // Enter moves to the description; only Cmd/Ctrl+Enter submits.
+                  if (event.key !== "Enter" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  setFocus("description");
+                }}
                 {...register("title")}
               />
-              {errors.title && (
-                <p className="text-destructive-foreground" id="intake-title-error">
-                  {errors.title.message}
-                </p>
-              )}
-            </div>
-            <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.description)}>
               <Textarea
                 label="Description"
+                hideLabel
+                appearance="plain"
                 id="intake-description"
                 placeholder="Add a description…"
                 rows={3}
                 maxLength={DESCRIPTION_MAX}
                 readOnly={checking}
-                aria-invalid={Boolean(errors.description) || undefined}
-                aria-describedby={errors.description ? "intake-description-error" : undefined}
+                className={styles.description}
+                error={errors.description?.message}
                 {...register("description")}
               />
-              {errors.description && (
-                <p className="text-destructive-foreground" id="intake-description-error">
-                  {errors.description.message}
-                </p>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
@@ -1100,11 +1300,14 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            <ExpectedImpactFields
+            <ExpectedImpactDisclosure
               value={expectedImpactDraftSchema.parse(currentValues.expectedImpact) ?? EMPTY_METRIC_IMPACT}
               onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
               disabled={checking}
               errors={errors.expectedImpact}
+              open={impactOpen}
+              instant={impactInstant}
+              onOpenChange={(open) => { setImpactInstant(false); setImpactOpen(open); }}
             />
             <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
               <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
@@ -1139,67 +1342,71 @@ export default function IntakeForm({
                 </p>
               </div>
             )}
-            {failure && (
-              <IntakeNotice error title="Could not prepare the review">
-                <span>{failure.message}</span>
-                {failure.code === "session_expired" && (
-                  <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
-                )}
-              </IntakeNotice>
-            )}
-            <footer className="flex justify-end border-t pt-4">
-              <Button type="submit" disabled={checking || projectBusy}>
-                {checking && <LoaderCircleIcon aria-hidden="true" data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />}
-                {checking ? "Preparing review…" : "Review Request"}
-              </Button>
-            </footer>
-            {checking && showSlowCue && (
-              <p className="text-sm text-muted-foreground">Still preparing your review. Your draft is still here.</p>
+            {gateNotice && (
+              <div ref={failureRef}>
+                <Alert tone={gateNotice.tone} title={gateNotice.title}>
+                  <span>{gateNotice.body}</span>
+                  {gateNotice.signIn && (
+                    <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
+                  )}
+                </Alert>
+              </div>
             )}
           </form>
         )}
-      {(stage === "framing" || stage === "creating") && triage && source && (
-        <div
-          className={cn(reveal, presentation === "dialog" ? "flex min-h-0 flex-1 flex-col" : "space-y-6")}
-          aria-busy={creating || undefined}
-          onKeyDown={onReviewKeyDown}
-        >
-          <div className={cn("space-y-6", presentation === "dialog" && "min-h-0 flex-1")}>
-          {(presentation === "page" || triage.classification !== "problem" || restoredDraft) && <header className="space-y-3">
+        {checking && (
+          // Plan item 2.3: the gate acknowledges within a frame with the review
+          // step's shape. The compose form above stays mounted but hidden, so
+          // its values, number text, disclosure state and files survive a failure.
+          <div className="space-y-6">
             <div className="space-y-2">
-              {presentation === "page" && <h2
-                ref={headingRef}
-                tabIndex={-1}
-                className={cn(
-                  "text-xl font-medium tracking-tight",
-                  "focus:outline-none",
-                )}
-              >
-                {classificationPresentation[triage.classification].title}
-              </h2>}
-              {(presentation === "page" || triage.classification !== "problem") && <p
-                className={cn(
-                  "text-sm leading-relaxed",
-                  "max-w-[62ch] text-pretty text-muted-foreground",
-                )}
-              >
-                {classificationPresentation[triage.classification].description}
-              </p>}
-              {restoredDraft && (
-                <IntakeNotice attention>
-                  Your review was restored. Text and links are still here.
-                  Choose any files again before creating the Request.
-                </IntakeNotice>
-              )}
+              {/* Focus reads the status with the heading: a live region inserted
+                  with its text is often not announced, and focus would win. */}
+              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="" aria-describedby="intake-checking-status">Review Request</h2>
+              <p id="intake-checking-status" role="status" className="text-sm text-muted-foreground">
+                {showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
+              </p>
             </div>
-          </header>}
+            <div aria-hidden="true" className="space-y-6">
+              <Skeleton lines={2} />
+              <Skeleton lines={4} />
+              <div className="border-t pt-5"><Skeleton lines={3} /></div>
+            </div>
+          </div>
+        )}
+      {reviewing && triage && source && (
+        // Plan item 2.3: one ordered list of blocks on both surfaces, then the
+        // footer. The alignment increment's block will slot in before the footer.
+        <div
+          className={cn(reveal, "space-y-6")}
+          aria-busy={creating || undefined}
+        >
+          <header className="space-y-2">
+            <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
+            {triage.classification !== "problem" && (
+              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+                {aiAttribution[triage.classification]}
+              </p>
+            )}
+            {restoredDraft && (
+              <IntakeNotice attention>
+                Your review was restored. Text and links are still here.
+                Choose any files again before creating the Request.
+              </IntakeNotice>
+            )}
+          </header>
 
-          <h3 className="break-words text-lg font-medium">{source.title}</h3>
-
-          {(source.projectId || source.requestType) && <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {source.projectId && <div><dt className="text-xs text-muted-foreground">Project</dt><dd>{projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project"}</dd></div>}
-            {source.requestType && <div><dt className="text-xs text-muted-foreground">Request type</dt><dd>{REQUEST_TYPE_LABELS[source.requestType]}</dd></div>}
-          </dl>}
+          <div className="space-y-1">
+            <h3 className="break-words text-lg font-medium">{source.title}</h3>
+            {(source.projectId || source.requestType) && (
+              <p className="text-sm text-muted-foreground">
+                {[
+                  source.projectId ? projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project" : null,
+                  source.requestType ? REQUEST_TYPE_LABELS[source.requestType] : null,
+                ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
+              </p>
+            )}
+          </div>
 
           {triage.classification === "problem" ? (
             <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>
@@ -1317,56 +1524,6 @@ export default function IntakeForm({
             </IntakeNotice>
           )}
 
-          </div>
-          <ReviewFooter className={cn("flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-4", presentation === "dialog" && styles.reviewFooter)}>
-            <Button type="button" variant="ghost" onClick={() => {
-              setFailure(null);
-              setStage("compose");
-            }} disabled={creating}>Edit Request</Button>
-            <Button
-              type="button"
-              onClick={
-                failure?.code === "review_expired"
-                  ? () => source && void checkFraming(source)
-                  : () => void onConfirm()
-              }
-              disabled={creating}
-              aria-busy={creating || undefined}
-              aria-keyshortcuts="Control+Enter Meta+Enter"
-            >
-              {creating && (
-                <LoaderCircleIcon
-                  aria-hidden="true"
-                  data-icon="inline-start"
-                  className="animate-spin motion-reduce:animate-none"
-                />
-              )}
-              {creating
-                ? "Creating Request…"
-                : failure?.code === "review_expired"
-                  ? "Review again"
-                  : "Create Request"}
-            </Button>
-          </ReviewFooter>
-
-          {!creating && (
-            <p
-              className={cn(
-                "text-xs",
-                "sr-only",
-              )}
-            >
-              Press{" "}
-              <kbd className="rounded border border-input bg-muted px-1.5 py-0.5 font-mono">
-                {modKey}
-              </kbd>{" "}
-              +{" "}
-              <kbd className="rounded border border-input bg-muted px-1.5 py-0.5 font-mono">
-                Enter
-              </kbd>{" "}
-              to create.
-            </p>
-          )}
         </div>
       )}
 
@@ -1374,21 +1531,11 @@ export default function IntakeForm({
         createdRequestId && (
           <div className={cn(reveal, "mx-auto max-w-[680px] space-y-6")}>
             <header className="space-y-2">
-              <p
-                className={cn(
-                  "text-xs font-medium",
-                  "font-medium text-muted-foreground",
-                )}
-              >
-                Request created
-              </p>
               <h2
                 ref={headingRef}
                 tabIndex={-1}
-                className={cn(
-                  "text-xl font-medium tracking-tight",
-                  "focus:outline-none",
-                )}
+                className="text-lg font-medium"
+                data-composer-autofocus=""
               >
                 {stage === "uploading"
                   ? "Uploading files"
@@ -1532,14 +1679,78 @@ export default function IntakeForm({
             {stage === "attachment_recovery" && !hasPendingUploads && (
               <Button
                 type="button"
-                onClick={() => finishCreatedRequest(createdRequestId)}
+                onClick={() => finishCreatedRequest(createdRequestId, { open: true })}
               >
-                View Request
+                Open Request
               </Button>
             )}
           </div>
         )}
-      </Surface>
+        {stage === "uploads_checking" && (
+          // Plan item 2.3 (S3): which files were lost is known once each
+          // reservation is checked, so no list shows before then.
+          <Skeleton label="Checking your files" lines={3} />
+        )}
+        {stage === "uploads_lost" && lostUploads && (
+          <div className={cn(reveal, "space-y-6")}>
+            <header className="space-y-2">
+              <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Some files weren’t added</h2>
+              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+                Your Request was created, but the page reloaded before these files finished uploading, so they weren’t added. Mention them in a comment if your team needs them.
+              </p>
+            </header>
+            <ul aria-label="Files that weren’t added" className="divide-y">
+              {lostUploads.files.map((file) => (
+                <li key={file.key} className="flex items-center gap-3 py-2">
+                  <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={openLostRequest}>Open Request</Button>
+              <Button type="button" variant="ghost" onClick={dismissLostUploads}>Dismiss</Button>
+            </div>
+          </div>
+        )}
+      </div>
+      {composing && (
+        <footer className={styles.footer}>
+          <div className={styles.actions}>
+            {shortcut}
+            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter">
+              Review Request
+            </Button>
+          </div>
+        </footer>
+      )}
+      {reviewing && triage && source && (
+        <footer className={styles.footer}>
+          <div className={styles.actions}>
+            <Button type="button" variant="ghost" className={styles.lead} onClick={() => {
+              setFailure(null);
+              setStage("compose");
+            }} disabled={creating}>Edit Request</Button>
+            {!creating && shortcut}
+            <Button
+              type="button"
+              onClick={
+                failure?.code === "review_expired"
+                  ? () => source && void checkFraming(source)
+                  : () => void onConfirm()
+              }
+              loading={creating}
+              aria-keyshortcuts="Meta+Enter Control+Enter"
+            >
+              {creating
+                ? "Creating Request…"
+                : failure?.code === "review_expired"
+                  ? "Review again"
+                  : "Create Request"}
+            </Button>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

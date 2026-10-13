@@ -67,7 +67,7 @@ export function IntakeNavigationGuard({
     <Dialog open={destination !== null} onOpenChange={(open) => { if (!open) setDestination(null); }}>
       <DialogContent
         title={creating ? "Creating your Request" : "Leave unfinished uploads?"}
-        description={creating ? "Lane is still confirming that your Request was saved. Keep this page open until creation finishes." : "Your Request is saved. Unfinished files and their retry controls will be lost if you leave this page."}
+        description={creating ? "Lane is still confirming that your Request was saved. Keep this page open until creation finishes." : "Your Request is saved. Files not yet uploaded won’t be added if you leave this page."}
         onOpenAutoFocus={(event) => { event.preventDefault(); keepWorkingButton.current?.focus(); }}
         onCloseAutoFocus={(event) => { event.preventDefault(); navigationLink.current?.focus(); }}
       >

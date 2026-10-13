@@ -1,7 +1,31 @@
-.reviewFooter {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding-bottom: var(--space-4);
-  background: var(--surface-raised);
+/* Plan item 2.3: one composition for the drawer and /intake. The footer holds the
+ * step's actions and stays at the bottom: in the drawer it sits below the scrolling
+ * region, on /intake it sticks to the bottom of the main pane. */
+.composer {
+  --composer-gutter: var(--space-6);
+  --composer-surface: var(--surface);
+  /* WCAG 2.4.11: a focused control scrolled into view clears the sticky footer. */
+  --composer-footer-clearance: calc(var(--control-height-md) + 2 * var(--space-3) + 1px + var(--space-4));
+  min-width: 0;
 }
+/* The drawer's panel is the raised surface; /intake sits on the main pane's surface. */
+.dialog { --composer-surface: var(--surface-raised); display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.dialog .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--composer-gutter) var(--space-6); overscroll-behavior: contain; scrollbar-width: thin; }
+.page :where(input, textarea, button, a[href], [tabindex]) { scroll-margin-block-end: var(--composer-footer-clearance); }
+/* Upload and recovery views have no footer, so the page keeps its bottom padding there. */
+.page .scroll:last-child { padding-bottom: var(--space-8); }
+@media (max-width: 40rem) { .composer { --composer-gutter: var(--space-4); } }
+
+.composer .title { font-size: var(--text-lg); font-weight: 500; line-height: var(--leading-body); }
+/* Three lines to start, growing with the text to about sixteen, then it scrolls. Browsers without
+ * field-sizing keep rows={3}. */
+.composer .description { min-height: 3lh; max-height: 16lh; overflow-y: auto; font-size: var(--text-base); font-weight: 400; line-height: var(--leading-body); field-sizing: content; }
+
+.footer { position: sticky; bottom: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--space-2); padding-block: var(--space-3); border-top: 1px solid var(--border); background: var(--composer-surface); }
+.page .footer { margin-top: var(--space-6); }
+.dialog .footer { flex: none; padding-inline: var(--composer-gutter); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.lead { margin-inline-end: auto; }
+/* The key hint is decoration for pointer users; the button carries aria-keyshortcuts. */
+.shortcut { display: none; color: var(--text-muted); font: inherit; font-size: var(--text-xs); white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) { .shortcut { display: inline; } }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
@@ -11,7 +11,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
-import { groupRequestRows, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
+import { groupRequestRows, matchesListFilters, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
 import { requestListHref, parseRequestStatusFilter } from "@/lib/request-workspace"
 import { NewRequestLink } from "../new-request-link"
 import { useRequestRowPresentation } from "../row-presentation"
@@ -59,13 +59,11 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const valueFor = (id: string) => String(localFilters.find(item => item.id === id)?.value ?? "")
   const title = valueFor("title"), project = projectFilter === "all" ? "" : projectFilter, requestType = valueFor("requestType")
   const groups = useMemo(() => {
-    const query = title.trim().toLocaleLowerCase()
-    const rows = data.filter(row => (filter === "all" || row.status === filter)
-      && (row.reframedProblem ?? row.title).toLocaleLowerCase().includes(query)
-      && (!project || (row.projectId ?? "none") === project)
-      && (!requestType || (row.requestType ?? "none") === requestType))
+    // The composer's hidden-by-filters toast reads the same function (plan item 2.3).
+    const filters = { status: filter, project: projectFilter, title, requestType }
+    const rows = data.filter(row => matchesListFilters(row, filters))
     return groupRequestRows(sortRequestRows(rows, ordering), grouping)
-  }, [data, filter, title, project, requestType, ordering, grouping])
+  }, [data, filter, title, projectFilter, requestType, ordering, grouping])
   const matching = useMemo(() => groups.flatMap(group => group.rows), [groups])
   const { rows: currentRows, pageIndex, pageCount } = paginateRequests(matching, pagination.pageIndex, pagination.pageSize)
   const pageIds = new Set(currentRows.map(row => row.id))
@@ -87,6 +85,28 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     const group = groups.find(item => item.rows.some(row => row.id === id))
     if (index >= 0) setView(previous => ({ ...previous, collapsedGroups: previous.collapsedGroups.filter(key => key !== group?.key), pagination: { ...previous.pagination, pageIndex: Math.floor(index / previous.pagination.pageSize) } }))
   }, [matching, groups, setView])
+  // Plan item 2.3: "Show it" on the composer's toast moved the view to one that
+  // holds the new Request. Bring its group and page into view, focus it, and
+  // clear the request, as the return-focus marker does.
+  const reveal = view.reveal
+  const revealRow = useEffectEvent((id: string) => restoreRequest(id))
+  useEffect(() => {
+    if (!reveal) return
+    revealRow(reveal)
+    let frame = 0, attempts = 0
+    const done = () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous)
+    const focusRow = () => {
+      const link = document.getElementById(`request-${reveal}`)
+      if (link?.getClientRects().length && !link.closest("[hidden], [inert]")) {
+        link.focus()
+        if (document.activeElement === link) return done()
+      }
+      if (++attempts < 20) frame = window.requestAnimationFrame(focusRow)
+      else done()
+    }
+    frame = window.requestAnimationFrame(focusRow)
+    return () => window.cancelAnimationFrame(frame)
+  }, [reveal, setView])
   const hasFilter = filter !== "all" || !!title || !!requestType
   const emptyTitle = hasFilter ? "No matching Requests" : projectFilter === "none" ? "No Requests without a Project" : projectFilter !== "all" ? "No Requests in this Project yet" : "No Requests yet"
   const renderRows = (rows: OverviewRequest[], label: string, id?: string) => <ul id={id} className={styles.list} aria-label={label}>

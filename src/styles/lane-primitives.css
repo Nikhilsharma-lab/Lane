@@ -62,6 +62,8 @@
   --lane-content-yellow-mid: oklch(0.62 0.15 92);
   --lane-content-yellow-text: oklch(0.5 0.12 92);
   --lane-content-yellow-tint: oklch(0.955 0.03 92);
+  /* The scrim behind modal layers (plan item 2.3, decision 8.22): a tint of the title colour, no blur. */
+  --lane-overlay: oklch(0.17 0.01 255 / 0.32);
 }
 
 :root[data-visual-system="lane"][data-theme="dark"] {
@@ -121,6 +123,7 @@
   --lane-content-yellow-mid: oklch(0.66 0.14 92);
   --lane-content-yellow-text: oklch(0.8 0.12 92);
   --lane-content-yellow-tint: oklch(0.27 0.05 92);
+  --lane-overlay: oklch(0.08 0.005 255 / 0.56);
 }
 
 :root[data-visual-system="lane"] {

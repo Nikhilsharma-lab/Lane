@@ -1,5 +1,5 @@
 import type { RequestPriority, RequestType } from "./request-properties"
-import type { RequestStatusFilter } from "./request-workspace"
+import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
 
 export type OverviewRequest = {
   id: string
@@ -60,6 +60,28 @@ export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGroup
     if (b.key === `${grouping}:none`) return -1
     return compareText(a.label, b.label) || compareText(a.key, b.key)
   })
+}
+
+/** The list's filters as DataTable applies them: the status view, the Project
+ * ("all", "none" or an id), the in-list title text and the Request type ("" for any). */
+export type ListFilters = { status: RequestStatusFilter; project: RequestProjectFilter; title: string; requestType: string }
+export type ListFilterKey = keyof ListFilters
+
+/** Which of the list's filters leave this row out. Collapsed groups and later
+ * pages are not filters. One function for the list and the composer's
+ * hidden-by-filters toast (plan item 2.3), so they cannot disagree. */
+export function filtersHiding(row: OverviewRequest, filters: ListFilters): ListFilterKey[] {
+  const hiding: ListFilterKey[] = []
+  if (filters.status !== "all" && row.status !== filters.status) hiding.push("status")
+  if (filters.project && filters.project !== "all" && (row.projectId ?? "none") !== filters.project) hiding.push("project")
+  const query = filters.title.trim().toLocaleLowerCase()
+  if (query && !(row.reframedProblem ?? row.title).toLocaleLowerCase().includes(query)) hiding.push("title")
+  if (filters.requestType && (row.requestType ?? "none") !== filters.requestType) hiding.push("requestType")
+  return hiding
+}
+
+export function matchesListFilters(row: OverviewRequest, filters: ListFilters) {
+  return filtersHiding(row, filters).length === 0
 }
 
 export function selectOverviewRequests(

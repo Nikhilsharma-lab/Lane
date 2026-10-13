@@ -10,6 +10,10 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   description?: string;
   error?: string;
+  /** Lane adaptation (plan item 2.3): the label stays the accessible name but is visually hidden. */
+  hideLabel?: boolean;
+  /** Lane adaptation (plan item 2.3): "plain" draws no border, background or inline padding, for a composer's large title. */
+  appearance?: "default" | "plain";
 }
 
 /* Digits roll up when a number grows and down when it shrinks; `custom` hands the latest direction to digits already leaving. */
@@ -67,7 +71,7 @@ function MessageRow({ id, text, className, alert }: { id?: string; text: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, description, error, id, className, ...props }, ref,
+  { label, description, error, id, className, hideLabel = false, appearance = "default", ...props }, ref,
 ) {
   const generatedId = useId();
   const controlId = id ?? generatedId;
@@ -75,8 +79,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   const errorId = error ? `${controlId}-error` : undefined;
   const describedBy = [props["aria-describedby"], hintId, errorId].filter(Boolean).join(" ") || undefined;
   return <div className={styles.field}>
-    <label className={styles.label} htmlFor={controlId}>{label}</label>
-    <input {...props} id={controlId} ref={ref} className={[styles.input, className].filter(Boolean).join(" ")} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={describedBy}/>
+    <label className={hideLabel ? styles.srOnly : styles.label} htmlFor={controlId}>{label}</label>
+    <input {...props} id={controlId} ref={ref} className={[styles.input, appearance === "plain" ? styles.plain : "", className].filter(Boolean).join(" ")} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={describedBy}/>
     <FieldMessage id={hintId} text={description} className={styles.description} />
     <FieldMessage id={errorId} text={error} className={styles.error} alert />
   </div>;

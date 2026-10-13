@@ -7,6 +7,8 @@
   --surface: var(--lane-content-bg-base);
   --surface-raised: var(--lane-menu-bg-base);
   --surface-muted: var(--lane-content-bg-shade);
+  /* Read by the adapted Arc Drawer and Dialog overlays (plan item 2.3). */
+  --overlay: var(--lane-overlay);
   --foreground: var(--lane-content-label-title);
   --text-secondary: var(--lane-content-label-muted);
   --text-muted: var(--lane-content-label-muted);

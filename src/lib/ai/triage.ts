@@ -137,6 +137,13 @@ export function classifyTriageFailure(error: unknown): TriageFailureKind {
   return "provider";
 }
 
+/** The provider's HTTP status behind a failure, for the log (a spend cap or
+ * overload shows up here). Undefined when the failure carries none. */
+export function triageFailureStatus(error: unknown): number | undefined {
+  if (RetryError.isInstance(error)) return triageFailureStatus(error.lastError);
+  return APICallError.isInstance(error) ? error.statusCode : undefined;
+}
+
 export async function triageRequest(input: {
   title: string;
   description: string;

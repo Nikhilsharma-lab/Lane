@@ -10,7 +10,8 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, planListUrlSync, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, type ListViewState } from "./list-view-state"
+import type { OverviewRequest } from "@/lib/request-overview"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
 
@@ -81,5 +82,37 @@ describe("An empty workspace's status view (plan item 2.1)", () => {
     const current = withEmptyWorkspaceStatus({ ...view, status: "done", project: "all" }, true)
     expect(planListUrlSync({ ...base, search: "status=done", seen: first.seen, current, hold: true, locationSearch: "?status=done" })).toEqual({ seen: "status=done" })
     expect(planListUrlSync({ ...base, search: "status=done", seen: first.seen, current, locationSearch: "?status=done" })).toEqual({ seen: "status=done", write: "/" })
+  })
+})
+
+describe("Showing a Request the filters hide (plan item 2.3)", () => {
+  const view = {
+    status: "done", project: "p2", localFilters: [{ id: "title", value: "pricing" }, { id: "requestType", value: "bug" }],
+    pagination: { pageIndex: 2, pageSize: 25 }, collapsedGroups: ["status:open"], ordering: "newest", grouping: "status", columnVisibility: {},
+  } as ListViewState
+  const created: OverviewRequest = { id: "new", title: "Checkout drops at the phone step", reframedProblem: null, status: "open", createdAt: "2026-10-11T10:00:00Z", creatorName: null, assigneeName: null, projectId: "p1", requestType: "bug" }
+
+  it("reads the list's filters from a view", () => {
+    expect(listFiltersOf(view)).toEqual({ status: "done", project: "p2", title: "pricing", requestType: "bug" })
+  })
+
+  it("moves to the smallest view that holds the Request, keeps filters that include it, and asks the list to reveal it", () => {
+    const next = revealRequest(view, created)
+    expect(next).toMatchObject({ status: "open", project: "p1", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0, pageSize: 25 }, reveal: "new" })
+    // A collapsed group is not a filter; the list expands it when it reveals the row.
+    expect(next.collapsedGroups).toEqual(["status:open"])
+  })
+
+  it("moves a Request with no Project to No Project, and keeps a view that already holds it", () => {
+    expect(revealRequest(view, { ...created, projectId: null }).project).toBe("none")
+    const holding = { ...view, status: "all", project: "all", localFilters: [] } as ListViewState
+    const next = revealRequest(holding, created)
+    expect(next).toMatchObject({ status: "all", project: "all", localFilters: [], pagination: holding.pagination, reveal: "new" })
+  })
+
+  it("gives the composer a getter for the view that reads no context on render", () => {
+    reads.search = "status=open"
+    expect(renderInProvider(() => { const read = useListViewSnapshot(); return typeof read })).toBe("function")
+    expect(reads.names).toEqual(["RequestListViewSnapshot"])
   })
 })

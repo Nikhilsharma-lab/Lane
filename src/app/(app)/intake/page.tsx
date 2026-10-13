@@ -14,10 +14,11 @@ export default async function IntakePage({ searchParams }: {
   if (!result) redirect("/login");
   if (result.needsOnboarding) redirect("/onboarding");
 
-  // The crumb names the page "New Request" (REQUIREMENTS.md); the form's own h1 stays until plan item 2.3.
+  // Plan item 2.3: the strip is the page's h1 and names the surface "New Request",
+  // as the drawer does (decision 8.10). The form has no heading of its own.
   return (
     <>
-      <PageStrip title="New Request" />
+      <PageStrip title="New Request" heading />
       <IntakeForm
         context={{ orgId: result.orgId }}
         draftOwnerId={result.userId}
