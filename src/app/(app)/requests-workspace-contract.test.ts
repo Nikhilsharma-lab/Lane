@@ -25,10 +25,14 @@ describe("Requests workspace contract", () => {
     expect(WORKSPACE).toContain('data-slot="requests-workspace"')
   })
 
-  it("marks the selected Request and uses the Arc selected surface without an edge stripe", () => {
-    expect(DETAIL_VIEW).toContain('aria-current={request.id === selectedRequestId ? "page" : undefined}')
-    expect(DETAIL_VIEW).toContain('className={styles.requestLink}')
-    expect(REQUEST_STYLES).toMatch(/\.requestLink\[aria-current="page"\]\s*\{[^}]*background:\s*var\(--accent-subtle\)/)
+  // Plan item 2.5: the legacy list pane, People and the duplicate phone lifecycle block are gone.
+  it("renders Request detail without the old list pane, People or a second lifecycle block", () => {
+    for (const removed of ["RequestListPane", "requestLink", "request-people", "mobileLifecycleActions", '"Expected result"', "--surface-hover"]) {
+      expect(DETAIL_VIEW, removed).not.toContain(removed)
+      expect(REQUEST_STYLES, removed).not.toContain(removed)
+    }
+    expect(WORKSPACE).not.toContain("mobileLifecycleActions")
+    expect(WORKSPACE).toContain("viewer={")
     expect(REQUEST_STYLES).not.toMatch(/(?:border-left|border-inline-start)\s*:/)
   })
 

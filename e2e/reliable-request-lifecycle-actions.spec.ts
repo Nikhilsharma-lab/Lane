@@ -110,17 +110,20 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       });
       await expect(lifecycle).toHaveCount(1);
       await expect(detail).toBeVisible();
-      // Plan item 2.0: from 1024px the visible lifecycle slot sits in the page
-      // strip and reports through a toast; the phone block keeps inline alerts.
-      const inStrip = surface.viewport.width >= 1024;
+      // Plan item 2.5: the lifecycle slot sits in the page strip at every width
+      // and reports through toasts; the status reads from the panel row from
+      // 960px of content width, and from the state line below it.
       const toasts = page.getByRole("region", { name: /^Messages/ });
-      const failure = inStrip ? toasts : lifecycle.getByRole("alert");
-      const success = inStrip ? toasts : lifecycle;
-      if (inStrip) {
-        await expect(
-          detail.locator('[data-slot="page-strip"]').locator(lifecycle)
-        ).toHaveCount(1);
-      }
+      await expect(
+        detail.locator('[data-slot="page-strip"]').locator(lifecycle)
+      ).toHaveCount(1);
+      const status = surface.viewport.width >= 1440
+        ? detail.locator("[data-detail-panel] [data-detail-status]")
+        : detail.locator("[data-detail-state-line]");
+      const expectStatus = (value: "open" | "in_progress" | "done", label: string, timeout?: number) =>
+        surface.viewport.width >= 1440
+          ? expect(status).toHaveAttribute("data-status", value, { timeout })
+          : expect(status).toContainText(`${label},`, { timeout });
 
       const failedPickup = await holdAndFailNextAction(page, actionPath);
       const pickUp = lifecycle.getByRole("button", {
@@ -139,18 +142,16 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       expect(failedPickup.count(), surface.name).toBe(1);
 
       failedPickup.release();
-      await expect(failure).toContainText(
+      await expect(toasts).toContainText(
         "Try again if this Request is still Open"
       );
       await expect(pickUp).toBeEnabled();
-      await expect(detail.getByText("Open", { exact: true })).toBeVisible();
+      await expectStatus("open", "Open");
       await page.unroute(actionPath);
 
+      // A pick up is said in the polite region, with no success toast.
       await pickUp.click();
-      await expect(
-        detail.getByText("In Progress", { exact: true })
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(success).toContainText("Moved to In Progress.");
+      await expectStatus("in_progress", "In Progress", 20_000);
 
       const failedCompletion = await holdAndFailNextAction(page, actionPath);
       const markDone = lifecycle.getByRole("button", {
@@ -169,20 +170,16 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       expect(failedCompletion.count(), surface.name).toBe(1);
 
       failedCompletion.release();
-      await expect(failure).toContainText(
+      await expect(toasts).toContainText(
         "Try again if this Request is still In Progress"
       );
       await expect(markDone).toBeEnabled();
-      await expect(
-        detail.getByText("In Progress", { exact: true })
-      ).toBeVisible();
+      await expectStatus("in_progress", "In Progress");
       await page.unroute(actionPath);
 
       await markDone.click();
-      await expect(detail.getByText("Done", { exact: true })).toBeVisible({
-        timeout: 20_000,
-      });
-      await expect(success).toContainText("Moved to Done.");
+      await expectStatus("done", "Done", 20_000);
+      await expect(toasts).toContainText("Marked Done");
     }
   } finally {
     await cleanupTestWorkspace(user.id);

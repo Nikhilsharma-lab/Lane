@@ -74,10 +74,11 @@ describe("(app) loading frames", () => {
     expect(html).toContain('href="/intake"')
   })
 
-  it("keeps the detail skeleton free of the loaded page's content anchor", () => {
+  it("keeps the detail skeleton free of the loaded page's content anchors", () => {
     const html = inShell("/requests/x", createElement(DetailLoading))
-    expect(html).not.toContain('id="request-problem"')
-    expect(html).toContain('aria-label="Close Request detail"')
+    // Plan item 2.5: #problem, the title and data-request-id mark the loaded page for the perf spec.
+    for (const marker of ['id="problem"', 'id="request-title"', "data-request-id"]) expect(html).not.toContain(marker)
+    expect(html).toContain('aria-label="Back to Requests"')
     expect(html).toContain('data-slot="requests-workspace"')
   })
 })
@@ -115,6 +116,7 @@ describe("error frames", () => {
     ["Project", "/", () => createElement(ProjectUnavailable), "Project unavailable"],
   ])("%s unavailable names its page once, as the strip's h1, and the body says what happened", (_name, pathname, element, title) => {
     const main = page(inShell(pathname, element()))
+    if (title === "Request unavailable") expect(main).toContain('aria-label="Back to Requests"')
     expect(strips(main)).toBe(1)
     const h1s = [...main.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(match => match[1])
     expect(h1s).toEqual([title])

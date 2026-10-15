@@ -1,166 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useRef, useState } from "react";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import { Alert } from "@/components/arc/alert/alert";
-import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
+import { useOptionalDetailRequest } from "@/components/requests/detail-context";
+import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider";
-import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
-import {
-  requestListHref,
-  type RequestProjectFilter,
-  type RequestStatusFilter,
-} from "@/lib/request-workspace";
-import { cn } from "@/lib/utils";
-import { allowedMove, type RequestStatus } from "@/lib/request-lifecycle";
-import { pickUpRequest, markDone } from "./actions";
+import { useRequestMoves } from "@/components/requests/request-moves";
+import { allowedMove, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle";
 
+const NETWORK_ERRORS: Record<LifecycleMove, string> = {
+  "pick-up": "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open.",
+  done: "Couldn’t confirm completion. Refreshing now. Try again if this Request is still In Progress.",
+};
+
+/**
+ * Plan item 2.5: Request detail's action slot, in the strip at every width.
+ * One filled button for the one move this viewer may make (allowedMove, the
+ * rule the row menu and the bulk bar share), or nothing. The move runs
+ * through useRequestMoves, the list's own: Pick up is said in the polite
+ * region, Mark Done confirms in a toast with Undo, and the page shows the
+ * new status in the next frame through the overlay.
+ */
 export function LifecycleButtons({
   requestId,
   status,
   context,
-  filter,
-  projectFilter = "all",
-  fullWidth = false,
-  placement = "block",
   isGuest = false,
 }: {
   requestId: string;
-  status: string;
+  status: RequestStatus;
   context: { orgId: string };
-  filter: RequestStatusFilter;
-  projectFilter?: RequestProjectFilter;
-  fullWidth?: boolean;
-  /** "strip" sits in the detail page strip, a fixed 44px row, so its feedback
-   * goes to a toast, the channel the list rows use. "block" keeps the inline
-   * alerts (plan item 2.0). */
-  placement?: "block" | "strip";
   /** A guest has no lifecycle move (plan item 2.4); detail also hides the slot for guests. */
   isGuest?: boolean;
 }) {
   const { pending, run } = useRecoverableAction();
-  const { toast } = useToastStack();
-  const optimistic = useOptimisticAction();
   const overlay = usePendingMutations();
-  const [error, setError] = useState<string | null>(null);
-  const [movedTo, setMovedTo] = useState<
-    "in_progress" | "done" | null
-  >(null);
+  const detail = useOptionalDetailRequest();
+  const announce = useListAnnouncer();
+  const moves = useRequestMoves({ orgId: context.orgId, announce });
+  const slot = useRef<HTMLDivElement>(null);
   // The status the button was pressed from, so the pressed button keeps its
-  // pending label while the overlay already shows the new status elsewhere.
-  const [pressedFrom, setPressedFrom] = useState<string | null>(null);
-  // The overlay shows a move from the list or this page before the server
-  // confirms it, and keeps it if a navigation drops the action's payload.
-  const shownStatus = overlay
-    ? overlay.applyOne({ id: requestId, status: status as "open" | "in_progress" | "done" }).status
-    : status;
+  // pending label and stays disabled while the overlay already shows the new
+  // status elsewhere. This is the double-submit guard: a second press would
+  // otherwise land on the freshly mounted Mark Done.
+  const [pressedFrom, setPressedFrom] = useState<RequestStatus | null>(null);
+  // On detail the status comes from the full row the provider already put
+  // through the overlay. A partial row here would let the overlay judge a
+  // pending priority patch against a row without priority. Outside detail (a
+  // standalone fixture) the overlay is asked directly.
+  const shownStatus = detail?.request.id === requestId ? detail.request.status
+    : overlay ? overlay.applyOne({ id: requestId, status }).status : status;
   const buttonStatus = pending && pressedFrom ? pressedFrom : shownStatus;
 
-  async function runLifecycleAction(
-    action: () => Promise<{ error?: string; success?: boolean }>,
-    target: "in_progress" | "done",
-    networkError: string
-  ) {
-    setError(null);
-    setMovedTo(null);
+  async function runMove(kind: LifecycleMove) {
     setPressedFrom(shownStatus);
-
+    const hadFocus = Boolean(slot.current?.contains(document.activeElement));
     // On a refusal or a lost response useOptimisticAction rolls the patch back
     // and calls router.refresh() so the detail re-syncs with the server; a
     // success already carries the revalidated tree, so nothing refreshes then.
-    const outcome = await run(() =>
-      optimistic({
-        id: requestId,
-        patch:
-          target === "done"
-            ? { kind: "done", status: "done" }
-            : { kind: "pick-up", status: "in_progress" },
-        run: action,
-        waitForPending: true,
-        onError: (message, { thrown }) => {
-          const text = thrown ? networkError : message;
-          if (placement === "strip") toast({ type: "error", title: "Action failed", description: text });
-          else setError(text);
-        },
-      })
-    );
-    if (outcome.status !== "completed") return;
-    if (outcome.value.status !== "success") return;
-    if (placement === "strip") toast({ type: "success", title: "Request updated", description: `Moved to ${target === "done" ? "Done" : "In Progress"}.` });
-    else setMovedTo(target);
+    const outcome = await run(() => moves.move({ id: requestId, name: detail?.name ?? "This Request" }, kind, {
+      networkError: NETWORK_ERRORS[kind],
+      assignee: kind === "pick-up" && detail ? detail.viewer : undefined,
+    }));
+    if (outcome.status !== "completed" || outcome.value.status !== "success" || !hadFocus) return;
+    // Focus stays with the person: on the new Mark Done after a pick up, on the title once nothing is left to press.
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body && !slot.current?.contains(active)) return;
+      const next = slot.current?.querySelector<HTMLButtonElement>("button:not(:disabled)");
+      (next ?? document.getElementById("request-title"))?.focus({ preventScroll: true });
+    });
   }
 
-  async function handlePickUp() {
-    await runLifecycleAction(
-      () => pickUpRequest(requestId, context),
-      "in_progress",
-      "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open."
-    );
-  }
-
-  async function handleMarkDone() {
-    await runLifecycleAction(
-      () => markDone(requestId, context),
-      "done",
-      "Couldn’t confirm completion. Refreshing now. Try again if this Request is still In Progress."
-    );
-  }
-
-  // The one shared rule (plan item 2.4): the row menu, the bulk bar and this strip offer the same move.
-  const move = allowedMove({ status: buttonStatus as RequestStatus }, { isGuest });
-  if (!move && !error && !movedTo) return null;
+  const move = allowedMove({ status: buttonStatus }, { isGuest });
+  if (!move) return null;
 
   return (
-    <div
-      data-slot="request-lifecycle-actions"
-      className={cn(
-        placement === "strip"
-          ? "flex items-center"
-          : ["flex flex-col gap-2", fullWidth ? "w-full items-start" : "max-w-[320px] items-end"]
-      )}
-    >
-      {error && (
-        <Alert tone="danger" title="Action failed">
-          {error}
-        </Alert>
-      )}
-      {movedTo && (
-        <Alert tone="success" title="Request updated">
-          Moved to {movedTo === "done" ? "Done" : "In Progress"}.{" "}
-          {filter !== "all" && filter !== movedTo && (
-            <Link
-              href={requestListHref(movedTo, projectFilter)}
-              className="font-medium underline underline-offset-4"
-            >
-              View Requests
-            </Link>
-          )}
-        </Alert>
-      )}
-
-      {move && (
-        // Keyed by the move, so a finished pick up mounts a fresh Mark Done button, as before.
-        <Button
-          key={move.move}
-          size="sm"
-          onClick={move.move === "pick-up" ? handlePickUp : handleMarkDone}
-          disabled={pending}
-          aria-busy={pending || undefined}
-          className={cn(fullWidth && "w-full")}
-        >
-          {pending && (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              data-icon="inline-start"
-              className="animate-spin motion-reduce:animate-none"
-            />
-          )}
-          {pending ? (move.move === "pick-up" ? "Picking up…" : "Completing…") : move.label}
-        </Button>
-      )}
+    <div ref={slot} data-slot="request-lifecycle-actions" className="flex items-center">
+      {/* Keyed by the move, so a finished pick up mounts a fresh Mark Done button. */}
+      <Button
+        key={move.move}
+        size="sm"
+        onClick={() => { void runMove(move.move); }}
+        disabled={pending}
+        aria-busy={pending || undefined}
+      >
+        {pending && (
+          <LoaderCircleIcon
+            aria-hidden="true"
+            data-icon="inline-start"
+            className="animate-spin motion-reduce:animate-none"
+          />
+        )}
+        {pending ? (move.move === "pick-up" ? "Picking up…" : "Completing…") : move.label}
+      </Button>
     </div>
   );
 }

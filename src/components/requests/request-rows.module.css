@@ -115,7 +115,6 @@
 /* Row actions. The menu button and the copy glyph appear for the pointer or
  * the keyboard instead of standing as a permanent column of icons. The span
  * around each glyph button only carries menu handlers; it draws nothing. */
-.menuSlot { display: contents; }
 .rowMenu { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; padding: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .rowMenu:hover, .row[data-menu-open] .rowMenu { background: var(--interaction-focus, color-mix(in oklab, var(--foreground) 16%, var(--surface))); color: var(--foreground); }
 .row[data-selected] .rowMenu { color: var(--selection-foreground, var(--foreground)); }

@@ -37,17 +37,23 @@ export interface PageStripProps {
   action?: ReactNode;
   /** An Arc DropdownMenu. Pass it only when it has items; nothing renders otherwise. */
   overflow?: ReactNode;
+  /** Replaces the shell's last ancestor (Request detail names the Request's own Project). null drops it. Omit to keep the shell trail. */
+  parent?: PageStripCrumb | null;
+  /** At 640px and below, show only the current crumb. Request detail's leading back link stands in for the rest. */
+  compactTrail?: boolean;
 }
 
 /** Plan item 2.0: each page owns one 44px strip. Crumbs, tools, one action
  * slot and overflow; skeletons render the same strip. */
-export function PageStrip({ title, heading = false, note, leading, tools, action, overflow }: PageStripProps) {
+export function PageStrip({ title, heading = false, note, leading, tools, action, overflow, parent, compactTrail = false }: PageStripProps) {
   const frame = useContext(PageStripContext);
-  const trail = frame?.trail ?? [];
+  const shellTrail = frame?.trail ?? [];
+  // Plan item 2.5: a page may name its own parent in place of the shell's section crumb.
+  const trail = parent === undefined ? shellTrail : [...shellTrail.slice(0, 1), ...(parent ? [parent] : [])];
   const CrumbLink = frame?.link ?? "a";
   const Current = heading ? "h1" : "span";
   const label = typeof title === "string" ? title : undefined;
-  return <header className={styles.strip} data-slot="page-strip">
+  return <header className={styles.strip} data-slot="page-strip" data-compact-trail={compactTrail || undefined}>
     <span className={styles.expandSlot}>{frame?.expand}</span>
     {leading}
     {trail.length > 0

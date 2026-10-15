@@ -26,9 +26,24 @@ describe("Reliable comment posting contract", () => {
     expect(FORM).toContain("disabled={pending || empty}")
   })
 
+  // Plan item 2.5: the comment shows in the conversation at once, through the
+  // layout-level overlay, and the box clears so the person can keep writing.
+  it("appends the comment through the overlay and reconciles it by the server id", () => {
+    expect(FORM).toContain("overlay?.appendComment(requestId,")
+    expect(FORM).toContain("overlay?.confirmComment(requestId, key, result.comment)")
+    expect(FORM).toContain("overlay?.dropComment(requestId, key)")
+    expect(FORM).not.toContain("readOnly={pending}")
+    expect(FORM).not.toMatch(/router\.refresh\(\)/)
+    expect(ACTIONS).toContain("comment: { id: created.id, createdAt: new Date(created.created_at) }")
+  })
+
+  it("keeps the draft per Request and restores a failed post ahead of new typing", () => {
+    expect(FORM).toContain("commentDrafts.get(requestId)")
+    expect(FORM).toContain("`${text}\\n\\n${current}`")
+  })
+
   it("preserves the draft and exposes an explicit retry after failure", () => {
     expect(FORM).toContain("value={body}")
-    expect(FORM).toContain("readOnly={pending}")
     expect(FORM).toContain("try {")
     expect(FORM).toContain("} catch {")
     expect(FORM).toContain("} finally {")

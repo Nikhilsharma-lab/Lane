@@ -254,7 +254,7 @@ export const ShortcutOverlay: Story = {
     // The dialog fades in (and only fades under reduced motion), so its text is visible once it has settled.
     await waitFor(() => expect(overlay).toHaveStyle({ opacity: "1" }))
     for (const name of ["Anywhere", "Requests list", "Request detail", "Forms"]) await expect(within(overlay).getByRole("heading", { name, level: 3 })).toBeVisible()
-    for (const label of ["New Request", "Next row", "Select or deselect the Request", "Add a filter", "Back to Requests", "Submit"]) await expect(within(overlay).getByText(label)).toBeVisible()
+    for (const label of ["New Request", "Next row", "Select or deselect the Request", "Add a filter", "Next Request", "Previous Request", "Close a form or menu, then back to Requests", "Submit"]) await expect(within(overlay).getByText(label)).toBeVisible()
     await userEvent.keyboard("?")
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument())
     await waitFor(() => expect(row).toHaveFocus())

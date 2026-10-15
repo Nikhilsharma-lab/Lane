@@ -1,0 +1,2 @@
+/* Plan item 2.5: GlyphMenu's layout-free wrapper (moved from request-rows.module.css). */
+.slot { display: contents; }

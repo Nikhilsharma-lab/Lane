@@ -35,8 +35,11 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["F"], label: "Add a filter" },
     { keys: ["Shift F10"], label: "Request actions" },
   ] },
+  // Plan item 2.5 (decision D1): the arrows move between Requests only from the previous and next buttons.
   { scope: "detail", title: "Request detail", shortcuts: [
-    { keys: ["Esc"], label: "Back to Requests" },
+    { keys: ["J"], label: "Next Request" },
+    { keys: ["K"], label: "Previous Request" },
+    { keys: ["Esc"], label: "Close a form or menu, then back to Requests" },
   ] },
   { scope: "forms", title: "Forms", shortcuts: [
     { keys: ["⌘ Enter", "Ctrl Enter"], label: "Submit" },

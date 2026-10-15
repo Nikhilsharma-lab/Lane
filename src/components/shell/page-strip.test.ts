@@ -61,4 +61,25 @@ describe("PageStrip", () => {
     expect(renderToStaticMarkup(framed(strip({ title: "Members" })))).toMatch(/<span\b[^>]*title="Members"[^>]*>Members<\/span>/);
     expect(renderToStaticMarkup(strip({ title: createElement("span", null, "Loading") }))).not.toMatch(/title="/);
   });
+
+  // Plan item 2.5: Request detail names its own Project and keeps one crumb on phones.
+  const crumbs = (html: string) => [.../<nav aria-label="Breadcrumb"[^>]*>[\s\S]*<\/nav>/.exec(html)?.[0].matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g) ?? []].map(match => [match[1], match[2]]);
+
+  it("replaces the shell's second crumb with the page's parent", () => {
+    const html = renderToStaticMarkup(framed(strip({ title: "LAN-12", parent: { label: "Website", href: "/?project=website" } })));
+    expect(crumbs(html)).toEqual([["/", "Lane Studio"], ["/?project=website", "Website"]]);
+  });
+
+  it("drops the second crumb when the parent is null", () => {
+    const html = renderToStaticMarkup(framed(strip({ title: "LAN-12", parent: null })));
+    expect(crumbs(html)).toEqual([["/", "Lane Studio"]]);
+    expect(html).toMatch(/<li aria-current="page"><span\b[^>]*>LAN-12<\/span><\/li>/);
+  });
+
+  it("keeps the shell trail when no parent is given, and marks a compact trail", () => {
+    const html = renderToStaticMarkup(framed(strip({ title: "Members" })));
+    expect(crumbs(html)).toEqual([["/", "Lane Studio"], ["/settings/profile", "Settings"]]);
+    expect(header(html)).not.toContain("data-compact-trail");
+    expect(header(renderToStaticMarkup(framed(strip({ title: "LAN-12", compactTrail: true }))))).toMatch(/^<header\b[^>]*data-compact-trail="true"/);
+  });
 });
