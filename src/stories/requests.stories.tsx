@@ -637,12 +637,12 @@ export const ReturnKeepsListView: Story = {
 export const ClickCloseRecordsReturnFocus: Story = {
   render: () => <>
     <RequestWorkspaceKeyboard selectedRequestId="fixture-7" returnHref="/?status=open" />
-    <Link href="/?status=open" onClick={event => event.preventDefault()}>Close Request detail</Link>
+    <Link href="/?status=open" onClick={event => event.preventDefault()}>Back to Requests</Link>
   </>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await waitFor(() => expect(canvasElement.querySelector('[data-slot="request-workspace-keyboard"]')).toHaveAttribute("data-ready", "true"))
-    await userEvent.click(canvas.getByRole("link", { name: "Close Request detail" }))
+    await userEvent.click(canvas.getByRole("link", { name: "Back to Requests" }))
     await expect(sessionStorage.getItem("lane:request-return-focus")).toBe("fixture-7")
   },
 }
