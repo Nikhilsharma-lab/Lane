@@ -24,6 +24,17 @@ const meta = {
     mocked(getAttachmentDownloadUrl).mockReset().mockResolvedValue({ error: "Couldn’t prepare the download. Try again." })
     for (const method of ["push", "replace", "prefetch", "refresh"] as const) getRouter()[method].mockReset()
   },
+  // Under reduced motion the toast stack fades with motion values, which run in
+  // JS: the preview's settle step only sees CSS and WAAPI animations, so axe could
+  // read a toast mid-fade. Wait for the toasts to finish, then let axe report. A
+  // throw here would also skip Storybook's cleanup of its paused-animation style,
+  // which then leaks into every later story in the file.
+  afterEach: async ({ canvasElement }) => {
+    const region = within(canvasElement).queryByRole("region", { name: /^Messages/ })
+    if (!region) return
+    const fading = () => [...region.querySelectorAll<HTMLElement>("[style*='opacity']")].filter(element => { const value = Number(element.style.opacity); return value > 0 && value < 1 })
+    await waitFor(() => expect(fading()).toHaveLength(0)).catch(() => undefined)
+  },
 } satisfies Meta<typeof DetailFixture>
 export default meta
 type Story = StoryObj<typeof meta>
