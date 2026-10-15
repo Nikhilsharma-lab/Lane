@@ -7,7 +7,7 @@ import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest, setReque
 import type { RequestPriority } from "@/lib/request-constants"
 import {
   DetailFixture, ShellOnly, announcer, comments, deferred, desktopLight, expectPinnedViewport, filledButtons, inProgress, main, minimalRequest,
-  panelShown, phoneDark, request, stateLine, statusCell, strip, waitingReview,
+  panelShown, pendingLayers, phoneDark, request, stateLine, statusCell, strip, waitingReview,
 } from "./helpers/request-detail-fixture"
 
 // Plan item 2.5: Request detail. Illustrative fixtures; every server action is mocked.
@@ -62,7 +62,15 @@ async function choosePriority(canvasElement: HTMLElement, label: string) {
 async function expectStatus(canvasElement: HTMLElement, status: "open" | "in_progress" | "done") {
   const label = { open: "Open", in_progress: "In Progress", done: "Done" }[status]
   await expect(statusCell(canvasElement)).toHaveAttribute("data-status", status)
-  await expect(stateLine(canvasElement)).toHaveTextContent(new RegExp(`^${label},`))
+  // The new label is there in the same frame; the Arc Button lets the old one fade out first.
+  await waitFor(() => expect(stateLine(canvasElement)).toHaveTextContent(new RegExp(`^${label},`)))
+}
+
+/** One-line values keep every panel row at 32px, the editable ones and the Assignee's avatar included. */
+async function expectOneLineRows(canvasElement: HTMLElement) {
+  if (!panelShown(canvasElement)) return
+  const rows = [...main(canvasElement).querySelectorAll<HTMLElement>("[data-detail-panel] dl > div")]
+  await expect(rows.map(row => Math.round(row.getBoundingClientRect().height))).toEqual(rows.map(() => 32))
 }
 
 /** One strip, the regions in reading order, the panel's rows, and one filled button. */
@@ -77,6 +85,7 @@ export const Default: Story = {
     await expect(regionIds(canvasElement)).toEqual(["problem", "expected-impact", "files", "ask-for-review", "conversation"])
     const labels = [...main(canvasElement).querySelectorAll("[data-detail-panel] dt")].map(term => term.textContent)
     await expect(labels).toEqual(["Status", "Priority", "Assignee", "Project", "Type", "Submitted"])
+    await expectOneLineRows(canvasElement)
     const page = within(main(canvasElement))
     await expect(page.queryByRole("region", { name: "People" })).not.toBeInTheDocument()
     await expect(page.queryByText(/Owner/)).not.toBeInTheDocument()
@@ -125,6 +134,15 @@ export const LongContent: Story = {
       const project = within(strip(canvasElement)).getByRole("link", { name: /^Checkout, delivery promises/ })
       await expect(project.scrollWidth).toBeGreaterThan(project.clientWidth)
     }
+    // The panel wraps its values: Submitted keeps its time in view and the Project's full name can be read.
+    if (panelShown(canvasElement)) {
+      const values = [...main(canvasElement).querySelectorAll<HTMLElement>("[data-detail-panel] dd")]
+      const submitted = values.find(value => value.querySelector("time"))!
+      await expect(submitted.querySelector("time")!.getBoundingClientRect().right).toBeLessThanOrEqual(submitted.getBoundingClientRect().right + 0.5)
+      const project = values.find(value => value.textContent?.startsWith("Checkout, delivery promises"))!
+      for (const text of project.querySelectorAll<HTMLElement>("span")) await expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth)
+      await expect(project.getBoundingClientRect().right).toBeLessThanOrEqual(main(canvasElement).querySelector("[data-detail-panel]")!.getBoundingClientRect().right + 0.5)
+    }
   },
 }
 
@@ -134,6 +152,7 @@ export const InProgress: Story = {
     await expect(within(strip(canvasElement)).getByRole("button", { name: "Mark Done" })).toBeVisible()
     await expect(statusCell(canvasElement)).toHaveAttribute("data-status", "in_progress")
     if (panelShown(canvasElement)) await expect(within(main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!).getByText("Taylor Chen")).toBeVisible()
+    await expectOneLineRows(canvasElement)
   },
 }
 
@@ -288,6 +307,43 @@ export const MarkDoneNoRevert: Story = {
   },
 }
 
+/** A lost response on Pick up: detail's own copy says what to check, the move rolls back, and a retry succeeds. */
+export const LifecycleRetry: Story = {
+  play: async ({ canvasElement }) => {
+    mocked(pickUpRequest).mockRejectedValueOnce(new Error("Fixture connection interrupted"))
+    await userEvent.click(within(strip(canvasElement)).getByRole("button", { name: "Pick up" }))
+    await waitFor(() => expect(toasts(canvasElement)).toHaveTextContent("Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open."))
+    await expect(toasts(canvasElement)).toHaveTextContent("Could not update this Request")
+    await expectStatus(canvasElement, "open")
+    await expect(getRouter().refresh).toHaveBeenCalledOnce()
+    const retry = await within(strip(canvasElement)).findByRole("button", { name: "Pick up" })
+    await waitFor(() => expect(retry).toBeEnabled())
+    await userEvent.click(retry)
+    await expect(await within(strip(canvasElement)).findByRole("button", { name: "Mark Done" })).toBeEnabled()
+    await expect(pickUpRequest).toHaveBeenCalledTimes(2)
+    await expectStatus(canvasElement, "in_progress")
+    await expect(getRouter().refresh).toHaveBeenCalledOnce()
+  },
+}
+
+/** Mark Done from the panel's Status menu leaves no move there; focus goes to the title, never the page body. */
+export const StatusMenuMarkDoneKeepsFocus: Story = {
+  globals: desktopLight,
+  args: { current: inProgress },
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    within(main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("button", { name: /^Status: In Progress/ }).focus()
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(within(document.body).getByRole("menuitem", { name: "Mark Done" })).toHaveFocus())
+    await userEvent.keyboard("{Enter}")
+    await expectStatus(canvasElement, "done")
+    await expect(statusCell(canvasElement).querySelector("button")).toBeNull()
+    await waitFor(() => expect(within(main(canvasElement)).getByRole("heading", { level: 1 })).toHaveFocus())
+    await expect(document.activeElement).not.toBe(document.body)
+  },
+}
+
 /** Undo from the toast is sent after Mark Done succeeded and brings back Mark Done. */
 export const MarkDoneUndo: Story = {
   args: { current: inProgress },
@@ -348,9 +404,43 @@ export const PriorityNoRevert: Story = {
     }
     await userEvent.click(canvas.getByRole("button", { name: "Deliver stale server render" }))
     await expect(main(canvasElement).querySelector("[data-detail-priority]")).toHaveAttribute("data-priority", "high")
+    await expect(pendingLayers(canvasElement)).toBe(request.id)
     await userEvent.click(canvas.getByRole("button", { name: "Deliver fresh server render" }))
     await expect(main(canvasElement).querySelector("[data-detail-priority]")).toHaveAttribute("data-priority", "high")
     await expect(stateLine(canvasElement)).toHaveTextContent("Open, High priority")
+    // The fresh render shows High, so the overlay lets go of its layer.
+    await waitFor(() => expect(pendingLayers(canvasElement)).toBe(""))
+  },
+}
+
+/** Back to No priority: the confirmed "none" holds through the strip's re-render, a stale render, and clears on the fresh one. */
+export const PriorityClearNoRevert: Story = {
+  args: { current: { ...request, priority: "high" }, fresh: { request: { ...request, priority: "none" } } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const shown = () => main(canvasElement).querySelector<HTMLElement>("[data-detail-priority]")!.dataset.priority!
+    const seen: string[] = [shown()]
+    const observer = new MutationObserver(() => { if (seen.at(-1) !== shown()) seen.push(shown()) })
+    observer.observe(main(canvasElement), { attributes: true, subtree: true, attributeFilter: ["data-priority"] })
+    try {
+      await choosePriority(canvasElement, "No priority")
+      await waitFor(() => expect(setRequestPriority).toHaveBeenCalledWith(request.id, "none", expect.anything()))
+      // Let the confirmed answer and the renders it causes settle before reading.
+      await mocked(setRequestPriority).mock.results[0].value
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      await expect(shown()).toBe("none")
+      await expect(pendingLayers(canvasElement)).toBe(request.id)
+      if (!panelShown(canvasElement)) {
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Properties", hidden: true })).not.toBeInTheDocument())
+      }
+      await userEvent.click(canvas.getByRole("button", { name: "Deliver stale server render" }))
+      await expect(shown()).toBe("none")
+      await userEvent.click(canvas.getByRole("button", { name: "Deliver fresh server render" }))
+      await waitFor(() => expect(pendingLayers(canvasElement)).toBe(""))
+      await expect(stateLine(canvasElement)).toHaveTextContent("Open, No priority")
+      await expect(seen).toEqual(["high", "none"])
+    } finally { observer.disconnect() }
   },
 }
 
@@ -491,6 +581,20 @@ export const PhoneStrip: Story = {
     const boxes = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...boxes.map(box => box.right)))).toBeLessThanOrEqual(0.5)
     noHorizontalScroll()
+  },
+}
+
+/** The lazy Ask for review fallback holds the closed panel's place: the conversation does not move when the panel arrives. */
+export const ReviewFallbackHoldsPlace: Story = {
+  args: { current: minimalRequest, comments: [], attachments: [], lazyReview: true },
+  play: async ({ canvasElement }) => {
+    await canvasElement.ownerDocument.fonts.ready
+    const conversation = () => main(canvasElement).querySelector<HTMLElement>("#conversation")!
+    await expect(main(canvasElement).querySelector("#ask-for-review")).toBeNull()
+    const before = conversation().getBoundingClientRect().top
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Load Ask for review" }))
+    await within(main(canvasElement)).findByRole("region", { name: "Ask for review" })
+    await expect(Math.abs(conversation().getBoundingClientRect().top - before)).toBeLessThanOrEqual(1)
   },
 }
 

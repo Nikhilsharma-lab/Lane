@@ -103,11 +103,15 @@ describe("pending-mutation overlay: clearing", () => {
     expect(view().patches.a).toBeUndefined()
   })
 
-  it("matches priority against the saved value, treating a missing priority as none", () => {
+  it("matches priority against the saved value, never against a row without one", () => {
     const { view, flush } = setup()
     const token = view().begin("a", { kind: "priority", priority: "none" })
     view().confirm("a", token)
-    view().apply([row("a", { priority: undefined })])
+    // A row without priority says nothing about it: "none" is not read into it.
+    expect(view().apply([row("a", { priority: undefined })])[0].priority).toBe("none")
+    flush()
+    expect(view().patches.a).toBeDefined()
+    view().apply([row("a", { priority: "none" })])
     flush()
     expect(view().patches.a).toBeUndefined()
   })
@@ -189,6 +193,25 @@ describe("pending-mutation overlay: a Request detail row", () => {
     view().applyOne(detail())
     flush()
     expect(view().patches.a).toBeDefined()
+  })
+
+  // High to No priority: a status-only row read in the same render (the strip's
+  // slot used to pass one) must not clear the confirmed "none" before the
+  // revalidated row arrives, or the stale High shows again.
+  it("keeps a confirmed No priority through a status-only row until the detail row shows it", () => {
+    const { view, flush } = setup()
+    const stale = detail("high")
+    const token = view().begin("a", { kind: "priority", priority: "none" })
+    view().confirm("a", token)
+    expect(view().applyOne(stale).priority).toBe("none")
+    view().applyOne({ id: "a", status: "open" as const })
+    flush()
+    expect(view().patches.a).toBeDefined()
+    expect(view().applyOne(stale).priority).toBe("none")
+    const fresh = detail("none")
+    expect(view().applyOne(fresh)).toBe(fresh)
+    flush()
+    expect(view().patches.a).toBeUndefined()
   })
 })
 

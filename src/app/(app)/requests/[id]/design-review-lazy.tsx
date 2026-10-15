@@ -1,8 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { Skeleton } from "@/components/arc/skeleton/skeleton"
-import styles from "@/components/requests/detail.module.css"
+import { DesignReviewFallback } from "@/components/requests/design-review-fallback"
 
 /**
  * Ask for review sits below the fold on Request detail and validates with
@@ -12,5 +11,5 @@ import styles from "@/components/requests/detail.module.css"
  * header row and hint line), so the swap below the fold does not shift.
  */
 export const DesignReview = dynamic(() => import("./design-review").then(module => module.DesignReview), {
-  loading: () => <section aria-busy="true" className={styles.reviewFallback}><Skeleton label="Loading Ask for review" lines={2} /></section>,
+  loading: () => <DesignReviewFallback />,
 })

@@ -10,7 +10,7 @@ import { Select } from "@/components/arc/select/select"
 import dotStyles from "@/components/projects/project-dot.module.css"
 import { projectToneForId } from "@/lib/project-tone"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove } from "@/lib/request-lifecycle"
+import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { statusLabel } from "@/lib/request-status"
 import { useDetailRequest } from "./detail-context"
 import { GlyphMenu } from "./glyph-menu"
@@ -19,8 +19,11 @@ import { useRequestMoves } from "./request-moves"
 import { PriorityGlyph, StatusGlyph } from "./row-presentation"
 import styles from "./detail.module.css"
 
-// The Properties sheet loads on first open, so the phone's first load does not carry the Drawer.
+// The Properties sheet stays out of the phone's first load. Its chunk is fetched
+// once the page is idle, or on the first press or focus of the state line, so
+// the sheet opens without waiting on the network.
 const PropertiesDrawer = dynamic(() => import("./detail-properties-drawer").then(module => module.PropertiesDrawer), { ssr: false })
+const preloadDrawer = () => { void import("./detail-properties-drawer") }
 
 /** "In Progress, High priority" or "Open, No priority": the phone's one state line (plan item 2.5). */
 export function stateLineText(status: Parameters<typeof statusLabel>[0], priority: RequestPriority) {
@@ -45,15 +48,15 @@ function Row({ label, children, ...props }: { label: string; children: ReactNode
   return <div className={styles.propertyRow}><dt>{label}</dt><dd {...props}>{children}</dd></div>
 }
 
-/** Read-only value with its glyph, for a guest or a Request with no move left. */
+/** Read-only value with its glyph, for a guest or a Request with no move left. The text wraps; the glyph stays on its first line. */
 function Value({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return <span className={styles.propertyValue}>{icon}<span className={styles.propertyText}>{children}</span></span>
+  return <span className={styles.propertyValue}><span className={styles.propertyIcon}>{icon}</span><span className={styles.propertyText}>{children}</span></span>
 }
 
-/** A quiet trigger for the panel's two editable properties. */
+/** A quiet trigger for the panel's two editable properties. Their values are short fixed labels, kept on one line. */
 function PropertyButton({ label, icon, children, ...props }: { label?: string; icon: ReactNode; children: ReactNode } & Omit<ComponentProps<typeof Button>, "children">) {
   return <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.propertyButton} aria-label={label} {...props}>
-    {icon}<span className={styles.propertyText}>{children}</span>
+    {icon}<span className={styles.propertyTruncate}>{children}</span>
   </Button>
 }
 
@@ -86,11 +89,22 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
   const statusLabelText = `Status: ${statusText}. Change status`
   const priorityLabelText = `Priority: ${priorityText}. Change priority`
   const assignee = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : null
+  const selectMove = (kind: LifecycleMove) => {
+    void runMove(kind)
+    if (inSheet) return
+    // The menu hands focus back to its trigger, but a move that leaves none
+    // (Mark Done) unmounts that trigger with it. Focus then goes to the title,
+    // as the strip's slot does. In the sheet the dialog keeps focus.
+    requestAnimationFrame(() => {
+      const active = document.activeElement
+      if (!active || active === document.body) document.getElementById("request-title")?.focus({ preventScroll: true })
+    })
+  }
 
   const statusControl = !move ? <Value icon={statusGlyph}>{statusText}</Value>
-    : inSheet ? <DropdownMenu label="Change status" items={[{ label: move.label, icon: <StatusGlyph status={move.to} />, onSelect: () => { void runMove(move.move) } }]}
+    : inSheet ? <DropdownMenu label="Change status" items={[{ label: move.label, icon: <StatusGlyph status={move.to} />, onSelect: () => selectMove(move.move) }]}
       trigger={<PropertyButton label={statusLabelText} icon={statusGlyph}>{statusText}</PropertyButton>} />
-    : <GlyphMenu label="Change status" tip="Change status" items={[{ id: move.move, label: move.label, icon: <StatusGlyph status={move.to} />, onSelect: () => { void runMove(move.move) } }]}>
+    : <GlyphMenu label="Change status" tip="Change status" items={[{ id: move.move, label: move.label, icon: <StatusGlyph status={move.to} />, onSelect: () => selectMove(move.move) }]}>
       <PropertyButton label={statusLabelText} icon={statusGlyph}>{statusText}</PropertyButton>
     </GlyphMenu>
 
@@ -135,13 +149,24 @@ export function DetailStateLine() {
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
+  // Only where the line shows (below 960px of content): fetch the sheet once the page is idle.
+  useEffect(() => {
+    if (!line.current?.getClientRects().length) return
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(preloadDrawer, { timeout: 4000 })
+      return () => window.cancelIdleCallback(idle)
+    }
+    const timer = window.setTimeout(preloadDrawer, 1500)
+    return () => window.clearTimeout(timer)
+  }, [])
   return <>
-    <button ref={line} type="button" className={styles.stateLine} data-detail-state-line="" aria-haspopup="dialog" aria-expanded={open}
+    <Button ref={line} type="button" variant="ghost" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-haspopup="dialog" aria-expanded={open}
+      onPointerDown={preloadDrawer} onFocus={preloadDrawer}
       onClick={() => { setLoaded(true); setOpen(true) }}>
       <span className={styles.statusGlyph} data-status={request.status}><StatusGlyph status={request.status} /></span>
-      <span className={styles.propertyText}>{stateLineText(request.status, request.priority)}</span>
+      <span className={styles.propertyTruncate}>{stateLineText(request.status, request.priority)}</span>
       <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-    </button>
+    </Button>
     {loaded && <PropertiesDrawer open={open} onOpenChange={setOpen} returnFocus={() => line.current?.focus({ preventScroll: true })} />}
   </>
 }

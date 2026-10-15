@@ -4,7 +4,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { addComment, markDone, pickUpRequest, setRequestPriority } from "@/app/(app)/requests/[id]/actions"
 import type { RequestDetail } from "@/components/requests/detail-view"
 import type { RequestPriority } from "@/lib/request-constants"
-import { DetailFixture, announcer, desktopLight, expectPinnedViewport, main, phoneDark, request, sequenceIds, strip } from "./helpers/request-detail-fixture"
+import { DetailFixture, announcer, deferred, desktopLight, expectPinnedViewport, main, phoneDark, request, sequenceIds, strip } from "./helpers/request-detail-fixture"
 
 // Plan item 2.5 (decision D1): previous and next with J and K, the arrows only
 // on the previous and next buttons, Esc in layers, and the Tab path.
@@ -79,6 +79,81 @@ export const ArrowsOnButtons: Story = {
     await waitFor(() => expect(within(sequence(canvasElement)!).getByRole("button", { name: "Next Request" })).toHaveFocus())
     await userEvent.keyboard("{ArrowUp}")
     await waitFor(() => expect(sequence(canvasElement)).toHaveTextContent("2 / 5"))
+  },
+}
+
+/** While J's page loads, the page being left keeps its "2 / 5" and the focused Next button; the new page then takes focus. */
+export const SequenceHoldsWhileLoading: Story = {
+  globals: desktopLight,
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    // The mocked router delivers the new page only when told to, as a slow network would.
+    let deliver = () => {}
+    const swap = getRouter().replace.getMockImplementation()!
+    getRouter().replace.mockImplementation((href: string, options?: object) => { deliver = () => swap(href, options) })
+    const next = within(sequence(canvasElement)!).getByRole("button", { name: "Next Request" })
+    next.focus()
+    await userEvent.keyboard("{ArrowDown}")
+    await expect(getRouter().replace).toHaveBeenCalledWith("/requests/fixture-request-2", { scroll: false })
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    await expect(sequence(canvasElement)).toHaveTextContent("2 / 5")
+    await expect(next).toBeInTheDocument()
+    await expect(next).toHaveFocus()
+    deliver()
+    await waitFor(() => expect(sequence(canvasElement)).toHaveTextContent("3 / 5"))
+    await waitFor(() => expect(within(sequence(canvasElement)!).getByRole("button", { name: "Next Request" })).toHaveFocus())
+    await expect(document.activeElement).not.toBe(document.body)
+  },
+}
+
+/** With Ask for review open, J and K wait: focus on a reviewer checkbox, or anywhere else, keeps the form and its choices. */
+export const SequenceKeysWaitForOpenForm: Story = {
+  globals: desktopLight,
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    const review = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
+    await userEvent.click(review.getByRole("button", { name: "Ask for review" }))
+    const reviewer = await review.findByRole("checkbox", { name: "Sam Lee" })
+    await userEvent.click(reviewer)
+    await expect(reviewer).toHaveFocus()
+    await userEvent.keyboard("j")
+    await userEvent.keyboard("k")
+    title(canvasElement).focus()
+    await userEvent.keyboard("j")
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(review.getByRole("checkbox", { name: "Sam Lee" })).toBeChecked()
+    // Once the form is closed, J moves on again.
+    await userEvent.click(review.getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(review.queryByRole("form", { name: "Ask for design review" })).not.toBeInTheDocument())
+    title(canvasElement).focus()
+    await userEvent.keyboard("j")
+    await expect(getRouter().replace).toHaveBeenCalledWith("/requests/fixture-request-2", { scroll: false })
+  },
+}
+
+/** A post that fails after J moved on is never silent: a toast says where the draft is, and K finds it back in the box. */
+export const CommentFailsAfterLeaving: Story = {
+  globals: desktopLight,
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    const answer = deferred<Awaited<ReturnType<typeof addComment>>>()
+    mocked(addComment).mockImplementationOnce(() => answer.promise)
+    await userEvent.type(within(main(canvasElement)).getByRole("textbox", { name: "Comment" }), "A draft that must not vanish")
+    await userEvent.click(within(main(canvasElement)).getByRole("button", { name: "Post comment" }))
+    title(canvasElement).focus()
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(title(canvasElement)).toHaveTextContent("Neighbour Request 3"))
+    answer.reject(new Error("Fixture connection interrupted"))
+    const messages = within(canvasElement).getByRole("region", { name: /^Messages/ })
+    await waitFor(() => expect(messages).toHaveTextContent("Couldn’t post your comment"))
+    await expect(messages).toHaveTextContent("Your draft is back in the comment box on LAN-12.")
+    title(canvasElement).focus()
+    await userEvent.keyboard("k")
+    await waitFor(() => expect(title(canvasElement)).toHaveTextContent(request.reframedProblem!))
+    await expect(within(main(canvasElement)).getByRole("textbox", { name: "Comment" })).toHaveValue("A draft that must not vanish")
   },
 }
 

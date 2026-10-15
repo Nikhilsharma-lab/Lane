@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { advanceSequence, captureSequence, sequencePosition } from "./request-sequence"
+import { advanceSequence, captureSequence, sequencePosition, settleSequence } from "./request-sequence"
 
 // Plan item 2.5: Request detail's "2 / 5" and its previous and next targets.
 describe("sequencePosition", () => {
@@ -25,6 +25,19 @@ describe("sequencePosition", () => {
   it("follows the chain once J or K advances it", () => {
     const next = advanceSequence(captureSequence(ids, "b"), "c")
     expect(sequencePosition(next, "c")).toMatchObject({ index: 2, previousId: "b", nextId: "d" })
+  })
+
+  it("keeps the page being left in place until the next page arrives, then drops it", () => {
+    const moving = advanceSequence(captureSequence(ids, "b"), "c", "b")
+    expect(sequencePosition(moving, "b")).toMatchObject({ index: 1, previousId: "a", nextId: "c" })
+    expect(sequencePosition(moving, "c")).toMatchObject({ index: 2, previousId: "b", nextId: "d" })
+    // J pressed again before the page arrives repeats the same move.
+    expect(advanceSequence(moving, "c", "b")).toEqual(moving)
+    const arrived = settleSequence(moving)
+    expect(sequencePosition(arrived, "b")).toBeNull()
+    expect(sequencePosition(arrived, "c")).toMatchObject({ index: 2 })
+    expect(settleSequence(arrived)).toBe(arrived)
+    expect(settleSequence(null)).toBeNull()
   })
 })
 

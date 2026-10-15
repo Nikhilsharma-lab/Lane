@@ -8,10 +8,11 @@ import buttonStyles from "@/components/arc/button/button.module.css"
 import { SidebarView } from "@/components/shell/sidebar-view"
 import { RequestDetailView, type RequestComment, type RequestDetail } from "@/components/requests/detail-view"
 import { DesignReviewPanel } from "@/components/requests/design-review-panel"
+import { DesignReviewFallback } from "@/components/requests/design-review-fallback"
 import { useOptionalDetailRequest } from "@/components/requests/detail-context"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestListViewProvider, type DetailSessionPatch } from "@/components/requests/list-view-state"
-import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider"
+import { PendingMutationsProvider, usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { CommentForm } from "@/app/(app)/requests/[id]/comment-form"
 import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-download"
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
@@ -57,6 +58,12 @@ function DetailReview({ initialState, guest }: { initialState: RequestReviewStat
     onWithdraw={input => save(() => withdrawReviewRound(saved.current, input, people[0], "2026-10-09T10:30:00.000Z", true))} />
 }
 
+/** Test hook, outside <main>: the Request ids the overlay still holds a layer for, space separated. */
+function PendingLayers() {
+  const overlay = usePendingMutations()
+  return <span hidden data-pending-layers={Object.keys(overlay?.patches ?? {}).join(" ")} />
+}
+
 export type DetailFixtureProps = {
   current?: RequestDetail
   guest?: boolean
@@ -70,11 +77,14 @@ export type DetailFixtureProps = {
   others?: RequestDetail[]
   /** Shows "Deliver stale server render" and "Deliver fresh server render" outside <main>, standing in for a revalidated payload. */
   fresh?: { request?: RequestDetail; comments?: RequestComment[] }
+  /** Ask for review starts as the lazy chunk's fallback; "Load Ask for review" outside <main> swaps in the panel. */
+  lazyReview?: boolean
 }
 
 /** The layout's providers, the shell, and Request detail keyed by Request id, as in production. */
-export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, review = { version: 0, reviews: [] }, session, others = [], fresh }: DetailFixtureProps) {
+export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, review = { version: 0, reviews: [] }, session, others = [], fresh, lazyReview = false }: DetailFixtureProps) {
   const [render, setRender] = useState({ request: current, comments: initialComments })
+  const [reviewLoaded, setReviewLoaded] = useState(!lazyReview)
   // Previous and next replace the URL; here the mocked router swaps the Request, as the server render would.
   useEffect(() => {
     if (!others.length) return
@@ -95,11 +105,13 @@ export function DetailFixture({ current = request, guest = false, comments: init
               lifecycleActions={<LifecycleButtons requestId={shown.id} status={shown.status} context={context} isGuest={guest} />}
               commentForm={<CommentForm requestId={shown.id} context={context} />}
               attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
-              designReview={showReview ? <DetailReview initialState={review} guest={guest} /> : undefined} />
+              designReview={!showReview ? undefined : reviewLoaded ? <DetailReview initialState={review} guest={guest} /> : <DesignReviewFallback />} />
           </ListAnnouncerProvider>
         </div>
       </SidebarView>
       <ToastStack label="Messages" />
+      <PendingLayers />
+      {!reviewLoaded && <Button variant="secondary" size="sm" className="fixed right-4 bottom-4 z-50" onClick={() => setReviewLoaded(true)}>Load Ask for review</Button>}
       {fresh && <div className="fixed right-4 bottom-4 z-50 flex gap-2">
         <Button variant="secondary" size="sm" onClick={() => setRender(previous => ({ request: { ...previous.request }, comments: [...previous.comments] }))}>Deliver stale server render</Button>
         <Button variant="secondary" size="sm" onClick={() => setRender(previous => ({ request: fresh.request ?? previous.request, comments: fresh.comments ?? previous.comments }))}>Deliver fresh server render</Button>
@@ -129,6 +141,8 @@ export const panelShown = (canvasElement: HTMLElement) => {
 }
 export const statusCell = (canvasElement: HTMLElement) => main(canvasElement).querySelector<HTMLElement>("[data-detail-panel] [data-detail-status]")!
 export const stateLine = (canvasElement: HTMLElement) => main(canvasElement).querySelector<HTMLElement>("[data-detail-state-line]")!
+/** The overlay's layers by Request id (the fixture's test hook); "" when nothing is pending. */
+export const pendingLayers = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-pending-layers]")!.dataset.pendingLayers
 export const announcer = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>('[data-slot="list-announcer"]')!
 /** Filled (primary) Arc buttons that are painted. */
 export const filledButtons = (canvasElement: HTMLElement) => [...main(canvasElement).querySelectorAll<HTMLElement>(`.${buttonStyles.primary}`)].filter(element => element.getClientRects().length > 0)

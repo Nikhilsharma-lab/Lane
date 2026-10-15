@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Send } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { Textarea } from "@/components/arc/textarea/textarea";
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useOptionalDetailRequest } from "@/components/requests/detail-context";
 import { useDetailSession } from "@/components/requests/list-view-state";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
@@ -19,6 +20,9 @@ type SubmissionState = "idle" | "posting" | "error" | "success";
  * refusal or a lost response the pending comment goes and its text comes
  * back into the box, ahead of anything typed meanwhile. The draft is kept
  * per Request in the layout's memory, so J, K, Esc or Back never lose it.
+ * When the post fails after the form has gone (the person left with Esc, J
+ * or K while it was in flight), the text goes back into that Request's draft
+ * and a toast says so, so a failed post is never silent.
  */
 export function CommentForm({
   requestId,
@@ -33,13 +37,20 @@ export function CommentForm({
   const overlay = usePendingMutationWriter();
   const detail = useOptionalDetailRequest();
   const { commentDrafts } = useDetailSession();
+  const { toast } = useToastStack();
   const authorName = author ?? detail?.viewer.name ?? "You";
+  const requestName = detail?.name ?? "this Request";
   const [body, setBody] = useState(() => commentDrafts.get(requestId) ?? "");
   const [submissionState, setSubmissionState] =
     useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
   const submissionLock = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const pending = submissionState === "posting";
   const empty = body.trim().length === 0;
 
@@ -65,13 +76,17 @@ export function CommentForm({
     keepDraft("");
 
     // The pending comment goes and the text returns, ahead of anything typed since.
+    // The layout's draft is the source: it outlives this form.
     const fail = (message: string) => {
       if (key) overlay?.dropComment(requestId, key);
-      setBody(current => {
-        const restored = current.trim() ? `${text}\n\n${current}` : text;
-        keepDraft(restored);
-        return restored;
-      });
+      const current = commentDrafts.get(requestId) ?? "";
+      const restored = current.trim() ? `${text}\n\n${current}` : text;
+      keepDraft(restored);
+      if (!mounted.current) {
+        toast({ type: "error", title: "Couldn’t post your comment", description: `Your draft is back in the comment box on ${requestName}.` });
+        return;
+      }
+      setBody(restored);
       setError(message);
       setSubmissionState("error");
     };

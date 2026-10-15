@@ -5,6 +5,7 @@ import { formatRequestCode } from "@/lib/request-code"
 import type { RequestDetail } from "./detail-view"
 import { useDetailSession, useSetDetailSession } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
+import { settleSequence } from "./request-sequence"
 
 export type DetailViewer = { id: string; name: string }
 
@@ -34,6 +35,37 @@ export function requestCodeOrNull(requestNumber: number | undefined) {
 }
 
 /**
+ * On arrival (this page mounts once; it is keyed by Request id): when the
+ * person came from the list or with J or K, move focus with `focus`, then
+ * clear the arrival flags. Either way the page J or K left gives up its place
+ * in the sequence. A deep link or a reload moves nothing.
+ */
+function useArrival(focus: (button: "previous" | "next" | null) => void) {
+  const { sequence, focusTitleOnArrival, focusOnArrival } = useDetailSession()
+  const setSession = useSetDetailSession()
+  useLayoutEffect(() => {
+    const settled = settleSequence(sequence)
+    if (!focusTitleOnArrival && !focusOnArrival && settled === sequence) return
+    if (focusTitleOnArrival || focusOnArrival) focus(focusOnArrival)
+    setSession({ focusTitleOnArrival: false, focusOnArrival: null, sequence: settled })
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+}
+
+/** Request unavailable reached with J or K, or from the list: its heading takes focus, as a title would, and the flags clear. */
+export function DetailArrivalReset() {
+  useArrival(() => {
+    const heading = document.querySelector<HTMLElement>('[data-slot="page-strip"] h1')
+    if (!heading) return
+    // Not in the tab order; focusable only so the arrival can be read out.
+    heading.tabIndex = -1
+    heading.focus({ preventScroll: true })
+  })
+  return null
+}
+
+/**
  * Plan item 2.5: one Request detail's shared state. The strip, the property
  * panel, the state line and the conversation read the same row through the
  * layout-level overlay, so a lifecycle move or a priority change shows
@@ -56,17 +88,11 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   const code = requestCodeOrNull(serverRequest.requestNumber)
   const name = code ?? (serverRequest.reframedProblem ?? serverRequest.title)
 
-  const { focusTitleOnArrival, focusOnArrival } = useDetailSession()
-  const setSession = useSetDetailSession()
-  useLayoutEffect(() => {
-    if (!focusTitleOnArrival && !focusOnArrival) return
+  useArrival(button => {
     // J or K from the previous or next button keeps focus on that button; every other arrival reads the new title.
-    const target = focusOnArrival ? document.querySelector<HTMLElement>(`[data-detail-sequence="${focusOnArrival}"]:not(:disabled)`) : null
+    const target = button ? document.querySelector<HTMLElement>(`[data-detail-sequence="${button}"]:not(:disabled)`) : null
     ;(target ?? document.getElementById("request-title"))?.focus({ preventScroll: true })
-    setSession({ focusTitleOnArrival: false, focusOnArrival: null })
-    // Only on arrival: this Request's detail mounts once (it is keyed by id).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  })
 
   const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),
     [request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm])

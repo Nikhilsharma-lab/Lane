@@ -77,13 +77,16 @@ export type PendingSnapshot = { layers: Record<string, Layer[]>; inserts: Record
 const INSERT_TTL_MS = 2 * 60 * 1000
 
 const fieldsOf = (patch: RequestPatch) => FIELDS.filter(field => patch[field] !== undefined)
-const valueOf = (row: object, field: Field) => {
-  const value = (row as Partial<Record<Field, unknown>>)[field]
-  return field === "priority" ? value ?? "none" : value ?? null
-}
-/** The plan's rule: a patch is reflected once the server row shows its status or priority. */
+const valueOf = (row: object, field: Field) => (row as Partial<Record<Field, unknown>>)[field] ?? null
+/**
+ * The plan's rule: a patch is reflected once the server row shows its status
+ * or priority. A row that does not carry one of those fields (a partial row,
+ * an older fixture) never reflects it: reading a missing priority as "none"
+ * would clear a confirmed "No priority" before the server row shows it.
+ */
 function reflected(row: object, patch: RequestPatch) {
   const decisive = fieldsOf(patch).filter(field => field === "status" || field === "priority")
+  if (decisive.some(field => (row as Partial<Record<Field, unknown>>)[field] === undefined)) return false
   const fields = decisive.length ? decisive : fieldsOf(patch)
   return fields.every(field => valueOf(row, field) === valueOf(patch, field))
 }

@@ -10,6 +10,7 @@ import { Input } from "@/components/arc/input/input"
 import { RadioGroup } from "@/components/arc/radio-group/radio-group"
 import { Textarea } from "@/components/arc/textarea/textarea"
 import { currentReview, latestReviewerResponse, reviewHasAllResponses, startReviewInputSchema, respondToReviewInputSchema, withdrawReviewInputSchema, type DesignReview, type RequestReviewState, type ReviewActionResult, type ReviewPerson, type StartReviewInput, type RespondToReviewInput, type WithdrawReviewInput } from "@/lib/request-review"
+import { ASK_FOR_REVIEW_HINT, CURRENT_REVIEW_HINT } from "./design-review-copy"
 import styles from "./design-review-panel.module.css"
 
 export type DesignReviewPanelProps = {
@@ -260,7 +261,7 @@ export function DesignReviewPanel({ initialState, currentUserId, canRequest, can
   return <section id={id} aria-labelledby={headingId} className={styles.panel}>
     {/* Plan item 2.5: "Ask for review" names the section; its button is secondary, so the page keeps one filled button (D8). */}
     <div className={styles.header}><h2 ref={heading} tabIndex={-1} id={headingId}>Ask for review</h2>{mayStart && mode !== "ask" && <Button type="button" variant="secondary" disabled={pending} className={styles.action} onClick={() => { setAskAfterReviewId(review?.id ?? null); setMode("ask"); setError(null) }}>Ask for review</Button>}</div>
-    <p className={styles.hint}>{review ? "Feedback belongs to this design version. It does not change the Request status." : "Ask named teammates for feedback on a specific design version."}</p>
+    <p className={styles.hint}>{review ? CURRENT_REVIEW_HINT : ASK_FOR_REVIEW_HINT}</p>
     {mode === "ask" && <AskForm expectedVersion={state.version} currentUserId={currentUserId} pending={pending} error={error} blocked={staleAsk ? retainMessage : undefined} onFindReviewers={onFindReviewers} onSave={input => { void save(() => onRequest(input), "Review requested.") }} onCancel={cancel} />}
     {review && <section aria-label="Current review" className={styles.current}>
       <RoundSummary review={review} />

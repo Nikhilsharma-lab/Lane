@@ -46,7 +46,12 @@ export function LifecycleButtons({
   // status elsewhere. This is the double-submit guard: a second press would
   // otherwise land on the freshly mounted Mark Done.
   const [pressedFrom, setPressedFrom] = useState<RequestStatus | null>(null);
-  const shownStatus = overlay ? overlay.applyOne({ id: requestId, status }).status : status;
+  // On detail the status comes from the full row the provider already put
+  // through the overlay. A partial row here would let the overlay judge a
+  // pending priority patch against a row without priority. Outside detail (a
+  // standalone fixture) the overlay is asked directly.
+  const shownStatus = detail?.request.id === requestId ? detail.request.status
+    : overlay ? overlay.applyOne({ id: requestId, status }).status : status;
   const buttonStatus = pending && pressedFrom ? pressedFrom : shownStatus;
 
   async function runMove(kind: LifecycleMove) {

@@ -21,7 +21,9 @@ export type SequenceDirection = "previous" | "next"
  * the way to its neighbours. `go` replaces the history entry (decision D4),
  * so Back and Esc both return to the list in one step and the list focuses
  * the last Request viewed. Null position: no sequence (a deep link, a reload,
- * an arrival from search), so nothing renders.
+ * an arrival from search), so nothing renders. The page being left keeps its
+ * position until the next one arrives, so its counter and a focused previous
+ * or next button do not disappear while the navigation is pending.
  */
 export function useDetailSequence(requestId: string) {
   const router = useRouter()
@@ -31,10 +33,10 @@ export function useDetailSequence(requestId: string) {
   const go = useCallback((direction: SequenceDirection, { keepFocusOnButton = false }: { keepFocusOnButton?: boolean } = {}) => {
     const target = direction === "next" ? position?.nextId : position?.previousId
     if (!sequence || !target) return false
-    setSession({ sequence: advanceSequence(sequence, target), focusTitleOnArrival: !keepFocusOnButton, focusOnArrival: keepFocusOnButton ? direction : null })
+    setSession({ sequence: advanceSequence(sequence, target, requestId), focusTitleOnArrival: !keepFocusOnButton, focusOnArrival: keepFocusOnButton ? direction : null })
     router.replace(requestDetailHref(target, "all"), { scroll: false })
     return true
-  }, [position?.nextId, position?.previousId, router, sequence, setSession])
+  }, [position?.nextId, position?.previousId, requestId, router, sequence, setSession])
   return { position, go }
 }
 
@@ -59,7 +61,9 @@ function useNeighbourPrefetch(position: SequencePosition | null) {
  * J and K anywhere on detail; the arrows only from the previous and next
  * buttons, where focus then stays on the matching button on the new page.
  * At either end nothing moves and the polite region says so. Nothing runs
- * while a dialog, menu or listbox is open, or while search hides the page.
+ * while a dialog, menu or listbox is open, while search hides the page, or
+ * while a section form is open or holds focus: leaving would drop its unsaved
+ * link, question or reviewers (Esc closes the form first).
  */
 function useSequenceKeys(position: SequencePosition | null, go: ReturnType<typeof useDetailSequence>["go"]) {
   const announce = useListAnnouncer()
@@ -67,6 +71,7 @@ function useSequenceKeys(position: SequencePosition | null, go: ReturnType<typeo
     if (!position) return
     function onKeyDown(event: KeyboardEvent) {
       if (overlayOpen() || !isShown(document.querySelector("[data-detail]"))) return
+      if (document.querySelector("[data-detail] [data-detail-form]") || (event.target instanceof Element && event.target.closest("[data-detail] form"))) return
       const onNavButtons = event.target instanceof Element && event.target.closest("[data-detail-sequence]") !== null
       const command = detailCommand(event, isTypingTarget(event.target), onNavButtons)
       if (!command) return
