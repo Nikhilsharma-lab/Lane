@@ -10,7 +10,10 @@
 .option:active { background: var(--surface-muted); }
 /* Until the highlight is placed (server paint or no script), the checked row carries the same look itself. */
 .options:not([data-ready]) .option:has(input:checked) { border-color: var(--control-on); background: color-mix(in oklab, var(--control-on) 5%, transparent); }
-.option input { position: absolute; opacity: 0; }
+/* Lane adaptation (WCAG 2.4.7): the radio covers its row's border box with no appearance of its own, instead of
+ * sitting there at opacity 0, so the shared :focus-visible ring in foundation.css frames the row on keyboard focus,
+ * checked or not. It paints nothing else, and pointer focus still draws no ring. */
+.option input { position: absolute; inset: -1px; width: auto; height: auto; margin: 0; border: 0; border-radius: inherit; padding: 0; appearance: none; background: transparent; cursor: inherit; }
 /* Rows are not stacking contexts, so their mark and copy rise above the highlight while their border and fill stay below it. */
 .option > span { position: relative; z-index: 2; }
 .mark { display: grid; width: 17px; height: 17px; flex: 0 0 auto; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-spring) var(--ease-spring); }
@@ -27,4 +30,7 @@
 .option strong { color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; transition: color var(--duration-standard) var(--ease-standard); }
 .option:has(input:checked) strong { color: var(--foreground); }
 .option small { margin-top: 2px; color: var(--text-muted); font-size: var(--text-xs); }
+/* Lane adaptation (plan item 2.2): the row's key, at its end, above the highlight like the copy, on fine pointers only. */
+.shortcut { display: none; margin-inline-start: auto; position: relative; z-index: 2; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
+@media (pointer: fine) { .shortcut { display: inline; } }
 @media (prefers-reduced-motion: reduce) { .option, .mark, .mark::after, .option strong { transition: none; } .option:active .mark { transform: none; } }

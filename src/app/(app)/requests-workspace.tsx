@@ -8,7 +8,6 @@ import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { DesignReview } from "./requests/[id]/design-review-lazy"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
-import { RequestsWelcome } from "./requests-welcome"
 import { RequestsOverview } from "./requests-overview"
 
 function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
@@ -16,8 +15,8 @@ function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
   filter: RequestStatusFilter; projectFilter: RequestProjectFilter; orgId: string; isGuest: boolean; currentUserId: string; isAdmin: boolean;
 }) {
   return <RequestDetailView {...props}
-    lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} placement="strip" />}
-    mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} fullWidth />}
+    lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} isGuest={props.isGuest} placement="strip" />}
+    mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} isGuest={props.isGuest} fullWidth />}
     commentForm={<CommentForm requestId={props.request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
     designReview={<DesignReview requestId={props.request.id} initialState={{ version: props.request.designReviewVersion ?? 0, reviews: props.request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!props.isGuest} canManage={!props.isGuest && (isAdmin || props.request.createdBy === currentUserId)} context={{ orgId }} />}
@@ -46,13 +45,15 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
   const isGuest = member.role === "guest"
 
   if (list) {
-    // The welcome is about the workspace, never about the current filter.
-    if (list.rows.length === 0) return <RequestsWelcome role={member.role} />
+    // Plan item 2.1: an empty workspace renders the same list, whose records
+    // region shows the welcome, so the first Request lands in place.
     return <RequestsOverview
       requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
       activeCapped={list.activeCapped}
       hasOlderDone={list.hasOlderDone}
       isGuest={isGuest}
+      // The welcome is about the workspace, never about the current filter.
+      canInvite={member.role === "admin"}
       context={{ orgId: member.orgId }}
     />
   }

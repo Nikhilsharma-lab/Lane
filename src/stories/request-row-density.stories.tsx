@@ -18,11 +18,12 @@ const meta = {
   component: RequestRow,
   parameters: { layout: "fullscreen" },
   args: { request, columns, visibility: { requestType: false, submittedBy: false }, filter: "all", projectFilter: "all", checked: false, disabled: false, onCheckedChange: fn() },
+  // Plan item 2.4: rows are grid rows, so the examples sit in a grid as they do in the list.
   render: args => <main className={styles.records} style={{ padding: "var(--space-4)" }}>
-    <ul className={styles.list} aria-label="Request row density examples">
-      <RequestRow {...args} />
+    <div role="grid" className={styles.list} aria-label="Request row density examples">
+      <RequestRow {...args} tabbable />
       <RequestRow {...args} request={{ ...request, id: "density-long", title: longTitle }} />
-    </ul>
+    </div>
   </main>,
 } satisfies Meta<typeof RequestRow>
 export default meta
@@ -33,7 +34,7 @@ export const CompactWithWrapping: Story = {
     await document.fonts.ready
     const canvas = within(canvasElement)
     const title = canvas.getByRole("link", { name: "Checkout Request" })
-    const row = title.closest("li")!
+    const row = title.closest<HTMLElement>('[role="row"]')!
     const long = canvas.getByRole("link", { name: longTitle })
     const narrow = canvasElement.clientWidth - 32 <= 880
     // Pills grow to 44px for coarse pointers only; a narrow window with a mouse keeps 32px (adc8178).

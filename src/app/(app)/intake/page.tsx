@@ -9,10 +9,12 @@ export default async function IntakePage() {
   if (!result) redirect("/login");
   if (result.needsOnboarding) redirect("/onboarding");
 
-  // Every page owns one 44px strip (plan item 2.0); the crumb names the page "New Request" (decision 8.10).
+  // Every page owns one 44px strip (plan item 2.0). The strip is the page's h1 and
+  // names it "New Request" (decision 8.10); the composer opens over it as a
+  // centred dialog (2026-10-13), so the launcher has no heading of its own.
   return (
     <>
-      <PageStrip title="New Request" />
+      <PageStrip title="New Request" heading />
       <IntakeLauncher />
     </>
   );

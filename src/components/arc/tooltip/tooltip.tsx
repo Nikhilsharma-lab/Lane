@@ -11,6 +11,8 @@ export interface TooltipProps {
   content: ReactNode;
   children: ReactElement;
   side?: "top" | "bottom";
+  /** Lane adaptation (plan item 2.4, decision 8.22): "plain" crossfades changed text with movement only, no blur, for tooltips on dense rows. Defaults to upstream's "blur". */
+  morph?: "blur" | "plain";
 }
 
 const DELAY = 250;
@@ -35,7 +37,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
 }
 
 /** String content crossfades when it changes while open, and the bubble springs to the new text size. */
-function TooltipText({ text }: { text: string }) {
+function TooltipText({ text, plain = false }: { text: string; plain?: boolean }) {
   const reduced = useReducedMotion();
   const measure = useRef<HTMLSpanElement>(null);
   const measured = useRef<string | null>(null);
@@ -56,12 +58,12 @@ function TooltipText({ text }: { text: string }) {
   return <motion.span className={styles.text} initial={false} animate={size ? { width: size.width, height: size.height } : undefined} transition={size?.animate && !reduced ? motionTokens.spring.morph : { duration: 0 }}>
     <span ref={measure} className={styles.measure} aria-hidden="true">{text}</span>
     <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span key={text} className={styles.line} initial={reduced ? false : { opacity: 0, y: "0.3em", filter: `blur(${motionTokens.blur.soft}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: "-0.3em", filter: `blur(${motionTokens.blur.subtle}px)`, transition: { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] } }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{text}</motion.span>
+      <motion.span key={text} className={styles.line} initial={reduced ? false : plain ? { opacity: 0, y: "0.3em" } : { opacity: 0, y: "0.3em", filter: `blur(${motionTokens.blur.soft}px)` }} animate={plain ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: "-0.3em", ...(plain ? {} : { filter: `blur(${motionTokens.blur.subtle}px)` }), transition: { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] } }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{text}</motion.span>
     </AnimatePresence>
   </motion.span>;
 }
 
-export function Tooltip({ content, children, side = "top" }: TooltipProps) {
+export function Tooltip({ content, children, side = "top", morph = "blur" }: TooltipProps) {
   const shared = useContext(SharedProvider);
   // Controlled so the instant flag lands in the same render that mounts the content (Radix reports uncontrolled changes a frame late).
   const [open, setOpen] = useState(false);
@@ -87,7 +89,7 @@ export function Tooltip({ content, children, side = "top" }: TooltipProps) {
       onFocus={() => { focused.current = true; queueMicrotask(() => { focused.current = false; }); }}>{children}</TooltipPrimitive.Trigger>
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content className={styles.tooltip} data-instant={instant || undefined} side={side} sideOffset={8} collisionPadding={12}>
-        {typeof content === "string" || typeof content === "number" ? <TooltipText text={String(content)}/> : content}
+        {typeof content === "string" || typeof content === "number" ? <TooltipText text={String(content)} plain={morph === "plain"}/> : content}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   </TooltipPrimitive.Root>;

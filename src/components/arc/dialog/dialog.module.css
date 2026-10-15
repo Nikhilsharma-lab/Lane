@@ -1,4 +1,5 @@
-.overlay { position: fixed; inset: 0; z-index: 50; background: var(--overlay-background, oklch(10% 0 0 / .46)); backdrop-filter: blur(7px); }
+/* Lane adaptation (decision 8.22): the theme's overlay token, no backdrop blur. */
+.overlay { position: fixed; inset: 0; z-index: 50; background: var(--overlay, oklch(10% 0 0 / .46)); }
 /* Centered with auto margins (like a native modal dialog) so transform stays free for the entrance spring. */
 .content { position: fixed; z-index: 51; inset: 0; width: min(calc(100vw - var(--space-8)), 440px); height: fit-content; max-height: calc(100vh - var(--space-8)); max-height: calc(100dvh - var(--space-8)); margin: auto; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--shadow-floating); }
 /* Motion animates both layers. Keyframes only run when DialogContent sits under a bare Radix root. */
@@ -35,8 +36,11 @@
   .close:active { transform: none; }
 }
 
-/* Lane's Request composer: the Arc focus scope, dismissal and motion remain shared. */
-.overlay[data-layout="composer"] { backdrop-filter: none; }
+/* Lane adaptation (plan item 2.3, centred composer chosen 2026-10-13): Lane's Request composer. The Arc focus scope,
+   dismissal and motion stay shared. A 44px header strip holds the title and close (sketch item 1); the description stays
+   the dialog's accessible description but is visually hidden; the body hands its height and scrolling to the composer,
+   which owns the gutters and keeps its footer at the bottom of the panel. The title starts on the composer's 24px
+   edge (16px on phones). */
 .content[data-layout="composer"] {
   display: flex;
   flex-direction: column;
@@ -45,25 +49,33 @@
   max-height: calc(100dvh - min(13dvh, 7rem) - var(--space-8));
   margin: 0 auto;
   overflow: hidden;
-  border-radius: var(--lane-panel-radius, 12px);
+  border-radius: var(--radius-panel);
 }
 .content[data-layout="composer"] .header {
   flex: 0 0 auto;
+  min-height: var(--workspace-header-height, 44px);
   align-items: center;
   border: 0;
-  padding: var(--space-4) var(--space-6) var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-6);
 }
 .content[data-layout="composer"] .title { font-size: var(--text-sm); }
-.content[data-layout="composer"] .close { margin: 0; border-color: transparent; background: transparent; }
+.content[data-layout="composer"] .description { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.content[data-layout="composer"] .close { width: var(--space-8); height: var(--space-8); margin: 0; border-color: transparent; background: transparent; }
+/* The borderless close button keeps Arc's hover fill, which the transparent rest state above would otherwise outrank. */
+@media (hover: hover) and (pointer: fine) { .content[data-layout="composer"] .close:hover { background: var(--surface-muted); } }
 .content[data-layout="composer"] .body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  padding: 0 var(--space-6);
+  padding: 0;
   overflow: hidden;
+}
+@media (pointer: coarse) {
+  .content[data-layout="composer"] .close { width: 44px; height: 44px; }
+  .content[data-layout="composer"] .header { padding-right: 0; }
 }
 @media (max-width: 640px) {
   .content[data-layout="composer"] { inset-block-start: var(--space-4); width: calc(100vw - var(--space-4)); max-height: calc(100dvh - var(--space-8)); }
-  .content[data-layout="composer"] .header { padding-inline: var(--space-4); }
-  .content[data-layout="composer"] .body { padding-inline: var(--space-4); }
+  .content[data-layout="composer"] .header { padding: 0 var(--space-2) 0 var(--space-4); }
 }

@@ -6,6 +6,13 @@
 :global(:root:not([data-theme="dark"])) .shell,
 :global(:root:not([data-theme="dark"])) .navigation[data-collapsed] .sidebarPanel { background: var(--workspace-canvas, var(--surface-muted)); }
 .navigation[data-peeking] .sidebarPanel { visibility: visible; opacity: 1; transform: translateX(0); pointer-events: auto; transition-duration: var(--duration-standard), var(--duration-fast), 0s; transition-delay: 0s; }
+/* Plan item 2.4: while a toggle slides the panel, it is lifted out of the flow onto the box it docks into
+   (the shell's 8px gutter, the remembered width), so the content's width changes once and the panel moves
+   on transform only (a WAAPI slide in use-sidebar-resize.ts). Settled, it returns to the flow unseen. */
+.navigation[data-motion] { overflow: visible; }
+.navigation[data-motion] .sidebarPanel { position: absolute; z-index: 20; top: 8px; bottom: 8px; left: 8px; height: auto; width: var(--sidebar-peek-width); border: 0; border-radius: 0; background: var(--workspace-canvas, var(--background)); box-shadow: none; visibility: visible; opacity: 1; transform: none; transition: none; pointer-events: none; }
+/* The shell's own canvas, so the panel covers the content it passes over. */
+:global(:root:not([data-theme="dark"])) .navigation[data-motion] .sidebarPanel { background: var(--workspace-canvas, var(--surface-muted)); }
 .sidebar { height: 100%; }
 .sidebar[data-placement="inline"] { min-width: 200px; }
 .resizeHandle { position: absolute; z-index: 5; top: 24px; bottom: 24px; left: calc(var(--sidebar-width, 272px) + 12px); width: 8px; cursor: col-resize; touch-action: none; }

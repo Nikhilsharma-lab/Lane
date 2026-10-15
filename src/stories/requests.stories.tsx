@@ -1,19 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, userEvent, within, waitFor } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
-import { RequestListViewProvider } from "@/components/requests/list-view-state"
+import { RequestListViewProvider, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
 import { SidebarView } from "@/components/shell/sidebar-view"
 import { NotificationBellView } from "@/components/shell/notification-bell-view"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { parseRequestProjectFilter, parseRequestStatusFilter } from "@/lib/request-workspace"
 import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search"
 import { WORKSPACE_SEARCH_PAGE_SIZE } from "@/lib/workspace-search"
 import { parseRequestCode } from "@/lib/request-code"
+import { announcer, requestGroup, requestRows, rowOf } from "./helpers/request-grid"
 
 const fixtureProjects = [
   { id: "11111111-1111-4111-8111-111111111111", name: "Website", description: null },
@@ -106,6 +106,7 @@ const meta = {
   beforeEach: () => {
     sessionStorage.removeItem("lane:request-return-focus")
     getRouter().replace.mockClear()
+    getRouter().push.mockClear()
   },
 } satisfies Meta<typeof RequestsOverview>
 export default meta
@@ -149,13 +150,28 @@ export const ConsistentToolbarFlyouts: Story = {
     await expect(transitions[0]).toBe(transitions[1])
   },
 }
+// Plan item 1.7: the status view and Project live in the layout's list view state, which reads the URL once.
+// Storybook's iframe is not "/", so the URL mirror never writes; list-view-state.test.ts covers the writes.
 export const ProjectStatusViews: Story = {
-  args: { projectFilter: "11111111-1111-4111-8111-111111111111", projectName: "Website" },
+  parameters: { nextjs: { navigation: { pathname: "/", query: { project: fixtureProjects[0].id } } } },
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
-    const views = within(within(canvasElement).getByRole("group", { name: "Request status" }))
+    const canvas = within(canvasElement)
+    const views = within(canvas.getByRole("group", { name: "Request status" }))
     await expect(views.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true")
     await userEvent.click(views.getByRole("button", { name: "In Progress" }))
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/?status=in_progress&project=11111111-1111-4111-8111-111111111111", { scroll: false }))
+    await waitFor(() => expect(views.getByRole("button", { name: "In Progress" })).toHaveAttribute("aria-pressed", "true"))
+    await expect(canvas.getByRole("heading", { name: "Website", level: 1 })).toBeVisible()
+    await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
+    // No Website Request is In Progress in this fixture.
+    await expect(canvas.getByText("No matching Requests")).toBeVisible()
+    await userEvent.click(views.getByRole("button", { name: "Open" }))
+    await waitFor(() => expect(views.getByRole("button", { name: "Open" })).toHaveAttribute("aria-pressed", "true"))
+    const rows = requestRows(canvasElement)
+    await expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) await expect(row).toHaveAccessibleName(/\. Open, No priority, Website, /)
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(getRouter().push).not.toHaveBeenCalled()
   },
 }
 export const Loading: Story = { render: () => <RequestsWorkspaceLoading /> }
@@ -174,30 +190,25 @@ export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsO
   pathname?: string
   children?: React.ReactNode
 }) {
-  const [route, setRoute] = useFixtureRequestRoute(args)
+  // The layout's list view state is the list's only route state (plan item 1.7): sidebar links set it in place.
+  return <RequestListViewProvider initialColumnVisibility={args.linearPreviewAutoCollapse ? { requestType: true } : undefined}><ShellFixtureBody {...args} /></RequestListViewProvider>
+}
+
+function ShellFixtureBody(args: React.ComponentProps<typeof RequestsShellFixture>) {
   const [projects, setProjects] = useState(fixtureProjects)
-  const projectName = projects.find(project => project.id === route.projectFilter)?.name
-  // Storybook's Link mock records clicks without invoking its router mock.
-  // Supply the server-prop boundary for list links within this fixture only.
-  return <div style={{ display: "contents" }} onClick={event => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    const anchor = (event.target as Element).closest("a[href]")
-    if (!anchor) return
-    const url = new URL(anchor.getAttribute("href")!, "https://lane.example.test")
-    if (url.origin !== "https://lane.example.test" || url.pathname !== "/" || url.hash) return
-    setRoute({ filter: parseRequestStatusFilter(url.searchParams.get("status") ?? undefined), projectFilter: parseRequestProjectFilter(url.searchParams.get("project")) })
-  }}><RequestListViewProvider initialColumnVisibility={args.linearPreviewAutoCollapse ? { requestType: true } : undefined}><SidebarView linearPreviewAutoCollapse={args.linearPreviewAutoCollapse} previewProjectTree={args.linearPreviewAutoCollapse} workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test"
-    role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} statusFilter={route.filter} projectFilter={route.projectFilter} projects={projects}
+  const setView = useSetRequestListView()
+  return <SidebarView linearPreviewAutoCollapse={args.linearPreviewAutoCollapse} previewProjectTree={args.linearPreviewAutoCollapse} workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test"
+    role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} projects={projects}
     notifications={<NotificationsFixture />} onSignOut={() => {}} onSearch={input => Promise.resolve(fixtureWorkspaceSearch(input, args.requests, projects))}
     onCreateProject={async name => {
       const existing = projects.find(project => project.name.toLocaleLowerCase() === name.toLocaleLowerCase())
       const project = existing ?? { id: `40000000-0000-4000-8000-${String(projects.length + 1).padStart(12, "0")}`, name, description: null }
       if (!existing) setProjects(current => [...current, project])
-      setRoute({ filter: "all", projectFilter: project.id })
+      setView(view => withListContext(view, { status: "all", project: project.id }))
       return project
     }}>
-    {args.children ?? <RequestsOverview {...args} {...route} projectName={projectName} />}
-  </SidebarView></RequestListViewProvider></div>
+    {args.children ?? <RequestsOverview {...args} />}
+  </SidebarView>
 }
 
 export const PopulatedInShell: Story = {
@@ -207,14 +218,15 @@ export const PopulatedInShell: Story = {
     const canvas = within(canvasElement)
     await expect(canvas.getAllByRole("main")).toHaveLength(1)
     await expect(canvas.getByRole("heading", { name: "Requests", level: 1 })).toBeVisible()
-    const list = canvas.getByRole("list", { name: "Open Requests" })
+    const list = requestGroup(canvasElement, "Open Requests")
     await expect(list).toBeVisible()
+    await expect(canvas.getByRole("treegrid", { name: "Requests" })).toBeVisible()
     await expect(canvas.queryByRole("table")).not.toBeInTheDocument()
-    const firstRow = within(list).getAllByRole("listitem")[0]
+    const firstRow = requestRows(list)[0]
     await expect(within(firstRow).getByRole("link", { name: requests[0].title })).toBeVisible()
     await expect(within(firstRow).getByRole("button", { name: "Status: Open" })).toBeVisible()
     await expect(within(firstRow).getByRole("button", { name: "Project: Website" })).toBeVisible()
-    await expect(within(firstRow).getByRole("button", { name: "Owner: Unassigned" })).toBeVisible()
+    await expect(within(firstRow).getByRole("button", { name: "Assignee: Unassigned" })).toBeVisible()
     await expect(within(firstRow).queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Display" })).toBeVisible()
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
@@ -299,7 +311,7 @@ export const CompactListHeader: Story = {
     const search = canvas.getByRole("button", { name: "Filter Requests by title" })
     const filter = canvas.getByRole("button", { name: "Add filter" })
     const display = canvas.getByRole("button", { name: "Display" })
-    const firstGroup = canvasElement.querySelector<HTMLElement>('section[aria-label="Open Requests"]')!
+    const firstGroup = canvasElement.querySelector<HTMLElement>('[role="rowgroup"][aria-label="Open Requests"]')!
 
     await expect(canvas.queryByRole("searchbox", { name: "Filter Requests by title" })).not.toBeInTheDocument()
     await expect(heading).toBeVisible()
@@ -382,7 +394,7 @@ export const DisplayPropertiesAndOrder: Story = {
     await userEvent.click(panel.getByRole("combobox", { name: "Order by" }))
     await userEvent.click(await page.findByRole("option", { name: "Title Z–A" }))
     await waitFor(() => expect(page.queryByRole("listbox")).not.toBeInTheDocument())
-    const firstRow = within(canvas.getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")[0]
+    const firstRow = requestRows(requestGroup(canvasElement, "Open Requests"))[0]
     await expect(within(firstRow).getByRole("link", { name: "The status menu is difficult to operate by keyboard" })).toBeVisible()
     const submittedBy = panel.getByRole("button", { name: "Submitted by" })
     const requestType = panel.getByRole("button", { name: "Request type" })
@@ -427,22 +439,24 @@ export const GroupingAndCollapse: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
     await expect(canvas.queryByRole("button", { name: "Collapse Open group" })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Collapse Done group" })).toHaveTextContent("7 of 10 Requests")
-    await expect(within(canvas.getByRole("list", { name: "Done Requests" })).getAllByRole("listitem")).toHaveLength(7)
+    await expect(requestRows(requestGroup(canvasElement, "Done Requests"))).toHaveLength(7)
   },
 }
 
 export const PropertyDetails: Story = {
-  args: { filter: "open" },
+  parameters: { nextjs: { navigation: { pathname: "/", query: { status: "open" } } } },
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const row = within(within(canvas.getByRole("list", { name: "Open Requests" })).getAllByRole("listitem")[0])
+    const row = within(requestRows(requestGroup(canvasElement, "Open Requests"))[0])
     const submitted = row.getByRole("button", { name: "Submitted: 28 Sept 2026" })
     await userEvent.click(submitted)
     const panel = within(await within(document.body).findByRole("dialog", { name: "Submitted" }))
     await waitFor(() => expect(panel.getByText("Mon, 28 Sep 2026 09:00:00 GMT")).toBeVisible())
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(submitted).toHaveFocus())
-    await expect(row.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1?status=open")
+    // Canonical /requests/[id] (plan item 1.7); the property links still name the list view they open.
+    await expect(row.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(row.getByRole("link").querySelector("button")).toBeNull()
     await userEvent.click(row.getByRole("button", { name: "Project: Website" }))
     const projectPanel = within(await within(document.body).findByRole("dialog", { name: "Project" }))
@@ -473,6 +487,7 @@ export const Pagination: Story = {
 }
 
 export const StatusNavigation: Story = {
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const trigger = canvas.getByRole("button", { name: "Add filter" })
@@ -481,25 +496,37 @@ export const StatusNavigation: Story = {
     const panel = within(await within(document.body).findByRole("dialog", { name: "Add filter" }))
     await userEvent.click(await panel.findByRole("menuitem", { name: "Status" }))
     await userEvent.click(await panel.findByRole("menuitemradio", { name: "In Progress" }))
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/?status=in_progress", { scroll: false }))
     await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Add filter" })).not.toBeInTheDocument())
     await expect(trigger).toHaveFocus()
+    await expect(within(canvas.getByRole("group", { name: "Request status" })).getByRole("button", { name: "In Progress" })).toHaveAttribute("aria-pressed", "true")
+    await expect(canvas.getByRole("button", { name: "Remove Status: In Progress" })).toBeVisible()
+    const rows = requestRows(canvasElement)
+    await expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) await expect(row).toHaveAccessibleName(/\. In Progress, /)
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(getRouter().push).not.toHaveBeenCalled()
   },
 }
 
 export const FilteredFromUrl: Story = {
-  args: { filter: "in_progress" },
   parameters: { nextjs: { navigation: { pathname: "/", query: { status: "in_progress" } } } },
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("button", { name: "Remove Status: In Progress" })).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[0].title })).not.toBeInTheDocument()
-    await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", "/requests/fixture-2?status=in_progress")
+    await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", "/requests/fixture-2")
+    // The visible count is not a live region; the list's one region announces it (plan item 2.4).
     const count = canvas.getByText("11 Requests match")
     await expect(count).toBeVisible()
-    await expect(count).toHaveAttribute("role", "status")
+    await expect(count).not.toHaveAttribute("role")
+    await expect(count.closest("[aria-live], [role='status']")).toBeNull()
     await userEvent.click(canvas.getByRole("button", { name: "Clear all" }))
-    await waitFor(() => expect(getRouter().replace).toHaveBeenCalledWith("/", { scroll: false }))
+    await waitFor(() => expect(announcer(canvasElement)).toHaveTextContent("Filters cleared."))
+    await expect(canvas.getByRole("link", { name: requests[0].title })).toBeVisible()
+    await expect(canvas.getByText("1 – 25 of 32 Requests")).toBeVisible()
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(getRouter().push).not.toHaveBeenCalled()
   },
 }
 
@@ -519,7 +546,8 @@ export const RestoreFocusOnLaterPage: Story = {
   beforeEach: () => { sessionStorage.setItem("lane:request-return-focus", "fixture-30") },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const target = await canvas.findByRole("link", { name: requests[29].title })
+    // Plan item 2.4: the row, the list's one tab stop, takes focus back.
+    const target = rowOf(await canvas.findByRole("link", { name: requests[29].title }))
     await waitFor(() => expect(target).toHaveFocus())
     await expect(canvas.getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page")
     await expect(sessionStorage.getItem("lane:request-return-focus")).toBeNull()
@@ -534,7 +562,7 @@ export const RestoreFocusInCollapsedGroup: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Preview detail transition" }))
     sessionStorage.setItem("lane:request-return-focus", "fixture-1")
     await userEvent.click(canvas.getByRole("button", { name: "Return to list" }))
-    await waitFor(() => expect(canvas.getByRole("link", { name: requests[0].title })).toHaveFocus())
+    await waitFor(() => expect(rowOf(canvas.getByRole("link", { name: requests[0].title }))).toHaveFocus())
     await expect(canvas.getByRole("button", { name: "Collapse Open group" })).toHaveAttribute("aria-expanded", "true")
     await expect(sessionStorage.getItem("lane:request-return-focus")).toBeNull()
   },
@@ -546,36 +574,6 @@ function ReturnToListFixture(args: React.ComponentProps<typeof RequestsOverview>
     <button type="button" onClick={() => setShowList(value => !value)}>{showList ? "Preview detail transition" : "Return to list"}</button>
     {showList ? <RequestsOverview {...args} /> : <p>Request detail route</p>}
   </>
-}
-
-/** Next supplies new server props after a URL change. Storybook's router is a
- * spy, so this fixture supplies that boundary while keeping real UI behavior. */
-function useFixtureRequestRoute(args: React.ComponentProps<typeof RequestsOverview>) {
-  const [route, setRoute] = useState({ filter: args.filter, projectFilter: args.projectFilter ?? "all" })
-  useEffect(() => {
-    const { replace, push } = getRouter()
-    const previousReplace = replace.getMockImplementation()
-    const previousPush = push.getMockImplementation()
-    const navigate = (href: string) => {
-      const url = new URL(href, "https://lane.example.test")
-      if (url.pathname !== "/") return
-      setRoute({ filter: parseRequestStatusFilter(url.searchParams.get("status") ?? undefined), projectFilter: parseRequestProjectFilter(url.searchParams.get("project")) })
-    }
-    replace.mockImplementation(navigate)
-    push.mockImplementation(navigate)
-    return () => {
-      replace.mockImplementation(previousReplace ?? (() => undefined))
-      push.mockImplementation(previousPush ?? (() => undefined))
-    }
-  }, [])
-  return [route, setRoute] as const
-}
-
-function UrlControlledRequests({ previewDetail = false, ...args }: React.ComponentProps<typeof RequestsOverview> & { previewDetail?: boolean }) {
-  const [route] = useFixtureRequestRoute(args)
-  const projectName = args.requests.find(request => request.projectId === route.projectFilter)?.projectName ?? undefined
-  const props = { ...args, ...route, projectName }
-  return previewDetail ? <ReturnToListFixture {...props} /> : <RequestsOverview {...props} />
 }
 
 export const ProjectNavigationInShell: Story = {
@@ -593,6 +591,7 @@ export const ProjectNavigationInShell: Story = {
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(canvas.queryByRole("link", { name: requests[1].title })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("button", { name: "Project: Website" })).not.toBeInTheDocument()
+    await expect(getRouter().push).not.toHaveBeenCalled()
     await userEvent.click(canvas.getByRole("button", { name: "Display" }))
     const display = within(await page.findByRole("dialog", { name: "Display Requests" }))
     await expect(display.getByRole("button", { name: "Project" })).toHaveAttribute("aria-pressed", "false")
@@ -665,7 +664,10 @@ export const MissingReturnTargetClearsMarker: Story = {
   beforeEach: () => { sessionStorage.setItem("lane:request-return-focus", "no-longer-visible") },
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(sessionStorage.getItem("lane:request-return-focus")).toBeNull())
-    await expect(within(canvasElement).getByRole("button", { name: "Filter Requests by title" })).toHaveFocus()
+    // Plan item 2.4: the grid's tab stop (its first row) takes focus instead.
+    const tabStop = canvasElement.querySelector('[role="row"][tabindex="0"]')
+    await expect(tabStop).toHaveAttribute("data-grid-row", "g:status:open")
+    await expect(tabStop).toHaveFocus()
   },
 }
 
@@ -686,32 +688,41 @@ export const ProjectNamedNoProject: Story = {
     { ...requests[2], projectId: fixtureProjects[2].id, projectName: fixtureProjects[0].id },
     { ...requests[3], projectId: null, projectName: null },
   ] },
-  render: args => <RequestListViewProvider><UrlControlledRequests {...args} /></RequestListViewProvider>,
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
+    // Each Project whose name looks like a sentinel filters by its own id; "No Project" is renamed in the menu.
+    const showsOnly = async (shown: number) => {
+      await waitFor(() => expect(requestRows(canvasElement)).toHaveLength(1))
+      await expect(canvas.getByRole("link", { name: requests[shown].title })).toHaveAttribute("href", `/requests/fixture-${shown + 1}`)
+    }
     await selectFilter(canvasElement, "Project", "No Project")
-    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
-    await expect(canvas.queryByRole("link", { name: requests[3].title })).not.toBeInTheDocument()
+    await expect(canvas.getByRole("button", { name: "Remove Project: No Project" })).toBeVisible()
+    await showsOnly(0)
     await userEvent.click(canvas.getByRole("button", { name: "Remove Project: No Project" }))
     await selectFilter(canvasElement, "Project", "none")
-    await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", `/requests/fixture-2?project=${fixtureProjects[1].id}`)
+    await expect(canvas.getByRole("button", { name: "Remove Project: none" })).toBeVisible()
+    await showsOnly(1)
     await userEvent.click(canvas.getByRole("button", { name: "Remove Project: none" }))
     await selectFilter(canvasElement, "Project", fixtureProjects[0].id)
-    await expect(canvas.getByRole("link", { name: requests[2].title })).toHaveAttribute("href", `/requests/fixture-3?project=${fixtureProjects[2].id}`)
+    await expect(canvas.getByRole("button", { name: `Remove Project: ${fixtureProjects[0].id}` })).toBeVisible()
+    await showsOnly(2)
     await userEvent.click(canvas.getByRole("button", { name: `Remove Project: ${fixtureProjects[0].id}` }))
     await selectFilter(canvasElement, "Project", "Requests without a Project")
-    await expect(canvas.getByRole("link", { name: requests[3].title })).toHaveAttribute("href", "/requests/fixture-4?project=none")
+    await expect(canvas.getByRole("button", { name: "Remove Project: Requests without a Project" })).toBeVisible()
+    await showsOnly(3)
+    await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
 
 export const ProjectAndTypeFilters: Story = {
   args: { requests: propertyRequests },
-  render: args => <RequestListViewProvider><UrlControlledRequests {...args} /></RequestListViewProvider>,
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await selectFilter(canvasElement, "Project", "Website")
     await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
-    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
+    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(canvas.getByText("2 Requests match")).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[2].title })).not.toBeInTheDocument()
     await selectFilter(canvasElement, "Request type", "Bug")
@@ -727,7 +738,7 @@ export const ProjectAndTypeFilters: Story = {
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Request type: Bug" })).not.toBeInTheDocument())
     // No filter applied: the count leaves with the chips and every Request is back.
     await expect(canvas.queryByText(matchCountText)).not.toBeInTheDocument()
-    await expect(canvas.getAllByRole("listitem")).toHaveLength(4)
+    await expect(requestRows(canvasElement)).toHaveLength(4)
     await expect(await openTitleFilter(canvasElement)).toHaveValue("")
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("searchbox", { name: "Filter Requests by title" })).not.toBeInTheDocument())
@@ -738,23 +749,28 @@ export const ProjectAndTypeFilters: Story = {
 }
 
 export const ProjectFilterWithStatus: Story = {
-  args: { requests: propertyRequests, filter: "in_progress" },
-  render: args => <RequestListViewProvider><UrlControlledRequests {...args} /></RequestListViewProvider>,
+  args: { requests: propertyRequests },
+  parameters: { nextjs: { navigation: { pathname: "/", query: { status: "in_progress" } } } },
+  render: args => <RequestListViewProvider><RequestsOverview {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await selectFilter(canvasElement, "Project", "Website")
+    await expect(canvas.getByRole("button", { name: "Remove Status: In Progress" })).toBeVisible()
+    await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[1].title })).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[0].title })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("link", { name: requests[2].title })).not.toBeInTheDocument()
+    await expect(requestRows(canvasElement)).toHaveLength(1)
     await expect(canvas.getByText("1 Request matches")).toBeVisible()
-    await expect(getRouter().replace).toHaveBeenCalledWith(`/?status=in_progress&project=${fixtureProjects[0].id}`, { scroll: false })
-    await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", `/requests/fixture-2?status=in_progress&project=${fixtureProjects[0].id}`)
+    await expect(canvas.getByRole("link", { name: requests[1].title })).toHaveAttribute("href", "/requests/fixture-2")
+    await expect(getRouter().replace).not.toHaveBeenCalled()
+    await expect(getRouter().push).not.toHaveBeenCalled()
   },
 }
 
 export const ReturnKeepsProjectFilter: Story = {
   args: { requests: propertyRequests },
-  render: args => <RequestListViewProvider><UrlControlledRequests {...args} previewDetail /></RequestListViewProvider>,
+  render: args => <RequestListViewProvider><ReturnToListFixture {...args} /></RequestListViewProvider>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await selectFilter(canvasElement, "Project", "Website")
@@ -762,6 +778,7 @@ export const ReturnKeepsProjectFilter: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Return to list" }))
     await expect(canvas.getByRole("button", { name: "Remove Project: Website" })).toBeVisible()
     await expect(canvas.getByText("2 Requests match")).toBeVisible()
-    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", `/requests/fixture-1?project=${fixtureProjects[0].id}`)
+    await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
+    await expect(getRouter().push).not.toHaveBeenCalled()
   },
 }

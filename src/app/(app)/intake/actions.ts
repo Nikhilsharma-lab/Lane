@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db, requests } from "@/db";
 import {
   classifyTriageFailure,
+  triageFailureStatus,
   triageRequest,
   type TriageFailureKind,
   type TriageResult,
@@ -81,32 +82,16 @@ function savedListRow(
   };
 }
 
+// Plan item 2.3: every way the AI review can fail to finish reads the same,
+// because the next step is the same. A provider 429 is the provider's limit,
+// so it answers "provider": "rate_limited" means Lane's own limiter only.
+const REVIEW_UNAVAILABLE = "Review unavailable right now. Your draft is kept.";
 const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
-  timeout: {
-    code: "timeout",
-    message:
-      "The review took too long. Your draft is still here. Try again.",
-  },
-  rate_limited: {
-    code: "rate_limited",
-    message:
-      "Lane is busy right now. Wait a moment, then try again.",
-  },
-  malformed: {
-    code: "malformed",
-    message:
-      "Lane could not prepare the review. Your draft is still here. Try again.",
-  },
-  network: {
-    code: "network",
-    message:
-      "The review is unavailable right now. Your draft is still here. Try again shortly.",
-  },
-  provider: {
-    code: "provider",
-    message:
-      "The review is unavailable right now. Your draft is still here. Try again shortly.",
-  },
+  timeout: { code: "timeout", message: REVIEW_UNAVAILABLE },
+  rate_limited: { code: "provider", message: REVIEW_UNAVAILABLE },
+  malformed: { code: "malformed", message: REVIEW_UNAVAILABLE },
+  network: { code: "network", message: REVIEW_UNAVAILABLE },
+  provider: { code: "provider", message: REVIEW_UNAVAILABLE },
 };
 
 function sessionFailure(): IntakeFailure {
@@ -217,7 +202,7 @@ export async function runTriage(
     return { success: true, triage, token };
   } catch (error) {
     const kind = classifyTriageFailure(error);
-    console.error("[intake] triage failed:", { kind, error });
+    console.error("[intake] triage failed:", { kind, statusCode: triageFailureStatus(error), error });
     return { success: false, error: TRIAGE_FAILURES[kind] };
   }
 }

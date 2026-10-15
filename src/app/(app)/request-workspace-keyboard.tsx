@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { isShown, requestRowSelector, restoreRequestFocus } from "@/components/requests/list-focus"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
 
@@ -53,12 +54,14 @@ export function RequestWorkspaceKeyboard({
     let attempts = 0
 
     function restoreFocus() {
-      const requestLink = document.getElementById(`request-${requestId}`)
-      // Restoring a row may first expand its group or change pages. Do not
-      // consume the marker until the newly visible link accepts focus.
-      if (requestLink?.getClientRects().length && !requestLink.closest("[hidden], [inert]")) {
-        requestLink.focus()
-        if (document.activeElement === requestLink) {
+      // Plan item 2.4: the Request's row, the list's one tab stop. Restoring it
+      // may first expand its group or change pages, so do not consume the
+      // marker until the newly visible row accepts focus.
+      const row = document.querySelector(requestRowSelector(requestId!))
+      if (isShown(row)) {
+        row.focus({ preventScroll: true })
+        row.scrollIntoView({ block: "nearest" })
+        if (document.activeElement === row) {
           clearReturnFocus()
           return
         }
@@ -69,8 +72,9 @@ export function RequestWorkspaceKeyboard({
         frame = window.requestAnimationFrame(restoreFocus)
       } else {
         clearReturnFocus()
-        // A lifecycle change can remove the Request from the active filter.
-        document.querySelector<HTMLElement>('[aria-label="Filter Requests by title"]')?.focus()
+        // A lifecycle change can remove the Request from the active filter:
+        // the grid's tab stop, else the title filter.
+        restoreRequestFocus(requestId!, { force: true })
       }
     }
 

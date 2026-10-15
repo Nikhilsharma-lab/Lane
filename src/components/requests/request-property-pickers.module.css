@@ -11,6 +11,23 @@
   text-align: left;
 }
 
+.newProject {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+}
+
+.projectName {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.projectActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .option[aria-selected="true"] {
   color: var(--selection-foreground, var(--foreground));
   background: var(--selection-background, var(--surface-muted));

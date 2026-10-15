@@ -179,7 +179,8 @@ test("Requests workspace preserves selection, panes, and responsive routes", asy
     ).toBeAttached()
     await page.keyboard.press("Escape")
     await expect(page).toHaveURL("/")
-    await expect(page.locator(`#request-${requestId}`)).toBeFocused()
+    // Plan item 2.4: focus returns to the Request's row, the list's one tab stop.
+    await expect(page.locator(`#request-row-${requestId}`)).toBeFocused()
 
     await page.goto(`${detailPath}?status=done`)
     await expect(

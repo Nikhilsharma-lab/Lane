@@ -17,5 +17,3 @@
   border-radius: 0;
   background: transparent;
 }
-
-.emptyState a { border-radius: var(--radius-pill); }

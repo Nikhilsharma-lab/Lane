@@ -10,12 +10,15 @@ import { Button } from "@/components/arc/button/button"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { NewRequestLink } from "@/components/requests/new-request-link"
 import { useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
+import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
+import { RequestsWelcome } from "./requests-welcome"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -27,9 +30,11 @@ async function fetchOlderDone(orgId: string, beforeId: string): Promise<{ rows: 
   return { rows: body.rows, hasOlderDone: Boolean(body.hasOlderDone) }
 }
 
-export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false }: {
+export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false, canInvite = false }: {
   requests: OverviewRequest[]
   isGuest: boolean
+  /** The empty workspace's welcome offers Invite teammates (admins only). */
+  canInvite?: boolean
   context?: { orgId: string }
   /** More Open and In Progress Requests exist than the list loads. */
   activeCapped?: boolean
@@ -45,6 +50,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   const listContext = useRequestListContext()
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
+  const pendingMutations = usePendingMutations()
   const [older, setOlder] = useState<{ rows: OverviewRequest[]; hasMore: boolean; pending: boolean; error: string | null }>({ rows: [], hasMore: true, pending: false, error: null })
   // Server rows win over older pages, so a revalidated row is never shown twice.
   const rows = useMemo(() => {
@@ -52,6 +58,10 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
     const ids = new Set(requests.map(row => row.id))
     return [...requests, ...older.rows.filter(row => !ids.has(row.id))]
   }, [requests, older.rows])
+  // Plan item 2.1: the emptiness DataTable reads (composer inserts applied), so
+  // the strip's New Request and the welcome swap in the same frame. The overlay
+  // only adds rows, so a loaded row settles it without applying anything.
+  const workspaceEmpty = rows.length === 0 && (pendingMutations?.apply(rows).length ?? 0) === 0
 
   const projectName = project === "all" || project === "none" ? undefined
     : sharedProjects?.projects.find(item => item.id === project)?.name ?? rows.find(row => row.projectId === project)?.projectName ?? undefined
@@ -81,17 +91,26 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
     {older.error && <p role="alert" className="m-0">{older.error}</p>}
   </div> : null
 
+  // Plan item 2.1: the table shows this only while the whole workspace, with
+  // composer inserts applied, has no Requests; filters never bring it back.
+  const welcome = <RequestsWelcome canInvite={canInvite} isGuest={isGuest} />
+
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
       <PageStrip title={heading} heading
         note={isGuest ? "Only Requests you submit appear here." : undefined}
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
+        // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
+        // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
         action={<Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
-          <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
+          <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
-      {context
-        ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} /></RequestRowActions>
-        : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} />}
+      {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
+      <ListAnnouncerProvider>
+        {context
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} /></RequestRowActions>
+          : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
+      </ListAnnouncerProvider>
     </div>
   )
 }

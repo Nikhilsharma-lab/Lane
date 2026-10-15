@@ -50,7 +50,7 @@ Alignment block, alignment increment only:
 - The create toast stops saying "Open and ready to be picked up." once the guard ships.
 
 ```
-Compose, drawer 480px                                    Review, alignment increment
+Compose, centred dialog                                  Review, alignment increment
 +------------------------------------------------------+ +------------------------------------------------------+
 | New Request                                      [x] | | Review Request                                   [x] |
 +------------------------------------------------------+ +------------------------------------------------------+

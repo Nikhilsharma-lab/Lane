@@ -24,7 +24,7 @@ const requests: RequestListItem[] = [request, { ...request, id: "fixture-progres
 
 // The strip's lifecycle slot reports through toasts (plan item 2.0), so the shell mounts the stack.
 function Shell({ children, guest = false }: { children: ReactNode; guest?: boolean }) {
-  return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack /></>
+  return <><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={guest ? "guest" : "member"} pathname="/requests/fixture-request" statusFilter="all" notifications={null} onSignOut={() => {}}>{children}</SidebarView><ToastStack label="Messages" /></>
 }
 
 function Detail({ current = request, guest = false, minimal = false, list = requests, designReview }: { current?: RequestDetail; guest?: boolean; minimal?: boolean; list?: RequestListItem[]; designReview?: ReactNode }) {
@@ -136,7 +136,7 @@ export const CommentPending: Story = {
 async function expectLifecycleFeedback(canvasElement: HTMLElement, text: RegExp, kind: "failure" | "success") {
   const canvas = within(canvasElement)
   await waitFor(() => expect(canvas.getByText(text)).toBeVisible())
-  const toasts = canvas.getByRole("region", { name: /^Notifications/ })
+  const toasts = canvas.getByRole("region", { name: /^Messages/ })
   if (window.innerWidth >= 1024) {
     await expect(toasts).toContainElement(canvas.getByText(text))
     return
@@ -157,7 +157,7 @@ export const LifecycleRetry: Story = {
   },
 }
 
-/** The acknowledgement contract (plan §2.4) for Mark done: the action stays
+/** The acknowledgement contract (plan §2.4) for Mark Done: the action stays
  * pending, the UI shows the move at once, a second press sends nothing, and a
  * refusal rolls back with a message and returns the button. */
 export const MarkDoneAcknowledged: Story = {
@@ -166,18 +166,18 @@ export const MarkDoneAcknowledged: Story = {
     let settle!: (result: { error: string }) => void
     mocked(markDone).mockImplementation(() => new Promise(resolve => { settle = resolve }))
     const canvas = within(canvasElement)
-    const button = canvas.getByRole("button", { name: "Mark done" })
+    const button = canvas.getByRole("button", { name: "Mark Done" })
     button.click(); button.click()
     const completing = await canvas.findByRole("button", { name: "Completing…" })
     await expect(completing).toBeDisabled()
     await expect(completing).toHaveAttribute("aria-busy", "true")
     await expect(markDone).toHaveBeenCalledOnce()
-    // The overlay already shows Done: the other lifecycle slot has no Mark done left.
-    await expect(canvas.queryAllByRole("button", { name: "Mark done", hidden: true })).toHaveLength(0)
+    // The overlay already shows Done: the other lifecycle slot has no Mark Done left.
+    await expect(canvas.queryAllByRole("button", { name: "Mark Done", hidden: true })).toHaveLength(0)
     settle({ error: "This Request changed before Lane could mark it Done." })
     await expectLifecycleFeedback(canvasElement, /changed before Lane could mark it Done/, "failure")
     await expect(canvas.getByText("Action failed")).toBeVisible()
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Mark done" })).toBeEnabled())
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Mark Done" })).toBeEnabled())
     await expect(markDone).toHaveBeenCalledOnce()
   },
 }
@@ -202,7 +202,7 @@ export const ExpectedMetricImpact: Story = {
     await expect(impact.getByText("Not measured yet")).toBeVisible()
     await expect(impact.getByText("90 %")).toBeVisible()
     await expect(impact.getByText("Saved-draft usability check")).toBeVisible()
-    await expect(impact.getByText("14 days after launch")).toBeVisible()
+    await expect(impact.getByText("14 days")).toBeVisible()
     await expect(impact.queryByRole("textbox")).not.toBeInTheDocument()
   },
 }
@@ -213,7 +213,7 @@ export const ExpectedVerifiedImpact: Story = {
     const impact = within(await within(canvasElement).findByRole("region", { name: "Expected impact" }))
     await expect(impact.getByText("Customers can reopen an unfinished draft after signing in again.")).toBeVisible()
     await expect(impact.getByText("Verify on the supported browsers with a saved draft.")).toBeVisible()
-    await expect(impact.getByText("1 day after launch")).toBeVisible()
+    await expect(impact.getByText("1 day")).toBeVisible()
     await expect(impact.queryByText("Current value")).not.toBeInTheDocument()
   },
 }

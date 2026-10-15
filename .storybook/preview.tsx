@@ -15,6 +15,7 @@ sb.mock(import("../src/app/(app)/intake/project-actions.ts"))
 sb.mock(import("../src/app/(app)/intake/attachment-actions.ts"))
 sb.mock(import("../src/app/(app)/requests/[id]/actions.ts"))
 sb.mock(import("../src/app/(app)/notifications/actions.ts"))
+sb.mock(import("../src/app/(auth)/onboarding/actions.ts"))
 
 // Keep root styling with the mounted preview, including hot reloads and portals.
 // Story-test cleanup can run while the preview remains visible.

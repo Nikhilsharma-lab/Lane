@@ -4,7 +4,11 @@ import type { TextareaHTMLAttributes } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./textarea.module.css";
-export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label: string; description?: string; error?: string }
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label: string; description?: string; error?: string;
+  /** Lane adaptation (plan item 2.3): the label stays the accessible name but is visually hidden. */
+  hideLabel?: boolean;
+  /** Lane adaptation (plan item 2.3): "plain" draws no border, background, inline padding or resize handle, for a composer's description. */
+  appearance?: "default" | "plain" }
 /* Digits roll up when a number grows and down when it shrinks; `custom` hands the latest direction to digits already leaving. */
 const digit = {
   enter: (direction: number) => ({ opacity: 0, y: `${direction * 0.6}em`, filter: `blur(${motionTokens.blur.subtle}px)` }),
@@ -57,8 +61,8 @@ function MessageRow({ id, text, className, alert }: { id?: string; text: string;
   </motion.span>;
 }
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, description, error, id, className, ...props }, ref) {
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, description, error, id, className, hideLabel = false, appearance = "default", ...props }, ref) {
   const generatedId = useId(); const controlId = id ?? generatedId;
   const hintId = description ? `${controlId}-description` : undefined; const errorId = error ? `${controlId}-error` : undefined;
-  return <div className={styles.field}><label htmlFor={controlId}>{label}</label><textarea {...props} id={controlId} ref={ref} className={[styles.control, className].filter(Boolean).join(" ")} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={[props["aria-describedby"], hintId, errorId].filter(Boolean).join(" ") || undefined}/><FieldMessage id={hintId} text={description} className={styles.hint} /><FieldMessage id={errorId} text={error} className={styles.error} alert /></div>;
+  return <div className={styles.field}><label htmlFor={controlId} className={hideLabel ? styles.srOnly : undefined}>{label}</label><textarea {...props} id={controlId} ref={ref} className={[styles.control, appearance === "plain" ? styles.plain : "", className].filter(Boolean).join(" ")} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={[props["aria-describedby"], hintId, errorId].filter(Boolean).join(" ") || undefined}/><FieldMessage id={hintId} text={description} className={styles.hint} /><FieldMessage id={errorId} text={error} className={styles.error} alert /></div>;
 });

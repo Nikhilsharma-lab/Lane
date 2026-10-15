@@ -1,9 +1,9 @@
 "use client"
 
-import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
-import type { RequestGrouping, RequestOrdering } from "@/lib/request-overview"
+import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 
 export type ListViewState = RequestListContext & {
@@ -13,11 +13,13 @@ export type ListViewState = RequestListContext & {
   grouping: RequestGrouping
   collapsedGroups: string[]
   pagination: PaginationState
+  /** Plan item 2.3: a Request the list should bring into view and focus once, then clear. */
+  reveal?: string
 }
-type SetListView = Dispatch<SetStateAction<ListViewState>>
+export type SetListView = Dispatch<SetStateAction<ListViewState>>
 
 const initialView: ListViewState = {
-  // Keep the first scan about the Request and its current owner. The other
+  // Keep the first scan about the Request and its current assignee. The other
   // fields remain available in the Display control when a team needs them.
   columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
   pagination: { pageIndex: 0, pageSize: 25 },
@@ -31,7 +33,9 @@ const initialView: ListViewState = {
 const ListViewStateContext = createContext<ListViewState | null>(null)
 const ListViewSetterContext = createContext<SetListView | null>(null)
 const ListContextContext = createContext<RequestListContext | null>(null)
+const ListViewSnapshotContext = createContext<(() => ListViewState) | null>(null)
 ListViewStateContext.displayName = "RequestListViewState"
+ListViewSnapshotContext.displayName = "RequestListViewSnapshot"
 ListViewSetterContext.displayName = "RequestListViewSetter"
 ListContextContext.displayName = "RequestListContext"
 
@@ -47,10 +51,15 @@ export function RequestListViewProvider({ children, initialColumnVisibility }: {
     columnVisibility: { ...initialView.columnVisibility, ...initialColumnVisibility },
   }))
   const listContext = useMemo<RequestListContext>(() => ({ status: state.status, project: state.project }), [state.status, state.project])
+  const latest = useRef(state)
+  useLayoutEffect(() => { latest.current = state }, [state])
+  const snapshot = useCallback(() => latest.current, [])
   return <ListViewSetterContext.Provider value={setState}>
-    <ListContextContext.Provider value={listContext}>
-      <ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider>
-    </ListContextContext.Provider>
+    <ListViewSnapshotContext.Provider value={snapshot}>
+      <ListContextContext.Provider value={listContext}>
+        <ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider>
+      </ListContextContext.Provider>
+    </ListViewSnapshotContext.Provider>
   </ListViewSetterContext.Provider>
 }
 
@@ -69,6 +78,37 @@ export function useSetRequestListView(): SetListView {
   return setState ?? setLocal
 }
 
+/** Plan item 2.3: reads the current view when called, for an event handler.
+ * Never re-renders on a view change; null outside the provider. */
+export function useListViewSnapshot() {
+  return useContext(ListViewSnapshotContext)
+}
+
+/** The filters DataTable applies, read from a view. */
+export function listFiltersOf(view: ListViewState): ListFilters {
+  const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
+  return { status: view.status, project: view.project, title: local("title"), requestType: local("requestType") }
+}
+
+/**
+ * Plan item 2.3: the smallest change to the view that shows this Request.
+ * Filters that already include it stay. A status view that leaves it out moves
+ * to its status (Open, for a new Request); a different Project moves to its
+ * Project or "No Project"; a title or type filter that leaves it out is
+ * removed. The list then brings it into view and focuses it. Filters are never
+ * cleared without the person asking.
+ */
+export function revealRequest(view: ListViewState, row: OverviewRequest): ListViewState {
+  const hiding = new Set(filtersHiding(row, listFiltersOf(view)))
+  const moved = withListContext(view, {
+    status: hiding.has("status") ? row.status : view.status,
+    project: hiding.has("project") ? row.projectId ?? "none" : view.project,
+  })
+  const localFilters = view.localFilters.filter(item => !hiding.has(item.id as keyof ListFilters))
+  const narrowed = localFilters.length !== view.localFilters.length
+  return { ...moved, localFilters, pagination: narrowed ? { ...moved.pagination, pageIndex: 0 } : moved.pagination, reveal: row.id }
+}
+
 /** The status view and Project filter, or null outside the provider. Re-renders only when either changes. */
 export function useRequestListContext() {
   return useContext(ListContextContext)
@@ -79,6 +119,15 @@ export function withListContext(view: ListViewState, next: Partial<RequestListCo
   const status = next.status ?? view.status, project = next.project ?? view.project
   if (status === view.status && project === view.project) return view
   return { ...view, status, project, pagination: { ...view.pagination, pageIndex: 0 } }
+}
+
+/**
+ * Plan item 2.1: a workspace with no Requests shows the welcome and no status
+ * control, so it keeps no status view. Otherwise /?status=done would turn the
+ * first Request (Open) into "No matching Requests". The Project filter stays.
+ */
+export function withEmptyWorkspaceStatus(view: ListViewState, workspaceEmpty: boolean): ListViewState {
+  return workspaceEmpty ? withListContext(view, { status: "all" }) : view
 }
 
 export type ListUrlSyncInput = {

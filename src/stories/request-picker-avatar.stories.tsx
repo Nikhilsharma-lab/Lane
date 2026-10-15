@@ -38,14 +38,14 @@ async function expectMatchingMetadataHeight(canvasElement: HTMLElement, trigger:
 export const Assigned: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const trigger = canvas.getByRole("button", { name: "Owner: Sam Lee" })
+    const trigger = canvas.getByRole("button", { name: "Assignee: Sam Lee" })
     await expectMatchingMetadataHeight(canvasElement, trigger)
     // The Request's creator must not be mistaken for its current picker.
     await expect(within(trigger).getByText("SL")).toBeVisible()
     trigger.focus()
     await userEvent.keyboard("{Enter}")
     const body = within(canvasElement.ownerDocument.body)
-    const detail = await body.findByRole("dialog", { name: "Owner" })
+    const detail = await body.findByRole("dialog", { name: "Assignee" })
     await waitFor(() => expect(within(detail).getByText("Sam Lee")).toBeVisible())
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(trigger).toHaveFocus())
@@ -55,7 +55,7 @@ export const Assigned: Story = {
 export const Unassigned: Story = {
   args: { request: { ...request, assignedTo: null, assigneeName: null, status: "open" } },
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Owner: Unassigned" })
+    const trigger = within(canvasElement).getByRole("button", { name: "Assignee: Unassigned" })
     await expectMatchingMetadataHeight(canvasElement, trigger)
     await expect(trigger.querySelector("svg")).toBeInTheDocument()
     await expect(trigger.textContent).toBe("")
@@ -76,7 +76,7 @@ const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAw
 export const WithPhoto: Story = {
   args: { request: { ...request, assigneeAvatarUrl: photo } },
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Owner: Sam Lee" })
+    const trigger = within(canvasElement).getByRole("button", { name: "Assignee: Sam Lee" })
     await expectMatchingMetadataHeight(canvasElement, trigger)
     await waitFor(() => {
       const image = trigger.querySelector("img")
@@ -89,7 +89,7 @@ export const WithPhoto: Story = {
 export const UnavailablePhoto: Story = {
   args: { request: { ...request, assigneeAvatarUrl: "data:image/png;base64,broken" } },
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Owner: Sam Lee" })
+    const trigger = within(canvasElement).getByRole("button", { name: "Assignee: Sam Lee" })
     await waitFor(() => expect(within(trigger).getByText("SL")).toBeVisible())
     await expect(trigger.querySelector("img")).not.toBeInTheDocument()
   },

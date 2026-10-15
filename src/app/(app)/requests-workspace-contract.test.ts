@@ -66,6 +66,20 @@ describe("Requests workspace contract", () => {
     expect(NEXT_CONFIG).toMatch(/staleTimes: \{ dynamic: 30, static: 30 \}/)
   })
 
+  it("decides the lifecycle move in one shared function (plan item 2.4)", () => {
+    for (const path of [
+      "src/components/requests/request-row-actions.tsx",
+      "src/components/requests/use-request-selection.ts",
+      "src/app/(app)/requests/[id]/lifecycle-buttons.tsx",
+    ]) {
+      const file = source(path)
+      expect(file, path).toContain('from "@/lib/request-lifecycle"')
+      expect(file, path).toContain("allowedMove(")
+      // No caller keeps its own status-to-move decision.
+      expect(file, path).not.toMatch(/status === "(open|in_progress)"/)
+    }
+  })
+
   it("preserves native deep links and the three-state MVP lifecycle", () => {
     const titleLink = columns.find(column => column.key === "title")!.render({
       id: "request-1", title: "Example Request", reframedProblem: null,

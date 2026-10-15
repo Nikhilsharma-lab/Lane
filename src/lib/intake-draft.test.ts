@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTriageToken, verifyTriageToken } from "./triage-token";
 import { CONTEXT_MAX, DESCRIPTION_MAX, TITLE_MAX, USEFUL_LINK_MAX, requestSchema } from "./request-schema";
-import { EMPTY_METRIC_IMPACT, IMPACT_RESULT_MAX, IMPACT_SOURCE_MAX } from "./request-impact";
+import { EMPTY_METRIC_IMPACT, IMPACT_METRIC_MAX, IMPACT_RESULT_MAX, IMPACT_SOURCE_MAX, IMPACT_UNIT_MAX } from "./request-impact";
 
 import {
   clearIntakeDraft,
+  hasIntakeDraft,
   intakeDraftScope,
   intakeDraftStorageKey,
   readIntakeDraft,
@@ -79,6 +80,64 @@ describe("Intake draft recovery", () => {
     const storage = memoryStorage();
     writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact: EMPTY_METRIC_IMPACT }, review: null }, NOW);
     expect(storage.getItem(intakeDraftStorageKey(SCOPE))).toBeNull();
+  });
+
+  it("ignores default units but keeps a deliberately changed unit-only draft", () => {
+    const storage = memoryStorage();
+    if (EMPTY_METRIC_IMPACT.kind !== "metric") throw new Error("Expected the default metric impact");
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact: { ...EMPTY_METRIC_IMPACT, unit: "%" } }, review: null }, NOW);
+    expect(storage.getItem(intakeDraftStorageKey(SCOPE))).toBeNull();
+    for (const unit of ["ms", ""]) {
+      const expectedImpact = { ...EMPTY_METRIC_IMPACT, unit };
+      writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+      expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
+    }
+  });
+
+  it.each([
+    { metric: "Error rate", operator: "at_most" as const, limit: null, unit: "%" },
+    { metric: "", operator: "at_most" as const, limit: 0, unit: "%" },
+    { metric: "", operator: "at_most" as const, limit: null, unit: "ms" },
+    { metric: "", operator: "at_least" as const, limit: null, unit: "%" },
+  ])("keeps a guardrail-only partial draft %#", (guardrail) => {
+    const storage = memoryStorage();
+    const expectedImpact = { ...EMPTY_METRIC_IMPACT, guardrail };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
+  });
+
+  it("preserves an explicitly added guardrail before its fields are completed", () => {
+    const storage = memoryStorage();
+    const guardrail = { metric: "", operator: "at_most" as const, limit: null, unit: "%" };
+    const expectedImpact = { ...EMPTY_METRIC_IMPACT, guardrail };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
+  });
+
+  it("keeps an open guardrail pane even before it has field values", () => {
+    const storage = memoryStorage();
+    const expectedImpact = { ...EMPTY_METRIC_IMPACT, guardrailEdit: { previous: null } };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
+  });
+
+  it.each(["metric", "verification"] as const)("restores uncommitted guardrail edits and their cancel snapshot on %s", (kind) => {
+    const storage = memoryStorage();
+    const previous = { metric: "Weekly support requests", operator: "at_most" as const, limit: 20, unit: "requests per week" };
+    const pending = { metric: "Weekly support requests", operator: "at_least" as const, limit: null, unit: "" };
+    const impact = kind === "metric" ? EMPTY_METRIC_IMPACT : { kind: "verification" as const, result: "", source: "", reviewAfterDays: null };
+    const expectedImpact = { ...impact, guardrail: pending, guardrailEdit: { previous } };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
+  });
+
+  it("does not restore pending state after a guardrail is committed or canceled", () => {
+    const storage = memoryStorage();
+    const guardrail = { metric: "Weekly support requests", operator: "at_most" as const, limit: 20, unit: "requests per week" };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact: { ...EMPTY_METRIC_IMPACT, guardrail, guardrailEdit: undefined } }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual({ ...EMPTY_METRIC_IMPACT, guardrail });
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact: { ...EMPTY_METRIC_IMPACT, guardrail: undefined, guardrailEdit: undefined } }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)).toBeNull();
   });
 
   it("preserves a previous review's edited problem while impact is completed", () => {
@@ -161,13 +220,15 @@ describe("Intake draft recovery", () => {
         observedEvidence: character.repeat(CONTEXT_MAX),
         uncertainty: character.repeat(CONTEXT_MAX),
         usefulLink: linkPrefix + "a".repeat(USEFUL_LINK_MAX - linkPrefix.length),
-        expectedImpact: { kind: "verification", result: character.repeat(IMPACT_RESULT_MAX), source: character.repeat(IMPACT_SOURCE_MAX), reviewAfterDays: 30 },
+        expectedImpact: { kind: "verification", result: character.repeat(IMPACT_RESULT_MAX), source: character.repeat(IMPACT_SOURCE_MAX), reviewAfterDays: 30,
+          guardrail: { metric: character.repeat(IMPACT_METRIC_MAX), operator: "at_most", limit: 0, unit: character.repeat(IMPACT_UNIT_MAX) } },
       });
       const triage = { classification: "hybrid" as const, reframedProblem: character.repeat(DESCRIPTION_MAX), extractedSolution: character.repeat(DESCRIPTION_MAX) };
       const context = { orgId: "org_draft_size", userId: "user_draft_size" };
       const token = createTriageToken(fullSource, triage, context);
       expect(verifyTriageToken(token, context).valid).toBe(true);
       expect(token.length).toBeGreaterThan(20_000);
+      expect(token.length).toBeLessThanOrEqual(256_000);
       const review = { triage, token, editedProblem: character.repeat(DESCRIPTION_MAX) };
       expect(writeIntakeDraft(storage, SCOPE, { source: fullSource, review }, NOW)).toBe(true);
       expect(readIntakeDraft(storage, SCOPE, NOW)).toMatchObject({ source: fullSource, review });
@@ -217,6 +278,26 @@ describe("Intake draft recovery", () => {
 
     storage.setItem(key, "{not-json");
     expect(readIntakeDraft(storage, SCOPE, NOW)).toBeNull();
+  });
+
+  it("tells the composer provider whether a current draft is there, without a schema", () => {
+    const storage = memoryStorage();
+    const key = intakeDraftStorageKey(SCOPE);
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+
+    writeIntakeDraft(storage, SCOPE, { source: source("Draft", "Waiting on /intake"), review: null }, NOW);
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(true);
+    expect(hasIntakeDraft(storage, intakeDraftScope("79b84ae8-19a2-48c4-8d83-338463616c28", "00c80f80-693d-49c1-a9dd-dff0cebd660b"), NOW)).toBe(false);
+    // The same age and clock limits as readIntakeDraft.
+    expect(hasIntakeDraft(storage, SCOPE, NOW + 24 * 60 * 60 * 1000)).toBe(true);
+    expect(hasIntakeDraft(storage, SCOPE, NOW + 24 * 60 * 60 * 1000 + 1)).toBe(false);
+    expect(hasIntakeDraft(storage, SCOPE, NOW - 60_001)).toBe(false);
+
+    storage.setItem(key, JSON.stringify({ version: 1, savedAt: NOW }));
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+    storage.setItem(key, "{not-json");
+    expect(hasIntakeDraft(storage, SCOPE, NOW)).toBe(false);
+    expect(hasIntakeDraft({ getItem: () => { throw new DOMException("Blocked", "SecurityError"); } }, SCOPE, NOW)).toBe(false);
   });
 
   it("keeps drafts isolated by person and workspace and clears explicitly", () => {

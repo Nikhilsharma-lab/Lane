@@ -1,33 +1,42 @@
-.section {
+.section,
+.embedded {
   container: impact / inline-size;
   min-width: 0;
+}
+
+.section {
   border-top: 1px solid var(--border-subtle);
-  padding-top: var(--space-6);
+  padding-top: var(--space-3);
 }
 
-.heading {
-  margin-bottom: var(--space-4);
-  font-size: var(--text-base);
-  font-weight: 500;
-}
-
+.header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.heading { margin: 0; font-size: var(--text-sm); font-weight: 500; }
 .body,
-.fields {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
+.fields { display: grid; min-width: 0; gap: var(--space-3); align-items: start; }
+.body { margin: 0; border: 0; padding: 0; }
+.body > * { min-width: 0; }
+.fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.wideField { grid-column: 1 / -1; min-width: 0; }
+.addBaseline { grid-column: 1 / -1; justify-self: start; padding-inline: 0; }
+.more { margin-left: auto; }
+.iconButton { width: var(--control-height-sm); padding-inline: 0; }
+.guardrailMotion { min-width: 0; overflow: clip; }
+.guardrailPane { display: grid; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-muted); }
+.paneHeader { display: grid; gap: var(--space-1); }
+.hint { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.5; }
+.guardrailControls { display: grid; grid-template-columns: 8.5rem var(--space-24) minmax(0, 1fr); align-items: start; gap: var(--space-3); min-width: 0; }
+.paneActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.guardrailSentence { margin: 0; overflow-wrap: anywhere; font-size: var(--text-sm); line-height: 1.5; }
+.guardrailSummary { display: flex; align-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+.summaryCopy { display: grid; min-width: 0; flex: 1; gap: var(--space-1); }
+.compactInput { min-height: var(--control-height-sm); }
+.compactTextarea { min-height: var(--space-16); padding: var(--space-2) var(--space-3); }
+
+@container impact (max-width: 540px) {
+  .fields, .guardrailControls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guardrailControls > :last-child { grid-column: 1 / -1; }
 }
 
-.body { margin: 0; border: 0; padding: 0; gap: var(--space-6); }
-.body > * { min-width: 0; }
-.measure { display: grid; gap: var(--space-2); }
-.guidance { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }
-.values,
-.evidence { display: grid; gap: var(--space-4); }
-.values { align-items: start; }
-.evidence { align-items: start; }
-.timing { width: 100%; max-width: 14rem; }
-
-@container impact (min-width: 420px) {
-  .values { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 0.6fr); }
+@container impact (max-width: 360px) {
+  .guardrailPane { padding: var(--space-3); }
 }

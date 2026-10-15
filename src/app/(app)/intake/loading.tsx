@@ -1,23 +1,22 @@
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { PageStrip } from "@/components/shell/page-strip";
+import launcher from "@/components/requests/intake-launcher.module.css";
 import styles from "../app-skeletons.module.css";
 
-// Plan item 2.0: the page's strip and the form's own padding (intake-form.tsx),
-// then the header, title, description, property chips, Expected impact and the
-// footer action. The header line is the one live region; the rest is decorative.
+// Plan item 2.3: /intake is a launcher under the strip, and the composer opens
+// over it as a centred dialog (2026-10-13). The skeleton draws the launcher as
+// intake-launcher.tsx lays it out, centred in the pane: the glyph, the title
+// line (its one status), one line of description and the Create Request pill.
+// Everything after the status is decorative.
 export default function IntakeLoading() {
   return <>
-    <PageStrip title="New Request" />
-    <div data-skeleton="intake" aria-busy="true" className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="space-y-6">
-        <Skeleton label="Loading Intake" lines={2} />
-        <div aria-hidden="true" className="space-y-5">
-          <div className="space-y-2"><Skeleton lines={1} /><span className={styles.field} /></div>
-          <div className="space-y-2"><Skeleton lines={1} /><span className={styles.area} /></div>
-          <div className="flex flex-wrap items-center gap-2">{[0, 1, 2, 3].map(chip => <span key={chip} className={styles.chip} />)}</div>
-          <div className={styles.rule}><Skeleton lines={4} /></div>
-          <div className={styles.footer}><span className={styles.button} /></div>
-        </div>
+    <PageStrip title="New Request" heading />
+    <div data-skeleton="intake" aria-busy="true" className={launcher.launcher}>
+      <div className={styles.launcherState}>
+        <span aria-hidden="true" className={styles.launcherGlyph}><span /></span>
+        <div className={styles.launcherTitle}><Skeleton label="Loading New Request" lines={1} /></div>
+        <span aria-hidden="true" className={styles.launcherDescription}><span className={styles.launcherLine} /></span>
+        <span aria-hidden="true" className={styles.launcherButton} />
       </div>
     </div>
   </>;

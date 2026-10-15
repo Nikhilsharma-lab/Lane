@@ -2,10 +2,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
-import { pickUpRequests, markDoneMany } from "@/app/(app)/requests/[id]/actions"
+import { markDoneMany, pickUpRequests } from "@/app/(app)/requests/[id]/actions"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 import { SidebarView } from "@/components/shell/sidebar-view"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { announcer, requestRows } from "./helpers/request-grid"
 
 const requests: OverviewRequest[] = Array.from({ length: 28 }, (_, index) => ({
   id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
@@ -23,6 +24,7 @@ const meta = {
   args: { requests: [...requests.slice(0, 3), ...requests.slice(26)], filter: "all", isGuest: false, context },
   decorators: [(Story) => <RequestListViewProvider><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.com" role="admin" statusFilter="all" notifications={null} projects={[{ id: requests[0].projectId!, name: "Website", description: null }]} pathname="/"><Story /></SidebarView></RequestListViewProvider>],
   beforeEach: () => {
+    // Plan item 1.6: one statement moves every selected row.
     mocked(pickUpRequests).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
     mocked(markDoneMany).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
     getRouter().push.mockClear()
@@ -63,6 +65,31 @@ export const KeyboardAndClear: Story = {
   },
 }
 
+/** Plan item 2.4: X on the focused row selects it, the same as its checkbox; Esc clears. */
+export const SelectWithX: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const [first, second] = requestRows(canvasElement)
+    first.focus()
+    await userEvent.keyboard("x")
+    await expect(first).toHaveAttribute("aria-selected", "true")
+    await expect(within(first).getByRole("checkbox")).toBeChecked()
+    await expect(announcer(canvasElement)).toHaveTextContent("1 Request selected.")
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(second).toHaveFocus())
+    await userEvent.keyboard("x")
+    await expect(within(await canvas.findByRole("toolbar", { name: "Selected Requests" })).getByText("2 selected")).toBeVisible()
+    await userEvent.keyboard("x")
+    await expect(second).toHaveAttribute("aria-selected", "false")
+    await userEvent.keyboard("{Escape}")
+    await expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument()
+    await expect(first).toHaveAttribute("aria-selected", "false")
+    await expect(announcer(canvasElement)).toHaveTextContent("Selection cleared.")
+    // Focus stays on the row the person moved to, not the one the selection started on.
+    await expect(second).toHaveFocus()
+  },
+}
+
 export const FilterClearsSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -94,7 +121,8 @@ export const PartialFailure: Story = {
     await expect(mocked(pickUpRequests)).toHaveBeenCalledWith([requests[0].id, requests[1].id], context)
     await expect(await canvas.findByRole("alert")).toHaveTextContent("1 Request could not be updated. It is still selected. Try again.")
     await expect(canvas.getAllByRole("checkbox", { checked: true })).toHaveLength(1)
-    // Only the moved rows revalidated, so a partial failure re-syncs once.
+    // A batch with a failure re-syncs the view once, since the rows it did
+    // not move were not revalidated (plan item 1.3).
     await expect(getRouter().refresh).toHaveBeenCalledTimes(1)
     await userEvent.click(canvas.getByRole("button", { name: "Pick up" }))
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())

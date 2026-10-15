@@ -39,17 +39,54 @@ const render = async (props: Parameters<typeof RequestsWorkspace>[0], search = "
   return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, await RequestsWorkspace(props))))
 }
 
+const intakeLinksOf = (html: string) => html.match(/<a [^>]*href="\/intake"[^>]*>/g) ?? []
+const isInert = (tag: string) => /\binert=""/.test(tag)
+
 describe("Requests first-use landing", () => {
-  it.each(["admin", "member", "guest"])("gives an empty %s workspace one Intake action and appropriate navigation", async (role) => {
+  // Plan item 2.1: an empty workspace renders the list's own strip and toolbar
+  // row with the welcome in its records region, so the first Request lands in place.
+  it.each(["admin", "member", "guest"])("gives an empty %s workspace the list's frame with the welcome inside it", async (role) => {
     state.role = role
     state.rows = []
     const html = await render({})
-    expect(html.match(/href="\/intake"/g)).toHaveLength(1)
+    expect(html.match(/data-slot="page-strip"/g)).toHaveLength(1)
+    expect(html).toMatch(new RegExp(`<h1[^>]*>${role === "guest" ? "My Requests" : "Requests"}</h1>`))
+    expect(html).toContain("data-requests-welcome")
+    expect(html).toContain('data-slot="requests-toolbar"')
+    expect(html).toContain("data-empty-workspace")
+    // The 2026-09-29 rule stands: nothing to filter in a truly empty workspace.
+    expect(html).not.toContain("Filter Requests by title")
+    expect(html).not.toContain("Active filters")
     expect(html).not.toContain("Select a Request")
-    expect(html).not.toContain('aria-label="Active filters"')
-    expect(html).not.toContain('aria-label="Filter Requests by title"')
+    // Exactly one Intake link (docs/superpowers/plans/2026-09-29-requests-welcome.md):
+    // the welcome's. The strip's keeps its box for the first Request, but inert
+    // (hidden by CSS), so it is neither reachable nor announced.
+    const intakeLinks = intakeLinksOf(html)
+    expect(intakeLinks.filter(link => !isInert(link))).toHaveLength(1)
+    expect(html).toMatch(/data-requests-welcome[\s\S]*<a [^>]*href="\/intake"/)
+    expect(intakeLinks.filter(isInert)).toHaveLength(1)
+    expect(html).toMatch(/data-slot="page-strip"[\s\S]*<a (?=[^>]*\binert="")[^>]*href="\/intake"[\s\S]*data-requests-welcome/)
     expect(html.includes('href="/settings/members"')).toBe(role === "admin")
-    if (role === "guest") expect(html).toContain("Only Requests you submit appear here")
+    expect(html).toContain("to create a Request.")
+    expect(html).toMatch(/<kbd[^>]*>C<\/kbd> to create a Request\./)
+    expect(html).not.toContain("min-h-dvh")
+    if (role === "guest") {
+      // The strip's note (above 640px) and the body line say different things.
+      expect(html).toContain("Only Requests you submit appear here.")
+      expect(html).toContain("Create a Request and follow it here.")
+      expect(html).not.toMatch(/(?<!Only )Requests you submit appear here/)
+    } else {
+      expect(html).toContain("Create a Request for your team to review and pick up.")
+    }
+  })
+
+  it("keeps the welcome for a filtered view of an empty workspace", async () => {
+    state.role = "member"
+    state.rows = []
+    const html = await render({}, "status=done")
+    expect(html).toContain("data-requests-welcome")
+    expect(html).not.toContain("No matching Requests")
+    expect(html).not.toContain("Active filters")
   })
 
   it("does not mistake a status with no matches for a new workspace", async () => {
@@ -62,6 +99,7 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("No matching Requests")
     expect(html).toContain("Change or clear your filters.")
     expect(html).not.toContain("No Requests yet")
+    expect(html).not.toContain("data-requests-welcome")
   })
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
@@ -78,6 +116,10 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("Existing problem")
     expect(html).toContain('aria-label="Filter Requests by title"')
     expect(html).toContain("Add filter")
-    expect(html).not.toContain("requests-welcome-title")
+    expect(html).not.toContain("data-requests-welcome")
+    expect(html).not.toContain("data-empty-workspace")
+    // With Requests, the strip's New Request is live again.
+    expect(html).toMatch(/data-slot="page-strip"[\s\S]*<a [^>]*href="\/intake"/)
+    expect(intakeLinksOf(html).filter(isInert)).toHaveLength(0)
   })
 })

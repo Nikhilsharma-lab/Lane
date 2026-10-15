@@ -14,6 +14,8 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  /** Lane adaptation (plan item 2.4, decision 8.22): "plain" swaps labels and icons with opacity and movement only, no blur, for dense rows. Defaults to upstream's "blur". */
+  morph?: "blur" | "plain";
 }
 
 /** Icon buttons press a little deeper, wide buttons a little less, so every size reads as the same push. */
@@ -32,6 +34,13 @@ const iconIn: TargetAndTransition = { opacity: 0, scale: .6, filter: `blur(${mot
 const iconOut: TargetAndTransition = { opacity: 0, scale: .6, filter: `blur(${motionTokens.blur.subtle}px)`, transition: { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.standard] } };
 const fadeIn: TargetAndTransition = { ...rest, opacity: 0 };
 const fadeOut: TargetAndTransition = { opacity: 0, transition: { duration: motionTokens.duration.instant } };
+/* Lane adaptation (decision 8.22): the same rise and shrink without the blur filter, for Buttons inside dense rows. */
+const plainRest: TargetAndTransition = { opacity: 1, y: 0, scale: 1 };
+const plainTextIn: TargetAndTransition = { opacity: 0, y: 4 };
+const plainTextOut: TargetAndTransition = { opacity: 0, y: -3, transition: textOut.transition };
+const plainIconIn: TargetAndTransition = { opacity: 0, scale: .6 };
+const plainIconOut: TargetAndTransition = { opacity: 0, scale: .6, transition: iconOut.transition };
+const plainFadeIn: TargetAndTransition = { ...plainRest, opacity: 0 };
 /** Scale rides the spring; opacity and blur tween so blur never overshoots below zero. */
 const iconEnter = { ...motionTokens.spring.snappy, opacity: { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.enter] }, filter: { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.enter] } } as const;
 
@@ -71,13 +80,15 @@ function useMorphWidth(content: RefObject<HTMLElement | null>, key: string, redu
   return width;
 }
 
-function LabelPhase({ children, icon, reduced, ref }: { children: ReactNode; icon: boolean; reduced: boolean; ref?: Ref<HTMLSpanElement> }) {
+function LabelPhase({ children, icon, reduced, plain, ref }: { children: ReactNode; icon: boolean; reduced: boolean; plain: boolean; ref?: Ref<HTMLSpanElement> }) {
   const present = useIsPresent();
-  return <motion.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : icon ? iconIn : textIn} animate={rest} exit={reduced ? fadeOut : icon ? iconOut : textOut} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
+  const initial = plain ? reduced ? plainFadeIn : icon ? plainIconIn : plainTextIn : reduced ? fadeIn : icon ? iconIn : textIn;
+  const exit = reduced ? fadeOut : plain ? icon ? plainIconOut : plainTextOut : icon ? iconOut : textOut;
+  return <motion.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={initial} animate={plain ? plainRest : rest} exit={exit} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = "primary", size = "md", loading = false, disabled, children, onClick, ...props },
+  { className, variant = "primary", size = "md", loading = false, morph = "blur", disabled, children, onClick, ...props },
   ref,
 ) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -113,12 +124,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       onClick={loading ? event => event.preventDefault() : onClick}
     >
       <AnimatePresence initial={false}>
-        {loading ? <motion.span key="loader" className={styles.loader} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles.spinner} /></motion.span> : null}
+        {loading ? <motion.span key="loader" className={styles.loader} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : morph === "plain" ? { ...plainIconOut, scale: .8 } : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles.spinner} /></motion.span> : null}
       </AnimatePresence>
       <motion.span className={[styles.labelSlot, loading ? styles.loadingLabel : ""].filter(Boolean).join(" ")} style={{ width }}>
         <span ref={contentRef} className={styles.labelContent}>
           <AnimatePresence mode="popLayout" initial={false}>
-            <LabelPhase key={key} icon={!/\S/.test(key.replace(/<[^>]*>/g, ""))} reduced={reduceMotion}>{children}</LabelPhase>
+            <LabelPhase key={key} icon={!/\S/.test(key.replace(/<[^>]*>/g, ""))} reduced={reduceMotion} plain={morph === "plain"}>{children}</LabelPhase>
           </AnimatePresence>
         </span>
       </motion.span>

@@ -8,7 +8,7 @@ vi.mock("@/db", async () => {
   const schema = await import("@/db/schema");
   return { ...schema, db: drizzle(async (sql, params) => { boundary.queries.push({ sql, params }); return { rows: boundary.responses.shift() ?? [] }; }, { schema }) };
 });
-vi.mock("@/lib/ai/triage", () => ({ triageRequest: async (input: unknown) => { boundary.aiInputs.push(input); return { classification: "problem", reframedProblem: null, extractedSolution: null }; }, classifyTriageFailure: () => "provider" }));
+vi.mock("@/lib/ai/triage", () => ({ triageRequest: async (input: unknown) => { boundary.aiInputs.push(input); return { classification: "problem", reframedProblem: null, extractedSolution: null }; }, classifyTriageFailure: () => "provider", triageFailureStatus: () => undefined }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 const impact = { kind: "metric" as const, metric: "Signup completion", baseline: null, target: 70, unit: "%", source: "Signup funnel", reviewAfterDays: 30 };
 const input = { title: "Signup loses customers", description: "Customers abandon signup before finishing.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", expectedImpact: impact };
@@ -57,5 +57,28 @@ describe("Expected impact server contract", () => {
     expect(await saveRequest({ token, editedProblemText: null }, { orgId: "org_test" })).toMatchObject({ success: true, requestId: payload.requestId });
     expect(boundary.queries[0].sql).toContain("on conflict");
     expect(boundary.queries[1].params).toEqual([payload.requestId, "org_test", "user_creator", 1]);
+  });
+
+  it("rejects a partial guardrail before spending an AI call", async () => {
+    const { runTriage } = await import("./actions");
+    const guardrail = { metric: "Error rate", operator: "at_most" as const, limit: null, unit: "%" };
+    expect(await runTriage({ ...input, expectedImpact: { ...impact, guardrail } }, { orgId: "org_test" })).toMatchObject({ success: false, error: { code: "validation", field: "expectedImpact" } });
+    expect(boundary.aiInputs).toHaveLength(0);
+    expect(boundary.queries).toHaveLength(0);
+  });
+
+  it("saves the reviewed guardrail and ignores a replacement sent with the save", async () => {
+    const { runTriage, saveRequest } = await import("./actions");
+    const guardrail = { metric: "Error rate", operator: "at_most" as const, limit: 2, unit: "%" };
+    const reviewedImpact = { ...impact, guardrail };
+    const review = await runTriage({ ...input, expectedImpact: reviewedImpact }, { orgId: "org_test" });
+    expect(review.success).toBe(true);
+    if (!review.success) throw new Error("Expected a successful review");
+    expect(boundary.aiInputs).toEqual([{ title: input.title, description: input.description }]);
+    boundary.responses = [[["saved-request"]]];
+    const data = { token: review.token, editedProblemText: null, expectedImpact: { ...reviewedImpact, guardrail: { ...guardrail, limit: 90 } } };
+    expect(await saveRequest(data, { orgId: "org_test" })).toMatchObject({ success: true, requestId: "saved-request" });
+    expect(boundary.queries[0].params).toContain(JSON.stringify(reviewedImpact));
+    expect(boundary.queries[0].params).not.toContain(JSON.stringify(data.expectedImpact));
   });
 });

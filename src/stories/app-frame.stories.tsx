@@ -129,7 +129,7 @@ export const StripDoneRequest: Story = {
   play: async ({ canvasElement }) => {
     const [strip] = pageStrips(within(canvasElement).getByRole("main"))
     await expect(within(strip).getByText("Done", { exact: true })).toBeVisible()
-    await expect(within(strip).queryByRole("button", { name: /Pick up|Mark done/ })).not.toBeInTheDocument()
+    await expect(within(strip).queryByRole("button", { name: /Pick up|Mark Done/ })).not.toBeInTheDocument()
     await expectStripHeight(strip)
     await expectNoTrailingGap(strip)
   },
@@ -206,8 +206,8 @@ export const ListSkeletonPhoneDark: Story = skeletonStory("/", ListLoading, "Loa
 export const ListSkeletonDesktopLight: Story = skeletonStory("/", ListLoading, "Loading Requests", desktopLight)
 export const DetailSkeletonPhoneDark: Story = skeletonStory("/requests/fixture-request", DetailLoading, "Loading selected Request", phoneDark)
 export const DetailSkeletonDesktopLight: Story = skeletonStory("/requests/fixture-request", DetailLoading, "Loading selected Request", desktopLight)
-export const IntakeSkeletonPhoneDark: Story = skeletonStory("/intake", IntakeLoading, "Loading Intake", phoneDark)
-export const IntakeSkeletonDesktopLight: Story = skeletonStory("/intake", IntakeLoading, "Loading Intake", desktopLight)
+export const IntakeSkeletonPhoneDark: Story = skeletonStory("/intake", IntakeLoading, "Loading New Request", phoneDark)
+export const IntakeSkeletonDesktopLight: Story = skeletonStory("/intake", IntakeLoading, "Loading New Request", desktopLight)
 export const ProfileSkeletonPhoneDark: Story = skeletonStory("/settings/profile", ProfileLoading, "Loading Profile settings", phoneDark)
 export const ProfileSkeletonDesktopLight: Story = skeletonStory("/settings/profile", ProfileLoading, "Loading Profile settings", desktopLight)
 export const MembersSkeletonPhoneDark: Story = skeletonStory("/settings/members", MembersLoading, "Loading Members", phoneDark)
@@ -248,7 +248,7 @@ export const ListSkeletonMatchesLoaded: Story = {
   parameters: { nextjs: { navigation: { pathname: "/", query: {} } } },
   render: () => <SkeletonSwap pathname="/" skeleton={<ListLoading />} page={<RequestsOverview requests={listRows} isGuest={false} context={context} />} />,
   play: async ({ canvasElement }) => {
-    const shared = { strip: '[data-slot="page-strip"]', toolbar: `.${tableStyles.toolbar}`, group: `.${rowStyles.groupHeader}`, row: "li[data-compact-row]" }
+    const shared = { strip: '[data-slot="page-strip"]', toolbar: `.${tableStyles.toolbar}`, group: `.${rowStyles.groupHeader}`, row: "[data-compact-row]" }
     await swapAndCompare(canvasElement, shared, shared, [["strip", "top"], ["strip", "height"], ["toolbar", "top"], ["toolbar", "height"], ["group", "top"], ["row", "top"]])
   },
 }

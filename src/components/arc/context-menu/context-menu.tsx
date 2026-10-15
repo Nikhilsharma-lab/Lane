@@ -305,11 +305,13 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
   }
 
   const child = asChild && isValidElement(children) ? children as ReactElement<HTMLAttributes<HTMLElement>> : null;
-  // A Request row keeps its listitem role. Only trigger roles that support an
+  // A Request row keeps its own role. Only trigger roles that support an
   // expanded state receive aria-expanded; haspopup/controls are global states.
+  // Lane adaptation (plan item 2.4): "row" is left out. In a treegrid a row's
+  // aria-expanded says whether its children show, so a menu target row would read as collapsed.
   const exposesExpanded = Boolean(child && (child.type === "button" || child.type === "a"
     || typeof (child.props as { href?: unknown }).href === "string"
-    || ["button", "link", "menuitem", "treeitem", "row", "combobox"].includes(child.props.role ?? "")));
+    || ["button", "link", "menuitem", "treeitem", "combobox"].includes(child.props.role ?? "")));
   const targetProps: HTMLAttributes<HTMLElement> = {
     onPointerDown: event => { pressedWhileOpen.current = open && event.button === 0; },
     onClick: openOnClick ? onTargetClick : undefined,
