@@ -119,14 +119,14 @@ function LoadedNotificationBell({
   }, []);
 
   useEffect(() => {
-    if (!open || loaded) return;
+    if (!open) return;
     let active = true;
-    // Opening refreshes the count with the list, so the badge matches what is shown.
+    // Keep the last list visible on reopen while both list and count refresh.
     void Promise.resolve().then(() => Promise.all([refreshList(() => active), refreshCount()]));
     return () => {
       active = false;
     };
-  }, [open, loaded, refreshList, refreshCount]);
+  }, [open, refreshList, refreshCount]);
 
   const runUpdate = (operation: () => Promise<void>, retry: () => void) => {
     if (isPending) return;
@@ -145,7 +145,6 @@ function LoadedNotificationBell({
   const handleClickNotification = (item: NotificationItem) => {
     // Read-state bookkeeping must not prevent opening the underlying Request.
     setOpen(false);
-    setLoaded(false);
     if (item.type === "invite_accepted") {
       router.push("/settings/members");
     } else if (item.requestId) {
@@ -188,14 +187,14 @@ function LoadedNotificationBell({
     error={error}
     onOpenChange={(nextOpen) => {
       setOpen(nextOpen);
-      if (!nextOpen) { listRequest.current?.abort(); setLoaded(false); setError(null); retryUpdate.current = null; }
+      if (!nextOpen) { listRequest.current?.abort(); setError(null); retryUpdate.current = null; }
     }}
     onSelect={handleClickNotification}
     onMarkAllRead={handleMarkAllRead}
     onToggleRead={handleToggleRead}
     onRetry={() => {
       if (retryUpdate.current) retryUpdate.current();
-      else { setError(null); setLoaded(false); }
+      else { setError(null); void refreshList(); }
     }}
   />;
 }

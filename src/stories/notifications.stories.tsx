@@ -164,3 +164,47 @@ export const ReadFailureStillOpensRequest: Story = {
     await expect(within(canvasElement).getByRole("button", { name: "Notifications, 2 unread" })).toBeVisible()
   },
 }
+
+let settleRevalidation: ((response: Response) => void) | undefined
+let notificationListReads = 0
+
+/** The real adapter keeps its last list through a slow refresh, an error and retry. */
+export const ReopenKeepsLoadedNotifications: Story = {
+  render: () => <NotificationBell orgId="fixture-reopen" />,
+  beforeEach: () => {
+    const originalFetch = globalThis.fetch
+    notificationListReads = 0
+    settleRevalidation = undefined
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
+      if (url.searchParams.get("org") === "fixture-reopen") {
+        if (url.pathname === "/api/notifications/unread") return Response.json({ count: 2 })
+        if (url.pathname === "/api/notifications") {
+          notificationListReads++
+          if (notificationListReads === 2) return new Promise<Response>(resolve => { settleRevalidation = resolve })
+          return Response.json({ notifications: notificationListReads > 2 ? notifications.slice(1) : notifications })
+        }
+      }
+      return originalFetch(input, init)
+    }
+    return () => { settleRevalidation?.(new Response(null, { status: 503 })); globalThis.fetch = originalFetch }
+  },
+  play: async ({ canvasElement }) => {
+    const page = await openNotifications(canvasElement)
+    await waitFor(() => expect(page.getByRole("button", { name: /Aditi Rao commented on/ })).toBeVisible())
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument())
+    await openNotifications(canvasElement)
+    await waitFor(() => expect(notificationListReads).toBe(2))
+    await expect(page.getByRole("button", { name: /Aditi Rao commented on/ })).toBeVisible()
+    await expect(page.queryByRole("status", { name: "Loading notifications…" })).not.toBeInTheDocument()
+    settleRevalidation?.(new Response(null, { status: 503 }))
+    await expect(await page.findByText("Notifications could not be loaded. Try again.")).toBeVisible()
+    await expect(page.getByRole("button", { name: /Aditi Rao commented on/ })).toBeVisible()
+    await userEvent.click(page.getByRole("button", { name: "Try again" }))
+    await waitFor(() => expect(notificationListReads).toBe(3))
+    await waitFor(() => expect(page.queryByRole("button", { name: /Aditi Rao commented on/ })).not.toBeInTheDocument())
+    await expect(page.getByText("Someone accepted your invite")).toBeVisible()
+    await expect(page.queryByText("Notifications could not be loaded. Try again.")).not.toBeInTheDocument()
+  },
+}
