@@ -38,7 +38,7 @@ function useTokenValues(): Record<string, string> {
 function ColorsReference() {
   const values = useTokenValues()
   return <main className="mx-auto max-w-5xl space-y-8 p-6">
-    <h1>Arc foundation colours</h1>
+    <h1>Lane foundation colours</h1>
     <p>These swatches read the active production CSS variables. Switch the Storybook theme to inspect light and dark values.</p>
     {colors.map(group => <section key={group.title} className="space-y-4" aria-label={group.title}>
       <h2>{group.title}</h2>
@@ -69,7 +69,7 @@ function TypeReference() {
 function DensityReference() {
   const values = useTokenValues()
   return <main className="mx-auto max-w-5xl space-y-8 p-6">
-    <h1>Arc control sizes</h1>
+    <h1>Lane control sizes</h1>
     <div className="flex flex-wrap items-center gap-4">
       <Button size="sm" variant="secondary">Small action</Button>
       <Button size="md">Submit Request</Button>
@@ -90,7 +90,7 @@ function DensityReference() {
 function RadiusReference() {
   const values = useTokenValues()
   return <main className="mx-auto max-w-5xl space-y-8 p-6">
-    <h1>Arc shape tokens</h1>
+    <h1>Lane shape tokens</h1>
     <dl className="grid grid-cols-2 gap-8 sm:grid-cols-4">
       {radii.map(token => <div key={token} className="space-y-3">
         <dt>radius-{token}</dt>
@@ -127,3 +127,16 @@ export const Colors: Story = { render: () => <ColorsReference /> }
 export const TypeScale: Story = { render: () => <TypeReference /> }
 export const Density: Story = { render: () => <DensityReference /> }
 export const Radius: Story = { render: () => <RadiusReference /> }
+
+export const SpacingAndShadows: Story = {
+  render: () => <main className="mx-auto max-w-5xl space-y-8 p-6">
+    <h1>Supabase spacing and surfaces</h1>
+    <section className="space-y-4" aria-label="Spacing scale"><h2>Spacing</h2>
+      {[1, 2, 3, 4, 6, 8, 12].map(step => <div key={step} className="flex items-center gap-4"><span>space-{step}</span><span style={{ width: `var(--space-${step})`, height: "var(--space-4)", background: "var(--accent)" }} /></div>)}
+    </section>
+    <section className="grid gap-6 sm:grid-cols-3" aria-label="Elevation shadows">
+      {["xs", "md", "lg"].map(size => <div key={size} className="space-y-4 p-6" style={{ background: "var(--surface)", borderRadius: "var(--radius-surface)", boxShadow: `var(--sb-shadow-${size})` }}><h2>shadow-{size}</h2><Button size="sm" variant="secondary">Surface action</Button></div>)}
+    </section>
+    <Input label="Example field" placeholder="Supabase field surface" /><Badge>Example badge</Badge>
+  </main>,
+}

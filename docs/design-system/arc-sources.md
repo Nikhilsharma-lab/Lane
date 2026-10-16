@@ -262,3 +262,27 @@ The free official [Arc Calendar](https://uiarc.dev/components/calendar) was read
 Official Arc Select and DropdownMenu APIs were checked through MCP. `src/components/arc/select/select.tsx` adds an optional `icon?: ReactNode` to options, rendered outside ItemText so accessible labels and native values remain plain text. `src/components/arc/select/select.module.css` sizes the slot with existing tokens and keeps the keyboard underline on the text. Priority options reuse Lane's existing PriorityGlyph and semantic colours.
 
 `src/components/arc/dropdown-menu/dropdown-menu.tsx` adds an optional `trailingIcon?: ReactNode` item slot; `src/components/arc/dropdown-menu/dropdown-menu.module.css` aligns it at the inline end. Measurement-window selection now uses that slot for its checkmark, with CalendarDays as the leading icon. Existing consumers retain their default rendering, keyboard behavior and motion. The default measurement pill reads Measurement dates; the existing 30-day default remains selected in its menu.
+
+### 2026-10-16 Custom measurement date range
+
+The custom measurement menu now opens the official [Arc Date Range Picker](https://uiarc.dev/components/date-range-picker), discovered through Arc MCP and installed from `https://uiarc.dev/r/date-range-picker.json`. It replaces the separate From/To inputs and single-date calendar composition above. Existing shared motion tokens and `lib/use-today.ts` were not overwritten, and no dependency was added.
+
+`src/components/arc/date-range-picker/date-range-picker.tsx` adds optional `embedded` and `onCancel` props for composition inside Lane's existing Arc Dialog. The default trigger-to-panel presentation remains unchanged. Embedded mode omits only that trigger/surface, delegates dismissal and opening motion to the containing Dialog, initializes its draft/layout/focus through the stock opening path, and leaves scrolling to the modal. The preset rail is omitted when `presets` is empty, with its responsive threshold accounting for the absent rail. `src/components/arc/date-range-picker/date-range-picker.module.css` adds normal-flow panel positioning in embedded mode. Native range stretching, endpoint glides, rolling labels, month navigation, hover preview, keyboard operation and reduced-motion behavior are retained.
+
+The application keeps nested layers 52/53 and the existing menu-to-dialog focus handoff. Dates are parsed and saved as local calendar days. Only Apply commits both endpoints; Cancel, Escape and outside dismissal preserve the saved range and return focus to Measurement window. Arc orders reverse selections and permits same-day ranges. The modal uses two months when space permits and one on narrow screens; no request numbers or measurement values are cleared by date selection.
+
+
+### 2026-10-16 Supabase shared controls (Tasks 1–2)
+
+`src/components/arc/button/button.module.css` adds optional size-specific radius/padding and material hooks, including primary/danger raised shadows and a default raised surface for Lane's secondary variant. Arc's secondary maps to Supabase's default, not its differently styled secondary. Hover/focus/pressed fills keep their semantic variants. `src/components/arc/input/input.module.css` adds field, border, read-only and invalid-state tokens, preserving plain composer fields. `src/components/arc/badge/badge.module.css` exposes default padding, minimum height and icon gap. All hooks retain Arc fallbacks; React APIs and motion are unchanged. Supabase source is pinned to `64a6aa908594975646d157def9e7a74940634d8f`. Geist, sentence case, existing font sizes/line heights and motion remain deliberate differences. See the verification record linked in `supabase-tokens.md`.
+
+The icon-pill follow-up adds a CSS `:has(.icon)` leading-inset hook in `src/components/arc/badge/badge.module.css`. Lane supplies 8px for default and 4px for compact icon badges; trailing padding stays 12px/8px. Text-only pills are unchanged, and plain Arc keeps its previous padding through fallbacks.
+
+
+### 2026-10-16 Supabase application adoption
+
+The dropdown-menu, context-menu and select CSS modules expose optional menu padding, item radius and padding hooks. The root dropdown/select use shadow-md; context menus retain shadow-lg. Popover exposes padding and shadow hooks. Dialog exposes background and shadow hooks, mapped to Studio's actual `bg-dash-sidebar` and light shadow-md/dark shadow-xs. Textarea, PasswordField and SearchField share the approved Input field and border hooks; Textarea uses px-3/py-2. Original Arc values remain as fallbacks. React APIs, handlers, focus management, motion and composer layouts are unchanged. Select retains Arc's trailing check placement, so its px-2/pl-8 reference insets are mirrored. Lane retains Arc typography and its resulting row height; these are styling adaptations rather than identical copies of Supabase components.
+
+Sources at `64a6aa908594975646d157def9e7a74940634d8f`: `packages/ui/src/components/shadcn/ui/{dropdown-menu,select,dialog,popover,textarea}.tsx`. Clerk uses its existing appearance variable API to share primary action, field and focus colours. The app and Storybook already load this theme globally; no separate activation flag or new component API is introduced.
+
+Adapted field files: `src/components/arc/textarea/textarea.module.css`, `src/components/arc/password-field/password-field.module.css`, `src/components/arc/search-field/search-field.module.css`. Each keeps the original field behavior and reads the shared optional material hooks described above.

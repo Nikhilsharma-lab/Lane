@@ -168,7 +168,7 @@ export function MeasurementPlanFields({ value, onChange, requestType, disabled =
   const windowLabel = measurement.exactDates
     ? measurement.startDate && measurement.endDate
       ? `${formatDate(measurement.startDate)} to ${formatDate(measurement.endDate)}`
-      : "Custom dates"
+      : "Custom date range"
     : measurement.windowDays === 30 ? "Measurement dates" : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
   const metricPicker = (metric: Metric, path: string, update: (key: Metric["key"]) => void, guardrail = false) => <CompactSelect
     id={`${prefix}-${path}-key`} label={guardrail ? "Guardrail metric" : "Metric"} hideLabel value={metric.key}
@@ -243,7 +243,7 @@ export function MeasurementPlanFields({ value, onChange, requestType, disabled =
                 trailingIcon: <Check className={styles.menuCheck} data-selected={!measurement.exactDates && option.value === String(measurement.windowDays)} aria-hidden="true" />,
                 onSelect: () => changeMeasurement({ windowDays: Number(option.value) as typeof measurement.windowDays, exactDates: false }),
               })),
-              { label: "Custom dates…", separatorBefore: true, icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
+              { label: "Custom date range…", separatorBefore: true, icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
                 onSelect: () => { openDatesAfterMenu.current = true } },
             ]} />
         </div>

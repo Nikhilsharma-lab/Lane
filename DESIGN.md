@@ -1,6 +1,6 @@
-# Lane product design: Arc UI
+# Lane product design: Arc components and Supabase styling
 
-Arc UI is the sole visual design authority for the product app, confirmed by Nikhil on 2026-10-06. Use its official components, licensed Pro source, theme, typography, layout, motion and composition guidance. On 2026-10-07, Nikhil explicitly approved Linear as the interaction and navigation reference for Requests, Request detail and Projects. This does not introduce another visual library or expand the product scope. Do not consult retired themes.
+Arc UI supplies product components, APIs, interactions and motion. Supabase Studio supplies visual values for colours, spacing, radii, surfaces and shadows, confirmed on 2026-10-13 and reaffirmed on 2026-10-16. Use official Arc components and licensed Pro source, mapped through Lane’s Supabase token layer. Keep Geist and existing product composition. On 2026-10-07, Nikhil explicitly approved Linear as the interaction and navigation reference for Requests, Request detail and Projects. This does not introduce another visual library or expand the product scope. Do not consult retired themes.
 
 Marketing is a separate local project, not part of this repository. The old `marketing/` repository was removed on 2026-10-15.
 

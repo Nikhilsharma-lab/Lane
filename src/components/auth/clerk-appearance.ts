@@ -1,16 +1,16 @@
-// Clerk's documented appearance variables resolve directly to Arc default tokens.
+// Clerk's documented appearance variables resolve directly to Lane's Supabase-backed tokens.
 // https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/variables
 export const clerkNeutralVariables = {
-  colorPrimary: "var(--foreground)",
-  colorPrimaryForeground: "var(--background)",
+  colorPrimary: "var(--primary-background)",
+  colorPrimaryForeground: "var(--primary-label)",
   colorForeground: "var(--foreground)",
   colorMutedForeground: "var(--text-secondary)",
   colorBackground: "var(--surface)",
-  colorInput: "var(--surface)",
+  colorInput: "var(--input-background)",
   colorInputForeground: "var(--foreground)",
   colorBorder: "var(--border)",
   colorMuted: "var(--surface-muted)",
-  colorRing: "var(--focus-ring)",
+  colorRing: "var(--focus-outline)",
   colorDanger: "var(--danger)",
   colorNeutral: "var(--foreground)",
   fontFamily: "var(--font-body)",

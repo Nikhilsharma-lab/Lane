@@ -6,8 +6,8 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { WebVitals } from "@/components/web-vitals";
 import "@/components/arc/foundation.css";
 import "./globals.css";
-// Linear visual values through Arc's public token hooks. Activated for
-// production by Nikhil on 2026-10-09 (docs/design-system/linear-primitives.md).
+// Supabase Studio visual values through Arc token hooks, shared with Storybook.
+// See docs/design-system/supabase-tokens.md for source and approved differences.
 import "@/styles/supabase-tokens.css";
 import "@/styles/lane-arc-theme.css";
 

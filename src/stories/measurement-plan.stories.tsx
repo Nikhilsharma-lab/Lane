@@ -1,7 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
-import { expect, userEvent, waitFor, within } from "storybook/test"
+import { expect, fireEvent, userEvent, waitFor, within } from "storybook/test"
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields"
+import { MeasurementDateDialog } from "@/components/requests/measurement-date-dialog"
 import { createEmptyMeasurementPlan, createMeasurementGuardrail, MAX_MEASUREMENT_GUARDRAILS } from "@/lib/request-measurement"
 
 function Fixture({ initialGuardrails = 0 }: { initialGuardrails?: number }) {
@@ -52,37 +54,61 @@ export const TimeUnitConversion: Story = {
   },
 }
 
+function dateInCurrentMonth(day: number) {
+  const today = new Date()
+  return new Date(today.getFullYear(), today.getMonth(), day)
+}
+
+function dateLabel(date: Date) {
+  return date.toLocaleDateString("en-US", { dateStyle: "full" })
+}
+
+function rangeLabel(start: Date, end: Date) {
+  const format = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+  return `${format(start)} to ${format(end)}`
+}
+
+async function rangeDay(modal: ReturnType<typeof within>, date: Date) {
+  // Arc keeps leaving month panes mounted for their exit motion, but inert.
+  return waitFor(() => {
+    const days = modal.getAllByRole("button", { name: dateLabel(date) }).filter((day: HTMLElement) => !day.closest("[inert]"))
+    expect(days).toHaveLength(1)
+    return days[0]
+  })
+}
+
 async function openCustomDates(canvasElement: HTMLElement) {
   await userEvent.click(within(canvasElement).getByRole("button", { name: "Measurement window" }))
   const page = within(canvasElement.ownerDocument.body)
-  await userEvent.click(await page.findByRole("menuitem", { name: "Custom dates…" }))
-  return within(await page.findByRole("dialog", { name: "Custom measurement dates" }))
+  await userEvent.click(await page.findByRole("menuitem", { name: "Custom date range…" }))
+  return within(await page.findByRole("dialog", { name: "Measurement date range" }))
 }
 
-// Custom dates are staged in a calendar modal; invalid/cancelled edits never commit.
+// Arc orders reversed endpoints; selecting or cancelling a draft must never save it.
 export const ExactDatesAndValidation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const trigger = canvas.getByRole("button", { name: "Measurement window" })
+    const start = dateInCurrentMonth(19)
+    const end = dateInCurrentMonth(25)
     await expect(trigger).toHaveTextContent("Measurement dates")
     let modal = await openCustomDates(canvasElement)
-    await userEvent.type(modal.getByLabelText("From"), "2026-10-20")
-    await userEvent.type(modal.getByLabelText("To"), "2026-10-19")
-    await expect(modal.getByRole("button", { name: "Apply dates" })).toBeDisabled()
-    await userEvent.clear(modal.getByLabelText("To"))
-    await userEvent.type(modal.getByLabelText("To"), "2026-10-25")
-    await userEvent.click(modal.getByRole("button", { name: "Apply dates" }))
+    await expect(modal.getByRole("button", { name: "Apply" })).toBeDisabled()
+    await userEvent.click(await rangeDay(modal, end))
+    await userEvent.click(await rangeDay(modal, start))
+    await expect((await rangeDay(modal, dateInCurrentMonth(22))).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
+    await expect(trigger).toHaveTextContent("Measurement dates")
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
     await waitFor(() => expect(trigger).toHaveFocus())
-    await expect(trigger).toHaveTextContent("20 Oct")
-    await expect(trigger).toHaveTextContent("25 Oct")
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
     modal = await openCustomDates(canvasElement)
-    await expect(modal.getByLabelText("From")).toHaveValue("2026-10-20")
-    await userEvent.clear(modal.getByLabelText("To"))
-    await userEvent.type(modal.getByLabelText("To"), "2026-10-30")
+    await expect((await rangeDay(modal, start)).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
+    await expect((await rangeDay(modal, end)).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(10)))
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(12)))
     await userEvent.click(modal.getByRole("button", { name: "Cancel" }))
     await waitFor(() => expect(trigger).toHaveFocus())
-    await expect(trigger).toHaveTextContent("25 Oct")
-    await expect(trigger).not.toHaveTextContent("30 Oct")
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
     await choose(canvasElement, "Measurement window", "7 days after release")
     await expect(trigger).toHaveTextContent("7 days after release")
   },
@@ -210,17 +236,17 @@ export const ExactDatesPreserveCurrentValues: Story = {
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Current value" }), "42")
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Target after release (optional)" }), "65")
     let modal = await openCustomDates(canvasElement)
-    await userEvent.type(modal.getByLabelText("From"), "2026-10-01")
-    await userEvent.type(modal.getByLabelText("To"), "2026-10-07")
-    await userEvent.click(modal.getByRole("button", { name: "Apply dates" }))
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(1)))
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(7)))
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
     await waitFor(() => expect(canvas.getByRole("button", { name: "Measurement window" })).toHaveFocus())
     await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(42)
     await userEvent.clear(canvas.getByRole("spinbutton", { name: "Current value" }))
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Current value" }), "39")
     modal = await openCustomDates(canvasElement)
-    await userEvent.clear(modal.getByLabelText("To"))
-    await userEvent.type(modal.getByLabelText("To"), "2026-10-14")
-    await userEvent.click(modal.getByRole("button", { name: "Apply dates" }))
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(1)))
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(14)))
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
     await waitFor(() => expect(canvas.getByRole("button", { name: "Measurement window" })).toHaveFocus())
     await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(39)
     await expect(canvas.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(65)
@@ -297,25 +323,91 @@ export const RemoveAtGuardrailLimit: Story = {
   },
 }
 
-// Selecting calendar days advances From to To, and keyboard selection stays usable.
+// Arrow-key range selection stays in the date dialog and commits only on Apply.
 export const CalendarRangeSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const trigger = canvas.getByRole("button", { name: "Measurement window" })
+    const start = dateInCurrentMonth(21)
+    const end = dateInCurrentMonth(24)
     const modal = await openCustomDates(canvasElement)
-    await userEvent.type(modal.getByLabelText("From"), "2026-10-20")
-    await userEvent.click(await modal.findByRole("gridcell", { name: "Wednesday, October 21, 2026" }))
-    await expect(modal.getByLabelText("To")).toHaveFocus()
-    await expect(modal.getByLabelText("From")).toHaveValue("2026-10-21")
-    await userEvent.click(modal.getByRole("gridcell", { name: "Friday, October 23, 2026" }))
-    await userEvent.keyboard("{ArrowRight}{Enter}")
-    await expect(modal.getByLabelText("To")).toHaveValue("2026-10-24")
-    await userEvent.click(modal.getByRole("button", { name: "Apply dates" }))
+    const firstDay = await rangeDay(modal, start)
+    firstDay.focus()
+    await userEvent.keyboard("{Enter}{ArrowRight}{ArrowRight}{ArrowRight}{Enter}")
+    await expect(await rangeDay(modal, end)).toHaveFocus()
+    await expect((await rangeDay(modal, dateInCurrentMonth(22))).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
     await waitFor(() => expect(trigger).toHaveFocus())
-    await expect(trigger).toHaveAccessibleDescription("21 Oct 2026 to 24 Oct 2026")
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
     await openCustomDates(canvasElement)
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(trigger).toHaveFocus())
-    await expect(trigger).toHaveTextContent("24 Oct")
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
+  },
+}
+
+// The adapter must keep Arc's inclusive one-day range instead of requiring two different dates.
+export const CalendarSameDayRange: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Measurement window" })
+    const date = dateInCurrentMonth(15)
+    const modal = await openCustomDates(canvasElement)
+    await userEvent.click(await rangeDay(modal, date))
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(date, date))
+  },
+}
+
+// Moving across a month boundary must extend the same range, not reset its start.
+export const CalendarCrossMonthRange: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Measurement window" })
+    const today = new Date()
+    const start = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    const modal = await openCustomDates(canvasElement)
+    await userEvent.click(await rangeDay(modal, start))
+    await userEvent.keyboard("{ArrowRight}")
+    await waitFor(async () => expect(await rangeDay(modal, end)).toHaveFocus())
+    await userEvent.keyboard("{Enter}")
+    await userEvent.click(modal.getByRole("button", { name: "Apply" }))
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
+    await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  },
+}
+
+function RapidReopenDateFixture() {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const [dates, setDates] = useState({ startDate: "", endDate: "" })
+  return <>
+    <button ref={triggerRef} type="button" onClick={() => setOpen(true)}>Open measurement dates</button>
+    <MeasurementDateDialog open={open} onOpenChange={setOpen} {...dates} returnFocusRef={triggerRef}
+      onApply={(startDate, endDate) => setDates({ startDate, endDate })} />
+  </>
+}
+
+// Reopening before Arc's exit finishes must discard the cancelled draft too.
+export const CalendarRapidReopenDiscardsDraft: Story = {
+  render: () => <RapidReopenDateFixture />,
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Open measurement dates" })
+    const page = within(canvasElement.ownerDocument.body)
+    await userEvent.click(trigger)
+    const dialog = await page.findByRole("dialog", { name: "Measurement date range" })
+    const modal = within(dialog)
+    await userEvent.click(await rangeDay(modal, dateInCurrentMonth(20)))
+    await expect(modal.getByRole("button", { name: "Apply" })).toBeEnabled()
+    // Flush both real clicks without an animation-frame wait, so the existing
+    // dialog is retargeted while its exit is still mounted.
+    flushSync(() => { fireEvent.click(modal.getByRole("button", { name: "Cancel" })) })
+    flushSync(() => { fireEvent.click(trigger) })
+    const reopened = within(await page.findByRole("dialog", { name: "Measurement date range" }))
+    await waitFor(() => expect(reopened.getByRole("button", { name: "Apply" })).toBeDisabled())
+    await expect((await rangeDay(reopened, dateInCurrentMonth(20))).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "false")
+    await userEvent.click(reopened.getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(trigger).toHaveFocus())
   },
 }

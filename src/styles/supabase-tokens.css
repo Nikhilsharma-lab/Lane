@@ -12,21 +12,21 @@
  * through these tokens (src/styles/lane-arc-theme.css maps them onto Arc's hooks).
  * Activated by data-visual-system="lane" on <html>. */
 :root[data-visual-system="lane"] {
-  --sb-background: oklch(0.995 0 0);
-  --sb-foreground: oklch(0.1 0 0);
-  --sb-foreground-light: oklch(0.3945 0 0);
-  --sb-foreground-lighter: oklch(0.5206 0 0);
-  --sb-foreground-contrast: oklch(0.995 0 0);
-  --sb-card: oklch(1 0 0);
-  --sb-popover: oklch(1 0 0);
-  --sb-secondary: oklch(1 0 0);
-  --sb-muted: oklch(0.1 0 0 / 0.0268);
-  --sb-accent: oklch(0.1 0 0 / 0.0402);
-  --sb-tertiary: oklch(0.1 0 0 / 0.0536);
+  --sb-background: oklch(0.995 0 337.5);
+  --sb-foreground: oklch(0.1 0 337.5);
+  --sb-foreground-light: oklch(0.394455 0 337.5);
+  --sb-foreground-lighter: oklch(0.52065 0 337.5);
+  --sb-foreground-contrast: oklch(0.995 0 337.5);
+  --sb-card: oklch(1 0 337.5);
+  --sb-popover: oklch(1 0 337.5);
+  --sb-secondary: oklch(1 0 337.5);
+  --sb-muted: oklch(0.1 0 337.5 / 0.0268156);
+  --sb-accent: oklch(0.1 0 337.5 / 0.0402235);
+  --sb-tertiary: oklch(0.1 0 337.5 / 0.0536313);
   --sb-control-25: oklch(0.1 0 0 / 0.0101);
   --sb-sidebar-accent-50: oklch(0.1 0 0 / 0.0201);
-  --sb-primary-foreground: oklch(0.99 0.0027 157.5);
-  --sb-primary-solid-foreground: oklch(0.99 0.0027 157.5);
+  --sb-primary-foreground: oklch(0.99 0.00275 157.5);
+  --sb-primary-solid-foreground: oklch(0.99 0.00275 157.5);
   --sb-primary: oklch(0.525 0.12 157.5);
   --sb-primary-hover: oklch(0.485 0.12 157.5);
   --sb-primary-bright: oklch(0.7 0.15 157.5);
@@ -50,13 +50,13 @@
   --sb-info-foreground: oklch(0.99 0.0112 288);
   --sb-border-info: oklch(0.54 0.14 288 / 0.3);
   --sb-info-10: oklch(0.54 0.14 288 / 0.1);
-  --sb-border: oklch(0.1 0 0 / 0.0813);
-  --sb-border-control: oklch(0.1 0 0 / 0.1464);
-  --sb-border-overlay: oklch(0.1 0 0 / 0.1442);
-  --sb-border-stronger: oklch(0.1 0 0 / 0.1879);
-  --sb-border-control-hover: oklch(0.1 0 0 / 0.2977);
+  --sb-border: oklch(0.1 0 337.5 / 0.0812725);
+  --sb-border-control: oklch(0.1 0 337.5 / 0.146418);
+  --sb-border-overlay: oklch(0.1 0 337.5 / 0.144163);
+  --sb-border-stronger: oklch(0.1 0 337.5 / 0.187863);
+  --sb-border-control-hover: oklch(0.1 0 337.5 / 0.29769);
   --sb-field: oklch(0 0 0 / 0.015);
-  --sb-control-raised: oklch(1 0 0 / 0.0174);
+  --sb-control-raised: oklch(1 0 0 / 0.0174302);
   --sb-brand-default: hsl(152.9deg 60% 52.9%);
   --sb-brand-200: hsl(147.6deg 72.5% 90%);
   --sb-brand-300: hsl(147.5deg 72% 80.4%);
@@ -78,10 +78,8 @@
   --sb-secondary-200: hsl(248deg 53.6% 11%);
   --sb-secondary-400: hsl(248.3deg 54.5% 25.9%);
   --sb-brand-default-10: hsl(152.9deg 60% 52.9% / 0.1);
-  --sb-border-brand-default: oklch(from hsl(152.9deg 60% 52.9%) l c h / 30%);
+  --sb-border-brand-default: oklch(0.762442 0.154113 159.238 / 0.3);
   --sb-button-shadow-drop: 0 1px 3px 0 hsl(0deg 0% 0% / 0.04);
-  --sb-button-shadow-raised: 0 1px 3px 0 hsl(0deg 0% 0% / 0.04), inset 0 1px 0 0 hsl(0deg 0% 0% / 0.0267), inset 0 0 0 1px hsl(0deg 0% 0% / 0.04), inset 0 0 0 1px hsl(0deg 0% 0% / 0.0667);
-  --sb-button-shadow-default: 0 1px 3px 0 hsl(0deg 0% 0% / 0.04), inset 0 1px 0 0 hsl(0deg 0% 0% / 0.0267), inset 0 0 0 1px hsl(0deg 0% 0% / 0.04), inset 0 -1px 0 0 hsl(0deg 0% 0% / 0.04), inset 0 0 0 1px hsl(0deg 0% 0% / 0.0667);
   --sb-foreground-muted: var(--sb-foreground-lighter);
   --sb-surface-75: var(--sb-card);
   --sb-surface-100: var(--sb-card);
@@ -342,27 +340,27 @@
 
 :root[data-visual-system="lane"][data-theme="dark"] {
   --sb-background: oklch(0.19 0.0025 157.5);
-  --sb-foreground: oklch(0.95 0.0027 157.5);
-  --sb-foreground-light: oklch(0.798 0.0027 157.5);
-  --sb-foreground-lighter: oklch(0.684 0.0027 157.5);
-  --sb-foreground-contrast: oklch(0.19 0.0027 157.5);
+  --sb-foreground: oklch(0.95 0.00275 157.5);
+  --sb-foreground-light: oklch(0.798 0.00275 157.5);
+  --sb-foreground-lighter: oklch(0.684 0.00275 157.5);
+  --sb-foreground-contrast: oklch(0.19 0.00275 157.5);
   --sb-card: oklch(0.215 0.0025 157.5);
   --sb-popover: oklch(0.2275 0.0025 157.5);
   --sb-secondary: oklch(0.24 0.0025 157.5);
-  --sb-muted: oklch(0.95 0.0027 157.5 / 0.0329);
-  --sb-accent: oklch(0.95 0.0027 157.5 / 0.0493);
-  --sb-tertiary: oklch(0.95 0.0027 157.5 / 0.0658);
+  --sb-muted: oklch(0.95 0.00275 157.5 / 0.0328947);
+  --sb-accent: oklch(0.95 0.00275 157.5 / 0.0493421);
+  --sb-tertiary: oklch(0.95 0.00275 157.5 / 0.0657895);
   --sb-control-25: oklch(0.95 0.0027 157.5 / 0.0123);
   --sb-sidebar-accent-50: oklch(0.95 0.0027 157.5 / 0.0247);
-  --sb-primary-foreground: oklch(0.19 0.0022 157.5);
-  --sb-primary-solid-foreground: oklch(0.95 0.0027 157.5);
+  --sb-primary-foreground: oklch(0.19 0.00225 157.5);
+  --sb-primary-solid-foreground: oklch(0.95 0.00275 157.5);
   --sb-primary: oklch(0.76 0.15 157.5);
   --sb-primary-hover: oklch(0.8 0.15 157.5);
   --sb-primary-bright: oklch(0.76 0.15 157.5);
   --sb-primary-bright-hover: oklch(0.8 0.15 157.5);
   --sb-primary-bright-15: oklch(0.76 0.15 157.5 / 0.15);
-  --sb-primary-solid: oklch(0.4363 0.11 157.5);
-  --sb-primary-solid-hover: oklch(0.4763 0.11 157.5);
+  --sb-primary-solid: oklch(0.43627 0.11 157.5);
+  --sb-primary-solid-hover: oklch(0.47627 0.11 157.5);
   --sb-ring: oklch(0.76 0.15 157.5 / 0.55);
   --sb-border-primary-bright: oklch(0.76 0.15 157.5 / 0.3);
   --sb-warning: oklch(0.8 0.14 75);
@@ -379,13 +377,13 @@
   --sb-info-foreground: oklch(0.12 0.0112 288);
   --sb-border-info: oklch(0.7 0.14 288 / 0.3);
   --sb-info-10: oklch(0.7 0.14 288 / 0.1);
-  --sb-border: oklch(0.95 0.0015 157.5 / 0.0751);
-  --sb-border-control: oklch(0.95 0.0014 157.5 / 0.1347);
-  --sb-border-overlay: oklch(0.95 0.0014 157.5 / 0.1337);
-  --sb-border-stronger: oklch(0.95 0.0014 157.5 / 0.174);
-  --sb-border-control-hover: oklch(0.95 0.0014 157.5 / 0.2799);
+  --sb-border: oklch(0.95 0.001485 157.5 / 0.075125);
+  --sb-border-control: oklch(0.95 0.001375 157.5 / 0.134738);
+  --sb-border-overlay: oklch(0.95 0.001375 157.5 / 0.133713);
+  --sb-border-stronger: oklch(0.95 0.001375 157.5 / 0.174031);
+  --sb-border-control-hover: oklch(0.95 0.001375 157.5 / 0.279862);
   --sb-field: oklch(0 0 0 / 0.12);
-  --sb-control-raised: oklch(1 0 0 / 0.0214);
+  --sb-control-raised: oklch(1 0 0 / 0.0213816);
   --sb-brand-default: hsl(153.1deg 60.2% 52.7%);
   --sb-brand-200: hsl(162deg 100% 2%);
   --sb-brand-300: hsl(155.1deg 100% 8%);
@@ -408,10 +406,8 @@
   --sb-secondary-200: hsl(248deg 53.6% 11%);
   --sb-secondary-400: hsl(248.3deg 54.5% 25.9%);
   --sb-brand-default-10: hsl(153.1deg 60.2% 52.7% / 0.1);
-  --sb-border-brand-default: oklch(from hsl(153.1deg 60.2% 52.7%) l c h / 30%);
+  --sb-border-brand-default: oklch(0.7623 0.154515 159.325 / 0.3);
   --sb-button-shadow-drop: 0 1px 3px 0 hsl(0deg 0% 0% / 0.2);
-  --sb-button-shadow-raised: 0 1px 3px 0 hsl(0deg 0% 0% / 0.2), inset 0 1px 0 0 hsl(0deg 0% 100% / 0.04), inset 0 0 0 1px hsl(0deg 0% 100% / 0.06), inset 0 0 0 1px hsl(0deg 0% 100% / 0.1);
-  --sb-button-shadow-default: 0 1px 3px 0 hsl(0deg 0% 0% / 0.2), inset 0 1px 0 0 hsl(0deg 0% 100% / 0.04), inset 0 0 0 1px hsl(0deg 0% 0% / 0.06), inset 0 -1px 0 0 hsl(0deg 0% 0% / 0.06), inset 0 0 0 1px hsl(0deg 0% 100% / 0.1);
   --sb-foreground-muted: var(--sb-foreground-lighter);
   --sb-surface-75: var(--sb-card);
   --sb-surface-100: var(--sb-card);
@@ -689,9 +685,9 @@
   --sb-radius-md: .5rem;
   --sb-radius-lg: .666667rem;
   --sb-radius-xl: 1rem;
-  --sb-radius-2xl: 1rem;
-  --sb-radius-3xl: 1.5rem;
-  --sb-radius-4xl: 2rem;
+  --sb-radius-2xl: 1.333333rem;
+  --sb-radius-3xl: 2rem;
+  --sb-radius-4xl: 2.666667rem;
   --sb-radius-full: calc(infinity * 1px);
   --sb-radius-panel: 6px;
   --sb-radius-item: calc(var(--sb-radius-md) - 2px);
@@ -767,4 +763,25 @@
   --sb-border-width: 1px;
   --sb-ring-width: 2px;
   --sb-ring-offset: 2px;
+}
+
+/* Verified control geometry, pinned Supabase SIZE and controlRadiusBySize (2026-10-16). */
+:root[data-visual-system="lane"] {
+  --sb-button-radius-tiny: var(--sb-radius-md);
+  --sb-button-radius-small: calc(var(--sb-radius-md) * (1 + (34 / 26 - 1) * .35));
+  --sb-button-radius-medium: calc(var(--sb-radius-md) * (1 + (38 / 26 - 1) * .35));
+  --sb-button-padding-tiny: calc(var(--sb-spacing) * 2.5);
+  --sb-button-padding-small: calc(var(--sb-spacing) * 3);
+  --sb-button-padding-medium: calc(var(--sb-spacing) * 4);
+  --sb-control-sheen: linear-gradient(to bottom, hsl(0 0% 100% / .015), hsl(0 0% 0% / .01));
+  --sb-raised-control-sheen: none;
+  --sb-button-edge-strength: calc(.30636225 / .275625 * .6);
+  --sb-button-edge-colour: 0 0% 0%;
+  --sb-button-shadow-raised: var(--sb-button-shadow-drop), inset 0 1px 0 0 hsl(var(--sb-button-edge-colour) / calc(.04 * var(--sb-button-edge-strength))), inset 0 0 0 1px hsl(var(--sb-button-edge-colour) / calc(.06 * var(--sb-button-edge-strength))), inset 0 0 0 1px hsl(var(--sb-button-edge-colour) / calc(.1 * var(--sb-button-edge-strength)));
+  --sb-button-shadow-default: var(--sb-button-shadow-drop), inset 0 1px 0 0 hsl(var(--sb-button-edge-colour) / calc(.04 * var(--sb-button-edge-strength))), inset 0 0 0 1px hsl(0 0% 0% / calc(.06 * var(--sb-button-edge-strength))), inset 0 -1px 0 0 hsl(0 0% 0% / calc(.06 * var(--sb-button-edge-strength))), inset 0 0 0 1px hsl(var(--sb-button-edge-colour) / calc(.1 * var(--sb-button-edge-strength)));
+}
+:root[data-visual-system="lane"][data-theme="dark"] {
+  --sb-raised-control-sheen: var(--sb-control-sheen);
+  --sb-button-edge-strength: 1;
+  --sb-button-edge-colour: 0 0% 100%;
 }

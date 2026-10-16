@@ -1141,7 +1141,7 @@ export const WorkspaceIntake: Story = {
   },
 };
 
-// The calendar is a child modal: Escape closes it without losing the Request draft.
+// The range calendar is a child modal: Escape discards only its draft and restores the Request.
 export const WorkspaceCalendarReturnsToRequest: Story = {
   ...WorkspaceIntake,
   play: async ({ canvasElement }) => {
@@ -1152,17 +1152,21 @@ export const WorkspaceCalendarReturnsToRequest: Story = {
     const windowTrigger = request.getByRole("button", { name: "Measurement window" });
     windowTrigger.focus();
     await userEvent.keyboard("{Enter}{End}{Enter}");
-    const dates = within(await page.findByRole("dialog", { name: "Custom measurement dates" }));
-    await userEvent.type(dates.getByLabelText("From"), "2026-10-20");
+    const dateDialog = await page.findByRole("dialog", { name: "Measurement date range" });
+    const dates = within(dateDialog);
+    await waitFor(() => expect(dateDialog.contains(canvasElement.ownerDocument.activeElement)).toBe(true));
+    const today = new Date();
+    const chosenDay = new Date(today.getFullYear(), today.getMonth(), 20);
+    await userEvent.click(await dates.findByRole("button", { name: chosenDay.toLocaleDateString("en-US", { dateStyle: "full" }) }));
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(windowTrigger).toHaveFocus());
     await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
     await expect(request.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
     await expect(windowTrigger).toHaveTextContent("Measurement dates");
     await userEvent.click(windowTrigger);
-    await userEvent.click(await page.findByRole("menuitem", { name: "Custom dates…" }));
-    const reopened = within(await page.findByRole("dialog", { name: "Custom measurement dates" }));
-    await expect(reopened.getByLabelText("From")).toHaveValue("");
+    await userEvent.click(await page.findByRole("menuitem", { name: "Custom date range…" }));
+    const reopened = within(await page.findByRole("dialog", { name: "Measurement date range" }));
+    await expect(reopened.getByRole("button", { name: "Apply" })).toBeDisabled();
     await userEvent.click(reopened.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(windowTrigger).toHaveFocus());
   },

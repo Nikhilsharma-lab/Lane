@@ -187,7 +187,7 @@
   --request-avatar-size: var(--sb-badge-height);
   --request-title-line-height: var(--sb-text-sm--line-height);
   --badge-sm-height: var(--sb-badge-height);
-  --badge-sm-padding: var(--sb-badge-padding-x);
+  --badge-sm-padding: calc(var(--sb-spacing) * 2);
   --badge-sm-font: var(--sb-text-badge);
   --badge-sm-gap: var(--sb-badge-gap);
   --badge-font-weight: var(--sb-font-weight-medium);
@@ -266,4 +266,59 @@
   --interaction-hover: var(--sb-sidebar-accent-50);
   --interaction-focus: var(--sb-selection);
   --interaction-pressed: var(--sb-selection);
+}
+
+/* Task 2: Arc controls with verified Supabase geometry and materials. */
+:root[data-visual-system="lane"] {
+  --button-radius-sm: var(--sb-button-radius-tiny);
+  --button-radius-md: var(--sb-button-radius-small);
+  --button-radius-lg: var(--sb-button-radius-medium);
+  --button-padding-sm: var(--sb-button-padding-tiny);
+  --button-padding-md: var(--sb-button-padding-small);
+  --button-padding-lg: var(--sb-button-padding-medium);
+  --button-solid-border-width: 0;
+  --button-disabled-opacity: var(--sb-opacity-disabled);
+  --button-raised-shadow: var(--sb-button-shadow-raised);
+  --button-default-shadow: var(--sb-button-shadow-default);
+  --button-secondary-background: var(--sb-raised-control);
+  --button-secondary-hover: var(--sb-raised-control-hover);
+  --button-danger-foreground: var(--sb-destructive-foreground);
+  --button-danger-background: var(--sb-destructive);
+  --button-danger-hover: var(--sb-destructive-hover);
+  --button-solid-sheen: var(--sb-control-sheen);
+  --button-secondary-sheen: var(--sb-raised-control-sheen);
+  --input-background: var(--sb-field);
+  --input-border: var(--sb-border-control);
+  --input-border-hover: var(--sb-border-control-hover);
+  --input-readonly-border: var(--sb-border-button);
+  --input-error-background: var(--sb-destructive-200);
+  --input-error-border: var(--sb-destructive-400);
+  --input-error-border-active: var(--sb-destructive);
+  --badge-height: var(--sb-badge-height);
+  /* Nikhil, 2026-10-16: more breathing room for Lane’s sentence-case labels. */
+  --badge-padding-x: calc(var(--sb-spacing) * 3);
+  --badge-icon-padding-start: calc(var(--sb-spacing) * 2);
+  --badge-sm-icon-padding-start: var(--sb-spacing);
+  --badge-padding-y: var(--sb-badge-padding-y);
+  --badge-gap: var(--sb-badge-gap);
+}
+
+/* App adoption: pinned Studio dropdown/select/popover/dialog and field materials.
+ * Arc retains typography, trailing select indicators, composition and motion. */
+:root[data-visual-system="lane"] {
+  --menu-padding: var(--sb-menu-padding);
+  --menu-item-radius: var(--sb-radius-item);
+  --menu-item-padding: calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 2);
+  --menu-item-gap: calc(var(--sb-spacing) * 2);
+  --menu-shadow: var(--sb-shadow-md);
+  --select-viewport-padding: 0;
+  --select-item-padding: calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 8) calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 2);
+  --popover-padding: calc(var(--sb-spacing) * 4);
+  --popover-shadow: var(--sb-shadow-md);
+  --dialog-background: var(--sb-dash-sidebar);
+  --dialog-shadow: var(--sb-shadow-md);
+  --textarea-padding: calc(var(--sb-spacing) * 2) calc(var(--sb-spacing) * 3);
+}
+:root[data-visual-system="lane"][data-theme="dark"] {
+  --dialog-shadow: var(--sb-shadow-xs);
 }

@@ -6,12 +6,12 @@
   z-index: 80;
   min-width: 12rem;
   max-width: min(22rem, calc(100vw - 20px));
-  padding: 1rem;
+  padding: var(--popover-padding, 1rem);
   border: var(--floating-border-width, 1px) solid var(--border);
   border-radius: var(--radius-panel);
   background: var(--surface-raised);
   color: var(--foreground);
-  box-shadow: var(--shadow-floating);
+  box-shadow: var(--popover-shadow, var(--shadow-floating));
   transform-origin: var(--radix-popover-content-transform-origin);
   transition: opacity var(--duration-fast) var(--ease-enter), transform var(--duration-spring) var(--ease-spring);
 }
