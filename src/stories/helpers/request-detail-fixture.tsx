@@ -44,6 +44,8 @@ export const sequenceIds = ["fixture-request-0", "fixture-request", "fixture-req
 
 const people: ReviewPerson[] = [{ id: viewer.id, name: viewer.name }, { id: "sam", name: "Sam Lee" }, { id: "taylor", name: "Taylor Chen" }]
 export const waitingReview: RequestReviewState = { version: 1, reviews: [{ id: "round-1", designUrl: "https://example.com/design/checkout?version=1", question: "Is the delivery date clear before payment?", requestedBy: people[1], requestedAt: "2026-10-09T10:00:00.000Z", reviewers: [people[2]], responses: [], withdrawal: null }] }
+/** Plan item 2.6: the same round with the fixture viewer as its named reviewer, so the panel offers the response form on arrival. */
+export const waitingOnViewer: RequestReviewState = { ...waitingReview, reviews: [{ ...waitingReview.reviews[0], reviewers: [people[0]] }] }
 
 /** The production panel with in-memory saves, reporting open forms to detail as design-review.tsx does. */
 function DetailReview({ initialState, guest }: { initialState: RequestReviewState; guest: boolean }) {
@@ -51,7 +53,7 @@ function DetailReview({ initialState, guest }: { initialState: RequestReviewStat
   const saved = useRef(initialState)
   const [snapshot, setSnapshot] = useState(initialState)
   const save = (transition: () => RequestReviewState) => { saved.current = transition(); setSnapshot(saved.current); return Promise.resolve({ state: saved.current }) }
-  return <DesignReviewPanel id="ask-for-review" onFormOpenChange={reportForm} initialState={snapshot} currentUserId={viewer.id} canRequest={!guest} canManage={!guest}
+  return <DesignReviewPanel id="ask-for-review" onFormOpenChange={reportForm} initialState={snapshot} currentUserId={viewer.id} viewer={people[0]} canRequest={!guest} canManage={!guest}
     onFindReviewers={async query => ({ members: people.filter(person => person.name.toLowerCase().includes(query.toLowerCase())) })}
     onRequest={input => save(() => addReviewRound(saved.current, input, people.filter(person => input.reviewerIds.includes(person.id)), people[0], "2026-10-09T10:10:00.000Z", `round-${saved.current.reviews.length + 1}`))}
     onRespond={input => save(() => recordReviewResponse(saved.current, input, people[0], "2026-10-09T10:20:00.000Z", `response-${saved.current.version + 1}`))}

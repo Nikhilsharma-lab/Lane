@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
 import { Check, Layers2, Plus, Rows3 } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -47,6 +47,96 @@ export function useWorkspaceProjects(orgId: string, active: boolean) {
   const addProject = (project: ProjectOption) => setProjects((current) =>
     [...current.filter((item) => item.id !== project.id), project].sort((a, b) => a.name.localeCompare(b.name)));
   return shared ?? { projects, loading, error, reload, addProject };
+}
+
+/* Plan item 2.6: the popover shell the Project picker and the reviewer picker
+ * share. An Arc Popover anchored to a secondary Button, an Arc SearchField, and
+ * a listbox of ghost option Buttons with roving focus (the APG listbox pattern,
+ * decision 8.24): the options use one roving tab stop, the search field's
+ * ArrowDown enters the list, Enter chooses the first item, the list wraps at
+ * the end and ArrowUp on the first item returns to the search. The content is
+ * portalled, so a React keydown inside it still bubbles to the form that owns
+ * the picker: stopPropagation keeps Esc for the popover (Radix closes it from
+ * its own document listener) instead of cancelling the whole form. */
+export type OptionRefs = RefObject<(HTMLButtonElement | null)[]>;
+
+const TABBABLE = 'a[href], button, input, select, textarea, [tabindex]';
+const tabbable = (element: HTMLElement) => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[aria-hidden="true"]') && element.getClientRects().length > 0;
+
+/** Tab and Shift+Tab leave the popover from its trigger, so focus lands on the next (or previous) control of the form that owns
+ *  the picker. The content is portalled to the end of the document, so the user agent alone would walk off the page from the
+ *  last control inside; the move out dismisses the popover (Radix non-modal), which keeps focus where it landed. */
+function leaveFromTrigger(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+  const content = event.currentTarget;
+  const step = event.shiftKey ? -1 : 1;
+  const candidates = [...document.querySelectorAll<HTMLElement>(TABBABLE)].filter(tabbable);
+  const inside = candidates.filter((element) => content.contains(element) && element.getAttribute("role") !== "option");
+  const position = document.activeElement instanceof HTMLElement ? inside.indexOf(document.activeElement) : -1;
+  // The next stop is still inside the popover (the search field's clear button): the user agent moves there.
+  if (position >= 0 && inside[position + step]) return;
+  const outside = candidates.filter((element) => !content.contains(element));
+  const trigger = outside.find((element) => element.getAttribute("aria-controls") === content.id);
+  const target = trigger && outside[outside.indexOf(trigger) + step];
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+}
+
+export const pickerPopoverProps = {
+  "data-lane-request-property-popover": "",
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { leaveFromTrigger(event); event.stopPropagation(); },
+} as const;
+
+/** `onOpenAutoFocus`: the search field takes focus instead of the popover panel. */
+export function focusOnOpen(event: Event, ref: RefObject<HTMLElement | null>) { event.preventDefault(); ref.current?.focus(); }
+
+/** The search field's keys: ArrowDown focuses the first option; Enter chooses the first item. */
+export function searchListKeyDown<T>(event: KeyboardEvent<HTMLInputElement>, items: T[], optionRefs: OptionRefs, onEnter: (first: T) => void) {
+  if (event.key === "ArrowDown" && items.length) { event.preventDefault(); optionRefs.current[0]?.focus(); }
+  if (event.key === "Enter" && items.length) { event.preventDefault(); onEnter(items[0]); }
+}
+
+export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, isSelected, isInert, lead, render, onChoose, disabled, emptyText, busy, multiselectable, morph }: {
+  items: T[];
+  label: string;
+  optionRefs: OptionRefs;
+  searchRef: RefObject<HTMLInputElement | null>;
+  keyOf: (item: T) => string;
+  isSelected: (item: T) => boolean;
+  /** Dimmed (the stylesheet's aria-disabled rule) and ignores presses, but keeps its place in the roving focus (a full multi-select). */
+  isInert?: (item: T) => boolean;
+  /** A lead glyph for an item that is neither the check nor the spacer. */
+  lead?: (item: T) => ReactNode;
+  render: (item: T) => ReactNode;
+  onChoose: (item: T) => void;
+  disabled?: boolean;
+  emptyText?: string;
+  busy?: boolean;
+  multiselectable?: boolean;
+  /** "plain" for a list that stays open while rows toggle (dense rows swap their check without a blur, decision 8.22). */
+  morph?: "blur" | "plain";
+}) {
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const focusKey = items.some(item => keyOf(item) === activeKey) ? activeKey : items[0] ? keyOf(items[0]) : null;
+  return <div role="listbox" aria-label={label} aria-multiselectable={multiselectable || undefined} aria-busy={busy} className={styles.optionList}>
+    {items.length ? items.map((item, index) => {
+      const selected = isSelected(item);
+      const inert = Boolean(isInert?.(item));
+      return <Button key={keyOf(item)} ref={(element) => { optionRefs.current[index] = element; }}
+        type="button" role="option" aria-selected={selected} tabIndex={keyOf(item) === focusKey ? 0 : -1}
+        onFocus={() => setActiveKey(keyOf(item))}
+        variant="ghost" size="sm" morph={morph} className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
+        onClick={() => { if (!inert) onChoose(item); }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
+          if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
+        }}>
+        {lead?.(item) ?? (selected ? <Check size={16} aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />)}
+        {render(item)}
+      </Button>;
+    }) : emptyText ? <p className={styles.empty}>{emptyText}</p> : null}
+  </div>;
 }
 
 type ProjectChoice = { id: string | null; name: string; kind: "project" | "none" | "create" };

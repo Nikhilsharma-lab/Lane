@@ -75,3 +75,14 @@
   color: var(--selection-foreground);
   background: var(--selection-background);
 }
+
+/* Reviewer-limit options remain in arrow-key navigation but cannot be selected. */
+.optionList .option[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: var(--sb-opacity-disabled);
+}
+.optionList .option[aria-disabled="true"]:is(:hover, :active) {
+  color: var(--text-muted);
+  background: transparent;
+}

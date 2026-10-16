@@ -24,8 +24,15 @@ export async function loadDesignReviewers(auth: MemberAuth, requestId: string, q
     .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId))).limit(1);
   if (!request) throw new ReviewRuleError("Request not found");
   // Verify the caller independently because the search query may exclude them.
-  const self = await getRequestReviewMembers(auth.orgId, { userIds: [auth.userId] });
-  if (!self.some(member => member.id === auth.userId)) throw new ReviewRuleError("Your workspace membership could not be confirmed. Refresh and try again.");
-  const members = await getRequestReviewMembers(auth.orgId, { query });
-  return members.filter(member => member.id !== auth.userId).map(person);
+  // Plan item 2.6: the self check and the search are two Clerk round trips, so
+  // they run in parallel; the self result is still read first, so the errors
+  // and their order are the ones the route always had.
+  const [self, members] = await Promise.allSettled([
+    getRequestReviewMembers(auth.orgId, { userIds: [auth.userId] }),
+    getRequestReviewMembers(auth.orgId, { query }),
+  ]);
+  if (self.status === "rejected") throw self.reason;
+  if (!self.value.some(member => member.id === auth.userId)) throw new ReviewRuleError("Your workspace membership could not be confirmed. Refresh and try again.");
+  if (members.status === "rejected") throw members.reason;
+  return members.value.filter(member => member.id !== auth.userId).map(person);
 }
