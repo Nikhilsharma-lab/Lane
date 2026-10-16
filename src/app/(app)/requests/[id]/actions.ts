@@ -9,6 +9,7 @@ import { createNotifications } from "@/lib/notify";
 import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { MAX_MEASUREMENT_GUARDRAILS, measurementPlanSchema, measurementReadiness, measurementRequestTypeIssue, type MeasurementPlan } from "@/lib/request-measurement";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,6 +66,9 @@ async function transitionRequest(
     transition.to === "in_progress"
       ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
       : sql`"status" = ${transition.to}::request_status`;
+  const readiness = transition.to === "in_progress"
+    ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
+    : sql`true`;
   const rows = await db.execute<{ id: string; notification_id: string | null }>(sql`
     with u as (
       update ${requests}
@@ -72,6 +76,7 @@ async function transitionRequest(
       where ${requests.id} = ${requestId}
         and ${requests.orgId} = ${auth.orgId}
         and ${requests.status} = ${transition.from}::request_status
+        and ${readiness}
       returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
     ), n as (
       insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
@@ -95,13 +100,17 @@ async function explainFailedTransition(
   orgId: string
 ): Promise<string> {
   const [req] = await db
-    .select({ status: requests.status })
+    .select({ status: requests.status, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
     .from(requests)
     .where(and(eq(requests.id, requestId), eq(requests.orgId, orgId)));
 
   if (!req) return "Not found";
   if (req.status !== transition.from) {
     return `This Request is no longer ${transition.label}. Refresh to see its current state.`;
+  }
+  if (transition.to === "in_progress") {
+    const readiness = measurementReadiness(req.expectedImpact, req.requestType);
+    if (readiness) return readiness;
   }
   return `This Request changed before Lane could ${transition.verb}. Refresh and try again.`;
 }
@@ -193,6 +202,9 @@ async function transitionRequests(
     transition.to === "in_progress"
       ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
       : sql`"status" = ${transition.to}::request_status`;
+  const readiness = transition.to === "in_progress"
+    ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
+    : sql`true`;
   const rows = await db.execute<{ id: string }>(sql`
     with u as (
       update ${requests}
@@ -200,6 +212,7 @@ async function transitionRequests(
       where ${requests.id} = any(${ids}::uuid[])
         and ${requests.orgId} = ${auth.orgId}
         and ${requests.status} = ${transition.from}::request_status
+        and ${readiness}
       returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
     ), n as (
       insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
@@ -216,7 +229,7 @@ async function transitionRequests(
   let failed = invalid;
   if (missed.length) {
     const found = await db
-      .select({ id: requests.id, status: requests.status })
+      .select({ id: requests.id, status: requests.status, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
       .from(requests)
       .where(and(
         eq(requests.orgId, auth.orgId),
@@ -229,6 +242,10 @@ async function transitionRequests(
         if (!req) return { id, error: "Not found" };
         if (req.status !== transition.from) {
           return { id, error: `This Request is no longer ${transition.label}. Refresh to see its current state.` };
+        }
+        if (transition.to === "in_progress") {
+          const readiness = measurementReadiness(req.expectedImpact, req.requestType);
+          if (readiness) return { id, error: readiness };
         }
         return { id, error: `This Request changed before Lane could ${transition.verb}. Refresh and try again.` };
       }),
@@ -467,4 +484,67 @@ export async function setRequestPriority(
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
   return { success: true as const, priority: updated.priority };
+}
+
+const currentValuesSchema = z.strictObject({
+  expectedImpact: measurementPlanSchema,
+  primary: z.number().finite().nullable(),
+  guardrails: z.array(z.number().finite().nullable()).max(MAX_MEASUREMENT_GUARDRAILS),
+});
+
+/** The requester may supply missing numbers while Open. The client snapshot is
+ * a compare-and-swap version, never a source of editable metric definitions. */
+export async function saveRequestCurrentValues(
+  requestId: string,
+  input: unknown,
+  context: { orgId: string }
+): Promise<{ error: string } | { success: true; impact: MeasurementPlan }> {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  const auth = await requireActiveMember(context.orgId);
+  if (!auth) return { error: "Not found" };
+  const parsed = currentValuesSchema.safeParse(input);
+  if (!parsed.success) return { error: "Enter valid current values for the saved metrics." };
+
+  // This also permits a guest to supply numbers for their own Request. It
+  // grants neither pickup permission nor access to another person's Request.
+  const [request] = await db.select({
+    status: requests.status,
+    expectedImpact: requests.expectedImpact,
+    requestType: requests.requestType,
+  }).from(requests).where(and(
+    eq(requests.id, requestId),
+    eq(requests.orgId, auth.orgId),
+    eq(requests.createdBy, auth.userId),
+  ));
+  if (!request) return { error: "Not found" };
+  if (request.status !== "open") return { error: "Current values can only change before this Request is picked up." };
+  const stored = measurementPlanSchema.safeParse(request.expectedImpact);
+  if (!stored.success) return { error: "This Request does not have an editable measurement plan." };
+  if (JSON.stringify(stored.data) !== JSON.stringify(parsed.data.expectedImpact)) {
+    return { error: "The measurement plan changed. Refresh before editing current values." };
+  }
+  if (parsed.data.guardrails.length !== stored.data.guardrails.length) {
+    return { error: "Enter a current value or leave it blank for each saved guardrail." };
+  }
+  const next = measurementPlanSchema.safeParse({
+    ...stored.data,
+    primary: { ...stored.data.primary, current: parsed.data.primary },
+    guardrails: stored.data.guardrails.map((guardrail, index) => ({ ...guardrail, current: parsed.data.guardrails[index] })),
+  });
+  if (!next.success) return { error: next.error.issues[0].message };
+  const typeIssue = measurementRequestTypeIssue(next.data, request.requestType);
+  if (typeIssue) return { error: typeIssue };
+
+  const [updated] = await db.update(requests).set({ expectedImpact: next.data }).where(and(
+    eq(requests.id, requestId),
+    eq(requests.orgId, auth.orgId),
+    eq(requests.createdBy, auth.userId),
+    eq(requests.status, "open"),
+    sql`${requests.expectedImpact} = ${JSON.stringify(request.expectedImpact)}::jsonb`,
+    sql`${requests.requestType} is not distinct from ${request.requestType}::request_type`,
+  )).returning({ id: requests.id });
+  if (!updated) return { error: "This Request changed before the values were saved. Refresh and try again." };
+  revalidatePath("/");
+  revalidatePath(`/requests/${requestId}`);
+  return { success: true, impact: next.data };
 }

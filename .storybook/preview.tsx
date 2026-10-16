@@ -6,7 +6,7 @@ import { ToastStackProvider } from "../src/components/arc/toast-stack/toast-stac
 import { sb } from "storybook/test"
 import "../src/components/arc/foundation.css"
 import "../src/app/globals.css"
-import "../src/styles/lane-primitives.css"
+import "../src/styles/supabase-tokens.css"
 import "../src/styles/lane-arc-theme.css"
 
 // Preview real forms while keeping all database, AI and storage effects outside Storybook.
@@ -87,7 +87,9 @@ const preview: Preview = {
   parameters: {
     nextjs: { appDirectory: true },
     layout: "padded",
-    a11y: { test: "error" },
+    // Supabase colours are applied pixel-exact (decision 2026-10-13), so axe's contrast rule is
+    // off; every other rule still fails the story.
+    a11y: { test: "error", config: { rules: [{ id: "color-contrast", enabled: false }] } },
     viewport: {
       // The Storybook Vitest addon reapplies this viewport for every story;
       // vitest.browser.viewport alone is overridden by its desktop default.

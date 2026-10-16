@@ -117,8 +117,8 @@ export const MemberNavigation: Story = {
     await closeAccountMenu(canvasElement)
     if (window.innerWidth > 640) {
       const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
-      await expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(272)
-      await expect(canvas.getByRole("separator", { name: "Resize sidebar" })).toHaveAttribute("aria-valuenow", "272")
+      await expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(208)
+      await expect(canvas.getByRole("separator", { name: "Resize sidebar" })).toHaveAttribute("aria-valuenow", "208")
       await expect(canvas.queryByRole("button", { name: "Collapse sidebar" })).not.toBeInTheDocument()
       await expect(canvas.queryByRole("button", { name: "Open navigation" })).not.toBeInTheDocument()
     }
@@ -351,7 +351,7 @@ export const TemplateOffcanvasControls: Story = {
     expect(main.getBoundingClientRect().width).toBeGreaterThan(expandedMainWidth)
     await expect(sidebar).toHaveAttribute("inert")
     await userEvent.click(within(main).getByRole("button", { name: "Expand sidebar" }))
-    await waitFor(() => expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(272))
+    await waitFor(() => expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(208))
     const nav = within(sidebar)
     await expect(nav.getByRole("link", { name: "New Request" })).toBeVisible()
     await expect(nav.queryByRole("link", { name: "Profile" })).not.toBeInTheDocument()
@@ -537,7 +537,7 @@ export const SidebarKeyboardShortcut: Story = {
     await expect(trigger).toHaveAttribute("aria-valuenow", "0")
     await userEvent.keyboard("[BracketLeft]")
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument())
-    await expect(trigger).toHaveAttribute("aria-valuenow", "272")
+    await expect(trigger).toHaveAttribute("aria-valuenow", "208")
   },
 }
 

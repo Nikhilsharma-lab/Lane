@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { fontVariables } from "@/lib/fonts";
 import "@/components/arc/foundation.css";
 import "./globals.css";
-import "@/styles/lane-primitives.css";
+import "@/styles/supabase-tokens.css";
 import "@/styles/lane-arc-theme.css";
 
 // Last resort (plan item 1.12): this replaces the root layout when it throws, so it

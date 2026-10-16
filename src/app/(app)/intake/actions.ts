@@ -37,6 +37,7 @@ export type IntakeFailure = {
     | "expectedImpact"
     | "projectId"
     | "requestType"
+    | "priority"
     | "title"
     | "description"
     | "affectedPeople"
@@ -61,7 +62,7 @@ export type SaveResponse =
  * from the client; the server row replaces this one as soon as it lands. */
 function savedListRow(
   row: { id: string; requestNumber?: number | null; createdAt?: Date | null },
-  payload: { title: string; projectId: string | null; requestType: OverviewRequest["requestType"] },
+  payload: { title: string; projectId: string | null; requestType: OverviewRequest["requestType"]; priority: OverviewRequest["priority"] },
   reframedProblem: string | null
 ): OverviewRequest {
   return {
@@ -77,7 +78,7 @@ function savedListRow(
     projectId: payload.projectId,
     projectName: null,
     requestType: payload.requestType ?? null,
-    priority: "none",
+    priority: payload.priority,
   };
 }
 
@@ -133,6 +134,7 @@ export async function runTriage(
     expectedImpact?: RequestInput["expectedImpact"];
     projectId?: string | null;
     requestType?: RequestType | null;
+    priority?: RequestInput["priority"];
     title: string;
     description: string;
     affectedPeople?: string;
@@ -155,6 +157,7 @@ export async function runTriage(
         "expectedImpact",
         "projectId",
         "requestType",
+        "priority",
         "title",
         "description",
         "affectedPeople",
@@ -285,6 +288,7 @@ export async function saveRequest(
         orgId: auth.orgId,
         projectId: payload.projectId,
         requestType: payload.requestType,
+        priority: payload.priority,
         expectedImpact: payload.expectedImpact,
         title: payload.title,
         description: payload.description,

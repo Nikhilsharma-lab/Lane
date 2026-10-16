@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -23,6 +23,8 @@ export function LifecycleButtons({
   filter,
   projectFilter = "all",
   fullWidth = false,
+  pickupBlockedReason = null,
+  pickupRequester = null,
 }: {
   requestId: string;
   status: string;
@@ -30,7 +32,11 @@ export function LifecycleButtons({
   filter: RequestStatusFilter;
   projectFilter?: RequestProjectFilter;
   fullWidth?: boolean;
+  pickupBlockedReason?: string | null;
+  /** Set for a viewer who cannot edit the requester's current values. */
+  pickupRequester?: string | null;
 }) {
+  const readinessId = useId();
   const { pending, run } = useRecoverableAction();
   const optimistic = useOptimisticAction();
   const overlay = usePendingMutations();
@@ -47,6 +53,9 @@ export function LifecycleButtons({
     ? overlay.applyOne({ id: requestId, status: status as "open" | "in_progress" | "done" }).status
     : status;
   const buttonStatus = pending && pressedFrom ? pressedFrom : shownStatus;
+  const pickupMessage = pickupBlockedReason && pickupRequester
+    ? `Ask ${pickupRequester} to add current values before pickup.`
+    : pickupBlockedReason;
 
   async function runLifecycleAction(
     action: () => Promise<{ error?: string; success?: boolean }>,
@@ -77,6 +86,7 @@ export function LifecycleButtons({
   }
 
   async function handlePickUp() {
+    if (pickupBlockedReason) return;
     await runLifecycleAction(
       () => pickUpRequest(requestId, context),
       "in_progress",
@@ -99,7 +109,7 @@ export function LifecycleButtons({
       data-slot="request-lifecycle-actions"
       className={cn(
         "flex flex-col gap-2",
-        fullWidth ? "w-full items-start" : "max-w-[320px] items-end"
+        fullWidth ? "w-full items-start" : "max-w-[calc(var(--sb-spacing)_*_80)] items-end"
       )}
     >
       {error && (
@@ -121,11 +131,13 @@ export function LifecycleButtons({
         </Alert>
       )}
 
+      {buttonStatus === "open" && pickupMessage && <p id={readinessId} className="text-sm text-muted-foreground">{pickupMessage}</p>}
       {buttonStatus === "open" && (
         <Button
           size="sm"
           onClick={handlePickUp}
-          disabled={pending}
+          disabled={pending || Boolean(pickupBlockedReason)}
+          aria-describedby={pickupBlockedReason ? readinessId : undefined}
           aria-busy={pending || undefined}
           className={cn(fullWidth && "w-full")}
         >

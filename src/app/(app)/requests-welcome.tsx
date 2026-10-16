@@ -10,7 +10,7 @@ export function RequestsWelcome({ role }: { role: "admin" | "member" | "guest" }
 
   return (
     <div data-slot="requests-workspace" className="min-h-dvh w-full min-w-0 p-4 md:p-6">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-5xl flex-col">
+      <div className="mx-auto flex min-h-[calc(100dvh_-_var(--sb-header-height))] w-full max-w-5xl flex-col">
       <header className="space-y-1">
         <div className="flex items-center gap-3"><SidebarExpandButton /><h1 className="text-xl font-medium tracking-tight">{isGuest ? "My Requests" : "Requests"}</h1></div>
         {isGuest && <p className="text-sm text-muted-foreground">Only Requests you submit appear here.</p>}

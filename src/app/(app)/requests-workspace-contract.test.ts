@@ -28,7 +28,7 @@ describe("Requests workspace contract", () => {
   it("marks the selected Request and uses the Arc selected surface without an edge stripe", () => {
     expect(DETAIL_VIEW).toContain('aria-current={request.id === selectedRequestId ? "page" : undefined}')
     expect(DETAIL_VIEW).toContain('className={styles.requestLink}')
-    expect(REQUEST_STYLES).toMatch(/\.requestLink\[aria-current="page"\]\s*\{[^}]*background:\s*var\(--accent-subtle\)/)
+    expect(REQUEST_STYLES).toMatch(/\.requestLink\[aria-current="page"\]\s*\{[^}]*background:\s*var\(--sb-selection\)/)
     expect(REQUEST_STYLES).not.toMatch(/(?:border-left|border-inline-start)\s*:/)
   })
 

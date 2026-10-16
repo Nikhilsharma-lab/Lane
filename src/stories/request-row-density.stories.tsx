@@ -37,15 +37,14 @@ export const CompactWithWrapping: Story = {
     const long = canvas.getByRole("link", { name: longTitle })
     const narrow = canvasElement.clientWidth - 32 <= 880
     // Pills grow to 44px for coarse pointers only; a narrow window with a mouse keeps 32px (adc8178).
-    const touch = matchMedia("(pointer: coarse)").matches
-    if (!narrow) await expect(row.getBoundingClientRect().height).toBe(44)
-    await expect(title.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
-    // Linear row radius (--lane-row-radius), the Storybook default since decision 8.12.
-    await expect(getComputedStyle(row).borderRadius).toBe("8px")
-    await expect(long.getBoundingClientRect().height).toBeGreaterThan(44)
+    if (!narrow) await expect(row.getBoundingClientRect().height).toBe(52)
+    await expect(title.getBoundingClientRect().height).toBeGreaterThanOrEqual(52)
+    // Supabase table rows are square.
+    await expect(getComputedStyle(row).borderRadius).toBe("0px")
+    await expect(long.getBoundingClientRect().height).toBeGreaterThan(52)
     await expect(long.scrollWidth).toBeLessThanOrEqual(long.clientWidth + 1)
     for (const pill of within(row).getAllByRole("button")) {
-      await expect(pill.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32)
+      await expect(pill.getBoundingClientRect().height).toBeGreaterThanOrEqual(32)
     }
     await expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(document.documentElement.clientWidth)
   },

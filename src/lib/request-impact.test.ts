@@ -29,11 +29,11 @@ describe("expected impact", () => {
     }
   });
   it.each([metric, verification])("preserves existing $kind evidence sources and their bounds", (impact) => {
-    expect(expectedImpactSchema.parse(impact).source).toBe(impact.source);
-    expect(requiredExpectedImpactSchema.parse(impact).source).toBe(impact.source);
-    expect(expectedImpactDraftSchema.parse({ ...impact, source: ` ${impact.source} ` })?.source).toBe(` ${impact.source} `);
-    expect(expectedImpactSchema.parse({ ...impact, source: ` ${impact.source} ` }).source).toBe(impact.source);
-    expect(expectedImpactSchema.parse({ ...impact, source: "a".repeat(1000) }).source).toHaveLength(1000);
+    expect(expectedImpactSchema.parse(impact)).toMatchObject({ source: impact.source });
+    expect(requiredExpectedImpactSchema.parse(impact)).toMatchObject({ source: impact.source });
+    expect(expectedImpactDraftSchema.parse({ ...impact, source: ` ${impact.source} ` })).toMatchObject({ source: ` ${impact.source} ` });
+    expect(expectedImpactSchema.parse({ ...impact, source: ` ${impact.source} ` })).toMatchObject({ source: impact.source });
+    expect(expectedImpactSchema.parse({ ...impact, source: "a".repeat(1000) })).toMatchObject({ source: "a".repeat(1000) });
     for (const source of [null, 123, "a".repeat(1001)]) {
       expect(expectedImpactSchema.safeParse({ ...impact, source }).success).toBe(false);
       expect(requiredExpectedImpactSchema.safeParse({ ...impact, source }).success).toBe(false);

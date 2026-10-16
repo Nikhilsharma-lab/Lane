@@ -1,5 +1,12 @@
-import { userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { ExpectedImpact } from "@/lib/request-impact";
+import { createEmptyMeasurementPlan, createMeasurementPrimary } from "@/lib/request-measurement";
+
+export const measurementImpact = {
+  ...createEmptyMeasurementPlan(),
+  primary: { ...createMeasurementPrimary("conversion"), target: 90 },
+  measurement: { ...createEmptyMeasurementPlan().measurement, windowDays: 14 as const },
+};
 
 export const metricImpact = {
   kind: "metric",
@@ -19,6 +26,19 @@ export const verifiedImpact = {
 } satisfies ExpectedImpact;
 
 export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
+  const metric = canvas.queryByRole("combobox", { name: "Metric" });
+  if (metric) {
+    const page = within(metric.ownerDocument.body);
+    await userEvent.click(metric);
+    await userEvent.click(await page.findByRole("option", { name: "Conversion rate" }));
+    await waitFor(() => expect(metric).toHaveFocus());
+    await userEvent.type(canvas.getByRole("spinbutton", { name: "Target after release (optional)" }), "90");
+    const window = canvas.getByRole("button", { name: "Measurement window" });
+    await userEvent.click(window);
+    await userEvent.click(await page.findByRole("menuitem", { name: "14 days after release" }));
+    await waitFor(() => expect(window).toHaveFocus());
+    return;
+  }
   const disclosure = canvas.queryByRole("button", { name: "Expected impact" });
   if (disclosure?.getAttribute("aria-expanded") === "false") await userEvent.click(disclosure);
   await userEvent.type(canvas.getByRole("textbox", { name: "What should improve?" }), metricImpact.metric);

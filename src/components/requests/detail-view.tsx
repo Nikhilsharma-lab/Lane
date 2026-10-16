@@ -134,9 +134,9 @@ function Comments({ comments }: { comments: RequestComment[] }) {
     </li>)}</ul> : <p className="text-sm text-muted-foreground">No comments yet. Add a question or update below.</p>}
   </section>
 }
-export function RequestDetailView({ request, comments, attachments, filter, projectFilter = "all", isGuest, lifecycleActions, mobileLifecycleActions, commentForm, attachmentAction, designReview }: {
+export function RequestDetailView({ request, comments, attachments, filter, projectFilter = "all", isGuest, lifecycleActions, mobileLifecycleActions, commentForm, attachmentAction, designReview, currentValues }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; filter: RequestStatusFilter; projectFilter?: RequestProjectFilter; isGuest: boolean;
-  lifecycleActions: ReactNode; mobileLifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; designReview?: ReactNode;
+  lifecycleActions: ReactNode; mobileLifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; designReview?: ReactNode; currentValues?: ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.title
   const status = statuses.find(item => item.value === request.status)!
@@ -155,6 +155,7 @@ export function RequestDetailView({ request, comments, attachments, filter, proj
         {request.reframedProblem && <section aria-labelledby="request-original" className="space-y-3"><h2 id="request-original" className="text-base font-medium">Original Request</h2><p className="text-sm font-medium">{request.title}</p><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{request.description}</p></section>}
         {request.extractedSolution && <section aria-labelledby="request-solution" className="space-y-3"><h2 id="request-solution" className="text-base font-medium">Suggested change</h2><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{request.extractedSolution}</p></section>}
         {request.expectedImpact && <ExpectedImpactSummary impact={request.expectedImpact} />}
+        {currentValues}
         {(context.length > 0 || request.usefulLink) && <section aria-labelledby="request-context" className="space-y-4"><h2 id="request-context" className="text-base font-medium">Supporting details</h2><dl className="grid gap-4 sm:grid-cols-2">{context.map(item => <div key={item.label} className="space-y-1"><dt className="text-sm font-medium">{item.label}</dt><dd className="whitespace-pre-wrap text-sm text-muted-foreground">{item.value}</dd></div>)}</dl>
           {request.usefulLink && <a href={request.usefulLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon size={16} aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{request.usefulLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink size={16} aria-hidden="true" /></a>}
         </section>}

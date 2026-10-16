@@ -9,16 +9,16 @@
   gap: var(--space-3);
   margin-top: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
+  border: var(--sb-border-width) solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-muted);
 }
-.fileIcon { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; color: var(--text-secondary); }
+.fileIcon { display: grid; width: var(--sb-size-inner-tiny); height: var(--sb-size-inner-tiny); flex: 0 0 auto; place-items: center; color: var(--text-secondary); }
 .fileCopy { display: grid; min-width: 0; flex: 1; gap: var(--space-1); }
 .fileCopy strong {
   overflow: hidden;
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: var(--sb-font-weight-medium);
   line-height: var(--leading-body);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -28,10 +28,7 @@
 .meta [data-status="uploaded"], .ready { color: var(--success); }
 .error { margin: 0; font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .progress { margin-top: var(--space-1); }
-.ready { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; }
+.ready { display: grid; width: var(--sb-size-inner-tiny); height: var(--sb-size-inner-tiny); flex: 0 0 auto; place-items: center; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .remove { flex: 0 0 auto; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (pointer: coarse) {
-  .actions button, .remove { min-width: 44px; min-height: 44px; }
-}

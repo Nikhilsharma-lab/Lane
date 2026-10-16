@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { measurementPlanDraftSchema, measurementPlanSchema } from "./request-measurement";
 
 export const IMPACT_METRIC_MAX = 120;
 export const IMPACT_UNIT_MAX = 40;
@@ -31,25 +32,28 @@ export const EMPTY_GUARDRAIL: z.output<typeof guardrailDraftSchema> = { metric: 
 const guardrailEditSchema = z.object({ previous: guardrailSchema.nullable() });
 
 export const expectedImpactSchema = z.discriminatedUnion("kind", [
+  measurementPlanSchema,
   z.object({ kind: z.literal("metric"), metric: metricName, baseline: z.number().nullable(), target: z.number("Add a numeric target"), unit, source, reviewAfterDays: reviewDays, guardrail: guardrailSchema.optional() }),
   z.object({ kind: z.literal("verification"), result, source, reviewAfterDays: reviewDays, guardrail: guardrailSchema.optional() }),
 ]);
 export type ExpectedImpact = z.infer<typeof expectedImpactSchema>;
 
-export function formatGuardrail(guardrail: NonNullable<ExpectedImpact["guardrail"]>): string {
+export function formatGuardrail(guardrail: z.infer<typeof guardrailSchema>): string {
   return `${guardrail.metric} must stay at or ${guardrail.operator === "at_most" ? "below" : "above"} ${guardrail.limit} ${guardrail.unit}.`;
 }
 
 // Drafts are allowed to be incomplete. Empty numeric controls use null, never
 // zero by coercion, so recovery cannot silently invent a target or baseline.
 export const expectedImpactDraftSchema = z.discriminatedUnion("kind", [
+  measurementPlanDraftSchema,
   z.object({ kind: z.literal("metric"), metric: z.string().max(IMPACT_METRIC_MAX).default(""), baseline: z.number().nullable().default(null), target: z.number().nullable().default(null), unit: z.string().max(IMPACT_UNIT_MAX).default(DEFAULT_IMPACT_UNIT), source: z.string().max(IMPACT_SOURCE_MAX).default(""), reviewAfterDays: z.number().nullable().default(null), guardrail: guardrailDraftSchema.optional(), guardrailEdit: guardrailEditSchema.optional() }),
   z.object({ kind: z.literal("verification"), result: z.string().max(IMPACT_RESULT_MAX).default(""), source: z.string().max(IMPACT_SOURCE_MAX).default(""), reviewAfterDays: z.number().nullable().default(null), guardrail: guardrailDraftSchema.optional(), guardrailEdit: guardrailEditSchema.optional() }),
 ]).nullish().transform((value) => value ?? null);
 export type ExpectedImpactDraft = Exclude<z.output<typeof expectedImpactDraftSchema>, null>;
-export const EMPTY_METRIC_IMPACT: ExpectedImpactDraft = { kind: "metric", metric: "", baseline: null, target: null, unit: DEFAULT_IMPACT_UNIT, source: "", reviewAfterDays: null };
+export const EMPTY_METRIC_IMPACT: Extract<ExpectedImpactDraft, { kind: "metric" }> = { kind: "metric", metric: "", baseline: null, target: null, unit: DEFAULT_IMPACT_UNIT, source: "", reviewAfterDays: null };
 
 export function hasGuardrailEdits(impact: z.input<typeof expectedImpactDraftSchema>): boolean {
+  if (impact?.kind === "measurement") return false;
   return Boolean(impact?.guardrailEdit || (impact?.guardrail && !guardrailSchema.safeParse(impact.guardrail).success));
 }
 
@@ -57,6 +61,12 @@ export function hasGuardrailEdits(impact: z.input<typeof expectedImpactDraftSche
 export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform((draft, context) => {
   if (draft === null) {
     context.addIssue({ code: "custom", message: "Add the expected impact before reviewing this Request" });
+    return z.NEVER;
+  }
+  if (draft.kind === "measurement") {
+    const parsed = measurementPlanSchema.safeParse(draft);
+    if (parsed.success) return parsed.data;
+    for (const issue of parsed.error.issues) context.addIssue({ code: "custom", path: issue.path, message: issue.message });
     return z.NEVER;
   }
   if (draft.guardrailEdit !== undefined) {

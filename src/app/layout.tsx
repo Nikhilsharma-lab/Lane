@@ -8,7 +8,7 @@ import "@/components/arc/foundation.css";
 import "./globals.css";
 // Linear visual values through Arc's public token hooks. Activated for
 // production by Nikhil on 2026-10-09 (docs/design-system/linear-primitives.md).
-import "@/styles/lane-primitives.css";
+import "@/styles/supabase-tokens.css";
 import "@/styles/lane-arc-theme.css";
 
 export const metadata: Metadata = {

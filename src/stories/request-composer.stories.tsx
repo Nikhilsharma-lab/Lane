@@ -114,7 +114,7 @@ async function waitForInteractive(element: HTMLElement) {
 async function projectSurface(page: ReturnType<typeof within>) {
   const surface = await page.findByRole("dialog", { name: "Choose a Project" });
   await expect(page.getAllByRole("dialog", { name: "Choose a Project" })).toHaveLength(1);
-  await waitFor(() => expect(within(surface).getByRole("searchbox", { name: "Search Projects" })).toBeVisible());
+  await waitFor(() => expect(within(surface).getByRole("button", { name: "New Project" })).toBeVisible());
   return within(surface);
 }
 
@@ -694,9 +694,9 @@ export const CreateProjectInline: Story = {
     const { page, composer } = await openComposer(canvasElement);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    const search = project.getByRole("searchbox", { name: "Search Projects" });
-    await userEvent.type(search, "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await composer.findByRole("button", { name: "Project: Marketing" })).toBeVisible());
     await expect(createProject).toHaveBeenCalledWith({ name: "Marketing" }, context);
     await expect(getRouter().push).not.toHaveBeenCalled();
@@ -749,7 +749,7 @@ export const NewProjectCancelPreservesDraft: Story = {
     await userEvent.click(project.getByRole("button", { name: "New Project" }));
     await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Abandoned name");
     await userEvent.click(project.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(project.getByRole("searchbox", { name: "Search Projects" })).toHaveFocus());
+    await waitFor(() => expect(project.getByRole("option", { name: "Website" })).toHaveFocus());
     await expect(project.getByRole("option", { name: "Website" })).toHaveAttribute("aria-selected", "true");
     await expect(project.getByRole("button", { name: "New Project" })).toBeVisible();
     await expect(createProject).not.toHaveBeenCalled();
@@ -793,8 +793,9 @@ export const CreateProjectUpdatesWorkspace: Story = {
     const { page, composer } = await openComposer(canvasElement);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await expect(await composer.findByRole("button", { name: "Project: Marketing" })).toBeVisible();
     await expect(canvas.getByLabelText("Shared Project options")).toHaveTextContent("Marketing, Website");
     await waitFor(() => expect(composer.getByRole("button", { name: "Project: Marketing" }).querySelector('[data-motion-pop-id][aria-hidden="true"]')).toBeNull());
@@ -807,8 +808,8 @@ export const ExistingProjectAndClear: Story = {
     await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "website");
-    await expect(project.queryByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+    await expect(project.queryByRole("searchbox")).not.toBeInTheDocument();
+    await waitFor(() => expect(project.getByRole("option", { name: "No project" })).toHaveFocus());
     await userEvent.keyboard("{ArrowDown}{Enter}");
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Choose a Project" })).not.toBeInTheDocument());
     await waitFor(async () => expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible());
@@ -817,8 +818,11 @@ export const ExistingProjectAndClear: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Project: Website" }));
     await waitFor(() => expect(composer.getByRole("button", { name: "Project: Website" })).toHaveAttribute("aria-expanded", "true"));
     const reopenedProject = await projectSurface(page);
-    const search = reopenedProject.getByRole("searchbox", { name: "Search Projects" });
-    await expect(search).toHaveValue("");
+    await waitFor(() => expect(reopenedProject.getByRole("option", { name: "Website" })).toHaveFocus());
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(reopenedProject.getByRole("button", { name: "New Project" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(reopenedProject.getByRole("option", { name: "No project" })).toHaveFocus();
     await userEvent.click(await reopenedProject.findByRole("option", { name: "No project" }));
     await waitForInteractive(composer.getByRole("combobox", { name: "Request type" }));
     await expect(composer.getByRole("button", { name: "Project" })).toBeVisible();
@@ -847,10 +851,11 @@ export const ProjectFailuresKeepDraft: Story = {
     const project = await projectSurface(page);
     await waitFor(async () => expect(await page.findByText("Projects could not be loaded. Try again.")).toBeVisible());
     await userEvent.click(project.getByRole("button", { name: "Retry Projects" }));
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await page.findByText("The Project could not be created. Try again.")).toBeVisible());
-    await waitFor(() => expect(project.getByRole("searchbox", { name: "Search Projects" })).toHaveFocus());
+    await waitFor(() => expect(project.getByRole("textbox", { name: "Project name" })).toHaveFocus());
     await userEvent.keyboard("{Escape}");
     await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
@@ -868,8 +873,9 @@ export const CreatingProjectCannotRaceReview: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await page.findByText("Creating Project…")).toBeVisible());
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeDisabled();
     await userEvent.keyboard("{Control>}{Enter}{/Control}{Escape}");

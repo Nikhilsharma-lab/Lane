@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createTriageToken, verifyTriageToken } from "./triage-token";
 import { CONTEXT_MAX, DESCRIPTION_MAX, TITLE_MAX, USEFUL_LINK_MAX, requestSchema } from "./request-schema";
 import { EMPTY_METRIC_IMPACT, IMPACT_METRIC_MAX, IMPACT_RESULT_MAX, IMPACT_SOURCE_MAX, IMPACT_UNIT_MAX } from "./request-impact";
+import { createEmptyMeasurementPlan } from "./request-measurement";
 
 import {
   clearIntakeDraft,
@@ -62,7 +63,7 @@ describe("Intake draft recovery", () => {
     expect(readIntakeDraft(storage, SCOPE, NOW)).toEqual({
       version: 2,
       savedAt: NOW,
-      source: { ...source("No", "Still shaping this"), projectId: null, requestType: null, expectedImpact: null },
+      source: { ...source("No", "Still shaping this"), projectId: null, requestType: null, priority: "none", expectedImpact: null },
       previousProblem: "",
       review: null,
     });
@@ -78,6 +79,33 @@ describe("Intake draft recovery", () => {
   it("does not restore an untouched blank impact section as a draft", () => {
     const storage = memoryStorage();
     writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact: EMPTY_METRIC_IMPACT }, review: null }, NOW);
+    expect(storage.getItem(intakeDraftStorageKey(SCOPE))).toBeNull();
+  });
+
+  it.each([
+    ["audienceName", "Paid customers"],
+    ["platformName", "Desktop app"],
+  ] as const)("retains an inactive custom %s in an otherwise blank draft", (field, name) => {
+    const storage = memoryStorage();
+    const expectedImpact = createEmptyMeasurementPlan();
+    expectedImpact.measurement[field] = name;
+
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toMatchObject({
+      kind: "measurement",
+      measurement: { audience: "all", platform: "all", [field]: name },
+    });
+  });
+
+  it("does not retain an otherwise blank draft for whitespace-only custom scope names", () => {
+    const storage = memoryStorage();
+    const expectedImpact = createEmptyMeasurementPlan();
+    expectedImpact.measurement.audienceName = "  ";
+    expectedImpact.measurement.platformName = "\t ";
+
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("", ""), expectedImpact }, review: null }, NOW);
+
     expect(storage.getItem(intakeDraftStorageKey(SCOPE))).toBeNull();
   });
 

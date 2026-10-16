@@ -44,7 +44,7 @@
   width: min(calc(100vw - var(--space-8)), 47rem);
   max-height: calc(100dvh - min(13dvh, 7rem) - var(--space-8));
   margin: 0 auto;
-  overflow: hidden;
+  overflow: clip;
   border-radius: var(--lane-panel-radius, 12px);
 }
 .content[data-layout="composer"] .header {

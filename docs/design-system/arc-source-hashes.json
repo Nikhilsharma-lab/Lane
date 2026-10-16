@@ -89,14 +89,14 @@
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.module.css",
     "upstreamSha256": "b43cd10ab34fad31445686c5681e5938c2245c10c465a2b2e3774d802a81e603",
-    "localSha256": "ae05912f3d853130747eb4692ce23d65e86fae5819d8e150bf60e23991c3d6d3"
+    "localSha256": "a91ff94211e2b64209f5078d79515278ea49ff00ccda749234ea17dc848e286f"
   },
   {
     "id": "dialog",
     "source": "https://uiarc.dev/r/dialog.json",
     "file": "src/components/arc/dialog/dialog.tsx",
     "upstreamSha256": "eb84a7eb2ac864dc07f2825eab252eac78e9c6b889d0e9f00bf6b2b799975ade",
-    "localSha256": "54850f8cbb42446a8546160c8f5809aaad4d905735cf55afc8fca0be33b59214"
+    "localSha256": "48156d487f2aa252f4312d494131d24dd13af7df46743cf33ad0ac820cfa96da"
   },
   {
     "id": "drawer",
@@ -115,14 +115,14 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.module.css",
     "upstreamSha256": "4328a7c341379cedadce7dec990ed6eec57e7d26899f49ffa72202995c5baae4",
-    "localSha256": "5d024d3d612bb5d972ac0239e65b372e6563faeadab8d445d05980a60f29786e"
+    "localSha256": "a6eac36b7ecb2d9dd700f1fe1862e073acf6a5335c7a2a4a0738e717de9761d3"
   },
   {
     "id": "dropdown-menu",
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "d5cc026fb6eefd77c6ad27c35ddba1dcd0d1e7f3253c29110203f67de36de7c3"
+    "localSha256": "7a7154d833a8cd1cb1fa71026f69dd5607875bb8c76449022bc695bdc5225ac7"
   },
   {
     "id": "empty-state",
@@ -271,14 +271,14 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.module.css",
     "upstreamSha256": "f700250cfa39db22e974f417d6d776e70b037e031500ca85c3c94e0c558a2b04",
-    "localSha256": "6488734b298a859efbef1e718e5ccfffeb43ef91ad226d922b7120fb33b7ab87"
+    "localSha256": "51c148f91ad59eaab7f6c9065b4b05052a9d99cf4831dc0bff65d78165d12306"
   },
   {
     "id": "select",
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "42296d519cd63ba20bcbd13f9942ec3adef546c2761020360552821a69549773"
+    "localSha256": "c296d638de59201059676f4f8338a0e4bb3affe925906763e3784f99e5941f22"
   },
   {
     "id": "skeleton",
@@ -410,5 +410,23 @@
     "file": "src/components/arc/floating-button-group/floating-button-group.module.css",
     "upstreamSha256": "a79a1fa8cb57d963f66d61678c2ba76becd41bb169e7ded0b3054f125a4f9f6e",
     "localSha256": "4c1948cbe4fa4aaa80f8563fe8d5acf0998c7545b03d567883d736db75615140"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.tsx",
+    "upstreamSha256": "cf09873e5d895e46129159e62f7e494f448cfd247aaddd6c9a54de45a5d6c108"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/lib/use-today.ts",
+    "upstreamSha256": "069a833b34cb103040013346c07ad453d235da1096ea011d2c50bd148029a3af"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.module.css",
+    "upstreamSha256": "2e019a6ca658f124c7ea0303aac46aa615a4e6bb3bc485c57d3b85acb0d26adc"
   }
 ]

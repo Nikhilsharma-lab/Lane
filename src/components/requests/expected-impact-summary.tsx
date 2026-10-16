@@ -1,6 +1,8 @@
 import { formatGuardrail, type ExpectedImpact } from "@/lib/request-impact"
+import { MeasurementPlanSummary } from "./measurement-plan-summary"
 
 export function ExpectedImpactSummary({ impact }: { impact: ExpectedImpact }) {
+  if (impact.kind === "measurement") return <MeasurementPlanSummary plan={impact} />
   const values = impact.kind === "metric"
     ? [
       { label: "Metric", value: impact.metric },

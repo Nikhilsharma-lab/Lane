@@ -92,7 +92,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     busy.current = false;
     setOpen(false);
     toast({ type: "success", title: "Request created",
-      description: "Open and ready to be picked up.",
+      description: "Your Request is now in Open.",
       action: { label: "Open Request", onClick: () => router.push(requestDetailHref(requestId, returnContext.status, returnContext.project)) },
     });
   }, [insert, returnContext, router, toast]);

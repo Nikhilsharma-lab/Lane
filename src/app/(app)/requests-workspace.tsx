@@ -10,14 +10,20 @@ import { DesignReview } from "./requests/[id]/design-review-lazy"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
 import { RequestsWelcome } from "./requests-welcome"
 import { RequestsOverview } from "./requests-overview"
+import { RequestCurrentValues } from "./requests/[id]/current-values"
+import { measurementReadiness } from "@/lib/request-measurement"
 
 function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
   filter: RequestStatusFilter; projectFilter: RequestProjectFilter; orgId: string; isGuest: boolean; currentUserId: string; isAdmin: boolean;
 }) {
+  const impact = props.request.expectedImpact
+  const pickupBlockedReason = measurementReadiness(impact, props.request.requestType)
+  const pickupRequester = props.request.createdBy === currentUserId ? null : props.request.creatorName || "the requester"
   return <RequestDetailView {...props}
-    lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} />}
-    mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} fullWidth />}
+    lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
+    mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} fullWidth />}
+    currentValues={impact?.kind === "measurement" && props.request.status === "open" && props.request.createdBy === currentUserId ? <RequestCurrentValues requestId={props.request.id} context={{ orgId }} impact={impact} requestType={props.request.requestType} /> : undefined}
     commentForm={<CommentForm requestId={props.request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
     designReview={<DesignReview requestId={props.request.id} initialState={{ version: props.request.designReviewVersion ?? 0, reviews: props.request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!props.isGuest} canManage={!props.isGuest && (isAdmin || props.request.createdBy === currentUserId)} context={{ orgId }} />}

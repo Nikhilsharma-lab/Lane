@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DEFAULT_IMPACT_UNIT, expectedImpactDraftSchema } from "./request-impact";
-import { projectIdSchema, requestTypeSchema } from "./request-properties";
+import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -25,6 +25,7 @@ const sourceSchema = z.object({
   expectedImpact: expectedImpactDraftSchema,
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  priority: requestPrioritySchema.default("none"),
   title: z.string().max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX).default(""),
@@ -153,7 +154,13 @@ export function writeIntakeDraft(
   const impact = draft.source.expectedImpact;
   // The default unit is not user work. An open guardrail pane, an added
   // guardrail or an explicitly cleared/custom unit is.
-  const hasImpact = impact != null && (
+  const hasImpact = impact?.kind === "measurement" ? (
+    impact.primary.key !== "" || impact.guardrails.length > 0 ||
+    impact.measurement.audience !== "all" || impact.measurement.platform !== "all" ||
+    Boolean(impact.measurement.audienceName?.trim() || impact.measurement.platformName?.trim()) ||
+    impact.measurement.windowDays !== 30 || impact.measurement.exactDates ||
+    Boolean(impact.measurement.startDate || impact.measurement.endDate)
+  ) : impact != null && (
     impact.guardrailEdit !== undefined ||
     impact.guardrail !== undefined ||
     (impact.kind === "metric" && impact.unit !== undefined && impact.unit !== DEFAULT_IMPACT_UNIT) ||
@@ -165,6 +172,7 @@ export function writeIntakeDraft(
     Boolean(draft.previousProblem?.trim()) ||
     draft.source.projectId != null ||
     draft.source.requestType != null ||
+    (draft.source.priority !== undefined && draft.source.priority !== "none") ||
     draft.source.title.trim().length > 0 ||
     draft.source.description.trim().length > 0 ||
     draft.source.affectedPeople.trim().length > 0 ||

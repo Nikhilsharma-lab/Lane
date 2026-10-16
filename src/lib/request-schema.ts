@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requiredExpectedImpactSchema } from "./request-impact";
-import { projectIdSchema, requestTypeSchema } from "./request-properties";
+import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
+import { measurementRequestTypeIssue } from "./request-measurement";
 
 /**
  * Shared intake-form validation — the single source of truth for both the
@@ -41,6 +42,7 @@ const usefulLinkSchema = z
 export const requestSchema = z.object({
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  priority: requestPrioritySchema.default("none"),
   title: z
     .string()
     .trim()
@@ -59,6 +61,9 @@ export const requestSchema = z.object({
   uncertainty: optionalContextSchema,
   usefulLink: usefulLinkSchema,
   expectedImpact: requiredExpectedImpactSchema,
+}).superRefine((value, context) => {
+  const issue = measurementRequestTypeIssue(value.expectedImpact, value.requestType);
+  if (issue) context.addIssue({ code: "custom", path: ["expectedImpact", "primary", "noBaseline"], message: issue });
 });
 
 export type RequestInput = z.input<typeof requestSchema>;

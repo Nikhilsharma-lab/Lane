@@ -112,6 +112,7 @@ describe("requestSchema", () => {
     expect(result.data).toEqual({
       projectId: null,
       requestType: null,
+      priority: "none",
       title: "Export flow",
       description: "People lose their filters during export.",
       affectedPeople: "Design leads",

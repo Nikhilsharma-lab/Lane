@@ -20,9 +20,10 @@ import {
   finalizeAttachmentUpload,
   prepareAttachmentUpload,
 } from "@/app/(app)/intake/attachment-actions";
+import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import IntakeLoading from "@/app/(app)/intake/loading";
 import type { TriageResult } from "@/lib/ai/triage";
-import { fillMetricImpact, metricImpact, verifiedImpact } from "./fixtures/request-impact";
+import { fillMetricImpact, measurementImpact, metricImpact, verifiedImpact } from "./fixtures/request-impact";
 import requestsMeta, { RequestsShellFixture } from "./requests.stories";
 
 const requestSource = {
@@ -148,6 +149,40 @@ export const Compose: Story = {
   },
 };
 
+export const MeasurementRequestReview: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
+    await fillMetricImpact(canvas);
+    await userEvent.click(canvas.getByRole("combobox", { name: "Priority: No priority" }));
+    await userEvent.click(await page.findByRole("option", { name: "High" }));
+    await waitFor(() => expect(canvas.getByRole("combobox", { name: "Priority: High" })).toHaveFocus());
+    await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }));
+    const guard = within(canvas.getByRole("region", { name: "Guardrail 1" }));
+    await userEvent.click(guard.getByRole("combobox", { name: "Guardrail metric" }));
+    await userEvent.click(await page.findByRole("option", { name: "Support contact rate" }));
+    await waitFor(() => expect(guard.getByRole("combobox", { name: "Guardrail metric" })).toHaveFocus());
+    await userEvent.type(guard.getByRole("spinbutton", { name: "Limit value" }), "5");
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    const summary = within(await canvas.findByRole("region", { name: "Measurement plan" }));
+    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
+    await expect(summary.getByText("Conversion rate")).toBeVisible();
+    await expect(summary.getByText("90 %")).toBeVisible();
+    await expect(summary.getByText("Support contact rate")).toBeVisible();
+    await expect(canvas.getByText("High")).toBeVisible();
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ priority: "high", expectedImpact: {
+      ...measurementImpact,
+      guardrails: [{ key: "support", name: "", unit: "percent", current: null, noBaseline: false, operator: "at_most", limit: 5 }],
+    } }), context);
+    await expect(canvas.getByRole("button", { name: "Create Request" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
+    await expect(within(canvas.getByRole("region", { name: "Guardrail 1" })).getByRole("spinbutton", { name: "Limit value" })).toHaveValue(5);
+    await expect(canvas.getByRole("combobox", { name: "Priority: High" })).toBeVisible();
+  },
+};
+
 export const RequiredValidation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -159,6 +194,26 @@ export const RequiredValidation: Story = {
     await visible(
       canvas.getByRole("heading", { name: "New Request", level: 1 }),
     );
+  },
+};
+
+export const OutOfRangeGoal: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
+    await fillMetricImpact(canvas);
+    const target = canvas.getByRole("spinbutton", { name: "Target after release (optional)" }) as HTMLInputElement;
+    await userEvent.clear(target);
+    await userEvent.type(target, "101");
+    await expect(target.validity.rangeOverflow).toBe(true);
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    await expect(runTriage).not.toHaveBeenCalled();
+    await waitFor(() => expect(target).toHaveFocus());
+    await userEvent.clear(target);
+    await userEvent.type(target, "75");
+    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
+    await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
   },
 };
 
@@ -350,9 +405,9 @@ async function reviewSupportingDetails(
     await expect(files.getByText("2.0 KB")).toBeVisible();
     await expect(files.queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
     await expect(canvas.getByText(/files? (will )?upload.*creat/i)).toBeVisible();
-    const impact = within(canvas.getByRole("region", { name: "Expected impact" }));
+    const impact = within(canvas.getByRole("region", { name: "Measurement plan" }));
     await expect(impact.getByText("90 %")).toBeVisible();
-    await expect(impact.getByText("14 days")).toBeVisible();
+    await expect(impact.getByText("14 days after release")).toBeVisible();
     await expect(canvas.getByRole("heading", { name: requestSource.title })).toBeVisible();
     await expect(canvas.getByText(requestSource.description)).toBeVisible();
     if (triage.classification !== "problem") {
@@ -372,9 +427,8 @@ async function reviewSupportingDetails(
   await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue(relatedLink);
   await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
   await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveValue(requestSource.description);
-  await expect(canvas.getByRole("spinbutton", { name: "Goal" })).toHaveValue(90);
-  await expect(canvas.queryByRole("spinbutton", { name: "Today (optional)" })).not.toBeInTheDocument();
-  await expect(canvas.getByRole("button", { name: "Add current value" })).toBeVisible();
+  await expect(canvas.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
+  await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(null);
   await expect(within(canvas.getByRole("list", { name: "Files ready to upload" })).getByText(fileName)).toBeVisible();
   await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
   await visible(await canvas.findByRole("heading", { name: reviewHeading }));
@@ -887,6 +941,33 @@ export const WorkspaceIntake: Story = {
   },
 };
 
+// The calendar is a child modal: Escape closes it without losing the Request draft.
+export const WorkspaceCalendarReturnsToRequest: Story = {
+  ...WorkspaceIntake,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("link", { name: "Create Request" }));
+    const page = within(canvasElement.ownerDocument.body);
+    const request = within(await page.findByRole("dialog", { name: "New Request" }));
+    await userEvent.type(await request.findByRole("textbox", { name: "Request title" }), requestSource.title);
+    const windowTrigger = request.getByRole("button", { name: "Measurement window" });
+    windowTrigger.focus();
+    await userEvent.keyboard("{Enter}{End}{Enter}");
+    const dates = within(await page.findByRole("dialog", { name: "Custom measurement dates" }));
+    await userEvent.type(dates.getByLabelText("From"), "2026-10-20");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(windowTrigger).toHaveFocus());
+    await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
+    await expect(request.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
+    await expect(windowTrigger).toHaveTextContent("Measurement dates");
+    await userEvent.click(windowTrigger);
+    await userEvent.click(await page.findByRole("menuitem", { name: "Custom dates…" }));
+    const reopened = within(await page.findByRole("dialog", { name: "Custom measurement dates" }));
+    await expect(reopened.getByLabelText("From")).toHaveValue("");
+    await userEvent.click(reopened.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(windowTrigger).toHaveFocus());
+  },
+};
+
 export const WorkspaceActionsRemainVisible: Story = {
   ...WorkspaceIntake,
   play: async ({ canvasElement }) => {
@@ -905,6 +986,8 @@ export const WorkspaceActionsRemainVisible: Story = {
     ]);
     const review = canvas.getByRole("button", { name: "Review Request" });
     const footer = review.closest("footer")!;
+    const composerHeading = canvas.getByRole("heading", { name: "New Request", level: 2 });
+    await waitFor(() => expect(composerHeading.getBoundingClientRect().top).toBeGreaterThanOrEqual(dialog.getBoundingClientRect().top));
     let scroller: HTMLElement | null = relatedLink.parentElement;
     while (scroller && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
     // Narrow viewports must scroll; wider ones can fit the complete form.
@@ -986,7 +1069,15 @@ export const AllFailedFilesRemoved: Story = {
   },
 };
 
+function restoreLegacyBlankDraft() {
+  writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
+    source: { ...requestSource, title: "", description: "", expectedImpact: { ...EMPTY_METRIC_IMPACT } },
+    review: null,
+  });
+}
+
 export const ExpectedImpactRequired: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
@@ -1005,6 +1096,7 @@ export const ExpectedImpactRequired: Story = {
 };
 
 export const ExpectedMetricImpactReview: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
     await visible(await canvas.findByRole("heading", { name: "Review your Request" }));
@@ -1028,6 +1120,7 @@ export const ExpectedMetricImpactReview: Story = {
 };
 
 export const ExpectedVerifiedImpactReview: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
@@ -1076,7 +1169,7 @@ export const LegacyReviewNeedsImpact: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await visible(await canvas.findByRole("heading", { name: "Check the suggested problem" }));
     await expect(canvas.getByRole("textbox", { name: "Problem to solve" })).toHaveValue("Returning customers cannot identify which saved draft contains their latest changes.");
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining(legacySource), context);
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ ...legacySource, expectedImpact: measurementImpact }), context);
     await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
     await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: "Returning customers cannot identify which saved draft contains their latest changes." }, context);
   },
@@ -1102,6 +1195,7 @@ export const ExpectedImpactRestoredZeroBaseline: Story = {
 };
 
 export const ExpectedImpactModeSwitch: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = await fillRequest(canvasElement);
     const changeMode = async (name: string) => {
@@ -1133,6 +1227,7 @@ export const ExpectedImpactModeSwitch: Story = {
 };
 
 export const ExpectedGuardrailReview: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("textbox", { name: "Measured in" })).toHaveValue("%");
@@ -1170,6 +1265,7 @@ export const ExpectedGuardrailReview: Story = {
 };
 
 export const GuardrailSurvivesModeSwitch: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = await fillRequest(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
@@ -1212,6 +1308,7 @@ async function addGuardrail(canvasElement: HTMLElement) {
 }
 
 export const GuardrailCancelAndSave: Story = {
+  beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = await fillRequest(canvasElement);
     let editor = await addGuardrail(canvasElement);

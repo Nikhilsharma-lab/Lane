@@ -44,7 +44,8 @@ export const Selected: Story = {
     await expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
     await expect(bar.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
-    await expect(getComputedStyle(bar).boxShadow).toBe("none")
+    // Floating bars carry Supabase's shadow-lg.
+    await expect(getComputedStyle(bar).boxShadow).toBe("rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px")
   },
 }
 
