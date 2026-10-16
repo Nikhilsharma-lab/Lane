@@ -30,6 +30,10 @@ export default defineConfig({
       "src/components/shell/sidebar-motion.test.ts",
       "src/components/requests/request-detail-keys.test.ts",
       "src/components/requests/request-sequence.test.ts",
+      "src/components/requests/review-optimistic.test.ts",
+      "src/components/requests/reviewer-search.test.ts",
+      "src/components/requests/local-time.test.ts",
+      "src/components/requests/design-review-contract.test.ts",
     ],
   },
   resolve: {
