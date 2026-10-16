@@ -1,97 +1,30 @@
-.page {
-  width: 100%;
-  max-width: calc(var(--sb-spacing) * 192);
-  min-height: 100%;
-  margin-inline: auto;
-  padding: var(--space-8) var(--space-6) 0;
-}
-
-.pageSurface,
-.composeForm,
-.composeBody,
-.dialog,
-.details,
-.supporting {
-  display: flex;
+/* Plan item 2.3: one composition inside the centred composer dialog (chosen 2026-10-13).
+ * The fields scroll in their own region and the footer holds the step's actions
+ * below it, at the bottom of the panel. */
+.composer {
+  --composer-gutter: var(--space-6);
+  --composer-surface: var(--surface-raised);
   min-width: 0;
-  flex-direction: column;
 }
+/* The dialog's body hands its height to the composer, which owns the gutters and the scrolling. */
+.dialog { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.dialog .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--composer-gutter) var(--space-6); overscroll-behavior: contain; scrollbar-width: thin; }
+@media (max-width: 40rem) { .composer { --composer-gutter: var(--space-4); } }
 
-.pageSurface,
-.composeBody { gap: var(--space-6); }
-.details,
-.supporting { gap: var(--space-4); }
+.composer .title { font-size: var(--text-lg); font-weight: var(--sb-font-weight-medium); line-height: var(--leading-body); }
+/* Three lines to start, growing with the text to about sixteen, then it scrolls. Browsers without
+ * field-sizing keep rows={3}. */
+.composer .description { min-height: 3lh; max-height: 16lh; overflow-y: auto; font-size: var(--text-base); font-weight: var(--sb-font-weight-normal); line-height: var(--leading-body); field-sizing: content; }
 
-.composeForm :is(input, textarea, button, [tabindex]) {
-  scroll-margin-block: var(--space-6) calc(var(--space-16) + var(--space-8));
-}
+.footer { position: sticky; bottom: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--space-2); padding-block: var(--space-3); border-top: var(--sb-border-width) solid var(--border); background: var(--composer-surface); }
+.dialog .footer { flex: none; padding-inline: var(--composer-gutter); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.lead { margin-inline-end: auto; }
+/* Says why Review Request waits; it takes the row's free space and wraps above the actions when narrow. */
+.footerNote { flex: 1 1 calc(var(--sb-spacing) * 64); margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+/* The key hint is decoration for pointer users; the button carries aria-keyshortcuts. */
+.shortcut { display: none; color: var(--text-muted); font: inherit; font-size: var(--text-xs); white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) { .shortcut { display: inline; } }
 
-.supporting { gap: var(--space-3); }
 .propertyContent { display: inline-flex; align-items: center; gap: var(--space-2); }
 .propertyContent > svg { width: var(--sb-icon-sm); height: var(--sb-icon-sm); flex: none; color: var(--accent); }
-
-.titleEditor,
-.descriptionEditor {
-  /* These are writing surfaces: the native caret identifies editing focus. */
-  --focus-outline: transparent;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  border-radius: 0;
-  padding: var(--space-2) 0;
-  background: transparent;
-  color: var(--foreground);
-  font: inherit;
-  line-height: var(--leading-body);
-  outline: none;
-  box-shadow: none;
-}
-
-.titleEditor::placeholder,
-.descriptionEditor::placeholder {
-  color: var(--text-muted);
-}
-
-.titleEditor { min-height: var(--space-12); font-size: var(--text-xl); font-weight: var(--sb-font-weight-medium); }
-.descriptionEditor { min-height: var(--space-24); resize: none; font-size: var(--text-sm); }
-
-.composeFooter {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  border-top: var(--sb-border-width) solid var(--border-subtle);
-  padding-block: var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
-  background: var(--surface-raised);
-}
-
-.page .composeFooter { background: var(--surface); }
-.composeFooter p { flex: 1 1 calc(var(--sb-spacing) * 64); }
-
-@media (max-width: 640px) {
-  .page { padding: var(--space-6) var(--space-4) 0; }
-}
-
-.reviewFooter {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  padding-bottom: var(--space-4);
-  background: var(--surface-raised);
-}
-
-.dialog { min-height: 0; flex: 1; }
-.dialog .composeForm { min-height: 0; overflow: hidden; }
-.dialog .composeBody { min-height: 0; gap: var(--space-3); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.dialog .details { gap: var(--space-2); }
-.dialog .descriptionEditor { min-height: var(--space-16); }
-.dialog .composeFooter { flex: 0 0 auto; margin-top: var(--space-2); padding-top: var(--space-3); }
-.reviewBody { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.dialog .reviewFooter { flex: 0 0 auto; padding-top: var(--space-4); }
-
-.recoveryBody { min-height: 0; overflow: auto; padding-block: var(--space-3) var(--space-6); overscroll-behavior: contain; scrollbar-width: thin; }

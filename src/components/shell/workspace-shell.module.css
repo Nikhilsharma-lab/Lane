@@ -4,6 +4,13 @@
 .navigation[data-collapsed] { overflow: visible; }
 .navigation[data-collapsed] .sidebarPanel { position: absolute; z-index: 20; top: var(--sidebar-peek-top); left: 0; width: var(--sidebar-peek-width); height: calc(100% - var(--sidebar-peek-top) - var(--space-2)); overflow: hidden; border: var(--sb-border-width) solid var(--border); border-left: 0; border-radius: 0 var(--radius-control) var(--radius-control) 0; background: var(--workspace-canvas); box-shadow: var(--shadow-floating); visibility: hidden; opacity: 0; transform: translateX(-100%); pointer-events: none; transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), visibility 0s var(--duration-fast); }
 .navigation[data-peeking] .sidebarPanel { visibility: visible; opacity: 1; transform: translateX(0); pointer-events: auto; transition-duration: var(--duration-standard), var(--duration-fast), 0s; transition-delay: 0s; }
+/* Plan item 2.4: while a toggle slides the panel, it is lifted out of the flow onto the box it docks into
+   (the shell's 8px gutter, the remembered width), so the content's width changes once and the panel moves
+   on transform only (a WAAPI slide in use-sidebar-resize.ts). Settled, it returns to the flow unseen. */
+.navigation[data-motion] { overflow: visible; }
+.navigation[data-motion] .sidebarPanel { position: absolute; z-index: 20; top: var(--space-2); bottom: var(--space-2); left: var(--space-2); height: auto; width: var(--sidebar-peek-width); border: 0; border-radius: 0; background: var(--workspace-canvas); box-shadow: none; visibility: visible; opacity: 1; transform: none; transition: none; pointer-events: none; }
+/* The shell's own canvas, so the panel covers the content it passes over. */
+:global(:root:not([data-theme="dark"])) .navigation[data-motion] .sidebarPanel { background: var(--workspace-canvas); }
 .sidebar { height: 100%; }
 .sidebar[data-placement="inline"] { min-width: calc(var(--sb-spacing) * 50); }
 .resizeHandle { position: absolute; z-index: 5; top: var(--space-6); bottom: var(--space-6); left: calc(var(--sidebar-width, var(--sb-sidebar-width)) + var(--space-3)); width: var(--space-2); cursor: col-resize; touch-action: none; }
@@ -13,15 +20,7 @@
 .shell[data-resizing] { cursor: col-resize; user-select: none; }
 .expand { flex: none; width: var(--sb-size-inner-medium); height: var(--sb-size-inner-medium); min-height: var(--sb-size-inner-medium); padding: 0; }
 .main { display: flex; flex: 1; min-width: 0; flex-direction: column; overflow: hidden; border: var(--workspace-pane-border-width) solid var(--border); border-radius: var(--workspace-pane-radius); background: var(--surface); container: main / inline-size; }
-.topbar { display: flex; min-height: var(--workspace-header-height); flex: none; align-items: center; gap: var(--space-3); border-bottom: var(--sb-border-width) solid var(--border-subtle); padding: 0 var(--space-6); }
-.crumbs { min-width: 0; font-size: var(--text-sm); }
-.crumbs ol { display: flex; min-width: 0; margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
-.crumbs li { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
-.crumbs li + li::before { content: "/"; margin: 0 calc(var(--sb-spacing) * 2.5); color: var(--text-muted); }
-.crumbs a { overflow: hidden; text-overflow: ellipsis; border-radius: var(--radius-control); }
-.crumbs a:focus-visible { background: var(--surface-muted); color: var(--foreground); }
-.crumbs [aria-current] { color: var(--foreground); }
-.content { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; container: content / inline-size; }
+.content { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; container: content / inline-size; scroll-padding-top: var(--workspace-header-height); }
 .content[hidden] { display: none; }
 .content:has([data-request-selection-bar]) { scroll-padding-bottom: calc(var(--space-16) + var(--space-8)); }
 .content:has([data-request-selection-bar] [role="alert"]) { scroll-padding-bottom: calc(var(--space-16) * 3); }
@@ -35,12 +34,10 @@
   .navigation { height: auto; width: 100%; }
   .resizeHandle { display: none; }
   .main { min-height: 0; }
-  .topbar { display: none; }
 }
 @media (max-width: 880px) {
   .shell[data-linear-preview-auto-collapse] { flex-direction: row; gap: 0; }
   .shell[data-linear-preview-auto-collapse] .navigation { width: 0; height: 100%; }
   .shell[data-linear-preview-auto-collapse] .navigation:not([data-peeking]) { visibility: hidden; }
   .shell[data-linear-preview-auto-collapse] .resizeHandle { display: none; }
-  .shell[data-linear-preview-auto-collapse] .topbar { display: flex; }
 }

@@ -5,9 +5,8 @@ import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
 import { markDoneMany, pickUpRequests } from "@/app/(app)/requests/[id]/actions"
-import { RequestListViewProvider, useRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { RequestListViewProvider, useRequestListView } from "@/components/requests/list-view-state"
 import type { OverviewRequest, RequestGrouping } from "@/lib/request-overview"
-import type { RequestStatusFilter } from "@/lib/request-workspace"
 
 const context = { orgId: "org_storybook" }
 const requests: OverviewRequest[] = [
@@ -18,14 +17,15 @@ const requests: OverviewRequest[] = [
 // Re-render the production list as a server-action revalidation would. No test
 // controls or server-response branches are added to the product component.
 let replaceRows: Dispatch<SetStateAction<OverviewRequest[]>> | undefined
-function RefreshFixture({ filter = "all", grouping = "status" }: { filter?: RequestStatusFilter; grouping?: RequestGrouping }) {
+function RefreshFixture({ grouping = "status" }: { grouping?: RequestGrouping }) {
   const [rows, setRows] = useState(requests)
   const [, setView] = useRequestListView()
   useEffect(() => {
     replaceRows = setRows
-    setView(previous => ({ ...withListContext(previous, { status: filter }), grouping }))
+    // The status view stays the list view state's, read from the URL once (plan item 1.7).
+    setView(previous => ({ ...previous, grouping }))
     return () => { replaceRows = undefined }
-  }, [filter, grouping, setView])
+  }, [grouping, setView])
   return <RequestsOverview requests={rows} isGuest={false} context={context} />
 }
 
@@ -37,6 +37,7 @@ const meta = {
   decorators: [(Story) => <RequestListViewProvider><Story /></RequestListViewProvider>],
   beforeEach: () => {
     replaceRows = undefined
+    // Plan item 1.6: one statement moves every selected row.
     mocked(pickUpRequests).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
     mocked(markDoneMany).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
     getRouter().refresh.mockClear()
@@ -71,14 +72,15 @@ export const PendingActionSurvivesRowRefresh: Story = {
     await expect(action).toBeInTheDocument()
     await expect(action).toHaveAttribute("aria-disabled", "true")
     await expect(action).toHaveFocus()
-    // Each row action also owns a status region, so read the selection announcement by its text.
-    await expect(canvas.getByText("Working on 2 selected Requests")).toHaveAttribute("role", "status")
+    // Plan item 2.4: the list's one polite region carries the selection announcement.
+    await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Working on 2 selected Requests.")
     await expect(canvas.queryByRole("button", { name: "Mark Done" })).not.toBeInTheDocument()
     finishBatch?.()
     await waitFor(() => expect(canvas.queryByRole("toolbar", { name: "Selected Requests" })).not.toBeInTheDocument())
     // Status grouping remounts the original row, so focus needs a stable list
-    // fallback instead of trying to focus its detached checkbox.
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Filter Requests by title" })).toHaveFocus())
+    // fallback instead of trying to focus its detached checkbox: the grid's
+    // tab stop (plan item 2.4).
+    await waitFor(() => expect(canvasElement.querySelector('[role="row"][tabindex="0"]')).toHaveFocus())
     // The batch revalidated the list itself; a batch with no failures
     // never refreshes the router a second time (plan item 1.3).
     await expect(getRouter().refresh).not.toHaveBeenCalled()
@@ -86,13 +88,14 @@ export const PendingActionSurvivesRowRefresh: Story = {
 }
 
 export const FailedRequestLeavesFilteredView: Story = {
-  args: { filter: "open" },
+  // The Open view comes from the list view state, which reads the URL once (plan item 1.7).
+  parameters: { nextjs: { navigation: { pathname: "/", query: { status: "open" } } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await waitFor(() => expect(replaceRows).toBeDefined())
     mocked(pickUpRequests).mockImplementationOnce(async () => {
-      // Another teammate picked the first Request; our batch moves the second,
-      // and revalidation removes both from the Open filter.
+      // Another teammate picked the first Request; our pickup moves the
+      // second, and revalidation removes both from the Open view.
       replaceRows?.(rows => rows.map(picked))
       return { moved: [requests[1].id], failed: [{ id: requests[0].id, error: "This Request is no longer Open. Refresh to see its current state." }] }
     })

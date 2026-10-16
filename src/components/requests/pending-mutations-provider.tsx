@@ -10,6 +10,28 @@ export type RequestPatch = Partial<Pick<OverviewRequest, "status" | "priority" |
   since: number
 }
 
+/** Plan item 2.5: a comment the viewer posted, shown before addComment answers. */
+export type PendingComment = {
+  key: string
+  body: string
+  authorName: string
+  createdAt: Date
+  /** The server's id once addComment confirmed it; the row clears when the server list includes it. */
+  id?: string
+  /** clock() when addComment confirmed it, for the expiry of a comment the server never lists. */
+  confirmedAt?: number
+}
+
+/** A pending comment as Request detail renders it, after the server's comments. */
+export type ShownPendingComment = {
+  /** The server id once confirmed, so the server copy replaces this row without a remount; the key before. */
+  id: string
+  body: string
+  authorName: string
+  createdAt: Date
+  pending: "sending" | "sent"
+}
+
 export type PendingMutations = {
   /** Patches keyed by Request id, applied on top of whatever the server rendered. */
   patches: Record<string, RequestPatch>
@@ -32,6 +54,14 @@ export type PendingMutations = {
   track(id: string, outcome: Promise<boolean>): void
   /** Resolves with whether the latest action on this Request succeeded; true when none is in flight. */
   settled(id: string): Promise<boolean>
+  /** Shows a comment in the same tick and returns its key (plan item 2.5). */
+  appendComment(requestId: string, comment: { body: string; authorName: string }): string
+  /** addComment succeeded: the comment now clears as soon as the server's comments include its id. */
+  confirmComment(requestId: string, key: string, saved: { id: string; createdAt: Date }): void
+  /** addComment failed: the comment goes. */
+  dropComment(requestId: string, key: string): void
+  /** The server's comments, then this Request's pending comments the server does not list yet. Identity is kept when none are pending. */
+  commentsFor<C extends { id: string }>(requestId: string, serverComments: C[]): (C | ShownPendingComment)[]
 }
 
 type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl"
@@ -40,19 +70,23 @@ const FIELDS: Field[] = ["status", "priority", "assignedTo", "assigneeName", "as
 /** One action's change to one Request. Later layers win; a layer clears on its own. */
 type Layer = { token: number; patch: RequestPatch; confirmed: boolean }
 type Insert = { row: OverviewRequest; since: number }
-export type PendingSnapshot = { layers: Record<string, Layer[]>; inserts: Record<string, Insert> }
+export type PendingSnapshot = { layers: Record<string, Layer[]>; inserts: Record<string, Insert>; comments: Record<string, PendingComment[]> }
 
-/** A composer insert the server lists never pick up (another Project's view, say) stops showing after this. */
+/** A composer insert the server lists never pick up (another Project's view, say) stops showing after this.
+ * A confirmed comment the server never lists (its payload dropped by a navigation) stops showing after it too. */
 const INSERT_TTL_MS = 2 * 60 * 1000
 
 const fieldsOf = (patch: RequestPatch) => FIELDS.filter(field => patch[field] !== undefined)
-const valueOf = (row: object, field: Field) => {
-  const value = (row as Partial<Record<Field, unknown>>)[field]
-  return field === "priority" ? value ?? "none" : value ?? null
-}
-/** The plan's rule: a patch is reflected once the server row shows its status or priority. */
+const valueOf = (row: object, field: Field) => (row as Partial<Record<Field, unknown>>)[field] ?? null
+/**
+ * The plan's rule: a patch is reflected once the server row shows its status
+ * or priority. A row that does not carry one of those fields (a partial row,
+ * an older fixture) never reflects it: reading a missing priority as "none"
+ * would clear a confirmed "No priority" before the server row shows it.
+ */
 function reflected(row: object, patch: RequestPatch) {
   const decisive = fieldsOf(patch).filter(field => field === "status" || field === "priority")
+  if (decisive.some(field => (row as Partial<Record<Field, unknown>>)[field] === undefined)) return false
   const fields = decisive.length ? decisive : fieldsOf(patch)
   return fields.every(field => valueOf(row, field) === valueOf(patch, field))
 }
@@ -67,7 +101,7 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
   now?: () => number
   clock?: () => number
 } = {}) {
-  let snapshot: PendingSnapshot = { layers: {}, inserts: {} }
+  let snapshot: PendingSnapshot = { layers: {}, inserts: {}, comments: {} }
   let nextToken = 1
   const listeners = new Set<() => void>()
   const inflight = new Map<string, Promise<boolean>>()
@@ -85,6 +119,13 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
     if (layers.length) next[id] = layers
     else delete next[id]
     set({ ...snapshot, layers: next })
+  }
+
+  function setComments(requestId: string, list: PendingComment[]) {
+    const next = { ...snapshot.comments }
+    if (list.length) next[requestId] = list
+    else delete next[requestId]
+    set({ ...snapshot, comments: next })
   }
 
   function clearLater(key: string, task: () => void) {
@@ -123,10 +164,30 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
       patches[id] = layers.reduce<RequestPatch>((merged, layer) => ({ ...merged, ...layer.patch }), layers[0].patch)
       unconfirmed += layers.filter(layer => !layer.confirmed).length
     }
+    for (const list of Object.values(current.comments)) unconfirmed += list.filter(comment => comment.id === undefined).length
     return {
       patches,
       unconfirmed,
       applyOne: row => overlay(current, row),
+      commentsFor<C extends { id: string }>(requestId: string, serverComments: C[]): (C | ShownPendingComment)[] {
+        const pending = current.comments[requestId]
+        if (!pending) return serverComments
+        const listed = new Set(serverComments.map(comment => comment.id))
+        const shown: ShownPendingComment[] = []
+        for (const comment of pending) {
+          const expired = comment.confirmedAt !== undefined && clock() - comment.confirmedAt > INSERT_TTL_MS
+          if ((comment.id !== undefined && listed.has(comment.id)) || expired) {
+            // The server copy now stands in its place (same id, so the row is not remounted).
+            clearLater(`comment:${requestId}:${comment.key}`, () => {
+              const list = snapshot.comments[requestId]
+              if (list?.includes(comment)) setComments(requestId, list.filter(item => item !== comment))
+            })
+            continue
+          }
+          shown.push({ id: comment.id ?? comment.key, body: comment.body, authorName: comment.authorName, createdAt: comment.createdAt, pending: comment.id === undefined ? "sending" : "sent" })
+        }
+        return shown.length ? [...serverComments, ...shown] : serverComments
+      },
       apply<T extends { id: string }>(rows: T[]): T[] {
         // Most renders have no pending work. Preserve their array without
         // scanning it; composer inserts still need the duplicate/expiry checks.
@@ -162,7 +223,28 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
       insert,
       track,
       settled,
+      appendComment,
+      confirmComment,
+      dropComment,
     }
+  }
+
+  function appendComment(requestId: string, { body, authorName }: { body: string; authorName: string }) {
+    const key = `pending-comment-${nextToken++}`
+    setComments(requestId, [...(snapshot.comments[requestId] ?? []), { key, body, authorName, createdAt: new Date(clock()) }])
+    return key
+  }
+
+  function confirmComment(requestId: string, key: string, saved: { id: string; createdAt: Date }) {
+    const list = snapshot.comments[requestId]
+    if (!list?.some(comment => comment.key === key)) return
+    setComments(requestId, list.map(comment => comment.key === key ? { ...comment, id: saved.id, createdAt: saved.createdAt, confirmedAt: clock() } : comment))
+  }
+
+  function dropComment(requestId: string, key: string) {
+    const list = snapshot.comments[requestId]
+    if (!list?.some(comment => comment.key === key)) return
+    setComments(requestId, list.filter(comment => comment.key !== key))
   }
 
   function begin(id: string, patch: Omit<RequestPatch, "since">) {
@@ -223,7 +305,8 @@ export type PendingMutationsStore = ReturnType<typeof createPendingMutationsStor
 
 /**
  * One pending-mutation overlay at layout level (plan item 1.5). The list,
- * detail, summary, counts and the composer insert read through it, so a
+ * detail, summary, counts, the composer insert and detail's comments (plan
+ * item 2.5) read through it, so a
  * change shows in the next frame and never visibly reverts: a patch clears
  * only when its action succeeded and the server rows show it, or when the
  * action fails. It never clears on transition end, because Next discards an
@@ -232,7 +315,7 @@ export type PendingMutationsStore = ReturnType<typeof createPendingMutationsStor
 const PendingMutationsContext = createContext<PendingMutations | null>(null)
 
 /** The overlay's write side. Its functions keep their identity for the provider's life. */
-export type PendingMutationWriter = Pick<PendingMutations, "begin" | "confirm" | "rollback" | "insert" | "track" | "settled">
+export type PendingMutationWriter = Pick<PendingMutations, "begin" | "confirm" | "rollback" | "insert" | "track" | "settled" | "appendComment" | "confirmComment" | "dropComment">
 const PendingMutationWriterContext = createContext<PendingMutationWriter | null>(null)
 
 export function PendingMutationsProvider({ children }: { children: ReactNode }) {
@@ -241,8 +324,8 @@ export function PendingMutationsProvider({ children }: { children: ReactNode }) 
   const value = useMemo(() => store.view(snapshot), [store, snapshot])
   // Components that only start mutations read this one and never re-render on a patch.
   const [writer] = useState<PendingMutationWriter>(() => {
-    const { begin, confirm, rollback, insert, track, settled } = store.view(store.getSnapshot())
-    return { begin, confirm, rollback, insert, track, settled }
+    const { begin, confirm, rollback, insert, track, settled, appendComment, confirmComment, dropComment } = store.view(store.getSnapshot())
+    return { begin, confirm, rollback, insert, track, settled, appendComment, confirmComment, dropComment }
   })
   return <PendingMutationWriterContext.Provider value={writer}>
     <PendingMutationsContext.Provider value={value}>{children}</PendingMutationsContext.Provider>

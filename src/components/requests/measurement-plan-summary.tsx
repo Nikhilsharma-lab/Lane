@@ -7,7 +7,7 @@ const checkCriteria = {
   "": "",
 };
 
-export function MeasurementPlanSummary({ plan }: { plan: MeasurementPlan }) {
+export function MeasurementPlanSummary({ plan, id }: { plan: MeasurementPlan; id?: string }) {
   const { primary, measurement, guardrails } = plan;
   const unit = measurementUnitLabel(primary.unit);
   const values = primary.key === "check" ? [
@@ -18,8 +18,8 @@ export function MeasurementPlanSummary({ plan }: { plan: MeasurementPlan }) {
     { label: "Current value", value: primary.noBaseline ? "No existing data for this new feature" : primary.current === null ? "Required before pickup" : `${primary.current} ${unit}` },
     ...(primary.target === null ? [] : [{ label: "Target after release", value: `${primary.target} ${unit}` }]),
   ];
-  return <section aria-label="Measurement plan" className="space-y-4">
-    <h2 className="text-base font-medium">Measurement plan</h2>
+  return <section id={id} aria-label={id ? undefined : "Measurement plan"} aria-labelledby={id ? `${id}-heading` : undefined} className="space-y-4">
+    <h2 id={id ? `${id}-heading` : undefined} className="text-base font-medium">Measurement plan</h2>
     <dl className="grid gap-4 sm:grid-cols-2">
       {[...values,
         { label: "Audience", value: measurementAudienceLabel(measurement) },

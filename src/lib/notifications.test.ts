@@ -223,7 +223,8 @@ describe("addComment → notification", () => {
     const commentRows = rows.filter(
       (r) => r.type === "comment_added" && r.actorId === REQUESTER_ID
     );
-    expect(commentRows.length).toBeGreaterThanOrEqual(1);
-    expect(commentRows.every((r) => r.userId === PICKER_ID)).toBe(true);
+    // Plan item 2.5: the one-statement insert writes one notification, not one per role.
+    expect(commentRows).toHaveLength(1);
+    expect(commentRows[0].userId).toBe(PICKER_ID);
   });
 });

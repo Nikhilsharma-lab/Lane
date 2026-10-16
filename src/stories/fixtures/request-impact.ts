@@ -25,6 +25,12 @@ export const verifiedImpact = {
   reviewAfterDays: 1,
 } satisfies ExpectedImpact;
 
+/** Opens the composer's Expected impact disclosure when it is folded (plan item 2.3). */
+export async function openImpact(canvas: ReturnType<typeof within>) {
+  const toggle = canvas.queryByRole("button", { name: /^(Add|Edit) expected impact$/ });
+  if (toggle?.getAttribute("aria-expanded") === "false") await userEvent.click(toggle);
+}
+
 export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
   const metric = canvas.queryByRole("combobox", { name: "Metric" });
   if (metric) {
@@ -39,8 +45,7 @@ export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
     await waitFor(() => expect(window).toHaveFocus());
     return;
   }
-  const disclosure = canvas.queryByRole("button", { name: "Expected impact" });
-  if (disclosure?.getAttribute("aria-expanded") === "false") await userEvent.click(disclosure);
+  await openImpact(canvas);
   await userEvent.type(canvas.getByRole("textbox", { name: "What should improve?" }), metricImpact.metric);
   await userEvent.type(canvas.getByRole("spinbutton", { name: "Goal" }), String(metricImpact.target));
   const unit = canvas.getByRole("textbox", { name: "Measured in" });

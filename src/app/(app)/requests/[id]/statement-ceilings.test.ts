@@ -75,6 +75,45 @@ describe("statement ceilings per Request mutation", () => {
     expect(statements).toBeLessThanOrEqual(1);
   });
 
+  // Plan item 2.5: the comment, its notification and the Request read are one CTE.
+  it("addComment succeeds in one statement and notifies the requester", async () => {
+    const { addComment } = await api();
+    const form = new FormData();
+    form.set("body", "A ceiling comment");
+    const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
+    expect(result).toMatchObject({ success: true, comment: { id: expect.any(String), createdAt: expect.any(Date) } });
+    expect(statements).toBeLessThanOrEqual(1);
+    const id = result.comment?.id ?? "";
+    expect(await connection`select body from comments where id = ${id}`).toEqual([{ body: "A ceiling comment" }]);
+    const notified = await connection`select user_id, actor_id from notifications where request_id = ${requestId} and type = 'comment_added'`;
+    expect(notified).toEqual([{ user_id: REQUESTER, actor_id: MEMBER }]);
+  });
+
+  it("addComment with an empty body runs no statement", async () => {
+    const { addComment } = await api();
+    const form = new FormData();
+    form.set("body", "   ");
+    const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
+    expect(result).toEqual({ error: "Comment cannot be empty" });
+    expect(statements).toBe(0);
+  });
+
+  it("a guest's addComment on someone else's Request writes nothing in at most one statement", async () => {
+    const { addComment } = await api();
+    const form = new FormData();
+    form.set("body", "Not my Request");
+    session.orgRole = "org:guest";
+    try {
+      const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
+      expect(result).toEqual({ error: "Not found" });
+      expect(statements).toBeLessThanOrEqual(1);
+    } finally {
+      session.orgRole = "org:member";
+    }
+    expect(await connection`select id from comments where request_id = ${requestId}`).toEqual([]);
+    expect(await connection`select id from notifications where request_id = ${requestId}`).toEqual([]);
+  });
+
   it("a markDone on an Open Request fails in at most two statements", async () => {
     const { markDone } = await api();
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));

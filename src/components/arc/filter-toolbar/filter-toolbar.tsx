@@ -35,6 +35,8 @@ export interface FilterToolbarProps {
   label?: string;
   /** Adds an Add filter trigger that morphs into a two step field and value menu. */
   addFilter?: { fields: FilterField[]; onAdd: (filter: FilterChip, field: FilterField) => void; label?: string; align?: "start" | "end" };
+  /** Lane adaptation (plan item 2.4): false leaves out the toolbar's own polite status, for a page that announces filter results in one region of its own. Defaults to true. */
+  announce?: boolean;
 }
 
 const enter = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as const };
@@ -452,7 +454,7 @@ function MorphFilterMenu({ fields, onSelect, active = [], label = "Add filter", 
   </div>;
 }
 
-export function FilterToolbar({ filters, onRemove, onClearAll, children, label = "Active filters", addFilter }: FilterToolbarProps) {
+export function FilterToolbar({ filters, onRemove, onClearAll, children, label = "Active filters", addFilter, announce = true }: FilterToolbarProps) {
   const reduced = useReducedMotion() ?? false;
   const root = useRef<HTMLDivElement>(null), list = useRef<HTMLDivElement>(null);
   const armed = useRef(0), pendingFocus = useRef<number | null>(null);
@@ -511,7 +513,7 @@ export function FilterToolbar({ filters, onRemove, onClearAll, children, label =
         {filters.length > 0 ? <motion.span key="clear" className={styles.slot} {...slot(12)}><button className={styles.clear} type="button" onClick={() => { pendingFocus.current = -1; onClearAll?.(); }}><motion.span className={styles.clearText} {...text}>Clear all</motion.span></button></motion.span> : null}
       </AnimatePresence>
     </div>
-    <span className={styles.srOnly} role="status">{message}</span>
+    {announce ? <span className={styles.srOnly} role="status">{message}</span> : null}
   </div>;
 }
 

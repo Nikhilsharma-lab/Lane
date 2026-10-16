@@ -223,7 +223,7 @@ describe("Request visibility in rejected actions", () => {
     expect(await db.select({ id: comments.id }).from(comments).where(inArray(comments.requestId, [REQUEST_ID, FOREIGN_OPEN_ID]))).toEqual([]);
     // The same guest can still comment on their own Request.
     actAs("org:guest");
-    expect(await addComment(GUEST_REQUEST_ID, form, { orgId: WORKSPACE_ID })).toEqual({ success: true });
+    expect(await addComment(GUEST_REQUEST_ID, form, { orgId: WORKSPACE_ID })).toMatchObject({ success: true });
     expect(await db.select({ authorId: comments.authorId, body: comments.body }).from(comments).where(eq(comments.requestId, GUEST_REQUEST_ID)))
       .toEqual([{ authorId: SECOND_MEMBER_ID, body: "Visibility regression comment" }]);
   });

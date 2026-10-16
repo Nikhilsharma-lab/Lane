@@ -1,8 +1,9 @@
 import { formatGuardrail, type ExpectedImpact } from "@/lib/request-impact"
 import { MeasurementPlanSummary } from "./measurement-plan-summary"
 
-export function ExpectedImpactSummary({ impact }: { impact: ExpectedImpact }) {
-  if (impact.kind === "measurement") return <MeasurementPlanSummary plan={impact} />
+/** Plan item 2.5: Request detail passes id="expected-impact", a stable region its strip and stories address; the heading takes `${id}-heading`. */
+export function ExpectedImpactSummary({ impact, id }: { impact: ExpectedImpact; id?: string }) {
+  if (impact.kind === "measurement") return <MeasurementPlanSummary id={id} plan={impact} />
   const values = impact.kind === "metric"
     ? [
       { label: "Metric", value: impact.metric },
@@ -11,8 +12,8 @@ export function ExpectedImpactSummary({ impact }: { impact: ExpectedImpact }) {
     ]
     : [{ label: "Success criterion", value: impact.result }]
 
-  return <section aria-label="Expected impact" className="space-y-3">
-    <h2 className="text-base font-medium">Expected impact</h2>
+  return <section id={id} aria-label={id ? undefined : "Expected impact"} aria-labelledby={id ? `${id}-heading` : undefined} className="space-y-3">
+    <h2 id={id ? `${id}-heading` : undefined} className="text-base font-medium">Expected impact</h2>
     <dl className="grid gap-4 sm:grid-cols-2">
       {[...values,
         ...(impact.guardrail ? [{ label: "Guardrail metric", value: formatGuardrail(impact.guardrail) }] : []),

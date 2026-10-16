@@ -19,6 +19,7 @@ vi.mock("@/db", async () => {
 vi.mock("@/lib/ai/triage", () => ({
   triageRequest: async () => { boundary.aiCalls += 1; return { classification: "problem", reframedProblem: null, extractedSolution: null }; },
   classifyTriageFailure: () => "provider",
+  triageFailureStatus: () => undefined,
 }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 

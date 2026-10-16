@@ -1,5 +1,6 @@
 /* Lane record composition. Pills, popovers and controls are native Arc items.
- * Keyboard focus shows Arc's shared outline; fills mark hover, open menus and selection.
+ * Keyboard focus shows Arc's shared outline on the row, the list's one tab stop
+ * (plan item 2.4); fills mark hover, open menus and selection only.
  * Sizes follow Supabase's table: rows at the table-row height, group headers at the table-head height. */
 .records { container-type: inline-size; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
@@ -9,11 +10,12 @@
 .savedCode .codeButton { min-height: var(--request-row-height); justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
 .codeError { max-width: calc(var(--sb-spacing) * 48); padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .row[data-selected] .codeButton { color: var(--selection-foreground); }
-/* Checkbox focus stays on its square; it must not leave a deselected row highlighted. */
-.row:hover, .row[data-menu-open], .row:has(.title:focus-visible, .propertyTrigger:focus-visible, .rowMenu:focus-visible) { background: var(--interaction-hover); }
+.row:hover, .row[data-menu-open] { background: var(--interaction-hover); }
 .row[data-selected] { background: var(--selection-background); }
-.row[data-selected]:hover, .row[data-selected]:focus-within { background: var(--selection-hover); }
+.row[data-selected]:hover { background: var(--selection-hover); }
 .row[data-selected]:active { background: var(--selection-pressed); }
+/* The select cell holds the checkbox's own box; the row draws the focus ring. */
+.selectCell { display: flex; flex: none; align-items: center; }
 .row[data-selected]:has(+ .row[data-selected]) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
 .title { flex: 1 1 calc(var(--sb-spacing) * 80); min-width: 0; display: flex; align-items: center; min-height: var(--request-row-height); padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); line-height: var(--request-title-line-height); text-decoration: none; overflow-wrap: anywhere; }
@@ -55,7 +57,11 @@
 .propertyLabel { color: var(--text-secondary); font-size: var(--text-xs); }
 .group { margin-block-end: var(--space-4); }
 .groupHeading { margin: 0; font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); }
-.groupHeading + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
+/* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
+.groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius); }
+.groupCell { flex: 1; min-width: 0; }
+.groupAddCell { display: flex; flex: none; }
+.groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--sb-table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
 .groupButton > span:first-of-type { min-width: 0; overflow-wrap: anywhere; }
@@ -106,7 +112,6 @@
 /* Row actions. The menu button and the copy glyph appear for the pointer or
  * the keyboard instead of standing as a permanent column of icons. The span
  * around each glyph button only carries menu handlers; it draws nothing. */
-.menuSlot { display: contents; }
 .rowMenu { display: inline-flex; flex: none; align-items: center; justify-content: center; width: var(--sb-size-inner-small); height: var(--sb-size-inner-small); border: 0; padding: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .rowMenu:hover, .row[data-menu-open] .rowMenu { background: var(--interaction-focus); color: var(--foreground); }
 .row[data-selected] .rowMenu { color: var(--selection-foreground); }
@@ -122,6 +127,9 @@
   .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
 }
 @container (max-width: 640px) {
+  /* Sketch reservation (2026-10-11 creation-to-outcome sketch): a later trailing
+     token, span[data-row-property="waiting"], is hidden here with every other
+     property except the assignee, so phones never have to fit it. */
   .row[data-compact-row] .properties > span:not([data-row-property="pickedUpBy"]) { display: none; }
   .row[data-compact-row] .properties { flex: none; max-width: none; }
 }
@@ -136,8 +144,6 @@
 .row[data-compact-row] > :first-child { --control-height-md: var(--sb-size-inner-small); }
 .row[data-compact-row] [role="checkbox"] { height: var(--request-row-height); }
 .groupHeader { display: flex; align-items: center; border-radius: var(--request-row-radius); background: var(--surface-muted); }
-.groupHeader .groupHeading { flex: 1; min-width: 0; }
 .groupHeader .groupButton { background: transparent; }
 .groupAdd { display: inline-flex; flex: none; align-items: center; justify-content: center; width: var(--sb-table-head-height); height: var(--sb-table-head-height); border-radius: var(--request-row-radius); color: var(--text-secondary); }
 .groupAdd:hover { background: var(--interaction-hover); color: var(--foreground); }
-.groupHeader + div:not([hidden]) { padding-block-start: var(--request-group-gap); }

@@ -1,0 +1,24 @@
+/* Plan item 2.0: shapes the Arc Skeleton cannot draw on its own. Each one sits
+ * inside the real layout classes of its page, so only the bars are new. Tokens
+ * only and no animation here: Arc's pulse already honours reduced motion. */
+.titleSkeleton { display: block; width: 160px; max-width: 100%; }
+.toolbarStatus { display: block; width: 240px; max-width: 60%; }
+/* The group header matches the loaded table header, independently of record row height. */
+.groupHeader { min-height: var(--sb-table-head-height); }
+.groupLabel { display: block; width: 140px; max-width: 50%; padding-inline: var(--space-2); }
+.rowTitle { display: block; flex: 1 1 0; min-width: 0; padding-inline: var(--space-2); }
+.rowMeta { display: block; flex: none; width: 25%; max-width: 160px; }
+@media (max-width: 640px) { .rowMeta { display: none; } }
+/* Plan item 2.3 (2026-10-13): /intake is a launcher. These draw intake-launcher.tsx's Arc EmptyState: its padding,
+ * the 32px glyph box, the title line at --text-base, one description line at --text-sm and the pill button.
+ * The bars use the Arc Skeleton's fill; the title is the Arc Skeleton itself and carries the one status. */
+.launcherState { display: flex; width: 100%; max-width: 32rem; flex-direction: column; align-items: center; padding: clamp(var(--space-8), 8vw, var(--space-12)) var(--space-5); }
+.launcherGlyph { display: grid; width: var(--space-8); height: var(--space-8); place-items: center; }
+.launcherGlyph > span, .launcherLine { display: block; border-radius: var(--radius-control); background: color-mix(in oklab, var(--border-strong) 38%, var(--surface)); }
+.launcherGlyph > span { width: var(--space-6); height: var(--space-6); }
+.launcherTitle { display: flex; width: 13rem; max-width: 100%; height: calc(var(--text-base) * var(--leading-body)); align-items: center; margin-top: var(--space-5); }
+/* The Arc Skeleton's bar starts at its line's edge; the launcher's title is centred. */
+.launcherTitle [aria-hidden="true"] > * { justify-self: center; }
+.launcherDescription { display: flex; width: 100%; height: calc(var(--text-sm) * var(--leading-body)); align-items: center; justify-content: center; margin-top: var(--space-2); }
+.launcherLine { width: 17rem; max-width: 100%; height: var(--space-3); }
+.launcherButton { display: block; width: 8.5rem; height: var(--control-height-md); margin-top: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-pill); }

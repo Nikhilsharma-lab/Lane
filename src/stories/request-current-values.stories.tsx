@@ -57,20 +57,26 @@ export const NetworkFailureKeepsValues: Story = {
 }
 
 export const PickupNeedsCurrentValues: Story = {
-  render: () => <LifecycleButtons requestId="measurement-request" status="open" context={{ orgId: "measurement-workspace" }} filter="all" pickupBlockedReason="Add the current value before picking up this Request." />,
+  render: () => <LifecycleButtons requestId="measurement-request" status="open" context={{ orgId: "measurement-workspace" }} pickupBlockedReason="Add the current value before picking up this Request." />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("button", { name: "Pick up" })).toBeDisabled()
-    await expect(canvas.getByText("Add the current value before picking up this Request.")).toBeVisible()
+    await expect(canvas.getByRole("button", { name: "Pick up" })).toHaveAccessibleDescription("Add the current value before picking up this Request.")
+    canvas.getByRole("group", { name: "Pickup unavailable" }).focus()
+    await expect(await within(document.body).findByRole("tooltip")).toHaveTextContent("Add the current value before picking up this Request.")
+    await userEvent.keyboard("{Escape}")
   },
 }
 
 export const PickupNeedsRequesterValues: Story = {
-  render: () => <LifecycleButtons requestId="measurement-request" status="open" context={{ orgId: "measurement-workspace" }} filter="all" pickupBlockedReason="Add the current value before picking up this Request." pickupRequester="Alex Morgan" />,
+  render: () => <LifecycleButtons requestId="measurement-request" status="open" context={{ orgId: "measurement-workspace" }} pickupBlockedReason="Add the current value before picking up this Request." pickupRequester="Alex Morgan" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("button", { name: "Pick up" })).toBeDisabled()
-    await expect(canvas.getByText("Ask Alex Morgan to add current values before pickup.")).toBeVisible()
+    await expect(canvas.getByRole("button", { name: "Pick up" })).toHaveAccessibleDescription("Ask Alex Morgan to add current values before pickup.")
+    canvas.getByRole("group", { name: "Pickup unavailable" }).focus()
+    await expect(await within(document.body).findByRole("tooltip")).toHaveTextContent("Ask Alex Morgan to add current values before pickup.")
+    await userEvent.keyboard("{Escape}")
     await expect(canvas.queryByText("Add the current value before picking up this Request.")).not.toBeInTheDocument()
   },
 }

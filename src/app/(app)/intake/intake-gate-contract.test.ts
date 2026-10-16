@@ -12,7 +12,8 @@ const FORM = source("src/app/(app)/intake/intake-form.tsx");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
 const TRIAGE = source("src/lib/ai/triage.ts");
 const TOKEN = source("src/lib/triage-token.ts");
-const DRAFT = source("src/lib/intake-draft.ts");
+// The draft's scope and age live in the schema-free key module the composer provider also reads.
+const DRAFT = source("src/lib/intake-draft.ts") + source("src/lib/intake-draft-key.ts");
 
 describe("Intake Gate contract", () => {
   it("uses shared icons without custom SVG markup", () => {
@@ -49,7 +50,11 @@ describe("Intake Gate contract", () => {
   it("keeps loading and recovery states explicit and accessible", () => {
     expect(FORM).toContain("aria-busy");
     expect(FORM).toContain('role="status"');
-    expect(FORM).toContain("Preparing review…");
+    expect(FORM).toContain("loading={checking}");
+    expect(FORM).toContain("Checking whether this describes a problem…");
+    expect(FORM).toContain("Still checking. Your draft is kept.");
+    expect(FORM).toContain("hidden={checking}");
+    expect(ACTIONS).toContain("Review unavailable right now. Your draft is kept.");
     expect(FORM).toContain("Creating Request…");
     expect(ACTIONS).toContain('"timeout"');
     expect(ACTIONS).toContain('"rate_limited"');
@@ -57,6 +62,11 @@ describe("Intake Gate contract", () => {
     expect(ACTIONS).toContain('"review_expired"');
     expect(ACTIONS).toContain('"save_failed"');
     expect(ACTIONS).toContain('"session_expired"');
+  });
+
+  it("retries an ended session once with a fresh token before asking for sign-in", () => {
+    expect(FORM).toContain("await refreshClerkToken()");
+    expect(FORM.match(/error\.code (?:===|!==) "session_expired"/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {

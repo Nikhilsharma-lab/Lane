@@ -1,4 +1,4 @@
-/* Keep the Owner target stable while Arc renders a photo or initials. */
+/* Keep the Assignee target stable while Arc renders a photo or initials. */
 .trigger { min-width: var(--space-8); }
 /* Match the visible avatar, not its hit area. */
 .trigger .avatar, .unassigned { width: var(--request-avatar-size); height: var(--request-avatar-size); }

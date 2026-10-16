@@ -1,6 +1,10 @@
-.section {
+.section,
+.embedded {
   container: impact / inline-size;
   min-width: 0;
+}
+
+.section {
   border-top: var(--sb-border-width) solid var(--border-subtle);
   padding-top: var(--space-3);
 }

@@ -1,4 +1,4 @@
-import { expect, test, type CDPSession, type Page, type Request } from "@playwright/test"
+import { expect, test, type Browser, type CDPSession, type Page, type Request, type Route } from "@playwright/test"
 
 /**
  * Plan item 1.15b: the §2.2 performance budgets, measured against a running
@@ -36,7 +36,13 @@ const BUDGET = {
   ttfb: 400,
   cls: 0.02,
   markDoneOnScreen: { target: 50, limit: 100 }, // optimistic change in the next frame, p75
+  skeleton: 100, // click to the loading frame (or the page) on screen, p75 (plan item 2.0)
   longFramesPerTransition: 2, // at 4x CPU, in a 300 ms transition
+  composerFocus: 100, // C to the focused title on the first open, p75, also at 4x CPU (plan item 2.3)
+  gateAcknowledgement: 100, // Review Request to the visible checking status, p75 (plan item 2.3)
+  rowFocus: { target: 50, limit: 100 }, // J to the focused row on screen, p75 (plan item 2.4)
+  heldJPrefetches: 1, // full detail prefetches while J is held over 10 rows (plan item 2.4)
+  detailNeighbourPrefetches: 2, // full detail prefetches a Request page starts for its previous and next (plan item 2.5)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -114,7 +120,7 @@ const now = (page: Page) => page.evaluate(() => performance.now())
 
 async function openList(page: Page) {
   await page.goto("/")
-  await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+  await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
   // Let hydration, prefetch and the streamed unread count settle.
   await page.waitForLoadState("networkidle")
 }
@@ -150,7 +156,7 @@ test("status view switch responds in the next frame with zero network", async ({
 
 test("list to detail, warm and prefetched, shows content within budget", async ({ page }) => {
   await openList(page)
-  const links = page.locator("li[data-request-id] a[href^='/requests/']")
+  const links = page.locator("[role=row][data-request-id] a[href^='/requests/']")
   const count = Math.min(await links.count(), RUNS)
   expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
 
@@ -161,7 +167,7 @@ test("list to detail, warm and prefetched, shows content within budget", async (
     await page.waitForTimeout(600) // intent prefetch (plan item 1.11) plus the viewport prefetch
     const content = page.evaluate(() => new Promise<number>((resolve, reject) => {
       const perf = (window as unknown as PerfWindow).__lanePerf
-      const done = () => { if (document.querySelector("#request-problem")) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const done = () => { if (document.querySelector("#problem")) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
       const observer = new MutationObserver(() => { done() })
       observer.observe(document.body, { childList: true, subtree: true })
       setTimeout(() => { observer.disconnect(); reject(new Error("Detail content did not appear")) }, 10_000)
@@ -169,12 +175,53 @@ test("list to detail, warm and prefetched, shows content within budget", async (
     await link.click()
     timings.push(await content)
     await page.goBack()
-    await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+    await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
   }
   report("list to detail content (warm)", timings, "ms", BUDGET.detailContent.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.detailContent.limit * TOLERANCE)
   // The p95 hard limit, approximated by the maximum of a small sample.
   expect(Math.max(...timings)).toBeLessThanOrEqual(BUDGET.detailContentP95 * TOLERANCE)
+})
+
+// Plan item 2.4: every other way the list view changes in the browser, at 4x CPU:
+// the sidebar's Project and No Project links, Group by, and typing in the title filter.
+test("sidebar Project, No Project, Group by and title typing make zero network requests within the INP budget at 4x CPU", async ({ page }) => {
+  await openList(page)
+  const rsc: string[] = []
+  page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
+  const durations: number[] = []
+  const cdp = await throttle(page, 4)
+  try {
+    const sidebar = page.getByRole("navigation", { name: "Primary navigation" })
+    const measure = async (act: () => Promise<void>) => {
+      const since = await now(page)
+      await act()
+      durations.push(await interactionDuration(page, since))
+    }
+    for (let run = 0; run < RUNS; run++) {
+      if (await sidebar.isVisible()) {
+        const project = sidebar.getByRole("link").filter({ hasNotText: /^(All Requests|My Requests|No Project)$/ }).first()
+        if (await project.count()) await measure(() => project.click())
+        await measure(() => sidebar.getByRole("link", { name: "No Project" }).click())
+        await measure(() => sidebar.getByRole("link", { name: /^(All|My) Requests$/ }).click())
+      }
+      await page.getByRole("button", { name: "Display" }).click()
+      for (const option of ["No grouping", "Status"]) {
+        await page.getByRole("combobox", { name: "Group by" }).click()
+        await measure(() => page.getByRole("option", { name: option }).click())
+      }
+      await page.keyboard.press("Escape")
+      await page.getByRole("button", { name: "Filter Requests by title" }).click()
+      const title = page.getByRole("searchbox", { name: "Filter Requests by title" })
+      for (const key of ["e", "Backspace"]) await measure(() => title.press(key))
+      await page.keyboard.press("Escape")
+    }
+  } finally {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+  }
+  report("sidebar, Group by and title filter view changes at 4x CPU", durations, "ms", BUDGET.viewSwitchInp.target)
+  expect(rsc, "A view change must not request RSC or page data").toEqual([])
+  expect(p75(durations)).toBeLessThanOrEqual(BUDGET.viewSwitchInp.limit * TOLERANCE)
 })
 
 test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and long-frame budgets", async ({ page }) => {
@@ -184,7 +231,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   try {
     for (let run = 0; run < RUNS; run++) {
       await page.reload()
-      await expect(page.locator("li[data-request-id]").first()).toBeVisible()
+      await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
       await page.waitForTimeout(1000) // LCP finalises on the first input; read it before interacting
       const load = await page.evaluate(() => {
         const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined
@@ -229,34 +276,50 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
 
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
-    const row = page.locator("li[data-request-id]:has(button[data-status='in_progress'])").first()
+    const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
     if (!(await row.count())) break
     const id = await row.getAttribute("data-request-id")
-    const glyph = page.locator(`li[data-request-id="${id}"] button[data-status]`)
+    const glyph = page.locator(`[role=row][data-request-id="${id}"] button[data-status]`)
     await glyph.click()
     const item = page.getByRole("menuitem", { name: /mark done/i }).first()
     await expect(item).toBeVisible()
 
     // Records the time from the input to the first frame that shows Done, and
     // every status the row shows for three seconds after it (the no-revert gate).
-    const watch = page.evaluate(rowId => new Promise<{ onScreen: number; sequence: string[] }>(resolve => {
+    const watch = page.evaluate(rowId => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
       const perf = (window as unknown as PerfWindow).__lanePerf
       const sequence: string[] = []
-      let onScreen = NaN, scheduled = false
-      const read = () => document.querySelector(`li[data-request-id="${rowId}"] button[data-status]`)?.getAttribute("data-status") ?? "gone"
+      let onScreen = NaN, scheduled = false, undoWithDone = false
+      const read = () => document.querySelector(`[role=row][data-request-id="${rowId}"] button[data-status]`)?.getAttribute("data-status") ?? "gone"
       const tick = () => {
         const status = read()
         if (sequence.at(-1) !== status) sequence.push(status)
-        if (status === "done" && !scheduled) { scheduled = true; requestAnimationFrame(() => { onScreen = performance.now() - perf.lastInput }) }
+        if (status === "done" && !scheduled) {
+          scheduled = true
+          // Plan item 2.4: the Undo toast is already on screen in the frame that shows Done.
+          requestAnimationFrame(() => {
+            onScreen = performance.now() - perf.lastInput
+            undoWithDone = [...document.querySelectorAll("button")].some(button => button.textContent === "Undo" && button.getClientRects().length > 0)
+          })
+        }
       }
       const observer = new MutationObserver(tick)
       observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-status"] })
       tick()
-      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence }) }, 3000)
+      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, undoWithDone }) }, 3000)
     }), id)
-    await item.click()
-    const { onScreen, sequence } = await watch
+    // Alternate the pointer path with the keyboard path: the row, Shift+F10, Enter on the lead item.
+    if (run % 2 === 0) await item.click()
+    else {
+      await page.keyboard.press("Escape")
+      await page.locator(`[role=row][data-request-id="${id}"]`).focus()
+      await page.keyboard.press("Shift+F10")
+      await expect(page.getByRole("menuitem", { name: "Mark Done" }).first()).toBeFocused()
+      await page.keyboard.press("Enter")
+    }
+    const { onScreen, sequence, undoWithDone } = await watch
     timings.push(onScreen)
+    expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
     expect(sequence.filter(status => status !== "gone"), "The row must go to Done once and stay there").toEqual(["in_progress", "done"])
 
     // Put the Request back.
@@ -266,4 +329,398 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
   test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
   report("Mark Done, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
+})
+
+// Plan item 2.5: Request detail. Opening a Request from the list records the
+// list's order; J then moves to the next Request, whose page the detail has
+// already prefetched once idle. #problem marks the loaded page only.
+async function openDetailFromList(page: Page, index: number) {
+  await openList(page)
+  const rows = page.locator("[role=row][data-request-id]")
+  const count = await rows.count()
+  const row = rows.nth(index % Math.max(1, count - 1))
+  const id = await row.getAttribute("data-request-id")
+  await row.locator("a[data-request-title]").click()
+  await expect(page.locator(`[data-detail][data-request-id="${id}"] #problem`)).toBeVisible({ timeout: 10_000 })
+  return id
+}
+
+test("J on Request detail shows the next Request within budget when prefetched", async ({ page }) => {
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openDetailFromList(page, run)
+    await page.waitForTimeout(800) // the idle neighbour prefetch
+    const next = page.locator('[data-detail-sequence="next"]')
+    const href = await next.getAttribute("data-href")
+    test.skip(!href, "The workspace needs at least two Requests in the list's order.")
+    const nextId = href!.split("/").pop()
+    const content = page.evaluate(id => new Promise<number>((resolve, reject) => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const done = () => { if (document.querySelector(`[data-detail][data-request-id="${id}"] #problem`)) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const observer = new MutationObserver(() => { done() })
+      observer.observe(document.body, { childList: true, subtree: true })
+      setTimeout(() => { observer.disconnect(); reject(new Error("The next Request did not appear")) }, 10_000)
+    }), nextId)
+    await page.keyboard.press("j")
+    timings.push(await content)
+  }
+  report("J to the next Request's content (prefetched)", timings, "ms", BUDGET.detailContent.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.detailContent.limit * TOLERANCE)
+  expect(Math.max(...timings)).toBeLessThanOrEqual(BUDGET.detailContentP95 * TOLERANCE)
+})
+
+test("a Request page starts at most two full detail prefetches", async ({ page }) => {
+  await openList(page)
+  const prefetches = new Set<string>()
+  let current = ""
+  page.on("request", request => {
+    const url = new URL(request.url())
+    if (isRscRequest(request) && url.pathname.startsWith("/requests/") && url.pathname !== current) prefetches.add(url.pathname)
+  })
+  const row = page.locator("[role=row][data-request-id]").first()
+  current = `/requests/${await row.getAttribute("data-request-id")}`
+  await row.locator("a[data-request-title]").click()
+  await expect(page.locator("[data-detail] #problem")).toBeVisible({ timeout: 10_000 })
+  prefetches.clear() // only what the Request page starts itself
+  await page.waitForTimeout(1500)
+  report("full detail prefetches started by one Request page", [prefetches.size], "requests", BUDGET.detailNeighbourPrefetches)
+  expect(prefetches.size).toBeLessThanOrEqual(BUDGET.detailNeighbourPrefetches)
+})
+
+test("Mark Done on Request detail shows Done in the next frame with Undo, and never reverts", async ({ page }) => {
+  test.skip(!MUTATE, "Set LANE_PERF_MUTATE=1 to measure Mark Done on detail; it changes a Request and then undoes it.")
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openList(page)
+    await statusChip(page, "All").click()
+    const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
+    if (!(await row.count())) break
+    await row.locator("a[data-request-title]").click()
+    const status = page.locator("[data-detail-panel] [data-detail-status]")
+    await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
+    const watch = page.evaluate(() => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const sequence: string[] = []
+      let onScreen = NaN, scheduled = false, undoWithDone = false
+      const read = () => document.querySelector("[data-detail-panel] [data-detail-status]")?.getAttribute("data-status") ?? "gone"
+      const tick = () => {
+        const value = read()
+        if (sequence.at(-1) !== value) sequence.push(value)
+        if (value === "done" && !scheduled) {
+          scheduled = true
+          requestAnimationFrame(() => {
+            onScreen = performance.now() - perf.lastInput
+            undoWithDone = [...document.querySelectorAll("button")].some(button => button.textContent === "Undo" && button.getClientRects().length > 0)
+          })
+        }
+      }
+      const observer = new MutationObserver(tick)
+      observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-status"] })
+      tick()
+      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, undoWithDone }) }, 3000)
+    }))
+    await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Mark Done", exact: true }).click()
+    const { onScreen, sequence, undoWithDone } = await watch
+    timings.push(onScreen)
+    expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
+    expect(sequence.filter(value => value !== "gone"), "Detail must go to Done once and stay there").toEqual(["in_progress", "done"])
+    await page.getByRole("button", { name: "Undo" }).first().click()
+    await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
+  }
+  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  report("Mark Done on detail, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
+})
+
+// Plan item 2.0: cold loads in a fresh context (empty cache), the frame's CLS
+// on Request detail at desktop and phone widths, the list at phone width, and
+// the skeleton after a client navigation.
+const detailLinks = (page: Page) => page.locator("[role=row][data-request-id] a[href^='/requests/']")
+
+async function coldLoadCls(browser: Browser, url: string, viewport: { width: number; height: number }, ready: string) {
+  const cls: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    const context = await browser.newContext({ storageState: STORAGE_STATE, viewport, baseURL: BASE_URL })
+    try {
+      const page = await context.newPage()
+      await page.addInitScript(installObservers)
+      await page.goto(url)
+      await expect(page.locator(ready).first()).toBeVisible()
+      // The lazy Ask for review panel, the toolbar pills and the fonts settle.
+      await page.waitForTimeout(1500)
+      cls.push(await page.evaluate(() => (window as unknown as PerfWindow).__lanePerf.cls))
+    } finally {
+      await context.close()
+    }
+  }
+  return cls
+}
+
+test("Request detail cold loads stay within the CLS budget at 1440 and 390", async ({ browser, page }) => {
+  await openList(page)
+  const href = await detailLinks(page).first().getAttribute("href")
+  expect(href, "The workspace needs at least one Request").toBeTruthy()
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    const cls = await coldLoadCls(browser, href!, viewport, "#problem")
+    report(`Request detail CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
+    expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+  }
+})
+
+test("Requests list cold loads at 390 stay within the CLS budget", async ({ browser }) => {
+  const cls = await coldLoadCls(browser, "/", { width: 390, height: 844 }, "[role=row][data-request-id]")
+  report("Requests list CLS, cold load at 390", cls, "", BUDGET.cls)
+  expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+})
+
+test("a Request page shows its skeleton within 100 ms, and the swap does not shift", async ({ page }) => {
+  await openList(page)
+  const links = detailLinks(page)
+  const count = Math.min(await links.count(), RUNS)
+  expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
+  // Hold every RSC response for a Request page, so the loading frame has to show.
+  const hold = "**/requests/**"
+  await page.route(hold, async route => {
+    if (isRscRequest(route.request())) await new Promise(resolve => setTimeout(resolve, 800))
+    await route.continue()
+  })
+
+  const timings: number[] = [], shifts: number[] = []
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      const shown = page.evaluate(() => new Promise<{ onScreen: number; clsBefore: number }>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const done = () => {
+          if (!document.querySelector('[data-skeleton] [data-slot="page-strip"], #problem')) return
+          observer.disconnect()
+          resolve({ onScreen: performance.now() - perf.lastInput, clsBefore: perf.cls })
+        }
+        const observer = new MutationObserver(done)
+        observer.observe(document.body, { childList: true, subtree: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("Neither the skeleton nor the Request appeared")) }, 10_000)
+      }))
+      await links.nth(run % count).click()
+      const { onScreen, clsBefore } = await shown
+      timings.push(onScreen)
+      await expect(page.locator("#problem")).toBeVisible({ timeout: 10_000 })
+      await page.waitForTimeout(1000)
+      shifts.push(await page.evaluate(before => (window as unknown as PerfWindow).__lanePerf.cls - before, clsBefore))
+      await page.goBack()
+      await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
+    }
+  } finally {
+    await page.unroute(hold)
+  }
+  report("click to the Request skeleton on screen", timings, "ms", BUDGET.skeleton)
+  report("CLS over the skeleton to Request swap", shifts, "", BUDGET.cls)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.skeleton * TOLERANCE)
+  expect(p75(shifts)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+})
+
+// Plan item 2.3: the New Request composer. Each run loads the list afresh, so
+// every C is the composer's first open in that document, and waits for the
+// idle preload (data-composer-ready) the way a person reading the list would.
+// Nothing here creates a Request: the gate check holds Review Request's server
+// action in the browser and aborts it, so no AI call or database write happens.
+const LOADING_COMPOSER = '[role="status"][aria-label="Loading New Request"]'
+
+async function openListForComposer(page: Page) {
+  await openList(page)
+  await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 10_000 })
+  // Nothing focused, so C reaches the page's shortcut.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+}
+
+/** Resolves with the time from the last input to the title taking focus, and whether a loading status ever mounted. */
+const watchComposerFocus = (page: Page) => page.evaluate(selector => new Promise<{ focus: number; loading: boolean }>((resolve, reject) => {
+  const perf = (window as unknown as PerfWindow).__lanePerf
+  let loading = false
+  const observer = new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) {
+      if (node instanceof Element && (node.matches(selector) || node.querySelector(selector))) loading = true
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+  const onFocus = (event: FocusEvent) => {
+    if ((event.target as HTMLElement | null)?.id !== "intake-title") return
+    document.removeEventListener("focusin", onFocus)
+    observer.disconnect()
+    resolve({ focus: performance.now() - perf.lastInput, loading })
+  }
+  document.addEventListener("focusin", onFocus)
+  setTimeout(() => { observer.disconnect(); reject(new Error("The composer's title never took focus")) }, 10_000)
+}), LOADING_COMPOSER)
+
+test("C opens the composer with its title focused within 100 ms, with no loading status, also at 4x CPU", async ({ page }) => {
+  const timings: Record<number, number[]> = { 1: [], 4: [] }
+  for (const rate of [1, 4]) {
+    for (let run = 0; run < RUNS; run++) {
+      await openListForComposer(page)
+      const cdp = await throttle(page, rate)
+      try {
+        const watched = watchComposerFocus(page)
+        await page.keyboard.press("c")
+        const { focus, loading } = await watched
+        expect(loading, "The first open after the preload must not show a loading status").toBe(false)
+        timings[rate].push(focus)
+      } finally {
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+      }
+      await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible()
+    }
+  }
+  report("C to focused title, first open", timings[1], "ms", BUDGET.composerFocus)
+  report("C to focused title, first open at 4x CPU", timings[4], "ms", BUDGET.composerFocus)
+  expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
+  expect(p75(timings[4])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
+})
+
+test("the composer dialog enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
+  const longFrames: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openListForComposer(page)
+    const cdp = await throttle(page, 4)
+    try {
+      const since = await now(page)
+      await page.keyboard.press("c")
+      await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible()
+      await page.waitForTimeout(400) // the 240 ms entrance plus the frames that report it
+      longFrames.push(await page.evaluate(start => (window as unknown as PerfWindow).__lanePerf.longFrames
+        .filter(frame => frame.startTime >= start && frame.startTime <= start + 300).length, since))
+    } finally {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+    }
+  }
+  report("long animation frames in the composer's 300 ms entrance at 4x CPU", longFrames, "frames", BUDGET.longFramesPerTransition)
+  expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
+})
+
+test("/intake cold loads stay within the CLS budget at 1440 and 390", async ({ browser }) => {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    // /intake is a launcher under the page strip (2026-10-13); its Create Request link is the loaded content.
+    const cls = await coldLoadCls(browser, "/intake", viewport, 'section[aria-label="Start a Request"] a[aria-haspopup="dialog"]')
+    report(`/intake CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
+    expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+  }
+})
+
+test("Review Request acknowledges within 100 ms and an unavailable review keeps the draft", async ({ page }) => {
+  const draft = {
+    title: "Perf check: the review answers at once",
+    description: "A held review must show its checking status within a frame and keep this text when it fails.",
+    metric: "Perf check metric",
+  }
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    await openListForComposer(page)
+    // A draft from the previous run would be restored; start clean.
+    await page.evaluate(() => window.sessionStorage.clear())
+    await page.keyboard.press("c")
+    const dialog = page.getByRole("dialog", { name: "New Request" })
+    await expect(dialog.getByRole("textbox", { name: "Request title" })).toBeFocused()
+    await dialog.getByRole("textbox", { name: "Request title" }).fill(draft.title)
+    await dialog.getByRole("textbox", { name: "Description" }).fill(draft.description)
+    await dialog.getByRole("button", { name: "Add expected impact" }).click()
+    await dialog.getByRole("textbox", { name: "What should improve?" }).fill(draft.metric)
+    await dialog.getByRole("spinbutton", { name: "Goal" }).fill("80")
+    await dialog.getByRole("textbox", { name: "Measured in" }).fill("%")
+    await dialog.getByRole("spinbutton", { name: "Check in days" }).fill("30")
+
+    // Hold every server action from here on in the browser, then abort it.
+    const held: Route[] = []
+    const hold = (route: Route) => {
+      if (route.request().method() === "POST" && route.request().headers()["next-action"]) held.push(route)
+      else void route.continue()
+    }
+    await page.route("**/*", hold)
+    try {
+      const acknowledged = page.evaluate(() => new Promise<number>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const shown = () => [...document.querySelectorAll('[role="status"]')].some(node => node.textContent === "Checking whether this describes a problem…" && node.getClientRects().length > 0)
+        const observer = new MutationObserver(() => { if (shown()) { observer.disconnect(); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) } })
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("The checking status never showed")) }, 10_000)
+      }))
+      await dialog.getByRole("button", { name: "Review Request" }).click()
+      timings.push(await acknowledged)
+      await expect.poll(() => held.length, { message: "Review Request should call its server action" }).toBeGreaterThan(0)
+      for (const route of held.splice(0)) await route.abort("failed")
+      await expect(dialog.getByText("Review unavailable right now")).toBeVisible()
+      await expect(dialog.getByText("Your draft is kept.")).toBeVisible()
+      await expect(dialog.getByRole("textbox", { name: "Request title" })).toHaveValue(draft.title)
+      await expect(dialog.getByRole("textbox", { name: "Description" })).toHaveValue(draft.description)
+      await expect(dialog.getByRole("textbox", { name: "What should improve?" })).toHaveValue(draft.metric)
+    } finally {
+      await page.unroute("**/*", hold)
+      for (const route of held.splice(0)) await route.abort("failed")
+    }
+    await page.evaluate(() => window.sessionStorage.clear())
+  }
+  report("Review Request to the visible checking status", timings, "ms", BUDGET.gateAcknowledgement)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.gateAcknowledgement * TOLERANCE)
+})
+
+// Plan item 2.4: the keyboard model on the production build.
+test("J moves focus to the next row and paints it within the visual budget", async ({ page }) => {
+  await openList(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press("j") // from outside the grid, J lands on its tab stop
+  await expect(page.locator('[role=row][tabindex="0"]')).toBeFocused()
+  const timings: number[] = []
+  for (let run = 0; run < Math.max(RUNS, 5); run++) {
+    const painted = page.evaluate(() => new Promise<number>(resolve => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const onFocus = () => { document.removeEventListener("focusin", onFocus); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) }
+      document.addEventListener("focusin", onFocus)
+    }))
+    await page.keyboard.press("j")
+    timings.push(await painted)
+  }
+  report("J to the next row focused and painted", timings, "ms", BUDGET.rowFocus.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.rowFocus.limit * TOLERANCE)
+})
+
+test("holding J over 10 rows starts at most one full detail prefetch", async ({ page }) => {
+  await openList(page) // the viewport prefetches settle here
+  const prefetched: string[] = []
+  page.on("request", request => {
+    if (isRscRequest(request) && new URL(request.url()).pathname.startsWith("/requests/")) prefetched.push(request.url())
+  })
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press("j")
+  // A held key repeats about every 30 ms; each row's 80 ms rest timer is cancelled by the next.
+  for (let step = 0; step < 10; step++) { await page.keyboard.press("j"); await page.waitForTimeout(30) }
+  await page.waitForTimeout(500) // the last row's rest prefetch, if any
+  report("full detail prefetches while J is held over 10 rows", [prefetched.length], "requests", BUDGET.heldJPrefetches)
+  expect(prefetched.length).toBeLessThanOrEqual(BUDGET.heldJPrefetches)
+})
+
+test("a sidebar toggle at 4x CPU changes the content width once with at most 2 long animation frames", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await openList(page)
+  const widthChanges: number[] = [], longFrames: number[] = []
+  const cdp = await throttle(page, 4)
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      const since = await now(page)
+      const sampled = page.evaluate(() => new Promise<number>(resolve => {
+        const main = document.querySelector("#lane-main")!
+        const widths = new Set<number>([Math.round(main.getBoundingClientRect().width)])
+        const end = performance.now() + 500
+        const sample = () => { widths.add(Math.round(main.getBoundingClientRect().width)); if (performance.now() < end) requestAnimationFrame(sample); else resolve(widths.size - 1) }
+        requestAnimationFrame(sample)
+      }))
+      await page.keyboard.press("BracketLeft")
+      widthChanges.push(await sampled)
+      longFrames.push(await page.evaluate(start => (window as unknown as PerfWindow).__lanePerf.longFrames
+        .filter(frame => frame.startTime >= start && frame.startTime <= start + 300).length, since))
+    }
+  } finally {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+  }
+  report("content width changes per sidebar toggle", widthChanges, "changes", 1)
+  report("long animation frames per sidebar toggle at 4x CPU", longFrames, "frames", BUDGET.longFramesPerTransition)
+  for (const changes of widthChanges) expect(changes).toBeLessThanOrEqual(1)
+  expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
 })

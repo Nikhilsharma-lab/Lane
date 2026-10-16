@@ -18,7 +18,10 @@ export type IntakeAttachmentItem = {
   error: string | null;
 };
 
-export type IntakeAttachmentListProps<T extends IntakeAttachmentItem> = {
+/** Plan item 2.3 (S3): a file a reload stopped before it was added. Only its name survives. */
+export type LostAttachmentItem = { key: string; name: string };
+
+type FileListProps<T extends IntakeAttachmentItem> = {
   items: readonly T[];
   mode: "queued" | "uploading" | "recovery";
   disabled?: boolean;
@@ -27,6 +30,13 @@ export type IntakeAttachmentListProps<T extends IntakeAttachmentItem> = {
   /** The Attach files button or recovery heading, when the final row disappears. */
   emptyFocusRef?: RefObject<HTMLElement | null>;
 };
+
+type LostListProps = {
+  items: readonly LostAttachmentItem[];
+  mode: "lost";
+};
+
+export type IntakeAttachmentListProps<T extends IntakeAttachmentItem> = FileListProps<T> | LostListProps;
 
 const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
 const exit: Transition = { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.standard] };
@@ -40,7 +50,7 @@ function AttachmentIcon({ file }: { file: File }) {
 
 function AttachmentRow<T extends IntakeAttachmentItem>({
   item, mode, disabled, onRemove, onRetry, removeRef,
-}: Omit<IntakeAttachmentListProps<T>, "items" | "emptyFocusRef"> & {
+}: Omit<FileListProps<T>, "items" | "emptyFocusRef"> & {
   item: T;
   removeRef: (node: HTMLButtonElement | null) => void;
 }) {
@@ -103,9 +113,30 @@ function AttachmentRow<T extends IntakeAttachmentItem>({
 }
 
 /** Arc FileUpload row presentation with Lane's external upload controller. */
-export function IntakeAttachmentList<T extends IntakeAttachmentItem>({
+export function IntakeAttachmentList<T extends IntakeAttachmentItem>(props: IntakeAttachmentListProps<T>) {
+  return props.mode === "lost" ? <LostAttachmentList items={props.items} /> : <FileAttachmentList {...props} />;
+}
+
+/** The files a reload stopped, by name. The recovery heading takes focus and says what happened, so the list adds no announcement. */
+function LostAttachmentList({ items }: { items: readonly LostAttachmentItem[] }) {
+  return <div className={styles.root} hidden={items.length === 0}>
+    <ul className={styles.fileList} aria-label="Files that weren’t added">
+      {items.map((item) => <li key={item.key} className={styles.fileRow} aria-label={item.name}>
+        <div className={styles.fileItem}>
+          <span className={styles.fileIcon}><File size={16} strokeWidth={1.75} aria-hidden="true" /></span>
+          <div className={styles.fileCopy}>
+            <strong title={item.name}>{item.name}</strong>
+            <div className={styles.meta}><span>Not added</span></div>
+          </div>
+        </div>
+      </li>)}
+    </ul>
+  </div>;
+}
+
+function FileAttachmentList<T extends IntakeAttachmentItem>({
   items, mode, disabled = false, onRemove, onRetry, emptyFocusRef,
-}: IntakeAttachmentListProps<T>) {
+}: FileListProps<T>) {
   const removeRefs = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocus = useRef<{ removed: string; neighbors: string[]; settled: boolean } | null>(null);
   const [settledRemoval, setSettledRemoval] = useState(0);

@@ -57,6 +57,28 @@ export function hasGuardrailEdits(impact: z.input<typeof expectedImpactDraftSche
   return Boolean(impact?.guardrailEdit || (impact?.guardrail && !guardrailSchema.safeParse(impact.guardrail).success));
 }
 
+/** Whether a draft holds the submitter's own work. The default unit is not
+ * user work. An open guardrail pane, an added guardrail or an explicitly
+ * cleared/custom unit is. Draft storage and the composer's disclosure share it. */
+export function hasImpactWork(impact: z.input<typeof expectedImpactDraftSchema>): boolean {
+  if (impact?.kind === "measurement") {
+    const { primary, measurement, guardrails } = impact;
+    return primary.key !== "" || primary.name.trim().length > 0 || primary.unit !== "" ||
+      primary.current !== null || primary.target !== null || primary.noBaseline || primary.check !== "" ||
+      guardrails.length > 0 || measurement.audience !== "all" || measurement.platform !== "all" ||
+      Boolean(measurement.audienceName?.trim() || measurement.platformName?.trim()) ||
+      measurement.windowDays !== 30 || measurement.exactDates ||
+      Boolean(measurement.startDate || measurement.endDate);
+  }
+  return impact != null && (
+    impact.guardrailEdit !== undefined ||
+    impact.guardrail !== undefined ||
+    (impact.kind === "metric" && impact.unit !== undefined && impact.unit !== DEFAULT_IMPACT_UNIT) ||
+    Object.entries(impact).some(([key, value]) => key !== "kind" && key !== "unit" &&
+      (typeof value === "number" || (typeof value === "string" && value.trim().length > 0)))
+  );
+}
+
 /** Same permissive input type as the form; only a complete snapshot may pass. */
 export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform((draft, context) => {
   if (draft === null) {
@@ -80,3 +102,36 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
   if (draft.guardrailEdit !== undefined) return z.NEVER;
   return parsed.data;
 });
+
+/** How much of the Expected impact draft is filled in, for the composer's
+ * collapsed disclosure row (plan item 2.3, decision 8.26). "complete" means the
+ * strict review schema accepts it, so an open guardrail edit is never complete;
+ * any work hasImpactWork counts (not the default unit) makes it "partial". */
+export type ImpactDraftState = "empty" | "partial" | "complete";
+
+export function impactDraftState(draft: ExpectedImpactDraft | null | undefined): ImpactDraftState {
+  if (!draft) return "empty";
+  if (requiredExpectedImpactSchema.safeParse(draft).success) return "complete";
+  return hasImpactWork(draft) ? "partial" : "empty";
+}
+
+function impactValue(value: number, unit: string) {
+  const trimmed = unit.trim();
+  return trimmed === "%" ? `${value}%` : `${value} ${trimmed}`;
+}
+
+/** The lines a complete Expected impact folds to: what changes, then when it is
+ * checked (with the evidence source an older draft may still carry), then the
+ * optional guardrail as its sentence. Each line is plain text; the composer
+ * truncates it. Without a source the check reads as detail's "Check in". */
+export function impactSummaryLines(impact: Exclude<ExpectedImpact, { kind: "measurement" }>): [string, string] | [string, string, string] {
+  const first = impact.kind === "metric"
+    ? impact.baseline === null
+      ? `${impact.metric}, target ${impactValue(impact.target, impact.unit)}`
+      : `${impact.metric}, ${impactValue(impact.baseline, impact.unit)} to ${impactValue(impact.target, impact.unit)}`
+    : impact.result;
+  const days = impact.reviewAfterDays === 1 ? "1 day" : `${impact.reviewAfterDays} days`;
+  const source = impact.source.trim();
+  const check = source ? `${source}, ${days} after launch` : `Check in ${days}`;
+  return impact.guardrail ? [first, check, formatGuardrail(impact.guardrail)] : [first, check];
+}

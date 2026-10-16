@@ -1,0 +1,15 @@
+/* Plan item 2.4: the `?` shortcut overlay. Arc Dialog supplies the surface, motion and focus; this is its list. */
+/* Wider than Arc's 440px default so two columns of shortcuts fit; the attribute keeps it over the Dialog's own width rule. */
+.dialog[role="dialog"] { width: min(calc(100vw - var(--space-8)), 40rem); }
+.groups { columns: 1; column-gap: var(--space-8); }
+.group { break-inside: avoid; padding-block-end: var(--space-5); }
+.heading { margin: 0 0 var(--space-2); color: var(--foreground); font-size: var(--text-sm); font-weight: 500; }
+.list { display: grid; margin: 0; }
+.item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); }
+.label { min-width: 0; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 400; }
+.keys { display: flex; flex: none; align-items: center; gap: var(--space-1); margin: 0; }
+.key { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding-inline: var(--space-1); border: .5px solid var(--border); border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); font: inherit; font-size: var(--text-xs); font-weight: 400; line-height: 1; }
+.or { color: var(--text-secondary); font-size: var(--text-xs); }
+@media (min-width: 641px) {
+  .groups { columns: 2; }
+}

@@ -879,6 +879,11 @@ increment at a time.
   baselines and both measurement modes. Discovery/bug handling beyond creation, period basis, compatible-metric
   aggregation and shared-result deduplication remain focused design/implementation decisions.
 - Define any additional workspace-level process signals beyond the confirmed outcome summaries.
+- **Proposed 2026-10-13 (plan item 2.5; not build authority until Nikhil amends the 2026-10-09 entry):**
+  saved priority may also be set from Request detail, as the signed launch plan's 2.5 panel shows it, by the
+  same members and with the same meaning (a triage signal that assigns no one and starts no work). A priority
+  edit on a Done Request restarts its 15-minute Undo window, which is measured from `updated_at` (launch
+  plan decision 8.19); detail makes that reachable.
 
 ### Foundation clarification — confirmed 2026-10-06
 
@@ -904,6 +909,7 @@ increment at a time.
   replaces a named PM, Designer or Developer (this narrows §4.6: the creator still assigns into an empty slot
   and an unassigned Designer may still pick up; replacement still never erases a concern). Phase 2 reserves
   this structure and renders none of it until the alignment and outcome increments are approved.
+  **2026-10-13:** Nikhil chose a centred dialog for the New Request composer; /intake is a launcher under the page strip.
 
 ### Scope amendment — 2026-09-28
 

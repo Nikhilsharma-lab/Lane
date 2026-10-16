@@ -46,11 +46,13 @@ function GuardrailPane({ children }: { children: React.ReactNode }) {
   </motion.section>
 }
 
-export function ExpectedImpactFields({ value, onChange, disabled, errors }: {
+export function ExpectedImpactFields({ value, onChange, disabled, errors, embedded = false }: {
   value: ExpectedImpactDraft
   onChange: (value: ExpectedImpactDraft) => void
   disabled?: boolean
   errors?: ImpactErrors
+  /** Plan item 2.3: inside the composer's disclosure, which owns the section, its heading and the rule. */
+  embedded?: boolean
 }) {
   const previousModes = useRef<Partial<Record<ExpectedImpactDraft["kind"], ExpectedImpactDraft>>>({})
   const optionsRef = useRef<HTMLButtonElement>(null)
@@ -112,10 +114,11 @@ export function ExpectedImpactFields({ value, onChange, disabled, errors }: {
   const fieldError = (name: ImpactField) => errors?.[name]?.message
   const guardrailError = (name: "metric" | "limit" | "unit") => (guardrailSubmitted && !parsedGuardrail.success
     ? parsedGuardrail.error.issues.find(issue => issue.path[0] === name)?.message : undefined) ?? errors?.guardrail?.[name]?.message
-  return <section id="intake-expected-impact" aria-labelledby="intake-impact-heading" tabIndex={-1} className={styles.section}>
-    <fieldset disabled={disabled} className={styles.body}>
+  // Embedded in the composer's disclosure, which owns the section, its heading and the rule,
+  // the header keeps only the measure and options controls.
+  const fields = <fieldset disabled={disabled} className={styles.body}>
       <header className={styles.header}>
-        <h2 id="intake-impact-heading" className={styles.heading}>Expected impact</h2>
+        {!embedded && <h2 id="intake-impact-heading" className={styles.heading}>Expected impact</h2>}
         <Select label="Measure with" options={measures} value={value.kind} disabled={disabled} onValueChange={changeMeasure}
           onContentKeyDown={(event) => event.stopPropagation()}
           trigger={<Button type="button" variant="secondary" size="sm" disabled={disabled} aria-label={`Measure with: ${value.kind === "metric" ? "Metric" : "Verified result"}`}>
@@ -170,5 +173,9 @@ export function ExpectedImpactFields({ value, onChange, disabled, errors }: {
           } }]} />
       </section>}
     </fieldset>
+  // The embedded fields carry the impact container themselves.
+  if (embedded) return <div className={styles.embedded}>{fields}</div>
+  return <section id="intake-expected-impact" aria-labelledby="intake-impact-heading" tabIndex={-1} className={styles.section}>
+    {fields}
   </section>
 }

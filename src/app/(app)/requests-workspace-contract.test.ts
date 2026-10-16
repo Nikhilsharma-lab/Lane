@@ -25,10 +25,14 @@ describe("Requests workspace contract", () => {
     expect(WORKSPACE).toContain('data-slot="requests-workspace"')
   })
 
-  it("marks the selected Request and uses the Arc selected surface without an edge stripe", () => {
-    expect(DETAIL_VIEW).toContain('aria-current={request.id === selectedRequestId ? "page" : undefined}')
-    expect(DETAIL_VIEW).toContain('className={styles.requestLink}')
-    expect(REQUEST_STYLES).toMatch(/\.requestLink\[aria-current="page"\]\s*\{[^}]*background:\s*var\(--sb-selection\)/)
+  // Plan item 2.5: the legacy list pane, People and the duplicate phone lifecycle block are gone.
+  it("renders Request detail without the old list pane, People or a second lifecycle block", () => {
+    for (const removed of ["RequestListPane", "requestLink", "request-people", "mobileLifecycleActions", '"Expected result"', "--surface-hover"]) {
+      expect(DETAIL_VIEW, removed).not.toContain(removed)
+      expect(REQUEST_STYLES, removed).not.toContain(removed)
+    }
+    expect(WORKSPACE).not.toContain("mobileLifecycleActions")
+    expect(WORKSPACE).toContain("viewer={")
     expect(REQUEST_STYLES).not.toMatch(/(?:border-left|border-inline-start)\s*:/)
   })
 
@@ -64,6 +68,20 @@ describe("Requests workspace contract", () => {
 
   it("keeps fully prefetched routes fresh for 30 seconds (plan item 1.11)", () => {
     expect(NEXT_CONFIG).toMatch(/staleTimes: \{ dynamic: 30, static: 30 \}/)
+  })
+
+  it("decides the lifecycle move in one shared function (plan item 2.4)", () => {
+    for (const path of [
+      "src/components/requests/request-row-actions.tsx",
+      "src/components/requests/use-request-selection.ts",
+      "src/app/(app)/requests/[id]/lifecycle-buttons.tsx",
+    ]) {
+      const file = source(path)
+      expect(file, path).toContain('from "@/lib/request-lifecycle"')
+      expect(file, path).toContain("allowedMove(")
+      // No caller keeps its own status-to-move decision.
+      expect(file, path).not.toMatch(/status === "(open|in_progress)"/)
+    }
   })
 
   it("preserves native deep links and the three-state MVP lifecycle", () => {

@@ -127,7 +127,7 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 - [ ] Every action is reachable from the keyboard. The visible focus ring uses `--focus-outline`. Esc closes and focus returns. Composite widgets follow the named ARIA pattern (decision 8.21).
 - [ ] Every state exists: loading (skeleton shaped like the final layout), empty, error, forbidden/not-found and success. Duplicate submission is blocked.
 - [ ] Optimistic changes are announced in a live region. A failed action reverts with a message that says what happened. An expired session never shows up as "Not found" (item 1.5).
-- [ ] At narrow widths the whole task stays available and the main action stays reachable. Today detail's lifecycle button sits below all the comments (`detail-view.tsx:150` vs `:168`). Keyboard hints are hidden on coarse pointers.
+- [ ] At narrow widths the whole task stays available and the main action stays reachable. Today detail's lifecycle button sits below all the comments (`detail-view.tsx:150` vs `:168`). *(2026-10-13, item 2.5: the action now sits in the strip at every width; the duplicate phone block was at `detail-view.tsx:170`, fed by `requests-workspace.tsx:19`.)* Keyboard hints are hidden on coarse pointers.
 
 **Verification matrix** (`DESIGN.md:29`; `phase-0-ux-skeleton.md:146-149`): light and dark; 390, 768, 1024 and 1440 px; long content; zoom; reload, back and deep link; member, admin and guest; reduced motion.
 
@@ -158,7 +158,7 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 - **Large surfaces animate only `transform` and `opacity`.** Springs are banned on surfaces wider than about 200 px.
   - **Sidebar.** Today it is a flex sibling (`workspace-shell.module.css:2`) springing `--sidebar-width` on `spring.smooth`, `visualDuration` 0.4 (`motion-tokens.ts:17`, `use-sidebar-resize.ts:36-46`). Change it so the panel translates and the content width changes once per toggle: at the start of collapse and at the end of expand.
   - **List summary.** Today it springs the list's width (`request-list-summary.tsx:45-47`). It should overlay the list instead.
-- **Durations apply to settle time,** including any spring tail. Feedback takes 120–200 ms. A panel enters in ≤ 240 ms. The 480 ms `--duration-considered` (`foundation.css:80`) stays off everyday paths. The audits disagree on the composer drawer entrance: one says 480 ms, the other about a 400 ms spring at `drawer.tsx:179`. Confirm it in code before acting (decision 8.20).
+- **Durations apply to settle time,** including any spring tail. Feedback takes 120–200 ms. A panel enters in ≤ 240 ms. The 480 ms `--duration-considered` (`foundation.css:80`) stays off everyday paths. The audits disagree on the composer drawer entrance: one says 480 ms, the other about a 400 ms spring at `drawer.tsx:179`. Confirm it in code before acting (decision 8.22). *Confirmed 2026-10-11 (item 2.3): Lane's drawer ran the 400 ms smooth spring; the 480 ms keyframes run only under a bare Radix root.*
 - **No backdrop blur** on overlays (Dialog 7px, Drawer 4px). **No `filter: blur` label or icon morphs inside dense rows.** Arc's `button.tsx:29-32`, ChipGroup, ToastStack and Tooltip would otherwise play them on every optimistic regroup.
 - **No layout shift.** Skeletons match the final layout. CLS ≤ 0.02. The welcome → list transition does not jump.
 - **60 fps.** At most 2 dropped frames in a 300 ms transition at 4× CPU, measured automatically with the Long Animation Frames API in the perf spec.
@@ -303,7 +303,7 @@ Every page inherits the §2.4 definition of done: Linear-system stories, acknowl
 
 Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
 
-### 2.0 App frame and states (S–M), first because every page sits on it
+### 2.0 App frame and states (S–M), first because every page sits on it *(built 2026-10-11; waiting on Nikhil's visual approval, staging CLS and skeleton timings, and his walk-through, see `docs/design-system/page-quality.md`)*
 - **Changes:**
   - **Header-strip rule:** each page owns a single 44px strip. The shell topbar shows only on pages without one, or the crumbs become the strip.
   - **Skeletons from real primitives:** strip, toolbar and 44px rows for `(app)/loading.tsx` (today `space-y-6 p-4`, which shifts), detail and intake.
@@ -313,7 +313,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Skeleton appears ≤ 100 ms after navigation.
   - Error and not-found stories render with the layout failing.
 
-### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6)
+### 2.1 Requests welcome (S) and 2.2 Onboarding (S), batchable (8.6) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Welcome:**
   - Render the list's title strip and the empty `DataTable` region, so the first Request appears in place.
   - Drop `min-h-dvh` (`requests-welcome.tsx:12`).
@@ -321,6 +321,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Add the hint "Press C to create a Request." on fine pointers only.
 - **Onboarding:**
   - After saving, `router.replace("/")` directly. This removes the double refresh (`onboarding/actions.ts:52` + `role-form.tsx:42`).
+    *Built 2026-10-11 as a redirect to / from the save itself, with `revalidatePath("/")`: the response carries the welcome, so it is still one navigation. A client `router.replace("/")` within 30 s of signing in could replay the cached redirect from / back to /onboarding (`staleTimes.dynamic` is 30).*
   - Optionally choose and continue in one click.
   - Keys 1, 2 and 3 pick a role. This needs the interaction-scope extension in 8.10.
   - On fine pointers, one line: "C to create, / to search".
@@ -333,10 +334,12 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - Keyboard-only story.
   - Admin and member stories.
 
-### 2.3 New Request composer and `/intake` (M; L if Expected impact changes shape)
+### 2.3 New Request composer and `/intake` (M; L if Expected impact changes shape) *(built 2026-10-11; waiting on Nikhil's sign-off)*
+- **2026-10-13:** Nikhil chose a centred dialog for the composer (PR #42's direction), so this item's composer now opens in the Arc Dialog (`layout="composer"`) and `/intake` is a launcher under the page strip. Row 5 of the page table and decision 8.22's "drawer entrance" read as the composer dialog from here on. The launcher keeps 2.3's `/intake` restore: arriving there with this tab's saved draft or review for the workspace (a reload, or Sign in again after a session expiry) opens the composer once by itself, with the review heading or the title focused, and closing it returns focus to Create Request. Creating there still opens the new Request.
+- **2026-10-13, PR #45 merged here:** Expected impact takes Nikhil's fields from #45 (Measure with menu, What should improve?, Goal, Measured in with `%` by default, Add current value, Check in days, no source asked) and his one optional guardrail, inside 2.3's disclosure: the guardrail editor opens in the panel after the primary fields, and Review Request waits until it is added or cancelled. Folded, the row reads the impact, then "Check in N days" (or "{source}, N days after launch" for an older draft that kept a source), then the guardrail sentence. Migration 0021 (optional source) must run on staging first, after a verified backup.
 - **Changes:**
   - Borderless large title and description with visually hidden labels. Keep the existing property-chip row (Project, Type) and footer actions.
-  - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.20).
+  - 12px radius, theme overlay token, no blur, entrance settles ≤ 240 ms (8.22).
   - **Expected impact stays required.** It becomes a progressively disclosed section, and validation focuses it on submit (8.26).
   - AI gate: show the review-step skeleton with "Checking whether this describes a problem…", not just a button spinner. On timeout or spend cap: "Review unavailable right now. Your draft is kept."
   - After Create, the Request appears in the Open group through the pending overlay.
@@ -351,7 +354,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
   - The new row is visible immediately.
   - Stories at 390/dark and 1440/light: draft restored, validation, slow gate (5 s), timeout, review unavailable, session expired, upload progress and recovery.
 
-### 2.4 Requests list: finish (M)
+### 2.4 Requests list: finish (M) *(built 2026-10-11; waiting on Nikhil's sign-off)*
 - **Changes (Phase 1 already provides client views, the overlay and batch bulk):**
   - **Keyboard model** (8.21): an **ARIA grid with roving tabindex** (default, to be confirmed). The row is the single tab stop. J/K or ↑/↓ move, Enter opens, X selects, Esc clears, F opens the filter. In-row controls become `tabIndex=-1` but stay reachable by menu and shortcut.
   - Shortcut hints in the row menu, for supported actions only.
@@ -369,7 +372,7 @@ Effort: **S** about 1 day, **M** 2–4 days, **L** 1–2 weeks (agent-assisted).
 
 **Usability round (5 people) runs here,** after 2.3 and 2.4, on staging or with pilot-zero teams. That way it finds issues before the remaining polish (critique 1 #19).
 
-### 2.5 Request detail (L), the most important page below the bar
+### 2.5 Request detail (L), the most important page below the bar *(built 2026-10-13; waiting on Nikhil's sign-off)*
 Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he asks" (`2026-10-07-requests-list-and-workspace-sidebar.md:12`).
 
 - **Changes:**
@@ -382,11 +385,11 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - **Right properties panel:**
     - Status glyph with its one allowed move
     - Saved priority (editable)
-    - Owner, Project, Type and Submitted (read-only)
+    - Assignee, Project, Type and Submitted (read-only; "Assignee" since 2.4, as in the list)
     - Space reserved for future alignment and outcome blocks
   - **Phone:** properties collapse under the title, and the lifecycle action stays in the header.
   - Remove the legacy `RequestListPane`.
-  - Add `requestNumber` and `priority` to the detail select. This is not a schema change: they are missing from `requests-workspace.tsx:106-131` and from `RequestDetail` at `detail-view.tsx:38-62`.
+  - Add `requestNumber` and `priority` to the detail select. This is not a schema change: they are missing from `requests-workspace.tsx:106-131` and from `RequestDetail` at `detail-view.tsx:38-62`. *(Citation corrected 2026-10-13: since item 1.9 the select lives in `loadRequestDetail`, `src/lib/data/requests.ts`; 2.5 added `requestNumber`, `priority` and `assigneeAvatarUrl` there with no new statement.)*
   - Remove the duplicate People/submitter.
   - A skeleton that matches the new layout.
 - **Not adopted:** sub-issues, estimates, subscribe, due date, activity events, side peek.

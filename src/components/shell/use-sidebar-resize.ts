@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
-import { animate, useMotionValue, useReducedMotion, useTransform } from "motion/react";
-import { motionTokens } from "@/components/arc/lib/motion-tokens";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
+import { useReducedMotion } from "motion/react";
+import { layoutWidthFor, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
@@ -20,7 +20,13 @@ const subscribeLinearPreviewCompact = (change: () => void) => {
   return () => query.removeEventListener("change", change);
 };
 
-/** Lane's edge-resize adaptation of Arc's spring-driven desktop sidebar. */
+/**
+ * Lane's edge-resize adaptation of Arc's desktop sidebar. Plan item 2.4 (plan
+ * §2.3): a toggle slides the panel on transform only and changes the content's
+ * width once, at the start of a collapse and at the end of an expand
+ * (sidebar-motion.ts). Drags, arrow keys, End, reduced motion, an automatic
+ * collapse and pinning a visible peek change the width in one jump.
+ */
 export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = false, onAutoExpand?: () => void) {
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false) && !linearPreviewAutoCollapse;
   const previewCompact = useSyncExternalStore(subscribeLinearPreviewCompact, () => window.matchMedia(LINEAR_PREVIEW_COMPACT).matches, () => false);
@@ -34,28 +40,83 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   const drag = useRef<{ id: number; x: number; width: number; target: number; remembered: number; handle: HTMLElement } | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
-  const pixels = useMotionValue(initialWidth);
-  const cssWidth = useTransform(pixels, value => `${Math.max(0, value)}px`);
+  const [motion, setMotionState] = useState<SidebarMotion>(null);
+  const motionRef = useRef<SidebarMotion>(null);
+  const slide = useRef<Animation | null>(null);
+  // A finished slide holds its last frame (fill: both) until the commit that lands the panel there.
+  const ended = useRef<Animation | null>(null);
   const effectiveWidth = autoCollapsed ? 0 : width;
+  const layoutWidth = layoutWidthFor({ width, autoCollapsed, motion });
   const collapsed = (width === 0 || autoCollapsed) && !phone;
 
-  useEffect(() => {
-    if (resizing) return;
-    if (reduced) { pixels.jump(effectiveWidth); return; }
-    const controls = animate(pixels, effectiveWidth, motionTokens.spring.smooth);
-    return () => controls.stop();
-  }, [effectiveWidth, pixels, reduced, resizing]);
+  function setMotion(next: SidebarMotion) {
+    motionRef.current = next;
+    setMotionState(next);
+  }
+  /** Lands a slide that reached its end: the panel leaves the overlay box in the next commit, where the held frame is dropped. */
+  function land(animation: Animation) {
+    const panel = (animation.effect as KeyframeEffect | null)?.target as HTMLElement | null;
+    // A collapse lands on the collapsed panel, off-screen at the same spot; its peek transitions must not replay there.
+    if (motionRef.current === "collapsing" && panel) {
+      panel.style.transition = "none";
+      requestAnimationFrame(() => requestAnimationFrame(() => { panel.style.transition = ""; }));
+    }
+    if (!motionRef.current) { animation.cancel(); return; }
+    ended.current = animation;
+    setMotion(null);
+  }
+  /** Ends a running slide at its end state (a drag or a keyboard resize takes over). */
+  function settle() {
+    const running = slide.current;
+    slide.current = null;
+    if (running) { running.finish(); land(running); }
+    else if (motionRef.current) setMotion(null);
+  }
+  useLayoutEffect(() => {
+    if (motion !== null || !ended.current) return;
+    ended.current.cancel();
+    ended.current = null;
+  }, [motion]);
+  /** A toggle's slide: start one, turn the running one around, or jump. */
+  function toggleWidth(next: number, fromPeek = false) {
+    const plan = planToggle({ collapsed: next !== 0, motion: motionRef.current, reduced: Boolean(reduced), fromPeek });
+    // The running slide already lands on this width: nothing to settle or restart.
+    if (plan.slide === "keep") return;
+    const panel = shellRef.current?.querySelector<HTMLElement>("[data-sidebar-panel]");
+    if (plan.slide === "reverse" && slide.current) {
+      slide.current.reverse();
+      setMotion(plan.motion);
+    } else if (plan.slide === "start" && panel && typeof panel.animate === "function" && plan.motion) {
+      settle();
+      const { keyframes, options } = slideFor(plan.motion, lastExpanded);
+      // "both" holds whichever end the slide stops at, including the start of a reversed slide.
+      const animation = panel.animate(keyframes, { ...options, fill: "both" });
+      slide.current = animation;
+      setMotion(plan.motion);
+      // A reversed slide keeps this promise, so it settles wherever the slide finally ends.
+      animation.finished.then(() => {
+        if (slide.current !== animation) return;
+        slide.current = null;
+        land(animation);
+      }, () => {});
+    } else settle();
+    resize(next);
+  }
 
   function resize(next: number) {
     const bounded = next < COLLAPSE_AT ? 0 : Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next)));
     if (bounded) setLastExpanded(bounded);
-    if (drag.current) pixels.jump(bounded);
     setWidth(bounded);
   }
-  function expand() {
+  /** Keyboard steps, End and Home change the width in one jump. */
+  function jump(next: number) {
+    settle();
+    resize(next);
+  }
+  function expand(fromPeek = false) {
     if (disabled || phone) return;
     if (autoCollapsed) { onAutoExpand?.(); return; }
-    resize(lastExpanded);
+    toggleWidth(lastExpanded, fromPeek);
     focusVisible('button[aria-label^="Account menu,"]');
   }
   function focusVisible(selector: string) {
@@ -65,7 +126,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   function toggle() {
     if (disabled || phone) return;
     if (collapsed) { expand(); return; }
-    resize(0);
+    toggleWidth(0);
     focusVisible('button[aria-label="Expand sidebar"]');
   }
   function finish(cancel: boolean) {
@@ -80,13 +141,13 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (disabled || phone || autoCollapsed || event.button !== 0 || drag.current) return;
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
-    // Motion's value can be one paint ahead of the edge on screen. Capture the
-    // rendered width so grabbing a moving edge does not skip those final pixels.
-    const visibleWidth = shellRef.current?.querySelector("#lane-sidebar")?.getBoundingClientRect().width ?? pixels.get();
+    // Grabbing the edge mid-slide finishes the slide first, so the drag starts from the width it was heading to.
+    const sliding = motionRef.current !== null;
+    settle();
+    const visibleWidth = sliding ? width : shellRef.current?.querySelector("#lane-sidebar")?.getBoundingClientRect().width ?? width;
     drag.current = { id: event.pointerId, x: event.clientX, width: visibleWidth, target: width, remembered: lastExpanded, handle: event.currentTarget };
     // Browser capture keeps the drag alive when the edge moves under the pointer.
     if (event.isTrusted) event.currentTarget.setPointerCapture(event.pointerId);
-    pixels.jump(visibleWidth);
     setResizing(true);
   }
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -103,7 +164,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (event.key === "Escape" && drag.current) { event.preventDefault(); finish(true); return; }
     const step = event.shiftKey ? 32 : 16;
     const next = event.key === "Home" ? 0 : event.key === "End" ? MAX_WIDTH : event.key === "ArrowLeft" ? width <= MIN_WIDTH ? 0 : Math.max(MIN_WIDTH, width - step) : event.key === "ArrowRight" ? collapsed ? MIN_WIDTH : width + step : null;
-    if (next !== null) { event.preventDefault(); resize(next); }
+    if (next !== null) { event.preventDefault(); jump(next); }
     else if (event.key === "Enter") { event.preventDefault(); toggle(); }
   }
   const shortcut = useEffectEvent((event: globalThis.KeyboardEvent) => {
@@ -119,15 +180,16 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, []);
-  const cancelDrag = useEffectEvent(() => finish(true));
+  const cancelDrag = useEffectEvent(() => { finish(true); settle(); });
   useEffect(() => { if (phone || disabled || autoCollapsed) cancelDrag(); }, [phone, disabled, autoCollapsed]);
+  useEffect(() => () => { slide.current?.cancel(); }, []);
   useEffect(() => {
     if (autoCollapsed && (shellRef.current?.querySelector("#lane-sidebar")?.contains(document.activeElement) || document.activeElement === handleRef.current)) {
       focusVisible('button[aria-label="Expand sidebar"]');
     }
   }, [autoCollapsed]);
 
-  return { shellRef, cssWidth, collapsed, autoCollapsed, resizing, phone, expand, peekWidth: lastExpanded,
+  return { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, peekWidth: lastExpanded,
     separator: {
       ref: handleRef, role: "separator" as const, tabIndex: disabled || autoCollapsed ? -1 : 0,
       "aria-label": "Resize sidebar", "aria-orientation": "vertical" as const,

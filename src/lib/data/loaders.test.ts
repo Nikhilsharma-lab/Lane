@@ -21,6 +21,7 @@ vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
 
 import { db, queryCounter, comments, notifications, profiles, projects, requestAttachments, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
+import { REQUEST_PRIORITIES } from "@/lib/request-constants";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
 import { loadProjects } from "./projects";
@@ -211,6 +212,10 @@ describe("loadRequestDetail", () => {
     const { result, statements } = await queryCounter.measure(() => loadRequestDetail(member, memberRequest));
     expect(statements).toBeLessThanOrEqual(3);
     expect(result?.request).toMatchObject({ id: memberRequest, title: "Loader member Request", creatorName: "Test Member", assigneeName: "Test Admin", projectName: "Loader member project" });
+    // Plan item 2.5: the strip's code, the panel's priority and the Assignee avatar, from the same statement.
+    expect(result?.request.requestNumber).toBeGreaterThan(0);
+    expect(REQUEST_PRIORITIES).toContain(result?.request.priority);
+    expect(result?.request).toHaveProperty("assigneeAvatarUrl");
     expect(result?.comments.map(comment => comment.body)).toEqual(["First comment", "Second comment"]);
     expect(result?.attachments.map(attachment => attachment.id)).toEqual([uploadedAttachment]);
   });

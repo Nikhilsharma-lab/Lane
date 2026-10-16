@@ -137,6 +137,11 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
     db
       .select({
         id: requests.id,
+        // Plan item 2.5: the strip's LAN-n, the panel's priority and the
+        // Assignee avatar. Same statement and joins, so no extra round trip.
+        // The overlay needs priority to see a confirmed priority patch land.
+        requestNumber: requests.requestNumber,
+        priority: requests.priority,
         title: requests.title,
         description: requests.description,
         affectedPeople: requests.affectedPeople,
@@ -156,6 +161,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         createdAt: requests.createdAt,
         creatorName: creator.fullName,
         assigneeName: selectedAssignee.fullName,
+        assigneeAvatarUrl: selectedAssignee.avatarUrl,
         projectId: requests.projectId,
         projectName: projects.name,
         requestType: requests.requestType,

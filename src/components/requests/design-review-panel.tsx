@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { ExternalLink } from "lucide-react"
 import { Alert } from "@/components/arc/alert/alert"
 import { Badge } from "@/components/arc/badge/badge"
@@ -10,6 +10,7 @@ import { Input } from "@/components/arc/input/input"
 import { RadioGroup } from "@/components/arc/radio-group/radio-group"
 import { Textarea } from "@/components/arc/textarea/textarea"
 import { currentReview, latestReviewerResponse, reviewHasAllResponses, startReviewInputSchema, respondToReviewInputSchema, withdrawReviewInputSchema, type DesignReview, type RequestReviewState, type ReviewActionResult, type ReviewPerson, type StartReviewInput, type RespondToReviewInput, type WithdrawReviewInput } from "@/lib/request-review"
+import { ASK_FOR_REVIEW_HINT, CURRENT_REVIEW_HINT } from "./design-review-copy"
 import styles from "./design-review-panel.module.css"
 
 export type DesignReviewPanelProps = {
@@ -22,6 +23,19 @@ export type DesignReviewPanelProps = {
   onRequest: (input: StartReviewInput) => Promise<ReviewActionResult>
   onRespond: (input: RespondToReviewInput) => Promise<ReviewActionResult>
   onWithdraw: (input: WithdrawReviewInput) => Promise<ReviewActionResult>
+  /** Plan item 2.5: the section's id ("ask-for-review" on Request detail); its heading takes `${id}-heading`. */
+  id?: string
+  /** Plan item 2.5: true while a form the viewer opened is showing, so the page strip hides its filled action. */
+  onFormOpenChange?: (open: boolean) => void
+}
+
+/** Plan item 2.5: Esc in an open form cancels it, unless an input method is composing. */
+function cancelOnEscape(onCancel?: () => void) {
+  return (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key !== "Escape" || event.nativeEvent.isComposing || !onCancel || event.defaultPrevented) return
+    event.preventDefault()
+    onCancel()
+  }
 }
 
 type FormState = { pending: boolean; error: string | null; blocked?: string }
@@ -95,7 +109,7 @@ function AskForm({ expectedVersion, currentUserId, pending, error, blocked, onFi
     setErrors({}); onSave(parsed.data)
   }
   const options = [...new Map([...selected, ...members].map(member => [member.id, member])).values()]
-  return <form aria-label="Ask for design review" className={styles.form} onSubmit={submit} noValidate>
+  return <form aria-label="Ask for design review" className={styles.form} onSubmit={submit} onKeyDown={cancelOnEscape(pending ? undefined : onCancel)} noValidate data-detail-form="">
     <Input ref={urlInput} label="Design version link" type="url" value={designUrl} onChange={event => setDesignUrl(event.target.value)} readOnly={pending} maxLength={2000} error={errors.designUrl} description="Link to the exact version you want reviewed. This link stays with this round." />
     <Textarea label="What needs feedback?" value={question} onChange={event => setQuestion(event.target.value)} readOnly={pending} rows={3} maxLength={2000} error={errors.question} />
     <fieldset className={styles.reviewers} aria-describedby={`${uid}-selection`}>
@@ -121,12 +135,14 @@ function AskForm({ expectedVersion, currentUserId, pending, error, blocked, onFi
       </div>
     </fieldset>
     <SaveError error={blocked ?? error} />
-    <div className={styles.actions}><Button type="submit" loading={pending} disabled={Boolean(blocked)} data-review-primary className={styles.action}>Ask for review</Button><Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel}>Cancel</Button></div>
+    <div className={styles.actions}><Button type="submit" loading={pending} disabled={Boolean(blocked)} data-review-primary className={styles.action}>Ask for review</Button><Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel} data-detail-form-cancel="">Cancel</Button></div>
   </form>
 }
 
-function ResponseForm({ review, currentUserId, expectedVersion, pending, error, blocked, onSave, onCancel }: FormState & {
+function ResponseForm({ review, currentUserId, expectedVersion, pending, error, blocked, onSave, onCancel, opened = false }: FormState & {
   review: DesignReview; currentUserId: string; expectedVersion: number; onSave: (input: RespondToReviewInput) => void; onCancel?: () => void
+  /** The viewer opened it (Respond or Edit), as opposed to the form offered to a named reviewer. */
+  opened?: boolean
 }) {
   const previous = latestReviewerResponse(review, currentUserId)
   const [decision, setDecision] = useState<RespondToReviewInput["decision"]>(previous?.decision ?? "looks_good")
@@ -139,12 +155,12 @@ function ResponseForm({ review, currentUserId, expectedVersion, pending, error, 
     if (!parsed.success) { setNoteError(parsed.error.issues[0].message); return }
     setNoteError(undefined); onSave(parsed.data)
   }
-  return <form aria-label="Respond to design review" className={styles.form} onSubmit={submit} noValidate>
+  return <form aria-label="Respond to design review" className={styles.form} onSubmit={submit} onKeyDown={cancelOnEscape(pending ? undefined : onCancel)} noValidate data-detail-form={opened ? "" : undefined}>
     {blocked && <p className={styles.hint}>Unsent feedback for {review.designUrl}</p>}
     <fieldset disabled={pending} className={styles.fields}><RadioGroup label="Your feedback" options={decisions} value={decision} onValueChange={value => setDecision(value as RespondToReviewInput["decision"])} /></fieldset>
     <Textarea label="Feedback note" description={decision === "changes_requested" ? "Explain the changes you need." : "Optional context for your response."} value={note} onChange={event => setNote(event.target.value)} rows={3} maxLength={5000} readOnly={pending} error={noteError} />
     <SaveError error={blocked ?? error} />
-    <div className={styles.actions}><Button type="submit" loading={pending} disabled={Boolean(blocked)} data-review-primary className={styles.action}>{previous ? "Save feedback" : "Send feedback"}</Button>{onCancel && <Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel}>Cancel edit</Button>}</div>
+    <div className={styles.actions}><Button type="submit" loading={pending} disabled={Boolean(blocked)} data-review-primary className={styles.action}>{previous ? "Save feedback" : "Send feedback"}</Button>{onCancel && <Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel} data-detail-form-cancel={opened ? "" : undefined}>Cancel edit</Button>}</div>
   </form>
 }
 
@@ -162,10 +178,10 @@ function WithdrawForm({ expectedVersion, reviewId, pending, error, blocked, onSa
     if (!parsed.success) { setReasonError(parsed.error.issues[0].message); return }
     setReasonError(undefined); onSave(parsed.data)
   }
-  return <form aria-label="Withdraw design review" className={styles.form} onSubmit={submit} noValidate>
+  return <form aria-label="Withdraw design review" className={styles.form} onSubmit={submit} onKeyDown={cancelOnEscape(pending ? undefined : onCancel)} noValidate data-detail-form="">
     <Textarea ref={input} label="Reason for withdrawal" description="The reason and all feedback stay in the review history." value={reason} onChange={event => setReason(event.target.value)} rows={3} maxLength={2000} readOnly={pending} error={reasonError} />
     <SaveError error={blocked ?? error} />
-    <div className={styles.actions}><Button type="submit" variant="danger" loading={pending} disabled={Boolean(blocked)} className={styles.action}>Confirm withdrawal</Button><Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel}>Cancel withdrawal</Button></div>
+    <div className={styles.actions}><Button type="submit" variant="danger" loading={pending} disabled={Boolean(blocked)} className={styles.action}>Confirm withdrawal</Button><Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={onCancel} data-detail-form-cancel="">Cancel withdrawal</Button></div>
   </form>
 }
 
@@ -184,12 +200,14 @@ function RoundSummary({ review }: { review: DesignReview }) {
   </div>
 }
 
-export function DesignReviewPanel({ initialState, currentUserId, canRequest, canManage, onFindReviewers, onRequest, onRespond, onWithdraw }: DesignReviewPanelProps) {
+export function DesignReviewPanel({ initialState, currentUserId, canRequest, canManage, onFindReviewers, onRequest, onRespond, onWithdraw, id, onFormOpenChange }: DesignReviewPanelProps) {
   const [state, setState] = useState(initialState)
   const [mode, setMode] = useState<"view" | "ask" | "withdraw">("view")
   const [askAfterReviewId, setAskAfterReviewId] = useState<string | null>(null)
   const [withdrawTarget, setWithdrawTarget] = useState<DesignReview | null>(null)
   const [responseTarget, setResponseTarget] = useState<DesignReview | null>(null)
+  // The response form the viewer opened with Respond or Edit; the one offered to a named reviewer on arrival does not count (2.6 owns that).
+  const [responseOpened, setResponseOpened] = useState(false)
   const [offeredReviewId, setOfferedReviewId] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -211,12 +229,13 @@ export function DesignReviewPanel({ initialState, currentUserId, canRequest, can
       if (!mounted.current) return
       if ("error" in result) { setError(result.error); return }
       setState(previous => result.state.version >= previous.version ? result.state : previous)
-      setMode("view"); setResponseTarget(null); setWithdrawTarget(null); setAnnouncement(message)
+      setMode("view"); setResponseTarget(null); setResponseOpened(false); setWithdrawTarget(null); setAnnouncement(message)
       requestAnimationFrame(() => heading.current?.focus({ preventScroll: true }))
     } catch { if (mounted.current) setError("The review could not be saved. Your draft is still here. Try again.") }
     finally { inFlight.current = false; if (mounted.current) setPending(false) }
   }
-  function cancel() { setMode("view"); setError(null); requestAnimationFrame(() => heading.current?.focus({ preventScroll: true })) }
+  function focusHeading() { requestAnimationFrame(() => heading.current?.focus({ preventScroll: true })) }
+  function cancel() { setMode("view"); setError(null); focusHeading() }
   const review = currentReview(state)
   const mayStart = canRequest && (!review || Boolean(review.withdrawal) || reviewHasAllResponses(review))
   const mayRespond = canRequest && review && !review.withdrawal && review.reviewers.some(person => person.id === currentUserId)
@@ -230,15 +249,24 @@ export function DesignReviewPanel({ initialState, currentUserId, canRequest, can
   const staleWithdrawal = withdrawTarget && (review?.id !== withdrawTarget.id || Boolean(review.withdrawal) || !mayWithdraw)
   const staleAsk = mode === "ask" && (!mayStart || (review?.id ?? null) !== askAfterReviewId)
   const retainMessage = "This review changed. Your draft is still here. Copy anything you need before cancelling and opening the current review."
+  // Plan item 2.5 (decision D8): while a form the viewer opened shows, its submit is the page's one filled button.
+  const formOpen = mode === "ask" || mode === "withdraw" || (mode === "view" && Boolean(responseTarget) && responseOpened)
+  useEffect(() => {
+    if (!formOpen || !onFormOpenChange) return
+    onFormOpenChange(true)
+    return () => onFormOpenChange(false)
+  }, [formOpen, onFormOpenChange])
+  const headingId = id ? `${id}-heading` : `${uid}-heading`
 
-  return <section aria-labelledby={`${uid}-heading`} className={styles.panel}>
-    <div className={styles.header}><h2 ref={heading} tabIndex={-1} id={`${uid}-heading`}>Design review</h2>{mayStart && mode !== "ask" && <Button type="button" variant={review ? "secondary" : "primary"} data-review-primary={!review || undefined} disabled={pending} className={styles.action} onClick={() => { setAskAfterReviewId(review?.id ?? null); setMode("ask"); setError(null) }}>Ask for review</Button>}</div>
-    <p className={styles.hint}>{review ? "Feedback belongs to this design version. It does not change the Request status." : "Ask named teammates for feedback on a specific design version."}</p>
+  return <section id={id} aria-labelledby={headingId} className={styles.panel}>
+    {/* Plan item 2.5: "Ask for review" names the section; its button is secondary, so the page keeps one filled button (D8). */}
+    <div className={styles.header}><h2 ref={heading} tabIndex={-1} id={headingId}>Ask for review</h2>{mayStart && mode !== "ask" && <Button type="button" variant="secondary" disabled={pending} className={styles.action} onClick={() => { setAskAfterReviewId(review?.id ?? null); setMode("ask"); setError(null) }}>Ask for review</Button>}</div>
+    <p className={styles.hint}>{review ? CURRENT_REVIEW_HINT : ASK_FOR_REVIEW_HINT}</p>
     {mode === "ask" && <AskForm expectedVersion={state.version} currentUserId={currentUserId} pending={pending} error={error} blocked={staleAsk ? retainMessage : undefined} onFindReviewers={onFindReviewers} onSave={input => { void save(() => onRequest(input), "Review requested.") }} onCancel={cancel} />}
     {review && <section aria-label="Current review" className={styles.current}>
       <RoundSummary review={review} />
-      {mode === "view" && responseTarget && <ResponseForm key={`${responseTarget.id}:${currentUserId}`} review={responseTarget} currentUserId={currentUserId} expectedVersion={state.version} pending={pending} error={error} blocked={staleResponse ? retainMessage : undefined} onSave={input => { void save(() => onRespond(input), "Feedback saved.") }} onCancel={() => { setResponseTarget(null); setOfferedReviewId(review.id); setError(null) }} />}
-      {mode === "view" && mayRespond && !responseTarget && <Button type="button" variant="secondary" className={styles.action} onClick={() => { setResponseTarget(review); setError(null) }}>{hasResponded ? "Edit your feedback" : "Respond to review"}</Button>}
+      {mode === "view" && responseTarget && <ResponseForm key={`${responseTarget.id}:${currentUserId}`} review={responseTarget} currentUserId={currentUserId} expectedVersion={state.version} pending={pending} error={error} blocked={staleResponse ? retainMessage : undefined} opened={responseOpened} onSave={input => { void save(() => onRespond(input), "Feedback saved.") }} onCancel={() => { setResponseTarget(null); setResponseOpened(false); setOfferedReviewId(review.id); setError(null); focusHeading() }} />}
+      {mode === "view" && mayRespond && !responseTarget && <Button type="button" variant="secondary" className={styles.action} onClick={() => { setResponseTarget(review); setResponseOpened(true); setError(null) }}>{hasResponded ? "Edit your feedback" : "Respond to review"}</Button>}
       {mode === "withdraw" && withdrawTarget && <WithdrawForm expectedVersion={state.version} reviewId={withdrawTarget.id} pending={pending} error={error} blocked={staleWithdrawal ? retainMessage : undefined} onSave={input => { void save(() => onWithdraw(input), "Review withdrawn.") }} onCancel={cancel} />}
       {mode === "view" && mayWithdraw && !responseTarget && <Button type="button" variant="ghost" disabled={pending} className={styles.action} onClick={() => { setWithdrawTarget(review); setMode("withdraw"); setError(null) }}>Withdraw review</Button>}
     </section>}

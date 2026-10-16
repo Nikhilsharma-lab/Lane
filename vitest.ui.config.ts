@@ -20,7 +20,23 @@ export default defineConfig({
       "src/app/**/requests-workspace-properties.test.ts",
       "src/app/**/requests-workspace-contract.test.ts",
       "src/app/api/search/search.test.ts",
+      "src/components/shell/page-strip.test.ts",
+      "src/components/shell/sidebar-view-frame.test.ts",
+      "src/app/**/app-frame.test.ts",
+      "src/lib/request-lifecycle.test.ts",
+      "src/lib/keyboard-shortcuts.test.ts",
+      "src/components/requests/request-grid-keys.test.ts",
+      "src/components/requests/request-row-label.test.ts",
+      "src/components/shell/sidebar-motion.test.ts",
+      "src/components/requests/request-detail-keys.test.ts",
+      "src/components/requests/request-sequence.test.ts",
     ],
   },
-  resolve: { alias: { "@": path.resolve(__dirname, "src"), "server-only": path.resolve(__dirname, "src/test/server-only.ts") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      // As in vitest.config.ts: Next resolves this marker itself; these checks import server loaders directly.
+      "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
+    },
+  },
 })

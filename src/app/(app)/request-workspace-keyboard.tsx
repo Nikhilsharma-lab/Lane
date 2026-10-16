@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { isShown, requestRowSelector, restoreRequestFocus } from "@/components/requests/list-focus"
+import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
 
@@ -15,14 +17,6 @@ function rememberReturnFocus(id: string) {
 
 function clearReturnFocus() {
   try { window.sessionStorage.removeItem(RETURN_FOCUS_KEY) } catch { /* Storage may be disabled. */ }
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      target.matches("input, textarea, select, [role='textbox']"))
-  )
 }
 
 export function RequestWorkspaceKeyboard({
@@ -53,12 +47,14 @@ export function RequestWorkspaceKeyboard({
     let attempts = 0
 
     function restoreFocus() {
-      const requestLink = document.getElementById(`request-${requestId}`)
-      // Restoring a row may first expand its group or change pages. Do not
-      // consume the marker until the newly visible link accepts focus.
-      if (requestLink?.getClientRects().length && !requestLink.closest("[hidden], [inert]")) {
-        requestLink.focus()
-        if (document.activeElement === requestLink) {
+      // Plan item 2.4: the Request's row, the list's one tab stop. Restoring it
+      // may first expand its group or change pages, so do not consume the
+      // marker until the newly visible row accepts focus.
+      const row = document.querySelector(requestRowSelector(requestId!))
+      if (isShown(row)) {
+        row.focus({ preventScroll: true })
+        row.scrollIntoView({ block: "nearest" })
+        if (document.activeElement === row) {
           clearReturnFocus()
           return
         }
@@ -69,8 +65,9 @@ export function RequestWorkspaceKeyboard({
         frame = window.requestAnimationFrame(restoreFocus)
       } else {
         clearReturnFocus()
-        // A lifecycle change can remove the Request from the active filter.
-        document.querySelector<HTMLElement>('[aria-label="Filter Requests by title"]')?.focus()
+        // A lifecycle change can remove the Request from the active filter:
+        // the grid's tab stop, else the title filter.
+        restoreRequestFocus(requestId!, { force: true })
       }
     }
 
@@ -82,13 +79,29 @@ export function RequestWorkspaceKeyboard({
     if (!selectedRequestId) return
     const requestId = selectedRequestId
 
+    // Plan item 2.5: Esc on detail does the first thing that applies. An open
+    // menu, popover, drawer or dialog closes itself (and prevents default); a
+    // section form or the comment box with focus handles its own Esc. Then an
+    // open section form the person opened is cancelled; only then does Esc
+    // return to the list, which focuses this Request's row.
     function handleKeyDown(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
         event.defaultPrevented ||
+        event.isComposing ||
         (event.target instanceof Element && Boolean(event.target.closest('[role="dialog"], [role="alertdialog"]'))) ||
-        isTypingTarget(event.target)
+        isTypingTarget(event.target) ||
+        overlayOpen()
       ) {
+        return
+      }
+      // Search hides the page; Esc then belongs to the search pane.
+      if (!isShown(document.querySelector('[data-slot="requests-workspace"]'))) return
+
+      const form = document.querySelector("[data-detail] [data-detail-form]")
+      if (form) {
+        event.preventDefault()
+        form.querySelector<HTMLButtonElement>("[data-detail-form-cancel]:not(:disabled)")?.click()
         return
       }
 

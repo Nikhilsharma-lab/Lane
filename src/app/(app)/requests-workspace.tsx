@@ -1,32 +1,34 @@
 import { redirect } from "next/navigation"
 import { getMember, getWorkspace } from "@/lib/ensure-workspace"
 import { loadRequestDetail, loadRequestList } from "@/lib/data/requests"
-import { requestListHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { requestListHref } from "@/lib/request-workspace"
+import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestDetailView, RequestUnavailable, type RequestDetail, type RequestComment, type RequestAttachment } from "@/components/requests/detail-view"
 import { CommentForm } from "./requests/[id]/comment-form"
 import { AttachmentDownload } from "./requests/[id]/attachment-download"
 import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { DesignReview } from "./requests/[id]/design-review-lazy"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
-import { RequestsWelcome } from "./requests-welcome"
 import { RequestsOverview } from "./requests-overview"
 import { RequestCurrentValues } from "./requests/[id]/current-values"
 import { measurementReadiness } from "@/lib/request-measurement"
 
-function RequestDetailPane({ orgId, currentUserId, isAdmin, ...props }: {
+function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
-  filter: RequestStatusFilter; projectFilter: RequestProjectFilter; orgId: string; isGuest: boolean; currentUserId: string; isAdmin: boolean;
+  returnHref: string; orgId: string; isGuest: boolean; currentUserId: string; viewerName: string; isAdmin: boolean;
 }) {
-  const impact = props.request.expectedImpact
-  const pickupBlockedReason = measurementReadiness(impact, props.request.requestType)
-  const pickupRequester = props.request.createdBy === currentUserId ? null : props.request.creatorName || "the requester"
-  return <RequestDetailView {...props}
-    lifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
-    mobileLifecycleActions={<LifecycleButtons requestId={props.request.id} status={props.request.status} context={{ orgId }} filter={props.filter} projectFilter={props.projectFilter} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} fullWidth />}
-    currentValues={impact?.kind === "measurement" && props.request.status === "open" && props.request.createdBy === currentUserId ? <RequestCurrentValues requestId={props.request.id} context={{ orgId }} impact={impact} requestType={props.request.requestType} /> : undefined}
-    commentForm={<CommentForm requestId={props.request.id} context={{ orgId }} />}
+  const { request, isGuest } = props
+  const impact = request.expectedImpact
+  const pickupBlockedReason = measurementReadiness(impact, request.requestType)
+  const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
+  // Plan item 2.5 (decision D9): a guest cannot ask for review, so the section shows only once a review exists.
+  const showReview = !isGuest || (request.designReviews?.length ?? 0) > 0
+  return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName }}
+    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
+    currentValues={impact?.kind === "measurement" && request.status === "open" && request.createdBy === currentUserId ? <RequestCurrentValues requestId={request.id} context={{ orgId }} impact={impact} requestType={request.requestType} /> : undefined}
+    commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
-    designReview={<DesignReview requestId={props.request.id} initialState={{ version: props.request.designReviewVersion ?? 0, reviews: props.request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!props.isGuest} canManage={!props.isGuest && (isAdmin || props.request.createdBy === currentUserId)} context={{ orgId }} />}
+    designReview={showReview ? <DesignReview requestId={request.id} initialState={{ version: request.designReviewVersion ?? 0, reviews: request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!isGuest} canManage={!isGuest && (isAdmin || request.createdBy === currentUserId)} context={{ orgId }} /> : undefined}
   />
 }
 
@@ -52,13 +54,15 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
   const isGuest = member.role === "guest"
 
   if (list) {
-    // The welcome is about the workspace, never about the current filter.
-    if (list.rows.length === 0) return <RequestsWelcome role={member.role} />
+    // Plan item 2.1: an empty workspace renders the same list, whose records
+    // region shows the welcome, so the first Request lands in place.
     return <RequestsOverview
       requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
       activeCapped={list.activeCapped}
       hasOlderDone={list.hasOlderDone}
       isGuest={isGuest}
+      // The welcome is about the workspace, never about the current filter.
+      canInvite={member.role === "admin"}
       context={{ orgId: member.orgId }}
     />
   }
@@ -70,24 +74,29 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
   return (
     <div
       data-slot="requests-workspace"
-      className="flex min-h-0 flex-1 bg-background sm:h-full sm:overflow-hidden"
+      className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"
     >
       <RequestWorkspaceKeyboard
         selectedRequestId={selectedRequestId}
         returnHref={returnHref}
       />
       {selected ? (
-        <RequestDetailPane
-          request={selected.request}
-          comments={selected.comments}
-          attachments={selected.attachments}
-          filter="all"
-          projectFilter="all"
-          orgId={member.orgId}
-          currentUserId={member.userId}
-          isAdmin={member.role === "admin"}
-          isGuest={isGuest}
-        />
+        // Plan item 2.5: keyed by Request, so previous and next mount a fresh
+        // detail (scrolled to the top, no comment draft carried across). Copy,
+        // pick up and priority speak in one polite region, as on the list.
+        <ListAnnouncerProvider key={selected.request.id}>
+          <RequestDetailPane
+            request={selected.request}
+            comments={selected.comments}
+            attachments={selected.attachments}
+            returnHref={returnHref}
+            orgId={member.orgId}
+            currentUserId={member.userId}
+            viewerName={workspace.fullName}
+            isAdmin={member.role === "admin"}
+            isGuest={isGuest}
+          />
+        </ListAnnouncerProvider>
       ) : <RequestUnavailable returnHref={returnHref} />}
     </div>
   )
