@@ -402,7 +402,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - Esc returns to the list with focus restored.
   - 0 P0/P1, ≥ 28/40.
 
-### 2.6 Ask for review panel (M)
+### 2.6 Ask for review panel (M) *(built 2026-10-15; waiting on Nikhil's sign-off)*
 - **Changes:**
   - A debounced (150 ms) type-ahead reviewer combobox, reusing `request-property-pickers.tsx:122-132`.
   - Local times.
