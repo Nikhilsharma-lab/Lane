@@ -7,7 +7,7 @@ import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest, setReque
 import type { RequestPriority } from "@/lib/request-constants"
 import {
   DetailFixture, ShellOnly, announcer, comments, deferred, desktopLight, expectPinnedViewport, filledButtons, inProgress, main, minimalRequest,
-  panelShown, pendingLayers, phoneDark, request, stateLine, statusCell, strip, waitingReview,
+  panelShown, pendingLayers, phoneDark, request, stateLine, statusCell, strip, waitingOnViewer, waitingReview,
 } from "./helpers/request-detail-fixture"
 
 // Plan item 2.5: Request detail. Illustrative fixtures; every server action is mocked.
@@ -621,6 +621,41 @@ export const StripHidesWhileReviewFormOpen: Story = {
     await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Ask for review"])
     await userEvent.click(region.getByRole("button", { name: "Cancel" }))
     await expect(await within(strip(canvasElement)).findByRole("button", { name: "Pick up" })).toBeVisible()
+  },
+}
+
+/** Plan item 2.6 (decision D4): the response form the panel offers a named reviewer on arrival keeps a secondary submit, so the
+ * strip's action stays the page's one filled button; only a form the viewer opens becomes primary and hides the strip. */
+async function expectOnePrimaryWithOfferedForm(canvasElement: HTMLElement) {
+  const region = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
+  await expect(region.getByRole("textbox", { name: "Feedback note" })).toBeVisible()
+  await expect(within(strip(canvasElement)).getByRole("button", { name: "Pick up" })).toBeVisible()
+  await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Pick up"])
+  const offered = region.getByRole("button", { name: "Send feedback" })
+  await expect(offered).toBeVisible()
+  await expect(filledButtons(canvasElement)).not.toContain(offered)
+  await userEvent.click(region.getByRole("button", { name: "Cancel edit" }))
+  await userEvent.click(region.getByRole("button", { name: "Respond to review" }))
+  await waitFor(() => expect(within(strip(canvasElement)).queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument())
+  await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Send feedback"])
+  noHorizontalScroll()
+}
+
+export const AutoOfferedResponseKeepsOnePrimary: Story = {
+  args: { current: minimalRequest, comments: [], attachments: [], review: waitingOnViewer },
+  globals: desktopLight,
+  play: async ({ canvasElement, globals, parameters }) => {
+    await expectPinnedViewport({ globals, parameters })
+    await expectOnePrimaryWithOfferedForm(canvasElement)
+  },
+}
+
+export const AutoOfferedResponseKeepsOnePrimaryPhone: Story = {
+  args: { current: minimalRequest, comments: [], attachments: [], review: waitingOnViewer },
+  globals: phoneDark,
+  play: async ({ canvasElement, globals, parameters }) => {
+    await expectPinnedViewport({ globals, parameters })
+    await expectOnePrimaryWithOfferedForm(canvasElement)
   },
 }
 
