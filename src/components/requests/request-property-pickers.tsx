@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
 import { Check, Layers2, Plus, Rows3 } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -47,6 +47,67 @@ export function useWorkspaceProjects(orgId: string, active: boolean) {
   const addProject = (project: ProjectOption) => setProjects((current) =>
     [...current.filter((item) => item.id !== project.id), project].sort((a, b) => a.name.localeCompare(b.name)));
   return shared ?? { projects, loading, error, reload, addProject };
+}
+
+/* Plan item 2.6: the popover shell the Project picker and the reviewer picker
+ * share. An Arc Popover anchored to a secondary Button, an Arc SearchField, and
+ * a listbox of ghost option Buttons with roving focus: the search field's
+ * ArrowDown enters the list, Enter chooses the first item, the list wraps at
+ * the end and ArrowUp on the first item returns to the search. The content is
+ * portalled, so a React keydown inside it still bubbles to the form that owns
+ * the picker: stopPropagation keeps Esc for the popover (Radix closes it from
+ * its own document listener) instead of cancelling the whole form. */
+export type OptionRefs = RefObject<(HTMLButtonElement | null)[]>;
+
+export const pickerPopoverProps = {
+  "data-lane-request-property-popover": "",
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => event.stopPropagation(),
+} as const;
+
+/** `onOpenAutoFocus`: the search field takes focus instead of the popover panel. */
+export function focusOnOpen(event: Event, ref: RefObject<HTMLElement | null>) { event.preventDefault(); ref.current?.focus(); }
+
+/** The search field's keys: ArrowDown focuses the first option; Enter chooses the first item. */
+export function searchListKeyDown<T>(event: KeyboardEvent<HTMLInputElement>, items: T[], optionRefs: OptionRefs, onEnter: (first: T) => void) {
+  if (event.key === "ArrowDown" && items.length) { event.preventDefault(); optionRefs.current[0]?.focus(); }
+  if (event.key === "Enter" && items.length) { event.preventDefault(); onEnter(items[0]); }
+}
+
+export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, isSelected, isInert, lead, render, onChoose, disabled, emptyText, busy, multiselectable }: {
+  items: T[];
+  label: string;
+  optionRefs: OptionRefs;
+  searchRef: RefObject<HTMLInputElement | null>;
+  keyOf: (item: T) => string;
+  isSelected: (item: T) => boolean;
+  /** Dimmed and ignores presses but keeps its place in the roving focus (a full multi-select). */
+  isInert?: (item: T) => boolean;
+  /** A lead glyph for an item that is neither the check nor the spacer. */
+  lead?: (item: T) => ReactNode;
+  render: (item: T) => ReactNode;
+  onChoose: (item: T) => void;
+  disabled?: boolean;
+  emptyText?: string;
+  busy?: boolean;
+  multiselectable?: boolean;
+}) {
+  return <div role="listbox" aria-label={label} aria-multiselectable={multiselectable || undefined} aria-busy={busy} className={styles.optionList}>
+    {items.length ? items.map((item, index) => {
+      const selected = isSelected(item);
+      const inert = Boolean(isInert?.(item));
+      return <Button key={keyOf(item)} ref={(element) => { optionRefs.current[index] = element; }}
+        type="button" role="option" aria-selected={selected}
+        variant="ghost" size="sm" className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
+        onClick={() => { if (!inert) onChoose(item); }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
+          if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
+        }}>
+        {lead?.(item) ?? (selected ? <Check size={16} aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />)}
+        {render(item)}
+      </Button>;
+    }) : emptyText ? <p className={styles.empty}>{emptyText}</p> : null}
+  </div>;
 }
 
 type ProjectChoice = { id: string | null; name: string; kind: "project" | "none" | "create" };
@@ -119,9 +180,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         <Layers2 size={16} aria-hidden="true" />{selected?.name ?? (value ? "Project unavailable" : "Project")}
       </Button>
     </PopoverTrigger>
-    <PopoverContent data-lane-request-property-popover aria-label="Choose a Project"
-      onOpenAutoFocus={(event) => { event.preventDefault(); searchRef.current?.focus(); }}
-      onKeyDown={(event) => event.stopPropagation()} className="space-y-3">
+    <PopoverContent {...pickerPopoverProps} aria-label="Choose a Project" onOpenAutoFocus={(event) => focusOnOpen(event, searchRef)} className="space-y-3">
       {naming ? <div className={styles.projectName}>
         <Input ref={nameRef} label="Project name" value={query} maxLength={80} disabled={creating} error={createError ?? undefined}
           onChange={(event) => { setQuery(event.target.value); setCreateError(null); }}
@@ -140,23 +199,13 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       </div> : <>
       <SearchField ref={searchRef} label="Project" aria-label="Search Projects" placeholder="Search or create…" disabled={creating} maxLength={80}
         value={query} onValueChange={(next) => { setQuery(next); setCreateError(null); }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" && items.length) { event.preventDefault(); optionRefs.current[0]?.focus(); }
-          if (event.key === "Enter" && items.length) { event.preventDefault(); void choose(items[0]); }
-        }} />
-      {!state.loading && !state.error && <div role="listbox" aria-label="Project options" className={styles.optionList}>
-        {items.length ? items.map((item, index) => <Button key={item.id ?? "none"} ref={(element) => { optionRefs.current[index] = element; }}
-          type="button" role="option" aria-selected={item.kind !== "create" && (item.id ?? null) === value}
-          variant="ghost" size="sm" className={styles.option} disabled={creating}
-          onClick={() => void choose(item)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
-            if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
-          }}>
-          {item.kind === "create" ? <Plus size={16} aria-hidden="true" /> : item.id === value ? <Check size={16} aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />}
-          {item.kind === "create" ? `Create “${item.name}”` : item.name}
-        </Button>) : <p className={styles.empty}>No Projects match.</p>}
-      </div>}
+        onKeyDown={(event) => searchListKeyDown(event, items, optionRefs, (first) => { void choose(first); })} />
+      {!state.loading && !state.error && <PickerOptions items={items} label="Project options" optionRefs={optionRefs} searchRef={searchRef}
+        keyOf={(item) => item.id ?? "none"}
+        isSelected={(item) => item.kind !== "create" && (item.id ?? null) === value}
+        lead={(item) => item.kind === "create" ? <Plus size={16} aria-hidden="true" /> : undefined}
+        render={(item) => item.kind === "create" ? `Create “${item.name}”` : item.name}
+        onChoose={(item) => { void choose(item); }} disabled={creating} emptyText="No Projects match." />}
       {state.loading && <p role="status" className="text-sm text-muted-foreground">Loading Projects…</p>}
       {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => void state.reload()}>Retry Projects</Button></>}
       {createError && <Alert title="Project not created" tone="danger">{createError}</Alert>}
