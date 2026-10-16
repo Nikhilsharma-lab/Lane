@@ -73,7 +73,7 @@ export function searchListKeyDown<T>(event: KeyboardEvent<HTMLInputElement>, ite
   if (event.key === "Enter" && items.length) { event.preventDefault(); onEnter(items[0]); }
 }
 
-export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, isSelected, isInert, lead, render, onChoose, disabled, emptyText, busy, multiselectable }: {
+export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, isSelected, isInert, lead, render, onChoose, disabled, emptyText, busy, multiselectable, morph }: {
   items: T[];
   label: string;
   optionRefs: OptionRefs;
@@ -90,6 +90,8 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
   emptyText?: string;
   busy?: boolean;
   multiselectable?: boolean;
+  /** "plain" for a list that stays open while rows toggle (dense rows swap their check without a blur, decision 8.22). */
+  morph?: "blur" | "plain";
 }) {
   return <div role="listbox" aria-label={label} aria-multiselectable={multiselectable || undefined} aria-busy={busy} className={styles.optionList}>
     {items.length ? items.map((item, index) => {
@@ -97,7 +99,7 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
       const inert = Boolean(isInert?.(item));
       return <Button key={keyOf(item)} ref={(element) => { optionRefs.current[index] = element; }}
         type="button" role="option" aria-selected={selected}
-        variant="ghost" size="sm" className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
+        variant="ghost" size="sm" morph={morph} className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
         onClick={() => { if (!inert) onChoose(item); }}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }

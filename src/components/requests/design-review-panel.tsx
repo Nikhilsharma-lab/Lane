@@ -157,7 +157,7 @@ function WithdrawForm({ expectedVersion, reviewId, pending, error, blocked, onSa
 function RoundSummary({ review, sending }: { review: DesignReview; sending?: { roundId?: string; responseId?: string } }) {
   const roundPending = sending?.roundId === review.id
   return <div className={styles.round}>
-    <div className={styles.roundHeader}><Badge tone={review.withdrawal ? "neutral" : reviewHasAllResponses(review) ? "info" : "neutral"}>{review.withdrawal ? "Withdrawn" : reviewHasAllResponses(review) ? "Feedback received" : "Waiting for feedback"}</Badge><span className={styles.hint}>Asked by {review.requestedBy.name} · {roundPending ? "Sending…" : <LocalTime iso={review.requestedAt} />}</span></div>
+    <div className={styles.roundHeader}><Badge tone={review.withdrawal ? "neutral" : reviewHasAllResponses(review) ? "info" : "neutral"}>{review.withdrawal ? "Withdrawn" : reviewHasAllResponses(review) ? "Feedback received" : "Waiting for feedback"}</Badge><span className={styles.hint}>Asked by {review.requestedBy.name} · {roundPending ? <span>Sending…</span> : <LocalTime iso={review.requestedAt} />}</span></div>
     <a className={styles.designLink} href={review.designUrl} target="_blank" rel="noopener noreferrer">Open design version<ExternalLink size={14} aria-hidden="true" /></a>
     <p className={styles.url}>{review.designUrl}</p>
     <p className={styles.question}>{review.question}</p>

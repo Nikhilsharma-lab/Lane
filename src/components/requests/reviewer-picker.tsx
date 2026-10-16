@@ -139,7 +139,7 @@ export function ReviewerPicker({ selected, onChange, limit, excludeId, onFindRev
           }} />
         <PickerOptions items={options} label="Teammates" optionRefs={optionRefs} searchRef={searchRef} keyOf={person => person.id}
           isSelected={isSelected} isInert={person => full && !isSelected(person)} render={person => person.name} onChoose={toggle}
-          disabled={disabled} busy={searching} multiselectable />
+          disabled={disabled} busy={searching} multiselectable morph="plain" />
         {status && <p role="status" className={styles.hint}>{status}</p>}
         {error && <>
           <Alert tone="danger" title="Could not load teammates">{error}</Alert>
