@@ -107,7 +107,7 @@ export const SequenceHoldsWhileLoading: Story = {
   },
 }
 
-/** With Ask for review open, J and K wait: focus on a reviewer checkbox, or anywhere else, keeps the form and its choices. */
+/** With Ask for review open, J and K wait: focus on the reviewer picker's trigger (plan item 2.6), or anywhere else, keeps the form and its choices. */
 export const SequenceKeysWaitForOpenForm: Story = {
   globals: desktopLight,
   play: async context => {
@@ -115,15 +115,17 @@ export const SequenceKeysWaitForOpenForm: Story = {
     const { canvasElement } = context
     const review = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
     await userEvent.click(review.getByRole("button", { name: "Ask for review" }))
-    const reviewer = await review.findByRole("checkbox", { name: "Sam Lee" })
-    await userEvent.click(reviewer)
-    await expect(reviewer).toHaveFocus()
+    await userEvent.click(review.getByRole("button", { name: "Add reviewers" }))
+    await userEvent.click(await within(document.body).findByRole("option", { name: "Sam Lee" }))
+    // Esc closes the popover only; focus returns to the trigger inside the open form.
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(review.getByRole("button", { name: "Add reviewers" })).toHaveFocus())
     await userEvent.keyboard("j")
     await userEvent.keyboard("k")
     title(canvasElement).focus()
     await userEvent.keyboard("j")
     await expect(getRouter().replace).not.toHaveBeenCalled()
-    await expect(review.getByRole("checkbox", { name: "Sam Lee" })).toBeChecked()
+    await expect(within(review.getByRole("list", { name: "Selected reviewers" })).getByText("Sam Lee")).toBeVisible()
     // Once the form is closed, J moves on again.
     await userEvent.click(review.getByRole("button", { name: "Cancel" }))
     await waitFor(() => expect(review.queryByRole("form", { name: "Ask for design review" })).not.toBeInTheDocument())
