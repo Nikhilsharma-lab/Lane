@@ -22,6 +22,7 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { clearIntakeDraft, intakeDraftScope, readIntakeDraft, writeIntakeDraft } from "@/lib/intake-draft";
 import { fillMetricImpact, measurementImpact, metricImpact } from "./fixtures/request-impact";
 import { WorkspaceProjectsProvider, useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
+import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { assertWorkspaceCanSwitch } from "@/lib/workspace-switch-guard";
 
@@ -409,6 +410,32 @@ export const SaveImpactErrorOpensDisclosure: Story = {
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
     await expect(runTriage).toHaveBeenCalledTimes(2);
     await expect(saveRequest).toHaveBeenCalledTimes(1);
+  },
+};
+
+/** Every keystroke in the title or description renders the form again. The measurement editor,
+ * the largest part of it (Radix selects, a menu, number fields and a date dialog), sits those
+ * renders out: its value is watched on its own and keeps its identity until its content changes.
+ * Before that, a render on each of fillComposer's 110 keystrokes took the stories that fill the
+ * composer past their 15 s timeout under CPU load, and user-event's leftover keystrokes then
+ * landed in the next story's title. The editor is the real component, spied in preview.tsx. */
+export const TypingLeavesTheMeasurementEditorAlone: Story = {
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    const title = composer.getByRole("textbox", { name: "Request title" });
+    await waitFor(() => expect(title).toHaveFocus());
+    await expect(composer.getByRole("region", { name: "Primary metric" })).toBeVisible();
+    mocked(MeasurementPlanFields).mockClear();
+    await userEvent.type(title, source.title);
+    await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
+    await expect(title).toHaveValue(source.title);
+    await expect(composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
+    await expect(MeasurementPlanFields).not.toHaveBeenCalled();
+    // Its own edits still reach it.
+    await fillMetricImpact(composer);
+    await expect(MeasurementPlanFields).toHaveBeenCalled();
+    await expect(composer.getByRole("combobox", { name: "Metric" })).toHaveTextContent("Conversion rate");
+    await expect(composer.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
   },
 };
 
