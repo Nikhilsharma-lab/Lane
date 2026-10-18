@@ -24,5 +24,5 @@ export function AuthHeading({ title, description }: { title: string; description
 }
 
 export function AuthTrust({ icon: Icon, children, className }: { icon: LucideIcon; children: ReactNode; className?: string }) {
-  return <div className={cn(styles.trust, className)}><Icon aria-hidden="true" size={14} /><span>{children}</span></div>;
+  return <div className={cn(styles.trust, className)}><Icon aria-hidden="true" data-icon-size="sm" /><span>{children}</span></div>;
 }

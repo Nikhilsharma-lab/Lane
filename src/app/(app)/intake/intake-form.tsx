@@ -1307,7 +1307,12 @@ export default function IntakeForm({
                 setValue("requestType", value, { shouldDirty: true, shouldValidate: true });
               }} disabled={checking || projectBusy} error={errors.requestType?.message} />
               <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
-              <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
+              <Button type="button" variant="secondary" size="sm" aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => {
+                const open = !linkOpen;
+                // Reveal the registered input before focusing it, as with the impact editor.
+                flushSync(() => setLinkOpen(open));
+                if (open) setFocus("usefulLink");
+              }} disabled={checking}>
                 <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
               </Button>
               <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
@@ -1318,6 +1323,13 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
+            <section id="intake-link-section" hidden={!linkOpen} aria-label="Request link">
+              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
+                <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
+                  aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
+                {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
+              </div>
+            </section>
             {currentValues.expectedImpact?.kind === "measurement" ? <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
@@ -1337,13 +1349,6 @@ export default function IntakeForm({
               instant={impactInstant}
               onOpenChange={(open) => { setImpactInstant(false); setImpactOpen(open); }}
             />}
-            <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
-              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
-                <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
-                  aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
-                {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
-              </div>
-            </section>
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
             {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
               <h2 className="text-sm font-medium">Problem from your earlier review</h2>
@@ -1497,7 +1502,6 @@ export default function IntakeForm({
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <LightbulbIcon
                           aria-hidden="true"
-                          className="size-4 shrink-0"
                         />
                         <h3 className={cn("text-sm font-medium")}>
                           Suggested change

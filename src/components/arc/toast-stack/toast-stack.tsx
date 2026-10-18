@@ -376,7 +376,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
         {/* A new type morphs its icon in place: the old glyph shrinks into a blur while the new one grows out of it. */}
         <span className={styles.icon} data-type={toast.type} aria-hidden="true">
           <AnimatePresence mode="popLayout" initial={false}>
-            <Swap key={toast.type} className={styles.glyph} {...(reduce ? fadeOnly : plain ? plainIconSwap : iconSwap)}>{Icon ? <Icon width={18} height={18} strokeWidth={1.75} /> : <span className={styles.spinner} />}</Swap>
+            <Swap key={toast.type} className={styles.glyph} {...(reduce ? fadeOnly : plain ? plainIconSwap : iconSwap)}>{Icon ? <Icon data-icon-size="lg" strokeWidth={1.75} /> : <span className={styles.spinner} />}</Swap>
           </AnimatePresence>
         </span>
         <div className={styles.copy}>
@@ -391,7 +391,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
           </motion.div> : null}
         </AnimatePresence>
         <button ref={closeRef} type="button" className={styles.close} aria-label="Dismiss notification" onClick={() => store.dismiss(id)}>
-          <X width={16} height={16} strokeWidth={1.75} aria-hidden="true" />
+          <X strokeWidth={1.75} aria-hidden="true" />
         </button>
       </motion.div>
     </motion.div>

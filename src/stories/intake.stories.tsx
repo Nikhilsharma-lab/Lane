@@ -175,7 +175,7 @@ export const MeasurementRequestReview: Story = {
     const summary = within(await canvas.findByRole("region", { name: "Measurement plan" }));
     await visible(await canvas.findByRole("heading", { name: "Review Request" }));
     await expect(summary.getByText("Conversion rate")).toBeVisible();
-    await expect(summary.getByText("90 %")).toBeVisible();
+    await expect(summary.getByText("90%")).toBeVisible();
     await expect(summary.getByText("Support contact rate")).toBeVisible();
     await expect(canvas.getByText("High")).toBeVisible();
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ priority: "high", expectedImpact: {
@@ -409,7 +409,7 @@ async function reviewSupportingDetails(
     await expect(files.queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
     await expect(canvas.getByText(/files? (will )?upload.*creat/i)).toBeVisible();
     const impact = within(canvas.getByRole("region", { name: "Measurement plan" }));
-    await expect(impact.getByText("90 %")).toBeVisible();
+    await expect(impact.getByText("90%")).toBeVisible();
     await expect(impact.getByText("14 days after release")).toBeVisible();
     await expect(canvas.getByRole("heading", { name: requestSource.title })).toBeVisible();
     await expect(canvas.getByText(requestSource.description)).toBeVisible();
@@ -1113,7 +1113,6 @@ export const WorkspaceIntake: Story = {
     <NewRequestProvider context={args.context} draftOwnerId={args.draftOwnerId}>
     <RequestsShellFixture
       {...requestsMeta.args}
-      linearPreviewAutoCollapse
       pathname="/intake"
     >
       {/* As intake/page.tsx renders it (plan item 2.0; the composer is a centred dialog, 2026-10-13). */}

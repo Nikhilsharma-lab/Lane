@@ -174,11 +174,11 @@ export function ReviewerPicker({ selected, onChange, limit, excludeId, onFindRev
   return <>
     {selected.length > 0 && <ul aria-label="Selected reviewers" className={styles.selectedReviewers}>{selected.map((person, index) => <li key={person.id} className={styles.selectedReviewer}>
       <span>{person.name}</span>
-      <Button ref={element => { removeRefs.current[index] = element }} type="button" variant="ghost" size="sm" morph="plain" aria-label={`Remove ${person.name}`} disabled={disabled} onClick={() => remove(index)}><X size={16} aria-hidden="true" /></Button>
+      <Button ref={element => { removeRefs.current[index] = element }} type="button" variant="ghost" size="sm" morph="plain" aria-label={`Remove ${person.name}`} disabled={disabled} onClick={() => remove(index)}><X aria-hidden="true" /></Button>
     </li>)}</ul>}
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button ref={triggerRef} type="button" variant="secondary" size="sm" disabled={disabled}><Plus size={16} aria-hidden="true" />Add reviewers</Button>
+        <Button ref={triggerRef} type="button" variant="secondary" size="sm" disabled={disabled}><Plus aria-hidden="true" />Add reviewers</Button>
       </PopoverTrigger>
       <PopoverContent {...pickerPopoverProps} aria-label="Choose reviewers" onCloseAutoFocus={event => event.preventDefault()} onEscapeKeyDown={event => { event.preventDefault(); event.stopPropagation(); handleOpenChange(false); triggerRef.current?.focus(); }} onOpenAutoFocus={event => focusOnOpen(event, searchRef)} className="space-y-3">
         <SearchField ref={searchRef} label="Teammates" aria-label="Search teammates" placeholder="Type a name" maxLength={QUERY_MAX} value={query} onValueChange={onQueryChange}

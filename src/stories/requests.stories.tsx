@@ -4,22 +4,13 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { useState } from "react"
 import Link from "next/link"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
-import { RequestListViewProvider, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { RequestListViewProvider } from "@/components/requests/list-view-state"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
-import { SidebarView } from "@/components/shell/sidebar-view"
-import { NotificationBellView } from "@/components/shell/notification-bell-view"
 import type { OverviewRequest } from "@/lib/request-overview"
-import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search"
-import { WORKSPACE_SEARCH_PAGE_SIZE } from "@/lib/workspace-search"
-import { parseRequestCode } from "@/lib/request-code"
 import { announcer, requestGroup, requestRows, rowOf } from "./helpers/request-grid"
 
-const fixtureProjects = [
-  { id: "11111111-1111-4111-8111-111111111111", name: "Website", description: null },
-  { id: "22222222-2222-4222-8222-222222222222", name: "B2B App", description: null },
-  { id: "33333333-3333-4333-8333-333333333333", name: "Marketing", description: null },
-]
+import { fixtureProjects, WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 
 // Illustrative fixture content only; never inserted into a Lane workspace.
 const requestTitles = [
@@ -73,27 +64,6 @@ const requests: OverviewRequest[] = Array.from({ length: 32 }, (_, index) => ({
 const fixtureDescriptions: Record<string, string> = {
   "fixture-1": "The shipping promise is hidden until the final checkout step.",
   "fixture-2": "An invitation needs to show which workspace the teammate will join.",
-}
-
-function fixtureWorkspaceSearch(input: WorkspaceSearchInput, sourceRequests: OverviewRequest[], sourceProjects: typeof fixtureProjects): WorkspaceSearchResponse {
-  const query = input.query.trim()
-  const term = query.toLowerCase()
-  const requestNumber = parseRequestCode(query)
-  const requestMatches = sourceRequests.filter(request =>
-    (requestNumber !== null && request.requestNumber === requestNumber)
-    || [request.title, request.reframedProblem, fixtureDescriptions[request.id]].some(value => value?.toLowerCase().includes(term)))
-  const projectMatches = sourceProjects.filter(project => [project.name, project.description].some(value => value?.toLowerCase().includes(term)))
-  const page = <T,>(items: T[], index: number | undefined) => {
-    const current = Math.max(0, Math.trunc(index ?? 0))
-    const start = current * WORKSPACE_SEARCH_PAGE_SIZE
-    return { items: items.slice(start, start + WORKSPACE_SEARCH_PAGE_SIZE), total: items.length, hasMore: start + WORKSPACE_SEARCH_PAGE_SIZE < items.length, page: current }
-  }
-  return {
-    success: true,
-    query,
-    requests: page(requestMatches.map(request => ({ id: request.id, requestNumber: request.requestNumber, title: request.title, reframedProblem: request.reframedProblem, status: request.status, projectId: request.projectId ?? null, projectName: request.projectName ?? null, requestType: request.requestType ?? null, createdAt: request.createdAt })), input.requestsPage),
-    projects: page(projectMatches.map(project => ({ id: project.id, name: project.name, description: project.description })), input.projectsPage),
-  }
 }
 
 const meta = {
@@ -179,36 +149,16 @@ export const Guest: Story = { args: { isGuest: true, requests: requests.slice(0,
 export const EmptyResults: Story = { args: { requests: [] } }
 export const LongTitle: Story = { args: { requests: [{ ...requests[0], title: "A customer needs to understand the next step before sharing sensitive information with a teammate in a workspace with several responsibilities and changing priorities" }] } }
 
-function NotificationsFixture() {
-  const [open, setOpen] = useState(false)
-  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false}
-    onSelect={() => {}} onMarkAllRead={() => {}} onToggleRead={() => {}} onRetry={() => {}} />
-}
-
 export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & {
-  linearPreviewAutoCollapse?: boolean
   pathname?: string
   children?: React.ReactNode
 }) {
-  // The layout's list view state is the list's only route state (plan item 1.7): sidebar links set it in place.
-  return <RequestListViewProvider initialColumnVisibility={args.linearPreviewAutoCollapse ? { requestType: true } : undefined}><ShellFixtureBody {...args} /></RequestListViewProvider>
-}
-
-function ShellFixtureBody(args: React.ComponentProps<typeof RequestsShellFixture>) {
-  const [projects, setProjects] = useState(fixtureProjects)
-  const setView = useSetRequestListView()
-  return <SidebarView linearPreviewAutoCollapse={args.linearPreviewAutoCollapse} previewProjectTree={args.linearPreviewAutoCollapse} workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test"
-    role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} projects={projects}
-    notifications={<NotificationsFixture />} onSignOut={() => {}} onSearch={input => Promise.resolve(fixtureWorkspaceSearch(input, args.requests, projects))}
-    onCreateProject={async name => {
-      const existing = projects.find(project => project.name.toLocaleLowerCase() === name.toLocaleLowerCase())
-      const project = existing ?? { id: `40000000-0000-4000-8000-${String(projects.length + 1).padStart(12, "0")}`, name, description: null }
-      if (!existing) setProjects(current => [...current, project])
-      setView(view => withListContext(view, { status: "all", project: project.id }))
-      return project
-    }}>
-    {args.children ?? <RequestsOverview {...args} />}
-  </SidebarView>
+  return <RequestListViewProvider>
+    <WorkspaceSidebarFixture orgId={args.context?.orgId} role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"}
+      requests={args.requests.map(request => ({ ...request, description: fixtureDescriptions[request.id] }))}>
+      {args.children ?? <RequestsOverview {...args} />}
+    </WorkspaceSidebarFixture>
+  </RequestListViewProvider>
 }
 
 export const PopulatedInShell: Story = {
@@ -271,14 +221,14 @@ export const WorkspaceSearchInShell: Story = {
     } else {
       await userEvent.click(canvas.getByRole("button", { name: "Search workspace" }))
     }
-    const input = await canvas.findByRole("searchbox", { name: "Search workspace" })
+    const input = await canvas.findByRole("combobox", { name: "Search workspace" })
     await expect(input).toHaveFocus()
     await userEvent.type(input, "shipping promise{Enter}")
-    await waitFor(() => expect(canvas.getByRole("link", { name: /Customers cannot find the delivery date/ })).toBeVisible())
+    await waitFor(() => expect(canvas.getByRole("option", { name: /Customers cannot find the delivery date/ })).toBeVisible())
     await userEvent.clear(input)
     await userEvent.type(input, "Marketing{Enter}")
-    await waitFor(() => expect(within(canvas.getByRole("region", { name: "Projects results" })).getByRole("link", { name: "Marketing" })).toBeVisible())
-    await waitFor(() => expect(getComputedStyle(canvas.getByRole("region", { name: "Projects results" }).parentElement!).opacity).toBe("1"))
+    await waitFor(() => expect(within(canvas.getByRole("listbox", { name: "Search matches" })).getByRole("option", { name: /^Marketing Project/ })).toBeVisible())
+    await waitFor(() => expect(getComputedStyle(canvas.getByRole("listbox", { name: "Search matches" }).parentElement!).opacity).toBe("1"))
   },
 }
 
@@ -449,7 +399,7 @@ export const PropertyDetails: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const row = within(requestRows(requestGroup(canvasElement, "Open Requests"))[0])
-    const submitted = row.getByRole("button", { name: "Submitted: 28 Sept 2026" })
+    const submitted = row.getByRole("button", { name: "Submitted: 28 Sep 2026" })
     await userEvent.click(submitted)
     const panel = within(await within(document.body).findByRole("dialog", { name: "Submitted" }))
     await waitFor(() => expect(panel.getByText("Mon, 28 Sep 2026 09:00:00 GMT")).toBeVisible())

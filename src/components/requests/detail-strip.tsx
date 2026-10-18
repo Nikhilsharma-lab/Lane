@@ -30,7 +30,7 @@ function PhoneOverflow() {
   ]
   return <span className={styles.phoneOnly}>
     <DropdownMenu label="More actions" items={items}
-      trigger={<Button variant="ghost" size="sm" morph="plain" className={styles.iconButton} aria-label="More actions"><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></Button>} />
+      trigger={<Button variant="ghost" size="sm" morph="plain" className={styles.iconButton} aria-label="More actions"><Ellipsis strokeWidth={1.75} aria-hidden="true" /></Button>} />
   </span>
 }
 
@@ -40,18 +40,18 @@ function PhoneOverflow() {
  * holds Pick up or Mark Done, or nothing: for a guest, a Done Request, or
  * while a section form the viewer opened is the page's one filled button.
  */
-export function DetailStrip({ returnHref, action }: { returnHref: string; action?: ReactNode }) {
+export function DetailStrip({ returnHref, action, editAction }: { returnHref: string; action?: ReactNode; editAction?: ReactNode }) {
   const { request, code, formsOpen } = useDetailRequest()
   const listContext = useRequestListContext()
   // The Request's own Project keeps the list's status view; no Project, or one this person cannot see, leaves only the workspace.
   const parent = request.projectId && request.projectName ? { label: request.projectName, href: requestListHref(listContext?.status ?? "all", request.projectId) } : null
   return <PageStrip compactTrail parent={parent} title={code ?? "Request"}
     leading={<DetailBackLink href={returnHref} />}
-    tools={<span className={styles.desktopTools}>
-      <CopyButton label="Copy link" value={() => requestLink(request.id)} copied="Link copied." icon={<Link2 size={16} strokeWidth={1.75} aria-hidden="true" />} />
-      {code && <CopyButton label={`Copy code ${code}`} value={code} copied={`${code} copied.`} icon={<Hash size={16} strokeWidth={1.75} aria-hidden="true" />} />}
+    tools={<><span className={styles.desktopTools}>
+      <CopyButton label="Copy link" value={() => requestLink(request.id)} copied="Link copied." icon={<Link2 strokeWidth={1.75} aria-hidden="true" />} />
+      {code && <CopyButton label={`Copy code ${code}`} value={code} copied={`${code} copied.`} icon={<Hash strokeWidth={1.75} aria-hidden="true" />} />}
       <DetailSequence requestId={request.id} />
-    </span>}
+    </span>{editAction}</>}
     action={formsOpen > 0 ? undefined : action}
     overflow={<PhoneOverflow />} />
 }

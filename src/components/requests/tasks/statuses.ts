@@ -1,7 +1,12 @@
-import { CircleDashed, CircleDot, CircleCheck } from "lucide-react"
+import { createElement, type SVGProps } from "react"
+import { StatusGlyph } from "../status-glyph"
+import { statusLabel } from "@/lib/request-status"
+
+const iconFor = (status: "open" | "in_progress" | "done") =>
+  function StatusIcon(props: SVGProps<SVGSVGElement>) { return createElement(StatusGlyph, { ...props, status }) }
 
 export const statuses = [
-  { value: "open", label: "Open", icon: CircleDashed, colorClassName: "text-muted-foreground", tone: "neutral" },
-  { value: "in_progress", label: "In Progress", icon: CircleDot, colorClassName: "text-[var(--accent)]", tone: "info" },
-  { value: "done", label: "Done", icon: CircleCheck, colorClassName: "text-[var(--success)]", tone: "success" },
+  { value: "open", label: statusLabel("open"), icon: iconFor("open"), tone: "neutral" },
+  { value: "in_progress", label: statusLabel("in_progress"), icon: iconFor("in_progress"), tone: "warning" },
+  { value: "done", label: statusLabel("done"), icon: iconFor("done"), tone: "success" },
 ] as const

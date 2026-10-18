@@ -19,7 +19,7 @@ export function RequestsWelcome({ canInvite, isGuest }: { canInvite: boolean; is
         // Guests: the strip's note says whose Requests show here, so this line does not repeat it,
         // and it still reads on its own at 640px and below, where that note is hidden.
         description={isGuest ? "Create a Request and follow it here." : "Create a Request for your team to review and pick up."}
-        icon={<Inbox size={24} />}
+        icon={<Inbox data-icon-size="2xl" />}
         action={<>
           <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink>
           {canInvite && (

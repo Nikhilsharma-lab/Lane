@@ -3,41 +3,43 @@
  * open the content is about 770px, so the panel gives way to the state line. Tokens only. */
 .root { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; }
 .body { min-height: 0; flex: 1; overflow-y: auto; container: detail / inline-size; }
-.layout { display: grid; grid-template-columns: minmax(0, 720px); justify-content: center; align-items: start; column-gap: var(--space-10); }
-.main { display: flex; min-width: 0; flex-direction: column; gap: var(--space-6); overflow-wrap: anywhere; }
+.layout { display: grid; grid-template-columns: minmax(0, calc(var(--space-1) * 180)); justify-content: center; align-items: start; column-gap: var(--space-10); }
+.main { display: flex; min-width: 0; flex-direction: column; gap: var(--space-4); overflow-wrap: anywhere; }
 /* Sections read as one column: a quiet rule between them, none under the title. */
-.main > section { padding-top: var(--space-6); border-top: 1px solid var(--border-subtle); }
+.main > section { padding-top: var(--space-4); border-top: var(--border-width) solid var(--border-subtle); }
 .main > header + section { padding-top: 0; border-top: 0; }
 .panel { display: none; }
 
 /* Title and the narrow-width state line. */
 .titleBlock { display: grid; justify-items: start; gap: var(--space-3); }
-.title { margin: 0; color: var(--foreground); font-size: var(--text-lg); font-weight: 500; line-height: var(--leading-body); }
-/* An Arc ghost Button owns the line's fills (hover, pressed, keyboard focus); this only places it so its glyph lines up with the title. */
-.titleBlock .stateLine { max-width: 100%; justify-content: flex-start; margin-inline-start: calc(var(--space-2) * -1); padding-inline: var(--space-2); }
+.title { margin: 0; color: var(--foreground); font-size: var(--text-lg); font-weight: var(--weight-medium); line-height: var(--leading-body); }
+/* Reuse the intake's secondary Arc buttons, with an explicit Properties entry point. */
+.compactProperties { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
+.titleBlock .stateLine { max-width: 100%; justify-content: flex-start; }
+.compactProperties .propertyButton { margin: 0; }
 
 /* Problem, its disclosures and the other sections. */
 .section { display: grid; min-width: 0; gap: var(--space-3); }
 .sectionHeader { display: flex; align-items: baseline; gap: var(--space-2); }
-.sectionHeading { margin: 0; color: var(--foreground); font-size: var(--text-base); font-weight: 500; }
+.sectionHeading { margin: 0; color: var(--foreground); font-size: var(--text-base); font-weight: var(--weight-medium); }
 .sectionCount, .muted { color: var(--text-secondary); font-size: var(--text-sm); }
 .muted { margin: 0; }
 .description { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; }
 .disclosure { min-width: 0; }
 .disclosure > summary { width: fit-content; min-height: var(--control-height-sm); padding-block: var(--space-2); border-radius: var(--radius-control); color: var(--text-secondary); cursor: pointer; }
-.disclosure > summary h3 { display: inline; margin: 0; font: inherit; font-size: var(--text-sm); font-weight: 500; }
+.disclosure > summary h3 { display: inline; margin: 0; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 @media (hover: hover) and (pointer: fine) { .disclosure > summary:hover { color: var(--foreground); } }
 .disclosure[open] > summary { color: var(--foreground); }
 .disclosureBody { display: grid; gap: var(--space-4); padding-block: var(--space-2) var(--space-1); }
 .block { display: grid; gap: var(--space-2); }
-.blockHeading { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-weight: 500; }
+.blockHeading { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .secondaryText { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; }
 .context { display: grid; gap: var(--space-4); margin: 0; }
-.context dt { font-size: var(--text-sm); font-weight: 500; }
+.context dt { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .context dd { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; }
 .files { margin: 0; padding: 0; list-style: none; }
-.files > li + li { border-top: 1px solid var(--border-subtle); }
-.fileName { margin: 0; font-size: var(--text-sm); font-weight: 500; overflow-wrap: anywhere; }
+.files > li + li { border-top: var(--border-width) solid var(--border-subtle); }
+.fileName { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .fileMeta { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
 
 /* Conversation. */
@@ -45,7 +47,7 @@
 .comment { display: flex; align-items: flex-start; gap: var(--space-3); }
 .commentBody { display: grid; min-width: 0; flex: 1; gap: var(--space-1); }
 .commentMeta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
-.commentAuthor { font-size: var(--text-sm); font-weight: 500; }
+.commentAuthor { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .commentTime { color: var(--text-secondary); font-size: var(--text-sm); }
 .commentText { margin: 0; font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
 
@@ -54,8 +56,8 @@
  * value's first line stays level with its label. */
 .properties { display: grid; gap: var(--space-3); }
 .propertyGroup { display: grid; margin: 0; }
-.propertyGroup + .propertyGroup { padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
-.propertyRow { --property-row: 32px; --property-line: calc(var(--text-sm) * var(--leading-body)); display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: var(--space-2); }
+.propertyGroup + .propertyGroup { padding-top: var(--space-3); border-top: var(--border-width) solid var(--border-subtle); }
+.propertyRow { --property-row: calc(var(--space-1) * 8); --property-line: calc(var(--text-sm) * var(--leading-body)); display: grid; grid-template-columns: calc(var(--space-1) * 22) minmax(0, 1fr); align-items: start; gap: var(--space-2); }
 .propertyRow > dt, .propertyRow > dd { min-height: var(--property-row); padding-block: calc((var(--property-row) - var(--property-line)) / 2); font-size: var(--text-sm); line-height: var(--leading-body); }
 .propertyRow > dt { color: var(--text-secondary); }
 .propertyRow > dd { display: flex; min-width: 0; margin: 0; align-items: flex-start; color: var(--foreground); }
@@ -66,21 +68,22 @@
 .propertyMuted { color: var(--text-secondary); }
 /* The quiet trigger keeps the value's place: the glyph sits where the read-only glyph would, and
  * the negative block margin lets the full-height button sit in the row's one line. */
-.propertyButton { max-width: 100%; justify-content: flex-start; margin-block: calc((var(--property-line) - var(--control-height-sm)) / 2); margin-inline-start: calc(var(--space-2) * -1); padding-inline: var(--space-2); color: var(--foreground); }
-.avatar { width: 20px; height: 20px; flex: none; }
-.statusGlyph, .priorityGlyph { display: inline-flex; flex: none; color: var(--text-secondary); }
-.statusGlyph[data-status="in_progress"] { color: var(--warning); }
-.statusGlyph[data-status="done"] { color: var(--accent); }
-.priorityGlyph[data-priority="urgent"] { color: var(--sb-color-orange-1100); }
+.propertyButton { max-width: 100%; justify-content: flex-start; margin-block: calc((var(--property-line) - var(--control-height-sm)) / 2); }
+.avatar { width: calc(var(--space-1) * 5); height: calc(var(--space-1) * 5); flex: none; }
+.priorityGlyph { display: inline-flex; flex: none; color: var(--foreground); }
 .sheet .properties { padding-bottom: var(--space-4); }
-@media (pointer: coarse) { .propertyRow { --property-row: 44px; } }
+@media (pointer: coarse) {
+  .propertyRow { --property-row: var(--sb-size-inner-xlarge); }
+  .propertyButton, .stateLine { min-height: var(--sb-size-inner-xlarge); }
+  .propertyButton { margin-block: calc((var(--property-line) - var(--sb-size-inner-xlarge)) / 2); }
+}
 
 /* The strip: icon buttons, the sequence and which tools each width shows. */
 .iconButton { min-width: var(--control-height-sm); padding-inline: 0; }
 .desktopTools, .sequence { display: flex; align-items: center; gap: var(--space-1); }
 .sequence { gap: 0; }
 .counter { padding-inline: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.kbd { margin-inline-start: var(--space-3); font: inherit; color: color-mix(in oklab, var(--background) 58%, var(--foreground)); font-variant-numeric: tabular-nums; }
+.kbd { margin-inline-start: var(--space-3); font: inherit; color: var(--tooltip-muted); font-variant-numeric: tabular-nums; }
 @media (pointer: coarse) { .kbd { display: none; } }
 .back, .phoneOnly { display: none; }
 @media (max-width: 640px) {
@@ -89,24 +92,22 @@
   .desktopTools, :global([data-slot="page-strip"]) div:has(> .desktopTools) { display: none; }
 }
 
-/* Ask for review loads below the fold; its fallback is laid out as the closed panel is (a 44px header row, then the hint
- * line, which wraps as the panel's does). The section's rule and top padding come from .main > section, as the panel's do. */
-.reviewFallback { display: grid; gap: var(--space-4); }
-.reviewFallbackHeader { display: flex; min-height: 44px; align-items: center; }
-.reviewFallbackHint { margin: 0; font-size: var(--text-xs); line-height: var(--leading-body); visibility: hidden; }
+/* Match the compact empty review action while its chunk loads. */
+.reviewFallback { display: grid; }
+.reviewFallbackHeader { display: flex; height: var(--control-height-md); align-items: center; }
 
 /* The skeleton draws the loaded page's boxes. */
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
 .skeletonBlocks { display: grid; gap: var(--space-6); }
-.skeletonStateLine { width: 12rem; height: var(--control-height-sm); }
-.skeletonRow { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 32px; align-items: center; gap: var(--space-2); }
-@media (pointer: coarse) { .skeletonRow { min-height: 44px; } }
+.skeletonStateLine { width: calc(var(--space-1) * 48); height: var(--control-height-sm); }
+.skeletonRow { display: grid; grid-template-columns: calc(var(--space-1) * 22) minmax(0, 1fr); min-height: calc(var(--space-1) * 8); align-items: center; gap: var(--space-2); }
+@media (pointer: coarse) { .skeletonRow { min-height: calc(var(--space-1) * 11); } }
 @container detail (min-width: 960px) { .skeletonStateLine { display: none; } }
 
 /* From 960px of content width the panel shows and the state line gives way. Last, so it wins over the base rules above. */
 @container detail (min-width: 960px) {
-  .layout { grid-template-columns: minmax(0, 720px) 280px; }
+  .layout { grid-template-columns: minmax(0, calc(var(--space-1) * 180)) calc(var(--space-1) * 70); }
   /* Sticky offsets count from the scroll container's padding, which already holds the column's top space. */
   .panel { position: sticky; top: 0; display: block; min-width: 0; }
-  .titleBlock .stateLine { display: none; }
+  .compactProperties { display: none; }
 }

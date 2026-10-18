@@ -11,6 +11,6 @@ import styles from "./detail.module.css"
  */
 export function DetailBackLink({ href, always = false }: { href: string; always?: boolean }) {
   return <Link href={href} aria-label="Back to Requests" className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm} ${styles.iconButton} ${always ? "" : styles.back}`}>
-    <ArrowLeft size={16} aria-hidden="true" />
+    <ArrowLeft aria-hidden="true" />
   </Link>
 }

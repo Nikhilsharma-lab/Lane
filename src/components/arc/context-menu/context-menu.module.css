@@ -1,23 +1,23 @@
 .target { display: block; outline: none; }
 /* Motion scales the menu from the pointer (transform-origin is set inline) and fades it out faster than it arrives. */
-.menu { position: fixed; z-index: 100; min-width: min(13rem, calc(100vw - 16px)); max-width: calc(100vw - 16px); max-height: min(300px, calc(100vh - 16px)); overflow-y: auto; padding: var(--menu-padding, 5px); border: var(--floating-border-width, 1px) solid var(--border); border-radius: var(--radius-panel); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--shadow-floating); outline: none; }
-.highlight { position: absolute; top: 0; right: var(--menu-padding, 5px); left: var(--menu-padding, 5px); border-radius: var(--menu-item-radius, calc(var(--radius-panel) - 6px)); background: var(--interaction-hover, var(--surface-muted)); opacity: 0; pointer-events: none; transition: background-color var(--duration-fast) var(--ease-standard); }
-.highlight[data-tone="danger"] { background: var(--state-danger-background, color-mix(in oklab, var(--danger) 8%, var(--surface))); }
-.item { position: relative; display: flex; width: 100%; min-height: var(--menu-row-height, 34px); align-items: center; gap: var(--menu-item-gap, 9px); padding: var(--menu-item-padding, 0 11px); border: 0; border-radius: var(--menu-item-radius, calc(var(--radius-panel) - 6px)); background: transparent; color: inherit; font: inherit; font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); text-align: left; cursor: pointer; outline: none; transition: background-color var(--duration-instant) var(--ease-standard), color var(--duration-fast) var(--ease-standard); animation: context-item-in var(--duration-standard) var(--ease-enter) both; animation-delay: calc(min(var(--i, 0), 4) * 35ms); }
+.menu { position: fixed; z-index: 100; min-width: min(calc(var(--space-1) * 52), calc(100vw - calc(var(--space-1) * 4))); max-width: calc(100vw - calc(var(--space-1) * 4)); max-height: min(calc(var(--space-1) * 75), calc(100vh - calc(var(--space-1) * 4))); overflow-y: auto; padding: var(--menu-padding, calc(var(--space-1) * 1.25)); border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--radius-panel); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--shadow-floating); outline: none; }
+.highlight { position: absolute; top: 0; right: var(--menu-padding, calc(var(--space-1) * 1.25)); left: var(--menu-padding, calc(var(--space-1) * 1.25)); border-radius: var(--menu-item-radius, var(--radius-control)); background: var(--interaction-hover, var(--surface-muted)); opacity: 0; pointer-events: none; transition: background-color var(--duration-fast) var(--ease-standard); }
+.highlight[data-tone="danger"] { background: var(--state-danger-background); }
+.item { position: relative; display: flex; width: 100%; min-height: var(--menu-row-height, calc(var(--space-1) * 8.5)); align-items: center; gap: var(--menu-item-gap, calc(var(--space-1) * 2.25)); padding: var(--menu-item-padding, 0 calc(var(--space-1) * 2.75)); border: 0; border-radius: var(--menu-item-radius, var(--radius-control)); background: transparent; color: inherit; font: inherit; font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); text-align: left; cursor: pointer; outline: none; transition: background-color var(--duration-instant) var(--ease-standard), color var(--duration-fast) var(--ease-standard); animation: context-item-in var(--duration-standard) var(--ease-enter) both; animation-delay: calc(min(var(--i, 0), 4) * calc(var(--duration-standard) * 0.175)); }
 /* The gliding highlight is the focus indicator, as in the dropdown menu. */
 .item:focus-visible { outline: none; }
 /* Rows press with a tint, not a scale. */
-.item:active:not(:disabled) { background: var(--interaction-pressed, color-mix(in oklab, var(--foreground) 5%, transparent)); }
+.item:active:not(:disabled) { background: var(--interaction-pressed); }
 .item:disabled { opacity: .45; cursor: default; }
 .item.destructive { color: var(--danger); }
-.icon { display: inline-flex; flex: none; width: 16px; align-items: center; justify-content: center; color: var(--text-secondary); }
+.icon { display: inline-flex; flex: none; width: var(--icon-size-md); align-items: center; justify-content: center; color: var(--text-secondary); }
 .label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shortcut { flex: none; color: var(--text-secondary); font: inherit; font-size: var(--text-xs); }
 .chevron, .check { flex: none; color: var(--text-secondary); }
-.separator { height: var(--floating-border-width, 1px); margin: var(--space-1) calc(-1 * var(--space-1)); background: var(--border); }
+.separator { height: var(--floating-border-width, calc(var(--space-1) * 0.25)); margin: var(--space-1) calc(-1 * var(--space-1)); background: var(--border); }
 .item[data-submenu-open] { background: var(--interaction-hover, var(--surface-muted)); }
 .destructive .icon { color: currentColor; }
-@keyframes context-item-in { from { opacity: 0; transform: translateY(-2px); } }
+@keyframes context-item-in { from { opacity: 0; transform: translateY(calc(var(--space-1) * -0.5)); } }
 @media (prefers-reduced-motion: reduce) { .item, .highlight { animation: none; transition: none; } }
 /* Lane adaptation (plan item 2.4): keyboard hints hide on coarse pointers. */
-@media (pointer: coarse) { .item { min-height: 44px; } .shortcut { display: none; } }
+@media (pointer: coarse) { .item { min-height: calc(var(--space-1) * 11); } .shortcut { display: none; } }

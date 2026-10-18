@@ -84,7 +84,7 @@ export const Selected: Story = {
         }
       })
       expect(textContrast(within(row).getByRole("link"))).toBeGreaterThanOrEqual(4.5)
-      expect(row.getBoundingClientRect().height).toBe(52)
+      expect(row.getBoundingClientRect().height).toBe(44)
     }
   },
 }
@@ -148,10 +148,10 @@ export const Search: Story = {
     await revealSidebar(canvasElement)
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Search workspace" }))
-    const input = await canvas.findByRole("searchbox", { name: "Search workspace" })
+    const input = await canvas.findByRole("combobox", { name: "Search workspace" })
     await userEvent.type(input, "checkout")
     await userEvent.keyboard("{Enter}")
-    await waitFor(() => expect(canvas.getByRole("link", { name: /Customers cannot find the delivery date/ })).toBeVisible())
+    await waitFor(() => expect(canvas.getByRole("option", { name: /Customers cannot find the delivery date/ })).toBeVisible())
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(input).not.toBeVisible())
   },
@@ -359,7 +359,7 @@ export const ResponsiveRows: Story = {
     const title = within(row).getByRole("link")
     expect(getComputedStyle(title).whiteSpace).toBe("nowrap")
     expect(getComputedStyle(title).textOverflow).toBe("ellipsis")
-    expect(row.getBoundingClientRect().height).toBe(52)
+    expect(row.getBoundingClientRect().height).toBe(44)
     expect(within(row).getByRole("button", { name: "Assignee: Unassigned" })).toBeVisible()
     const width = row.closest('[role="treegrid"], [role="grid"]')!.getBoundingClientRect().width
     const project = row.querySelector('[data-property="project"]')!
@@ -397,7 +397,7 @@ export const TrailingTokenRoom: Story = {
       properties.forEach((span, index) => expect(span.getBoundingClientRect().width, span.dataset.rowProperty).toBeGreaterThanOrEqual(before[index] - .5))
       expect(token.scrollWidth).toBeLessThanOrEqual(token.clientWidth)
       expect(token.getBoundingClientRect().width).toBeGreaterThan(0)
-      expect(row.getBoundingClientRect().height).toBe(52)
+      expect(row.getBoundingClientRect().height).toBe(44)
       const title = within(row).getByRole("link")
       expect(getComputedStyle(title).whiteSpace).toBe("nowrap")
       expect(title.getBoundingClientRect().height).toBeLessThanOrEqual(44)

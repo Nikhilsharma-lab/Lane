@@ -120,6 +120,7 @@ export function CommentForm({
     >
       <Textarea
         label="Comment"
+        hideLabel
         aria-label="Comment"
         aria-describedby="comment-posting-shortcut"
         name="body"

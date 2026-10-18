@@ -12,7 +12,7 @@ type AuthPasswordFieldProps = ComponentProps<typeof PasswordField> & { trailing?
 export function AuthInputField({ error, description, trailing, endIcon: EndIcon, ...props }: AuthInputFieldProps) {
   return <div className={styles.field} data-auth-field="">
     <Input {...props} description={error ? undefined : description} error={error} />
-    {(trailing || EndIcon) && <div className={styles.fieldExtra}>{EndIcon && <EndIcon aria-hidden="true" size={16} />}{trailing}</div>}
+    {(trailing || EndIcon) && <div className={styles.fieldExtra}>{EndIcon && <EndIcon aria-hidden="true" />}{trailing}</div>}
   </div>;
 }
 

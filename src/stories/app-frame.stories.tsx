@@ -1,7 +1,7 @@
 import type { Meta, StoryContext, StoryObj } from "@storybook/nextjs-vite"
 import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 import { useState, type ComponentType, type ReactNode } from "react"
-import { SidebarView } from "@/components/shell/sidebar-view"
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 import { PageStrip } from "@/components/shell/page-strip"
 import { Button } from "@/components/arc/button/button"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
@@ -35,9 +35,9 @@ const request: RequestDetail = {
 // The production list's compact rows need saved codes; these numbers are illustrative.
 const listRows = requestsMeta.args.requests.slice(0, 12).map((row, index) => ({ ...row, requestNumber: index + 1 }))
 
-function Frame({ pathname, children, workspaceName = "Lane Studio", projects = [], projectFilter = "all" }: { pathname: string; children: ReactNode; workspaceName?: string; projects?: { id: string; name: string; description: null }[]; projectFilter?: string }) {
-  return <RequestListViewProvider><SidebarView workspaceName={workspaceName} fullName="Alex Morgan" email="alex@example.test" role="member" pathname={pathname} statusFilter="all"
-    projectFilter={projectFilter} projects={projects} notifications={null} onSignOut={() => {}} linearPreviewAutoCollapse>{children}</SidebarView></RequestListViewProvider>
+function Frame({ pathname, children, workspaceName = "Lane Studio", projects, projectFilter = "all" }: { pathname: string; children: ReactNode; workspaceName?: string; projects?: { id: string; name: string; description: null }[]; projectFilter?: string }) {
+  return <RequestListViewProvider><WorkspaceSidebarFixture workspaceName={workspaceName} pathname={pathname}
+    projectFilter={projectFilter} projects={projects} requests={pathname.startsWith("/requests/") ? [request] : listRows}>{children}</WorkspaceSidebarFixture></RequestListViewProvider>
 }
 
 /** The loaded detail exactly as requests-workspace.tsx composes it. */

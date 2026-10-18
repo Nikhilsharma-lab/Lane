@@ -162,7 +162,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
         animate={highlight ? { y: highlight.top, height: highlight.height, opacity: 1 } : { opacity: 0 }}
         transition={{ default: highlight?.glide && !reduced ? motionTokens.spring.snappy : { duration: 0 }, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }} />
       {anchor && placement.overlap && <><button type="button" role="menuitem" tabIndex={-1} data-index={-1} className={styles.item} onClick={onBack} aria-label={`Back to ${anchor.label}`}>
-        <ChevronLeft size={15} aria-hidden="true" /><span className={styles.label}>Back</span>
+        <ChevronLeft aria-hidden="true" /><span className={styles.label}>Back</span>
       </button><div className={styles.separator} role="separator" /></>}
       {items.map((item, index) => <Fragment key={item.id}>
         {item.separatorBefore && index > 0 && <div className={styles.separator} role="separator" />}
@@ -192,11 +192,11 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
             if (item.closeOnSelect !== false) onClose();
             item.onSelect?.();
           }}>
-          <span className={styles.icon} aria-hidden="true">{item.icon ?? (item.checked ? <Check size={15} /> : <MoreHorizontal size={15} />)}</span>
+          <span className={styles.icon} aria-hidden="true">{item.icon ?? (item.checked ? <Check /> : <MoreHorizontal />)}</span>
           <span className={styles.label}>{item.label}</span>
-          {item.checked && item.icon && <Check className={styles.check} size={14} aria-hidden="true" />}
+          {item.checked && item.icon && <Check className={styles.check} data-icon-size="sm" aria-hidden="true" />}
           {item.shortcut && <kbd className={styles.shortcut} aria-hidden="true">{item.shortcut}</kbd>}
-          {!!item.children?.length && <ChevronRight className={styles.chevron} size={14} aria-hidden="true" />}
+          {!!item.children?.length && <ChevronRight className={styles.chevron} data-icon-size="sm" aria-hidden="true" />}
         </button>
       </Fragment>)}
     </motion.div>
@@ -340,8 +340,8 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
 }
 
 export const contextMenuExampleItems: ContextMenuItem[] = [
-  { id: "copy", label: "Copy link", icon: <Copy size={15} /> },
-  { id: "delete", label: "Delete project", icon: <Trash2 size={15} />, destructive: true },
+  { id: "copy", label: "Copy link", icon: <Copy /> },
+  { id: "delete", label: "Delete project", icon: <Trash2 />, destructive: true },
 ];
 
 export default ContextMenu;

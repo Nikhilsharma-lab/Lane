@@ -5,12 +5,13 @@ import { Copy } from "lucide-react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
-import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
+import { type RequestPriority } from "@/lib/request-constants"
 import { allowedMove, type AllowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
 import { useRequestMoves } from "./request-moves"
+import { priorityOptions } from "./priority-options"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
 
@@ -87,10 +88,10 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
     }
 
     function priorityItems(request: OverviewRequest, current: RequestPriority): ContextMenuItem[] {
-      return REQUEST_PRIORITIES.map(priority => ({
+      return priorityOptions.map(({ value: priority, label, icon }) => ({
         id: priority,
-        label: REQUEST_PRIORITY_LABELS[priority],
-        icon: <PriorityGlyph priority={priority} />,
+        label,
+        icon,
         checked: current === priority,
         disabled: isGuest,
         onSelect: isGuest || current === priority ? undefined : () => setPriority(request, priority),
@@ -106,7 +107,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, onSelect: () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next) },
         { id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) },
-        { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy size={16} />, children: [
+        { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
           ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
           { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
           { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },

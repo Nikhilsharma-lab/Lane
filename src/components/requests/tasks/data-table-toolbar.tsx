@@ -10,7 +10,8 @@ import { Button } from "@/components/arc/button/button"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
-import { REQUEST_TYPES, REQUEST_TYPE_LABELS } from "@/lib/request-constants"
+import { ProjectMarker } from "@/components/projects/project-marker"
+import { requestTypeOptions } from "../request-type-presentation"
 import { isRequestStatusFilter } from "@/lib/request-workspace"
 import type { OverviewRequest, RequestGrouping, RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
@@ -44,9 +45,9 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   let noProjectLabel = projectNames.has("No Project") ? "Requests without a Project" : "No Project"
   while (projectNames.has(noProjectLabel)) noProjectLabel += " (unassigned)"
   const fields = [
-    { id: "status", label: "Status", options: statuses.map(item => ({ value: item.value, label: item.label, hint: summaryOpen !== undefined ? data.filter(row => row.status === item.value).length : undefined, icon: summaryOpen !== undefined ? <item.icon size={16} aria-hidden="true" /> : undefined })) },
-    { id: "project", label: "Project", options: [{ value: "none", label: noProjectLabel }, ...projects.map(([value, label]) => ({ value, label, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === value).length : undefined }))] },
-    { id: "requestType", label: "Request type", options: [{ value: "none", label: "No type" }, ...REQUEST_TYPES.map(value => ({ value, label: REQUEST_TYPE_LABELS[value] }))] },
+    { id: "status", label: "Status", options: statuses.map(item => ({ value: item.value, label: item.label, hint: summaryOpen !== undefined ? data.filter(row => row.status === item.value).length : undefined, icon: <item.icon aria-hidden="true" /> })) },
+    { id: "project", label: "Project", options: [{ value: "none", label: noProjectLabel, icon: <ProjectMarker projectId={null} /> }, ...projects.map(([value, label]) => ({ value, label, icon: <ProjectMarker projectId={value} />, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === value).length : undefined }))] },
+    { id: "requestType", label: "Request type", options: requestTypeOptions },
   ]
   const chips: FilterChip[] = fields.flatMap(field => { const value = field.id === "status" ? filter === "all" ? "" : filter : field.id === "project" ? project : requestType; return value ? [{ id: field.id, label: field.label, value: field.options.find(option => option.value === value)?.label ?? value }] : [] })
   const displayedChips: FilterChip[] = [...(title ? [{ id: "title", label: "Title", value: title }] : []), ...chips]
@@ -64,20 +65,20 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
       }} />}
       <div className={styles.actions}>
         <Popover>
-          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label="Filter Requests by title" title="Filter Requests by title"><Search size={preview ? 14 : 17} aria-hidden="true" /></Button></PopoverTrigger>
+          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label="Filter Requests by title" title="Filter Requests by title"><Search aria-hidden="true" /></Button></PopoverTrigger>
           <PopoverContent align="end" aria-label="Filter Requests by title" className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
             <SearchField ref={titleInput} label="Search Requests" aria-label="Filter Requests by title" placeholder="Filter by title…" value={title} onValueChange={value => onFilterChange("title", value)} />
           </PopoverContent>
         </Popover>
-        <FilterMenu presentation="popover" fields={fields} active={chips} onSelect={addFilter} triggerIcon={<ListFilter size={preview ? 14 : 17} aria-hidden="true" />} />
-        <Popover><PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} aria-label="Display" title="Display"><SlidersHorizontal size={preview ? 14 : 17} aria-hidden="true" /></Button></PopoverTrigger><PopoverContent align="end" aria-label="Display Requests">
+        <FilterMenu presentation="popover" fields={fields} active={chips} onSelect={addFilter} triggerIcon={<ListFilter aria-hidden="true" />} />
+        <Popover><PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} aria-label="Display" title="Display"><SlidersHorizontal aria-hidden="true" /></Button></PopoverTrigger><PopoverContent align="end" aria-label="Display Requests">
           <div className={rowStyles.displayPanel}>
             <Select label="Group by" value={grouping} onValueChange={value => onGroupingChange(value as RequestGrouping)} options={[{ value: "none", label: "No grouping" }, { value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "assignee", label: "Assignee" }]} />
             <Select label="Order by" value={ordering} onValueChange={value => onOrderingChange(value as RequestOrdering)} options={[{ value: "newest", label: "Newest first" }, { value: "oldest", label: "Oldest first" }, { value: "title", label: "Title A–Z" }, { value: "title_desc", label: "Title Z–A" }, { value: "status", label: "Status" }]} />
             <div><p className={rowStyles.displayLabel}>Properties</p><ChipGroup label="Visible properties" options={columns.filter(item => item.key !== "title").map(item => ({ value: item.key, label: item.label }))} value={columns.filter(item => item.key !== "title" && columnVisibility[item.key] !== false).map(item => item.key)} onValueChange={next => onVisibilityChange(Object.fromEntries(columns.map(item => [item.key, item.key === "title" || next.includes(item.key)])))} /></div>
           </div>
         </PopoverContent></Popover>
-        {summaryOpen !== undefined && <Button ref={summaryTrigger} variant="secondary" size="sm" className={styles.iconButton} data-active={summaryOpen || undefined} aria-label={summaryOpen ? "Close list summary" : "Open list summary"} aria-expanded={summaryOpen} onClick={() => onSummaryChange?.(!summaryOpen)}><PanelRight size={preview ? 14 : 17} aria-hidden="true" /></Button>}
+        {summaryOpen !== undefined && <Button ref={summaryTrigger} variant="secondary" size="sm" className={styles.iconButton} data-active={summaryOpen || undefined} aria-label={summaryOpen ? "Close list summary" : "Open list summary"} aria-expanded={summaryOpen} onClick={() => onSummaryChange?.(!summaryOpen)}><PanelRight aria-hidden="true" /></Button>}
       </div>
     </div>
     {/* Plan item 2.4: the list announces chip changes and the count in its one region, debounced, so neither speaks here. */}

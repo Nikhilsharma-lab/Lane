@@ -29,6 +29,7 @@ import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
+import buttonStyles from "@/components/arc/button/button.module.css"
 
 // Plan item 2.4: the roving tab stop lives in DataTable, so a J, K or arrow
 // re-renders it. These parts take stable props and skip that render; only the
@@ -214,10 +215,10 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
               <div role="row" aria-level={1} aria-expanded={!collapsed} aria-label={`${group.label}, ${count}`} tabIndex={grid.tabbable === headerKey ? 0 : -1} data-grid-row={headerKey}
                 className={presentation ? `${styles.groupRow} ${styles.groupHeader}` : styles.groupRow}>
                 <div role="gridcell" className={styles.groupCell}><h2 className={styles.groupHeading}><button type="button" tabIndex={-1} className={styles.groupButton} aria-expanded={!collapsed} aria-controls={id} aria-label={`${collapsed ? "Expand" : "Collapse"} ${group.label} group`} onClick={() => grid.toggleGroup(group.key, !collapsed)}>
-                  {collapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}<span>{group.label}</span>
+                  {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip content="New Request"><NewRequestLink tabIndex={-1} className={styles.groupAdd} aria-label="New Request"><Plus size={16} aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {presentation && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content="New Request"><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{rows.map(request => renderRow(request, 2))}</div>
             </div>

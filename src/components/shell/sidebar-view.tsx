@@ -39,10 +39,6 @@ export interface SidebarViewProps {
   onSignOut?: () => void | Promise<unknown>;
   onSearch?: (input: WorkspaceSearchInput) => Promise<WorkspaceSearchResponse>;
   workspaceSwitcher?: UserMenuWorkspaces;
-  /** Collapses the sidebar at 880px and below; the expand control then opens it as a peek. Production enables it. */
-  linearPreviewAutoCollapse?: boolean;
-  /** Opt-in collapsible Projects folder; existing Project destinations stay flat. */
-  previewProjectTree?: boolean;
 }
 
 const noProjects: ProjectOption[] = [];
@@ -52,9 +48,9 @@ const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey
 const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter: urlProjectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, linearPreviewAutoCollapse = false, previewProjectTree = false }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter: urlProjectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
-  const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, linearPreviewAutoCollapse, openAutoPeek);
+  const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
   const { peeking, peekTop, dismiss: dismissPeek, show: showPeek, triggerEvents, panelEvents } = useSidebarPeek(collapsed && !resizing && !motion, switchingWorkspace);
   function openAutoPeek() {
@@ -130,18 +126,18 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const frame = useMemo(() => ({ trail, expand: expandButton, link: Link }), [trail]);
   const groups = [
     { id: "workspace", name: workspaceName, items: [
-      { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 size={16} strokeWidth={1.75} /> },
+      { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 strokeWidth={1.75} /> },
     ] },
   ];
   // Plan item 2.4: the content's width (--sidebar-width) changes once per toggle while the panel slides;
   // the strips keep their expand control until an expand ends, so it leaves with the width change.
   // Pinning a visible peek keeps the panel where it already is, with no slide.
-  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse={linearPreviewAutoCollapse || undefined}>
+  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true">
     {switchingWorkspace && <span className="sr-only" role="status">Switching workspace…</span>}
     <a href="#lane-main" className={styles.skip}>Skip to content</a>
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="" onClickCapture={event => { if (event.target instanceof Element && event.target.closest("a[href]")) dismissPeek(); }}>
-      <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout={linearPreviewAutoCollapse} projectTree={previewProjectTree} workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
+      <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
         user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "guest" ? undefined : "/settings/members"} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}

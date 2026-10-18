@@ -1,19 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const boundary = vi.hoisted(() => ({ limit: vi.fn(), initialize: vi.fn() }));
+const boundary = vi.hoisted(() => ({ limit: vi.fn(), initialize: vi.fn(), slidingWindow: vi.fn(() => ({})) }));
 vi.mock("@upstash/ratelimit", () => ({
   Ratelimit: class {
-    static slidingWindow() { return {}; }
+    static slidingWindow = boundary.slidingWindow;
     constructor() { boundary.initialize(); }
     limit = boundary.limit;
   },
 }));
 vi.mock("@upstash/redis", () => ({ Redis: class {} }));
-const allowed = () => ({ success: true, limit: 10, remaining: 9, reset: Date.now() + 60_000, pending: Promise.resolve() });
+const allowed = () => ({ success: true, limit: 5, remaining: 4, reset: Date.now() + 60_000, pending: Promise.resolve() });
 beforeEach(() => {
   vi.resetModules();
   boundary.limit.mockReset();
   boundary.initialize.mockReset();
+  boundary.slidingWindow.mockClear();
   vi.stubEnv("KV_REST_API_URL", "https://fake.upstash.io");
   vi.stubEnv("KV_REST_API_TOKEN", "fake-token");
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -27,6 +28,7 @@ describe("checkAiRateLimit", () => {
     const { checkAiRateLimit } = await import("./rate-limit");
     expect(await checkAiRateLimit("user-1")).toEqual({ allowed: true, retryAfterMs: 0 });
     expect(boundary.limit).toHaveBeenCalledWith("user-1");
+    expect(boundary.slidingWindow).toHaveBeenCalledWith(5, "60 s");
   });
   it("reports a real quota rejection separately from an outage", async () => {
     boundary.limit.mockResolvedValue({ ...allowed(), success: false, remaining: 0, reset: Date.now() + 30_000 });

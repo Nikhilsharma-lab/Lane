@@ -101,8 +101,8 @@ function SortGlyph({ active, descending, reduced }: { active: boolean; descendin
   }, [active, descending, reduced, rotate]);
   const transition: Transition = reduced ? instant : active ? { opacity: enter, filter: enter, scale: motionTokens.spring.snappy } : { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] };
   return <span className={styles.sortIcon} aria-hidden="true">
-    <ArrowUp className={styles.sortHint} size={16} strokeWidth={1.75} />
-    <motion.span className={styles.sortArrow} style={{ rotate }} initial={false} animate={active ? { opacity: 1, scale: 1, filter: blur(0) } : { opacity: 0, scale: .6, filter: blur(motionTokens.blur.subtle) }} transition={transition}><ArrowUp size={16} strokeWidth={1.75} /></motion.span>
+    <ArrowUp className={styles.sortHint} strokeWidth={1.75} />
+    <motion.span className={styles.sortArrow} style={{ rotate }} initial={false} animate={active ? { opacity: 1, scale: 1, filter: blur(0) } : { opacity: 0, scale: .6, filter: blur(motionTokens.blur.subtle) }} transition={transition}><ArrowUp strokeWidth={1.75} /></motion.span>
   </span>;
 }
 
@@ -116,7 +116,7 @@ function SelectBox({ checked, mixed = false, label, nav, reduced, onToggle, inpu
     <input ref={ref} type="checkbox" className={styles.selectInput} checked={checked} aria-label={label} data-nav={nav} onChange={event => onToggle((event.nativeEvent as MouseEvent).shiftKey === true)} />
     <span className={styles.selectBox} data-on={on || undefined} aria-hidden="true">
       <motion.span className={styles.selectFill} initial={false} animate={{ opacity: on ? 1 : 0, scale: on ? 1 : .6 }} transition={reduced ? { duration: 0 } : { scale: motionTokens.spring.snappy, opacity }} />
-      <svg className={styles.selectMark} viewBox="0 0 18 18" fill="none" focusable="false">
+      <svg data-ui-icon className={styles.selectMark} viewBox="0 0 18 18" fill="none" focusable="false">
         <motion.path initial={false} animate={{ d: mixed ? dashPath : checkPath, pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }} transition={reduced ? { duration: 0 } : { d: motionTokens.spring.morph, pathLength: motionTokens.spring.snappy, opacity }} stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>

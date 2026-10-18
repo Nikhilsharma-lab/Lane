@@ -10,18 +10,13 @@
 
 .chipContent > svg,
 .optionContent > svg {
-  width: var(--sb-icon-sm);
-  height: var(--sb-icon-sm);
+  width: var(--icon-size, var(--icon-size-md));
+  height: var(--icon-size, var(--icon-size-md));
   flex: none;
-  color: var(--accent);
+
 }
 
-.chipContent[data-request-type="bug"] > svg,
-.chipContent[data-priority="urgent"] > svg { color: var(--state-danger-icon); }
-.chipContent[data-request-type="improvement"] > svg,
-.chipContent[data-priority="medium"] > svg { color: var(--state-info-icon); }
-.chipContent[data-request-type="new_feature"] > svg { color: var(--state-success-icon); }
-.chipContent[data-priority="high"] > svg { color: var(--state-warning-icon); }
+
 
 .chipLabel {
   max-width: calc(var(--sb-spacing) * 40);
@@ -66,8 +61,8 @@
 }
 
 .iconSpace {
-  width: var(--sb-icon-sm);
-  height: var(--sb-icon-sm);
+  width: var(--icon-size, var(--icon-size-md));
+  height: var(--icon-size, var(--icon-size-md));
   flex: none;
 }
 
@@ -86,3 +81,5 @@
   color: var(--text-muted);
   background: transparent;
 }
+
+.chipContent:not([data-priority]):not([data-request-type]) > svg, .optionContent > svg { color: var(--accent); }

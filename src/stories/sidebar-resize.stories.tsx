@@ -28,7 +28,7 @@ async function expectWidth(handle: HTMLElement, sidebar: HTMLElement, width: num
 
 export const KeyboardAndRememberedWidth: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -60,7 +60,7 @@ export const KeyboardAndRememberedWidth: Story = {
 
 export const KeyboardLimits: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -85,7 +85,7 @@ export const TypingKeepsLayout: Story = {
     </Dialog>
   </div></> },
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     const input = canvas.getByRole("textbox", { name: "Notes" })
@@ -108,24 +108,7 @@ export const TypingKeepsLayout: Story = {
   },
 }
 
-export const MobileDrawerUnchanged: Story = {
-  play: async ({ canvasElement }) => {
-    if (innerWidth > 640) return
-    const canvas = within(canvasElement)
-    await expect(canvas.queryByRole("separator", { name: "Resize sidebar" })).not.toBeInTheDocument()
-    await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
-    const opener = canvas.getByRole("button", { name: "Open navigation" })
-    await userEvent.click(opener)
-    const dialog = await within(document.body).findByRole("dialog", { name: "Navigation" })
-    await expect(within(dialog).getByRole("button", { name: "Close sidebar" })).toBeVisible()
-    await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-    await expect(opener).toHaveFocus()
-  },
-}
-
-export const LinearPreviewResponsiveCollapse: Story = {
-  args: { linearPreviewAutoCollapse: true },
+export const ResponsiveCollapse: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const shell = canvasElement.querySelector<HTMLElement>("[data-workspace-shell]")!
@@ -173,7 +156,7 @@ function dragPointer(handle: HTMLElement, type: "pointerdown" | "pointermove" | 
 
 export const PointerResizeAndCollapseThreshold: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -203,7 +186,7 @@ export const PointerResizeAndCollapseThreshold: Story = {
 
 export const CancelledDragRestoresWidth: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -228,10 +211,10 @@ export const CancelledDragRestoresWidth: Story = {
 export const SearchCollapseFocus: Story = {
   args: { pathname: "/", children: <div className="p-6"><SidebarExpandButton />Original Requests content</div> },
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Search workspace" }))
-    const search = await canvas.findByRole("searchbox", { name: "Search workspace" })
+    const search = await canvas.findByRole("combobox", { name: "Search workspace" })
     await waitFor(() => expect(search).toHaveFocus())
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     handle.focus()
@@ -264,12 +247,12 @@ const panelOf = (canvasElement: HTMLElement) => canvasElement.querySelector<HTML
 /** Plan item 2.4: a collapse slides the panel on transform only and the content widens once, at the start. */
 export const CollapseTranslatesPanel: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const main = canvas.getByRole("main")
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     const before = main.getBoundingClientRect().width
     let settledAt = 0
     handle.focus()
@@ -301,7 +284,7 @@ export const CollapseTranslatesPanel: Story = {
 /** Plan item 2.4: an expand slides the panel in over the content, and the content narrows once, at the end. */
 export const ExpandChangesWidthOnce: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const main = canvas.getByRole("main")
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
@@ -325,7 +308,7 @@ export const ExpandChangesWidthOnce: Story = {
     await expect(new Set(widths).size).toBeLessThanOrEqual(2)
     await expect(widths[0]).toBe(collapsedWidth)
     await expect(widths.at(-1)).toBeLessThan(collapsedWidth)
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
     // The slide settles in its 240 ms (plus a frame of slack for the test's own clock).
     if (!reducedMotion()) await expect(settledAt - started).toBeLessThanOrEqual(240 + 50)
@@ -335,7 +318,7 @@ export const ExpandChangesWidthOnce: Story = {
 /** Plan item 2.4: a second press on Expand sidebar while the panel slides in (a double-click) leaves that slide alone. */
 export const DoubleExpandSlidesOnce: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640 || reducedMotion()) return
+    if (innerWidth <= 880 || reducedMotion()) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -363,7 +346,7 @@ export const DoubleExpandSlidesOnce: Story = {
     offsets.push(...await sampleFrames(offset, 320))
     for (let index = 1; index < offsets.length; index++) await expect(offsets[index]).toBeGreaterThanOrEqual(offsets[index - 1])
     await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     await expect(settledAt - started).toBeLessThanOrEqual(240 + 50)
   },
 }
@@ -371,7 +354,7 @@ export const DoubleExpandSlidesOnce: Story = {
 /** Plan item 2.4: grabbing the edge mid-slide finishes the slide and drags from the width it was heading to. */
 export const DragDuringSlideFinishesIt: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640 || reducedMotion()) return
+    if (innerWidth <= 880 || reducedMotion()) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -384,18 +367,18 @@ export const DragDuringSlideFinishesIt: Story = {
     dragPointer(handle, "pointerdown", 300)
     await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
     await expect(panelOf(canvasElement).getAnimations()).toHaveLength(0)
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     dragPointer(handle, "pointermove", 312)
-    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "284"))
+    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "220"))
     dragPointer(handle, "pointerup", 312)
-    await expectWidth(handle, sidebar, 284)
+    await expectWidth(handle, sidebar, 220)
   },
 }
 
 /** Plan item 2.4: a toggle mid-slide turns the same slide around rather than restarting it. */
 export const ToggleMidSlideReverses: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640 || reducedMotion()) return
+    if (innerWidth <= 880 || reducedMotion()) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -411,13 +394,13 @@ export const ToggleMidSlideReverses: Story = {
     await expect(panelOf(canvasElement).getAnimations()).toEqual([slide])
     await waitFor(() => expect(slide.playbackRate).toBe(-1))
     await waitFor(() => expect(sidebar).not.toHaveAttribute("data-motion"))
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
   },
 }
 
 export const UnrelatedPointerCannotEndDrag: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })

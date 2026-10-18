@@ -5,8 +5,7 @@ import { renderToString } from "react-dom/server"
 
 import { ProfileRoleForm, type ProductRole } from "@/components/settings/profile-role-form"
 import { ProfileLayout, ProfileSections, ProfileSkeleton } from "@/components/settings/profile-sections"
-import { SidebarView } from "@/components/shell/sidebar-view"
-import { NotificationBellView } from "@/components/shell/notification-bell-view"
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 import { ThemePreference } from "@/app/(app)/settings/profile/theme-preference"
 import { SettingsNav } from "@/app/(app)/settings/settings-nav"
 import { Button as LaneButton } from "@/components/arc/button/button"
@@ -17,13 +16,6 @@ type SaveRole = (role: ProductRole) => Promise<SaveResult>
 const savePending = fn<SaveRole>()
 const saveReturnedError = fn<SaveRole>()
 const saveRejected = fn<SaveRole>()
-
-function ProfileNotifications({ compact = false }: { compact?: boolean }) {
-  const [open, setOpen] = useState(false)
-  return <NotificationBellView compact={compact} open={open} onOpenChange={setOpen}
-    unread={0} items={[]} loaded isPending={false}
-    onSelect={() => {}} onMarkAllRead={() => {}} onToggleRead={() => {}} onRetry={() => {}} />
-}
 
 async function chooseRole(canvasElement: HTMLElement, label: "PM" | "Designer" | "Developer") {
   await userEvent.click(within(canvasElement).getByRole("radio", { name: label }))
@@ -117,21 +109,15 @@ export const WorkspaceProfile: Story = {
   parameters: { browserTheme: true, layout: "fullscreen" },
   render: (args) => (
     <div className="arc-surface">
-      <SidebarView
-        workspaceName="Lane Studio"
+      <WorkspaceSidebarFixture
         fullName="Nikhil Sharma"
         email="nikhil@example.test"
-        role="member"
         pathname="/settings/profile"
-        statusFilter="all"
-        notifications={<ProfileNotifications />}
-        compactNotifications={<ProfileNotifications compact />}
-        onSignOut={() => {}}
       >
         <ProfileLayout>
           <ProfileSections profileForm={<ProfileRoleForm {...args} />} appearance={<ThemePreference />} />
         </ProfileLayout>
-      </SidebarView>
+      </WorkspaceSidebarFixture>
     </div>
   ),
   play: async ({ canvasElement }) => {

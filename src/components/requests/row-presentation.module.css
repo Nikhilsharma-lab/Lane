@@ -1,0 +1,9 @@
+.priority[data-priority="urgent"] { color: var(--state-danger-icon); }
+.priority[data-priority="high"] { color: var(--state-warning-icon); }
+.priority[data-priority="medium"] { color: var(--state-info-icon); }
+.priority[data-priority="low"] { color: var(--state-success-icon); }
+.priority[data-priority="none"] { color: var(--text-muted); }
+
+.status[data-status="open"] { color: var(--text-muted); }
+.status[data-status="in_progress"] { color: var(--state-warning-icon); }
+.status[data-status="done"] { color: var(--state-success-icon); }

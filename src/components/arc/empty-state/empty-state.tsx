@@ -70,7 +70,7 @@ function HeightFrame({ reduce, morphKey, children }: { reduce: boolean | null; m
 
 export function EmptyState({ title, description, action, icon, className, label }: EmptyStateProps) {
   const reduce = useReducedMotion();
-  const glyph = icon ?? <Folder width={24} height={24} strokeWidth={1.5} />;
+  const glyph = icon ?? <Folder data-icon-size="2xl" strokeWidth={1.5} />;
   const enter: Transition = reduce ? { duration: motionTokens.duration.instant } : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
   const swap: MotionProps = { initial: reduce ? { opacity: 0 } : textIn, animate: shown, exit: reduce ? fadeOut : textOut, transition: enter };
   // The result of an action morphs in place: the icon crossfades and the copy rises in while the old copy leaves.

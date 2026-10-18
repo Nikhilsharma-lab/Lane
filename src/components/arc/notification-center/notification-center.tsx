@@ -101,7 +101,7 @@ function MorphWidth({ reduce, morphKey, children }: { reduce: boolean | null; mo
 function NotificationVisual({ item }: { item: NotificationItem }) {
   if (item.actor) return <Avatar name={item.actor.name} src={item.actor.photo} size="md" />;
   return <span className={[styles.eventIcon, styles[item.tone ?? "info"]].join(" ")} aria-hidden="true">
-    {item.tone === "warning" ? <TriangleAlert size={18} strokeWidth={1.7} /> : item.tone === "success" ? <CircleCheck size={18} strokeWidth={1.7} /> : <MessageCircle size={18} strokeWidth={1.7} />}
+    {item.tone === "warning" ? <TriangleAlert data-icon-size="lg" strokeWidth={1.7} /> : item.tone === "success" ? <CircleCheck data-icon-size="lg" strokeWidth={1.7} /> : <MessageCircle data-icon-size="lg" strokeWidth={1.7} />}
   </span>;
 }
 
@@ -171,7 +171,7 @@ export function NotificationCenter({ notifications: initial, label = "Notificati
     <PopoverPrimitive.Trigger asChild>
       {/* The trigger anchors the panel, so it gives press feedback with color only; scaling it would shift the panel. */}
       <button className={styles.trigger} type="button" aria-label={`${label}${unreadCount ? `, ${unreadCount} unread` : ""}`}>
-        <motion.span animate={{ rotate: isOpen && !reduce ? -12 : 0 }} transition={reduce ? instant : motionTokens.spring.snappy}><Bell size={19} strokeWidth={1.75} aria-hidden="true" /></motion.span>
+        <motion.span animate={{ rotate: isOpen && !reduce ? -12 : 0 }} transition={reduce ? instant : motionTokens.spring.snappy}><Bell data-icon-size="lg" strokeWidth={1.75} aria-hidden="true" /></motion.span>
         <AnimatePresence initial={false}>{unreadCount > 0 && <motion.span key="badge" className={styles.badge} aria-hidden="true" initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduce ? fadeOut : { opacity: 0, scale: .6, transition: exitFast }} transition={reduce ? instant : motionTokens.spring.snappy}><RollingCount value={unreadCount} display={unreadCount > 9 ? "9+" : String(unreadCount)} reduce={reduce} /></motion.span>}</AnimatePresence>
       </button>
     </PopoverPrimitive.Trigger>
@@ -179,14 +179,14 @@ export function NotificationCenter({ notifications: initial, label = "Notificati
       <PopoverPrimitive.Content className={styles.panel} align="center" side="bottom" sideOffset={12} collisionPadding={12} avoidCollisions={avoidCollisions} aria-label={label}>
         <div className={styles.header}>
           <div><div className={styles.heading}><h2>{label}</h2><span className={styles.count}><RollingCount value={unreadCount} reduce={reduce} /></span></div><p aria-live="polite"><SwapText reduce={reduce}>{summary}</SwapText></p></div>
-          <PopoverPrimitive.Close className={styles.close} aria-label="Close notifications"><X size={17} strokeWidth={1.75} aria-hidden="true" /></PopoverPrimitive.Close>
+          <PopoverPrimitive.Close className={styles.close} aria-label="Close notifications"><X strokeWidth={1.75} aria-hidden="true" /></PopoverPrimitive.Close>
         </div>
 
         <div className={styles.toolbar}>
           <div className={styles.viewSwitch} role="group" aria-label="Show notifications">
             {(["all", "unread"] as const).map((next) => <button key={next} ref={next === "unread" ? unreadTabRef : allTabRef} type="button" className={view === next ? styles.viewActive : undefined} aria-pressed={view === next} onClick={() => { setBulk(false); setView(next); setExpandedId(null); }}>{view === next && <motion.span className={styles.viewHighlight} layoutId={`${layoutId}-view`} transition={reduce ? instant : motionTokens.spring.morph} />}<span>{next === "all" ? "All" : "Unread"}</span></button>)}
           </div>
-          <AnimatePresence initial={false}>{unreadCount > 0 && <motion.button key="mark-all" type="button" className={styles.markAll} onClick={markAllRead} initial={reduce ? { opacity: 0 } : { opacity: 0, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={reduce ? fadeOut : { opacity: 0, filter: `blur(${motionTokens.blur.subtle}px)`, transition: exitFast }} transition={reduce ? instant : enter}><CheckCheck size={15} strokeWidth={1.75} aria-hidden="true" /><span>Mark all read</span></motion.button>}</AnimatePresence>
+          <AnimatePresence initial={false}>{unreadCount > 0 && <motion.button key="mark-all" type="button" className={styles.markAll} onClick={markAllRead} initial={reduce ? { opacity: 0 } : { opacity: 0, filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={reduce ? fadeOut : { opacity: 0, filter: `blur(${motionTokens.blur.subtle}px)`, transition: exitFast }} transition={reduce ? instant : enter}><CheckCheck strokeWidth={1.75} aria-hidden="true" /><span>Mark all read</span></motion.button>}</AnimatePresence>
         </div>
 
         {/* Rows collapse their own height on the way out, so the list and the panel close the gap together. */}
@@ -213,10 +213,10 @@ export function NotificationCenter({ notifications: initial, label = "Notificati
                     <p>{item.description ?? (item.actor ? `${item.actor.name} shared an update with you.` : "This update is ready to review.")}</p>
                     <div className={styles.itemActions}>
                       <button type="button" onClick={() => toggleRead(item)}><MorphWidth reduce={reduce} morphKey={item.read ? "read" : "unread"}>
-                        <span className={styles.actionIcon}><AnimatePresence mode="popLayout" initial={false}><Swap key={item.read ? "unread" : "read"} className={styles.actionGlyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOut : { ...iconIn, transition: exitFast }} transition={reduce ? instant : motionTokens.spring.snappy}>{item.read ? <CircleDot size={14} strokeWidth={1.75} aria-hidden="true" /> : <Check size={14} strokeWidth={1.75} aria-hidden="true" />}</Swap></AnimatePresence></span>
+                        <span className={styles.actionIcon}><AnimatePresence mode="popLayout" initial={false}><Swap key={item.read ? "unread" : "read"} className={styles.actionGlyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOut : { ...iconIn, transition: exitFast }} transition={reduce ? instant : motionTokens.spring.snappy}>{item.read ? <CircleDot data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /> : <Check data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />}</Swap></AnimatePresence></span>
                         <SwapText reduce={reduce}>{item.read ? "Mark unread" : "Mark read"}</SwapText>
                       </MorphWidth></button>
-                      <button type="button" onClick={() => dismiss(item)}><X size={14} strokeWidth={1.75} aria-hidden="true" />Dismiss</button>
+                      <button type="button" onClick={() => dismiss(item)}><X data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />Dismiss</button>
                     </div>
                   </motion.div>}
                 </AnimatePresence>
@@ -224,7 +224,7 @@ export function NotificationCenter({ notifications: initial, label = "Notificati
             </motion.div>)}
             {/* The empty state opens its height on the same spring the rows close on, so the panel morphs between them instead of stacking both. After a bulk action it waits for the cascade to get going, so the panel never grows before it shrinks. */}
             {visible.length === 0 && <motion.div key="empty" className={styles.emptyFrame} initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={reduce ? fadeOut : { height: 0, opacity: 0, transition: { height: motionTokens.spring.smooth, opacity: exitFast } }} transition={reduce ? instant : { height: { ...motionTokens.spring.smooth, delay: bulk ? cascade(3) : 0 }, opacity: { ...enter, delay: motionTokens.duration.fast } }}>
-              <motion.div className={styles.empty} initial={reduce ? false : { y: 6 }} animate={{ y: 0 }} transition={reduce ? instant : { ...enter, delay: motionTokens.duration.fast }}><CircleCheck size={24} strokeWidth={1.5} aria-hidden="true" /><strong><SwapText reduce={reduce}>{view === "unread" ? "Nothing unread" : "All clear"}</SwapText></strong><p><SwapText reduce={reduce}>{view === "unread" ? "You’ve seen every update." : "New updates will appear here."}</SwapText></p>{view === "unread" && items.length > 0 && <button type="button" onClick={() => { setBulk(false); setView("all"); }}>View all updates</button>}</motion.div>
+              <motion.div className={styles.empty} initial={reduce ? false : { y: 6 }} animate={{ y: 0 }} transition={reduce ? instant : { ...enter, delay: motionTokens.duration.fast }}><CircleCheck data-icon-size="2xl" strokeWidth={1.5} aria-hidden="true" /><strong><SwapText reduce={reduce}>{view === "unread" ? "Nothing unread" : "All clear"}</SwapText></strong><p><SwapText reduce={reduce}>{view === "unread" ? "You’ve seen every update." : "New updates will appear here."}</SwapText></p>{view === "unread" && items.length > 0 && <button type="button" onClick={() => { setBulk(false); setView("all"); }}>View all updates</button>}</motion.div>
             </motion.div>}
           </AnimatePresence>
         </div>

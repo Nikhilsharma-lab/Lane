@@ -4,7 +4,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { addComment, markDone, pickUpRequest, setRequestPriority } from "@/app/(app)/requests/[id]/actions"
 import type { RequestDetail } from "@/components/requests/detail-view"
 import type { RequestPriority } from "@/lib/request-constants"
-import { DetailFixture, announcer, deferred, desktopLight, expectPinnedViewport, main, phoneDark, request, sequenceIds, strip } from "./helpers/request-detail-fixture"
+import { DetailFixture, announcer, deferred, desktopLight, expectPinnedViewport, inProgress, main, phoneDark, request, sequenceIds, strip } from "./helpers/request-detail-fixture"
 
 // Plan item 2.5 (decision D1): previous and next with J and K, the arrows only
 // on the previous and next buttons, Esc in layers, and the Tab path.
@@ -61,7 +61,7 @@ export const PreviousNext: Story = {
     await expect(sequence(canvasElement)).toHaveTextContent("3 / 5")
     await userEvent.keyboard("k")
     await expect(getRouter().replace).toHaveBeenLastCalledWith("/requests/fixture-request", { scroll: false })
-    await waitFor(() => expect(title(canvasElement)).toHaveTextContent(request.reframedProblem!))
+    await waitFor(() => expect(title(canvasElement)).toHaveTextContent(request.title))
     await expect(sequence(canvasElement)).toHaveTextContent("2 / 5")
   },
 }
@@ -107,34 +107,6 @@ export const SequenceHoldsWhileLoading: Story = {
   },
 }
 
-/** With Ask for review open, J and K wait: focus on the reviewer picker's trigger (plan item 2.6), or anywhere else, keeps the form and its choices. */
-export const SequenceKeysWaitForOpenForm: Story = {
-  globals: desktopLight,
-  play: async context => {
-    await expectPinnedViewport(context)
-    const { canvasElement } = context
-    const review = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
-    await userEvent.click(review.getByRole("button", { name: "Ask for review" }))
-    await userEvent.click(review.getByRole("button", { name: "Add reviewers" }))
-    await userEvent.click(await within(document.body).findByRole("option", { name: "Sam Lee" }))
-    // Esc closes the popover only; focus returns to the trigger inside the open form.
-    await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(review.getByRole("button", { name: "Add reviewers" })).toHaveFocus())
-    await userEvent.keyboard("j")
-    await userEvent.keyboard("k")
-    title(canvasElement).focus()
-    await userEvent.keyboard("j")
-    await expect(getRouter().replace).not.toHaveBeenCalled()
-    await expect(within(review.getByRole("list", { name: "Selected reviewers" })).getByText("Sam Lee")).toBeVisible()
-    // Once the form is closed, J moves on again.
-    await userEvent.click(review.getByRole("button", { name: "Cancel" }))
-    await waitFor(() => expect(review.queryByRole("form", { name: "Ask for design review" })).not.toBeInTheDocument())
-    title(canvasElement).focus()
-    await userEvent.keyboard("j")
-    await expect(getRouter().replace).toHaveBeenCalledWith("/requests/fixture-request-2", { scroll: false })
-  },
-}
-
 /** A post that fails after J moved on is never silent: a toast says where the draft is, and K finds it back in the box. */
 export const CommentFailsAfterLeaving: Story = {
   globals: desktopLight,
@@ -154,7 +126,7 @@ export const CommentFailsAfterLeaving: Story = {
     await expect(messages).toHaveTextContent("Your draft is back in the comment box on LAN-12.")
     title(canvasElement).focus()
     await userEvent.keyboard("k")
-    await waitFor(() => expect(title(canvasElement)).toHaveTextContent(request.reframedProblem!))
+    await waitFor(() => expect(title(canvasElement)).toHaveTextContent(request.title))
     await expect(within(main(canvasElement)).getByRole("textbox", { name: "Comment" })).toHaveValue("A draft that must not vanish")
   },
 }
@@ -205,37 +177,22 @@ export const NoSequenceOnDeepLink: Story = {
 /** Esc closes the nearest thing first: a menu, an open form, the comment box, and only then returns to Requests. */
 export const EscLayers: Story = {
   globals: desktopLight,
-  args: { session: undefined },
+  args: { current: inProgress, session: undefined },
   play: async context => {
     await expectPinnedViewport(context)
     const { canvasElement } = context
     const page = within(main(canvasElement))
     const panel = within(main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!)
     // A menu.
-    const status = panel.getByRole("button", { name: /^Status: Open/ })
+    const status = panel.getByRole("button", { name: /^Status: In Progress/ })
     await userEvent.click(status)
-    await within(document.body).findByRole("menu", { name: "Change status" })
+    await expect(within(await within(document.body).findByRole("menu")).getByRole("menuitem", { name: "Mark Done" })).toBeInTheDocument()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("menu")).not.toBeInTheDocument())
     await expect(getRouter().push).not.toHaveBeenCalled()
     // A hover tooltip takes the next Esc for itself, as Radix layers do; move the pointer on.
     await userEvent.unhover(status)
     await waitFor(() => expect(within(document.body).queryByRole("tooltip")).not.toBeInTheDocument())
-    // An open Ask for review form, with focus inside it.
-    const review = within(page.getByRole("region", { name: "Ask for review" }))
-    await userEvent.click(review.getByRole("button", { name: "Ask for review" }))
-    await waitFor(() => expect(review.getByRole("textbox", { name: "Design version link" })).toHaveFocus())
-    await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(review.queryByRole("form", { name: "Ask for design review" })).not.toBeInTheDocument())
-    await waitFor(() => expect(review.getByRole("heading", { name: "Ask for review" })).toHaveFocus())
-    await expect(getRouter().push).not.toHaveBeenCalled()
-    // The same form open with focus elsewhere: Esc cancels it before leaving.
-    await userEvent.click(review.getByRole("button", { name: "Ask for review" }))
-    await waitFor(() => expect(review.getByRole("form", { name: "Ask for design review" })).toBeInTheDocument())
-    title(canvasElement).focus()
-    await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(review.queryByRole("form", { name: "Ask for design review" })).not.toBeInTheDocument())
-    await expect(getRouter().push).not.toHaveBeenCalled()
     // The comment box keeps its draft and hands focus to the Conversation heading.
     await userEvent.type(page.getByRole("textbox", { name: "Comment" }), "Draft to keep")
     await userEvent.keyboard("{Escape}")
@@ -282,6 +239,6 @@ export const KeyboardPath: Story = {
     await userEvent.tab()
     await expectRing(within(root.querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("button", { name: /^Status: Open/ }))
     await userEvent.tab()
-    await expectRing(within(root.querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("button", { name: /^Priority: No priority/ }))
+    await expectRing(within(root.querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("combobox", { name: /^Priority: No priority/ }))
   },
 }

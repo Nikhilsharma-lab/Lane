@@ -1,7 +1,7 @@
 import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, userEvent, within } from "storybook/test"
-import { Plus, ArrowRight, Download, Trash2, Circle, CircleCheck, CircleDot, TriangleAlert, CircleAlert } from "lucide-react"
+import { Plus, ArrowRight, Download, Trash2, Circle, CircleCheck, CircleDot, TriangleAlert, CircleAlert, Send, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
 import { Badge } from "@/components/arc/badge/badge"
@@ -50,6 +50,23 @@ const meta = { title: "Design review/Supabase controls", parameters: { layout: "
 export default meta
 type Story = StoryObj<typeof meta>
 export const Review: Story = {}
+export const ButtonIconSizing: Story = {
+  render: () => <div className="flex flex-wrap items-center gap-3 p-6">
+    <Button size="sm"><Send aria-hidden="true" />Small send</Button>
+    <Button size="md"><Send aria-hidden="true" />Medium send</Button>
+    <Button size="lg"><Send aria-hidden="true" />Large send</Button>
+    <Button size="sm" disabled><Send aria-hidden="true" />Post comment</Button>
+    <Button size="sm" disabled aria-busy="true"><LoaderCircle aria-hidden="true" className="motion-safe:animate-spin motion-reduce:animate-none" />Posting…</Button>
+  </div>,
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement)
+    for (const [name, size] of [["Small send", "14px"], ["Medium send", "18px"], ["Large send", "20px"], ["Post comment", "14px"], ["Posting…", "14px"]]) {
+      const icon = c.getByRole("button", { name }).querySelector("svg")!
+      await expect(getComputedStyle(icon).width).toBe(size)
+      await expect(getComputedStyle(icon).height).toBe(size)
+    }
+  },
+}
 export const VerifiedControls: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement)

@@ -40,6 +40,6 @@ export function LinearRequestsFixture(args: ComponentProps<typeof RequestsShellF
     return { ...request, requestNumber: number, requestType: request.requestType ?? REQUEST_TYPES[index % REQUEST_TYPES.length], ...changes[request.id] }
   })
   return <ToastStackProvider><NewRequestProvider context={args.context ?? { orgId: "org_storybook" }} draftOwnerId="linear-preview-person">
-    <RequestsShellFixture {...args} requests={requests} linearPreviewAutoCollapse />
+    <RequestsShellFixture {...args} requests={requests} />
   <ToastStack morph="plain" label="Messages" /></NewRequestProvider></ToastStackProvider>
 }

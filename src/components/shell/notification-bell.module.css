@@ -7,7 +7,7 @@
 .title strong { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
 .error { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-3); }
 .error p { margin: 0; color: var(--danger); font-size: var(--text-sm); }
-.spinner { width: var(--sb-button-icon-medium); height: var(--sb-button-icon-medium); border: calc(var(--sb-spacing) * .5) solid var(--border); border-top-color: var(--foreground); border-radius: var(--radius-pill); animation: spin var(--sb-duration-spin) linear infinite; }
+.spinner { width: var(--icon-size-xl); height: var(--icon-size-xl); border: calc(var(--sb-spacing) * .5) solid var(--border); border-top-color: var(--foreground); border-radius: var(--radius-pill); animation: spin var(--sb-duration-spin) linear infinite; }
 .panel button:focus-visible { background: var(--surface-muted); color: var(--foreground); }
 .panel button:disabled { opacity: var(--sb-opacity-disabled); cursor: not-allowed; }
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -66,14 +66,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             </AnimatePresence>
           </span>
           <SelectPrimitive.Icon className={styles.chevron}>
-            <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+            <ChevronDown strokeWidth={1.75} aria-hidden="true" />
           </SelectPrimitive.Icon>
           </>}
         </SelectPrimitive.Trigger>
         <SelectPrimitive.Portal>
           <SelectPrimitive.Content aria-label={label} data-ui-surface="floating" data-custom-trigger={trigger ? "" : undefined} className={styles.content} position="popper" sideOffset={4} collisionPadding={12} onKeyDown={onContentKeyDown}>
             <SelectPrimitive.ScrollUpButton className={styles.scrollButton}>
-              <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
+              <ChevronUp strokeWidth={1.75} aria-hidden="true" />
             </SelectPrimitive.ScrollUpButton>
             <SelectPrimitive.Viewport className={styles.viewport}>
               {options.map((option) => (
@@ -81,13 +81,13 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
                   {option.icon && <span className={styles.optionIcon} aria-hidden="true">{option.icon}</span>}
                   <SelectPrimitive.ItemText className={styles.itemText}>{option.label}</SelectPrimitive.ItemText>
                   <SelectPrimitive.ItemIndicator className={styles.indicator}>
-                    <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+                    <Check strokeWidth={1.75} aria-hidden="true" />
                   </SelectPrimitive.ItemIndicator>
                 </SelectPrimitive.Item>
               ))}
             </SelectPrimitive.Viewport>
             <SelectPrimitive.ScrollDownButton className={styles.scrollButton}>
-              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+              <ChevronDown strokeWidth={1.75} aria-hidden="true" />
             </SelectPrimitive.ScrollDownButton>
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>

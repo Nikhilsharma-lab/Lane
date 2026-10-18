@@ -6,7 +6,7 @@ import { RequestsOverview } from "@/app/(app)/requests-overview"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import { listProjects } from "@/app/(app)/intake/project-actions"
 import { Button } from "@/components/arc/button/button"
-import { SidebarView } from "@/components/shell/sidebar-view"
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 import { NewRequestProvider } from "@/components/requests/new-request-provider"
 import { PendingMutationsProvider, usePendingMutationWriter } from "@/components/requests/pending-mutations-provider"
@@ -29,8 +29,7 @@ const firstRequest: OverviewRequest = {
 function Workspace({ role = "admin", children, outside }: { role?: Role; children: ReactNode; outside?: ReactNode }) {
   return <RequestListViewProvider><PendingMutationsProvider>
     <NewRequestProvider context={context} draftOwnerId="welcome-fixture-person">
-      <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role={role} pathname="/" statusFilter="all"
-        projectFilter="all" projects={[]} notifications={null} onSignOut={() => {}} linearPreviewAutoCollapse>{children}</SidebarView>
+      <WorkspaceSidebarFixture role={role} pathname="/" projects={[]} requests={[]} orgId={context.orgId}>{children}</WorkspaceSidebarFixture>
       {outside}
     </NewRequestProvider>
   </PendingMutationsProvider></RequestListViewProvider>

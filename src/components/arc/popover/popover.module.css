@@ -2,12 +2,12 @@
 .anchor:active:not(:disabled) { transform: none; }
 .content {
   --popover-x: 0px;
-  --popover-y: -5px;
+  --popover-y: calc(var(--space-1) * -1.25);
   z-index: 80;
-  min-width: 12rem;
-  max-width: min(22rem, calc(100vw - 20px));
-  padding: var(--popover-padding, 1rem);
-  border: var(--floating-border-width, 1px) solid var(--border);
+  min-width: calc(var(--space-1) * 48);
+  max-width: min(calc(var(--space-1) * 88), calc(100vw - calc(var(--space-1) * 5)));
+  padding: var(--popover-padding, calc(var(--space-1) * 4));
+  border: var(--floating-border-width, var(--border-width)) solid var(--border);
   border-radius: var(--radius-panel);
   background: var(--surface-raised);
   color: var(--foreground);
@@ -17,9 +17,9 @@
 }
 /* The panel starts a few pixels toward its trigger and settles on a spring; it leaves faster than it arrives.
    Transitions instead of keyframes, so a close that interrupts the open, or a reopen during the close, reverses from where the panel is. */
-.content[data-side="top"] { --popover-y: 5px; }
-.content[data-side="left"] { --popover-x: 5px; --popover-y: 0px; }
-.content[data-side="right"] { --popover-x: -5px; --popover-y: 0px; }
+.content[data-side="top"] { --popover-y: calc(var(--space-1) * 1.25); }
+.content[data-side="left"] { --popover-x: calc(var(--space-1) * 1.25); --popover-y: 0px; }
+.content[data-side="right"] { --popover-x: calc(var(--space-1) * -1.25); --popover-y: 0px; }
 @starting-style {
   .content[data-state="open"] { opacity: 0; transform: translate(var(--popover-x), var(--popover-y)) scale(.97); }
 }
