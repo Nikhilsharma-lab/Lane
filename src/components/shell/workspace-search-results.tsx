@@ -12,7 +12,7 @@ import { BottomSheet } from "@/components/arc/bottom-sheet/bottom-sheet";
 import { Button } from "@/components/arc/button/button";
 import buttonStyles from "@/components/arc/button/button.module.css";
 import { Checkbox } from "@/components/arc/checkbox/checkbox";
-import { DateRangePicker, type DateRange } from "@/components/arc/date-range-picker/date-range-picker";
+import { DateRangePicker, preloadDateRangePicker, type DateRange } from "@/components/date-range-picker-lazy";
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { FilterToolbar, type FilterChip } from "@/components/arc/filter-toolbar/filter-toolbar";
@@ -94,7 +94,7 @@ function Facets({ data, filters, category, onCategory, onChange, onDates }: { da
     <fieldset className={styles.facetGroup}><legend>Request type</legend>
       {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
-    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{dateLabel(filters.createdFrom)} to {dateLabel(filters.createdTo!)}</span> : null}</div>
+    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{dateLabel(filters.createdFrom)} to {dateLabel(filters.createdTo!)}</span> : null}</div>
   </div>;
 }
 

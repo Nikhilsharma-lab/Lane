@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, type RefObject } from "react"
-import { DateRangePicker } from "@/components/arc/date-range-picker/date-range-picker"
+import { DateRangePicker } from "@/components/date-range-picker-lazy"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import styles from "./measurement-date-dialog.module.css"
 
@@ -40,8 +40,11 @@ export function MeasurementDateDialog({ open, startDate, endDate, onOpenChange, 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title="Measurement date range" className={styles.dialog} overlayClassName={styles.overlay} aria-describedby={undefined}
       onOpenAutoFocus={event => {
+        // The calendar focuses its own day once it has loaded; until then Radix's default keeps focus inside the dialog.
+        const day = bodyRef.current?.querySelector<HTMLButtonElement>('[data-current] [data-date][tabindex="0"]')
+        if (!day) return
         event.preventDefault()
-        bodyRef.current?.querySelector<HTMLButtonElement>('[data-current] [data-date][tabindex="0"]')?.focus({ preventScroll: true })
+        day.focus({ preventScroll: true })
       }}
       onCloseAutoFocus={event => {
         if (returnFocusRef?.current) { event.preventDefault(); returnFocusRef.current.focus() }
