@@ -1,10 +1,10 @@
 .badge {
   display: inline-flex;
-  min-height: 26px;
+  min-height: var(--badge-height, 26px);
   align-items: center;
   border: 1px solid var(--badge-border, var(--border));
   border-radius: var(--radius-pill);
-  padding: 0 10px;
+  padding: var(--badge-padding-y, 0px) var(--badge-padding-x, 10px);
   color: var(--badge-foreground, var(--foreground));
   background: var(--badge-background, var(--surface));
   font-size: var(--text-xs);
@@ -20,11 +20,14 @@
 @media (hover: hover) and (pointer: fine) {
   .badge:hover { border-color: var(--badge-hover-border, color-mix(in oklab, var(--badge-color, var(--foreground)) 32%, var(--border))); background: var(--badge-hover-background, color-mix(in oklab, var(--badge-color, var(--foreground)) 10%, var(--surface))); }
 }
-.sm { min-height: var(--badge-sm-height, 22px); padding: 0 var(--badge-sm-padding, 8px); font-size: var(--badge-sm-font, 11px); }
+.sm { min-height: var(--badge-sm-height, 22px); padding: var(--badge-padding-y, 0px) var(--badge-sm-padding, 8px); font-size: var(--badge-sm-font, 11px); }
 .md { font-size: var(--text-xs); }
+/* Optical inset for a leading icon; text-only pills retain symmetric padding. */
+.badge:has(.icon) { padding-inline-start: var(--badge-icon-padding-start, var(--badge-padding-x, 10px)); }
+.sm:has(.icon) { padding-inline-start: var(--badge-sm-icon-padding-start, var(--badge-sm-padding, 8px)); }
 
 .body { display: block; }
-.content { position: relative; display: flex; width: max-content; align-items: center; gap: 5px; }
+.content { position: relative; display: flex; width: max-content; align-items: center; gap: var(--badge-gap, 5px); }
 .sm .content { gap: var(--badge-sm-gap, 4px); }
 .label, .glyph { position: relative; display: inline-flex; align-items: center; }
 .text { display: block; }

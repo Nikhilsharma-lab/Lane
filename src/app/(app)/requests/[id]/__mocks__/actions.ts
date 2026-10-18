@@ -8,5 +8,6 @@ export const pickUpRequests = fn<typeof Actions.pickUpRequests>().mockName("pick
 export const markDoneMany = fn<typeof Actions.markDoneMany>().mockName("markDoneMany")
 export const undoMarkDone = fn<typeof Actions.undoMarkDone>().mockName("undoMarkDone")
 export const setRequestPriority = fn<typeof Actions.setRequestPriority>().mockName("setRequestPriority")
+export const saveRequestCurrentValues = fn<typeof Actions.saveRequestCurrentValues>().mockName("saveRequestCurrentValues")
 export const addComment = fn<typeof Actions.addComment>().mockName("addComment")
 export const getAttachmentDownloadUrl = fn<typeof Actions.getAttachmentDownloadUrl>().mockName("getAttachmentDownloadUrl")

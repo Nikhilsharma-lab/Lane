@@ -1,0 +1,9 @@
+.section,
+.form { display: grid; min-width: 0; gap: var(--space-3); }
+.header { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-3); }
+.copy { display: grid; min-width: 0; flex: 1; gap: var(--space-1); }
+.heading { margin: 0; font-size: var(--text-base); font-weight: var(--sb-font-weight-medium); }
+.hint { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--sb-spacing) * 64)), 1fr)); min-width: 0; gap: var(--space-4); }
+.fields input { font-variant-numeric: tabular-nums; }
+.actions { display: flex; justify-content: flex-start; }

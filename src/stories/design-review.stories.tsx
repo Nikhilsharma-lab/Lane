@@ -458,16 +458,12 @@ export const ReviewerPickerKeyboard: Story = {
     await expect(selected.getByText("Taylor Chen")).toBeVisible()
     await userEvent.keyboard("{Tab}")
     await expect(canvas.getByRole("button", { name: "Ask for review" })).toHaveFocus()
-    // The list is one tab stop (roving tabindex), not one per row: Tab from the search field reaches its current option,
-    // a second Tab leaves the popover to the submit (the content is portalled, so the leave starts from the trigger) and
-    // the popover closes.
+    // Options use one roving stop: Tab from the search field leaves the popover to the submit, and the popover closes.
     canvas.getByRole("button", { name: "Add reviewers" }).focus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() => expect(page().getByRole("searchbox", { name: "Search teammates" })).toHaveFocus())
     await page().findByRole("option", { name: "Sam Lee" })
     await expect(page().getAllByRole("option").filter(option => option.tabIndex === 0)).toHaveLength(1)
-    await userEvent.keyboard("{Tab}")
-    await expect(page().getByRole("option", { name: "Sam Lee" })).toHaveFocus()
     await userEvent.keyboard("{Tab}")
     await expect(canvas.getByRole("button", { name: "Ask for review" })).toHaveFocus()
     await waitFor(() => expect(page().queryByRole("listbox", { name: "Teammates" })).not.toBeInTheDocument())
@@ -507,10 +503,10 @@ async function expectDenseRows(canvasElement: HTMLElement) {
   await expect(rows).toHaveLength(2)
   const withoutNote = reviewerRow(canvasElement, "Taylor Chen")
   const height = withoutNote.getBoundingClientRect().height
-  await expect(height).toBeGreaterThanOrEqual(32)
+  await expect(height).toBeGreaterThanOrEqual(26)
   await expect(height).toBeLessThanOrEqual(48)
   for (const row of rows) {
-    await expect(getComputedStyle(row).fontSize).toBe("13px")
+    await expect(getComputedStyle(row).fontSize).toBe("14px")
     const name = within(row).getByText(/Sam Lee|Taylor Chen/)
     await expect(getComputedStyle(name).fontWeight).toBe("500")
   }
@@ -518,7 +514,7 @@ async function expectDenseRows(canvasElement: HTMLElement) {
   noHorizontalScroll()
 }
 
-/** Reviewer rows are 13px on the 32px grid: the name at 500, the decision badge and the time trailing. */
+/** Reviewer rows use the approved Supabase 14px type and 26px minimum: the name at 500, the decision badge and the time trailing. */
 export const DenseRoundRows: Story = {
   args: { initialState: reviewed },
   play: async ({ canvasElement }) => { await expectDenseRows(canvasElement) },

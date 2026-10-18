@@ -21,7 +21,7 @@ import MembersLoading from "@/app/(app)/settings/members/loading"
 import requestsMeta from "./requests.stories"
 import { background } from "./helpers/rendered-colours"
 
-// Plan item 2.0: one 44px strip per page, built from the shell's trail and the
+// Plan item 2.0: one token-sized strip per page, built from the shell's trail and the
 // page's own title, tools, action and overflow; skeletons render the same strip.
 // Illustrative fixtures only; Storybook mocks every server action.
 const context = { orgId: "org_storybook" }
@@ -62,8 +62,16 @@ async function expectPinnedViewport({ globals, parameters }: Pick<StoryContext, 
 }
 const pageStrips = (main: HTMLElement) => main.querySelectorAll<HTMLElement>('[data-slot="page-strip"]')
 const noHorizontalScroll = () => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
-/** 44px at every pointer type: the strip's rule is not a border, so 44px touch controls fit inside. */
-const expectStripHeight = (strip: Element) => expect(Math.round(strip.getBoundingClientRect().height)).toBe(44)
+/** Resolve the approved header token in the browser, then check its exact rendered height. */
+async function expectStripHeight(strip: Element) {
+  const probe = document.createElement("span")
+  probe.style.cssText = "position: absolute; visibility: hidden; height: var(--workspace-header-height); width: 0; padding: 0; border: 0"
+  strip.append(probe)
+  const expected = probe.getBoundingClientRect().height
+  probe.remove()
+  await expect(expected).toBeGreaterThan(0)
+  await expect(Math.round(strip.getBoundingClientRect().height)).toBe(Math.round(expected))
+}
 /** The end group stops at its last painted control: a hidden or empty action slot adds no gap. */
 async function expectNoTrailingGap(strip: HTMLElement) {
   const end = strip.lastElementChild!
@@ -292,4 +300,3 @@ export const DetailSkeletonMatchesLoaded390: Story = {
   render: () => <SkeletonSwap pathname="/requests/fixture-request" skeleton={<DetailLoading />} page={<DetailPage />} />,
   play: detailSwap,
 }
-

@@ -20,8 +20,9 @@ import { Input } from "@/components/arc/input/input";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { clearIntakeDraft, intakeDraftScope, readIntakeDraft, writeIntakeDraft } from "@/lib/intake-draft";
-import { fillMetricImpact, metricImpact } from "./fixtures/request-impact";
+import { fillMetricImpact, measurementImpact, metricImpact } from "./fixtures/request-impact";
 import { WorkspaceProjectsProvider, useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
+import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { assertWorkspaceCanSwitch } from "@/lib/workspace-switch-guard";
 
 const context = { orgId: "storybook-composer-workspace" };
@@ -125,7 +126,7 @@ async function waitForInteractive(element: HTMLElement) {
 async function projectSurface(page: ReturnType<typeof within>) {
   const surface = await page.findByRole("dialog", { name: "Choose a Project" });
   await expect(page.getAllByRole("dialog", { name: "Choose a Project" })).toHaveLength(1);
-  await waitFor(() => expect(within(surface).getByRole("searchbox", { name: "Search Projects" })).toBeVisible());
+  await waitFor(() => expect(within(surface).getByRole("button", { name: "New Project" })).toBeVisible());
   return within(surface);
 }
 
@@ -154,7 +155,7 @@ export const Open: Story = {
     const { composer, dialog } = opened;
     await expect(loading.seen).toHaveLength(0);
     await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
-    // One stable dialog name, a 44px strip, and the description kept for assistive tech.
+    // One stable dialog name, the shared token-height strip, and an accessible description.
     await expect(within(dialog).getByRole("heading", { name: "New Request" })).toBeVisible();
     await expect(dialog).toHaveAccessibleDescription("Describe your Request and the result you expect.");
     // The centred composer dialog (2026-10-13), not a drawer at the edge. Geometry is read once its entrance settles.
@@ -168,7 +169,7 @@ export const Open: Story = {
     });
     await expect(box.left).toBeGreaterThan(0);
     const header = within(dialog).getByRole("heading", { name: "New Request" }).parentElement!.parentElement!;
-    await expect(header.offsetHeight).toBe(44);
+    await expect(header.offsetHeight).toBe(Number.parseFloat(getComputedStyle(header).minHeight));
     await expect(composer.getByRole("textbox", { name: "Description" })).toBeVisible();
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeEnabled();
     await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
@@ -344,6 +345,14 @@ export const LongReviewKeepsActionsVisible: Story = {
   },
 };
 
+/** Older saved drafts retain the legacy impact editor; new drafts start with MeasurementPlanFields. */
+function restoreLegacyEmptyDraft() {
+  writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
+    source: { title: "", description: "", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement", expectedImpact: { ...EMPTY_METRIC_IMPACT } },
+    review: null,
+  });
+}
+
 /** Folds the complete Expected impact with Done, as a person who filled it would. */
 async function foldImpact(composer: ReturnType<typeof within>) {
   await userEvent.click(composer.getByRole("button", { name: "Done" }));
@@ -364,6 +373,7 @@ async function expectImpactRevealed(composer: ReturnType<typeof within>, message
 
 export const TriageImpactErrorOpensDisclosure: Story = {
   beforeEach: () => {
+    restoreLegacyEmptyDraft();
     mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the expected impact before reviewing this Request." } });
   },
   play: async ({ canvasElement }) => {
@@ -382,6 +392,7 @@ export const TriageImpactErrorOpensDisclosure: Story = {
 
 export const SaveImpactErrorOpensDisclosure: Story = {
   beforeEach: () => {
+    restoreLegacyEmptyDraft();
     mocked(saveRequest).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Add the expected impact, then review this Request again before creating it." } });
   },
   play: async ({ canvasElement }) => {
@@ -394,6 +405,44 @@ export const SaveImpactErrorOpensDisclosure: Story = {
     const impact = await expectImpactRevealed(composer, "Add the expected impact, then review this Request again before creating it.");
     await expect(within(impact).getByRole("spinbutton", { name: "Goal" })).toHaveValue(metricImpact.target);
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
+    await expect(runTriage).toHaveBeenCalledTimes(2);
+    await expect(saveRequest).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const TriageMeasurementErrorKeepsDraft: Story = {
+  beforeEach: () => {
+    mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the measurement before reviewing this Request." } });
+  },
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await expect(await composer.findByText("Check the measurement before reviewing this Request.")).toBeVisible();
+    await waitFor(() => expect(composer.getByRole("combobox", { name: "Metric" })).toHaveFocus());
+    await expectDraftKept(composer);
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: measurementImpact }), context);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
+    await expect(runTriage).toHaveBeenCalledTimes(2);
+    await expect(saveRequest).not.toHaveBeenCalled();
+  },
+};
+
+export const SaveMeasurementErrorKeepsDraft: Story = {
+  beforeEach: () => {
+    mocked(saveRequest).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the measurement, then review this Request again." } });
+  },
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    await fillComposer(composer);
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
+    await expect(await composer.findByText("Check the measurement, then review this Request again.")).toBeVisible();
+    await waitFor(() => expect(composer.getByRole("combobox", { name: "Metric" })).toHaveFocus());
+    await expectDraftKept(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
     await expect(runTriage).toHaveBeenCalledTimes(2);
@@ -433,10 +482,10 @@ export const DraftSurvivesClose: Story = {
     const reopened = await openComposer(canvasElement);
     await expect(reopened.composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
     await expect(reopened.composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
-    await expect(reopened.composer.getByRole("textbox", { name: "What should improve?" })).toHaveValue(metricImpact.metric);
-    await expect(reopened.composer.queryByRole("spinbutton", { name: "Today (optional)" })).not.toBeInTheDocument();
-    await expect(reopened.composer.getByRole("button", { name: "Add current value" })).toBeVisible();
-    await expect(reopened.composer.getByRole("spinbutton", { name: "Goal" })).toHaveValue(90);
+    await expect(reopened.composer.getByRole("combobox", { name: "Metric" })).toHaveTextContent("Conversion rate");
+    await expect(reopened.composer.getByRole("spinbutton", { name: "Current value" })).toHaveValue(null);
+    await expect(reopened.composer.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
+    await expect(reopened.composer.getByRole("button", { name: "Measurement window" })).toHaveTextContent("14 days after release");
     await expect(reopened.composer.getByText("interview-notes.txt")).toBeVisible();
     await expect(prepareAttachmentUpload).not.toHaveBeenCalled();
   },
@@ -481,7 +530,7 @@ export const CreateWithoutLeaving: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toBeVisible());
     await expect(runTriage).toHaveBeenCalledTimes(1);
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: measurementImpact }), context);
     await expect(saveRequest).not.toHaveBeenCalled();
     await userEvent.click(composer.getByRole("button", { name: "Create Request" }));
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
@@ -706,6 +755,7 @@ export const DirectIntakeEntry: Story = {
 };
 
 export const CompactImpactValidation: Story = {
+  beforeEach: restoreLegacyEmptyDraft,
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     const impact = composer.getByRole("button", { name: "Add expected impact" });
@@ -759,9 +809,9 @@ export const CreateProjectInline: Story = {
     const { page, composer } = await openComposer(canvasElement);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    const search = project.getByRole("searchbox", { name: "Search Projects" });
-    await userEvent.type(search, "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await composer.findByRole("button", { name: "Project: Marketing" })).toBeVisible());
     await expect(createProject).toHaveBeenCalledWith({ name: "Marketing" }, context);
     await expect(getRouter().push).not.toHaveBeenCalled();
@@ -814,7 +864,7 @@ export const NewProjectCancelPreservesDraft: Story = {
     await userEvent.click(project.getByRole("button", { name: "New Project" }));
     await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Abandoned name");
     await userEvent.click(project.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(project.getByRole("searchbox", { name: "Search Projects" })).toHaveFocus());
+    await waitFor(() => expect(project.getByRole("option", { name: "Website" })).toHaveFocus());
     await expect(project.getByRole("option", { name: "Website" })).toHaveAttribute("aria-selected", "true");
     await expect(project.getByRole("button", { name: "New Project" })).toBeVisible();
     await expect(createProject).not.toHaveBeenCalled();
@@ -858,8 +908,9 @@ export const CreateProjectUpdatesWorkspace: Story = {
     const { page, composer } = await openComposer(canvasElement);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await expect(await composer.findByRole("button", { name: "Project: Marketing" })).toBeVisible();
     await expect(canvas.getByLabelText("Shared Project options")).toHaveTextContent("Marketing, Website");
     await waitFor(() => expect(composer.getByRole("button", { name: "Project: Marketing" }).querySelector('[data-motion-pop-id][aria-hidden="true"]')).toBeNull());
@@ -872,8 +923,8 @@ export const ExistingProjectAndClear: Story = {
     await waitFor(() => expect(composer.getByRole("textbox", { name: "Request title" })).toHaveFocus());
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "website");
-    await expect(project.queryByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+    await expect(project.queryByRole("searchbox")).not.toBeInTheDocument();
+    await waitFor(() => expect(project.getByRole("option", { name: "No project" })).toHaveFocus());
     await userEvent.keyboard("{ArrowDown}{Enter}");
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Choose a Project" })).not.toBeInTheDocument());
     await waitFor(async () => expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible());
@@ -882,8 +933,11 @@ export const ExistingProjectAndClear: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Project: Website" }));
     await waitFor(() => expect(composer.getByRole("button", { name: "Project: Website" })).toHaveAttribute("aria-expanded", "true"));
     const reopenedProject = await projectSurface(page);
-    const search = reopenedProject.getByRole("searchbox", { name: "Search Projects" });
-    await expect(search).toHaveValue("");
+    await waitFor(() => expect(reopenedProject.getByRole("option", { name: "Website" })).toHaveFocus());
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(reopenedProject.getByRole("button", { name: "New Project" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(reopenedProject.getByRole("option", { name: "No project" })).toHaveFocus();
     await userEvent.click(await reopenedProject.findByRole("option", { name: "No project" }));
     await waitForInteractive(composer.getByRole("combobox", { name: "Request type" }));
     await expect(composer.getByRole("button", { name: "Project" })).toBeVisible();
@@ -912,10 +966,11 @@ export const ProjectFailuresKeepDraft: Story = {
     const project = await projectSurface(page);
     await waitFor(async () => expect(await page.findByText("Projects could not be loaded. Try again.")).toBeVisible());
     await userEvent.click(project.getByRole("button", { name: "Retry Projects" }));
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await page.findByText("The Project could not be created. Try again.")).toBeVisible());
-    await waitFor(() => expect(project.getByRole("searchbox", { name: "Search Projects" })).toHaveFocus());
+    await waitFor(() => expect(project.getByRole("textbox", { name: "Project name" })).toHaveFocus());
     await userEvent.keyboard("{Escape}");
     await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
@@ -933,8 +988,9 @@ export const CreatingProjectCannotRaceReview: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.type(project.getByRole("searchbox", { name: "Search Projects" }), "Marketing");
-    await userEvent.click(await project.findByRole("option", { name: "Create “Marketing”" }));
+    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Marketing");
+    await userEvent.click(project.getByRole("button", { name: "Create Project" }));
     await waitFor(async () => expect(await page.findByText("Creating Project…")).toBeVisible());
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeDisabled();
     await userEvent.keyboard("{Control>}{Enter}{/Control}{Escape}");
@@ -983,8 +1039,10 @@ async function reachReview(canvasElement: HTMLElement) {
 async function expectDraftKept(composer: ReturnType<typeof within>) {
   await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
   await expect(composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
-  await expect(composer.getByRole("textbox", { name: "What should improve?" })).toHaveValue(metricImpact.metric);
-  await expect(composer.getByRole("spinbutton", { name: "Goal" })).toHaveValue(metricImpact.target);
+  await expect(composer.getByRole("combobox", { name: "Metric" })).toHaveTextContent("Conversion rate");
+  await expect(composer.getByRole("spinbutton", { name: "Current value" })).toHaveValue(null);
+  await expect(composer.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(measurementImpact.primary.target);
+  await expect(composer.getByRole("button", { name: "Measurement window" })).toHaveTextContent("14 days after release");
 }
 
 export const DraftRestored: Story = {
@@ -1027,6 +1085,7 @@ export const DraftRestored: Story = {
 };
 
 export const ImpactValidationExpands: Story = {
+  beforeEach: restoreLegacyEmptyDraft,
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await userEvent.type(composer.getByRole("textbox", { name: "Request title" }), source.title);
@@ -1413,7 +1472,8 @@ export const UploadsLostWaitsForTheCheck: Story = {
     const composer = within(await page.findByRole("dialog", { name: "New Request" }));
     // While the reservations are checked, no list and no action can show, so
     // nothing can resolve the step before the check writes its answer.
-    await expect(await composer.findByRole("status", { name: "Checking your files" })).toBeVisible();
+    const checking = await composer.findByRole("status", { name: "Checking your files" });
+    await waitFor(() => expect(checking).toBeVisible());
     await expect(composer.queryByRole("heading", { name: "Some files weren’t added" })).not.toBeInTheDocument();
     await expect(composer.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
     await expect(composer.queryByRole("button", { name: "Open Request" })).not.toBeInTheDocument();
@@ -1492,6 +1552,7 @@ async function samplePanel(start: () => Promise<unknown>, ms: number) {
 const still = (transform: string) => transform === "none" || transform === "matrix(1, 0, 0, 1, 0, 0)";
 
 export const ReducedMotion: Story = {
+  beforeEach: restoreLegacyEmptyDraft,
   // Decision 8.22. Under prefers-reduced-motion (the visual harness, or
   // STORYBOOK_REDUCED_MOTION=reduce) the panel only fades and Expected impact
   // opens without a height animation. Otherwise the panel settles within the
@@ -1743,6 +1804,7 @@ export const CompactRequestTypeMenu: Story = {
 };
 
 export const GuardrailDraftInComposer: Story = {
+  beforeEach: restoreLegacyEmptyDraft,
   play: async ({ canvasElement }) => {
     const { composer, page, dialog } = await openComposer(canvasElement);
     await fillComposer(composer);

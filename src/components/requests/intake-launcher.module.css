@@ -6,7 +6,7 @@
 }
 
 .emptyState {
-  max-width: 32rem;
+  max-width: calc(var(--sb-spacing) * 128);
 }
 
 /* This launcher uses the existing Arc state with a plain monochrome glyph. */

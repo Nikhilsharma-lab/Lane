@@ -7,6 +7,7 @@ import { db, projects, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { parseRequestCode } from "@/lib/request-code";
+import { MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel } from "@/lib/request-measurement";
 import {
   WORKSPACE_SEARCH_PAGE_SIZE,
   WORKSPACE_SEARCH_QUERY_MAX,
@@ -34,6 +35,34 @@ function resultPage<T>(items: T[], total: number, page: number): WorkspaceSearch
   return { items, total, page, hasMore: (page + 1) * WORKSPACE_SEARCH_PAGE_SIZE < total };
 }
 
+// Persisted keys use the versioned metric catalog's display names. Custom
+// names remain searchable as plain text, including quotes and punctuation.
+function measurementMetricText(metric: SQLWrapper) {
+  const presets = MEASUREMENT_METRIC_OPTIONS.filter(({ value }) => value !== "custom" && value !== "check");
+  return sql`case ${metric} ->> 'key'
+    when 'custom' then ${metric} ->> 'name'
+    when 'check' then case ${metric} ->> 'check'
+      when 'keyboard' then 'Keyboard navigation'
+      when 'required' then 'Required-field validation'
+      when 'recovery' then 'Network error recovery'
+      else '' end
+    ${sql.join(presets.map(({ value, label }) => sql`when ${value} then case
+      when ${metric} ->> 'unit' = 'count' then ${measurementMetricLabel({ key: value, name: "", unit: "count" })}
+      else ${label} end`), sql` `)}
+    else '' end`;
+}
+
+function measurementMatches(query: string) {
+  const primary = sql`(${requests.expectedImpact} -> 'primary')`;
+  return sql`(${requests.expectedImpact} ->> 'kind' = 'measurement' and (
+    ${containsText(measurementMetricText(primary), query)}
+    or exists (select 1 from jsonb_array_elements(case
+      when jsonb_typeof(${requests.expectedImpact} -> 'guardrails') = 'array'
+      then ${requests.expectedImpact} -> 'guardrails' else '[]'::jsonb end) as measurement_guardrail(value)
+      where ${containsText(measurementMetricText(sql`measurement_guardrail.value`), query)})
+  ))`;
+}
+
 /**
  * The workspace search query for GET /api/search. The caller has
  * already checked membership and validated the input; database errors are
@@ -47,7 +76,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
   const requestWhere = and(
     eq(requests.orgId, auth.orgId),
     auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
-    or(requestNumber === null ? undefined : eq(requests.requestNumber, requestNumber), ...[
+    or(requestNumber === null ? undefined : eq(requests.requestNumber, requestNumber), measurementMatches(query), ...[
       requests.title, requests.description, requests.reframedProblem,
       requests.extractedSolution, requests.affectedPeople, requests.desiredChange,
       requests.observedEvidence, requests.uncertainty, requests.usefulLink,

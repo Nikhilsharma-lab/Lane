@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import { useOptionalDetailRequest } from "@/components/requests/detail-context";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
@@ -28,13 +29,19 @@ export function LifecycleButtons({
   status,
   context,
   isGuest = false,
+  pickupBlockedReason = null,
+  pickupRequester = null,
 }: {
   requestId: string;
   status: RequestStatus;
   context: { orgId: string };
   /** A guest has no lifecycle move (plan item 2.4); detail also hides the slot for guests. */
   isGuest?: boolean;
+  pickupBlockedReason?: string | null;
+  /** Set for a viewer who cannot edit the requester's current values. */
+  pickupRequester?: string | null;
 }) {
+  const readinessId = useId();
   const { pending, run } = useRecoverableAction();
   const overlay = usePendingMutations();
   const detail = useOptionalDetailRequest();
@@ -55,6 +62,7 @@ export function LifecycleButtons({
   const buttonStatus = pending && pressedFrom ? pressedFrom : shownStatus;
 
   async function runMove(kind: LifecycleMove) {
+    if (kind === "pick-up" && pickupBlockedReason) return;
     setPressedFrom(shownStatus);
     const hadFocus = Boolean(slot.current?.contains(document.activeElement));
     // On a refusal or a lost response useOptimisticAction rolls the patch back
@@ -76,11 +84,18 @@ export function LifecycleButtons({
 
   const move = allowedMove({ status: buttonStatus }, { isGuest });
   if (!move) return null;
+  const pickupMessage = move.move === "pick-up" && pickupBlockedReason
+    ? pickupRequester ? `Ask ${pickupRequester} to add current values before pickup.` : pickupBlockedReason
+    : null;
 
   return (
     <div ref={slot} data-slot="request-lifecycle-actions" className="flex items-center">
-      {/* Keyed by the move, so a finished pick up mounts a fresh Mark Done button. */}
-      <Button
+      {pickupMessage ? <Tooltip content={pickupMessage} side="bottom">
+        <span role="group" tabIndex={0} aria-label="Pickup unavailable" aria-describedby={readinessId}>
+          <Button size="sm" disabled aria-describedby={readinessId}>Pick up</Button>
+          <span id={readinessId} className="sr-only">{pickupMessage}</span>
+        </span>
+      </Tooltip> : <Button
         key={move.move}
         size="sm"
         onClick={() => { void runMove(move.move); }}
@@ -95,7 +110,7 @@ export function LifecycleButtons({
           />
         )}
         {pending ? (move.move === "pick-up" ? "Picking up…" : "Completing…") : move.label}
-      </Button>
+      </Button>}
     </div>
   );
 }

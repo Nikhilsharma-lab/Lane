@@ -6,8 +6,10 @@ import { AnimatePresence, motion, useReducedMotion, type Transition } from "moti
 import { Button } from "@/components/arc/button/button";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { ExpectedImpactFields } from "@/components/requests/expected-impact-fields";
-import { expectedImpactSchema, impactDraftState, impactSummaryLines, type ExpectedImpactDraft } from "@/lib/request-impact";
+import { expectedImpactSchema, impactDraftState, impactSummaryLines, type ExpectedImpactDraft as ImpactDraft } from "@/lib/request-impact";
 import styles from "./expected-impact-disclosure.module.css";
+
+type ExpectedImpactDraft = Exclude<ImpactDraft, { kind: "measurement" }>;
 
 export const IMPACT_PANEL_ID = "intake-impact-panel";
 
@@ -42,7 +44,7 @@ export function ExpectedImpactDisclosure({ value, onChange, disabled, errors, op
   const reduced = useReducedMotion();
   const state = impactDraftState(value);
   const complete = state === "complete" ? expectedImpactSchema.safeParse(value) : null;
-  const lines = complete?.success ? impactSummaryLines(complete.data) : null;
+  const lines = complete?.success && complete.data.kind !== "measurement" ? impactSummaryLines(complete.data) : null;
 
   function toggle() {
     if (open) {

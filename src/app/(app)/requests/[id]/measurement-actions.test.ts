@@ -1,0 +1,164 @@
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+
+const ORG = "org_measurement_actions", OTHER_ORG = "org_measurement_other";
+const OWNER = "user_measurement_owner", MEMBER = "user_measurement_member";
+let connection: ReturnType<typeof postgres>;
+let requestId: string;
+const api = () => import("./actions");
+const actAs = (userId = OWNER, orgRole = "org:member", orgId = ORG) => Object.assign(session, { userId, orgRole, orgId });
+const plan = (current: number | null = null) => ({
+  kind: "measurement" as const, version: 2 as const,
+  primary: { key: "conversion" as const, name: "", unit: "percent" as const, current, target: 80, noBaseline: false, check: "" },
+  measurement: { audience: "all" as const, platform: "all" as const, windowDays: 30, exactDates: false, startDate: "", endDate: "" },
+  guardrails: [{ key: "support" as const, name: "", unit: "count" as const, current: null as number | null, noBaseline: false as const, operator: "at_most" as const, limit: 20 }],
+});
+const saved = async (id = requestId) => (await connection`select expected_impact, status::text as status, assigned_to from requests where id = ${id}`)[0];
+const setPlan = async (value: ReturnType<typeof plan>, type: "improvement" | "new_feature" = "improvement") => connection`update requests set expected_impact=${connection.json(value)}, request_type=${type}::request_type where id=${requestId}`;
+const patch = (expectedImpact = plan(), primary: number | null = 50, guardrails: (number | null)[] = [10]) => ({ expectedImpact, primary, guardrails });
+
+beforeAll(async () => {
+  const databaseUrl = process.env.DATABASE_URL!;
+  const url = new URL(databaseUrl);
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Measurement actions require local lane_test");
+  connection = postgres(databaseUrl, { max: 4, prepare: false });
+  await connection`insert into organizations(id,name,slug) values (${ORG},'Measurement actions','measurement-actions'),(${OTHER_ORG},'Other measurement workspace','other-measurement-actions')`;
+  for (const id of [OWNER, MEMBER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`;
+});
+beforeEach(async () => {
+  actAs();
+  requestId = randomUUID();
+  await connection`insert into requests(id,org_id,title,description,created_by,request_type,expected_impact) values (${requestId},${ORG},'Measure this Request','Request context',${OWNER},'improvement',${connection.json(plan())})`;
+});
+afterAll(async () => {
+  if (!connection) return;
+  await connection`delete from organizations where id in (${ORG},${OTHER_ORG})`;
+  await connection`delete from profiles where id in (${OWNER},${MEMBER})`;
+  await connection.end();
+});
+
+describe("measurement pickup readiness", () => {
+  it("refuses pickup with a missing current value and writes no notification or assignment", async () => {
+    const { pickUpRequest } = await api();
+    actAs(MEMBER);
+    expect(await pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
+    expect(await saved()).toMatchObject({ status: "open", assigned_to: null });
+    expect(await connection`select id from notifications where request_id=${requestId}`).toHaveLength(0);
+  });
+  it("bulk pickup moves only ready Requests", async () => {
+    const ready = randomUUID();
+    const value = plan(50); value.guardrails[0].current = 10;
+    await connection`insert into requests(id,org_id,title,description,created_by,request_type,expected_impact) values (${ready},${ORG},'Ready Request','Context',${OWNER},'improvement',${connection.json(value)})`;
+    actAs(MEMBER);
+    const result = await (await api()).pickUpRequests([requestId, ready], { orgId: ORG });
+    expect(result.moved).toEqual([ready]);
+    expect(result.failed).toEqual([{ id: requestId, error: expect.stringMatching(/current value/i) }]);
+    expect(await saved()).toMatchObject({ status: "open", assigned_to: null });
+    expect(await saved(ready)).toMatchObject({ status: "in_progress", assigned_to: MEMBER });
+  });
+  it("requires guardrail values even for an explicit new-feature primary exception", async () => {
+    const value = plan(); value.primary.noBaseline = true;
+    await setPlan(value, "new_feature");
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
+    value.guardrails[0].current = 0;
+    await setPlan(value, "new_feature");
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
+  });
+  it.each(["single", "bulk"])("rechecks %s pickup readiness after waiting for a concurrent row update", async mode => {
+    const value = plan(50); value.guardrails[0].current = 10;
+    await setPlan(value);
+    const actions = await api();
+    actAs(MEMBER);
+    let attempt: Promise<unknown> | undefined;
+    await connection.begin(async transaction => {
+      await transaction`select id from requests where id=${requestId} for update`;
+      attempt = mode === "single"
+        ? actions.pickUpRequest(requestId, { orgId: ORG })
+        : actions.pickUpRequests([requestId], { orgId: ORG });
+      // Prove the pickup has reached its UPDATE and is waiting on this lock.
+      let waiting = false;
+      for (let check = 0; check < 100 && !waiting; check++) {
+        const rows = await connection`select pid from pg_stat_activity where datname='lane_test' and wait_event_type='Lock' and query like '%request_measurement_ready%'`;
+        waiting = rows.length > 0;
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(true);
+      value.primary.current = null;
+      await transaction`update requests set expected_impact=${transaction.json(value)} where id=${requestId}`;
+    });
+    const result = await attempt;
+    expect(result).toMatchObject(mode === "single" ? { error: expect.stringMatching(/current value/i) } : { moved: [], failed: [{ id: requestId, error: expect.stringMatching(/current value/i) }] });
+    expect(await saved()).toMatchObject({ status: "open", assigned_to: null });
+    expect(await connection`select id from notifications where request_id=${requestId}`).toHaveLength(0);
+  });
+});
+
+describe("requester current-value recovery", () => {
+  it("saves valid zeroes without changing metric definitions, targets, limits or status", async () => {
+    const result = await (await api()).saveRequestCurrentValues(requestId, patch(plan(), 0, [0]), { orgId: ORG });
+    expect(result).toMatchObject({ success: true });
+    expect(await saved()).toEqual({ expected_impact: { ...plan(), primary: { ...plan().primary, current: 0 }, guardrails: [{ ...plan().guardrails[0], current: 0 }] }, status: "open", assigned_to: null });
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
+  });
+  it("allows a requester to save partial current values without making the Request ready", async () => {
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(plan(), 35, [null]), { orgId: ORG })).toMatchObject({ success: true });
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
+    expect((await saved()).expected_impact.primary.current).toBe(35);
+  });
+  it("allows a guest to add values to their own Request but still forbids pickup", async () => {
+    actAs(OWNER, "org:guest");
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(), { orgId: ORG })).toMatchObject({ success: true });
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
+  });
+  it.each(["org:member", "org:admin", "org:guest"])("does not give a %s a requester ownership bypass", async role => {
+    actAs(MEMBER, role);
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(), { orgId: ORG })).toHaveProperty("error");
+    expect((await saved()).expected_impact).toEqual(plan());
+  });
+  it("hides Requests in another workspace and rejects forged workspace context", async () => {
+    actAs(OWNER, "org:member", OTHER_ORG);
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(), { orgId: ORG })).toEqual({ error: "Not found" });
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(), { orgId: OTHER_ORG })).toEqual({ error: "Not found" });
+    expect((await saved()).expected_impact).toEqual(plan());
+  });
+  it.each([
+    { primary: 101, guardrails: [10] },
+    { primary: -1, guardrails: [10] },
+    { primary: 50, guardrails: [1.5] },
+    { primary: 50, guardrails: [] },
+    { primary: 50, guardrails: [10, 20] },
+    { primary: "50", guardrails: [10] },
+    { primary: 50, guardrails: [10], target: 90 },
+  ])("rejects malformed or out-of-unit current values: %j", async input => {
+    expect(await (await api()).saveRequestCurrentValues(requestId, { expectedImpact: plan(), ...input }, { orgId: ORG })).toHaveProperty("error");
+    expect((await saved()).expected_impact).toEqual(plan());
+  });
+  it("cannot smuggle target or guardrail edits through the version snapshot", async () => {
+    const forged = plan(); forged.primary.target = 99; forged.guardrails[0].limit = 500;
+    expect(await (await api()).saveRequestCurrentValues(requestId, patch(forged), { orgId: ORG })).toHaveProperty("error");
+    expect((await saved()).expected_impact).toEqual(plan());
+  });
+  it("prevents a stale editor from overwriting saved current values", async () => {
+    const actions = await api();
+    const outcomes = await Promise.all([
+      actions.saveRequestCurrentValues(requestId, patch(plan(), 50, [10]), { orgId: ORG }),
+      actions.saveRequestCurrentValues(requestId, patch(plan(), 60, [12]), { orgId: ORG }),
+    ]);
+    expect(outcomes.filter(result => "success" in result)).toHaveLength(1);
+    expect(outcomes.filter(result => "error" in result)).toHaveLength(1);
+    expect([50, 60]).toContain((await saved()).expected_impact.primary.current);
+  });
+  it("refuses current-value edits once work has been picked up", async () => {
+    const ready = plan(50); ready.guardrails[0].current = 10;
+    await setPlan(ready);
+    const actions = await api();
+    expect(await actions.pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
+    expect(await actions.saveRequestCurrentValues(requestId, patch(ready, 80, [15]), { orgId: ORG })).toHaveProperty("error");
+    expect((await saved()).expected_impact).toEqual(ready);
+  });
+});

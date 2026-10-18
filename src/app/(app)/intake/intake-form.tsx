@@ -58,9 +58,11 @@ import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
-import { ProjectPicker, RequestTypePicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
-import { REQUEST_TYPE_LABELS } from "@/lib/request-constants";
-import { EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
+import { ProjectPicker, RequestTypePicker, RequestPriorityPicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
+import { REQUEST_TYPE_LABELS, REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
+import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
+import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 import type { z } from "zod";
@@ -118,7 +120,8 @@ const emptyRequest: RequestInput = {
   usefulLink: "",
   projectId: null,
   requestType: null,
-  expectedImpact: EMPTY_METRIC_IMPACT,
+  priority: "none",
+  expectedImpact: createEmptyMeasurementPlan(),
 };
 
 const earlierDraftFields = [
@@ -269,7 +272,7 @@ export default function IntakeForm({
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
   const [mutationBusy, setMutationBusy] = useState(false);
-  // Expected impact starts folded, also after a draft is restored (decision 8.26).
+  // Only restored legacy Expected impact uses the folded editor. New measurement plans stay visible.
   const [impactOpen, setImpactOpen] = useState(false);
   const [impactInstant, setImpactInstant] = useState(false);
 
@@ -298,6 +301,7 @@ export default function IntakeForm({
   const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composeFormRef = useRef<HTMLFormElement>(null);
   const attachFilesButtonRef = useRef<HTMLButtonElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
@@ -319,7 +323,7 @@ export default function IntakeForm({
   });
 
   const watched = useWatch({ control });
-  const currentValues: RequestInput = useMemo(
+  const currentValues = useMemo(
     () => ({
       title: watched.title ?? "",
       description: watched.description ?? "",
@@ -330,7 +334,8 @@ export default function IntakeForm({
       usefulLink: watched.usefulLink ?? "",
       projectId: watched.projectId ?? null,
       requestType: watched.requestType ?? null,
-      expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? EMPTY_METRIC_IMPACT,
+      priority: watched.priority ?? "none",
+      expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? createEmptyMeasurementPlan(),
     }),
     [
       watched.affectedPeople,
@@ -342,6 +347,7 @@ export default function IntakeForm({
       watched.usefulLink,
       watched.projectId,
       watched.requestType,
+      watched.priority,
       watched.expectedImpact,
     ],
   );
@@ -1167,20 +1173,27 @@ export default function IntakeForm({
     onBusyChange?.(value);
   }
 
-  /** A failed submit opens Expected impact at once and focuses its first invalid field, or its first field. */
+  /** A failed submit focuses the visible measurement fields or opens a restored legacy editor. */
   function revealImpact() {
+    const impact = currentValues.expectedImpact;
+    if (impact?.kind === "measurement") {
+      const section = document.getElementById("intake-expected-impact");
+      (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section?.querySelector<HTMLElement>('[role="combobox"]') ?? section)?.focus();
+      return;
+    }
     flushSync(() => {
       setImpactInstant(true);
       setImpactOpen(true);
     });
     const panel = document.getElementById(IMPACT_PANEL_ID);
-    const kind = expectedImpactDraftSchema.parse(getValues("expectedImpact"))?.kind ?? "metric";
+    const kind = impact?.kind ?? "metric";
     (panel?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? firstImpactField(kind))?.focus();
   }
 
   function focusRequestField(field: keyof RequestInput) {
     if (field === "projectId") document.getElementById("intake-project")?.focus();
     else if (field === "requestType") document.getElementById("intake-request-type")?.focus();
+    else if (field === "priority") document.getElementById("intake-priority")?.focus();
     else if (field === "expectedImpact") revealImpact();
     else if (earlierDraftFields.some(({ name }) => name === field)) document.getElementById("intake-earlier-details")?.focus();
     else setFocus(field);
@@ -1188,6 +1201,13 @@ export default function IntakeForm({
 
   function submitForReview() {
     if (!active || checking || projectInFlight.current || hasGuardrailEdits(getValues("expectedImpact"))) return;
+    const invalidNumber = [...(composeFormRef.current?.querySelectorAll<HTMLInputElement>('input[type="number"]') ?? [])]
+      .find(input => !input.disabled && (input.validity.badInput || input.validity.customError));
+    if (invalidNumber) {
+      invalidNumber.focus();
+      invalidNumber.reportValidity();
+      return;
+    }
     onBusyChange?.(true);
     void handleSubmit(checkFraming, (fieldErrors) => {
       onBusyChange?.(false);
@@ -1215,6 +1235,7 @@ export default function IntakeForm({
         {composing && (
           <form
             id={formId}
+            ref={composeFormRef}
             hidden={checking}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
@@ -1277,27 +1298,45 @@ export default function IntakeForm({
 
             <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
               <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
-              <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => { draftEdited.current = true; setValue("requestType", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} error={errors.requestType?.message} />
+              <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => {
+                draftEdited.current = true;
+                const impact = getValues("expectedImpact");
+                if (value !== "new_feature" && impact?.kind === "measurement" && impact.primary.noBaseline) {
+                  setValue("expectedImpact", { ...impact, primary: { ...impact.primary, noBaseline: false } }, { shouldDirty: true });
+                }
+                setValue("requestType", value, { shouldDirty: true, shouldValidate: true });
+              }} disabled={checking || projectBusy} error={errors.requestType?.message} />
+              <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
               <Button type="button" variant="secondary" size="sm"  aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => setLinkOpen((open) => !open)} disabled={checking}>
-                {currentValues.usefulLink ? <CheckIcon size={14} strokeWidth={1.75} aria-hidden="true" /> : <PlusIcon size={14} strokeWidth={1.75} aria-hidden="true" />}Add link
+                <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
               </Button>
               <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
-                <PaperclipIcon size={14} strokeWidth={1.75} aria-hidden="true" data-icon="inline-start" />Attach files
+                <span className={styles.propertyContent}><PaperclipIcon aria-hidden="true" /><span>Attach files</span></span>
               </Button>
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            <ExpectedImpactDisclosure
-              value={expectedImpactDraftSchema.parse(currentValues.expectedImpact) ?? EMPTY_METRIC_IMPACT}
+            {currentValues.expectedImpact?.kind === "measurement" ? <>
+              {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
+                <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
+              )}
+              <MeasurementPlanFields
+              value={currentValues.expectedImpact}
+              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
+              requestType={currentValues.requestType ?? null}
+              disabled={checking}
+              submitted={isSubmitted}
+            /></> : currentValues.expectedImpact && <ExpectedImpactDisclosure
+              value={currentValues.expectedImpact}
               onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
               disabled={checking}
               errors={errors.expectedImpact}
               open={impactOpen}
               instant={impactInstant}
               onOpenChange={(open) => { setImpactInstant(false); setImpactOpen(open); }}
-            />
+            />}
             <section id="intake-link-section" hidden={!linkOpen} className="border-t pt-4" aria-label="Request link">
               <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
                 <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
@@ -1375,11 +1414,12 @@ export default function IntakeForm({
 
           <div className="space-y-1">
             <h3 className="break-words text-lg font-medium">{source.title}</h3>
-            {(source.projectId || source.requestType) && (
+            {(source.projectId || source.requestType || (source.priority && source.priority !== "none")) && (
               <p className="text-sm text-muted-foreground">
                 {[
                   source.projectId ? projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project" : null,
                   source.requestType ? REQUEST_TYPE_LABELS[source.requestType] : null,
+                  source.priority && source.priority !== "none" ? REQUEST_PRIORITY_LABELS[source.priority] : null,
                 ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
               </p>
             )}

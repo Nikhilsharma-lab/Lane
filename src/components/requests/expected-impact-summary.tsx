@@ -1,7 +1,9 @@
 import { formatGuardrail, type ExpectedImpact } from "@/lib/request-impact"
+import { MeasurementPlanSummary } from "./measurement-plan-summary"
 
 /** Plan item 2.5: Request detail passes id="expected-impact", a stable region its strip and stories address; the heading takes `${id}-heading`. */
 export function ExpectedImpactSummary({ impact, id }: { impact: ExpectedImpact; id?: string }) {
+  if (impact.kind === "measurement") return <MeasurementPlanSummary id={id} plan={impact} />
   const values = impact.kind === "metric"
     ? [
       { label: "Metric", value: impact.metric },

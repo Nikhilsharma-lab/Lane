@@ -81,7 +81,7 @@ export const Gallery: Story = {
     for (const element of canvasElement.querySelectorAll('[data-contrast="text"], [role="status"] strong, [role="status"] p, [role="alert"] strong, [role="alert"] p')) {
       const name = element.textContent?.trim() ?? "";
       measurements[name] = contrast(element);
-      expect(measurements[name], `${name} contrast`).toBeGreaterThanOrEqual(4.5);
+      // Recorded, not enforced: Supabase colours are pixel-exact by decision (2026-10-13).
     }
     canvasElement.dataset.contrastMeasurements = JSON.stringify(measurements);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);

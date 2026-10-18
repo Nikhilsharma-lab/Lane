@@ -5,12 +5,12 @@
 }
 
 .section {
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--sb-border-width) solid var(--border-subtle);
   padding-top: var(--space-3);
 }
 
 .header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.heading { margin: 0; font-size: var(--text-sm); font-weight: 500; }
+.heading { margin: 0; font-size: var(--text-sm); font-weight: var(--sb-font-weight-semibold); }
 .body,
 .fields { display: grid; min-width: 0; gap: var(--space-3); align-items: start; }
 .body { margin: 0; border: 0; padding: 0; }
@@ -21,13 +21,13 @@
 .more { margin-left: auto; }
 .iconButton { width: var(--control-height-sm); padding-inline: 0; }
 .guardrailMotion { min-width: 0; overflow: clip; }
-.guardrailPane { display: grid; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-muted); }
+.guardrailPane { display: grid; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-4); border: var(--sb-border-width) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-muted); }
 .paneHeader { display: grid; gap: var(--space-1); }
 .hint { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.5; }
-.guardrailControls { display: grid; grid-template-columns: 8.5rem var(--space-24) minmax(0, 1fr); align-items: start; gap: var(--space-3); min-width: 0; }
+.guardrailControls { display: grid; grid-template-columns: calc(var(--sb-spacing) * 34) var(--space-24) minmax(0, 1fr); align-items: start; gap: var(--space-3); min-width: 0; }
 .paneActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .guardrailSentence { margin: 0; overflow-wrap: anywhere; font-size: var(--text-sm); line-height: 1.5; }
-.guardrailSummary { display: flex; align-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+.guardrailSummary { display: flex; align-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: var(--sb-border-width) solid var(--border-subtle); }
 .summaryCopy { display: grid; min-width: 0; flex: 1; gap: var(--space-1); }
 .compactInput { min-height: var(--control-height-sm); }
 .compactTextarea { min-height: var(--space-16); padding: var(--space-2) var(--space-3); }

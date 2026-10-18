@@ -10,7 +10,9 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { ChevronDown, Ellipsis, Plus, Trash2 } from "lucide-react"
 import styles from "./expected-impact-fields.module.css"
-import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, formatGuardrail, guardrailSchema, hasGuardrailEdits, IMPACT_METRIC_MAX, IMPACT_RESULT_MAX, IMPACT_UNIT_MAX, IMPACT_REVIEW_DAYS_MAX, type ExpectedImpactDraft } from "@/lib/request-impact"
+import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, formatGuardrail, guardrailSchema, hasGuardrailEdits, IMPACT_METRIC_MAX, IMPACT_RESULT_MAX, IMPACT_UNIT_MAX, IMPACT_REVIEW_DAYS_MAX, type ExpectedImpactDraft as ImpactDraft } from "@/lib/request-impact"
+
+type ExpectedImpactDraft = Exclude<ImpactDraft, { kind: "measurement" }>
 
 type ImpactField = "metric" | "baseline" | "target" | "unit" | "result" | "source" | "reviewAfterDays"
 type ImpactErrors = { message?: string; guardrailEdit?: { message?: string }; guardrail?: Partial<Record<"metric" | "operator" | "limit" | "unit", { message?: string }>> } & Partial<Record<ImpactField, { message?: string }>>

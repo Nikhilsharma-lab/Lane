@@ -35,18 +35,18 @@ export const KeyboardAndRememberedWidth: Story = {
     await expect(handle).toHaveAttribute("aria-orientation", "vertical")
     await expect(handle).toHaveAttribute("aria-valuemin", "0")
     await expect(handle).toHaveAttribute("aria-valuemax", "400")
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     await expect(canvas.queryByRole("button", { name: "Collapse sidebar" })).not.toBeInTheDocument()
     handle.focus()
     await userEvent.keyboard("{ArrowRight}")
-    await expectWidth(handle, sidebar, 288)
+    await expectWidth(handle, sidebar, 224)
     await userEvent.keyboard("{Home}")
     await expectWidth(handle, sidebar, 0)
     await expect(sidebar).toHaveAttribute("inert")
     const expand = within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" })
     await expect(expand).toBeVisible()
     await userEvent.click(expand)
-    await expectWidth(handle, sidebar, 288)
+    await expectWidth(handle, sidebar, 224)
     await expect(sidebar).not.toHaveAttribute("inert")
     await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
     handle.focus()
@@ -54,7 +54,7 @@ export const KeyboardAndRememberedWidth: Story = {
     await expectWidth(handle, sidebar, 0)
     handle.focus()
     await userEvent.keyboard("{Enter}")
-    await expectWidth(handle, sidebar, 288)
+    await expectWidth(handle, sidebar, 224)
   },
 }
 
@@ -65,7 +65,7 @@ export const KeyboardLimits: Story = {
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     handle.focus()
-    for (const width of [256, 240, 224, 208, 200, 0]) {
+    for (const width of [200, 0]) {
       await userEvent.keyboard("{ArrowLeft}")
       await expectWidth(handle, sidebar, width)
     }
@@ -91,18 +91,18 @@ export const TypingKeepsLayout: Story = {
     const input = canvas.getByRole("textbox", { name: "Notes" })
     await userEvent.type(input, "[BracketLeft]")
     await expect(input).toHaveValue("[")
-    await expect(handle).toHaveAttribute("aria-valuenow", "272")
+    await expect(handle).toHaveAttribute("aria-valuenow", "208")
     const account = canvas.getByRole("button", { name: "Account menu, Alex Morgan" })
     await userEvent.click(account)
     await userEvent.keyboard("[BracketLeft]")
-    await expect(handle).toHaveAttribute("aria-valuenow", "272")
+    await expect(handle).toHaveAttribute("aria-valuenow", "208")
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("menu")).not.toBeInTheDocument())
     await userEvent.click(canvas.getByRole("button", { name: "Open example dialog" }))
     const dialog = await within(document.body).findByRole("dialog", { name: "Example dialog" })
     await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
     await userEvent.keyboard("[BracketLeft]")
-    await expect(handle).toHaveAttribute("aria-valuenow", "272")
+    await expect(handle).toHaveAttribute("aria-valuenow", "208")
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Example dialog" })).not.toBeInTheDocument())
   },
@@ -133,7 +133,7 @@ export const LinearPreviewResponsiveCollapse: Story = {
     const handle = canvasElement.querySelector<HTMLElement>('[role="separator"][aria-label="Resize sidebar"]')!
 
     if (innerWidth > 880) {
-      await expectWidth(handle, sidebar, 254)
+      await expectWidth(handle, sidebar, 208)
       await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
       await expect(handle).not.toHaveAttribute("aria-disabled")
       return
@@ -179,13 +179,13 @@ export const PointerResizeAndCollapseThreshold: Story = {
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     dragPointer(handle, "pointerdown", 300)
     dragPointer(handle, "pointermove", 370)
-    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "342"))
+    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "278"))
     dragPointer(handle, "pointerup", 370)
-    await expectWidth(handle, sidebar, 342)
+    await expectWidth(handle, sidebar, 278)
     dragPointer(handle, "pointerdown", 300)
-    dragPointer(handle, "pointermove", 138)
+    dragPointer(handle, "pointermove", 200)
     await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "200"))
-    dragPointer(handle, "pointerup", 138)
+    dragPointer(handle, "pointerup", 200)
     await expectWidth(handle, sidebar, 200)
     dragPointer(handle, "pointerdown", 200)
     dragPointer(handle, "pointermove", 159)
@@ -209,19 +209,19 @@ export const CancelledDragRestoresWidth: Story = {
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     dragPointer(handle, "pointerdown", 300)
     dragPointer(handle, "pointermove", 410)
-    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "382"))
+    await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "318"))
     dragPointer(handle, "pointercancel", 410)
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     dragPointer(handle, "pointerdown", 300)
     dragPointer(handle, "pointermove", 150)
     await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", "0"))
     await userEvent.keyboard("{Escape}")
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
     handle.focus()
     await userEvent.keyboard("{Home}")
     await expectWidth(handle, sidebar, 0)
     await userEvent.click(within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" }))
-    await expectWidth(handle, sidebar, 272)
+    await expectWidth(handle, sidebar, 208)
   },
 }
 
@@ -423,13 +423,13 @@ export const UnrelatedPointerCannotEndDrag: Story = {
     const handle = canvas.getByRole("separator", { name: "Resize sidebar" })
     dragPointer(handle, "pointerdown", 300)
     for (const [event, x, expected] of [
-      ["pointerup", 340, 312], ["pointercancel", 360, 332], ["lostpointercapture", 380, 352],
+      ["pointerup", 340, 248], ["pointercancel", 360, 268], ["lostpointercapture", 380, 288],
     ] as const) {
       dragPointer(handle, event, x, 99)
       dragPointer(handle, "pointermove", x)
       await waitFor(() => expect(handle).toHaveAttribute("aria-valuenow", String(expected)))
     }
     dragPointer(handle, "pointerup", 380)
-    await expectWidth(handle, sidebar, 352)
+    await expectWidth(handle, sidebar, 288)
   },
 }

@@ -56,7 +56,7 @@ function queryFor(table: "requests" | "projects", count = false) {
 }
 
 function whereClause(sql: string) {
-  return sql.split(" where ")[1].split(" order by ")[0].replace(/\$\d+/g, "$param");
+  return sql.slice(sql.indexOf(" where ") + 7).split(" order by ")[0].replace(/\$\d+/g, "$param");
 }
 
 describe("GET /api/search query and authorization contract", () => {
@@ -114,7 +114,9 @@ describe("GET /api/search query and authorization contract", () => {
     expect(requestQuery.sql).toContain('where ("requests"."org_id" =');
     expect(requestQuery.sql).toContain('"projects"."org_id" =');
     expect(requestQuery.sql).toContain('order by "requests"."created_at" desc, "requests"."id" desc');
-    expect(requestQuery.sql).not.toContain('(select');
+    // Guardrail text is an in-row JSON array lookup; the Request dataset must
+    // not be reduced to a latest-200 subquery before search and pagination.
+    expect(requestQuery.sql).not.toMatch(/from\s*\(select[^]*?from\s+"requests"/i);
     expect(requestQuery.params.slice(-2)).toEqual([20, 220]);
     expect(projectQuery.params.slice(-2)).toEqual([20, 60]);
     expect(projectQuery.sql).toContain('order by lower("projects"."name") asc, "projects"."id" asc');

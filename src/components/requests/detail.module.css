@@ -68,10 +68,10 @@
  * the negative block margin lets the full-height button sit in the row's one line. */
 .propertyButton { max-width: 100%; justify-content: flex-start; margin-block: calc((var(--property-line) - var(--control-height-sm)) / 2); margin-inline-start: calc(var(--space-2) * -1); padding-inline: var(--space-2); color: var(--foreground); }
 .avatar { width: 20px; height: 20px; flex: none; }
-.statusGlyph, .priorityGlyph { display: inline-flex; flex: none; color: var(--lane-content-label-muted, var(--text-secondary)); }
-.statusGlyph[data-status="in_progress"] { color: var(--lane-content-yellow-text, var(--warning)); }
-.statusGlyph[data-status="done"] { color: var(--lane-content-control-primary, var(--accent)); }
-.priorityGlyph[data-priority="urgent"] { color: var(--lane-content-orange-text, var(--danger)); }
+.statusGlyph, .priorityGlyph { display: inline-flex; flex: none; color: var(--text-secondary); }
+.statusGlyph[data-status="in_progress"] { color: var(--warning); }
+.statusGlyph[data-status="done"] { color: var(--accent); }
+.priorityGlyph[data-priority="urgent"] { color: var(--sb-color-orange-1100); }
 .sheet .properties { padding-bottom: var(--space-4); }
 @media (pointer: coarse) { .propertyRow { --property-row: 44px; } }
 

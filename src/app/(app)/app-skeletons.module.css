@@ -3,8 +3,8 @@
  * only and no animation here: Arc's pulse already honours reduced motion. */
 .titleSkeleton { display: block; width: 160px; max-width: 100%; }
 .toolbarStatus { display: block; width: 240px; max-width: 60%; }
-/* The loaded group header is as tall as its 44px group button. */
-.groupHeader { min-height: var(--request-row-height); }
+/* The group header matches the loaded table header, independently of record row height. */
+.groupHeader { min-height: var(--sb-table-head-height); }
 .groupLabel { display: block; width: 140px; max-width: 50%; padding-inline: var(--space-2); }
 .rowTitle { display: block; flex: 1 1 0; min-width: 0; padding-inline: var(--space-2); }
 .rowMeta { display: block; flex: none; width: 25%; max-width: 160px; }

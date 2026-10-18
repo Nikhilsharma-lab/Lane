@@ -10,16 +10,22 @@ import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { DesignReview } from "./requests/[id]/design-review-lazy"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
 import { RequestsOverview } from "./requests-overview"
+import { RequestCurrentValues } from "./requests/[id]/current-values"
+import { measurementReadiness } from "@/lib/request-measurement"
 
 function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
   returnHref: string; orgId: string; isGuest: boolean; currentUserId: string; viewerName: string; isAdmin: boolean;
 }) {
   const { request, isGuest } = props
+  const impact = request.expectedImpact
+  const pickupBlockedReason = measurementReadiness(impact, request.requestType)
+  const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
   // Plan item 2.5 (decision D9): a guest cannot ask for review, so the section shows only once a review exists.
   const showReview = !isGuest || (request.designReviews?.length ?? 0) > 0
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName }}
-    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} />}
+    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
+    currentValues={impact?.kind === "measurement" && request.status === "open" && request.createdBy === currentUserId ? <RequestCurrentValues requestId={request.id} context={{ orgId }} impact={impact} requestType={request.requestType} /> : undefined}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
     designReview={showReview ? <DesignReview requestId={request.id} initialState={{ version: request.designReviewVersion ?? 0, reviews: request.designReviews ?? [] }} currentUserId={currentUserId} canRequest={!isGuest} canManage={!isGuest && (isAdmin || request.createdBy === currentUserId)} context={{ orgId }} /> : undefined}

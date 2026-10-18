@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
-import { projectIdSchema, requestTypeSchema } from "./request-properties";
+import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -29,6 +29,7 @@ const sourceSchema = z.object({
   expectedImpact: expectedImpactDraftSchema,
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  priority: requestPrioritySchema.default("none"),
   title: z.string().max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX).default(""),
@@ -154,6 +155,7 @@ export function writeIntakeDraft(
     Boolean(draft.previousProblem?.trim()) ||
     draft.source.projectId != null ||
     draft.source.requestType != null ||
+    (draft.source.priority !== undefined && draft.source.priority !== "none") ||
     draft.source.title.trim().length > 0 ||
     draft.source.description.trim().length > 0 ||
     draft.source.affectedPeople.trim().length > 0 ||

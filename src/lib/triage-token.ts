@@ -1,7 +1,8 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { expectedImpactSchema } from "./request-impact";
-import { projectIdSchema, requestTypeSchema } from "./request-properties";
+import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
+import { measurementRequestTypeIssue } from "./request-measurement";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -28,6 +29,7 @@ const tokenPayloadSchema = z.object({
   expectedImpact: expectedImpactSchema.nullable().default(null),
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  priority: requestPrioritySchema.default("none"),
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().min(1).max(DESCRIPTION_MAX),
   affectedPeople: z.string().max(CONTEXT_MAX),
@@ -84,6 +86,7 @@ export function createTriageToken(
     expectedImpact: expectedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
     requestType: input.requestType ?? null,
+    priority: input.priority ?? "none",
     title: input.title,
     description: input.description,
     affectedPeople: input.affectedPeople,
@@ -141,6 +144,7 @@ export function verifyTriageToken(
     }
 
     if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };
+    if (measurementRequestTypeIssue(parsed.data.expectedImpact, parsed.data.requestType)) return { valid: false, reason: "invalid" };
     return { valid: true, payload: parsed.data };
   } catch {
     return { valid: false, reason: "invalid" };

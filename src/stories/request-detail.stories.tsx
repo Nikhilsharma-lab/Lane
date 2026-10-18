@@ -43,6 +43,17 @@ const toasts = (canvasElement: HTMLElement) => within(canvasElement).getByRole("
 const regionIds = (canvasElement: HTMLElement) => [...main(canvasElement).querySelectorAll<HTMLElement>("[data-detail-main] > section[id]")].map(section => section.id)
 const noHorizontalScroll = () => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
 
+/** Resolve the approved header token in the browser, then check its exact rendered height. */
+async function expectStripHeight(strip: Element) {
+  const probe = document.createElement("span")
+  probe.style.cssText = "position: absolute; visibility: hidden; height: var(--workspace-header-height); width: 0; padding: 0; border: 0"
+  strip.append(probe)
+  const expected = probe.getBoundingClientRect().height
+  probe.remove()
+  await expect(expected).toBeGreaterThan(0)
+  await expect(Math.round(strip.getBoundingClientRect().height)).toBe(Math.round(expected))
+}
+
 /** Opens the panel's Priority menu (from 960px of content) or the state line's sheet, and chooses one. */
 async function choosePriority(canvasElement: HTMLElement, label: string) {
   const page = within(document.body)
@@ -81,7 +92,7 @@ export const Default: Story = {
     await expect(main(canvasElement).querySelectorAll('[data-slot="page-strip"]')).toHaveLength(1)
     const crumbs = [...bar.querySelectorAll("nav li")].filter(item => item.getClientRects().length > 0).map(item => item.textContent)
     await expect(crumbs).toEqual(innerWidth <= 640 ? ["LAN-12"] : ["Lane Studio", "Website", "LAN-12"])
-    await expect(Math.round(bar.getBoundingClientRect().height)).toBe(44)
+    await expectStripHeight(bar)
     await expect(regionIds(canvasElement)).toEqual(["problem", "expected-impact", "files", "ask-for-review", "conversation"])
     const labels = [...main(canvasElement).querySelectorAll("[data-detail-panel] dt")].map(term => term.textContent)
     await expect(labels).toEqual(["Status", "Priority", "Assignee", "Project", "Type", "Submitted"])
@@ -128,7 +139,7 @@ export const LongContent: Story = {
   },
   play: async ({ canvasElement }) => {
     await canvasElement.ownerDocument.fonts.ready
-    await expect(Math.round(strip(canvasElement).getBoundingClientRect().height)).toBe(44)
+    await expectStripHeight(strip(canvasElement))
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
     if (innerWidth > 640) {
       const project = within(strip(canvasElement)).getByRole("link", { name: /^Checkout, delivery promises/ })
@@ -566,7 +577,7 @@ export const PhoneProperties: Story = {
   },
 }
 
-/** At 390 the strip keeps expand, back, the code, the action and More actions, in 44px with no trailing gap. */
+/** At 390 the strip keeps expand, back, the code, the action and More actions, at the header token height with no trailing gap. */
 export const PhoneStrip: Story = {
   globals: phoneDark,
   play: async context => {
@@ -576,7 +587,7 @@ export const PhoneStrip: Story = {
     const painted = [...bar.querySelectorAll<HTMLElement>("a, button, [aria-current] span")].filter(element => element.getClientRects().length > 0)
     const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
     await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Pick up", "More actions"])
-    await expect(Math.round(bar.getBoundingClientRect().height)).toBe(44)
+    await expectStripHeight(bar)
     const end = bar.lastElementChild!
     const boxes = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...boxes.map(box => box.right)))).toBeLessThanOrEqual(0.5)
@@ -702,7 +713,6 @@ export const Loading: Story = {
     const root = main(canvasElement)
     await expect(within(root).getAllByRole("status")).toHaveLength(1)
     await expect(root.querySelector("#problem, #request-title, [data-request-id]")).toBeNull()
-    await expect(Math.round(strip(canvasElement).getBoundingClientRect().height)).toBe(44)
+    await expectStripHeight(strip(canvasElement))
   },
 }
-

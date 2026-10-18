@@ -18,6 +18,6 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof ReviewRuleError) return json({ error: error.message }, { status: error.message === "Request not found" ? 404 : 409 });
     console.error("[api/reviewers] list failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return json({ error: "Team members could not be loaded. Try again." }, { status: 500 });
+    return json({ error: "Teammates could not be loaded. Try again." }, { status: 500 });
   }
 }

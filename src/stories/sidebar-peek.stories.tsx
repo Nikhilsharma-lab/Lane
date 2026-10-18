@@ -27,7 +27,7 @@ type Story = StoryObj<typeof meta>
 
 const allowCloseDelay = () => new Promise<void>(resolve => setTimeout(resolve, 220))
 
-async function collapse(canvasElement: HTMLElement, rememberedWidth = 272) {
+async function collapse(canvasElement: HTMLElement, rememberedWidth = 208) {
   const canvas = within(canvasElement)
   const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
   const resize = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -43,7 +43,7 @@ async function collapse(canvasElement: HTMLElement, rememberedWidth = 272) {
   return { canvas, sidebar, resize, expand, main: canvas.getByRole("main") }
 }
 
-async function expectPeek(sidebar: HTMLElement, expand: HTMLElement, width = 272) {
+async function expectPeek(sidebar: HTMLElement, expand: HTMLElement, width = 208) {
   await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking", "true"))
   const navigation = within(sidebar).getByRole("navigation", { name: "Primary navigation" })
   const panel = navigation.parentElement!

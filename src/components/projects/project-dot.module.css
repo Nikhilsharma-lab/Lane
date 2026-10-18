@@ -1,26 +1,17 @@
 .dot {
-  --tone-blue: var(--project-blue, oklch(60% .13 252));
-  --tone-green: var(--project-green, oklch(63% .13 155));
-  --tone-violet: var(--project-violet, oklch(57% .15 295));
-  --tone-amber: var(--project-amber, oklch(73% .14 75));
-  --tone-coral: var(--project-coral, oklch(64% .15 32));
-  --tone-slate: var(--project-slate, oklch(62% .025 250));
+  --tone-blue: var(--project-blue);
+  --tone-green: var(--project-green);
+  --tone-violet: var(--project-violet);
+  --tone-amber: var(--project-amber);
+  --tone-coral: var(--project-coral);
+  --tone-slate: var(--project-slate);
   display: block;
-  width: 8px;
-  height: 8px;
+  width: var(--space-2);
+  height: var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--tone, var(--tone-slate));
-  box-shadow: var(--project-dot-shadow, inset 0 0 0 1.5px var(--tone, var(--tone-slate)));
+  box-shadow: var(--project-dot-shadow);
   transition: background-color var(--duration-standard) var(--ease-standard);
-}
-
-:global(:root[data-theme="dark"]) .dot {
-  --tone-blue: var(--project-blue, oklch(72% .12 252));
-  --tone-green: var(--project-green, oklch(74% .13 155));
-  --tone-violet: var(--project-violet, oklch(71% .13 295));
-  --tone-amber: var(--project-amber, oklch(81% .13 80));
-  --tone-coral: var(--project-coral, oklch(74% .13 32));
-  --tone-slate: var(--project-slate, oklch(70% .02 250));
 }
 
 .dot[data-tone="blue"] { --tone: var(--tone-blue); }

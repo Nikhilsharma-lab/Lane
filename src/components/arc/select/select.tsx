@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useId, useState } from "react";
-import type { ComponentPropsWithoutRef, ReactElement } from "react";
+import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
@@ -18,7 +18,7 @@ export interface SelectProps extends Omit<ComponentPropsWithoutRef<typeof Select
   /** Reuse an existing control while retaining the Select menu and keyboard behavior. */
   trigger?: ReactElement;
   onContentKeyDown?: ComponentPropsWithoutRef<typeof SelectPrimitive.Content>["onKeyDown"];
-  options: { value: string; label: string; disabled?: boolean }[];
+  options: { value: string; label: string; disabled?: boolean; icon?: ReactNode }[];
 }
 
 /** The shown value rolls in the direction of the list: a later option rises from below, an earlier one drops from above. */
@@ -78,7 +78,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             <SelectPrimitive.Viewport className={styles.viewport}>
               {options.map((option) => (
                 <SelectPrimitive.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.item}>
-                  <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                  {option.icon && <span className={styles.optionIcon} aria-hidden="true">{option.icon}</span>}
+                  <SelectPrimitive.ItemText className={styles.itemText}>{option.label}</SelectPrimitive.ItemText>
                   <SelectPrimitive.ItemIndicator className={styles.indicator}>
                     <Check size={16} strokeWidth={1.75} aria-hidden="true" />
                   </SelectPrimitive.ItemIndicator>

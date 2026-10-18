@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createEmptyMeasurementPlan, createMeasurementPrimary } from "./request-measurement";
 import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, formatGuardrail, hasGuardrailEdits, hasImpactWork, impactDraftState, impactSummaryLines, requiredExpectedImpactSchema } from "./request-impact";
 
 const metric = { kind: "metric", metric: "Signup completion", baseline: null, target: 65, unit: "%", source: "Signup completed / signup started events", reviewAfterDays: 30 };
@@ -29,11 +30,11 @@ describe("expected impact", () => {
     }
   });
   it.each([metric, verification])("preserves existing $kind evidence sources and their bounds", (impact) => {
-    expect(expectedImpactSchema.parse(impact).source).toBe(impact.source);
-    expect(requiredExpectedImpactSchema.parse(impact).source).toBe(impact.source);
-    expect(expectedImpactDraftSchema.parse({ ...impact, source: ` ${impact.source} ` })?.source).toBe(` ${impact.source} `);
-    expect(expectedImpactSchema.parse({ ...impact, source: ` ${impact.source} ` }).source).toBe(impact.source);
-    expect(expectedImpactSchema.parse({ ...impact, source: "a".repeat(1000) }).source).toHaveLength(1000);
+    expect(expectedImpactSchema.parse(impact)).toMatchObject({ source: impact.source });
+    expect(requiredExpectedImpactSchema.parse(impact)).toMatchObject({ source: impact.source });
+    expect(expectedImpactDraftSchema.parse({ ...impact, source: ` ${impact.source} ` })).toMatchObject({ source: ` ${impact.source} ` });
+    expect(expectedImpactSchema.parse({ ...impact, source: ` ${impact.source} ` })).toMatchObject({ source: impact.source });
+    expect(expectedImpactSchema.parse({ ...impact, source: "a".repeat(1000) })).toMatchObject({ source: "a".repeat(1000) });
     for (const source of [null, 123, "a".repeat(1001)]) {
       expect(expectedImpactSchema.safeParse({ ...impact, source }).success).toBe(false);
       expect(requiredExpectedImpactSchema.safeParse({ ...impact, source }).success).toBe(false);
@@ -225,7 +226,9 @@ describe("Expected impact disclosure helpers (plan item 2.3)", () => {
       expect(impactSummaryLines({ ...metric, kind: "metric", source })).toEqual(["Signup completion, target 65%", "Check in 30 days"]);
       expect(impactSummaryLines({ ...verification, kind: "verification", source, reviewAfterDays: 1 })[1]).toBe("Check in 1 day");
     }
-    expect(impactSummaryLines(expectedImpactSchema.parse({ ...metric, source: undefined }))[1]).toBe("Check in 30 days");
+    const parsed = expectedImpactSchema.parse({ ...metric, source: undefined });
+    if (parsed.kind === "measurement") throw new Error("Expected a legacy metric");
+    expect(impactSummaryLines(parsed)[1]).toBe("Check in 30 days");
     expect(impactSummaryLines({ ...metric, kind: "metric", source: "" }).join(" ")).not.toMatch(/^,|, \d+ days? after launch/);
   });
 
@@ -240,5 +243,28 @@ describe("Expected impact disclosure helpers (plan item 2.3)", () => {
       "Check in 7 days",
       "Weekly support requests must stay at or above 20 requests per week.",
     ]);
+  });
+});
+
+
+describe("measurement draft work detection", () => {
+  it("does not persist an untouched measurement plan, but preserves selected metrics and zero values", () => {
+    const empty = createEmptyMeasurementPlan();
+    expect(hasImpactWork(empty)).toBe(false);
+    expect(hasImpactWork({ ...empty, primary: createMeasurementPrimary("conversion") })).toBe(true);
+    expect(hasImpactWork({ ...empty, primary: { ...empty.primary, current: 0 } })).toBe(true);
+    expect(hasImpactWork({ ...empty, primary: { ...empty.primary, target: 0 } })).toBe(true);
+  });
+
+  it("preserves measurement-only custom scope and date edits", () => {
+    const empty = createEmptyMeasurementPlan();
+    for (const update of [
+      { audience: "new" as const }, { audienceName: "Paid customers" },
+      { platform: "ios" as const }, { platformName: "Kiosk" },
+      { windowDays: 14 as const }, { exactDates: true },
+      { startDate: "2026-10-01" }, { endDate: "2026-10-31" },
+    ]) {
+      expect(hasImpactWork({ ...empty, measurement: { ...empty.measurement, ...update } })).toBe(true);
+    }
   });
 });

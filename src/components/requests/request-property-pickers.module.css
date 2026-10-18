@@ -1,6 +1,38 @@
+.trigger { max-width: 100%; }
+
+.chipContent,
+.optionContent {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chipContent > svg,
+.optionContent > svg {
+  width: var(--sb-icon-sm);
+  height: var(--sb-icon-sm);
+  flex: none;
+  color: var(--accent);
+}
+
+.chipContent[data-request-type="bug"] > svg,
+.chipContent[data-priority="urgent"] > svg { color: var(--state-danger-icon); }
+.chipContent[data-request-type="improvement"] > svg,
+.chipContent[data-priority="medium"] > svg { color: var(--state-info-icon); }
+.chipContent[data-request-type="new_feature"] > svg { color: var(--state-success-icon); }
+.chipContent[data-priority="high"] > svg { color: var(--state-warning-icon); }
+
+.chipLabel {
+  max-width: calc(var(--sb-spacing) * 40);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .optionList {
   display: grid;
-  max-height: min(16rem, 40vh);
+  max-height: min(calc(var(--sb-spacing) * 64), 40vh);
   gap: var(--space-1);
   overflow-y: auto;
 }
@@ -12,7 +44,7 @@
 }
 
 .newProject {
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--sb-border-width) solid var(--border-subtle);
   padding-top: var(--space-2);
 }
 
@@ -47,18 +79,23 @@
 }
 
 .iconSpace {
-  width: 16px;
-  height: 16px;
+  width: var(--sb-icon-sm);
+  height: var(--sb-icon-sm);
   flex: none;
-}
-
-.empty {
-  padding: var(--space-2) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 
 :global(:root[data-ui-state-contract="semantic"]) .option[aria-selected="true"]:is(:hover, :focus-visible, :active):not(:disabled) {
   color: var(--selection-foreground);
   background: var(--selection-background);
+}
+
+/* Reviewer-limit options remain in arrow-key navigation but cannot be selected. */
+.optionList .option[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: var(--sb-opacity-disabled);
+}
+.optionList .option[aria-disabled="true"]:is(:hover, :active) {
+  color: var(--text-muted);
+  background: transparent;
 }

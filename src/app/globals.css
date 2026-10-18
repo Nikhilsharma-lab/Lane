@@ -3,203 +3,64 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Product semantic aliases derive exclusively from the Arc foundation. */
-:root {
-  --radius: var(--radius-control);
-  --card: var(--surface);
-  --card-foreground: var(--foreground);
-  --recessed: var(--surface-muted);
-  --raised: var(--surface-raised);
-  --scrim: color-mix(in oklab, var(--foreground) 20%, transparent);
-  --popover: var(--surface-raised);
-  --popover-foreground: var(--foreground);
-  --primary: var(--accent);
-  --primary-foreground: var(--accent-foreground);
-  --primary-hover: var(--accent-strong);
-  --secondary: var(--surface-muted);
-  --secondary-foreground: var(--foreground);
-  --muted: var(--surface-muted);
-  --muted-foreground: var(--text-secondary);
-  --disabled: var(--surface-muted);
-  --disabled-foreground: var(--text-muted);
-  --focus: var(--accent);
-  --ring: var(--focus-ring);
-  --brand: var(--accent);
-  --brand-soft: var(--accent-subtle);
-  --brand-foreground: var(--accent-foreground);
-  --highlight: var(--accent-subtle);
-  --control: var(--border-strong);
-  --input: var(--border-strong);
-  --identity-ink: var(--foreground);
-  --identity-surface: var(--surface-muted);
-  --destructive: var(--danger);
-  --destructive-foreground: var(--danger);
-  --destructive-soft: color-mix(in oklab, var(--danger) 8%, var(--surface));
-  --destructive-border: color-mix(in oklab, var(--danger) 24%, var(--border));
-  --destructive-icon: var(--destructive-soft);
-  --success-foreground: var(--success);
-  --success-soft: color-mix(in oklab, var(--success) 8%, var(--surface));
-  --success-border: color-mix(in oklab, var(--success) 24%, var(--border));
-  --success-icon: var(--success-soft);
-  --warning-foreground: var(--warning);
-  --warning-soft: color-mix(in oklab, var(--warning) 8%, var(--surface));
-  --warning-border: color-mix(in oklab, var(--warning) 24%, var(--border));
-  --warning-icon: var(--warning-soft);
-  --info: var(--accent);
-  --info-foreground: var(--accent);
-  --info-soft: var(--accent-subtle);
-  --info-border: var(--border-strong);
-  --info-icon: var(--accent-subtle);
-  --font-sans: var(--font-body);
-  --font-mono: var(--font-geist-mono);
-  --sidebar: var(--surface);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-accent: var(--surface-muted);
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-primary: var(--accent);
-  --sidebar-primary-foreground: var(--accent-foreground);
-  --sidebar-ring: var(--focus-ring);
-}
-
+/* Tailwind utilities used in product markup resolve to the Supabase tokens in
+   src/styles/supabase-tokens.css, through Arc's hooks where Arc owns the role. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-recessed: var(--recessed);
-  --color-raised: var(--raised);
-  --color-scrim: var(--scrim);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-highlight: var(--highlight);
-  --color-identity-surface: var(--identity-surface);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-disabled: var(--disabled);
-  --color-disabled-foreground: var(--disabled-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-brand: var(--brand);
-  --color-brand-soft: var(--brand-soft);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-focus: var(--focus);
-  --color-identity-ink: var(--identity-ink);
+  --color-card: var(--surface);
+  --color-secondary: var(--sb-secondary);
+  --color-muted: var(--surface-muted);
+  --color-muted-foreground: var(--text-secondary);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-destructive-soft: var(--destructive-soft);
-  --color-destructive-border: var(--destructive-border);
-  --color-destructive-icon: var(--destructive-icon);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --color-success-border: var(--success-border);
-  --color-success-icon: var(--success-icon);
-  --color-warning: var(--warning);
-  --color-warning-soft: var(--warning-soft);
-  --color-warning-border: var(--warning-border);
-  --color-warning-icon: var(--warning-icon);
-  --color-info: var(--info);
-  --color-info-soft: var(--info-soft);
-  --color-info-border: var(--info-border);
-  --color-info-icon: var(--info-icon);
   --color-border: var(--border);
-  --color-control: var(--control);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-input: var(--border-strong);
+  --color-ring: var(--focus-outline);
 
   --font-sans: var(--font-body);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-display);
+  --font-mono: var(--sb-font-mono);
+  --font-weight-normal: var(--sb-font-weight-normal);
+  --font-weight-medium: var(--sb-font-weight-medium);
+  --font-weight-semibold: var(--sb-font-weight-semibold);
 
-  /* Product type roles reference the Arc scale. */
-  --text-type-display: var(--text-3xl);
-  --text-type-display--line-height: var(--leading-body);
-  --text-type-display--letter-spacing: var(--tracking-body);
-  --text-type-display--font-weight: 500;
-  --text-type-auth-title: var(--text-2xl);
-  --text-type-auth-title--line-height: var(--leading-body);
-  --text-type-auth-title--letter-spacing: var(--tracking-body);
-  --text-type-auth-title--font-weight: 500;
-  --text-type-auth-title-mobile: var(--text-2xl);
-  --text-type-auth-title-mobile--line-height: var(--leading-body);
-  --text-type-auth-title-mobile--letter-spacing: var(--tracking-body);
-  --text-type-auth-title-mobile--font-weight: 500;
-  --text-type-page-title: var(--text-2xl);
-  --text-type-page-title--line-height: var(--leading-body);
-  --text-type-page-title--letter-spacing: var(--tracking-body);
-  --text-type-page-title--font-weight: 500;
-  --text-type-page-title-mobile: var(--text-xl);
-  --text-type-page-title-mobile--line-height: var(--leading-body);
-  --text-type-page-title-mobile--letter-spacing: var(--tracking-body);
-  --text-type-page-title-mobile--font-weight: 500;
-  --text-type-section-title: var(--text-lg);
-  --text-type-section-title--line-height: var(--leading-body);
-  --text-type-section-title--font-weight: 500;
-  --text-type-prose: var(--text-base);
-  --text-type-prose--line-height: var(--leading-body);
-  --text-type-prose--font-weight: 400;
-  --text-type-ui: var(--text-sm);
-  --text-type-ui--line-height: var(--leading-body);
-  --text-type-ui--font-weight: 400;
-  --text-type-control: var(--text-sm);
-  --text-type-control--line-height: var(--leading-body);
-  --text-type-control--font-weight: 500;
-  --text-type-label: var(--text-sm);
-  --text-type-label--line-height: var(--leading-body);
-  --text-type-label--font-weight: 500;
-  --text-type-support: var(--text-sm);
-  --text-type-support--line-height: var(--leading-body);
-  --text-type-support--font-weight: 400;
-  --text-type-meta: var(--text-xs);
-  --text-type-meta--line-height: var(--leading-body);
-  --text-type-meta--font-weight: 400;
-  --text-type-micro: var(--text-xs);
-  --text-type-micro--line-height: var(--leading-body);
-  --text-type-micro--font-weight: 500;
-  --text-type-wordmark: var(--text-base);
-  --text-type-wordmark--line-height: var(--leading-body);
-  --text-type-wordmark--letter-spacing: var(--tracking-body);
-  --text-type-wordmark--font-weight: 500;
+  --text-type-ui: var(--sb-text-sm);
+  --text-type-ui--line-height: var(--sb-text-sm--line-height);
+  --text-type-ui--font-weight: var(--sb-font-weight-normal);
 
-  /* Semantic density. Mobile touch targets collapse to compact desktop
-     controls at the small breakpoint; form controls keep their own rhythm. */
-  --spacing-control-utility: var(--control-height-sm);
-  --spacing-control-product: var(--control-height-md);
-  --spacing-control-form: var(--control-height-md);
-  --spacing-control-form-touch: var(--control-height-md);
-  --spacing-touch-target: 2.75rem;
-  --spacing-row-identity: 3.25rem;
-  --spacing-row-identity-touch: 3.75rem;
-  --spacing-row-leading: 2rem;
-
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xs: var(--sb-radius-xs);
+  --radius-sm: var(--sb-radius-sm);
+  --radius-md: var(--sb-radius-md);
+  --radius-lg: var(--sb-radius-lg);
+  --radius-xl: var(--sb-radius-xl);
+  --radius-2xl: var(--sb-radius-2xl);
+  --radius-3xl: var(--sb-radius-3xl);
+  --radius-4xl: var(--sb-radius-4xl);
 }
 
-
+/* Studio's base layer: body text-default at font-weight-normal on the dash-sidebar canvas;
+   Manrope-role headings (Geist here) at semibold with Supabase's heading sizes. */
 @layer base {
   * { border-color: var(--border); }
   body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
-    font-size: var(--text-sm);
-    line-height: var(--leading-body);
-    letter-spacing: var(--tracking-body);
+    font-size: var(--sb-text-base);
+    font-weight: var(--sb-font-weight-normal);
+    line-height: var(--sb-text-base--line-height);
+    letter-spacing: var(--sb-tracking-normal);
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4, h5, h6 { font-weight: 500; }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: var(--sb-font-weight-semibold); }
+  h1 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-2xl); line-height: var(--sb-text-2xl--line-height); letter-spacing: var(--sb-tracking-tight); }
+  h2 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-xl); line-height: var(--sb-text-xl--line-height); }
+  h3 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-base); line-height: var(--sb-text-base--line-height); }
+  h4, h5 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-sm); line-height: var(--sb-text-sm--line-height); }
+  h6 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-xs); line-height: var(--sb-text-xs--line-height); }
+  small { font-size: var(--sb-text-xs); line-height: var(--sb-text-xs--line-height); }
+  strong { font-weight: var(--sb-font-weight-medium); }
 }
 
 @media (prefers-reduced-motion: reduce) {
