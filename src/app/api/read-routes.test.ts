@@ -53,7 +53,7 @@ const get = (handler: (request: Request) => Promise<Response>, path: string, par
 beforeAll(async () => {
   await db.insert(profiles).values({ id: GUEST, fullName: "Read Route Guest", email: "read-route-guest@test.local", role: "designer" }).onConflictDoNothing();
   await db.insert(requests).values([
-    { id: memberRequest, orgId: ORG, title: `${MARK} member`, description: "Seeded by read-routes.test.ts", createdBy: MEMBER },
+    { id: memberRequest, orgId: ORG, title: `${MARK} member`, description: "Seeded by read-routes.test.ts", createdBy: MEMBER, reframedProblem: `${MARK} reframed problem` },
     { id: guestRequest, orgId: ORG, title: `${MARK} guest`, description: "Seeded by read-routes.test.ts", createdBy: GUEST },
     { id: foreignRequest, orgId: OTHER_ORG, title: `${MARK} foreign`, description: "Seeded by read-routes.test.ts", createdBy: OTHER_ADMIN },
   ]);
@@ -143,11 +143,19 @@ describe("GET /api/notifications", () => {
     const response = await get(notificationList, "/api/notifications", { org: ORG });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    const ids = (await response.json()).notifications.map((item: { id: string }) => item.id);
+    const rows = (await response.json()).notifications as { id: string; requestNumber: number | null; reframedProblem: string | null; requestTitle: string | null }[];
+    const ids = rows.map(item => item.id);
     expect(ids).toContain(notificationIds[0]);
     expect(ids).toContain(notificationIds[1]);
     expect(ids).not.toContain(notificationIds[2]);
     expect(ids).not.toContain(notificationIds[3]);
+    // Plan item 2.7: the row reads "LAN-n · reframed problem", so the payload carries the saved code and the problem; an invite carries neither.
+    const requestRow = rows.find(item => item.id === notificationIds[0])!;
+    expect(requestRow.requestNumber).toBeGreaterThan(0);
+    expect(requestRow.reframedProblem).toBe(`${MARK} reframed problem`);
+    expect(requestRow.requestTitle).toBe(`${MARK} member`);
+    const inviteRow = rows.find(item => item.id === notificationIds[1])!;
+    expect(inviteRow).toMatchObject({ requestNumber: null, reframedProblem: null, requestTitle: null });
   });
 
   it("hides workspace-wide events from a guest", async () => {
