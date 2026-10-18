@@ -233,13 +233,13 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
               // 2.1), so the new Request is next: its row, the list's one tab
               // stop (plan item 2.4), or the detail pane's link to it. Mobile
               // navigation stays mounted while closed, and its compose link
-              // cannot receive focus once the dialog is inert, so its opener
+              // cannot receive focus once navigation is inert, so its opener
               // stands in. /intake's Create Request and the page's main region
               // come last. The document itself is never a target.
               const opener = trigger.current === LAUNCHER ? intakeLauncher() : trigger.current;
               const id = createdId.current;
               const created = id ? document.querySelector<HTMLElement>(requestRowSelector(id)) ?? document.getElementById(`request-${id}`) : null;
-              const targets = [opener, created, document.querySelector<HTMLElement>('button[aria-label="Open navigation"]'), intakeLauncher(), document.getElementById("lane-main")];
+              const targets = [opener, created, ...document.querySelectorAll<HTMLElement>('button[aria-label="Expand sidebar"], button[aria-label="Open navigation"]'), intakeLauncher(), document.getElementById("lane-main")];
               for (const candidate of targets) {
                 const target = focusable(candidate);
                 if (!target?.isConnected || !target.getClientRects().length || target.closest("[hidden], [inert]") || getComputedStyle(target).visibility !== "visible") continue;

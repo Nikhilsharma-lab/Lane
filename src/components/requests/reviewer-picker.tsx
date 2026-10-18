@@ -180,7 +180,7 @@ export function ReviewerPicker({ selected, onChange, limit, excludeId, onFindRev
       <PopoverTrigger asChild>
         <Button ref={triggerRef} type="button" variant="secondary" size="sm" disabled={disabled}><Plus aria-hidden="true" />Add reviewers</Button>
       </PopoverTrigger>
-      <PopoverContent {...pickerPopoverProps} aria-label="Choose reviewers" onCloseAutoFocus={event => event.preventDefault()} onEscapeKeyDown={event => { event.preventDefault(); event.stopPropagation(); handleOpenChange(false); triggerRef.current?.focus(); }} onOpenAutoFocus={event => focusOnOpen(event, searchRef)} className="space-y-3">
+      <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose reviewers" onCloseAutoFocus={event => event.preventDefault()} onEscapeKeyDown={event => { event.preventDefault(); event.stopPropagation(); handleOpenChange(false); triggerRef.current?.focus(); }} onOpenAutoFocus={event => focusOnOpen(event, searchRef)} className="space-y-3">
         <SearchField ref={searchRef} label="Teammates" aria-label="Search teammates" placeholder="Type a name" maxLength={QUERY_MAX} value={query} onValueChange={onQueryChange}
           onKeyDown={event => {
             if (event.key !== "Enter") { searchListKeyDown(event, options, optionRefs, toggle); return }

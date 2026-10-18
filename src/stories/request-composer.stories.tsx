@@ -747,9 +747,9 @@ export const MobileComposerReturnsToNavigation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
-    const opener = await canvas.findByRole("button", { name: "Open navigation" });
+    const opener = await canvas.findByRole("button", { name: "Expand sidebar" });
     await userEvent.click(opener);
-    const navigation = within(await page.findByRole("dialog", { name: "Navigation" }));
+    const navigation = within(await page.findByRole("complementary", { name: "Workspace sidebar" }));
     await userEvent.click(navigation.getByRole("link", { name: "New Request" }));
     const dialog = await page.findByRole("dialog", { name: "New Request" });
     const title = await within(dialog).findByRole("textbox", { name: "Request title" });
@@ -758,8 +758,9 @@ export const MobileComposerReturnsToNavigation: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
     await waitFor(() => expect(opener).toHaveFocus());
     await userEvent.keyboard("{Enter}");
-    const reopenedNavigation = await page.findByRole("dialog", { name: "Navigation" });
-    await waitFor(() => expect(reopenedNavigation).toBeVisible());
+    const reopenedNavigation = await page.findByRole("complementary", { name: "Workspace sidebar" });
+    await waitFor(() => expect(reopenedNavigation).toHaveAttribute("data-peeking", "true"));
+    await waitFor(() => expect(within(reopenedNavigation).getByRole("link", { name: "New Request" })).toBeVisible());
   },
 };
 
@@ -1730,7 +1731,8 @@ export const IntakeRestoresDraftOnArrival: Story = {
     const title = await composer.findByRole("textbox", { name: "Request title" });
     await waitFor(() => expect(title).toHaveValue(source.title));
     await waitFor(() => expect(title).toHaveFocus());
-    await expect(composer.getByText("Draft restored")).toBeVisible();
+    // The dialog is still fading in when the draft lands, so the notice becomes visible a frame later.
+    await waitFor(() => expect(composer.getByText("Draft restored")).toBeVisible());
     // One announcement, as when Create Request opens it (DraftRestored).
     const restoredLine = "Your unsaved Request was restored.";
     await expect(composer.getByText(restoredLine)).toHaveAttribute("role", "status");

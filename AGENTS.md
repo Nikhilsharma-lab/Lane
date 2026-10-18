@@ -59,6 +59,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Arc UI (shad
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
 - **This file is the primary repository instruction file.** `CLAUDE.md` is only a compatibility pointer.
+- **Shared session handoff:** read `docs/SESSION-STATE.md` before resuming Claude or Codex work; keep one editing session per checkout and update the handoff when switching tools.
 
 ## Do NOT build (these sank v1 — they are banned until there is a paying customer asking)
 

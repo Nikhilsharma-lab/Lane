@@ -73,9 +73,13 @@ function leaveFromTrigger(event: KeyboardEvent<HTMLDivElement>) {
   const step = event.shiftKey ? -1 : 1;
   const candidates = [...document.querySelectorAll<HTMLElement>(TABBABLE)].filter(tabbable);
   const inside = candidates.filter((element) => content.contains(element) && element.getAttribute("role") !== "option");
-  const position = document.activeElement instanceof HTMLElement ? inside.indexOf(document.activeElement) : -1;
-  // The next stop is still inside the popover (the search field's clear button): the user agent moves there.
-  if (position >= 0 && inside[position + step]) return;
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const position = active ? inside.indexOf(active) : -1;
+  // Tab and Shift+Tab from the search field always leave: the field's clear button is not a stop here (it can
+  // still be fading out just after a clear, which would otherwise catch the Tab). From any other stop inside the
+  // popover (the Project picker's New Project button, say), the user agent moves to the next inside stop first.
+  const fromSearch = active instanceof HTMLInputElement && active.type === "search";
+  if (!fromSearch && position >= 0 && inside[position + step]) return;
   const outside = candidates.filter((element) => !content.contains(element));
   const trigger = outside.find((element) => element.getAttribute("aria-controls") === content.id);
   const target = trigger && outside[outside.indexOf(trigger) + step];
@@ -213,9 +217,8 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         <span className={styles.chipContent}><ProjectMarker projectId={value} /><span className={styles.chipLabel}>{selected?.name ?? (value ? "Project unavailable" : "Project")}</span></span>
       </Button>
     </PopoverTrigger>
-    <PopoverContent data-lane-request-property-popover aria-label="Choose a Project"
-      onOpenAutoFocus={(event) => { event.preventDefault(); focusProjectList(); }}
-      onKeyDown={(event) => event.stopPropagation()} className="space-y-3">
+    <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose a Project"
+      onOpenAutoFocus={(event) => { event.preventDefault(); focusProjectList(); }} className="space-y-3">
       {naming ? <div className={styles.projectName}>
         <Input ref={nameRef} label="Project name" value={projectName} maxLength={80} disabled={creating} error={createError ?? undefined}
           onChange={(event) => { setProjectName(event.target.value); setCreateError(null); }}
