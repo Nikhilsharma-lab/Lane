@@ -213,7 +213,9 @@ export function DesignReviewPanel({ initialState, currentUserId, viewer, canRequ
 
   const shown = shownState(state)
   const pending = state.pending !== null || withdrawing
-  function focusHeading() { requestAnimationFrame(() => heading.current?.focus({ preventScroll: true })) }
+  // Synchronous on purpose: the heading is always mounted, and a deferred focus could land after a fast failure
+  // had already reopened the draft with focus on its submit (so Enter retries), stealing it back to the heading.
+  function focusHeading() { heading.current?.focus({ preventScroll: true }) }
 
   /** Waits for the server behind an optimistic Ask or Respond: confirm swaps in its state; a failure rolls back and reopens the draft. */
   async function settle(token: number, kind: "ask" | "respond", action: () => Promise<ReviewActionResult>) {

@@ -51,17 +51,43 @@ export function useWorkspaceProjects(orgId: string, active: boolean) {
 
 /* Plan item 2.6: the popover shell the Project picker and the reviewer picker
  * share. An Arc Popover anchored to a secondary Button, an Arc SearchField, and
- * a listbox of ghost option Buttons with roving focus: the search field's
- * ArrowDown enters the list, Enter chooses the first item, the list wraps at
- * the end and ArrowUp on the first item returns to the search. The content is
+ * a listbox of ghost option Buttons with a roving tabindex (the APG listbox,
+ * as the list's keyboard model in decision 8.24): the list is one tab stop,
+ * the search field's ArrowDown enters it, Enter chooses the first item, the
+ * list wraps at the end and ArrowUp on the first item returns to the search;
+ * Tab and Shift+Tab leave the popover from its trigger. The content is
  * portalled, so a React keydown inside it still bubbles to the form that owns
  * the picker: stopPropagation keeps Esc for the popover (Radix closes it from
  * its own document listener) instead of cancelling the whole form. */
 export type OptionRefs = RefObject<(HTMLButtonElement | null)[]>;
 
+const TABBABLE = 'a[href], button, input, select, textarea, [tabindex]';
+const tabbable = (element: HTMLElement) => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[aria-hidden="true"]') && element.getClientRects().length > 0;
+
+/** Tab and Shift+Tab leave the popover from its trigger, so focus lands on the next (or previous) control of the form that owns
+ *  the picker. The content is portalled to the end of the document, so the user agent alone would walk off the page from the
+ *  last control inside; the move out dismisses the popover (Radix non-modal), which keeps focus where it landed. */
+function leaveFromTrigger(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+  const content = event.currentTarget;
+  const step = event.shiftKey ? -1 : 1;
+  const candidates = [...document.querySelectorAll<HTMLElement>(TABBABLE)].filter(tabbable);
+  const inside = candidates.filter((element) => content.contains(element));
+  const position = document.activeElement instanceof HTMLElement ? inside.indexOf(document.activeElement) : -1;
+  // The next stop is still inside the popover (the search field's clear button, the list's one stop, the Project picker's
+  // New Project button): the user agent moves there.
+  if (position >= 0 && inside[position + step]) return;
+  const outside = candidates.filter((element) => !content.contains(element));
+  const trigger = outside.find((element) => element.getAttribute("aria-controls") === content.id);
+  const target = trigger && outside[outside.indexOf(trigger) + step];
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+}
+
 export const pickerPopoverProps = {
   "data-lane-request-property-popover": "",
-  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => event.stopPropagation(),
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { leaveFromTrigger(event); event.stopPropagation(); },
 } as const;
 
 /** `onOpenAutoFocus`: the search field takes focus instead of the popover panel. */
@@ -80,7 +106,7 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
   searchRef: RefObject<HTMLInputElement | null>;
   keyOf: (item: T) => string;
   isSelected: (item: T) => boolean;
-  /** Dimmed and ignores presses but keeps its place in the roving focus (a full multi-select). */
+  /** Dimmed (the stylesheet's aria-disabled rule) and ignores presses, but keeps its place in the roving focus (a full multi-select). */
   isInert?: (item: T) => boolean;
   /** A lead glyph for an item that is neither the check nor the spacer. */
   lead?: (item: T) => ReactNode;
@@ -93,13 +119,19 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
   /** "plain" for a list that stays open while rows toggle (dense rows swap their check without a blur, decision 8.22). */
   morph?: "blur" | "plain";
 }) {
+  // Roving tabindex (the APG listbox): the list is one tab stop, carried by the option focused last, else the first row.
+  // Arc's Button would otherwise make every row a stop (tabIndex ?? 0); rows at -1 alone would leave the scrolling list
+  // with no stop at all, which axe's scrollable-region-focusable rule (the Storybook a11y gate) refuses.
+  const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const currentIndex = Math.max(0, items.findIndex((item) => keyOf(item) === currentKey));
   return <div role="listbox" aria-label={label} aria-multiselectable={multiselectable || undefined} aria-busy={busy} className={styles.optionList}>
     {items.length ? items.map((item, index) => {
       const selected = isSelected(item);
       const inert = Boolean(isInert?.(item));
       return <Button key={keyOf(item)} ref={(element) => { optionRefs.current[index] = element; }}
-        type="button" role="option" aria-selected={selected}
+        type="button" role="option" aria-selected={selected} tabIndex={index === currentIndex ? 0 : -1}
         variant="ghost" size="sm" morph={morph} className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
+        onFocus={() => setCurrentKey(keyOf(item))}
         onClick={() => { if (!inert) onChoose(item); }}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }

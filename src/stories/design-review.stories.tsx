@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import { useRef, useState } from "react"
 import { Button } from "@/components/arc/button/button"
-import { DesignReviewPanel, type DesignReviewPanelProps } from "@/components/requests/design-review-panel"
+import { DesignReviewPanel, REVIEWER_DEBOUNCE_MS, type DesignReviewPanelProps } from "@/components/requests/design-review-panel"
 import { addReviewRound, recordReviewResponse, withdrawReviewRound, type RequestReviewState, type ReviewActionResult, type ReviewPerson } from "@/lib/request-review"
 import { expectPinnedViewport, phoneDark } from "./helpers/request-detail-fixture"
 
@@ -52,7 +52,7 @@ export function DesignReviewFixture({ initialState = empty, viewer = "alex", gue
     return new Promise(resolve => { held.current = () => { held.current = null; setHolding(false); resolve(result()) }; setHolding(true) })
   }
   const search: FindReviewers = findReviewers ?? (async query => {
-    if (failure === "members" && failOnce.current) { failOnce.current = false; return { error: "Members could not be loaded. Try again." } }
+    if (failure === "members" && failOnce.current) { failOnce.current = false; return { error: "Teammates could not be loaded. Try again." } }
     return { members: roster.filter(person => person.name.toLowerCase().includes(query.toLowerCase())) }
   })
   return <div>
@@ -335,6 +335,43 @@ export const ReviewerRosterFiltersLocally: Story = {
   },
 }
 
+/** Every reply, the roster's included, waits for the story. */
+const holdEverything = fn((query: string, signal?: AbortSignal) => new Promise<{ members: ReviewPerson[] } | { error: string }>(resolve => { heldSearches.push({ query, signal, resolve }) }))
+
+/** Typing before the roster lands never loses it (decision D5): the keystrokes take the server path once, the late roster
+ *  still makes the picker local, the typed search it answers is dropped, and no later keystroke asks the server again. */
+export const ReviewerRosterSurvivesEarlyTyping: Story = {
+  args: { findReviewers: holdEverything },
+  play: async ({ canvasElement }) => {
+    heldSearches.length = 0; holdEverything.mockClear()
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole("button", { name: "Ask for review" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Add reviewers" }))
+    const search = await page().findByRole("searchbox", { name: "Search teammates" })
+    const roster = await waitFor(() => { const held = heldSearches.find(item => item.query === ""); expect(held).toBeDefined(); return held! })
+    await expect(page().getByText("Finding teammates…")).toBeInTheDocument()
+    await userEvent.type(search, "Tay")
+    // The roster has not answered, so the keystrokes take the debounced server path once; the roster request stays in flight.
+    const typed = await waitFor(() => { const held = heldSearches.find(item => item.query === "Tay"); expect(held).toBeDefined(); return held! })
+    await expect(roster.signal?.aborted).toBe(false)
+    await expect(holdEverything).toHaveBeenCalledTimes(2)
+    roster.resolve({ members: people })
+    // Local from this frame on: Taylor shows at once, the typed search is aborted and its late reply changes nothing.
+    await waitFor(() => expect(page().getByRole("option", { name: "Taylor Chen" })).toBeVisible())
+    await expect(typed.signal?.aborted).toBe(true)
+    await expect(page().getByRole("listbox", { name: "Teammates" })).toHaveAttribute("aria-busy", "false")
+    await expect(page().getByText("1 teammate matches")).toBeInTheDocument()
+    typed.resolve({ members: [people[1]] })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await expect(page().queryByRole("option", { name: "Sam Lee" })).not.toBeInTheDocument()
+    await expect(page().getAllByRole("option")).toHaveLength(1)
+    await userEvent.type(search, "l")
+    await new Promise(resolve => setTimeout(resolve, REVIEWER_DEBOUNCE_MS + 100))
+    await expect(page().getByRole("option", { name: "Taylor Chen" })).toBeInTheDocument()
+    await expect(holdEverything).toHaveBeenCalledTimes(2)
+  },
+}
+
 /** A failed roster load shows an alert with Retry; a selection made after it stays listed first while typing narrows the rest. */
 export const ReviewerSearchErrorRetry: Story = {
   args: { failure: "members" },
@@ -343,7 +380,7 @@ export const ReviewerSearchErrorRetry: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Ask for review" }))
     await userEvent.click(canvas.getByRole("button", { name: "Add reviewers" }))
     await expect(await page().findByRole("alert")).toHaveTextContent("Could not load teammates")
-    await expect(page().getByRole("alert")).toHaveTextContent("Members could not be loaded")
+    await expect(page().getByRole("alert")).toHaveTextContent("Teammates could not be loaded")
     await userEvent.click(page().getByRole("button", { name: "Retry" }))
     await waitFor(() => expect(page().getByRole("option", { name: "Sam Lee" })).toBeVisible())
     await expect(page().queryByRole("alert")).not.toBeInTheDocument()
@@ -368,9 +405,15 @@ export const ReviewerLimitTen: Story = {
     await page().findByRole("option", { name: "Person 01" })
     for (let index = 1; index <= 10; index++) await userEvent.click(page().getByRole("option", { name: `Person ${String(index).padStart(2, "0")}` }))
     await expect(page().getByText("10 of 10 selected. Remove one to add another.")).toBeVisible()
-    await expect(page().getByRole("option", { name: "Person 11" })).toHaveAttribute("aria-disabled", "true")
+    const inert = page().getByRole("option", { name: "Person 11" })
+    await expect(inert).toHaveAttribute("aria-disabled", "true")
     await expect(page().getByRole("option", { name: "Person 10" })).not.toHaveAttribute("aria-disabled")
-    await userEvent.click(page().getByRole("option", { name: "Person 11" }))
+    // The affordance, not only the attribute: the row dims, the cursor says no, and hovering lights nothing.
+    await waitFor(() => expect(getComputedStyle(inert).opacity).toBe("0.5"))
+    await expect(getComputedStyle(inert).cursor).toBe("not-allowed")
+    await userEvent.hover(inert)
+    await expect(getComputedStyle(inert).backgroundColor).toBe("rgba(0, 0, 0, 0)")
+    await userEvent.click(inert)
     await expect(page().getByRole("option", { name: "Person 11" })).toHaveAttribute("aria-selected", "false")
     await expect(canvas.getByText("10 of 10 selected. Choose teammates other than yourself.")).toBeVisible()
     await userEvent.keyboard("{Escape}")
@@ -385,7 +428,8 @@ export const ReviewerLimitTen: Story = {
   },
 }
 
-/** Enter opens, ArrowDown enters the list, Enter toggles, ArrowUp returns to the search, Esc closes with focus on the trigger. */
+/** Enter opens, ArrowDown enters the list, Enter toggles, ArrowUp returns to the search, Esc closes with focus on the trigger,
+ *  and Tab or Shift+Tab leave the popover from its trigger to the next or previous form control (one tab stop, the APG listbox). */
 export const ReviewerPickerKeyboard: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -414,6 +458,27 @@ export const ReviewerPickerKeyboard: Story = {
     await expect(selected.getByText("Taylor Chen")).toBeVisible()
     await userEvent.keyboard("{Tab}")
     await expect(canvas.getByRole("button", { name: "Ask for review" })).toHaveFocus()
+    // The list is one tab stop (roving tabindex), not one per row: Tab from the search field reaches its current option,
+    // a second Tab leaves the popover to the submit (the content is portalled, so the leave starts from the trigger) and
+    // the popover closes.
+    canvas.getByRole("button", { name: "Add reviewers" }).focus()
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(page().getByRole("searchbox", { name: "Search teammates" })).toHaveFocus())
+    await page().findByRole("option", { name: "Sam Lee" })
+    await expect(page().getAllByRole("option").filter(option => option.tabIndex === 0)).toHaveLength(1)
+    await userEvent.keyboard("{Tab}")
+    await expect(page().getByRole("option", { name: "Sam Lee" })).toHaveFocus()
+    await userEvent.keyboard("{Tab}")
+    await expect(canvas.getByRole("button", { name: "Ask for review" })).toHaveFocus()
+    await waitFor(() => expect(page().queryByRole("listbox", { name: "Teammates" })).not.toBeInTheDocument())
+    // Shift+Tab leaves backwards, to the last selected row's Remove button.
+    canvas.getByRole("button", { name: "Add reviewers" }).focus()
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(page().getByRole("searchbox", { name: "Search teammates" })).toHaveFocus())
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}")
+    await expect(canvas.getByRole("button", { name: "Remove Taylor Chen" })).toHaveFocus()
+    await waitFor(() => expect(page().queryByRole("listbox", { name: "Teammates" })).not.toBeInTheDocument())
+    await expect(canvas.getByRole("form", { name: "Ask for design review" })).toBeInTheDocument()
   },
 }
 
