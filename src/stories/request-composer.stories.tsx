@@ -1695,7 +1695,8 @@ export const IntakeRestoresDraftOnArrival: Story = {
     const title = await composer.findByRole("textbox", { name: "Request title" });
     await waitFor(() => expect(title).toHaveValue(source.title));
     await waitFor(() => expect(title).toHaveFocus());
-    await expect(composer.getByText("Draft restored")).toBeVisible();
+    // The dialog is still fading in when the draft lands, so the notice becomes visible a frame later.
+    await waitFor(() => expect(composer.getByText("Draft restored")).toBeVisible());
     // One announcement, as when Create Request opens it (DraftRestored).
     const restoredLine = "Your unsaved Request was restored.";
     await expect(composer.getByText(restoredLine)).toHaveAttribute("role", "status");
