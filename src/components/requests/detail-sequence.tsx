@@ -96,7 +96,7 @@ function SequenceButton({ direction, targetId, onGo }: { direction: SequenceDire
       onPointerDown={() => { if (targetId) prefetch.now() }}
       onFocus={() => { if (targetId) prefetch.now() }}
       onClick={() => onGo(direction)}>
-      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+      <Icon strokeWidth={1.75} aria-hidden="true" />
     </Button>
   </Tooltip>
 }

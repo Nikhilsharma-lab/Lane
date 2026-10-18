@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useEffect, useId, useRef, useState } from "react"
-import { Check, Copy, Ellipsis, RotateCcw } from "lucide-react"
+import { Check, Copy, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
@@ -58,7 +58,7 @@ function RequestCodeControl({ code }: { code: string }) {
       <Button type="button" variant="ghost" size="sm" morph="plain" tabIndex={-1} className={styles.codeButton}
         aria-label={`Copy code ${code}`} aria-describedby={state === "error" ? feedbackId : undefined}
         loading={state === "copying"} onClick={() => { void copyCode() }}>
-        <span data-request-code>{code}</span><Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+        <span data-request-code>{code}</span><Icon data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />
       </Button>
     </Tooltip>
     {state === "error" && <span id={feedbackId} className={styles.codeError}>Copy failed. Try again.</span>}
@@ -121,7 +121,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   ] : []
   const status = statuses.find(item => item.value === request.status)!
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
-  // An open row menu keeps the row lit and its menu button shown while the pointer is on the menu.
+  // An open row menu keeps the row lit while the pointer is on the menu.
   const [menuOpen, setMenuOpen] = useState(false)
   // Compact rows carry only saved facts; an unset type or Project is not one.
   const unset = (key: string) => key === "requestType" ? !request.requestType : key === "project" ? !request.projectId : false
@@ -151,9 +151,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     <div className={styles.properties}>
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}
     </div>
-    {presentation && <GlyphMenu label={`Request ${code} actions`} items={menuItems} tip="More actions" onOpenChange={setMenuOpen}>
-      <button type="button" tabIndex={-1} className={styles.rowMenu} aria-haspopup="menu" aria-label={`More actions for ${code}`}><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></button>
-    </GlyphMenu>}
+
     </div>
   </div>
   return presentation ? <ContextMenu label={`Request ${code || "actions"}`} items={menuItems} asChild openOnClick={false} onOpenChange={setMenuOpen}>{row}</ContextMenu> : row

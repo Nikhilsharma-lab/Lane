@@ -22,6 +22,10 @@
 > Saved priority followed on 2026-10-09 (`0019`), as did Ask for review (`0018`). Hosted migration/release
 > and the broader target pipeline are not implied; the launch sequence and its decisions are in
 > `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` (accepted 2026-10-10).
+> **2026-10-18 review boundary:** Nikhil moved design reviews entirely to Figma. Lane tracks the Request
+> and keeps its design link; it does not collect review requests, design feedback or reviewer decisions.
+> Saved historical review data is retained. This does not introduce Figma integration or change the
+> separately planned named alignment contract.
 
 This is the product-behaviour master, not a monolithic implementation plan. `AGENTS.md` remains the primary
 repository instruction file. `lane-roadmap.md` controls sequence, `DESIGN.md` controls the visual system,
@@ -131,9 +135,9 @@ Clerk cutover record still requires hosted invitation-return and production veri
    filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`) for Requests by code
    and title.
 5. Request detail: problem, supporting context, saved Expected impact, assignment, lifecycle actions,
-   attachments, comments, and Ask for review (named teammates respond in place; see
-   `docs/superpowers/plans/2026-10-09-ask-for-review.md`). The Expected impact summary is implemented and
-   locally verified.
+   attachments, coordination comments and saved design links. Design review discussion and decisions stay
+   in Figma (2026-10-18); the earlier Ask for review workflow is retired. The Expected impact summary is
+   implemented and locally verified.
 6. Members and invitations: Clerk Organization Profile owns invitations, delivery, resend, revoke, roles,
    and membership changes. Lane supplies no parallel invite tokens or membership mutations.
 7. Profile settings: editable functional label and browser-local System / Light / Dark preference.
@@ -830,8 +834,11 @@ increment at a time.
   notification is withdrawn. This is the undo of Mark Done, offered to the same members who can mark Done,
   not a reverse lifecycle move; Closed outcomes never reopen this way.
 - **2026-10-09:** Saved priority (none, urgent, high, medium, low) is a triage signal members set from the
-  list; it does not assign people or start work. Ask for review lets a member ask named teammates for
-  feedback on a design reference inside a Request; responses are recorded in place.
+  list; it does not assign people or start work.
+- **2026-10-18:** Design review happens entirely in Figma. Lane retains design links and Request tracking;
+  no in-app reviewer picker, review feedback form, decisions or new review notifications. Historical
+  review data remains stored; links from those records remain accessible. This supersedes Ask for review
+  from 2026-10-09 and does not add a Figma integration.
 - **2026-10-10 launch decisions** (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` §8, defaults
   accepted by Nikhil): a free, invite-only pilot for design leads at small product teams; server and
   database co-located in Tokyo (`hnd1` + `ap-northeast-1`); optimistic UI un-deferred as a launch

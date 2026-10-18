@@ -18,9 +18,14 @@ export async function GET(request: Request) {
     query: params.get("q") ?? "",
     requestsPage: page(params.get("requestsPage")),
     projectsPage: page(params.get("projectsPage")),
+    statuses: params.has("statuses") ? params.get("statuses")!.split(",") : undefined,
+    types: params.has("types") ? params.get("types")!.split(",") : undefined,
+    sort: params.get("sort") ?? undefined,
+    createdFrom: params.get("createdFrom") ?? undefined,
+    createdTo: params.get("createdTo") ?? undefined,
   });
   if (!parsed.success) {
-    return json({ success: false, error: { code: "validation", message: "Use a search of 200 characters or fewer and a valid results page." } }, { status: 400 });
+    return json({ success: false, error: { code: "validation", message: "Check your search, filters and date range, then try again." } }, { status: 400 });
   }
 
   try {

@@ -6,7 +6,7 @@ const meta = {
   ...requestsMeta,
   title: "Review/Sidebar Project tree",
   parameters: { ...requestsMeta.parameters, fullShell: true },
-  render: (args: React.ComponentProps<typeof RequestsShellFixture>) => <RequestsShellFixture {...args} linearPreviewAutoCollapse />,
+  render: (args: React.ComponentProps<typeof RequestsShellFixture>) => <RequestsShellFixture {...args} />,
 }
 export default meta
 type Story = StoryObj<typeof meta>

@@ -286,3 +286,124 @@ The dropdown-menu, context-menu and select CSS modules expose optional menu padd
 Sources at `64a6aa908594975646d157def9e7a74940634d8f`: `packages/ui/src/components/shadcn/ui/{dropdown-menu,select,dialog,popover,textarea}.tsx`. Clerk uses its existing appearance variable API to share primary action, field and focus colours. The app and Storybook already load this theme globally; no separate activation flag or new component API is introduced.
 
 Adapted field files: `src/components/arc/textarea/textarea.module.css`, `src/components/arc/password-field/password-field.module.css`, `src/components/arc/search-field/search-field.module.css`. Each keeps the original field behavior and reads the shared optional material hooks described above.
+
+
+### 2026-10-16 Global token enforcement (explicitly authorised)
+
+The shared `src/components/arc/button/button.module.css` supplies its inherited icon role through `--button-icon-sm/md/lg`, mapped to existing Supabase icon tokens (14/18/20px). Unsized send and loading icons no longer inherit Lucide's 24px default. Arc label transitions and press motion are unchanged.
+
+Replaces remaining fixed CSS consumer dimensions, radii, typography and local materials with theme roles. Spacing calculations preserve Lane composition proportions; corner sizes use the shared radius scale. CSS durations retain their relative timing through the shared duration token; JavaScript spring physics and SVG drawing geometry remain Arc behavior. Literal fallbacks no longer bypass the theme. The foundation retains reference defaults for new geometry roles, and the production mapping resolves them to Supabase. Date-range morph radii are measured from CSS and retarget when the document theme changes; compact cells use CSS spacing expressions instead of a fixed inline cell size.
+
+Updated licensed files:
+
+- `src/components/arc/alert/alert.module.css`
+- `src/components/arc/avatar/avatar.module.css`
+- `src/components/arc/badge/badge.module.css`
+- `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css`
+- `src/components/arc/button/button.module.css`
+- `src/components/arc/calendar/calendar.module.css`
+- `src/components/arc/checkbox/checkbox.module.css`
+- `src/components/arc/chip-group/chip-group.module.css`
+- `src/components/arc/context-menu/context-menu.module.css`
+- `src/components/arc/date-range-picker/date-range-picker.module.css`
+- `src/components/arc/date-range-picker/date-range-picker.tsx`
+- `src/components/arc/dialog/dialog.module.css`
+- `src/components/arc/drawer/drawer.module.css`
+- `src/components/arc/dropdown-menu/dropdown-menu.module.css`
+- `src/components/arc/empty-state/empty-state.module.css`
+- `src/components/arc/filter-toolbar/filter-toolbar.module.css`
+- `src/components/arc/floating-button-group/floating-button-group.module.css`
+- `src/components/arc/foundation.css`
+- `src/components/arc/input/input.module.css`
+- `src/components/arc/notification-center/notification-center.module.css`
+- `src/components/arc/pagination/pagination.module.css`
+- `src/components/arc/password-field/password-field.module.css`
+- `src/components/arc/popover/popover.module.css`
+- `src/components/arc/progress/progress.module.css`
+- `src/components/arc/radio-group/radio-group.module.css`
+- `src/components/arc/search-field/search-field.module.css`
+- `src/components/arc/segmented-control/segmented-control.module.css`
+- `src/components/arc/select/select.module.css`
+- `src/components/arc/skeleton/skeleton.module.css`
+- `src/components/arc/sortable-data-table/sortable-data-table.module.css`
+- `src/components/arc/textarea/textarea.module.css`
+- `src/components/arc/toast-stack/toast-stack.module.css`
+- `src/components/arc/tooltip/tooltip.module.css`
+- `src/components/arc/user-menu/user-menu.module.css`
+
+The rail width expression in `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now reads `--space-16` instead of a fixed 64px, retaining the original morph calculation.
+
+2026-10-16 toolbar consistency: `src/components/arc/filter-toolbar/filter-toolbar.module.css` uses `--radius-control` for the popover trigger, matching sibling toolbar buttons. Filter chips and the separate morph presentation retain their existing shapes.
+
+### 2026-10-16 App-wide icon token audit
+
+Lucide and marked custom icons share the foundation size rule; role attributes select source-backed sizes. Component icon slots use matching roles, including nested Button icons, Badge and EmptyState defaults. Numeric JSX dimensions are removed; SVG drawing coordinates and motion are unchanged. The production token checker now audits icon props and sizing utilities as well as CSS.
+
+Adapted files:
+
+- `src/components/arc/alert/alert.tsx`
+- `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx`
+- `src/components/arc/calendar/calendar.tsx`
+- `src/components/arc/checkbox/checkbox.tsx`
+- `src/components/arc/chip-group/chip-group.tsx`
+- `src/components/arc/context-menu/context-menu.tsx`
+- `src/components/arc/date-range-picker/date-range-picker.tsx`
+- `src/components/arc/dialog/dialog.tsx`
+- `src/components/arc/drawer/drawer.tsx`
+- `src/components/arc/dropdown-menu/dropdown-menu.tsx`
+- `src/components/arc/empty-state/empty-state.tsx`
+- `src/components/arc/filter-toolbar/filter-toolbar.tsx`
+- `src/components/arc/notification-center/notification-center.tsx`
+- `src/components/arc/pagination/pagination.tsx`
+- `src/components/arc/password-field/password-field.tsx`
+- `src/components/arc/progress/progress.tsx`
+- `src/components/arc/search-field/search-field.tsx`
+- `src/components/arc/select/select.tsx`
+- `src/components/arc/sortable-data-table/sortable-data-table.tsx`
+- `src/components/arc/toast-stack/toast-stack.tsx`
+- `src/components/arc/user-menu/user-menu.tsx`
+- `src/components/arc/alert/alert.module.css`
+- `src/components/arc/badge/badge.module.css`
+- `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css`
+- `src/components/arc/button/button.module.css`
+- `src/components/arc/checkbox/checkbox.module.css`
+- `src/components/arc/chip-group/chip-group.module.css`
+- `src/components/arc/context-menu/context-menu.module.css`
+- `src/components/arc/dropdown-menu/dropdown-menu.module.css`
+- `src/components/arc/empty-state/empty-state.module.css`
+- `src/components/arc/filter-toolbar/filter-toolbar.module.css`
+- `src/components/arc/floating-button-group/floating-button-group.module.css`
+- `src/components/arc/select/select.module.css`
+- `src/components/arc/sortable-data-table/sortable-data-table.module.css`
+- `src/components/arc/toast-stack/toast-stack.module.css`
+- `src/components/arc/user-menu/user-menu.module.css`
+- `src/components/arc/foundation.css`
+
+2026-10-16 compact section action: `src/components/arc/button/button.module.css` adds reusable `iconCircle` sizing using shared spacing and full-radius tokens. The Requests section Add link composes this with the shared button/ghost classes; its page-specific hover paint was removed. Its tooltip uses the existing plain presentation.
+
+2026-10-16 shared tooltip correction: `src/components/arc/tooltip/tooltip.module.css` uses raised surface/foreground instead of an inverted white plate, with text-xs and 6px/8px token-derived padding. Text measurement widths use the same horizontal inset. This applies to every Arc tooltip in Lane.
+
+### 2026-10-18 Search and property control consistency
+
+- `src/components/arc/search-field/search-field.tsx` and `src/components/arc/search-field/search-field.module.css` add an optional accessible `hideLabel` presentation. Workspace search now uses this component, including its padded input shell, clear action and focus behavior, instead of duplicating its markup.
+- `src/components/arc/segmented-control/segmented-control.module.css` consumes shared segment material and geometry roles. Lane maps these to Supabase's text-tone segmented ToggleGroup, tiny size, at the existing pinned commit: transparent outer frame, 1px track inset, 26px items, accent selection without an additional border or shadow. Arc's shared-layout animation and keyboard behavior are unchanged.
+- `src/components/arc/badge/badge.tsx` and `src/components/arc/badge/badge.module.css` add `appearance="control"` for read-only Request properties. It composes the existing small secondary Button classes, including icon sizing, while remaining a noninteractive span. Regular badges are unchanged.
+- `src/components/arc/button/button.module.css` excludes read-only property spans from pointer hover/pressed treatments. Their material, geometry and typography use the same rules as interactive property buttons.
+
+Source: [Supabase ToggleGroup](https://github.com/supabase/supabase/blob/64a6aa908594975646d157def9e7a74940634d8f/packages/ui/src/components/shadcn/ui/toggle-group.tsx) and [Toggle](https://github.com/supabase/supabase/blob/64a6aa908594975646d157def9e7a74940634d8f/packages/ui/src/components/shadcn/ui/toggle.tsx). All visual values already exist in `supabase-tokens.css`; component role mapping lives in `lane-arc-theme.css`.
+
+
+### 2026-10-18 Rich workspace search
+
+Licensed Arc Pro Search Results source was retrieved through Arc MCP and its reference interactions inspected at https://uiarc.dev/components/blocks/search-results. `src/components/shell/workspace-search-results.tsx` and `src/components/shell/workspace-search-pane.module.css` adapt the block's facets, active-filter chips, highlighted results, shared-layout selection cursor, keyboard listbox, recent-query menu, count animation and responsive preview. `workspace-search-pane.tsx` retains Lane's authenticated, abortable GET search controller. Real Requests/Projects and validated status/type/created-date filters replace demo documents, people, teams and edited dates. No simulated timings or fixture data are used in product search. All visual values resolve through the shared Supabase token mapping.
+
+Official Bottom Sheet was installed from https://uiarc.dev/r/bottom-sheet.json, preserving the existing motion-token files:
+
+- `src/components/arc/bottom-sheet/bottom-sheet.tsx`: shared icon sizing; optional Radix `onCloseAutoFocus` hook for controlled previews without a trigger. Arc's detents, drag resistance, interruption, keyboard handling and reduced-motion logic remain intact.
+- `src/components/arc/bottom-sheet/bottom-sheet.module.css`: surface, scrim, dimensions, typography and border literals map to existing shared tokens. Gesture geometry remains runtime-driven.
+
+Upstream Search Results source fingerprints retrieved for this adaptation:
+- `search-results.tsx`: `cd084d8adaec5b5e0542c7557f35b1e7021d0cc701b76a7fd8e969f3a7eb2c89`
+- `search-results.module.css`: `deb55aeb9ee6233b80fc2b5b9b792023bfc40430d78b07b05064e6d689af4425`
+
+2026-10-18: `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now renders Lane’s shared `ProjectMarker`. The existing ID-to-tone mapping and hollow No Project marker are unchanged; Intake, Request rows/detail, and search reuse the same marker.

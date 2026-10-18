@@ -38,9 +38,9 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
       setCopyState("idle");
       onOpenChange?.(open);
     }} items={[
-      { id: "open", label: "Open", icon: <ArrowUpRight size={15} />, onSelect: () => { onNavigate?.(); router.push(href); } },
-      { id: "new-tab", label: "Open in new tab", icon: <ExternalLink size={15} />, onSelect: () => { window.open(href, "_blank", "noopener,noreferrer"); } },
-      { id: "copy", label: copyLabel, icon: copyState === "copied" ? <Check size={15} /> : copyState === "error" ? <RotateCcw size={15} /> : <Copy size={15} />, closeOnSelect: false, onSelect: () => { void copyLink(); } },
+      { id: "open", label: "Open", icon: <ArrowUpRight />, onSelect: () => { onNavigate?.(); router.push(href); } },
+      { id: "new-tab", label: "Open in new tab", icon: <ExternalLink />, onSelect: () => { window.open(href, "_blank", "noopener,noreferrer"); } },
+      { id: "copy", label: copyLabel, icon: copyState === "copied" ? <Check /> : copyState === "error" ? <RotateCcw /> : <Copy />, closeOnSelect: false, onSelect: () => { void copyLink(); } },
     ]}>{children}</ContextMenu>
     <span className="sr-only" role="status" aria-live="polite">{copyState === "copied" ? `Link to ${label} copied.` : copyState === "error" ? "Could not copy the link. Try again." : ""}</span>
   </>;

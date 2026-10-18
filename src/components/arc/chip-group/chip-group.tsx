@@ -173,7 +173,7 @@ function Chip({ option, selected, tabbable, reduce, delay, onToggle, onFocusChip
     layout="position" initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={reduce ? { opacity: 0, transition: reducedFade } : { opacity: 0, scale: .9, transition: { duration: motionTokens.duration.instant, ease: standard } }} transition={enter}>
     <span ref={body} className={styles.body} data-selected={selected}>
       <motion.span className={styles.surface} style={{ right: edge }} aria-hidden="true" />
-      <motion.span className={styles.check} style={{ scale: checkScale, opacity: checkOpacity, filter: checkBlur }} aria-hidden="true"><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><motion.path d="M4 12.5 9.5 18 20 6.5" style={{ pathLength: checkDraw }} /></svg></motion.span>
+      <motion.span className={styles.check} style={{ scale: checkScale, opacity: checkOpacity, filter: checkBlur }} aria-hidden="true"><svg data-ui-icon data-icon-size="sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><motion.path d="M4 12.5 9.5 18 20 6.5" style={{ pathLength: checkDraw }} /></svg></motion.span>
       <span className={styles.slot} aria-hidden="true" />
       <motion.span className={styles.label} style={{ x: lag }}>{option.label}</motion.span>
     </span>

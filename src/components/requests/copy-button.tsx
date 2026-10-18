@@ -50,7 +50,7 @@ export function CopyButton({ label, value, copied, icon }: {
   const name = state === "error" ? "Retry copying" : label
   return <Tooltip morph="plain" side="bottom" content={state === "copied" ? "Copied" : name}>
     <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.iconButton} aria-label={name} data-copy-state={state} onClick={() => { void run() }}>
-      {state === "copied" ? <Check size={16} strokeWidth={1.75} aria-hidden="true" /> : state === "error" ? <RotateCcw size={16} strokeWidth={1.75} aria-hidden="true" /> : icon}
+      {state === "copied" ? <Check strokeWidth={1.75} aria-hidden="true" /> : state === "error" ? <RotateCcw strokeWidth={1.75} aria-hidden="true" /> : icon}
     </Button>
   </Tooltip>
 }

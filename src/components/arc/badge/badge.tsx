@@ -5,6 +5,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type TargetAndTransition, type Transition } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./badge.module.css";
+import buttonStyles from "../button/button.module.css";
 
 export type BadgeTone = "neutral" | "success" | "info" | "warning" | "danger";
 export type BadgeSize = "sm" | "md";
@@ -13,6 +14,8 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone;
   size?: BadgeSize;
   icon?: ReactNode;
+  /** Read-only property value beside compact Buttons; reuses their surface without button semantics. */
+  appearance?: "badge" | "control";
 }
 
 const exitFast: Transition = { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.standard] };
@@ -35,7 +38,7 @@ function iconKey(icon: ReactNode) {
   return typeof type === "string" ? type : type.displayName ?? type.name ?? "icon";
 }
 
-export function Badge({ tone = "neutral", size = "md", icon, className, children, ...props }: BadgeProps) {
+export function Badge({ tone = "neutral", size = "md", icon, appearance = "badge", className, children, ...props }: BadgeProps) {
   const reduce = useReducedMotion();
   const text = typeof children === "string" || typeof children === "number" ? String(children) : null;
   const glyphKey = icon ? iconKey(icon) : "";
@@ -66,11 +69,13 @@ export function Badge({ tone = "neutral", size = "md", icon, className, children
     return () => { observer.disconnect(); controls?.stop(); };
   }, [width, reduce]);
   const enter: Transition = reduce ? { duration: motionTokens.duration.instant } : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
-  const classes = [styles.badge, styles[tone], styles[size], className].filter(Boolean).join(" ");
+  const classes = (appearance === "control"
+    ? [buttonStyles.button, buttonStyles.secondary, buttonStyles.sm, styles.control, className]
+    : [styles.badge, styles[tone], styles[size], className]).filter(Boolean).join(" ");
   // The pill follows its content: text and icon swap in place while the width springs to the new size.
-  return <span {...props} className={classes}>
+  return <span {...props} data-readonly={appearance === "control" ? "" : undefined} className={classes}>
     <motion.span ref={body} className={styles.body} style={{ width }}>
-      <span ref={content} className={styles.content}>
+      <span ref={content} className={appearance === "control" ? buttonStyles.labelPhase : styles.content}>
         {icon ? <span className={styles.icon} aria-hidden="true"><AnimatePresence mode="popLayout" initial={false}><Swap key={glyphKey} className={styles.glyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOnly : { ...iconIn, transition: exitFast }} transition={reduce ? enter : motionTokens.spring.snappy}>{icon}</Swap></AnimatePresence></span> : null}
         {text === null ? children : <span className={styles.label}><AnimatePresence mode="popLayout" initial={false}><Swap key={text} className={styles.text} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? fadeOnly : textOut} transition={enter}>{text}</Swap></AnimatePresence></span>}
       </span>

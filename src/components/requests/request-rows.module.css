@@ -1,13 +1,15 @@
 /* Lane record composition. Pills, popovers and controls are native Arc items.
  * Keyboard focus shows Arc's shared outline on the row, the list's one tab stop
  * (plan item 2.4); fills mark hover, open menus and selection only.
- * Sizes follow Supabase's table: rows at the table-row height, group headers at the table-head height. */
+ * Sizes use Supabase's 44px control token for compact rows and table-head height for group headers. */
 .records { container-type: inline-size; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
-.row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height); padding: 0 var(--space-2) 0 0; border-radius: var(--request-row-radius); }
+.row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height); padding: 0 var(--space-2); border-radius: var(--request-row-radius); }
 .rowContent { display: flex; align-items: center; gap: var(--space-4); flex: 1; min-width: 0; }
 .savedCode { display: grid; flex: none; min-width: calc(var(--sb-spacing) * 28); max-width: 100%; }
 .savedCode .codeButton { min-height: var(--request-row-height); justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
+/* The row owns the hover fill; copying retains its glyph, tooltip and focus outline. */
+.row .savedCode .codeButton:is(:hover, :active):not(:disabled) { background-color: transparent; }
 .codeError { max-width: calc(var(--sb-spacing) * 48); padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .row[data-selected] .codeButton { color: var(--selection-foreground); }
 .row:hover, .row[data-menu-open] { background: var(--interaction-hover); }
@@ -16,6 +18,12 @@
 .row[data-selected]:active { background: var(--selection-pressed); }
 /* The select cell holds the checkbox's own box; the row draws the focus ring. */
 .selectCell { display: flex; flex: none; align-items: center; }
+/* Keep the selection column in place; reveal unchecked controls on intent.
+   Touch users retain a visible selection target. */
+@media (hover: hover) and (pointer: fine) {
+  .row .selectCell { opacity: 0; }
+  .row:is(:hover, :focus-within, [data-selected], [data-menu-open]) .selectCell { opacity: 1; }
+}
 .row[data-selected]:has(+ .row[data-selected]) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
 .title { flex: 1 1 calc(var(--sb-spacing) * 80); min-width: 0; display: flex; align-items: center; min-height: var(--request-row-height); padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); line-height: var(--request-title-line-height); text-decoration: none; overflow-wrap: anywhere; }
@@ -60,7 +68,7 @@
 /* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
 .groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius); }
 .groupCell { flex: 1; min-width: 0; }
-.groupAddCell { display: flex; flex: none; }
+.groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--sb-table-head-height); }
 .groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--sb-table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
@@ -95,29 +103,20 @@
 .row[data-compact-row] .properties > [data-row-property="requestType"] { order: -2; }
 .row[data-compact-row] .properties > [data-row-property="project"] { order: -1; }
 .row[data-compact-row] .properties > [data-row-property="pickedUpBy"] { flex: none; }
+/* Reserve one date column so month/day lengths cannot move the avatar column. */
+.row[data-compact-row] .properties > [data-row-property="createdAt"] { flex: 0 0 calc(var(--sb-spacing) * 12); width: calc(var(--sb-spacing) * 12); justify-content: flex-start; }
+.row[data-compact-row] .submittedDate { font-variant-numeric: tabular-nums; }
 .row[data-compact-row] .propertyTrigger { max-width: 100%; }
 .row[data-compact-row] .propertyBadge { max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); border-width: var(--sb-border-width); }
 .row[data-compact-row] .propertyBadge > span { min-width: 0; max-width: 100%; }
-.identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--sb-icon-sm); width: var(--sb-icon-sm); height: var(--sb-size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--sb-radius-sm); cursor: pointer; }
-.identityControl[data-priority="urgent"] { color: var(--sb-color-orange-1100); }
-.identityControl[data-status="open"] { color: var(--text-muted); }
-.identityControl[data-status="in_progress"] { color: var(--warning); }
-.identityControl[data-status="done"] { color: var(--accent); }
+.identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-size-md); width: var(--icon-size-md); height: var(--sb-size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--sb-radius-sm); cursor: pointer; }
 .requestCode { flex: 0 0 calc(var(--sb-spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row[data-selected] .requestCode { color: var(--selection-foreground); }
 .submittedDate { white-space: nowrap; color: var(--request-property-foreground); font-size: var(--text-xs); }
-.typeDot { width: calc(var(--sb-spacing) * 2.25); height: calc(var(--sb-spacing) * 2.25); border-radius: 50%; background: var(--sb-color-red-900); }
-.typeDot[data-type="improvement"] { background: var(--sb-color-blue-900); }
-.typeDot[data-type="new_feature"] { background: var(--sb-color-purple-900); }
-/* Row actions. The menu button and the copy glyph appear for the pointer or
- * the keyboard instead of standing as a permanent column of icons. The span
- * around each glyph button only carries menu handlers; it draws nothing. */
-.rowMenu { display: inline-flex; flex: none; align-items: center; justify-content: center; width: var(--sb-size-inner-small); height: var(--sb-size-inner-small); border: 0; padding: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: pointer; }
-.rowMenu:hover, .row[data-menu-open] .rowMenu { background: var(--interaction-focus); color: var(--foreground); }
-.row[data-selected] .rowMenu { color: var(--selection-foreground); }
+/* The copy glyph appears on hover, focus and copy feedback. */
 @media (hover: hover) {
-  .rowMenu, .row[data-compact-row] .codeButton svg { opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
-  .row:is(:hover, :focus-within, [data-menu-open]) .rowMenu, .row:is(:hover, :focus-within, [data-menu-open]) .codeButton svg, .savedCode:not([data-state="idle"]) .codeButton svg { opacity: 1; }
+  .row[data-compact-row] .codeButton svg { opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+  .row:is(:hover, :focus-within, [data-menu-open]) .codeButton svg, .savedCode:not([data-state="idle"]) .codeButton svg { opacity: 1; }
 }
 /* After the compact rules above, so the narrower cap wins at equal specificity. */
 @container (max-width: 880px) {
@@ -145,5 +144,3 @@
 .row[data-compact-row] [role="checkbox"] { height: var(--request-row-height); }
 .groupHeader { display: flex; align-items: center; border-radius: var(--request-row-radius); background: var(--surface-muted); }
 .groupHeader .groupButton { background: transparent; }
-.groupAdd { display: inline-flex; flex: none; align-items: center; justify-content: center; width: var(--sb-table-head-height); height: var(--sb-table-head-height); border-radius: var(--request-row-radius); color: var(--text-secondary); }
-.groupAdd:hover { background: var(--interaction-hover); color: var(--foreground); }

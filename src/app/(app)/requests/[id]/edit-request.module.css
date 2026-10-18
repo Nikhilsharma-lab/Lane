@@ -1,0 +1,5 @@
+.form { display: flex; flex-direction: column; min-height: 0; }
+.fields { display: grid; gap: var(--space-4); min-width: 0; }
+.form > .fields { overflow-y: auto; padding: var(--space-5); }
+.properties { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.footer { display: grid; gap: var(--space-3); flex: none; padding: var(--space-4) var(--space-5); border-top: var(--sb-border-width) solid var(--border); background: var(--surface-raised); }

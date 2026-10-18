@@ -59,6 +59,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Arc UI (shad
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
 - **This file is the primary repository instruction file.** `CLAUDE.md` is only a compatibility pointer.
+- **Shared session handoff:** read `docs/SESSION-STATE.md` before resuming Claude or Codex work; keep one editing session per checkout and update the handoff when switching tools.
 
 ## Do NOT build (these sank v1 — they are banned until there is a paying customer asking)
 
@@ -91,7 +92,7 @@ The confirmed Request success/readiness/outcome/follow-up contract supersedes th
 
 
 ## Roadmap & phases
-- **Current phase: MVP launch plan accepted 2026-10-10; Phases 0, 1a and 1b done; the creation-to-outcome sketch signed 2026-10-11; Phase 2 (page by page, starting with 2.0 app frame and states) is current.** The sequence, budgets and decisions are in `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`. Shipped since 2026-10-06: Expected impact, saved Request codes (`0017`), Ask for review (`0018`), saved priority (`0019`), the Linear visual system in production, and the Requests list polish.
+- **Current phase: MVP launch plan accepted 2026-10-10; Phases 0, 1a and 1b done; the creation-to-outcome sketch signed 2026-10-11; Phase 2 (page by page, starting with 2.0 app frame and states) is current.** The sequence, budgets and decisions are in `docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`. Shipped since 2026-10-06: Expected impact, saved Request codes (`0017`), Ask for review (`0018`, retired 2026-10-18: design reviews and decisions stay in Figma; Lane keeps design links only), saved priority (`0019`), the Linear visual system in production, and the Requests list polish.
   Current implementation is not the confirmed target pipeline. Release evidence remains in the cutover plan;
   operational gates and the alignment-first sequence live in `lane-roadmap.md` §3.
   Full sequence + the thesis filter (adopt / reconceive / refuse) live in `lane-roadmap.md`.
@@ -102,3 +103,13 @@ The confirmed Request success/readiness/outcome/follow-up contract supersedes th
   leads are using it. Then re-read `lane-roadmap.md`, confirm validation and select the next bounded increment.
   The target contract is confirmed, not all implemented; real use informs later release order. Unrelated apps
   and agents remain hypotheses. Do not turn this contract into a single large build.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

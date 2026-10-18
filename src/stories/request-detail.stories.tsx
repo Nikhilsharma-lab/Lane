@@ -58,13 +58,14 @@ async function expectStripHeight(strip: Element) {
 async function choosePriority(canvasElement: HTMLElement, label: string) {
   const page = within(document.body)
   if (panelShown(canvasElement)) {
-    await userEvent.click(within(main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("button", { name: /^Priority: .*Change priority$/ }))
-    await userEvent.click(await page.findByRole("menuitemcheckbox", { name: label }))
+    await userEvent.click(within(main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!).getByRole("combobox", { name: /^Priority/ }))
+    await userEvent.click(await page.findByRole("option", { name: label }))
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull())
     return
   }
   await userEvent.click(stateLine(canvasElement))
   const sheet = within(await page.findByRole("dialog", { name: "Properties" }))
-  await userEvent.click(await sheet.findByRole("combobox", { name: "Priority" }))
+  await userEvent.click(await sheet.findByRole("combobox", { name: /^Priority/ }))
   await userEvent.click(await page.findByRole("option", { name: label }))
   // The listbox animates out; until it has, it holds Esc and hides the sheet from assistive tech.
   await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull())
@@ -74,7 +75,7 @@ async function expectStatus(canvasElement: HTMLElement, status: "open" | "in_pro
   const label = { open: "Open", in_progress: "In Progress", done: "Done" }[status]
   await expect(statusCell(canvasElement)).toHaveAttribute("data-status", status)
   // The new label is there in the same frame; the Arc Button lets the old one fade out first.
-  await waitFor(() => expect(stateLine(canvasElement)).toHaveTextContent(new RegExp(`^${label},`)))
+  await waitFor(() => expect(stateLine(canvasElement)).toHaveAttribute("aria-label", expect.stringMatching(new RegExp(`^Properties: ${label},`))))
 }
 
 /** One-line values keep every panel row at 32px, the editable ones and the Assignee's avatar included. */
@@ -93,7 +94,7 @@ export const Default: Story = {
     const crumbs = [...bar.querySelectorAll("nav li")].filter(item => item.getClientRects().length > 0).map(item => item.textContent)
     await expect(crumbs).toEqual(innerWidth <= 640 ? ["LAN-12"] : ["Lane Studio", "Website", "LAN-12"])
     await expectStripHeight(bar)
-    await expect(regionIds(canvasElement)).toEqual(["problem", "expected-impact", "files", "ask-for-review", "conversation"])
+    await expect(regionIds(canvasElement)).toEqual(["problem", "expected-impact", "files", "conversation"])
     const labels = [...main(canvasElement).querySelectorAll("[data-detail-panel] dt")].map(term => term.textContent)
     await expect(labels).toEqual(["Status", "Priority", "Assignee", "Project", "Type", "Submitted"])
     await expectOneLineRows(canvasElement)
@@ -102,7 +103,11 @@ export const Default: Story = {
     await expect(page.queryByText(/Owner/)).not.toBeInTheDocument()
     // The title is the page's h1 at the composer's size; the description sits under it, always.
     const title = page.getByRole("heading", { level: 1 })
-    await expect(title).toHaveTextContent(request.reframedProblem!)
+    await expect(title).toHaveTextContent(request.title)
+    const problemSection = within(main(canvasElement).querySelector<HTMLElement>("#problem")!)
+    await expect(problemSection.getByText(request.reframedProblem!, { exact: true })).toBeVisible()
+    await userEvent.click(problemSection.getByText("Original Request", { exact: true }))
+    await expect(problemSection.getByText(request.description, { exact: true })).toBeVisible()
     await expect(title.parentElement!.nextElementSibling).toHaveAttribute("id", "problem")
     await expect(page.getByText(request.description)).toBeVisible()
     await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Pick up"])
@@ -126,7 +131,7 @@ export const Minimal: Story = {
     const root = main(canvasElement)
     await expect(root.querySelector("#expected-impact")).toBeNull()
     await expect(root.querySelector("#files")).toBeNull()
-    await expect(within(root.querySelector<HTMLElement>("#conversation")!).getByText("No comments yet. Add a question or update below.")).toBeVisible()
+    await expect(within(root.querySelector<HTMLElement>("#conversation")!).getByRole("textbox", { name: "Comment" })).toBeVisible()
     await expect(within(root).queryByRole("group", { name: /Original Request/ })).not.toBeInTheDocument()
     await expect(root.textContent).not.toContain("Original Request")
     if (panelShown(canvasElement)) await expect(within(root.querySelector<HTMLElement>("[data-detail-panel]")!).getByText("No Project")).toBeVisible()
@@ -179,6 +184,29 @@ export const Done: Story = {
   },
 }
 
+/** Done remains noninteractive, but must not switch to a differently shaped badge. */
+export const PropertyControlConsistency: Story = {
+  args: { current: { ...inProgress, status: "done" } },
+  play: async ({ canvasElement }) => {
+    const group = canvasElement.querySelector<HTMLElement>('[aria-label="Request properties"]')!;
+    // The compact row exists at all widths; reveal only this fixture to measure it on desktop.
+    group.style.display = "flex";
+    const controls = Array.from(group.children) as HTMLElement[];
+    const status = controls[0];
+    const priority = within(group).getByRole("combobox", { name: /^Priority:/ });
+    const properties = within(group).getByRole("button", { name: /^Properties:/ });
+    await expect(status.tagName).toBe("SPAN");
+    await expect(status.querySelector("button")).toBeNull();
+    for (const control of [status, priority]) {
+      for (const property of ["borderRadius", "backgroundColor", "boxShadow", "paddingInlineStart", "paddingInlineEnd", "fontSize"] as const) {
+        await expect(getComputedStyle(control)[property], property).toBe(getComputedStyle(properties)[property]);
+      }
+      await expect(control.getBoundingClientRect().height).toBe(properties.getBoundingClientRect().height);
+    }
+    group.style.removeProperty("display");
+  },
+}
+
 /** A guest reads every row, copies and comments, and never sees a move or a priority control. */
 export const Guest: Story = {
   args: { guest: true },
@@ -197,12 +225,12 @@ export const Guest: Story = {
   },
 }
 
-/** A guest sees Ask for review once a review exists, read-only. */
-export const GuestWithReview: Story = {
-  args: { guest: true, review: waitingReview },
+/** Guests who can read a Request can also open its saved design link. */
+export const GuestWithDesignLink: Story = {
+  args: { current: inProgress, guest: true, review: waitingReview },
   play: async ({ canvasElement }) => {
-    const review = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
-    await expect(review.getByText("Waiting for feedback")).toBeVisible()
+    const review = within(within(main(canvasElement)).getByRole("region", { name: "Design" }))
+    await expect(review.getByRole("link", { name: /Open design/ })).toHaveAttribute("href", waitingReview.reviews[0].designUrl)
     await expect(review.queryByRole("button")).not.toBeInTheDocument()
   },
 }
@@ -392,11 +420,11 @@ export const PriorityAcknowledged: Story = {
     mocked(setRequestPriority).mockImplementation(() => answer.promise)
     await choosePriority(canvasElement, "High")
     await waitFor(() => expect(main(canvasElement).querySelector("[data-detail-priority]")).toHaveAttribute("data-priority", "high"))
-    await expect(stateLine(canvasElement)).toHaveTextContent("Open, High priority")
+    await expect(stateLine(canvasElement)).toHaveAttribute("aria-label", "Properties: Open, High priority")
     await expect(announcer(canvasElement)).toHaveTextContent("Priority set to high.")
     answer.resolve({ error: "You can't change Requests in this workspace." })
     await waitFor(() => expect(main(canvasElement).querySelector("[data-detail-priority]")).toHaveAttribute("data-priority", "none"))
-    await expect(stateLine(canvasElement)).toHaveTextContent("Open, No priority")
+    await expect(stateLine(canvasElement)).toHaveAttribute("aria-label", "Properties: Open, No priority")
     await waitFor(() => expect(toasts(canvasElement)).toHaveTextContent("You can't change Requests in this workspace."))
   },
 }
@@ -418,7 +446,7 @@ export const PriorityNoRevert: Story = {
     await expect(pendingLayers(canvasElement)).toBe(request.id)
     await userEvent.click(canvas.getByRole("button", { name: "Deliver fresh server render" }))
     await expect(main(canvasElement).querySelector("[data-detail-priority]")).toHaveAttribute("data-priority", "high")
-    await expect(stateLine(canvasElement)).toHaveTextContent("Open, High priority")
+    await expect(stateLine(canvasElement)).toHaveAttribute("aria-label", "Properties: Open, High priority")
     // The fresh render shows High, so the overlay lets go of its layer.
     await waitFor(() => expect(pendingLayers(canvasElement)).toBe(""))
   },
@@ -449,7 +477,7 @@ export const PriorityClearNoRevert: Story = {
       await expect(shown()).toBe("none")
       await userEvent.click(canvas.getByRole("button", { name: "Deliver fresh server render" }))
       await waitFor(() => expect(pendingLayers(canvasElement)).toBe(""))
-      await expect(stateLine(canvasElement)).toHaveTextContent("Open, No priority")
+      await expect(stateLine(canvasElement)).toHaveAttribute("aria-label", "Properties: Open, No priority")
       await expect(seen).toEqual(["high", "none"])
     } finally { observer.disconnect() }
   },
@@ -465,6 +493,7 @@ export const CommentAppends: Story = {
     const canvas = within(canvasElement)
     const answer = deferred<Awaited<ReturnType<typeof addComment>>>()
     mocked(addComment).mockImplementation(() => answer.promise)
+    await expect(getComputedStyle(canvas.getByRole("button", { name: "Post comment" }).querySelector("svg")!).width).toBe("14px")
     await userEvent.type(comment(canvasElement), "Can we ship this before the holiday freeze?")
     await userEvent.keyboard("{Meta>}{Enter}{/Meta}")
     await waitFor(() => expect(commentRows(canvasElement)).toHaveLength(2))
@@ -473,6 +502,7 @@ export const CommentAppends: Story = {
     await expect(comment(canvasElement)).toHaveValue("")
     await expect(comment(canvasElement)).not.toHaveAttribute("readonly")
     await expect(within(main(canvasElement)).getByRole("button", { name: "Posting…" })).toBeDisabled()
+    await expect(getComputedStyle(canvas.getByRole("button", { name: "Posting…" }).querySelector("svg")!).width).toBe("14px")
     answer.resolve({ success: true, comment: { id: "fixture-new-comment", createdAt: new Date("2026-10-13T09:00:00Z") } })
     await waitFor(() => expect(commentRows(canvasElement)[1]).not.toHaveTextContent("Sending…"))
     await userEvent.click(canvas.getByRole("button", { name: "Deliver fresh server render" }))
@@ -566,10 +596,10 @@ export const PhoneProperties: Story = {
     await expectPinnedViewport(context)
     const { canvasElement } = context
     const line = stateLine(canvasElement)
-    await expect(line).toHaveTextContent("Open, No priority")
+    await expect(line).toHaveAttribute("aria-label", "Properties: Open, No priority")
     await expect(panelShown(canvasElement)).toBe(false)
     await choosePriority(canvasElement, "High")
-    await waitFor(() => expect(line).toHaveTextContent("Open, High priority"))
+    await waitFor(() => expect(line).toHaveAttribute("aria-label", "Properties: Open, High priority"))
     await expect(await within(document.body).findByRole("dialog", { name: "Properties" })).toBeVisible()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(within(document.body).queryByRole("dialog", { name: "Properties", hidden: true })).not.toBeInTheDocument())
@@ -592,81 +622,6 @@ export const PhoneStrip: Story = {
     const boxes = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...boxes.map(box => box.right)))).toBeLessThanOrEqual(0.5)
     noHorizontalScroll()
-  },
-}
-
-/** The lazy Ask for review fallback holds the closed panel's place: the conversation does not move when the panel arrives. */
-export const ReviewFallbackHoldsPlace: Story = {
-  args: { current: minimalRequest, comments: [], attachments: [], lazyReview: true },
-  play: async ({ canvasElement }) => {
-    await canvasElement.ownerDocument.fonts.ready
-    const conversation = () => main(canvasElement).querySelector<HTMLElement>("#conversation")!
-    await expect(main(canvasElement).querySelector("#ask-for-review")).toBeNull()
-    const before = conversation().getBoundingClientRect().top
-    await userEvent.click(within(canvasElement).getByRole("button", { name: "Load Ask for review" }))
-    await within(main(canvasElement)).findByRole("region", { name: "Ask for review" })
-    await expect(Math.abs(conversation().getBoundingClientRect().top - before)).toBeLessThanOrEqual(1)
-  },
-}
-
-/** Ask for review is its own region with a secondary header button. */
-export const AskForReview: Story = {
-  args: { current: minimalRequest, comments: [], attachments: [] },
-  play: async ({ canvasElement }) => {
-    const region = within(main(canvasElement)).getByRole("region", { name: "Ask for review" })
-    await expect(region).toHaveAttribute("id", "ask-for-review")
-    const button = within(region).getByRole("button", { name: "Ask for review" })
-    await expect(filledButtons(canvasElement)).not.toContain(button)
-    await expect(within(main(canvasElement)).getByRole("textbox", { name: "Comment" })).toBeInTheDocument()
-    noHorizontalScroll()
-  },
-}
-
-/** While the viewer's review form is open, its submit is the page's one filled button: the strip action steps aside. */
-export const StripHidesWhileReviewFormOpen: Story = {
-  args: { current: minimalRequest, comments: [], attachments: [] },
-  play: async ({ canvasElement }) => {
-    const region = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
-    await userEvent.click(region.getByRole("button", { name: "Ask for review" }))
-    await waitFor(() => expect(within(strip(canvasElement)).queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument())
-    await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Ask for review"])
-    await userEvent.click(region.getByRole("button", { name: "Cancel" }))
-    await expect(await within(strip(canvasElement)).findByRole("button", { name: "Pick up" })).toBeVisible()
-  },
-}
-
-/** Plan item 2.6 (decision D4): the response form the panel offers a named reviewer on arrival keeps a secondary submit, so the
- * strip's action stays the page's one filled button; only a form the viewer opens becomes primary and hides the strip. */
-async function expectOnePrimaryWithOfferedForm(canvasElement: HTMLElement) {
-  const region = within(within(main(canvasElement)).getByRole("region", { name: "Ask for review" }))
-  await expect(region.getByRole("textbox", { name: "Feedback note" })).toBeVisible()
-  await expect(within(strip(canvasElement)).getByRole("button", { name: "Pick up" })).toBeVisible()
-  await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Pick up"])
-  const offered = region.getByRole("button", { name: "Send feedback" })
-  await expect(offered).toBeVisible()
-  await expect(filledButtons(canvasElement)).not.toContain(offered)
-  await userEvent.click(region.getByRole("button", { name: "Cancel edit" }))
-  await userEvent.click(region.getByRole("button", { name: "Respond to review" }))
-  await waitFor(() => expect(within(strip(canvasElement)).queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument())
-  await expect(filledButtons(canvasElement).map(button => button.textContent)).toEqual(["Send feedback"])
-  noHorizontalScroll()
-}
-
-export const AutoOfferedResponseKeepsOnePrimary: Story = {
-  args: { current: minimalRequest, comments: [], attachments: [], review: waitingOnViewer },
-  globals: desktopLight,
-  play: async ({ canvasElement, globals, parameters }) => {
-    await expectPinnedViewport({ globals, parameters })
-    await expectOnePrimaryWithOfferedForm(canvasElement)
-  },
-}
-
-export const AutoOfferedResponseKeepsOnePrimaryPhone: Story = {
-  args: { current: minimalRequest, comments: [], attachments: [], review: waitingOnViewer },
-  globals: phoneDark,
-  play: async ({ canvasElement, globals, parameters }) => {
-    await expectPinnedViewport({ globals, parameters })
-    await expectOnePrimaryWithOfferedForm(canvasElement)
   },
 }
 
@@ -714,5 +669,18 @@ export const Loading: Story = {
     await expect(within(root).getAllByRole("status")).toHaveLength(1)
     await expect(root.querySelector("#problem, #request-title, [data-request-id]")).toBeNull()
     await expectStripHeight(strip(canvasElement))
+  },
+}
+
+/** Lane tracks the Request; the Figma link is the only design-review control. */
+export const FigmaOnlyReview: Story = {
+  args: { current: { ...inProgress, usefulLink: "https://www.figma.com/design/example?node-id=1-2" }, review: waitingOnViewer },
+  play: async ({ canvasElement }) => {
+    const canvas = within(main(canvasElement))
+    await expect(canvas.queryByRole("region", { name: "Ask for review" })).not.toBeInTheDocument()
+    await expect(canvas.queryByRole("button", { name: "Save decision" })).not.toBeInTheDocument()
+    await expect(canvas.getByRole("link", { name: /Open in Figma/ })).toHaveAttribute("href", "https://www.figma.com/design/example?node-id=1-2")
+    await expect(canvas.getByRole("textbox", { name: "Comment" })).toBeVisible()
+    noHorizontalScroll()
   },
 }

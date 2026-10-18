@@ -47,7 +47,7 @@ Product CSS outside `src/components/arc/` uses Arc hooks or `--sb-*` tokens only
 | Focus | `ring`, 2px with 2px offset |
 | Project markers, type dots | Palette step 900; picker avatars step 300 |
 | Controls sm/md/lg | Button tiny/small/medium: 26/34/38px |
-| Request rows, group headers | Table row 52px (square), table head 40px |
+| Request rows, group headers | Request row 44px (inner-xlarge), table head 40px; both use rounded-md (8px), density and rounding approved 2026-10-16 |
 | Menu rows | Dropdown item 28px, item radius 6px |
 | Elevation resting/raised/floating | `shadow-xs`/`shadow-md`/`shadow-lg` |
 | Motion fast/standard/considered | 150/200/300ms; control ease `cubic-bezier(.22,1,.36,1)`, enter ease `cubic-bezier(.16,1,.3,1)` |
@@ -91,3 +91,32 @@ Icon-pill refinement: leading padding is 8px (default) or 4px (compact), with tr
 Approved controls now apply through the existing global app import. Remaining shared surfaces were aligned with the same pinned source: menus use p-1 and rounded-item, root dropdown/select/popover shadow-md; dialogs use actual Studio bg-dash-sidebar and shadow-md (light)/shadow-xs (dark). Field variants share bg-field and border-control. Clerk's supported appearance variables now use the same primary action, input and focus colours. Arc handlers, semantics, motion, typography and existing composition remain; select keeps its trailing indicator with mirrored source insets. Icon-pill and text-only badge spacing remain as approved above.
 
 Verification: source ledger, TypeScript, lint, both builds and 50 focused browser test executions passed. Screen smoke and manual responsive review covered Requests, detail, Intake, Profile and onboarding; local sign-in rendered with the green primary action. Broader runs stalled; Sidebar Project tree / Create Reveals Project failed on its missing new Project heading, so this is not full-suite or hosted verification. See the application checkpoint in `docs/superpowers/plans/2026-10-16-arc-supabase-design-system.md` for exact scopes and limitations.
+
+
+## Global consumer enforcement — 2026-10-16
+
+Supersedes the earlier exception for fixed Arc component CSS internals. Application and component styles now reference shared tokens, including fallbacks. Layout dimensions may be calculated as multiples of the spacing unit; this preserves Lane composition rather than copying Studio page layouts. Radii use the shared radius scale. Default body weight now follows the shared normal weight instead of local 400 declarations.
+
+`pnpm design:check` now runs token-contract regression tests, a PostCSS consumer audit, a TypeScript AST audit of static JSX inline styles, and source provenance checks. The existing pull-request/main CI workflow already runs this command. Adding a component from a registry does not exempt it from the consumer audit. Source token definitions (`supabase-tokens.css`, Arc `foundation.css`) remain explicit sources; the mapping may compose semantic colours from Supabase tokens. Overlay and inverse-tooltip blends are Lane semantic compositions in that mapping, not claims of newly verified upstream values.
+
+Exceptions are mechanical: responsive query thresholds, 1px screen-reader clipping, mask paint, zero values, proportional geometry, measured/resizable layout, SVG drawing geometry and JavaScript motion physics. Runtime calculations and utility classes still require review; the static guard is not a proof over arbitrary JavaScript.
+
+`Foundations / Global token contract / Shared Values Propagate` changes the root Supabase spacing and radius tokens, asserts that sidebar padding, notification padding, avatar size and button corners update, then restores the theme.
+
+### Shared icon sizing
+
+Lucide icons and custom SVG icons marked `data-ui-icon` read `--icon-size`, falling back to `--icon-size-md`. The size roles xs/sm/md/lg/xl/2xl map to the existing Supabase 12/14/16/18/20/24px tokens. Use `data-icon-size` for a distinct role; omit it for the containing control's default. Button supplies its compact/default/large size to nested icons; Badge and EmptyState supply their own roles. Menu icon slots and selection spacers read the same size tokens.
+
+Numeric `size`, outer SVG `width`/`height`, fixed Tailwind icon dimensions and unsupported roles are rejected by `pnpm design:check`, which already runs in CI. SVG viewBox/path/mask coordinates, proportional brand artwork and control-scaled checkbox marks remain geometry. Semantic colours and Arc animation are preserved. The source scan covers production JSX in app/components, including Lucide aliases and dynamic icon slots; arbitrary runtime-generated attributes still require browser review.
+
+`Shared Icon Sizes` proves that changing source tokens updates standalone, nested-button and custom icons, while preserving their colours.
+
+### Shared control ownership, 2026-10-18
+
+Use Arc `SearchField` for search inputs, with `hideLabel` when the surrounding search surface provides the visual context. Do not duplicate its icon/input shell. `SegmentedControl` uses the pinned Supabase text-tone segmented ToggleGroup material through shared `--segment-*` roles; Arc retains its interaction and motion implementation.
+
+Request property chips use compact secondary Button styling. Editable properties render Button; read-only properties render `Badge appearance="control"`, which composes the same CSS and remains a span. Regular informational badges retain their existing appearance. Page CSS must not override shared control padding, radius or material tokens.
+
+The token audit now rejects native search inputs outside SearchField and component-role token definitions outside their shared component or theme owner. This includes button, input and segment roles and badge geometry roles; contextual semantic badge colours remain permitted. Supabase source tokens may not be redefined by components. Rendered stories separately cover search insets/clear focus, segmented material/keyboard operation, and matching read-only/editable property geometry. These checks prevent the observed drift patterns; arbitrary runtime-generated styling still requires review.
+
+Verification for this increment: 60 affected browser stories passed, plus 11 focused responsive/reduced-motion executions; 16 token-audit tests, token/provenance audits, TypeScript, scoped lint and production build passed. Actual localhost search and Request detail were visually checked. This is local application evidence, not deployed verification. See `docs/superpowers/plans/2026-10-18-control-consistency.md`.

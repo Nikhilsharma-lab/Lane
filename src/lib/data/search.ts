@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, or, sql, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, projects, requests } from "@/db";
@@ -21,7 +21,12 @@ export const workspaceSearchInputSchema = z.object({
   query: z.string().trim().max(WORKSPACE_SEARCH_QUERY_MAX).refine((value) => !value.includes("\0")),
   requestsPage: pageSchema,
   projectsPage: pageSchema,
-});
+  statuses: z.array(z.enum(["open", "in_progress", "done"])).max(3).optional(),
+  types: z.array(z.enum(["bug", "improvement", "new_feature", "none"])).max(4).optional(),
+  sort: z.enum(["relevance", "newest", "title"]).optional(),
+  createdFrom: z.iso.date().optional(),
+  createdTo: z.iso.date().optional(),
+}).refine(value => !value.createdFrom || !value.createdTo || value.createdFrom <= value.createdTo, { message: "Start date must not follow end date" });
 export type WorkspaceSearchQuery = z.infer<typeof workspaceSearchInputSchema>;
 export type WorkspaceSearchResult = Extract<WorkspaceSearchResponse, { success: true }>;
 
@@ -73,7 +78,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
   if (!query) return { success: true, query, requests: resultPage([], 0, 0), projects: resultPage([], 0, 0) };
 
   const requestNumber = parseRequestCode(query);
-  const requestWhere = and(
+  const requestBase = and(
     eq(requests.orgId, auth.orgId),
     auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
     or(requestNumber === null ? undefined : eq(requests.requestNumber, requestNumber), measurementMatches(query), ...[
@@ -86,14 +91,29 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       sql`${requests.expectedImpact} ->> 'result'`,
     ].map((field) => containsText(field, query))),
   );
+  const from = input.createdFrom ? new Date(`${input.createdFrom}T00:00:00.000Z`) : undefined;
+  const until = input.createdTo ? new Date(new Date(`${input.createdTo}T00:00:00.000Z`).getTime() + 86400000) : undefined;
+  const dates = (field: typeof requests.createdAt | typeof projects.createdAt) => and(from ? gte(field, from) : undefined, until ? lt(field, until) : undefined);
+  const statusFilter = input.statuses?.length ? inArray(requests.status, input.statuses) : undefined;
+  const typed = input.types?.filter(type => type !== "none") ?? [];
+  const typeFilter = input.types?.length ? or(typed.length ? inArray(requests.requestType, typed) : undefined, input.types.includes("none") ? isNull(requests.requestType) : undefined) : undefined;
+  const requestWhere = and(requestBase, dates(requests.createdAt), statusFilter, typeFilter);
   const projectWhere = and(
     accessibleProjectsWhere(auth),
     or(containsText(projects.name, query), containsText(projects.description, query)),
+    dates(projects.createdAt),
+    statusFilter || typeFilter ? sql`false` : undefined,
   );
+  const requestOrder = input.sort === "title" ? [asc(sql`lower(${requests.title})`), asc(requests.id)]
+    : input.sort === "relevance" ? [desc(sql`case when lower(${requests.title}) = lower(${query}) then 2 when ${containsText(requests.title, query)} then 1 else 0 end`), desc(requests.createdAt), desc(requests.id)]
+    : [desc(requests.createdAt), desc(requests.id)];
+  const projectOrder = input.sort === "newest" ? [desc(projects.createdAt), desc(projects.id)]
+    : input.sort === "relevance" ? [desc(sql`case when lower(${projects.name}) = lower(${query}) then 2 when ${containsText(projects.name, query)} then 1 else 0 end`), asc(sql`lower(${projects.name})`), asc(projects.id)]
+    : [asc(sql`lower(${projects.name})`), asc(projects.id)];
 
   // Search the authorized database set, independently of the Requests list's
   // latest-200 boundary. Totals use the identical access and search predicates.
-  const [requestRows, requestCounts, projectRows, projectCounts] = await Promise.all([
+  const [requestRows, requestCounts, projectRows, projectCounts, statusCounts, typeCounts] = await Promise.all([
     db.select({
       id: requests.id,
       requestNumber: requests.requestNumber,
@@ -104,20 +124,30 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       projectName: projects.name,
       requestType: requests.requestType,
       createdAt: requests.createdAt,
+      description: requests.description,
     }).from(requests)
       .leftJoin(projects, and(eq(projects.id, requests.projectId), eq(projects.orgId, auth.orgId)))
-      .where(requestWhere).orderBy(desc(requests.createdAt), desc(requests.id))
+      .where(requestWhere).orderBy(...requestOrder)
       .limit(WORKSPACE_SEARCH_PAGE_SIZE).offset(requestsPage * WORKSPACE_SEARCH_PAGE_SIZE),
     db.select({ total: count() }).from(requests).where(requestWhere),
-    db.select({ id: projects.id, name: projects.name, description: projects.description })
-      .from(projects).where(projectWhere).orderBy(asc(sql`lower(${projects.name})`), asc(projects.id))
+    db.select({ id: projects.id, name: projects.name, description: projects.description, createdAt: projects.createdAt })
+      .from(projects).where(projectWhere).orderBy(...projectOrder)
       .limit(WORKSPACE_SEARCH_PAGE_SIZE).offset(projectsPage * WORKSPACE_SEARCH_PAGE_SIZE),
     db.select({ total: count() }).from(projects).where(projectWhere),
+    // Disjunctive facet counts: omit only this group's filter, never tenant or guest guards.
+    db.select({ value: requests.status, total: count() }).from(requests)
+      .where(and(requestBase, dates(requests.createdAt), typeFilter)).groupBy(requests.status),
+    db.select({ value: requests.requestType, total: count() }).from(requests)
+      .where(and(requestBase, dates(requests.createdAt), statusFilter)).groupBy(requests.requestType),
   ]);
   return {
     success: true,
     query,
     requests: resultPage(requestRows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })), requestCounts[0]?.total ?? 0, requestsPage),
-    projects: resultPage(projectRows, projectCounts[0]?.total ?? 0, projectsPage),
+    projects: resultPage(projectRows.map(row => ({ ...row, createdAt: row.createdAt.toISOString() })), projectCounts[0]?.total ?? 0, projectsPage),
+    facets: {
+      statuses: Object.fromEntries(statusCounts.map(row => [row.value, row.total])),
+      types: Object.fromEntries(typeCounts.map(row => [row.value ?? "none", row.total])),
+    },
   };
 }

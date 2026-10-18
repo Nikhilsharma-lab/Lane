@@ -90,21 +90,21 @@ function AttachmentRow<T extends IntakeAttachmentItem>({
           {item.error && <p className={styles.error}>{item.error}</p>}
           {recovering && <div className={styles.actions}>
             {onRetry && <Button type="button" size="sm" variant="secondary" disabled={disabled} onClick={() => void onRetry(item)}>
-              <RotateCcw size={16} strokeWidth={1.75} aria-hidden="true" />Retry upload
+              <RotateCcw strokeWidth={1.75} aria-hidden="true" />Retry upload
             </Button>}
             {onRemove && <Button ref={removeRef} type="button" size="sm" variant="ghost" disabled={disabled} onClick={() => void onRemove(item)}>
-              <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />Remove
+              <Trash2 strokeWidth={1.75} aria-hidden="true" />Remove
             </Button>}
           </div>}
         </div>
         {mode !== "queued" && item.status === "uploaded" && (
           <motion.span className={styles.ready} initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} transition={reduce ? { duration: 0 } : motionTokens.spring.snappy}>
-            <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+            <Check strokeWidth={1.75} aria-hidden="true" />
           </motion.span>
         )}
         {mode === "queued" && onRemove && (
           <Button ref={removeRef} type="button" size="sm" variant="ghost" className={styles.remove} aria-label={`Remove ${item.file.name}`} disabled={disabled} onClick={() => void onRemove(item)}>
-            <X size={16} strokeWidth={1.75} aria-hidden="true" />
+            <X strokeWidth={1.75} aria-hidden="true" />
           </Button>
         )}
       </div>
@@ -123,7 +123,7 @@ function LostAttachmentList({ items }: { items: readonly LostAttachmentItem[] })
     <ul className={styles.fileList} aria-label="Files that weren’t added">
       {items.map((item) => <li key={item.key} className={styles.fileRow} aria-label={item.name}>
         <div className={styles.fileItem}>
-          <span className={styles.fileIcon}><File size={16} strokeWidth={1.75} aria-hidden="true" /></span>
+          <span className={styles.fileIcon}><File strokeWidth={1.75} aria-hidden="true" /></span>
           <div className={styles.fileCopy}>
             <strong title={item.name}>{item.name}</strong>
             <div className={styles.meta}><span>Not added</span></div>

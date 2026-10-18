@@ -122,12 +122,12 @@ export function ExpectedImpactFields({ value, onChange, disabled, errors, embedd
         <Select label="Measure with" options={measures} value={value.kind} disabled={disabled} onValueChange={changeMeasure}
           onContentKeyDown={(event) => event.stopPropagation()}
           trigger={<Button type="button" variant="secondary" size="sm" disabled={disabled} aria-label={`Measure with: ${value.kind === "metric" ? "Metric" : "Verified result"}`}>
-            {value.kind === "metric" ? "Metric" : "Verified result"}<ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
+            {value.kind === "metric" ? "Metric" : "Verified result"}<ChevronDown data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />
           </Button>} />
         <div className={styles.more}>
           <DropdownMenu label="Expected impact options" onCloseAutoFocus={restoreMenuFocus} onContentKeyDown={event => event.stopPropagation()}
-            trigger={<Button ref={optionsRef} type="button" variant="ghost" size="sm" disabled={disabled} className={styles.iconButton} aria-label="Expected impact options"><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></Button>}
-            items={[{ label: "Add guardrail", icon: <Plus size={14} strokeWidth={1.75} aria-hidden="true" />, disabled: disabled || Boolean(value.guardrail) || editingGuardrail, onSelect: () => { menuFocus.current = "metric"; beginGuardrail() } }]} />
+            trigger={<Button ref={optionsRef} type="button" variant="ghost" size="sm" disabled={disabled} className={styles.iconButton} aria-label="Expected impact options"><Ellipsis strokeWidth={1.75} aria-hidden="true" /></Button>}
+            items={[{ label: "Add guardrail", icon: <Plus data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />, disabled: disabled || Boolean(value.guardrail) || editingGuardrail, onSelect: () => { menuFocus.current = "metric"; beginGuardrail() } }]} />
         </div>
       </header>
       <div className={styles.fields}>
@@ -139,7 +139,7 @@ export function ExpectedImpactFields({ value, onChange, disabled, errors, embedd
           {(baselineExpanded || value.baseline !== null || fieldError("baseline")) && <NumberInput ref={baselineRef} className={styles.compactInput} label="Today (optional)" id="intake-impact-baseline" placeholder="Unknown" step="any" value={value.baseline} onValueChange={(baseline) => onChange({ ...value, baseline })} readOnly={disabled} error={fieldError("baseline")} />}
         </> : <div className={styles.wideField}><Textarea className={styles.compactTextarea} label="What should be true when this is done?" id="intake-impact-result" rows={2} placeholder="e.g. Customers can reset their password and sign in successfully" maxLength={IMPACT_RESULT_MAX} value={value.result} onChange={(event) => onChange({ ...value, result: event.target.value })} readOnly={disabled} error={fieldError("result")} /></div>}
         <NumberInput className={styles.compactInput} label="Check in days" id="intake-impact-reviewAfterDays" placeholder="e.g. 30" min={1} max={IMPACT_REVIEW_DAYS_MAX} step={1} value={value.reviewAfterDays} onValueChange={(reviewAfterDays) => onChange({ ...value, reviewAfterDays })} readOnly={disabled} error={fieldError("reviewAfterDays")} />
-        {value.kind === "metric" && !baselineExpanded && value.baseline === null && !fieldError("baseline") && <Button className={styles.addBaseline} type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => { focusAfterChange.current = "baseline"; setBaselineExpanded(true) }}><Plus size={14} aria-hidden="true" />Add current value</Button>}
+        {value.kind === "metric" && !baselineExpanded && value.baseline === null && !fieldError("baseline") && <Button className={styles.addBaseline} type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => { focusAfterChange.current = "baseline"; setBaselineExpanded(true) }}><Plus data-icon-size="sm" aria-hidden="true" />Add current value</Button>}
       </div>
       <AnimatePresence initial={false}>
         {editingGuardrail && <GuardrailPane key="guardrail-editor">
@@ -165,8 +165,8 @@ export function ExpectedImpactFields({ value, onChange, disabled, errors, embedd
         <div className={styles.summaryCopy}><h3 className={styles.heading}>Guardrail</h3><p className={styles.guardrailSentence}>{formatGuardrail(parsedGuardrail.data)}</p></div>
         <Button ref={editGuardrailRef} type="button" variant="ghost" size="sm" disabled={disabled} aria-label="Edit guardrail" onClick={beginGuardrail}>Edit</Button>
         <DropdownMenu label="Guardrail options" onCloseAutoFocus={restoreMenuFocus} onContentKeyDown={event => event.stopPropagation()}
-          trigger={<Button type="button" variant="ghost" size="sm" disabled={disabled} className={styles.iconButton} aria-label="Guardrail options"><Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" /></Button>}
-          items={[{ label: "Remove guardrail", destructive: true, disabled, icon: <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />, onSelect: () => {
+          trigger={<Button type="button" variant="ghost" size="sm" disabled={disabled} className={styles.iconButton} aria-label="Guardrail options"><Ellipsis strokeWidth={1.75} aria-hidden="true" /></Button>}
+          items={[{ label: "Remove guardrail", destructive: true, disabled, icon: <Trash2 data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />, onSelect: () => {
             menuFocus.current = "options"
             focusAfterChange.current = "options"
             onChange({ ...value, guardrail: undefined, guardrailEdit: undefined })

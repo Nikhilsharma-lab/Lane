@@ -103,7 +103,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
         action={<Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
-          <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>
+          <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>

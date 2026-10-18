@@ -103,7 +103,7 @@ const physical = (visualDuration: number, bounce: number): Transition => {
   return { type: "spring", stiffness: root * root, damping: 2 * (1 - bounce) * root, mass: 1 };
 };
 const GROW = physical(.48, .12), SHRINK = physical(.38, 0), STRETCH = physical(.3, .04), GLIDE = physical(.3, .1), SLIDE = physical(.4, .06);
-const TRIGGER_RADIUS = 18, PANEL_RADIUS = 26, WIDE_CELL = 36, WIDE_MIN = 712, EDGE = 8;
+const WIDE_CELL = 36, WIDE_MIN = 712, EDGE = 8;
 
 const roll: Variants = {
   enter: (direction: number) => ({ opacity: 0, y: `${direction * .45}em`, filter: `blur(${blur.subtle}px)` }),
@@ -160,7 +160,7 @@ function Bar({ row, segment, reduced }: { row: number; segment: Segment; reduced
     wasEmpty.current = false;
     animate(opacity, 1, { duration: reduced ? 0 : .16 });
   }, [left, opacity, reduced, segment, width]);
-  return <motion.span className={styles.bar} style={{ left: leftPct, width: widthPct, opacity, top: `calc(${row} * var(--cell) + 3px)` }} />;
+  return <motion.span className={styles.bar} style={{ left: leftPct, width: widthPct, opacity, top: `calc(${row} * var(--cell) + var(--space-1) * .75)` }} />;
 }
 
 /** A solid end of the range. It glides from day to day and only fades when the end leaves this month. */
@@ -309,7 +309,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
 
   /* ---------- One surface: the trigger's box springs to the panel's box and back ---------- */
   // Before the first measurement the surface simply fills the root and the root wraps the trigger, so server markup already looks right.
-  const width = useMotionValue<number | string>("100%"), height = useMotionValue<number | string>("100%"), radius = useMotionValue(TRIGGER_RADIUS), x = useMotionValue(0), rootWidth = useMotionValue<number | string>("auto");
+  const width = useMotionValue<number | string>("100%"), height = useMotionValue<number | string>("100%"), radius = useMotionValue(0), x = useMotionValue(0), rootWidth = useMotionValue<number | string>("auto");
   const sizes = useRef<{ trigger: Size; panel: Size | null }>({ trigger: { w: 0, h: 0 }, panel: null });
   const live = useRef({ open: false, reduced: false, ready: false });
   const queued = useRef(false);
@@ -336,7 +336,8 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
       offset = Math.min(0, box.right - EDGE - (rect.left + openPanel.w));
       offset = Math.max(offset, box.left + EDGE - rect.left);
     }
-    const r = openPanel ? PANEL_RADIUS : TRIGGER_RADIUS;
+    const radiusSource = openPanel ? panelRef.current : triggerRef.current;
+    const r = radiusSource ? Number.parseFloat(getComputedStyle(radiusSource).borderRadius) || 0 : 0;
     if (!state.ready || state.reduced) {
       width.jump(target.w); height.jump(target.h); radius.jump(r); x.jump(offset); rootWidth.jump(trigger.w);
       state.ready = true;
@@ -352,6 +353,13 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
     queued.current = true;
     queueMicrotask(update);
   }, [update]);
+
+  // A theme change can alter a radius without resizing the control. Retarget the same spring.
+  useEffect(() => {
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class", "data-theme", "data-visual-system"] });
+    return () => observer.disconnect();
+  }, [schedule]);
 
   useLayoutEffect(() => { live.current.open = open; live.current.reduced = reduced; if (!open) sizes.current.panel = null; schedule(); }, [open, reduced, schedule]);
 
@@ -581,13 +589,12 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   const status = !open ? "" : anchor ? `Start ${formatters.label.format(anchor)}. Choose an end date.` : shown ? `${shownText}, ${countText}` : "";
   const layoutId = reduced || embedded ? undefined : `${uid}-value`;
 
-  const cellSize = compact && panelWidth ? Math.max(32, Math.min(42, Math.floor((panelWidth - 24) / 7))) : WIDE_CELL;
 
   const quiet = open ? (reduced ? { opacity: 0 } : { opacity: 0, filter: `blur(${blur.subtle}px)` }) : { opacity: 1, filter: "blur(0px)" };
   const quietTransition = open ? { duration: .12, ease: standardEase } : { duration: .22, ease: enterEase, delay: reduced ? 0 : .1 };
 
   const panel = open && today && <motion.div key="panel" ref={panelRef} id={`${uid}-panel`} className={[styles.panel, embedded && styles.embeddedPanel].filter(Boolean).join(" ")} role={embedded ? "group" : "dialog"} aria-label={label} data-compact={compact || undefined}
-          style={{ "--cell": `${cellSize}px`, width: compact && panelWidth ? panelWidth : undefined } as CSSProperties} exit={{ opacity: 1, transition: { duration: .14 } }}>
+          style={{ "--panel-width": panelWidth ? `${panelWidth}px` : undefined, width: compact && panelWidth ? panelWidth : undefined } as CSSProperties} exit={{ opacity: 1, transition: { duration: .14 } }}>
           <motion.div className={styles.body} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
             {presets.length > 0 && <div ref={railRef} className={styles.rail} role="group" aria-label="Presets" onKeyDown={onRailKey}>
               <motion.span className={styles.railHighlight} style={{ x: gx, y: gy, width: gw, height: gh, opacity: go }} aria-hidden="true" />
@@ -597,9 +604,9 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
 
             <div className={styles.calendars} onPointerLeave={() => { if (anchor) setHover(null); }}>
               <button type="button" className={styles.navButton} data-side="prev" aria-label="Previous month" onClick={() => goTo(addMonths(view, -1))}
-                disabled={Boolean(minDate && monthDiff(view, minDate) <= 0)}><ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" /></button>
+                disabled={Boolean(minDate && monthDiff(view, minDate) <= 0)}><ChevronLeft strokeWidth={1.75} aria-hidden="true" /></button>
               <button type="button" className={styles.navButton} data-side="next" aria-label="Next month" onClick={() => goTo(addMonths(view, 1))}
-                disabled={Boolean(maxDate && monthDiff(addMonths(view, count - 1), maxDate) >= 0)}><ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" /></button>
+                disabled={Boolean(maxDate && monthDiff(addMonths(view, count - 1), maxDate) >= 0)}><ChevronRight strokeWidth={1.75} aria-hidden="true" /></button>
               <div className={styles.viewport}>
                 <AnimatePresence initial={false} mode="popLayout" custom={direction}>
                   <Months key={`${keyOf(view)}-${count}`} direction={direction} reduced={reduced}>
@@ -638,7 +645,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
     {/* The trigger stays in place under the panel. Its icons fade, while the value itself flies to the panel footer and back. */}
     <button ref={triggerRef} type="button" className={styles.trigger} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? `${uid}-panel` : undefined}
       aria-label={`${label}: ${committedText}`} disabled={!today} inert={open || undefined} onClick={openPanel}>
-      <motion.span className={styles.triggerIcon} initial={false} animate={quiet} transition={quietTransition}><CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" /></motion.span>
+      <motion.span className={styles.triggerIcon} initial={false} animate={quiet} transition={quietTransition}><CalendarDays strokeWidth={1.75} aria-hidden="true" /></motion.span>
       {open || !layoutId
         ? <motion.span key="resting" className={styles.value} data-empty={!committed || undefined} initial={false} animate={open ? { opacity: 0 } : { opacity: 1 }} transition={quietTransition}>
           <Rolling text={committedText} direction={committedDirection} reduced={reduced} />
@@ -646,7 +653,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
         : <motion.span key="shared" layoutId={layoutId} layout="position" className={styles.value} data-empty={!committed || undefined} transition={SHRINK}>
           <Rolling text={committedText} direction={committedDirection} reduced={reduced} />
         </motion.span>}
-      <motion.span className={styles.chevron} initial={false} animate={quiet} transition={quietTransition}><ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" /></motion.span>
+      <motion.span className={styles.chevron} initial={false} animate={quiet} transition={quietTransition}><ChevronDown strokeWidth={1.75} aria-hidden="true" /></motion.span>
     </button>
 
     <motion.div className={styles.surface} style={{ width, height, borderRadius: radius, x }}>

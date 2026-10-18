@@ -13,8 +13,7 @@ import { Button } from "../../button/button";
 import { UserMenu, type UserMenuWorkspaces } from "../../user-menu/user-menu";
 import { ProjectContextMenu } from "@/components/shell/project-context-menu";
 import { motionTokens } from "../../lib/motion-tokens";
-import dotStyles from "@/components/projects/project-dot.module.css";
-import { projectToneForId } from "@/lib/project-tone";
+import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./workspace-sidebar.module.css";
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
@@ -89,13 +88,12 @@ function usePhone() {
 
 const focusable = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Rail width in px. The open width is the --full custom property, so a stylesheet can change it. */
-const RAIL = 64;
+/** Both rail and open widths follow shared CSS geometry. */
 
 /** The width follows one value from 0 (rail) to 1 (open) on the smooth spring, so the content beside the sidebar reflows every frame instead of jumping. */
 function useRailWidth(rail: boolean, reduce: boolean, onOpened: () => void) {
   const open = useMotionValue(rail ? 0 : 1);
-  const width = useTransform(open, value => `calc(${RAIL}px + (var(--full) - ${RAIL}px) * ${value})`);
+  const width = useTransform(open, value => `calc(var(--space-16) + (var(--full) - var(--space-16)) * ${value})`);
   const opened = useEffectEvent(onOpened);
   useEffect(() => {
     const target = rail ? 0 : 1;
@@ -139,7 +137,7 @@ function RailTip({ enabled = true, label, note, shortcut, side = "right", childr
 
 /** The divider in the panel icon slides with the sidebar, so the control shows what it is about to do. */
 function PanelGlyph({ collapsed, reduce }: { collapsed: boolean; reduce: boolean }) {
-  return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+  return <svg data-ui-icon data-icon-size="xl" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
     <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="3.5" />
     <motion.path d="M8.25 4.25v11.5" initial={false} animate={{ x: collapsed ? -2.5 : 0 }} transition={reduce ? instant : spring.smooth} />
   </svg>;
@@ -245,7 +243,7 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
       ...(project && tree ? { "data-project-tree-item": "" } : {}),
       onClick: (event) => { if (isPlainClick(event)) onSelect(item.id, item.name); },
       children: <>{activeId === item.id && <Highlight reduce={reduce} />}
-        <span className={styles.lead} aria-hidden="true">{project ? <span className={dotStyles.dot} data-tone={item.id === "none" ? "slate" : projectToneForId(item.id)} data-hollow={item.id === "none" || undefined} /> : item.icon}</span>
+        <span className={styles.lead} aria-hidden="true">{project ? <ProjectMarker projectId={item.id} /> : item.icon}</span>
         <Name name={item.name} query="" />
       </>,
     });
@@ -272,10 +270,10 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
     {groups.filter(item => item.id !== "settings").map(section)}
     <section ref={projectSection} className={styles.section} role="group" aria-label="Projects" tabIndex={-1} onKeyDown={onProjectTreeKey}>
       {tree ? <button ref={projectFolder} type="button" className={styles.projectFolder} data-project-tree-item data-holds={!projectsOpen && activeProject ? "" : undefined} aria-label="Projects" aria-expanded={projectsOpen} aria-controls={`${group}-project-branch`} aria-describedby={!projectsOpen && activeProject ? `${group}-project-current` : undefined} onClick={() => toggleProjects(!projectsOpen)}>
-        <Folder className={styles.projectFolderIcon} size={16} strokeWidth={1.75} aria-hidden="true" />
+        <Folder className={styles.projectFolderIcon} strokeWidth={1.75} aria-hidden="true" />
         <span className={styles.projectFolderLabel}>Projects</span>
         {!projectsOpen && activeProject && <span className={styles.projectFolderCurrent}><span id={`${group}-project-current`} className={styles.srOnly}>Contains the current Project</span></span>}
-        <ChevronRight className={styles.projectChevron} size={14} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronRight className={styles.projectChevron} data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />
       </button> : <SectionTitle id={`${group}-projects`} text="Projects" rail={rail} reduce={reduce} />}
       {tree ? <motion.div id={`${group}-project-branch`} className={styles.projectBranch} initial={false} animate={projectBranchOpen ? reduce ? projectUnfoldStill : projectUnfold : reduce ? projectFoldStill : projectFold} inert={!projectBranchOpen} aria-hidden={!projectBranchOpen || undefined}>{projectContents}</motion.div> : projectContents}
       {onCreate && <Composer reduce={reduce} rail={rail} onExpand={onExpand} onCreate={tree ? async name => { const created = await onCreate(name); setProjectsOpen(true); return created; } : onCreate} />}
@@ -323,13 +321,13 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
   const idle = state === "idle";
   return <motion.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
     <form className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
-      <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle size={15} /> : <Plus size={15} strokeWidth={1.75} />}</span>
+      <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle /> : <Plus strokeWidth={1.75} />}</span>
       <span className={styles.composerField}>
         {idle ? <span className={styles.composerLabel} aria-hidden="true">New Project</span> :
           <input ref={input} id={`${id}-name`} className={styles.composerInput} value={value} maxLength={80} readOnly={state === "commit"} placeholder="Project name" aria-label="Project name" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : `${id}-help`} autoComplete="off" enterKeyHint="done"
             onChange={event => { setValue(event.target.value); setError(""); }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } }} />}
       </span>
-      {!idle && <button type="submit" className={styles.createButton} disabled={state === "commit"} aria-label="Create Project"><Check size={15} strokeWidth={1.75} aria-hidden="true" /></button>}
+      {!idle && <button type="submit" className={styles.createButton} disabled={state === "commit"} aria-label="Create Project"><Check strokeWidth={1.75} aria-hidden="true" /></button>}
       {idle && <RailTip enabled={rail} label="New Project"><button ref={trigger} type="button" className={styles.composerTrigger} onClick={() => { if (rail) onExpand(); open(); }}>New Project</button></RailTip>}
       <span id={`${id}-help`} className={styles.srOnly}>Press Enter to create the Project or Escape to cancel.</span>
     </form>
@@ -524,17 +522,17 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
           <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start"
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[
-              { label: "Settings", icon: <Settings size={16} />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },
-              ...(membersHref ? [{ label: "Invite and manage members", icon: <UsersRound size={16} />, href: membersHref, current: activeId === membersHref, onSelect: () => select(membersHref, "Invite and manage members") }] : []),
+              { label: "Settings", icon: <Settings />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },
+              ...(membersHref ? [{ label: "Invite and manage members", icon: <UsersRound />, href: membersHref, current: activeId === membersHref, onSelect: () => select(membersHref, "Invite and manage members") }] : []),
             ]}
             workspaces={workspaces} signOutLabel="Log out"
             onSignOut={onSignOut ? async () => { await onSignOut(); if (phone) closeDrawer(); } : undefined} />
         </div>
           <div className={styles.identityActions}>
-            <RailTip label="Search workspace" shortcut="/" side={rail ? "right" : "bottom"}><button type="button" className={styles.headerAction} aria-label="Search workspace" aria-keyshortcuts="/" aria-pressed={searchActive} onClick={() => { if (phone) closeDrawer(); onSearch?.(); }}><Search size={17} strokeWidth={1.75} aria-hidden="true" /></button></RailTip>
-            <RailTip label="New Request" shortcut="C" side={rail ? "right" : "bottom"}><NavigationLink renderLink={renderLink} href="/intake" className={styles.headerAction} aria-label="New Request" aria-keyshortcuts="C" onClick={event => { if (isPlainClick(event)) select("/intake", "New Request"); }}><SquarePen size={17} strokeWidth={1.75} aria-hidden="true" /></NavigationLink></RailTip>
+            <RailTip label="Search workspace" shortcut="/" side={rail ? "right" : "bottom"}><button type="button" className={styles.headerAction} aria-label="Search workspace" aria-keyshortcuts="/" aria-pressed={searchActive} onClick={() => { if (phone) closeDrawer(); onSearch?.(); }}><Search strokeWidth={1.75} aria-hidden="true" /></button></RailTip>
+            <RailTip label="New Request" shortcut="C" side={rail ? "right" : "bottom"}><NavigationLink renderLink={renderLink} href="/intake" className={styles.headerAction} aria-label="New Request" aria-keyshortcuts="C" onClick={event => { if (isPlainClick(event)) select("/intake", "New Request"); }}><SquarePen strokeWidth={1.75} aria-hidden="true" /></NavigationLink></RailTip>
             {phone
-              ? <button ref={toggleRef} type="button" className={styles.headerAction} aria-label="Close sidebar" onClick={() => closeDrawer()}><X size={18} strokeWidth={1.75} aria-hidden="true" /></button>
+              ? <button ref={toggleRef} type="button" className={styles.headerAction} aria-label="Close sidebar" onClick={() => closeDrawer()}><X data-icon-size="lg" strokeWidth={1.75} aria-hidden="true" /></button>
               : !layoutManaged && <RailTip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} shortcut="[" side={rail ? "right" : "bottom"}><button ref={toggleRef} type="button" className={styles.headerAction} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-keyshortcuts="[" onClick={() => setRail(!collapsed)}><PanelGlyph collapsed={collapsed} reduce={reduce} /></button></RailTip>}
           </div>
         </div>

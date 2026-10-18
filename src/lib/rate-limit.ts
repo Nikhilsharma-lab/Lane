@@ -23,7 +23,7 @@ export async function checkAiRateLimit(
       // inside the same closed, recoverable boundary as a Redis request failure.
       ratelimit = new Ratelimit({
         redis: new Redis({ url, token }),
-        limiter: Ratelimit.slidingWindow(10, "60 s"),
+        limiter: Ratelimit.slidingWindow(5, "60 s"),
         prefix: "lane:ratelimit:ai",
       });
     }

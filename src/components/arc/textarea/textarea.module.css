@@ -1,11 +1,11 @@
 /* No row gap: grid tracks clamp a negative margin at zero, so a closed message row would still pay the gap. Each row carries its own space instead. */
 .field { display: grid; min-width: 0; }
-.field label { margin-bottom: var(--space-2); font-size: var(--text-sm); font-weight: 500; }
+.field label { margin-bottom: var(--space-2); font-size: var(--text-sm); font-weight: var(--weight-medium); }
 /* Same focus language as Input: the ring contracts onto the border while it fades in, and the box never changes size. */
-.control { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--input-border, var(--border-strong)); border-radius: var(--radius-control); padding: var(--textarea-padding, var(--space-3)); background: var(--input-background, var(--surface)); color: var(--foreground); font: inherit; font-size: var(--text-sm); line-height: var(--leading-body); outline: none; box-shadow: 0 0 0 6px transparent; transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.control { width: 100%; min-height: calc(var(--space-1) * 27.5); resize: vertical; border: var(--border-width) solid var(--input-border, var(--border-strong)); border-radius: var(--radius-control); padding: var(--textarea-padding, var(--space-3)); background: var(--input-background, var(--surface)); color: var(--foreground); font: inherit; font-size: var(--text-sm); line-height: var(--leading-body); outline: none; box-shadow: 0 0 0 calc(var(--space-1) * 1.5) transparent; transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
 .control::placeholder { color: var(--text-muted); }
 @media (hover: hover) and (pointer: fine) { .control:hover:not(:disabled, [aria-invalid="true"]) { border-color: var(--input-border-hover, var(--foreground)); } }
-.control:focus-visible { border-color: var(--input-border-hover, var(--foreground)); box-shadow: 0 0 0 3px var(--focus-ring); outline: 2px solid transparent; outline-offset: 2px; }
+.control:focus-visible { border-color: var(--input-border-hover, var(--foreground)); box-shadow: 0 0 0 calc(var(--space-1) * 0.75) var(--focus-ring); outline: calc(var(--border-width) * 2) solid transparent; outline-offset: calc(var(--border-width) * 2); }
 .control[aria-invalid="true"] { border-color: var(--input-error-border, var(--danger)); background: var(--input-error-background, var(--surface)); }
 .control:disabled { cursor: not-allowed; background: var(--surface-muted); opacity: .6; }
 /* Lane adaptation (plan item 2.3): a borderless field. It also removes Arc's own focus border and 3px halo above, so the caret is the only

@@ -8,7 +8,7 @@
 .description, .notice { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .error { margin: 0; color: var(--danger); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .mark { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: var(--text-base); font-weight: var(--sb-font-weight-medium); letter-spacing: var(--tracking-display); }
-.mark svg { width: var(--sb-icon-md); height: var(--sb-icon-md); fill: currentColor; }
+.mark svg { width: var(--icon-size-lg); height: var(--icon-size-lg); fill: currentColor; }
 .headerLink { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); }
 .link { color: var(--foreground); font-weight: var(--sb-font-weight-medium); text-decoration: none; border-radius: var(--radius-control); }
 .link:hover, .link:focus-visible { text-decoration: underline; background: var(--surface-muted); }

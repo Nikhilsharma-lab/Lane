@@ -125,7 +125,7 @@ export function DrawerContent({
         ) : null}
       </div>
       <DialogPrimitive.Close className={styles.close} aria-label="Close drawer">
-        <X size={16} strokeWidth={1.75} aria-hidden="true" />
+        <X strokeWidth={1.75} aria-hidden="true" />
       </DialogPrimitive.Close>
     </motion.div>
     <div className={styles.body}>{children}</div>

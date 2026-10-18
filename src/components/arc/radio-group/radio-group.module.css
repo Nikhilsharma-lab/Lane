@@ -1,35 +1,35 @@
 .group { display: grid; min-width: 0; margin: 0; border: 0; padding: 0; }
-.group legend { margin-bottom: var(--space-2); padding: 0; font-size: var(--text-sm); font-weight: 500; }
+.group legend { margin-bottom: var(--space-2); padding: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 /* One highlight travels between the rows: above their borders and fills, below their text, so it never crosses a label. */
 .options { position: relative; display: grid; gap: var(--space-2); }
-.highlight { position: absolute; top: 0; right: 0; left: 0; z-index: 1; box-sizing: border-box; border: 1px solid var(--control-on); border-radius: var(--radius-control); background: color-mix(in oklab, var(--control-on) 5%, transparent); opacity: 0; pointer-events: none; }
+.highlight { position: absolute; top: 0; right: 0; left: 0; z-index: 1; box-sizing: border-box; border: var(--border-width) solid var(--control-on); border-radius: var(--radius-control); background: var(--control-on-subtle); opacity: 0; pointer-events: none; }
 /* Rows answer a press with color only; the mark is what moves. */
 /* The mark sits centered on the left edge of the row, whether or not the option has a description. */
-.option { position: relative; display: flex; align-items: center; gap: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard); }
+.option { position: relative; display: flex; align-items: center; gap: var(--space-3); border: var(--border-width) solid var(--border); border-radius: var(--radius-control); padding: var(--space-3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard); }
 @media (hover: hover) and (pointer: fine) { .option:hover { background: var(--surface-muted); } }
 .option:active { background: var(--surface-muted); }
 /* Until the highlight is placed (server paint or no script), the checked row carries the same look itself. */
-.options:not([data-ready]) .option:has(input:checked) { border-color: var(--control-on); background: color-mix(in oklab, var(--control-on) 5%, transparent); }
+.options:not([data-ready]) .option:has(input:checked) { border-color: var(--control-on); background: var(--control-on-subtle); }
 /* Lane adaptation (WCAG 2.4.7): the radio covers its row's border box with no appearance of its own, instead of
  * sitting there at opacity 0, so the shared :focus-visible ring in foundation.css frames the row on keyboard focus,
  * checked or not. It paints nothing else, and pointer focus still draws no ring. */
-.option input { position: absolute; inset: -1px; width: auto; height: auto; margin: 0; border: 0; border-radius: inherit; padding: 0; appearance: none; background: transparent; cursor: inherit; }
+.option input { position: absolute; inset: calc(var(--space-1) * -0.25); width: auto; height: auto; margin: 0; border: 0; border-radius: inherit; padding: 0; appearance: none; background: transparent; cursor: inherit; }
 /* Rows are not stacking contexts, so their mark and copy rise above the highlight while their border and fill stay below it. */
 .option > span { position: relative; z-index: 2; }
-.mark { display: grid; width: 17px; height: 17px; flex: 0 0 auto; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-spring) var(--ease-spring); }
+.mark { display: grid; width: calc(var(--space-1) * 4.25); height: calc(var(--space-1) * 4.25); flex: 0 0 auto; place-items: center; border: var(--border-width) solid var(--border-strong); border-radius: 50%; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-spring) var(--ease-spring); }
 /* 7px keeps the dot on whole pixels inside the 15px interior of the mark. */
-.mark::after, .dot { grid-area: 1 / 1; width: 7px; height: 7px; border-radius: 50%; background: var(--foreground); }
+.mark::after, .dot { grid-area: 1 / 1; width: calc(var(--space-1) * 1.75); height: calc(var(--space-1) * 1.75); border-radius: 50%; background: var(--foreground); }
 /* A faint dot previews the choice while the pointer is down, then the real dot springs in on release. */
 .mark::after { content: ""; opacity: 0; transition: opacity var(--duration-instant) var(--ease-standard); }
 .option:active:not(:has(input:checked)) .mark::after { opacity: .22; }
 /* The mark alone answers a press: a quick dip, then a spring back. */
-.option:active .mark { transform: scale(.88); transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform 100ms var(--ease-standard); }
+.option:active .mark { transform: scale(.88); transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform calc(var(--duration-standard) * 0.5) var(--ease-standard); }
 .option:has(input:checked) .mark { border-color: var(--control-on); background: var(--control-on); }
 .option:has(input:checked) .dot { background: var(--control-glyph); }
 .option strong, .option small { display: block; }
-.option strong { color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; transition: color var(--duration-standard) var(--ease-standard); }
+.option strong { color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-medium); transition: color var(--duration-standard) var(--ease-standard); }
 .option:has(input:checked) strong { color: var(--foreground); }
-.option small { margin-top: 2px; color: var(--text-muted); font-size: var(--text-xs); }
+.option small { margin-top: calc(var(--space-1) * 0.5); color: var(--text-muted); font-size: var(--text-xs); }
 /* Lane adaptation (plan item 2.2): the row's key, at its end, above the highlight like the copy, on fine pointers only. */
 .shortcut { display: none; margin-inline-start: auto; position: relative; z-index: 2; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
 @media (pointer: fine) { .shortcut { display: inline; } }

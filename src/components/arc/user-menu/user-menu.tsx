@@ -20,9 +20,9 @@ export const userStatuses: { value: UserStatus; label: string }[] = [
 ];
 
 const themes: { value: ThemePreference; label: string; icon: ReactNode }[] = [
-  { value: "light", label: "Light", icon: <Sun size={16} strokeWidth={1.75} aria-hidden="true" /> },
-  { value: "dark", label: "Dark", icon: <Moon size={16} strokeWidth={1.75} aria-hidden="true" /> },
-  { value: "system", label: "System", icon: <Monitor size={16} strokeWidth={1.75} aria-hidden="true" /> },
+  { value: "light", label: "Light", icon: <Sun strokeWidth={1.75} aria-hidden="true" /> },
+  { value: "dark", label: "Dark", icon: <Moon strokeWidth={1.75} aria-hidden="true" /> },
+  { value: "system", label: "System", icon: <Monitor strokeWidth={1.75} aria-hidden="true" /> },
 ];
 
 export interface UserMenuUser { name: string; email: string; plan?: string; avatarSrc?: string; avatarSrcSet?: string }
@@ -516,7 +516,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
 
   const workspaceContent = workspaces && <>
     {sheet && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Back" onClick={closeWorkspaces}>
-      <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" /><span>Back</span>
+      <ChevronLeft strokeWidth={1.75} aria-hidden="true" /><span>Back</span>
     </button>}
     <div className={styles.workspaceHeading}>Workspaces</div>
     <div className={styles.workspaceList}>
@@ -525,9 +525,9 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         return <button key={workspace.id} type="button" role="menuitemradio" aria-checked={workspace.id === workspaces.currentId} aria-busy={busy || undefined}
           aria-disabled={!!(workspaces.pendingId || switchingId) || undefined} tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`}
           data-stop="item" data-label={workspace.name} onPointerMove={onItemPointerMove} onClick={() => void selectWorkspace(workspace.id)}>
-          <span className={styles.icon} aria-hidden="true"><Layers size={16} strokeWidth={1.75} /></span>
+          <span className={styles.icon} aria-hidden="true"><Layers strokeWidth={1.75} /></span>
           <span className={styles.workspaceName} title={workspace.name}>{workspace.name}</span>
-          {busy ? <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" /> : workspace.id === workspaces.currentId ? <Check size={16} aria-hidden="true" /> : null}
+          {busy ? <LoaderCircle className={styles.spinner} aria-hidden="true" /> : workspace.id === workspaces.currentId ? <Check aria-hidden="true" /> : null}
         </button>;
       })}
     </div>
@@ -575,22 +575,22 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         <motion.button ref={workspaceTriggerRef} id={workspaceTriggerId} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label="Switch workspace" variants={row}
           aria-haspopup="menu" aria-expanded={workspaceOpen} aria-controls={workspaceOpen ? workspaceMenuId : undefined}
           onPointerMove={event => { onItemPointerMove(event); if (!sheet && event.pointerType !== "touch") openWorkspaces("pointer"); }} onClick={() => openWorkspaces()}>
-          <span className={styles.icon} aria-hidden="true"><Layers size={16} strokeWidth={1.75} /></span><span className={styles.itemLabel}>Switch workspace</span>
-          <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
+          <span className={styles.icon} aria-hidden="true"><Layers strokeWidth={1.75} /></span><span className={styles.itemLabel}>Switch workspace</span>
+          <ChevronRight strokeWidth={1.75} aria-hidden="true" />
         </motion.button>
       </>}
       {(showTheme || showStatus) && <>
         <div className={styles.separator} role="separator" />
         {showStatus && <Segmented label="Status" icon={<PresenceDot status={status} />} value={status} onChange={changeStatus}
           options={userStatuses.map(option => ({ ...option, icon: <PresenceDot status={option.value} /> }))} variants={row} />}
-        {showTheme && <Segmented label="Theme" icon={<SunMoon size={16} strokeWidth={1.75} />} value={theme} onChange={changeTheme} options={themes} variants={row} />}
+        {showTheme && <Segmented label="Theme" icon={<SunMoon strokeWidth={1.75} />} value={theme} onChange={changeTheme} options={themes} variants={row} />}
       </>}
       <div className={styles.separator} role="separator" />
       <motion.button type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-tone="danger" data-label={signOutLabel} variants={row}
         aria-label={signOutLabel}
         aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
         aria-busy={signingOut || undefined} onPointerMove={onItemPointerMove} onClick={signOut}>
-        <span className={styles.icon} aria-hidden="true">{signingOut ? <LoaderCircle className={styles.spinner} size={16} strokeWidth={1.75} /> : <LogOut size={16} strokeWidth={1.75} />}</span>
+        <span className={styles.icon} aria-hidden="true">{signingOut ? <LoaderCircle className={styles.spinner} strokeWidth={1.75} /> : <LogOut strokeWidth={1.75} />}</span>
         <span className={styles.itemLabel}><Rise text={signingOut ? "Signing out" : signOutLabel} reduced={reduced} /></span>
         {signOutKeys && <Keys keys={signOutKeys} />}
       </motion.button>
@@ -626,7 +626,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={`Account menu, ${user.name}${showStatus ? `, ${statusLabel(status)}` : ""}`}
       onClick={onTriggerClick} onKeyDown={onTriggerKeyDown}>
       <Face user={user} status={showStatus ? status : undefined} size="sm" />
-      {showName && <><span className={styles.triggerName}>{user.name}</span><ChevronDown className={styles.chevron} size={16} strokeWidth={1.75} aria-hidden="true" /></>}
+      {showName && <><span className={styles.triggerName}>{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
     </button>
     {sheet ? createPortal(bottomSheet, document.body) : inline ? panel : hydrated ? createPortal(panel, document.body) : null}
   </span>;

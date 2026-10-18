@@ -4,7 +4,7 @@ import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
 import { markDoneMany, pickUpRequests } from "@/app/(app)/requests/[id]/actions"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
-import { SidebarView } from "@/components/shell/sidebar-view"
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { announcer, requestRows } from "./helpers/request-grid"
 
@@ -22,7 +22,7 @@ const meta = {
   title: "Patterns/Request selection", component: RequestsOverview,
   parameters: { layout: "fullscreen", nextjs: { navigation: { pathname: "/", query: {} } } },
   args: { requests: [...requests.slice(0, 3), ...requests.slice(26)], filter: "all", isGuest: false, context },
-  decorators: [(Story) => <RequestListViewProvider><SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.com" role="admin" statusFilter="all" notifications={null} projects={[{ id: requests[0].projectId!, name: "Website", description: null }]} pathname="/"><Story /></SidebarView></RequestListViewProvider>],
+  decorators: [(Story, { args }) => <RequestListViewProvider><WorkspaceSidebarFixture role={args.isGuest ? "guest" : "admin"} projects={[{ id: requests[0].projectId!, name: "Website", description: null }]} requests={args.requests} pathname="/"><Story /></WorkspaceSidebarFixture></RequestListViewProvider>],
   beforeEach: () => {
     // Plan item 1.6: one statement moves every selected row.
     mocked(pickUpRequests).mockReset().mockImplementation(async ids => ({ moved: ids, failed: [] }))
@@ -46,6 +46,14 @@ export const Selected: Story = {
     await expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
     await expect(bar.getBoundingClientRect().left).toBeGreaterThanOrEqual(0)
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    // A contiguous selection rounds only its outside corners.
+    const selectedRows = requestRows(canvasElement).filter(row => row.hasAttribute("data-selected"))
+    const firstStyle = getComputedStyle(selectedRows[0])
+    const lastStyle = getComputedStyle(selectedRows[1])
+    await expect(parseFloat(firstStyle.borderTopLeftRadius)).toBeGreaterThan(0)
+    await expect(firstStyle.borderBottomLeftRadius).toBe("0px")
+    await expect(lastStyle.borderTopLeftRadius).toBe("0px")
+    await expect(parseFloat(lastStyle.borderBottomLeftRadius)).toBeGreaterThan(0)
     // Floating bars carry Supabase's shadow-lg.
     await expect(getComputedStyle(bar).boxShadow).toBe("rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px")
   },

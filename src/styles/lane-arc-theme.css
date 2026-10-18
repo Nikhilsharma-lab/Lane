@@ -153,7 +153,7 @@
   --arc-gradient-ink: linear-gradient(100deg, var(--sb-brand-600), var(--sb-brand-600));
 
   /* Radius: controls and menus rounded-md, cards and dialogs rounded-lg, menu items rounded-item,
-     checkboxes rounded-sm, table rows square, the inset content pane rounded-xl. */
+     checkboxes rounded-sm, Request rows rounded-md, the inset content pane rounded-xl. */
   --radius-control: var(--sb-radius-md);
   --radius-panel: var(--sb-radius-md);
   --radius-surface: var(--sb-radius-lg);
@@ -161,7 +161,7 @@
   --lane-panel-radius: var(--sb-radius-lg);
   --radius-pill: var(--sb-radius-full);
   --workspace-pane-radius: var(--sb-radius-xl);
-  --request-row-radius: 0px;
+  --request-row-radius: var(--sb-radius-md);
   --sidebar-row-radius: var(--sb-radius-md);
   --checkbox-radius: var(--sb-radius-sm);
   --segment-radius: var(--sb-radius-md);
@@ -173,15 +173,34 @@
   --control-height-md: var(--sb-size-small);
   --control-height-lg: var(--sb-size-medium);
   --segment-height: var(--sb-size-tiny);
+  /* Supabase ToggleGroup segmented/text, tiny: one moving accent surface,
+     no nested frame or selection border. Arc owns the animation and keys. */
+  --segment-border-width: 0;
+  --segment-background: transparent;
+  --segment-padding: var(--sb-border-width);
+  --segment-gap: 0;
+  --segment-item-radius: var(--sb-radius-sm);
+  --segment-item-padding: var(--sb-button-padding-tiny);
+  --segment-font-size: var(--sb-text-xs);
+  --segment-foreground: var(--sb-foreground-light);
+  --segment-selection-border-width: 0;
+  --segment-selection-background: var(--sb-accent);
+  --segment-selection-shadow: none;
   --floating-action-height: var(--sb-size-tiny);
   --menu-row-height: var(--sb-menu-item-height);
   --sidebar-row-height: var(--sb-sidebar-item-height);
-  --sidebar-icon-size: var(--sb-icon-sm);
-  --sidebar-action-icon-size: var(--sb-icon-sm);
+  --icon-size-xs: var(--sb-icon-xs);
+  --icon-size-sm: var(--sb-button-icon-tiny);
+  --icon-size-md: var(--sb-icon-sm);
+  --icon-size-lg: var(--sb-icon-md);
+  --icon-size-xl: var(--sb-button-icon-medium);
+  --icon-size-2xl: var(--sb-button-icon-xlarge);
+  --sidebar-icon-size: var(--icon-size-md);
+  --sidebar-action-icon-size: var(--icon-size-md);
   --toolbar-icon-size: var(--sb-header-button-size);
   --request-toolbar-height: var(--sb-header-height);
   --workspace-header-height: var(--sb-header-height);
-  --request-row-height: var(--sb-table-row-height);
+  --request-row-height: var(--sb-size-inner-xlarge);
   --request-group-gap: calc(var(--sb-spacing) * 2);
   /* Lane keeps avatars level with the metadata badges they sit beside. */
   --request-avatar-size: var(--sb-badge-height);
@@ -276,6 +295,9 @@
   --button-padding-sm: var(--sb-button-padding-tiny);
   --button-padding-md: var(--sb-button-padding-small);
   --button-padding-lg: var(--sb-button-padding-medium);
+  --button-icon-sm: var(--icon-size-sm);
+  --button-icon-md: var(--icon-size-lg);
+  --button-icon-lg: var(--icon-size-xl);
   --button-solid-border-width: 0;
   --button-disabled-opacity: var(--sb-opacity-disabled);
   --button-raised-shadow: var(--sb-button-shadow-raised);
@@ -321,4 +343,20 @@
 }
 :root[data-visual-system="lane"][data-theme="dark"] {
   --dialog-shadow: var(--sb-shadow-xs);
+}
+
+/* Shared component geometry: no local visual literals in Arc consumers. */
+:root[data-visual-system="lane"] {
+  --border-width: var(--sb-border-width);
+  --weight-normal: var(--sb-font-weight-normal);
+  --weight-medium: var(--sb-font-weight-medium);
+  --radius-xs: var(--sb-radius-xs);
+  --radius-sm: var(--sb-radius-sm);
+  --radius-xl: var(--sb-radius-xl);
+  --radius-2xl: var(--sb-radius-2xl);
+  --radius-3xl: var(--sb-radius-3xl);
+  --overlay-backdrop: color-mix(in oklab, var(--sb-background) 80%, transparent);
+  --overlay: var(--overlay-backdrop);
+  --tooltip-muted: color-mix(in oklab, var(--sb-background) 62%, var(--sb-foreground));
+  --skeleton-fill: var(--sb-surface-300);
 }

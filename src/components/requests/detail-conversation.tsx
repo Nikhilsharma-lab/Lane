@@ -26,7 +26,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
   return <section id="conversation" aria-labelledby="conversation-heading" className={styles.section}>
     <div className={styles.sectionHeader}>
       <h2 id="conversation-heading" tabIndex={-1} className={styles.sectionHeading}>Conversation</h2>
-      <span className={styles.sectionCount}>{shown.length}</span>
+      {shown.length > 0 && <span className={styles.sectionCount}>{shown.length}</span>}
     </div>
     {shown.length ? <ul aria-label="Request comments" className={styles.comments}>{shown.map(comment => {
       const author = comment.authorName ?? "Unknown member"
@@ -42,7 +42,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
           <p className={styles.commentText}>{comment.body}</p>
         </div>
       </li>
-    })}</ul> : <p className={styles.muted}>No comments yet. Add a question or update below.</p>}
+    })}</ul> : null}
     {children}
   </section>
 }

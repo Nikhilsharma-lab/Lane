@@ -14,7 +14,7 @@ import { IntakeLauncher } from "@/components/requests/intake-launcher";
 import { RequestListViewProvider, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import type { OverviewRequest } from "@/lib/request-overview";
-import { SidebarView } from "@/components/shell/sidebar-view";
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
@@ -470,6 +470,39 @@ export const OptionalRequestProperties: Story = {
   },
 };
 
+export const AddLinkStaysBesideProperties: Story = {
+  beforeEach: () => {
+    writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
+      source: { ...source, affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement", expectedImpact: {
+        ...measurementImpact,
+        guardrails: [{ key: "support", name: "", unit: "percent", current: 4, noBaseline: false, operator: "at_most", limit: 6 }],
+      } },
+      review: null,
+    });
+  },
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    const toggle = composer.getByRole("button", { name: "Add link" });
+    await userEvent.click(toggle);
+    const input = composer.getByRole("textbox", { name: "Related link" });
+    const primary = composer.getByRole("region", { name: "Primary metric" });
+    // Visibility assertions alone also pass for inputs below the scroll viewport.
+    await expect(input.getBoundingClientRect().bottom).toBeLessThanOrEqual(primary.getBoundingClientRect().top);
+    await waitFor(() => expect(input).toHaveFocus());
+    await expect(input.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+    await expect(input.getBoundingClientRect().bottom).toBeLessThan(composer.getByRole("button", { name: "Review Request" }).getBoundingClientRect().top);
+    await userEvent.type(input, "https://example.test/customer-feedback");
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(composer.queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(input).toHaveFocus());
+    await expect(input).toHaveValue("https://example.test/customer-feedback");
+    await expect(runTriage).not.toHaveBeenCalled();
+    await expect(saveRequest).not.toHaveBeenCalled();
+  },
+};
+
 export const DraftSurvivesClose: Story = {
   play: async ({ canvasElement }) => {
     const { page, composer, trigger } = await openComposer(canvasElement);
@@ -688,15 +721,17 @@ export const KeyboardShortcutRespectsContext: Story = {
   },
 };
 
+const workspaceRequests: OverviewRequest[] = [
+  { id: "example-1", title: "Customers cannot find the delivery date before checkout", status: "open", reframedProblem: null, creatorName: "Alex Morgan", assigneeName: null, createdAt: "2026-10-05T09:00:00.000Z" },
+  { id: "example-2", title: "New teammates do not know which workspace to join", status: "in_progress", reframedProblem: null, creatorName: "Jordan Patel", assigneeName: "Sam Lee", createdAt: "2026-10-04T09:00:00.000Z" },
+];
+
 export const InWorkspace: Story = {
   render: () => (
     <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
-      <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role="member" pathname="/" statusFilter="all" notifications={null} onSignOut={() => {}}>
-        <RequestsOverview filter="all" isGuest={false} requests={[
-          { id: "example-1", title: "Customers cannot find the delivery date before checkout", status: "open", reframedProblem: null, creatorName: "Alex Morgan", assigneeName: null, createdAt: "2026-10-05T09:00:00.000Z" },
-          { id: "example-2", title: "New teammates do not know which workspace to join", status: "in_progress", reframedProblem: null, creatorName: "Jordan Patel", assigneeName: "Sam Lee", createdAt: "2026-10-04T09:00:00.000Z" },
-        ]} />
-      </SidebarView>
+      <WorkspaceSidebarFixture pathname="/" requests={workspaceRequests} orgId={context.orgId}>
+        <RequestsOverview filter="all" isGuest={false} requests={workspaceRequests} />
+      </WorkspaceSidebarFixture>
     </NewRequestProvider>
   ),
   play: async ({ canvasElement }) => {
@@ -712,9 +747,9 @@ export const MobileComposerReturnsToNavigation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
-    const opener = await canvas.findByRole("button", { name: "Open navigation" });
+    const opener = await canvas.findByRole("button", { name: "Expand sidebar" });
     await userEvent.click(opener);
-    const navigation = within(await page.findByRole("dialog", { name: "Navigation" }));
+    const navigation = within(await page.findByRole("complementary", { name: "Workspace sidebar" }));
     await userEvent.click(navigation.getByRole("link", { name: "New Request" }));
     const dialog = await page.findByRole("dialog", { name: "New Request" });
     const title = await within(dialog).findByRole("textbox", { name: "Request title" });
@@ -723,8 +758,9 @@ export const MobileComposerReturnsToNavigation: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
     await waitFor(() => expect(opener).toHaveFocus());
     await userEvent.keyboard("{Enter}");
-    const reopenedNavigation = await page.findByRole("dialog", { name: "Navigation" });
-    await waitFor(() => expect(reopenedNavigation).toBeVisible());
+    const reopenedNavigation = await page.findByRole("complementary", { name: "Workspace sidebar" });
+    await waitFor(() => expect(reopenedNavigation).toHaveAttribute("data-peeking", "true"));
+    await waitFor(() => expect(within(reopenedNavigation).getByRole("link", { name: "New Request" })).toBeVisible());
   },
 };
 
@@ -1189,9 +1225,9 @@ const createdRow: OverviewRequest = { id: requestId, requestNumber: 3, title: so
 function ListFixture() {
   return <RequestListViewProvider><PendingMutationsProvider>
     <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
-      <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role="member" pathname="/" statusFilter="all" projectFilter="all" projects={[]} notifications={null} onSignOut={() => {}}>
+      <WorkspaceSidebarFixture pathname="/" projects={[]} requests={listRows} orgId={context.orgId}>
         <RequestsOverview requests={listRows} isGuest={false} context={context} />
-      </SidebarView>
+      </WorkspaceSidebarFixture>
     </NewRequestProvider>
   </PendingMutationsProvider></RequestListViewProvider>;
 }
@@ -1319,9 +1355,9 @@ export const CFromThePageFocusesTheNewRow: Story = {
 function WelcomeFixture() {
   return <RequestListViewProvider><PendingMutationsProvider>
     <NewRequestProvider context={context} draftOwnerId={draftOwnerId}>
-      <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role="admin" pathname="/" statusFilter="all" projectFilter="all" projects={[]} notifications={null} onSignOut={() => {}} linearPreviewAutoCollapse>
+      <WorkspaceSidebarFixture role="admin" pathname="/" projects={[]} requests={[]} orgId={context.orgId}>
         <RequestsOverview requests={[]} isGuest={false} canInvite context={context} />
-      </SidebarView>
+      </WorkspaceSidebarFixture>
     </NewRequestProvider>
   </PendingMutationsProvider></RequestListViewProvider>;
 }

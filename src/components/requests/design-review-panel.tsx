@@ -158,7 +158,7 @@ function RoundSummary({ review, sending }: { review: DesignReview; sending?: { r
   const roundPending = sending?.roundId === review.id
   return <div className={styles.round}>
     <div className={styles.roundHeader}><Badge tone={review.withdrawal ? "neutral" : reviewHasAllResponses(review) ? "info" : "neutral"}>{review.withdrawal ? "Withdrawn" : reviewHasAllResponses(review) ? "Feedback received" : "Waiting for feedback"}</Badge><span className={styles.hint}>Asked by {review.requestedBy.name} · {roundPending ? <span>Sending…</span> : <LocalTime iso={review.requestedAt} />}</span></div>
-    <a className={styles.designLink} href={review.designUrl} target="_blank" rel="noopener noreferrer">Open design version<ExternalLink size={14} aria-hidden="true" /></a>
+    <a className={styles.designLink} href={review.designUrl} target="_blank" rel="noopener noreferrer">Open design version<ExternalLink data-icon-size="sm" aria-hidden="true" /></a>
     <p className={styles.url}>{review.designUrl}</p>
     <p className={styles.question}>{review.question}</p>
     <ul aria-label="Reviewers" className={styles.responses}>{review.reviewers.map(person => {
@@ -295,11 +295,12 @@ export function DesignReviewPanel({ initialState, currentUserId, viewer, canRequ
   }, [formOpen, onFormOpenChange])
   const headingId = id ? `${id}-heading` : `${uid}-heading`
   const sending = state.pending ? state.pending.kind === "ask" ? { roundId: state.pending.roundId } : { responseId: state.pending.responseId } : undefined
+  const compact = !review && mode === "view"
 
   return <section id={id} aria-labelledby={headingId} className={styles.panel}>
-    {/* Plan item 2.5: "Ask for review" names the section; its button is secondary, so the page keeps one filled button (D8). */}
-    <div className={styles.header}><h2 ref={heading} tabIndex={-1} id={headingId}>Ask for review</h2>{mayStart && mode !== "ask" && <Button type="button" variant="secondary" disabled={pending} className={styles.action} onClick={() => { setAskAfterReviewId(review?.id ?? null); setAskDraft(null); setRetrying(null); setMode("ask"); setError(null) }}>Ask for review</Button>}</div>
-    <p className={styles.hint}>{review ? CURRENT_REVIEW_HINT : ASK_FOR_REVIEW_HINT}</p>
+    {/* The empty panel needs only its action. Keep its heading for region naming and Escape focus return. */}
+    <div className={styles.header}><h2 ref={heading} tabIndex={-1} id={headingId} className={compact ? "sr-only focus:not-sr-only" : undefined}>Ask for review</h2>{mayStart && mode !== "ask" && <Button type="button" variant="secondary" disabled={pending} className={styles.action} onClick={() => { setAskAfterReviewId(review?.id ?? null); setAskDraft(null); setRetrying(null); setMode("ask"); setError(null) }}>Ask for review</Button>}</div>
+    {!compact && <p className={styles.hint}>{review ? CURRENT_REVIEW_HINT : ASK_FOR_REVIEW_HINT}</p>}
     {mode === "ask" && <AskForm expectedVersion={state.saved.version} currentUserId={currentUserId} error={error} blocked={staleAsk ? retainMessage : undefined} onFindReviewers={onFindReviewers}
       initialDraft={askDraft ?? emptyAskDraft} onDraftChange={setAskDraft} focusSubmit={retrying === "ask"} onSave={ask} onCancel={cancel} />}
     {review && <section aria-label="Current review" className={styles.current}>

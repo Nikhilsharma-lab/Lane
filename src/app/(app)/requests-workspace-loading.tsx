@@ -17,7 +17,7 @@ const ROWS = Array.from({ length: 12 }, (_, index) => index)
 export function RequestsWorkspaceLoading() {
   return <div data-slot="requests-workspace" data-skeleton="list" aria-busy="true" className={overviewStyles.overview}>
     <PageStrip title={<span className={styles.titleSkeleton}><Skeleton label="Loading Requests" lines={1} /></span>}
-      action={<NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${overviewStyles.newRequest}`}><Plus size={16} aria-hidden="true" />New Request</NewRequestLink>} />
+      action={<NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${overviewStyles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>} />
     <div aria-hidden="true" className={tableStyles.tableLayout} data-preview-table="">
       <div className={tableStyles.toolbarStack}>
         <div className={tableStyles.toolbar}><span className={styles.toolbarStatus}><Skeleton lines={1} /></span></div>

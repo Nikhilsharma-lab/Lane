@@ -1,7 +1,7 @@
 .field { display: grid; gap: var(--space-2); min-width: 0; }
-.field label { font-size: var(--text-sm); font-weight: 500; }
+.field label { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 /* The trigger anchors the floating menu. Radix opens on pointerdown and measures this box, so it never scales: press feedback is color only. */
-.trigger { position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; min-height: var(--control-height-md); border: 1px solid var(--border); border-radius: var(--radius-control); padding: 0 var(--space-3); background: var(--surface); color: var(--foreground); font: inherit; font-size: var(--text-sm); font-weight: var(--menu-font-weight, 400); text-align: left; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard); }
+.trigger { position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; min-height: var(--control-height-md); border: var(--border-width) solid var(--border); border-radius: var(--radius-control); padding: 0 var(--space-3); background: var(--surface); color: var(--foreground); font: inherit; font-size: var(--text-sm); font-weight: var(--menu-font-weight, 400); text-align: left; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard); }
 @media (hover: hover) and (pointer: fine) { .trigger:hover:not([data-disabled]) { border-color: var(--border-strong); background: var(--interaction-hover, var(--surface-muted)); } }
 .trigger:active:not([data-disabled]), .trigger[data-state="open"] { border-color: var(--border-strong); background: var(--interaction-pressed, var(--surface-muted)); }
 .trigger:focus-visible { border-color: var(--border-strong); }
@@ -14,23 +14,23 @@
 .trigger[data-state="open"] .chevron { transform: rotate(180deg); }
 .hint { color: var(--text-muted); font-size: var(--text-xs); }
 /* Radix holds the animation until the menu is positioned, so it always grows from the trigger edge. */
-.content { --menu-x: 0px; --menu-y: -6px; box-sizing: border-box; z-index: 1000; width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(24rem, calc(100vw - 20px)); max-height: min(320px, var(--radix-select-content-available-height)); overflow: hidden; border: var(--floating-border-width, 1px) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + 2px)); padding: var(--menu-padding, 6px); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
-.content[data-side="top"] { --menu-y: 6px; }
+.content { --menu-x: 0px; --menu-y: calc(var(--space-1) * -1.5); box-sizing: border-box; z-index: 1000; width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(calc(var(--space-1) * 96), calc(100vw - calc(var(--space-1) * 5))); max-height: min(calc(var(--space-1) * 80), var(--radix-select-content-available-height)); overflow: hidden; border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + var(--radius-xs))); padding: var(--menu-padding, calc(var(--space-1) * 1.5)); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
+.content[data-side="top"] { --menu-y: calc(var(--space-1) * 1.5); }
 .content[data-custom-trigger] { width: max-content; }
 .content[data-custom-trigger] .item { white-space: nowrap; }
-.content[data-side="left"] { --menu-x: 6px; --menu-y: 0px; }
-.content[data-side="right"] { --menu-x: -6px; --menu-y: 0px; }
+.content[data-side="left"] { --menu-x: calc(var(--space-1) * 1.5); --menu-y: 0px; }
+.content[data-side="right"] { --menu-x: calc(var(--space-1) * -1.5); --menu-y: 0px; }
 .content[data-state="closed"] { animation: select-out var(--duration-instant) var(--ease-standard) both; }
-.viewport { padding: var(--select-viewport-padding, 2px 0); }
-.item { position: relative; display: flex; align-items: center; min-height: var(--menu-row-height, 36px); border-radius: var(--menu-item-radius, calc(var(--radius-control) - 4px)); padding: var(--select-item-padding, 0 34px 0 11px); color: var(--foreground); font-size: var(--text-sm); cursor: default; outline: none; user-select: none; transition: background-color var(--duration-instant) var(--ease-standard), color var(--duration-instant) var(--ease-standard); }
+.viewport { padding: var(--select-viewport-padding, calc(var(--space-1) * 0.5) 0); }
+.item { position: relative; display: flex; align-items: center; min-height: var(--menu-row-height, calc(var(--space-1) * 9)); border-radius: var(--menu-item-radius, calc(var(--radius-control) - var(--radius-sm))); padding: var(--select-item-padding, 0 calc(var(--space-1) * 8.5) 0 calc(var(--space-1) * 2.75)); color: var(--foreground); font-size: var(--text-sm); cursor: default; outline: none; user-select: none; transition: background-color var(--duration-instant) var(--ease-standard), color var(--duration-instant) var(--ease-standard); }
 .item[data-highlighted] { background: var(--interaction-hover, var(--surface-muted)); }
 .item[data-disabled] { opacity: .45; }
-.optionIcon { display: inline-flex; align-items: center; flex: none; width: var(--sb-icon-sm); height: var(--sb-icon-sm); margin-inline-end: var(--space-2); }
-.indicator { position: absolute; right: 10px; display: inline-flex; align-items: center; color: var(--foreground); animation: indicator-in var(--duration-standard) var(--ease-enter) 40ms both; }
-.scrollButton { display: grid; height: 28px; place-items: center; color: var(--text-muted); }
+.optionIcon { display: inline-flex; align-items: center; flex: none; width: var(--icon-size-md); height: var(--icon-size-md); margin-inline-end: var(--space-2); }
+.indicator { position: absolute; right: calc(var(--space-1) * 2.5); display: inline-flex; align-items: center; color: var(--foreground); animation: indicator-in var(--duration-standard) var(--ease-enter) calc(var(--duration-standard) * 0.2) both; }
+.scrollButton { display: grid; height: calc(var(--space-1) * 7); place-items: center; color: var(--text-muted); }
 @keyframes select-in { from { opacity: 0; transform: translate(var(--menu-x), var(--menu-y)) scale(.97); } }
 @keyframes select-out { to { opacity: 0; transform: translate(calc(var(--menu-x) / 2), calc(var(--menu-y) / 2)) scale(.98); } }
-@keyframes indicator-in { from { opacity: 0; transform: scale(.6); filter: blur(2px); } }
+@keyframes indicator-in { from { opacity: 0; transform: scale(.6); filter: blur(calc(var(--space-1) * 0.5)); } }
 @media (prefers-reduced-transparency: reduce) { .content { background: var(--surface-raised); backdrop-filter: none; -webkit-backdrop-filter: none; } }
 @media (prefers-reduced-motion: reduce) { .trigger, .chevron, .item { transition: none; } .content { animation: select-fade var(--duration-instant) var(--ease-standard) both; } .content[data-state="closed"] { animation: select-fade-out var(--duration-instant) var(--ease-standard) both; } .indicator { animation: none; } }
 @keyframes select-fade { from { opacity: 0; } }
@@ -42,4 +42,4 @@
 :global(:root[data-ui-state-contract="semantic"]) .item[data-state="checked"]:active { background: var(--selection-pressed, var(--selection-background)); }
 :global(:root[data-ui-state-contract="semantic"]) .item[data-state="checked"] .indicator { color: var(--selection-icon, var(--selection-foreground)); }
 
-:global(:root[data-ui-state-contract="semantic"]) .item[data-state="checked"]:focus-visible > .itemText { text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+:global(:root[data-ui-state-contract="semantic"]) .item[data-state="checked"]:focus-visible > .itemText { text-decoration-line: underline; text-decoration-thickness: calc(var(--space-1) * 0.25); text-underline-offset: calc(var(--space-1) * 0.8); }

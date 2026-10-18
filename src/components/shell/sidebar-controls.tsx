@@ -16,5 +16,5 @@ export function SidebarControlsProvider({ children, ...controls }: Controls & { 
 export function SidebarExpandButton() {
   const controls = useContext(SidebarControls);
   if (!controls?.collapsed) return null;
-  return <Button variant="ghost" size="sm" className={styles.expand} aria-label="Expand sidebar" aria-expanded={controls.peeking} aria-controls="lane-sidebar" aria-keyshortcuts="[" title="Expand sidebar ([)" onClick={controls.expand} onPointerEnter={controls.onPointerEnter} onPointerLeave={controls.onPointerLeave}><PanelLeft size={17} strokeWidth={1.75} aria-hidden="true" /></Button>;
+  return <Button variant="ghost" size="sm" className={styles.expand} aria-label="Expand sidebar" aria-expanded={controls.peeking} aria-controls="lane-sidebar" aria-keyshortcuts="[" title="Expand sidebar ([)" onClick={controls.expand} onPointerEnter={controls.onPointerEnter} onPointerLeave={controls.onPointerLeave}><PanelLeft strokeWidth={1.75} aria-hidden="true" /></Button>;
 }

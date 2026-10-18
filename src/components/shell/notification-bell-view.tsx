@@ -74,7 +74,7 @@ export function NotificationBellView({
   return <Popover open={open} onOpenChange={onOpenChange}>
     <PopoverTrigger asChild>
       <button type="button" className={`${shellStyles.row} ${styles.trigger} ${compact ? styles.compact : ""}`} aria-label={label}>
-        <span className={shellStyles.lead}><Bell size={16} aria-hidden="true" /></span>
+        <span className={shellStyles.lead}><Bell aria-hidden="true" /></span>
         {!compact && <span className={shellStyles.name}>Notifications</span>}
         {unread > 0 && <span className={compact ? styles.compactCount : notificationStyles.count} aria-hidden="true">{count}</span>}
       </button>
@@ -82,15 +82,15 @@ export function NotificationBellView({
     <PopoverContent className={`${notificationStyles.panel} ${styles.panel}`} side={compact || narrow ? "bottom" : "right"} align="start" sideOffset={8} aria-label="Notifications">
       <div className={notificationStyles.header}>
         <div className={notificationStyles.heading}><h2>Notifications</h2>{unread > 0 && <span className={notificationStyles.count}>{count}</span>}</div>
-        <PopoverClose className={notificationStyles.close} aria-label="Close notifications"><X size={17} aria-hidden="true" /></PopoverClose>
+        <PopoverClose className={notificationStyles.close} aria-label="Close notifications"><X aria-hidden="true" /></PopoverClose>
       </div>
       {unread > 0 && <div className={notificationStyles.toolbar}>
-        <button type="button" className={notificationStyles.markAll} onClick={onMarkAllRead} disabled={isPending || !loaded}><CheckCheck size={15} aria-hidden="true" /><span>Mark all read</span></button>
+        <button type="button" className={notificationStyles.markAll} onClick={onMarkAllRead} disabled={isPending || !loaded}><CheckCheck aria-hidden="true" /><span>Mark all read</span></button>
       </div>}
       <div className={notificationStyles.list} aria-busy={!loaded || isPending}>
         {error && <div className={styles.error}><p role="alert">{error}</p><Button variant="secondary" size="sm" onClick={onRetry} disabled={isPending}>Try again</Button></div>}
         {!loaded ? <div className={notificationStyles.empty} role="status" aria-label="Loading notifications…"><span className={styles.spinner} aria-hidden="true" /><p>Loading notifications…</p></div>
-          : items.length === 0 ? !error && <div className={notificationStyles.empty}><Bell size={24} aria-hidden="true" /><strong>No notifications yet</strong></div>
+          : items.length === 0 ? !error && <div className={notificationStyles.empty}><Bell data-icon-size="2xl" aria-hidden="true" /><strong>No notifications yet</strong></div>
           : <ul className={styles.items}>{items.map(item => <li key={item.id} className={`${notificationStyles.item} ${item.readAt ? notificationStyles.itemRead : ""}`}>
             <div className={notificationStyles.itemMain}>
               <Avatar name={item.actorName || "Someone"} size="sm" aria-hidden="true" />
@@ -98,7 +98,7 @@ export function NotificationBellView({
                 <span className={`${notificationStyles.itemTitle} ${styles.title}`}><strong>{notificationSentence(item.type, item.actorName || "Someone", item.requestTitle)}</strong></span>
                 <span className={notificationStyles.itemPreview}>{relativeTime(item.createdAt)}{!item.readAt && " · Unread"}</span>
               </button>
-              <button type="button" className={notificationStyles.close} aria-label={item.readAt ? "Mark notification as unread" : "Mark notification as read"} onClick={() => onToggleRead(item)} disabled={isPending}>{item.readAt ? <Mail size={16} aria-hidden="true" /> : <MailOpen size={16} aria-hidden="true" />}</button>
+              <button type="button" className={notificationStyles.close} aria-label={item.readAt ? "Mark notification as unread" : "Mark notification as read"} onClick={() => onToggleRead(item)} disabled={isPending}>{item.readAt ? <Mail aria-hidden="true" /> : <MailOpen aria-hidden="true" />}</button>
             </div>
           </li>)}</ul>}
       </div>

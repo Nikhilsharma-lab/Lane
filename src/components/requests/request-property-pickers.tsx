@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
-import { Check, Layers2, Plus, Rows3 } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
@@ -10,10 +10,11 @@ import { Select } from "@/components/arc/select/select";
 import { Alert } from "@/components/arc/alert/alert";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import {
-  REQUEST_TYPES, REQUEST_TYPE_LABELS, REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS,
-  type ProjectOption, type RequestType, type RequestPriority,
+  REQUEST_TYPE_LABELS,
+  type ProjectOption, type RequestType,
 } from "@/lib/request-constants";
-import { PriorityGlyph } from "./row-presentation";
+import { ProjectMarker } from "@/components/projects/project-marker";
+import { RequestTypeGlyph, requestTypeOptions } from "./request-type-presentation";
 import styles from "./request-property-pickers.module.css";
 
 export function useWorkspaceProjects(orgId: string, active: boolean) {
@@ -136,7 +137,7 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
           if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
           if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
         }}>
-        {lead?.(item) ?? (selected ? <Check size={16} aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />)}
+        {lead?.(item) ?? <span className={styles.iconSpace} aria-hidden="true">{selected && <Check />}</span>}
         {render(item)}
       </Button>;
     }) : emptyText ? <p className={styles.empty}>{emptyText}</p> : null}
@@ -213,7 +214,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
   }}>
     <PopoverTrigger asChild>
       <Button type="button" id="intake-project" className={styles.trigger} variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-project-error" : undefined} aria-label={selected ? `Project: ${selected.name}` : value ? "Project: unavailable" : "Project"} title={selected?.name}>
-        <span className={styles.chipContent}><Layers2 aria-hidden="true" /><span className={styles.chipLabel}>{selected?.name ?? (value ? "Project unavailable" : "Project")}</span></span>
+        <span className={styles.chipContent}><ProjectMarker projectId={value} /><span className={styles.chipLabel}>{selected?.name ?? (value ? "Project unavailable" : "Project")}</span></span>
       </Button>
     </PopoverTrigger>
     <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose a Project"
@@ -247,7 +248,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
           }}>
           <span className={styles.optionContent}>
             {item.id === value ? <Check aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />}
-            <span>{item.name}</span>
+            <ProjectMarker projectId={item.id ?? null} /><span>{item.name}</span>
           </span>
         </Button>)}
       </div>}
@@ -270,29 +271,15 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
   </Popover>;
 }
 
-const typeOptions = [
-  { value: "none", label: "No type" },
-  ...REQUEST_TYPES.map((value) => ({ value, label: REQUEST_TYPE_LABELS[value] })),
-];
-
 export function RequestTypePicker({ value, onChange, disabled, error }: {
   value: RequestType | null; onChange: (value: RequestType | null) => void; disabled: boolean; error?: string;
 }) {
-  return <Select label="Request type" id="intake-request-type" options={typeOptions} value={value ?? "none"} disabled={disabled}
+  return <Select label="Request type" id="intake-request-type" options={requestTypeOptions} value={value ?? "none"} disabled={disabled}
     onValueChange={(next) => onChange(next === "none" ? null : next as RequestType)}
     onContentKeyDown={(event) => event.stopPropagation()}
     trigger={<Button type="button" className={styles.trigger} variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-request-type-error" : undefined} aria-label={value ? `Request type: ${REQUEST_TYPE_LABELS[value]}` : "Request type"}>
-      <span className={styles.chipContent} data-request-type={value ?? undefined}><Rows3 aria-hidden="true" /><span className={styles.chipLabel}>{value ? REQUEST_TYPE_LABELS[value] : "Request type"}</span></span>
+      <span className={styles.chipContent} data-request-type={value ?? undefined}><RequestTypeGlyph type={value} /><span className={styles.chipLabel}>{value ? REQUEST_TYPE_LABELS[value] : "Request type"}</span></span>
     </Button>} />;
 }
 
-export function RequestPriorityPicker({ value, onChange, disabled }: {
-  value: RequestPriority; onChange: (value: RequestPriority) => void; disabled: boolean;
-}) {
-  return <Select label="Priority" id="intake-priority" value={value} disabled={disabled}
-    options={REQUEST_PRIORITIES.map(priority => ({ value: priority, label: REQUEST_PRIORITY_LABELS[priority], icon: <span className={styles.chipContent} data-priority={priority}><PriorityGlyph priority={priority} /></span> }))}
-    onValueChange={next => onChange(next as RequestPriority)} onContentKeyDown={event => event.stopPropagation()}
-    trigger={<Button type="button" className={styles.trigger} variant="secondary" size="sm" disabled={disabled} aria-label={`Priority: ${REQUEST_PRIORITY_LABELS[value]}`}>
-      <span className={styles.chipContent} data-priority={value}><PriorityGlyph priority={value} /><span className={styles.chipLabel}>{REQUEST_PRIORITY_LABELS[value]}</span></span>
-    </Button>} />;
-}
+export { RequestPriorityPicker } from "./request-priority-picker";

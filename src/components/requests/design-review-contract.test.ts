@@ -12,7 +12,6 @@ const PANEL = source("src/components/requests/design-review-panel.tsx")
 const PANEL_STYLES = source("src/components/requests/design-review-panel.module.css")
 const PICKER = source("src/components/requests/reviewer-picker.tsx")
 const PICKER_SHELL = source("src/components/requests/request-property-pickers.tsx")
-const ADAPTER = source("src/app/(app)/requests/[id]/design-review.tsx")
 
 describe("Ask for review contract", () => {
   it("draws no coloured side border and no hand-made focus fill (the craft floor)", () => {
@@ -55,15 +54,8 @@ describe("Ask for review contract", () => {
     expect(PANEL).not.toContain("Approved")
   })
 
-  it("runs saves through the optimistic runner, refreshes only on the stale conflict and never calls router.refresh", () => {
-    expect(ADAPTER).toContain("useOptimisticAction")
-    expect(ADAPTER).toContain("useServerRefresh")
-    expect(ADAPTER).toContain("refreshOnError: false")
-    expect(ADAPTER).toContain("changed while you were working")
-    expect(ADAPTER).not.toContain("router.refresh")
-    expect(PANEL).not.toContain("useRouter")
-    expect(PICKER).not.toContain("useRouter")
-  })
+  // The retired adapter is covered behaviorally by LegacyEntryIsLinkOnly in
+  // design-review.stories.tsx and the no-storage review-actions tests.
 
   it("offers a named reviewer a secondary submit and keeps the opened form primary (decision D4)", () => {
     expect(PANEL).toContain('variant={opened ? "primary" : "secondary"}')

@@ -5,7 +5,7 @@ import RootError from "@/app/error"
 import AuthError from "@/app/(auth)/error"
 import NotFound from "@/app/not-found"
 import AppError from "@/app/(app)/error"
-import { SidebarView } from "@/components/shell/sidebar-view"
+import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
 
 // Plan item 1.12. getWorkspace() in (app)/layout.tsx throws while the database is
 // paused; Next renders src/app/error.tsx inside the root layout. These stories render
@@ -113,9 +113,9 @@ export const LayoutThrows: Story = {
 export const AppPageErrorInShell: Story = {
   name: "(app) page error in the shell",
   parameters: { nextjs: { appDirectory: true, navigation: { pathname: "/requests/fixture" } } },
-  render: (args) => <SidebarView workspaceName="Lane Studio" fullName="Alex Morgan" email="alex@example.test" role="member" pathname="/requests/fixture" statusFilter="all" notifications={null} onSignOut={() => {}}>
+  render: (args) => <WorkspaceSidebarFixture pathname="/requests/fixture">
     <AppError error={new Error("Illustrative load failure")} reset={args.reset} />
-  </SidebarView>,
+  </WorkspaceSidebarFixture>,
   play: async ({ canvasElement, args }) => {
     const main = within(within(canvasElement).getByRole("main"))
     const heading = main.getByRole("heading", { level: 1, name: "Page unavailable" })

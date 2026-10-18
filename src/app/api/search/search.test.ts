@@ -20,6 +20,7 @@ vi.mock("@/db", async () => {
     boundary.queries.push({ sql, params });
     if (boundary.failure) throw new Error("Private SQL failure: customer secret");
     const isRequest = sql.match(/from "(requests|projects)"/)?.[1] === "requests";
+    if (sql.includes("group by")) return { rows: [[sql.includes('group by "requests"."status"') ? "open" : "bug", boundary.requestTotal]] };
     return { rows: sql.includes("count(*)")
       ? [[isRequest ? boundary.requestTotal : boundary.projectTotal]]
       : isRequest ? boundary.requestRows : boundary.projectRows };
@@ -28,8 +29,8 @@ vi.mock("@/db", async () => {
 
 const PROJECT_ID = "00000000-0000-4000-a000-000000000001";
 const REQUEST_ID = "00000000-0000-4000-a000-000000000002";
-const REQUEST = [REQUEST_ID, 42, "Signup", "People cannot finish signup", "open", PROJECT_ID, "Website", "bug", "2025-01-01T10:00:00.000Z"];
-const PROJECT = [PROJECT_ID, "Website", "Public website"];
+const REQUEST = [REQUEST_ID, 42, "Signup", "People cannot finish signup", "open", PROJECT_ID, "Website", "bug", "2025-01-01T10:00:00.000Z", "People abandon signup at phone number"];
+const PROJECT = [PROJECT_ID, "Website", "Public website", "2025-01-01T10:00:00.000Z"];
 
 beforeEach(() => {
   boundary.session = { userId: "user_member", orgId: "org_a", orgRole: "org:member" };
@@ -60,6 +61,36 @@ function whereClause(sql: string) {
 }
 
 describe("GET /api/search query and authorization contract", () => {
+  it.each([
+    { statuses: "archived" }, { types: "task" }, { sort: "random" },
+    { createdFrom: "2026-02-30" }, { createdFrom: "2026-10-20", createdTo: "2026-10-01" },
+  ])("rejects invalid rich filters before querying: %j", async (filters) => {
+    const response = await searchResponse({ query: "signup", ...filters });
+    expect(response.status).toBe(400);
+    expect(boundary.queries).toHaveLength(0);
+  });
+
+  it("filters the authorized dataset before paging and keeps facet counts inside guest access", async () => {
+    boundary.session.orgRole = "org:guest";
+    const response = await search({ query: "signup", statuses: "open,done", types: "bug", createdFrom: "2026-10-01", createdTo: "2026-10-18", sort: "title", requestsPage: 2 });
+    expect(response).toHaveProperty("facets");
+    const row = queryFor("requests");
+    expect(row.sql).toContain('"requests"."status" in');
+    expect(row.sql).toContain('"requests"."request_type" in');
+    expect(row.sql).toContain('order by lower("requests"."title") asc');
+    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "open", "done", "bug", "2026-10-01T00:00:00.000Z", "2026-10-19T00:00:00.000Z", 40]));
+    expect(whereClause(row.sql)).toBe(whereClause(queryFor("requests", true).sql));
+    const facets = boundary.queries.filter(({ sql }) => sql.includes("group by"));
+    expect(facets).toHaveLength(2);
+    for (const facet of facets) {
+      expect(facet.params).toContain("org_a");
+      expect(facet.params).toContain("user_member");
+      expect(facet.sql).not.toContain("limit");
+    }
+    const statuses = facets.find(({ sql }) => sql.includes('group by "requests"."status"'))!;
+    expect(whereClause(statuses.sql).split("group by")[0]).not.toContain('"requests"."status" in');
+    expect(statuses.params).toContain("bug");
+  });
   it.each([
     { userId: null, orgId: "org_a", orgRole: "org:member" },
     { userId: "user_member", orgId: null, orgRole: "org:member" },
@@ -95,13 +126,14 @@ describe("GET /api/search query and authorization contract", () => {
     expect(boundary.queries).toHaveLength(0);
   });
 
-  it("returns only result metadata with independent category totals and pages", async () => {
+  it("returns authorized preview context with independent category totals and pages", async () => {
     boundary.requestRows = [REQUEST]; boundary.projectRows = [PROJECT];
     boundary.requestTotal = 41; boundary.projectTotal = 2;
     expect(await search({ query: "  Signup  ", requestsPage: 2 })).toEqual({
       success: true, query: "Signup",
-      requests: { items: [{ id: REQUEST_ID, requestNumber: 42, title: "Signup", reframedProblem: "People cannot finish signup", status: "open", projectId: PROJECT_ID, projectName: "Website", requestType: "bug", createdAt: "2025-01-01T10:00:00.000Z" }], total: 41, hasMore: false, page: 2 },
-      projects: { items: [{ id: PROJECT_ID, name: "Website", description: "Public website" }], total: 2, hasMore: false, page: 0 },
+      requests: { items: [{ id: REQUEST_ID, requestNumber: 42, title: "Signup", reframedProblem: "People cannot finish signup", status: "open", projectId: PROJECT_ID, projectName: "Website", requestType: "bug", createdAt: "2025-01-01T10:00:00.000Z", description: "People abandon signup at phone number" }], total: 41, hasMore: false, page: 2 },
+      projects: { items: [{ id: PROJECT_ID, name: "Website", description: "Public website", createdAt: "2025-01-01T10:00:00.000Z" }], total: 2, hasMore: false, page: 0 },
+      facets: { statuses: { open: 41 }, types: { bug: 41 } },
     });
   });
 
@@ -149,7 +181,7 @@ describe("GET /api/search query and authorization contract", () => {
   it("binds literal wildcard and SQL-looking text without treating it as SQL or a LIKE pattern", async () => {
     const query = "50%_\\' OR 1=1 --";
     await search({ query });
-    expect(boundary.queries).toHaveLength(4);
+    expect(boundary.queries).toHaveLength(6);
     for (const emitted of boundary.queries) {
       expect(emitted.sql).not.toContain(query);
       expect(emitted.params).toContain(query);

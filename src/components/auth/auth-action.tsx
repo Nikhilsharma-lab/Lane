@@ -54,7 +54,6 @@ export function AuthAction({
         <StateIcon
           aria-hidden="true"
           data-icon="inline-start"
-          className={kind === "utility" ? "size-3.5" : "size-4"}
         />
       )}
       {loading ? (loadingLabel ?? children) : children}
