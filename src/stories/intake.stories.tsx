@@ -223,11 +223,11 @@ export const OutOfRangeGoal: Story = {
 export const LinkAndBack: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachLink(canvasElement);
-    await userEvent.type(canvas.getByRole("textbox", { name: "Related link" }), "https://example.test/customer-feedback");
+    await userEvent.type(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" }), "https://example.test/customer-feedback");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Edit Request" }));
     await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
-    await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue("https://example.test/customer-feedback");
+    await expect(await openRelatedLink(canvasElement)).toHaveValue("https://example.test/customer-feedback");
     await expect(runTriage).toHaveBeenCalledTimes(1);
   },
 };
@@ -255,7 +255,8 @@ export const LegacyDraftPreserved: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole("textbox", { name: "Request title" })).toHaveValue(legacySource.title);
-    await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue(legacySource.usefulLink);
+    await expect(await openRelatedLink(canvasElement)).toHaveValue(legacySource.usefulLink);
+    await userEvent.keyboard("{Escape}");
     const earlierDetails = within(canvas.getByRole("region", { name: "Details from your earlier draft" }));
     for (const value of [legacySource.affectedPeople, legacySource.desiredChange, legacySource.observedEvidence, legacySource.uncertainty]) {
       await expect(earlierDetails.getByText(value)).toBeVisible();
@@ -336,10 +337,15 @@ async function fillRequest(canvasElement: HTMLElement) {
   return canvas;
 }
 
+async function openRelatedLink(canvasElement: HTMLElement) {
+  const toggle = within(canvasElement).getByRole("button", { name: "Add link" });
+  if (toggle.getAttribute("aria-expanded") === "false") await userEvent.click(toggle);
+  return within(canvasElement.ownerDocument.body).findByRole("textbox", { name: "Related link" });
+}
+
 async function reachLink(canvasElement: HTMLElement) {
   const canvas = await fillRequest(canvasElement);
-  await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
-  await canvas.findByRole("textbox", { name: "Related link" });
+  await openRelatedLink(canvasElement);
   return canvas;
 }
 
@@ -352,7 +358,7 @@ async function reachCheck(canvasElement: HTMLElement) {
 export const RelatedLink: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachLink(canvasElement);
-    await visible(canvas.getByRole("textbox", { name: "Related link" }));
+    await visible(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" }));
     await visible(
       canvas.getByRole("button", { name: "Attach files" }),
     );
@@ -385,7 +391,7 @@ async function reviewSupportingDetails(
   const fileName = longContent
     ? `${"saved-draft-findability-".repeat(8)}customer-interviews.txt`
     : "saved-draft-customer-interviews.txt";
-  await userEvent.type(canvas.getByRole("textbox", { name: "Related link" }), relatedLink);
+  await userEvent.type(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" }), relatedLink);
   await userEvent.upload(
     canvas.getByLabelText("Choose Request files"),
     new File(["x".repeat(2048)], fileName, { type: "text/plain" }),
@@ -427,7 +433,8 @@ async function reviewSupportingDetails(
 
   await assertReview();
   await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
-  await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue(relatedLink);
+  await expect(await openRelatedLink(canvasElement)).toHaveValue(relatedLink);
+  await userEvent.keyboard("{Escape}");
   await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
   await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveValue(requestSource.description);
   await expect(canvas.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
@@ -800,15 +807,15 @@ async function waitForCreatedNotification(canvasElement: HTMLElement) {
 export const LinkToggle: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachLink(canvasElement);
-    const input = canvas.getByRole("textbox", { name: "Related link" });
+    const input = within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" });
     await userEvent.type(input, "https://example.test/customer-feedback");
     const toggle = canvas.getByRole("button", { name: "Add link" });
     toggle.focus();
     await userEvent.keyboard("{Enter}");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(canvas.queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument());
     await userEvent.keyboard("{Enter}");
-    await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue("https://example.test/customer-feedback");
+    await expect(await openRelatedLink(canvasElement)).toHaveValue("https://example.test/customer-feedback");
     await expect(canvas.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
   },
 };
@@ -1185,8 +1192,10 @@ export const WorkspaceActionsRemainVisible: Story = {
     await userEvent.paste(Array.from({ length: 4 }, (_, index) => `\n\nInterview ${index + 1}: customers reopen several drafts before they find their latest changes.`).join(""));
     await fillMetricImpact(canvas);
     await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
-    const relatedLink = canvas.getByRole("textbox", { name: "Related link" });
+    const relatedLink = within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" });
     await userEvent.type(relatedLink, "https://example.test/customer-feedback");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "Related link" })).not.toBeInTheDocument());
     await userEvent.upload(canvas.getByLabelText("Choose Request files"), [
       new File(["evidence"], "Customer-feedback.pdf", { type: "application/pdf" }),
       new File(["image"], "Long-customer-interview-screenshot.png", { type: "image/png" }),
@@ -1195,7 +1204,7 @@ export const WorkspaceActionsRemainVisible: Story = {
     const footer = review.closest("footer")!;
     const composerHeading = canvas.getByRole("heading", { name: "New Request", level: 2 });
     await waitFor(() => expect(composerHeading.getBoundingClientRect().top).toBeGreaterThanOrEqual(dialog.getBoundingClientRect().top));
-    let scroller: HTMLElement | null = relatedLink.parentElement;
+    let scroller: HTMLElement | null = description.parentElement;
     while (scroller && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
     // Narrow viewports must scroll; wider ones can fit the complete form.
     if (window.innerWidth <= 640) await expect(scroller).not.toBeNull();
@@ -1210,12 +1219,12 @@ export const WorkspaceActionsRemainVisible: Story = {
         });
       }
       scroller.scrollTop = 0;
-      relatedLink.focus();
+      description.focus();
       await waitFor(() => {
-        expect(relatedLink).toHaveFocus();
-        expect(relatedLink.getBoundingClientRect().top).toBeGreaterThanOrEqual(scroller!.getBoundingClientRect().top);
+        expect(description).toHaveFocus();
+        expect(description.getBoundingClientRect().top).toBeGreaterThanOrEqual(scroller!.getBoundingClientRect().top);
         // Browser layout can retain subpixel boundaries while the sticky footer snaps to a device pixel.
-        expect(relatedLink.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top + 1);
+        expect(description.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top + 1);
       });
     }
     await userEvent.click(review);
@@ -1228,16 +1237,17 @@ export const WorkspaceActionsRemainVisible: Story = {
 export const OptionalFieldValidation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await reachLink(canvasElement);
-    const usefulLink = canvas.getByRole("textbox", { name: "Related link" });
+    let usefulLink = within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" });
     await userEvent.type(usefulLink, "http://example.test/evidence");
     await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
-    await expect(canvas.queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument());
     await userEvent.click(
       canvas.getByRole("button", { name: "Review Request" }),
     );
     await visible(
-      canvas.findByText("Enter a complete link, including https://"),
+      within(canvasElement.ownerDocument.body).findByText("Enter a complete link, including https://"),
     );
+    usefulLink = within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" });
     await expect(usefulLink).toHaveAttribute(
       "aria-describedby",
       "intake-useful-link-error",
@@ -1254,7 +1264,7 @@ export const ServerLinkValidation: Story = {
       error: { code: "validation", field: "usefulLink", message: "Please check the related link." },
     });
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    const input = await canvas.findByRole("textbox", { name: "Related link" });
+    const input = await within(canvasElement.ownerDocument.body).findByRole("textbox", { name: "Related link" });
     await expect(input).toHaveAttribute("aria-describedby", "intake-useful-link-error");
     await waitFor(() => expect(input).toHaveFocus());
     await userEvent.type(input, "https://example.test/customer-feedback");
@@ -1367,7 +1377,8 @@ export const LegacyReviewNeedsImpact: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole("textbox", { name: "Request title" })).toHaveValue(legacySource.title);
     await expect(canvas.getByRole("textbox", { name: "Description" })).toHaveValue(legacySource.description);
-    await expect(canvas.getByRole("textbox", { name: "Related link" })).toHaveValue(legacySource.usefulLink);
+    await expect(await openRelatedLink(canvasElement)).toHaveValue(legacySource.usefulLink);
+    await userEvent.keyboard("{Escape}");
     const earlierProblem = within(canvas.getByRole("region", { name: "Problem from your earlier review" }));
     await expect(earlierProblem.getByText("Returning customers cannot identify which saved draft contains their latest changes.")).toBeVisible();
     await expect(earlierProblem.queryByRole("textbox")).not.toBeInTheDocument();

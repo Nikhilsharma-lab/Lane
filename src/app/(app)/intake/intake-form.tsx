@@ -28,6 +28,7 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
@@ -58,7 +59,7 @@ import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
-import { ProjectPicker, RequestTypePicker, RequestPriorityPicker, useWorkspaceProjects } from "@/components/requests/request-property-pickers";
+import { ProjectPicker, RequestTypePicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS, REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
 import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
@@ -316,6 +317,7 @@ export default function IntakeForm({
     setError,
     setFocus,
     setValue,
+    trigger,
     formState: { errors, isSubmitted },
   } = useForm<RequestInput, unknown, z.output<typeof requestSchema>>({
     resolver: zodResolver(requestSchema),
@@ -405,7 +407,6 @@ export default function IntakeForm({
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
-        setLinkOpen(Boolean(draft.source.usefulLink));
         setImpactOpen(hasGuardrailEdits(draft.source.expectedImpact));
         setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
         // A stored review knows which text produced its framing. Older compose
@@ -640,6 +641,7 @@ export default function IntakeForm({
   async function checkFraming(data: RequestInput) {
     if (operationInFlight.current) return;
     operationInFlight.current = true;
+    setLinkOpen(false);
     onBusyChange?.(true);
     setRestoredDraft(false);
     setFailure(null);
@@ -1173,6 +1175,11 @@ export default function IntakeForm({
     onBusyChange?.(value);
   }
 
+  async function finishLink() {
+    if (await trigger("usefulLink")) setLinkOpen(false);
+    else setFocus("usefulLink");
+  }
+
   /** A failed submit focuses the visible measurement fields or opens a restored legacy editor. */
   function revealImpact() {
     const impact = currentValues.expectedImpact;
@@ -1307,14 +1314,27 @@ export default function IntakeForm({
                 setValue("requestType", value, { shouldDirty: true, shouldValidate: true });
               }} disabled={checking || projectBusy} error={errors.requestType?.message} />
               <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
-              <Button type="button" variant="secondary" size="sm" aria-expanded={linkOpen} aria-controls="intake-link-section" onClick={() => {
-                const open = !linkOpen;
-                // Reveal the registered input before focusing it, as with the impact editor.
-                flushSync(() => setLinkOpen(open));
-                if (open) setFocus("usefulLink");
-              }} disabled={checking}>
-                <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
-              </Button>
+              <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="secondary" size="sm" disabled={checking} aria-invalid={Boolean(errors.usefulLink) || undefined}>
+                    <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent {...pickerPopoverProps} inert={linkOpen ? undefined : true} aria-label="Related link" className="w-80 space-y-3"
+                  onOpenAutoFocus={(event) => { event.preventDefault(); setFocus("usefulLink"); }}>
+                  <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="https://…" maxLength={USEFUL_LINK_MAX} readOnly={checking}
+                    error={errors.usefulLink?.message} {...register("usefulLink")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        void finishLink();
+                      }
+                    }} />
+                  <div className="flex justify-end">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Done</Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button ref={attachFilesButtonRef} type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={checking}>
                 <span className={styles.propertyContent}><PaperclipIcon aria-hidden="true" /><span>Attach files</span></span>
               </Button>
@@ -1323,13 +1343,6 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            <section id="intake-link-section" hidden={!linkOpen} aria-label="Request link">
-              <div className="data-[invalid=true]:text-destructive-foreground" data-invalid={Boolean(errors.usefulLink)}>
-                <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="Paste a link to a report, recording or conversation" maxLength={USEFUL_LINK_MAX} readOnly={checking}
-                  aria-invalid={Boolean(errors.usefulLink) || undefined} aria-describedby={errors.usefulLink ? "intake-useful-link-error" : undefined} {...register("usefulLink")} />
-                {errors.usefulLink && <p className="text-destructive-foreground" id="intake-useful-link-error">{errors.usefulLink.message}</p>}
-              </div>
-            </section>
             {currentValues.expectedImpact?.kind === "measurement" ? <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>

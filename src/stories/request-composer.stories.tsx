@@ -299,7 +299,7 @@ export const ReviewPreview: Story = {
     await waitFor(() => expect(page.queryByRole("listbox", { name: "Request type" })).not.toBeInTheDocument());
     await waitForInteractive(composer.getByRole("button", { name: "Review Request" }));
     await userEvent.click(composer.getByRole("button", { name: "Add link" }));
-    await userEvent.type(composer.getByRole("textbox", { name: "Related link" }), "https://example.test/customer-interviews");
+    await userEvent.type(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" }), "https://example.test/customer-interviews");
     await userEvent.upload(composer.getByLabelText("Choose Request files"), new File(["Customer interview notes"], "interview-notes.txt", { type: "text/plain" }));
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await expect(await page.findByRole("dialog", { name: "New Request" })).toBeVisible();
@@ -464,13 +464,13 @@ export const OptionalRequestProperties: Story = {
       await expect(composer.queryByLabelText(label)).not.toBeInTheDocument();
     }
     await expect(composer.getByRole("button", { name: "Attach files" })).toBeVisible();
-    await expect(composer.queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
     await userEvent.click(composer.getByRole("button", { name: "Add link" }));
-    await expect(composer.getByRole("textbox", { name: "Related link" })).toBeVisible();
+    await waitFor(() => expect(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" })).toBeVisible());
   },
 };
 
-export const AddLinkStaysBesideProperties: Story = {
+export const AddLinkPopover: Story = {
   beforeEach: () => {
     writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
       source: { ...source, affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement", expectedImpact: {
@@ -481,25 +481,53 @@ export const AddLinkStaysBesideProperties: Story = {
     });
   },
   play: async ({ canvasElement }) => {
-    const { composer } = await openComposer(canvasElement);
+    const { composer, page, dialog } = await openComposer(canvasElement);
     const toggle = composer.getByRole("button", { name: "Add link" });
-    await userEvent.click(toggle);
-    const input = composer.getByRole("textbox", { name: "Related link" });
     const primary = composer.getByRole("region", { name: "Primary metric" });
-    // Visibility assertions alone also pass for inputs below the scroll viewport.
-    await expect(input.getBoundingClientRect().bottom).toBeLessThanOrEqual(primary.getBoundingClientRect().top);
-    await waitFor(() => expect(input).toHaveFocus());
-    await expect(input.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
-    await expect(input.getBoundingClientRect().bottom).toBeLessThan(composer.getByRole("button", { name: "Review Request" }).getBoundingClientRect().top);
-    await userEvent.type(input, "https://example.test/customer-feedback");
+    const position = primary.offsetTop;
     await userEvent.click(toggle);
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.queryByRole("textbox", { name: "Related link" })).not.toBeInTheDocument();
+    const popover = await page.findByRole("dialog", { name: "Related link" });
+    let input = within(popover).getByRole("textbox", { name: "Related link" });
+    await waitFor(() => expect(input).toHaveFocus());
+    await expect(primary.offsetTop).toBe(position);
+    await expect(dialog).toBeVisible();
+    await expect(popover.getBoundingClientRect().width).toBeLessThanOrEqual(352);
+    await expect(popover.getBoundingClientRect().left).toBeGreaterThanOrEqual(0);
+    await expect(popover.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
+    await userEvent.type(input, "https://example.test/customer-feedback");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Related link" })).not.toBeInTheDocument());
+    await expect(toggle).toHaveFocus();
+    await expect(dialog).toBeVisible();
     await userEvent.keyboard("{Enter}");
+    input = within(await page.findByRole("dialog", { name: "Related link" })).getByRole("textbox", { name: "Related link" });
     await waitFor(() => expect(input).toHaveFocus());
     await expect(input).toHaveValue("https://example.test/customer-feedback");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(toggle).toHaveFocus());
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Related link" })).not.toBeInTheDocument());
     await expect(runTriage).not.toHaveBeenCalled();
     await expect(saveRequest).not.toHaveBeenCalled();
+    await userEvent.click(toggle);
+    input = within(await page.findByRole("dialog", { name: "Related link" })).getByRole("textbox", { name: "Related link" });
+    await waitFor(() => expect(input).toHaveFocus());
+    await userEvent.clear(input);
+    await userEvent.type(input, "http://example.test/insecure");
+    await userEvent.click(within(page.getByRole("dialog", { name: "Related link" })).getByRole("button", { name: "Done" }));
+    await expect(await page.findByText("Enter a complete link, including https://")).toBeVisible();
+    await expect(input).toHaveFocus();
+    await userEvent.clear(input);
+    await userEvent.type(input, "https://example.test/customer-feedback");
+    await userEvent.click(within(page.getByRole("dialog", { name: "Related link" })).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(toggle).toHaveFocus());
+    await userEvent.click(toggle);
+    await waitFor(() => expect(page.getByRole("textbox", { name: "Related link" })).toHaveFocus());
+    await userEvent.keyboard("{Tab}{Tab}");
+    await waitFor(() => expect(composer.getByRole("button", { name: "Attach files" })).toHaveFocus());
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Related link" })).not.toBeInTheDocument());
+    await expect(dialog).toBeVisible();
+    await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
+    await waitFor(() => expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ usefulLink: "https://example.test/customer-feedback" }), context));
   },
 };
 
