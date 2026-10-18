@@ -22,6 +22,9 @@ export function DesignReview({ requestId, initialState, currentUserId, canReques
   const detail = useOptionalDetailRequest()
   // Plan item 2.5: an open review form hides the strip's filled action, so the page keeps one primary.
   const reportForm = detail?.reportForm
+  // The name stamped on an optimistic round is the profile name the detail already has; the confirmed round carries the
+  // name the actions resolve (Clerk first, profile fallback). They differ only when a Clerk name changed after onboarding,
+  // and the detail render takes no Clerk call for it (plan item 1.8); recorded in the 2.6 page-quality row.
   const viewer = detail?.viewer ?? { id: currentUserId, name: "You" }
   // Plan item 1.16: the type-ahead reads GET /api/reviewers, so it never queues
   // behind a pending mutation and a stale query is aborted by the panel.

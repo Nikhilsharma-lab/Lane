@@ -65,6 +65,19 @@
   background: var(--selection-background, var(--surface-muted));
 }
 
+/* An inert row (the reviewer limit is reached) reads as unavailable the way Arc's own aria-disabled items do, while it keeps
+ * its place in the roving focus: the keyboard fill (the ghost Button's :focus-visible rule) still marks it. */
+.optionList .option[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.optionList .option[aria-disabled="true"]:is(:hover, :active) {
+  color: var(--text-muted);
+  background: transparent;
+}
+
 .iconSpace {
   width: var(--sb-icon-sm);
   height: var(--sb-icon-sm);
