@@ -18,5 +18,5 @@
 .skeletonRow { padding-block: 0; }
 .error { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-3); }
 .error p { margin: 0; color: var(--danger); font-size: var(--text-sm); }
-.panel button:disabled { opacity: var(--sb-opacity-disabled); cursor: not-allowed; }
+.panel button:disabled, .panel button[aria-disabled="true"] { opacity: var(--sb-opacity-disabled); cursor: not-allowed; }
 @media (hover: hover) and (pointer: fine) { .row:hover { background: var(--interaction-hover); } }

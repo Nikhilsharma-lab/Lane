@@ -109,6 +109,12 @@ const badge = (canvasElement: HTMLElement, unread: number) => within(canvasEleme
 const rowsOf = (panel: HTMLElement) => [...panel.querySelectorAll<HTMLElement>("[data-notification-row]")]
 const openButton = (panel: HTMLElement, index: number) => rowsOf(panel)[index].querySelector<HTMLElement>("[data-notification-open]")!
 const toggleOf = (row: HTMLElement) => within(row).getByRole("button", { name: /^Mark notification as/ })
+/** A pending toggle is aria-disabled, not disabled, so the keyboard focus that pressed it stays put. */
+const expectPending = (button: HTMLElement) => expect(button).toHaveAttribute("aria-disabled", "true")
+async function expectLive(button: HTMLElement) {
+  await expect(button).toBeEnabled()
+  await expect(button).not.toHaveAttribute("aria-disabled")
+}
 
 async function openNotifications(canvasElement: HTMLElement) {
   await userEvent.click(trigger(canvasElement))
@@ -184,8 +190,11 @@ export const LoadErrorAndRetry: Story = {
     await expect(within(panel).queryByText("No notifications")).not.toBeInTheDocument()
     await expect(rowsOf(panel)).toHaveLength(0)
     await userEvent.click(within(panel).getByRole("button", { name: "Try again" }))
+    // The status line goes while the retry reads; focus stays in the panel instead of dropping to the page.
+    await expect(panel.contains(document.activeElement)).toBe(true)
     await waitFor(() => expect(rowsOf(panel)).toHaveLength(3))
     await expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
+    await expect(panel.contains(document.activeElement)).toBe(true)
   },
 }
 
@@ -472,7 +481,7 @@ export const MarkReadIsOptimisticAndNeverReverts: Story = {
     await userEvent.click(toggleOf(row))
     // The same frame: dot off, toggle relabelled and disabled, badge and chip down by one.
     await expect(row).not.toHaveAttribute("data-unread")
-    await expect(within(row).getByRole("button", { name: "Mark notification as unread" })).toBeDisabled()
+    await expectPending(within(row).getByRole("button", { name: "Mark notification as unread" }))
     await expect(badge(canvasElement, 1)).toBeVisible()
     await expect(within(panel).getByRole("heading", { name: "Notifications" }).parentElement).toHaveTextContent("1")
     await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Marked read.")
@@ -483,7 +492,7 @@ export const MarkReadIsOptimisticAndNeverReverts: Story = {
     await expect(badge(canvasElement, 1)).toBeVisible()
     // The action succeeds: the toggle is live again, the reconciling count agrees, still read.
     optimisticResolve?.()
-    await waitFor(() => expect(within(row).getByRole("button", { name: "Mark notification as unread" })).toBeEnabled())
+    await waitFor(() => expectLive(within(row).getByRole("button", { name: "Mark notification as unread" })))
     await waitFor(() => expect(optimisticCalls?.count).toBeGreaterThanOrEqual(3))
     await settle()
     await expect(row).not.toHaveAttribute("data-unread")
@@ -520,14 +529,14 @@ export const MarkUnreadRollsBack: Story = {
     await userEvent.click(within(row).getByRole("button", { name: "Mark notification as unread" }))
     await expect(row).toHaveAttribute("data-unread")
     await expect(badge(canvasElement, 3)).toBeVisible()
-    await expect(within(row).getByRole("button", { name: "Mark notification as read" })).toBeDisabled()
+    await expectPending(within(row).getByRole("button", { name: "Mark notification as read" }))
     await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Marked unread.")
     rollbackFailure?.fail()
     await waitFor(() => expect(row).not.toHaveAttribute("data-unread"))
     await expect(badge(canvasElement, 2)).toBeVisible()
     await toastShown(FAILURE_TITLE)
     await expect(page().getByText("Check your connection and try again.")).toBeVisible()
-    await expect(within(row).getByRole("button", { name: "Mark notification as unread" })).toBeEnabled()
+    await expectLive(within(row).getByRole("button", { name: "Mark notification as unread" }))
     await expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
   },
 }
@@ -547,16 +556,20 @@ export const DoubleSubmitBlocked: Story = {
     const panel = await openNotifications(canvasElement)
     await waitFor(() => expect(rowsOf(panel)).toHaveLength(3))
     const [first, second, invite] = rowsOf(panel)
-    await userEvent.click(toggleOf(first))
-    await expect(toggleOf(first)).toBeDisabled()
-    await expect(toggleOf(second)).toBeEnabled()
-    await expect(toggleOf(invite)).toBeEnabled()
+    // From the keyboard: the pending toggle keeps the focus that pressed it, so J, K and Tab still work from there.
+    toggleOf(first).focus()
+    await userEvent.keyboard("{Enter}")
+    await expectPending(toggleOf(first))
+    await expect(toggleOf(first)).toHaveFocus()
+    await expectLive(toggleOf(second))
+    await expectLive(toggleOf(invite))
     await expect(within(panel).getByRole("button", { name: "Mark all read" })).toBeEnabled()
     await expect(openButton(panel, 0)).toBeEnabled()
     await userEvent.click(toggleOf(first))
     await expect(mocked(markNotificationRead)).toHaveBeenCalledTimes(1)
     doubleResolve?.()
-    await waitFor(() => expect(toggleOf(first)).toBeEnabled())
+    await waitFor(() => expectLive(toggleOf(first)))
+    await expect(toggleOf(first)).toHaveFocus()
   },
 }
 let doubleResolve: (() => void) | undefined

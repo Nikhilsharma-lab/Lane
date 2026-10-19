@@ -82,7 +82,8 @@ function NotificationRow({ item, active, pending, onSelect, onToggleRead }: {
       <span className={styles.primary}>{copy.primary}</span>
       <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} /></span>
     </button>
-    <button type="button" className={notificationStyles.close} tabIndex={active ? 0 : -1} aria-label={unread ? "Mark notification as read" : "Mark notification as unread"} disabled={pending} onClick={() => onToggleRead(item)}>
+    {/* aria-disabled, not disabled, while the row's own action is pending: a disabled button would drop the keyboard focus that just pressed it. */}
+    <button type="button" className={notificationStyles.close} tabIndex={active ? 0 : -1} aria-label={unread ? "Mark notification as read" : "Mark notification as unread"} aria-disabled={pending || undefined} onClick={() => { if (!pending) onToggleRead(item); }}>
       {unread ? <MailOpen aria-hidden="true" /> : <Mail aria-hidden="true" />}
     </button>
   </li>;
@@ -166,7 +167,9 @@ export function NotificationBellView({
         </button>
       </div>}
       <div className={notificationStyles.list} aria-busy={items.length === 0 && reading ? true : undefined}>
-        {error && <div className={styles.error}><p role="alert">{error}</p><Button variant="secondary" size="sm" onClick={onRetry} disabled={reading}>Try again</Button></div>}
+        {error && <div className={styles.error}><p role="alert">{error}</p><Button variant="secondary" size="sm" disabled={reading}
+          // The status line goes while the retry reads, so focus moves to the tab stop (or the panel) first, as Mark all read does.
+          onClick={() => { focusTarget(contentRef.current)?.focus({ preventScroll: true }); onRetry(); }}>Try again</Button></div>}
         {!loaded && items.length === 0
           ? <>
             {/* Skeleton rows the height of real rows, so the swap does not shift; one hidden status speaks for them. */}
