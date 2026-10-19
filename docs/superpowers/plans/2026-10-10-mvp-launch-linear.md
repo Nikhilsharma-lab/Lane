@@ -415,7 +415,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - "Ask And Respond" story green.
   - A real multi-person round on staging (`2026-10-09-ask-for-review.md:26`).
 
-### 2.7 Notifications popover (M)
+### 2.7 Notifications popover (M) *(built 2026-10-18; waiting on Nikhil's sign-off)*
 - **Changes:**
   - Count seeded from the layout promise.
   - Keep the last list while revalidating, with no spinner on re-open.

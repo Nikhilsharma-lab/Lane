@@ -59,11 +59,15 @@ export type NotificationRow = {
   createdAt: Date;
   actorName: string | null;
   requestTitle: string | null;
+  /** Null for an invite (no Request); 0 before allocation, which the row copy renders as "Request" (plan item 2.7). */
+  requestNumber: number | null;
+  reframedProblem: string | null;
 };
 
 /**
  * The notification list for the bell. src/app/api/read-routes.test.ts covers its org and
- * guest scoping through GET /api/notifications.
+ * guest scoping through GET /api/notifications. Plan item 2.7: the row reads
+ * "LAN-12 · reframed problem", so the join it already has gives the code and the problem.
  */
 export async function loadNotifications(auth: MemberAuth): Promise<NotificationRow[]> {
   return db
@@ -76,6 +80,8 @@ export async function loadNotifications(auth: MemberAuth): Promise<NotificationR
       createdAt: notifications.createdAt,
       actorName: profiles.fullName,
       requestTitle: requests.title,
+      requestNumber: requests.requestNumber,
+      reframedProblem: requests.reframedProblem,
     })
     .from(notifications)
     .leftJoin(profiles, eq(notifications.actorId, profiles.id))

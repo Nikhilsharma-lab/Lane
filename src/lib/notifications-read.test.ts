@@ -74,7 +74,7 @@ beforeAll(async () => {
   await db
     .insert(requests)
     .values([
-      { id: REQ_ID, orgId: WS_ID, title: "Read test request", description: "d", status: "open", createdBy: USER_A },
+      { id: REQ_ID, orgId: WS_ID, title: "Read test request", description: "d", status: "open", createdBy: USER_A, reframedProblem: "Readers cannot tell which Request a notification is about" },
       { id: GUEST_REQ, orgId: WS_ID, title: "Guest request", description: "d", status: "open", createdBy: GUEST_USER },
     ])
     .onConflictDoNothing();
@@ -107,6 +107,9 @@ describe("GET /api/notifications — own-scoped reads", () => {
     expect(result.notifications).toHaveLength(2);
     expect(result.notifications.every((n) => n.actorName === "User B")).toBe(true);
     expect(result.notifications[0].requestTitle).toBe("Read test request");
+    // Plan item 2.7: the saved code and the reframed problem ride the same join.
+    expect(result.notifications[0].requestNumber).toBeGreaterThan(0);
+    expect(result.notifications[0].reframedProblem).toBe("Readers cannot tell which Request a notification is about");
   });
 
   it("user B sees only their own notifications", async () => {

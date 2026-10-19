@@ -8,7 +8,7 @@ import { NotificationBellView } from "@/components/shell/notification-bell-view"
 
 function NotificationsFixture() {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false} onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
+  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
 }
 
 const meta = {
@@ -155,7 +155,8 @@ export const NotificationPopoverKeepsPreview: Story = {
     const page = within(document.body)
     const notification = await page.findByRole("dialog", { name: "Notifications" })
     const close = within(notification).getByRole("button", { name: "Close notifications" })
-    await waitFor(() => expect(close).toHaveFocus())
+    // Plan item 2.7 (decision D1): focus lands on the first row, or on the panel itself when there are no rows, as here.
+    await waitFor(() => expect(notification).toHaveFocus())
     await userEvent.hover(close)
     await userEvent.unhover(close)
     await allowCloseDelay()

@@ -3,7 +3,7 @@
  * supports, in one map. The `?` overlay renders from it, and a unit test keeps
  * it free of clashes. Handlers own registration; this map only describes them.
  */
-export type ShortcutScope = "anywhere" | "list" | "detail" | "forms"
+export type ShortcutScope = "anywhere" | "list" | "detail" | "notifications" | "forms"
 
 export type Shortcut = {
   /** The keys as shown, one entry per interchangeable alternative ("J" or "↓"); a chord is one string ("Shift F10"). Keys that do different things get their own entries. */
@@ -40,6 +40,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["J"], label: "Next Request" },
     { keys: ["K"], label: "Previous Request" },
     { keys: ["Esc"], label: "Close a form or menu, then back to Requests" },
+  ] },
+  // Plan item 2.7 (decision 8.10): inside the open notifications popover. Enter is the row's own activation; Esc is the popover's.
+  { scope: "notifications", title: "Notifications", shortcuts: [
+    { keys: ["J", "↓"], label: "Next notification" },
+    { keys: ["K", "↑"], label: "Previous notification" },
+    { keys: ["Home"], label: "First notification" },
+    { keys: ["End"], label: "Last notification" },
+    { keys: ["Enter"], label: "Open the Request" },
+    { keys: ["Esc"], label: "Close notifications" },
   ] },
   { scope: "forms", title: "Forms", shortcuts: [
     { keys: ["⌘ Enter", "Ctrl Enter"], label: "Submit" },

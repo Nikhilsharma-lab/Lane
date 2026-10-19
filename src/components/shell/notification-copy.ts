@@ -1,0 +1,58 @@
+/**
+ * Plan item 2.7: what a notification row says. Line 1 names the Request by
+ * its saved code and reframed problem ("LAN-12 · Customers cannot find the
+ * delivery date before checkout"), line 2 is the event with "Done" as a
+ * status, and the accessible name joins them with the local time and ends in
+ * "unread" only for unread rows. Pure, so the view and the tests share it.
+ */
+
+import { formatRequestCode } from "@/lib/request-code"
+
+export type NotificationCopyInput = {
+  type: string
+  actorName: string | null
+  requestTitle: string | null
+  requestNumber: number | null
+  reframedProblem: string | null
+  readAt: string | null
+}
+
+export type NotificationRowCopy = {
+  /** Line 1: the Request, or the invite sentence. */
+  primary: string
+  /** Line 2 without the time; null for an invite. */
+  secondary: string | null
+  /** The row button's accessible name. */
+  name: string
+}
+
+const ACTOR_FALLBACK = "Someone"
+
+/** The saved code, or null where formatRequestCode would throw (an unnumbered Request, column default 0). */
+function requestCode(requestNumber: number | null) {
+  try { return requestNumber ? formatRequestCode(requestNumber) : null } catch { return null }
+}
+
+/** The event line for a Request row; null for an invite, which has no second line. */
+export function notificationEvent(type: string, actor: string): string | null {
+  switch (type) {
+    case "comment_added": return `${actor} commented`
+    case "request_picked_up": return `${actor} picked it up`
+    case "request_done": return `${actor} marked it Done`
+    // Design reviews retired on 2026-10-18; existing rows keep a neutral past tense.
+    case "review_requested": return `${actor} asked for your feedback`
+    case "review_responded": return `${actor} responded to your review`
+    case "invite_accepted": return null
+    default: return `${actor} updated it`
+  }
+}
+
+export function notificationRow(item: NotificationCopyInput, time?: string): NotificationRowCopy {
+  const actor = item.actorName?.trim() || ACTOR_FALLBACK
+  const code = requestCode(item.requestNumber) ?? "Request"
+  const subject = item.reframedProblem?.trim() || item.requestTitle?.trim() || null
+  const primary = item.type === "invite_accepted" ? `${actor} accepted your invite` : subject ? `${code} · ${subject}` : code
+  const secondary = notificationEvent(item.type, actor)
+  const name = [primary, secondary, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
+  return { primary, secondary, name }
+}
