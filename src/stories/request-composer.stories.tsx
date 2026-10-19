@@ -541,7 +541,7 @@ export const AddLinkPopover: Story = {
     await userEvent.clear(input);
     await userEvent.type(input, "http://example.test/insecure");
     await userEvent.click(within(page.getByRole("dialog", { name: "Related link" })).getByRole("button", { name: "Done" }));
-    await expect(await page.findByText("Enter a complete link, including https://")).toBeVisible();
+    await waitFor(() => expect(page.getByText("Enter a complete link, including https://")).toBeVisible());
     await expect(input).toHaveFocus();
     await userEvent.clear(input);
     await userEvent.type(input, "https://example.test/customer-feedback");
@@ -1708,7 +1708,7 @@ export const IntakeProjectPreselects: Story = {
     await expect(link).toHaveAttribute("aria-haspopup", "dialog");
     await userEvent.click(link);
     const composer = within(await page.findByRole("dialog", { name: "New Request" }));
-    await expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible();
+    await waitFor(() => expect(composer.getByRole("button", { name: "Project: Website" })).toBeVisible());
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("button", { name: "Create Request" })).toBeVisible());
