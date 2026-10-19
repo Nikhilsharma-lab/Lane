@@ -3,7 +3,7 @@ import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { useState } from "react"
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
-import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
+import { ListAnnouncerProvider, useListAnnouncer } from "@/components/requests/list-announcer"
 import { localLabel } from "@/components/requests/local-time"
 import { NotificationBell } from "@/components/shell/notification-bell"
 import { NotificationBellView, type NotificationItem } from "@/components/shell/notification-bell-view"
@@ -743,5 +743,39 @@ export const CompactUnreadCount: Story = {
     await expect(bounds.left).toBeGreaterThanOrEqual(0)
     await expect(bounds.right).toBeLessThanOrEqual(window.innerWidth)
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  },
+}
+
+/** Schedules the list's delayed match count, as the data table does while a filter is typed. */
+function DelayedPageMessage() {
+  const announce = useListAnnouncer()
+  return <button type="button" onClick={() => announce("3 Requests match.", { key: "count", delay: 200 })}>Filter</button>
+}
+function ShellWithPage() {
+  const [page, setPage] = useState(true)
+  return <ListAnnouncerProvider>
+    {page && <ListAnnouncerProvider><DelayedPageMessage /></ListAnnouncerProvider>}
+    <button type="button" onClick={() => setPage(false)}>Leave the page</button>
+  </ListAnnouncerProvider>
+}
+
+/** The shell hosts the one polite region (decision D6); a page's pass-through provider still drops its delayed messages when the page goes, so they are never read out on the next page. */
+export const PageMessagesEndWithThePage: Story = {
+  globals: desktopLight,
+  render: () => <ShellWithPage />,
+  play: async ({ canvasElement, globals, parameters }) => {
+    await expectPinnedViewport({ globals, parameters })
+    const canvas = within(canvasElement)
+    const region = () => canvasElement.querySelector('[data-slot="list-announcer"]')!
+    await expect(canvasElement.querySelectorAll('[data-slot="list-announcer"]')).toHaveLength(1)
+    // Spoken while the page is there.
+    await userEvent.click(canvas.getByRole("button", { name: "Filter" }))
+    await waitFor(() => expect(region()).toHaveTextContent("3 Requests match."))
+    region().textContent = ""
+    // Left before the delay ran out: nothing is spoken afterwards.
+    await userEvent.click(canvas.getByRole("button", { name: "Filter" }))
+    await userEvent.click(canvas.getByRole("button", { name: "Leave the page" }))
+    await new Promise(resolve => setTimeout(resolve, 400))
+    await expect(region()).toHaveTextContent("")
   },
 }
