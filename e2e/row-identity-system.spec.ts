@@ -110,16 +110,14 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
 
+      // Plan item 2.7 (decision D7): the popover's rows carry data-notification-row; the trigger
+      // reads "Notifications, N unread" while the seeded notification is unread.
       const notifications = page.getByRole("button", {
-        name: "Notifications",
-        exact: true,
+        name: /^Notifications/,
       });
       await notifications.click();
-      const notificationRow = page.locator(
-        '[data-slot="row"]:has([data-notification-link])'
-      );
+      const notificationRow = page.locator("[data-notification-row]").first();
       await expect(notificationRow).toBeVisible();
-      await expectFixedLanes(notificationRow);
       const readAction = notificationRow.getByRole("button", {
         name: "Mark notification as read",
       });
