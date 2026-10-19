@@ -337,7 +337,8 @@ export const FiltersAndDates: Story = {
     const dateTrigger = page.getByRole("button", { name: "Any time" });
     await userEvent.click(dateTrigger);
     const dates = within(await page.findByRole("dialog", { name: "Created date" }));
-    await userEvent.click(dates.getByRole("button", { name: "Last 7 days" }));
+    // The calendar loads on demand; the first open in a session can show its skeleton for a moment.
+    await userEvent.click(await dates.findByRole("button", { name: "Last 7 days" }));
     await userEvent.click(dates.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Created date" })).not.toBeInTheDocument());
     await waitFor(() => expect(dateTrigger).toHaveFocus());

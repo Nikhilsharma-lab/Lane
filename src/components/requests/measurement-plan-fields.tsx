@@ -10,6 +10,7 @@ import { EMPTY_GUARDRAIL, IMPACT_METRIC_MAX, IMPACT_UNIT_MAX, IMPACT_SOURCE_MAX,
 import { Select } from "@/components/arc/select/select"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { MeasurementDateDialog } from "./measurement-date-dialog"
+import { preloadDateRangePicker } from "@/components/date-range-picker-lazy"
 import type { RequestType } from "@/lib/request-constants"
 import {
   changeMetricUnit, createMeasurementGuardrail, createMeasurementPrimary,
@@ -292,7 +293,8 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               setDatesOpen(true)
             }}
             trigger={<Button ref={windowRef} id={`${prefix}-window`} type="button" size="sm" variant="secondary" disabled={disabled}
-              className={styles.compactButton} aria-label="Measurement window" aria-describedby={`${prefix}-window-value`} title={windowLabel}>
+              className={styles.compactButton} aria-label="Measurement window" aria-describedby={`${prefix}-window-value`} title={windowLabel}
+              onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}>
               <span className={styles.triggerContent}><CalendarDays className={styles.icon} aria-hidden="true" /><span id={`${prefix}-window-value`} className={styles.triggerText}>{windowLabel}</span></span>
             </Button>}
             items={[

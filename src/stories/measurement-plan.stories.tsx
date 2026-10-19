@@ -81,7 +81,10 @@ async function openCustomDates(canvasElement: HTMLElement) {
   await userEvent.click(within(canvasElement).getByRole("button", { name: "Measurement window" }))
   const page = within(canvasElement.ownerDocument.body)
   await userEvent.click(await page.findByRole("menuitem", { name: "Custom date range…" }))
-  return within(await page.findByRole("dialog", { name: "Measurement date range" }))
+  const modal = within(await page.findByRole("dialog", { name: "Measurement date range" }))
+  // The calendar loads on demand; the first open in a session can show its skeleton for a moment.
+  await modal.findByRole("button", { name: "Apply" })
+  return modal
 }
 
 // Arc orders reversed endpoints; selecting or cancelling a draft must never save it.

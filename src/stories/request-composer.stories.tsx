@@ -22,6 +22,7 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { clearIntakeDraft, intakeDraftScope, readIntakeDraft, writeIntakeDraft } from "@/lib/intake-draft";
 import { fillMetricImpact, measurementImpact, metricImpact } from "./fixtures/request-impact";
 import { WorkspaceProjectsProvider, useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
+import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { assertWorkspaceCanSwitch } from "@/lib/workspace-switch-guard";
 
@@ -412,6 +413,32 @@ export const SaveImpactErrorOpensDisclosure: Story = {
   },
 };
 
+/** Every keystroke in the title or description renders the form again. The measurement editor,
+ * the largest part of it (Radix selects, a menu, number fields and a date dialog), sits those
+ * renders out: its value is watched on its own and keeps its identity until its content changes.
+ * Before that, a render on each of fillComposer's 110 keystrokes took the stories that fill the
+ * composer past their 15 s timeout under CPU load, and user-event's leftover keystrokes then
+ * landed in the next story's title. The editor is the real component, spied in preview.tsx. */
+export const TypingLeavesTheMeasurementEditorAlone: Story = {
+  play: async ({ canvasElement }) => {
+    const { composer } = await openComposer(canvasElement);
+    const title = composer.getByRole("textbox", { name: "Request title" });
+    await waitFor(() => expect(title).toHaveFocus());
+    await expect(composer.getByRole("region", { name: "Primary metric" })).toBeVisible();
+    mocked(MeasurementPlanFields).mockClear();
+    await userEvent.type(title, source.title);
+    await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
+    await expect(title).toHaveValue(source.title);
+    await expect(composer.getByRole("textbox", { name: "Description" })).toHaveValue(source.description);
+    await expect(MeasurementPlanFields).not.toHaveBeenCalled();
+    // Its own edits still reach it.
+    await fillMetricImpact(composer);
+    await expect(MeasurementPlanFields).toHaveBeenCalled();
+    await expect(composer.getByRole("combobox", { name: "Metric" })).toHaveTextContent("Conversion rate");
+    await expect(composer.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
+  },
+};
+
 export const TriageMeasurementErrorKeepsDraft: Story = {
   beforeEach: () => {
     mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the measurement before reviewing this Request." } });
@@ -514,7 +541,7 @@ export const AddLinkPopover: Story = {
     await userEvent.clear(input);
     await userEvent.type(input, "http://example.test/insecure");
     await userEvent.click(within(page.getByRole("dialog", { name: "Related link" })).getByRole("button", { name: "Done" }));
-    await expect(await page.findByText("Enter a complete link, including https://")).toBeVisible();
+    await waitFor(() => expect(page.getByText("Enter a complete link, including https://")).toBeVisible());
     await expect(input).toHaveFocus();
     await userEvent.clear(input);
     await userEvent.type(input, "https://example.test/customer-feedback");
@@ -1681,7 +1708,7 @@ export const IntakeProjectPreselects: Story = {
     await expect(link).toHaveAttribute("aria-haspopup", "dialog");
     await userEvent.click(link);
     const composer = within(await page.findByRole("dialog", { name: "New Request" }));
-    await expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible();
+    await waitFor(() => expect(composer.getByRole("button", { name: "Project: Website" })).toBeVisible());
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("button", { name: "Create Request" })).toBeVisible());
