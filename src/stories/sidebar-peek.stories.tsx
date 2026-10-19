@@ -155,7 +155,8 @@ export const NotificationPopoverKeepsPreview: Story = {
     const page = within(document.body)
     const notification = await page.findByRole("dialog", { name: "Notifications" })
     const close = within(notification).getByRole("button", { name: "Close notifications" })
-    await waitFor(() => expect(close).toHaveFocus())
+    // Plan item 2.7 (decision D1): focus lands on the first row, or on the panel itself when there are no rows, as here.
+    await waitFor(() => expect(notification).toHaveFocus())
     await userEvent.hover(close)
     await userEvent.unhover(close)
     await allowCloseDelay()
