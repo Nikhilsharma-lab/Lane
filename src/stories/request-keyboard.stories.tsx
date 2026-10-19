@@ -299,12 +299,12 @@ export const RowMenuHints: Story = {
   },
 }
 
-/** The list has one polite live region, also with a selection, filter chips and the summary open. */
+/** The list has one polite live region, also with a selection, filter chips and the summary open. Plan item 2.7: the shell hosts it, so the page is scoped as the whole shell. */
 export const OneLiveRegion: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const workspace = canvasElement.querySelector<HTMLElement>('[data-slot="requests-workspace"]')!
-    const regions = () => workspace.querySelectorAll('[aria-live]:not([aria-live="off"]), [role="status"], [role="log"]')
+    const shell = canvasElement.querySelector<HTMLElement>("[data-workspace-shell]")!
+    const regions = () => shell.querySelectorAll('[aria-live]:not([aria-live="off"]), [role="status"], [role="log"]')
     await expect(regions()).toHaveLength(1)
     await expect(regions()[0]).toBe(announcer(canvasElement))
     requestRow(canvasElement, idOf(0)).focus()

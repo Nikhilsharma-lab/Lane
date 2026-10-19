@@ -6,6 +6,7 @@ import { Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
+import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
 import { parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
@@ -132,7 +133,9 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // Plan item 2.4: the content's width (--sidebar-width) changes once per toggle while the panel slides;
   // the strips keep their expand control until an expand ends, so it leaves with the width change.
   // Pinning a visible peek keeps the panel where it already is, with no slide.
-  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true">
+  // Plan item 2.7 (decision D6): the shell hosts the one polite region, so the bell, the list and detail all speak through it;
+  // the page providers pass through. The region sits inside the shell element, as the page's did inside the page.
+  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true"><ListAnnouncerProvider>
     {switchingWorkspace && <span className="sr-only" role="status">Switching workspace…</span>}
     <a href="#lane-main" className={styles.skip}>Skip to content</a>
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
@@ -162,5 +165,5 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     </main>
     {/* Plan item 2.4: `?` lists the shortcuts on every authenticated page. */}
     <KeyboardShortcuts />
-  </div></SidebarControlsProvider>;
+  </ListAnnouncerProvider></div></SidebarControlsProvider>;
 }

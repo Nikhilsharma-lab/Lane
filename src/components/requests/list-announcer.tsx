@@ -21,8 +21,18 @@ const noop: Announce = () => {}
  * directly, so an announcement never re-renders the list. Optimistic changes,
  * selection, copy results and the filtered result count all speak here; the
  * toast stack stays the app-wide region for Mark Done, Undo and failures.
+ *
+ * Plan item 2.7 (decision D6): the authenticated shell hosts the region, so
+ * the notifications bell in the sidebar speaks through it too. A provider
+ * mounted under another one passes through, so the page providers (and every
+ * story or fixture that mounts its own) keep working with one region in the DOM.
  */
 export function ListAnnouncerProvider({ children }: { children: ReactNode }) {
+  const outer = useContext(AnnouncerContext)
+  return outer ? children : <AnnouncerRegion>{children}</AnnouncerRegion>
+}
+
+function AnnouncerRegion({ children }: { children: ReactNode }) {
   const region = useRef<HTMLParagraphElement>(null)
   const timers = useRef(new Map<string, number>())
   const frame = useRef(0)
