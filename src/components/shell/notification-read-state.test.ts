@@ -110,8 +110,54 @@ describe("notification read state", () => {
     const fresh = receiveList(counted, [row("a", READ), row("b", READ), row("c", READ)], 300)
     expect(fresh.allRead).toBeNull()
     expect(shownUnread(fresh)).toBe(0)
-    // Without that count read the stale count would show through once the mark-all is dropped: the adapter always reads the count after a success.
-    expect(shownUnread(receiveList(confirmed, [row("a", READ), row("b", READ), row("c", READ)], 300))).toBe(2)
+    // The list's reconciling read can land before the count's: the rows show the server values, and the count still holds the mark-all.
+    const listFirst = receiveList(confirmed, [row("a", READ), row("b", READ), row("c", READ)], 300)
+    expect(listFirst.allRead).not.toBeNull()
+    expect(shownItems(listFirst).every(item => item.readAt === READ)).toBe(true)
+    expect(shownUnread(listFirst)).toBe(0)
+  })
+
+  it("never reverts the badge when the list reflects a patch before the count does", () => {
+    const confirmed = confirm(begin(loaded(), "a", READ, 1)!, 1, 300)
+    const listFirst = receiveList(confirmed, [row("a", READ), row("b"), row("c", READ)], 310)
+    expect(readAt(listFirst, "a")).toBe(READ)
+    expect(shownUnread(listFirst)).toBe(1)
+    expect(Object.keys(listFirst.patches)).toEqual(["a"])
+    // The count's reconciling read lands: the patch is in both, so it is forgotten.
+    const both = receiveCount(listFirst, 1, 305)
+    expect(both.patches).toEqual({})
+    expect(shownUnread(both)).toBe(1)
+  })
+
+  it("shows the server row, not the patch, once the list reflects it", () => {
+    const confirmed = confirm(begin(loaded(), "a", READ, 1)!, 1, 300)
+    // Read on another device after the success: the newer server row shows.
+    const later = receiveList(confirmed, rows, 310)
+    expect(readAt(later, "a")).toBeNull()
+  })
+
+  it("sets aside a count read that may or may not hold a pending write", () => {
+    const pending = begin(loaded(), "a", READ, 1)!
+    // Started before the action succeeded, it may already hold the write: counting the patch on top would show 0.
+    const ambiguous = receiveCount(pending, 1, 150)
+    expect(ambiguous.count).toEqual(pending.count)
+    expect(shownUnread(ambiguous)).toBe(1)
+    const confirmed = confirm(ambiguous, 1, 300)
+    expect(receiveCount(confirmed, 1, 299).count).toEqual(pending.count)
+    expect(shownUnread(receiveCount(confirmed, 1, 300))).toBe(1)
+    // After a rollback nothing is pending and the next count is taken as it is.
+    expect(shownUnread(receiveCount(rollback(pending, 1), 2, 150))).toBe(2)
+  })
+
+  it("measures a flip back from the state the count still holds", () => {
+    // a read, confirmed, then back to unread before any count holds the first write: the count's 2 is right as it is.
+    const first = confirm(begin(loaded(), "a", READ, 1)!, 1, 200)
+    const back = begin(first, "a", null, 2)!
+    expect(readAt(back, "a")).toBeNull()
+    expect(shownUnread(back)).toBe(2)
+    // Once a count holds the first write (1), the flip back counts as one more.
+    const counted = begin(receiveCount(first, 1, 210), "a", null, 2)!
+    expect(shownUnread(counted)).toBe(2)
   })
 
   it("lets a row be marked unread after a mark-all and counts it", () => {

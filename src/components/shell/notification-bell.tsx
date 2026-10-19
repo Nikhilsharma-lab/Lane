@@ -200,7 +200,11 @@ function LoadedNotificationBell({
         const at = performance.now();
         setState(current => confirm(current, token, at));
         void refreshCount();
-      } else setState(current => rollback(current, token));
+      } else {
+        setState(current => rollback(current, token));
+        // Count reads that landed while the action was in flight were set aside (they may or may not hold its write).
+        void refreshCount();
+      }
     });
   };
 
@@ -240,7 +244,10 @@ function LoadedNotificationBell({
         void refreshCount();
         // Rows beyond the 30 shown were affected too, so the open list re-reads.
         if (latest.current.open) void refreshList();
-      } else setState(current => rollback(current, token));
+      } else {
+        setState(current => rollback(current, token));
+        void refreshCount();
+      }
     });
   };
 
