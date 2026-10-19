@@ -26,9 +26,13 @@ export function initialReadState<T extends ReadableRow>(count?: number): ReadSta
   return { list: null, count: count === undefined ? null : { value: count, startedAt: 0 }, patches: {}, allRead: null }
 }
 
-/** A read that started after the action succeeded reflects its write; one that started before does not. */
+/**
+ * A read that started after the action succeeded reflects its write; one that
+ * started before does not. Equal stamps count as after: the success is stamped
+ * before its reconciling read starts, and browsers coarsen performance.now().
+ */
 const reflectedBy = (stamp: { confirmedAt?: number }, read: { startedAt: number } | null) =>
-  read !== null && stamp.confirmedAt !== undefined && stamp.confirmedAt < read.startedAt
+  read !== null && stamp.confirmedAt !== undefined && stamp.confirmedAt <= read.startedAt
 
 /** A patch that began before a live mark-all is superseded by it. */
 const coveredByAllRead = (allRead: AllRead | null, patch: Patch) => allRead !== null && patch.token < allRead.token
@@ -126,6 +130,11 @@ export function receiveCount<T extends ReadableRow>(state: ReadState<T>, value: 
 export function isPending<T extends ReadableRow>(state: ReadState<T>, id: string): boolean {
   const patch = state.patches[id]
   return patch !== undefined && patch.confirmedAt === undefined
+}
+
+/** The rows whose own patch is unconfirmed; every other row stays live. */
+export function pendingIds<T extends ReadableRow>(state: ReadState<T>): ReadonlySet<string> {
+  return new Set(Object.entries(state.patches).filter(([, patch]) => patch.confirmedAt === undefined).map(([id]) => id))
 }
 
 /** True while a mark-all is unconfirmed (its button is disabled). */

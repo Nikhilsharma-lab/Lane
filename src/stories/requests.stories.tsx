@@ -152,9 +152,11 @@ export const LongTitle: Story = { args: { requests: [{ ...requests[0], title: "A
 export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & {
   pathname?: string
   children?: React.ReactNode
+  /** The sidebar's bell, when a story mounts the real adapter (plan item 2.7). */
+  notifications?: React.ReactNode
 }) {
   return <RequestListViewProvider>
-    <WorkspaceSidebarFixture orgId={args.context?.orgId} role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"}
+    <WorkspaceSidebarFixture orgId={args.context?.orgId} role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} notifications={args.notifications}
       requests={args.requests.map(request => ({ ...request, description: fixtureDescriptions[request.id] }))}>
       {args.children ?? <RequestsOverview {...args} />}
     </WorkspaceSidebarFixture>

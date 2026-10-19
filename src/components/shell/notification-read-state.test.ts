@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "./notification-read-state"
+import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "./notification-read-state"
 
 // Plan item 2.7: the bell's read-state machine, the 1.5 rule for a surface whose reads start from the client.
 type Row = { id: string; readAt: string | null; title: string }
@@ -43,8 +43,10 @@ describe("notification read state", () => {
     const pending = begin(loaded(), "a", READ, 1)!
     expect(begin(pending, "a", null, 2)).toBeNull()
     expect(begin(pending, "b", READ, 2)).not.toBeNull()
+    expect([...pendingIds(begin(pending, "b", READ, 2)!)]).toEqual(["a", "b"])
     const confirmed = confirm(pending, 1, 200)
     expect(isPending(confirmed, "a")).toBe(false)
+    expect(pendingIds(confirmed).size).toBe(0)
     const flipped = begin(confirmed, "a", null, 3)!
     expect(readAt(flipped, "a")).toBeNull()
     expect(shownUnread(flipped)).toBe(2)
@@ -63,9 +65,12 @@ describe("notification read state", () => {
     const stale = receiveList(confirmed, rows, 150)
     expect(readAt(stale, "a")).toBe(READ)
     expect(shownUnread(stale)).toBe(1)
-    // A count read that started after the success reflects it: no double count.
+    // A count read that started after the success reflects it: no double count. Equal stamps count as after
+    // (the success is stamped before its reconciling read starts, and performance.now() is coarsened).
     const counted = receiveCount(stale, 1, 301)
     expect(shownUnread(counted)).toBe(1)
+    expect(shownUnread(receiveCount(stale, 1, 300))).toBe(1)
+    expect(shownUnread(receiveCount(stale, 2, 299))).toBe(1)
     // A list read that started after the success clears the patch; the server row carries the same value.
     const fresh = receiveList(counted, [row("a", READ), row("b"), row("c", READ)], 400)
     expect(fresh.patches).toEqual({})

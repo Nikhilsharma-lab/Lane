@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { SidebarView, type SidebarViewProps } from "@/components/shell/sidebar-view"
 import { NotificationBellView } from "@/components/shell/notification-bell-view"
@@ -22,6 +22,8 @@ type FixtureProps = Pick<SidebarViewProps, "pathname" | "children"> & Partial<Pi
   orgId?: string
   projects?: ProjectOption[]
   requests?: SearchRequest[]
+  /** The sidebar's bell; a static empty one unless a story mounts the real adapter (plan item 2.7). */
+  notifications?: ReactNode
 }
 const noRequests: SearchRequest[] = []
 
@@ -47,7 +49,7 @@ function searchWorkspace(input: WorkspaceSearchInput, requests: SearchRequest[],
 
 function NotificationsFixture() {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false}
+  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded
     onSelect={() => {}} onMarkAllRead={() => {}} onToggleRead={() => {}} onRetry={() => {}} />
 }
 
@@ -72,11 +74,11 @@ export function WorkspaceSidebarFixture(props: FixtureProps) {
 }
 
 function FixtureBody({ children, pathname, workspaceName = "Lane Studio", fullName = "Alex Morgan", email = "alex@example.test",
-  role = "member", statusFilter = "all", projectFilter = "all", requests = noRequests }: FixtureProps) {
+  role = "member", statusFilter = "all", projectFilter = "all", requests = noRequests, notifications }: FixtureProps) {
   const { projects, addProject } = useSharedWorkspaceProjects()!
   const setView = useSetRequestListView()
   return <SidebarView workspaceName={workspaceName} fullName={fullName} email={email} role={role} pathname={pathname}
-    statusFilter={statusFilter} projectFilter={projectFilter} projects={projects} notifications={<NotificationsFixture />} onSignOut={() => {}}
+    statusFilter={statusFilter} projectFilter={projectFilter} projects={projects} notifications={notifications ?? <NotificationsFixture />} onSignOut={() => {}}
     onSearch={async input => searchWorkspace(input, requests, projects)}
     onCreateProject={role === "guest" ? undefined : async name => {
       const existing = projects.find(project => project.name.toLocaleLowerCase() === name.toLocaleLowerCase())

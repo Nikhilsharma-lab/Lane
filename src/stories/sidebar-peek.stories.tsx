@@ -8,7 +8,7 @@ import { NotificationBellView } from "@/components/shell/notification-bell-view"
 
 function NotificationsFixture() {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false} onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
+  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
 }
 
 const meta = {

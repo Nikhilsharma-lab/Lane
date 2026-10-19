@@ -21,7 +21,7 @@ const createProject = fn<(name: string) => Promise<ProjectOption>>()
 
 function NotificationsFixture({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView compact={compact} open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false} onMarkAllRead={fn()} onToggleRead={fn()} onSelect={fn()} onRetry={fn()} />
+  return <NotificationBellView compact={compact} open={open} onOpenChange={setOpen} unread={0} items={[]} loaded onMarkAllRead={fn()} onToggleRead={fn()} onSelect={fn()} onRetry={fn()} />
 }
 
 async function visibleNavigation(canvasElement: HTMLElement) {
