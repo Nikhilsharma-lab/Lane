@@ -62,6 +62,31 @@ async function expectFixedLanes(row: Locator) {
   expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
 }
 
+/**
+ * Plan item 2.7: the notification row's own fixed lanes, [dot] [Request and
+ * event] [toggle], on the 44px request row height, in place of the Arc row
+ * slots it does not use.
+ */
+async function expectNotificationLanes(row: Locator) {
+  const lead = row.locator('span[aria-hidden="true"]').first();
+  const content = row.locator("[data-notification-open]");
+  const toggle = row.getByRole("button", { name: /^Mark notification as/ });
+
+  await expect(lead).toHaveCSS("width", "16px");
+  await expect(content).toHaveCSS("min-width", "0px");
+
+  const boxes = await Promise.all([
+    lead.boundingBox(),
+    content.boundingBox(),
+    toggle.boundingBox(),
+    row.boundingBox(),
+  ]);
+  expect(boxes.every(Boolean)).toBe(true);
+  expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
+  expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+  expect(boxes[3]!.height).toBeGreaterThanOrEqual(44);
+}
+
 async function hidePreviewChrome(page: Page) {
   await page.addStyleTag({
     content: "nextjs-portal { display: none !important; }",
@@ -118,6 +143,7 @@ test("rows and identities keep one contract on every surface", async ({
       await notifications.click();
       const notificationRow = page.locator("[data-notification-row]").first();
       await expect(notificationRow).toBeVisible();
+      await expectNotificationLanes(notificationRow);
       const readAction = notificationRow.getByRole("button", {
         name: "Mark notification as read",
       });

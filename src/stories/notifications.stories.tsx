@@ -276,6 +276,13 @@ export const RowsReadTheRequest: Story = {
     await expectPinnedViewport({ globals, parameters })
     const panel = await openNotifications(canvasElement)
     const [first, second, invite] = rowsOf(panel)
+    // The row's fixed lanes (the e2e row-identity contract): a 16px dot lane, then the Request, then the toggle, 44px tall.
+    await settled(panel)
+    const lanes = [first.querySelector('span[aria-hidden="true"]')!, openButton(panel, 0), toggleOf(first)].map(element => element.getBoundingClientRect())
+    await expect(lanes[0].width).toBe(16)
+    await expect(lanes[0].left).toBeLessThan(lanes[1].left)
+    await expect(lanes[1].left).toBeLessThan(lanes[2].left)
+    await expect(first.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
     await expect(within(first).getByText(FIRST_ROW)).toBeVisible()
     await expect(within(first).getByRole("button", { name: `${FIRST_ROW}, Aditi Rao commented, ${localLabel(notifications[0].createdAt)}, unread` })).toBeVisible()
     await expect(first).toHaveAttribute("data-unread")
