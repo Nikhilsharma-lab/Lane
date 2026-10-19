@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
+  memo,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -61,7 +62,7 @@ import { usePendingMutationWriter } from "@/components/requests/pending-mutation
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestTypePicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { REQUEST_TYPE_LABELS, REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
-import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -111,6 +112,19 @@ type QueuedAttachment = {
 const reveal =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out";
 
+/** The draft's Expected impact as the editors read it; an empty form starts a new measurement plan. */
+const parseExpectedImpact = (value: unknown): ExpectedImpactDraft =>
+  expectedImpactDraftSchema.parse(value) ?? createEmptyMeasurementPlan();
+const hasText = (value: string | undefined) => Boolean(value);
+/** The fields whose values the compose step renders; the title and description are never among them. */
+const shownFields = ["affectedPeople", "desiredChange", "observedEvidence", "uncertainty", "projectId", "requestType", "priority"] as const;
+
+// The measurement editor (four Radix selects, a menu, number fields and a date dialog) is the
+// largest part of the form. It renders only when its own value, the Request type or the step
+// changes, and sits out the renders the rest of the form still does (a loaded Project list, a
+// picker, a validation error).
+const PlanFields = memo(MeasurementPlanFields);
+
 const emptyRequest: RequestInput = {
   title: "",
   description: "",
@@ -137,7 +151,7 @@ function EarlierDraftDetails({
   values,
   error,
 }: {
-  values: RequestInput;
+  values: Pick<RequestInput, (typeof earlierDraftFields)[number]["name"]>;
   error?: string;
 }) {
   const details = earlierDraftFields.filter(({ name }) => values[name]);
@@ -317,6 +331,7 @@ export default function IntakeForm({
     setError,
     setFocus,
     setValue,
+    subscribe,
     trigger,
     formState: { errors, isSubmitted },
   } = useForm<RequestInput, unknown, z.output<typeof requestSchema>>({
@@ -324,34 +339,32 @@ export default function IntakeForm({
     defaultValues: emptyRequest,
   });
 
-  const watched = useWatch({ control });
+  // Typing in the title and description renders nothing: both fields are uncontrolled, and the
+  // form watches only the values it shows (the properties row, the earlier-draft details, the
+  // measurement editor's own value). A whole-form watch would hand out a fresh clone of every
+  // value on each keystroke and render the entire composer with it. The draft is persisted on
+  // every change through the render-free subscription below.
+  const [affectedPeople, desiredChange, observedEvidence, uncertainty, projectId, requestType, priority] = useWatch({ control, name: shownFields });
+  const hasLink = useWatch({ control, name: "usefulLink", compute: hasText });
+  // Expected impact keeps its identity until its content changes, so the measurement editor can
+  // skip every render its own value did not cause.
+  const expectedImpact = useWatch({ control, name: "expectedImpact", compute: parseExpectedImpact });
+  const changeExpectedImpact = useCallback((value: ExpectedImpactDraft) => {
+    draftEdited.current = true;
+    setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted });
+  }, [isSubmitted, setValue]);
   const currentValues = useMemo(
     () => ({
-      title: watched.title ?? "",
-      description: watched.description ?? "",
-      affectedPeople: watched.affectedPeople ?? "",
-      desiredChange: watched.desiredChange ?? "",
-      observedEvidence: watched.observedEvidence ?? "",
-      uncertainty: watched.uncertainty ?? "",
-      usefulLink: watched.usefulLink ?? "",
-      projectId: watched.projectId ?? null,
-      requestType: watched.requestType ?? null,
-      priority: watched.priority ?? "none",
-      expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? createEmptyMeasurementPlan(),
+      affectedPeople: affectedPeople ?? "",
+      desiredChange: desiredChange ?? "",
+      observedEvidence: observedEvidence ?? "",
+      uncertainty: uncertainty ?? "",
+      projectId: projectId ?? null,
+      requestType: requestType ?? null,
+      priority: priority ?? "none",
+      expectedImpact,
     }),
-    [
-      watched.affectedPeople,
-      watched.description,
-      watched.desiredChange,
-      watched.observedEvidence,
-      watched.title,
-      watched.uncertainty,
-      watched.usefulLink,
-      watched.projectId,
-      watched.requestType,
-      watched.priority,
-      watched.expectedImpact,
-    ],
+    [affectedPeople, desiredChange, observedEvidence, uncertainty, projectId, requestType, priority, expectedImpact],
   );
 
   const checking = stage === "checking";
@@ -467,7 +480,6 @@ export default function IntakeForm({
   useEffect(() => {
     persistDraft();
   }, [
-    currentValues,
     draftReady,
     draftScope,
     editedProblem,
@@ -478,6 +490,8 @@ export default function IntakeForm({
     previousProblem,
     previousProblemSource,
   ]);
+  // Every value change, keystrokes included, without a render of the form.
+  useEffect(() => subscribe({ formState: { values: true }, callback: () => { persistDraft(); } }), [subscribe]);
 
   useEffect(() => {
     if (!active || !draftReady) return;
@@ -1317,7 +1331,7 @@ export default function IntakeForm({
               <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="secondary" size="sm" disabled={checking} aria-invalid={Boolean(errors.usefulLink) || undefined}>
-                    <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
+                    <span className={styles.propertyContent}>{hasLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent {...pickerPopoverProps} inert={linkOpen ? undefined : true} aria-label="Related link" className="w-80 space-y-3"
@@ -1343,19 +1357,20 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            {currentValues.expectedImpact?.kind === "measurement" ? <>
+            {expectedImpact.kind === "measurement" ? <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
               )}
-              <MeasurementPlanFields
-              value={currentValues.expectedImpact}
-              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
-              requestType={currentValues.requestType ?? null}
-              disabled={checking}
-              submitted={isSubmitted}
-            /></> : currentValues.expectedImpact && <ExpectedImpactDisclosure
-              value={currentValues.expectedImpact}
-              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
+              <PlanFields
+                value={expectedImpact}
+                onChange={changeExpectedImpact}
+                requestType={currentValues.requestType ?? null}
+                disabled={checking}
+                submitted={isSubmitted}
+              />
+            </> : <ExpectedImpactDisclosure
+              value={expectedImpact}
+              onChange={changeExpectedImpact}
               disabled={checking}
               errors={errors.expectedImpact}
               open={impactOpen}

@@ -6,16 +6,25 @@ import { describe, expect, it } from "vitest"
 // A production export missing from that sibling only fails when a story first calls it
 // (9ac2684 shipped setRequestPriority and undoMarkDone without their mocks). The real
 // modules are "use server" and open the database, so exports are read from source text
-// and nothing here imports them.
+// and nothing here imports them. A mock with { spy: true } keeps the real module and only
+// counts its calls (the measurement editor's renders), so it has no sibling to check.
 
 const root = path.resolve(__dirname, "../..")
 const previewPath = path.join(root, ".storybook/preview.tsx")
 const relative = (file: string) => path.relative(root, file)
 
-function mockedModules(): string[] {
+function mockCalls(): { file: string; spy: boolean }[] {
   const source = readFileSync(previewPath, "utf8")
-  const calls = [...source.matchAll(/sb\.mock\(\s*import\(\s*["']([^"']+)["']\s*\)/g)]
-  return calls.map(call => path.resolve(path.dirname(previewPath), call[1]))
+  const calls = [...source.matchAll(/sb\.mock\(\s*import\(\s*["']([^"']+)["']\s*\)\s*(?:,\s*(\{[^}]*\}))?\s*\)/g)]
+  return calls.map(call => ({ file: path.resolve(path.dirname(previewPath), call[1]), spy: /\bspy\s*:\s*true\b/.test(call[2] ?? "") }))
+}
+
+function mockedModules(): string[] {
+  return mockCalls().filter(call => !call.spy).map(call => call.file)
+}
+
+function spiedModules(): string[] {
+  return mockCalls().filter(call => call.spy).map(call => call.file)
 }
 
 // Runtime exports only: "export type" and "export interface" never reach the mock.
@@ -49,5 +58,13 @@ describe("Storybook mock parity", () => {
     const provided = valueExports(mock)
     const missing = real.filter(name => !provided.includes(name))
     expect(missing, `${relative(mock)} is missing: ${missing.join(", ")}. Stories that call these will throw at runtime.`).toEqual([])
+  })
+
+  it("spies keep their real module, so no sibling shadows one", () => {
+    for (const file of spiedModules()) {
+      const mock = path.join(path.dirname(file), "__mocks__", path.basename(file))
+      expect(existsSync(file), `${relative(file)} is spied in preview.tsx but does not exist`).toBe(true)
+      expect(existsSync(mock), `${relative(file)} is spied, not replaced; ${relative(mock)} would never be used`).toBe(false)
+    }
   })
 })
