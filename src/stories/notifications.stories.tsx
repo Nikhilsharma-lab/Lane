@@ -638,7 +638,8 @@ export const ReadFailureStillOpensRequest: Story = {
   render: () => <Bell orgId="fixture-workspace" />,
   beforeEach: () => {
     resetActions()
-    mocked(markNotificationRead).mockImplementation(() => new Promise((_, reject) => { failureReject = () => reject(new Error("Network unavailable")) }))
+    // The refusal the action really returns (its only error), released by the story so the optimistic state can be seen first.
+    mocked(markNotificationRead).mockImplementation(() => new Promise(resolve => { failureReject = () => resolve({ error: "Not found" }) }))
     return stubRoutes("fixture-workspace").restore
   },
   play: async ({ canvasElement, globals, parameters }) => {
@@ -650,10 +651,14 @@ export const ReadFailureStillOpensRequest: Story = {
     await expect(badge(canvasElement, 1)).toBeVisible()
     await expect(getRouter().push).toHaveBeenCalledWith("/requests/request-1")
     await waitFor(() => expect(page().queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument())
-    // The action fails: the badge returns, the toast speaks, and nothing is stored on the closed panel.
+    // The action follows the navigation, for this notification in this workspace.
+    await expect(mocked(markNotificationRead)).toHaveBeenCalledTimes(1)
+    await expect(mocked(markNotificationRead)).toHaveBeenCalledWith("notification-1", { orgId: "fixture-workspace" })
+    // The action fails: the badge returns, the toast speaks in the read routes' words, and nothing is stored on the closed panel.
     failureReject?.()
     await waitFor(() => expect(badge(canvasElement, 2)).toBeVisible())
     await toastShown(FAILURE_TITLE)
+    await expect(page().getByText("Your workspace session changed. Refresh the page to continue.")).toBeVisible()
     const reopened = await openNotifications(canvasElement)
     await waitFor(() => expect(rowsOf(reopened)).toHaveLength(3))
     await expect(rowsOf(reopened)[0]).toHaveAttribute("data-unread")
