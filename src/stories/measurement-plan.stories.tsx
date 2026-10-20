@@ -467,7 +467,8 @@ export const FourUnitsAndInlineThreshold: Story = {
     const comparison = within(region).getByRole("combobox", { name: "Comparison" })
     const input = within(region).getByRole("spinbutton", { name: "Value" })
     await expect(input.getBoundingClientRect().left).toBeGreaterThan(comparison.getBoundingClientRect().right)
-    await expect(Math.abs(input.getBoundingClientRect().top - comparison.getBoundingClientRect().top)).toBeLessThan(2)
+    const inputRect = input.getBoundingClientRect(), comparisonRect = comparison.getBoundingClientRect()
+    await expect(Math.abs(inputRect.top + inputRect.height / 2 - comparisonRect.top - comparisonRect.height / 2)).toBeLessThan(2)
     await userEvent.click(comparison)
     const selected = page.getByRole("option", { name: "Less than or equal to" })
     const symbol = selected.querySelector('[aria-hidden="true"]')!

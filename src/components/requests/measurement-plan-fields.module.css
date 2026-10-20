@@ -41,8 +41,9 @@
 :global([role="option"]):has(.customMetricIcon) { color: var(--accent); }
 :global([role="option"]):has(.customMetricIcon) > span { color: var(--accent); }
 
-.thresholdRow { display: grid; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
-.thresholdRow > .field:first-child .compactButton { min-height: calc(var(--control-height-sm) + var(--space-2)); }
+.guardrailControls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.guardrailControls > .field { max-width: 100%; }
+.thresholdRow { display: grid; width: calc(var(--sb-spacing) * 88); max-width: 100%; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
 .metricPanel { width: calc(var(--sb-spacing) * 80); max-width: calc(100vw - var(--space-8)); }
 .metricOptions { display: grid; max-height: calc(var(--sb-spacing) * 60); overflow-y: auto; }
 .metricOption { width: 100%; justify-content: flex-start; gap: var(--space-2); }

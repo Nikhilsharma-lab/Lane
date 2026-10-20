@@ -92,7 +92,7 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
     <div className={styles.valueControl}>
       <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={unrestricted ? undefined : 0}
         max={!unrestricted && unit === "percent" ? 100 : undefined} step={!unrestricted && unit === "count" ? 1 : "any"}
-        disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? "Enter value" : "Choose a metric and unit"}
+        disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? hideLabel ? "Value" : "Enter value" : "Choose a metric and unit"}
         defaultValue={initialValue} aria-labelledby={`${id}-label`} aria-invalid={Boolean(message) || undefined} aria-describedby={message ? `${id}-message` : undefined}
         onInput={event => {
           // Invalid numeric text and a cleared field both expose value="".
@@ -296,9 +296,8 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               setGuardrailRows({ ...guardrailRows, keys: guardrailRows.keys.filter((_, position) => position !== index) })
               onChange({ ...value, guardrails: value.guardrails.filter((_, position) => position !== index) })
             }}>Remove</Button>} />
-          <div className={styles.metricRow}>
+          <div className={styles.guardrailControls}>
             {metricPicker(guardrail, path, (key, name) => changeGuardrail(index, { ...createMeasurementGuardrail(key as EditorGuardrail["key"]), ...(name ? { name, unit: "percent" } : {}) }), true)}
-          </div>
           {guardrail.key && <div className={styles.thresholdRow}>
             <CompactSelect id={`${prefix}-${path}-boundary`} label="Comparison" hideLabel value={guardrail.operator}
               indicatorPosition="left" options={boundaries.map(option => ({ ...option, trailing: option.symbol }))} disabled={disabled}
@@ -307,6 +306,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               error={error(`${path}.limit`, guardrail.limit !== null)} onChange={limit => changeGuardrail(index, { limit })}
               unitOptions={editorUnitOptions(guardrail)} onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as EditorGuardrail))} />
           </div>}
+          </div>
 
         </section>
       })}
