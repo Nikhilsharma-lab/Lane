@@ -75,6 +75,18 @@ describe("triage-token signing", () => {
     expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
   });
 
+  it("signs every selected label and rejects label tampering", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const labelKeys = ["improvement", "11111111-1111-4111-8111-111111111111"];
+    const token = createTriageToken({ ...input, labelKeys }, triageResult, context);
+    const result = verifyTriageToken(token, context);
+    expect(result.valid && result.payload).toMatchObject({ labelKeys, requestType: "improvement" });
+    const [encoded, signature] = token.split(".");
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
+    payload.labelKeys = ["bug"];
+    expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
+  });
+
   it("accepts an older signed review with absent properties as null", async () => {
     const { createTriageToken, verifyTriageToken } = await import("./triage-token");
     const [current] = createTriageToken(input, triageResult, context).split(".");
@@ -193,5 +205,18 @@ describe("triage-token signing", () => {
     expect(() =>
       createTriageToken(input, triageResult, context)
     ).toThrowError("TRIAGE_TOKEN_SECRET is required");
+  });
+});
+
+describe("existing Request review isolation", () => {
+  beforeEach(() => vi.stubEnv("TRIAGE_TOKEN_SECRET", GOOD_SECRET));
+  afterEach(() => vi.unstubAllEnvs());
+  it("allows blank measurements only for the bound existing Request, never New", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const requestId = "a1000000-0000-4000-8000-000000000016";
+    const token = createTriageToken({ ...input, expectedImpact: null }, triageResult, context, requestId);
+    expect(verifyTriageToken(token, context).valid).toBe(false);
+    expect(verifyTriageToken(token, context, requestId).valid).toBe(true);
+    expect(verifyTriageToken(token, context, "a1000000-0000-4000-8000-000000000015").valid).toBe(false);
   });
 });

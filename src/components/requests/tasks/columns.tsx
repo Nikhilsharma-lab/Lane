@@ -34,6 +34,6 @@ export const columns: RequestColumn[] = [
   { key: "project", label: "Project", value: row => row.projectName ?? "", render: (row, filter) => <RequestProperty request={row} property="project" filter={filter} tabIndex={-1} /> },
   { key: "pickedUpBy", label: "Assignee", value: row => row.assigneeName ?? "", render: row => <RequestProperty request={row} property="pickedUpBy" tabIndex={-1} /> },
   { key: "createdAt", label: "Submitted", value: row => row.createdAt, render: row => <RequestProperty request={row} property="createdAt" tabIndex={-1} /> },
-  { key: "requestType", label: "Request type", value: row => row.requestType ?? "", render: row => <RequestProperty request={row} property="requestType" tabIndex={-1} /> },
+  { key: "requestType", label: "Labels", value: row => row.requestType ?? "", render: row => <RequestProperty request={row} property="requestType" tabIndex={-1} /> },
   { key: "submittedBy", label: "Submitted by", value: row => row.creatorName ?? "", render: row => <RequestProperty request={row} property="submittedBy" tabIndex={-1} /> },
 ]

@@ -1,3 +1,4 @@
+import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
@@ -37,6 +38,7 @@ export default async function AppLayout({
           while an action is pending never shows the row revert (plan item 1.5). */}
       <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
+        <WorkspaceLabelsProvider orgId={result.orgId}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId}>
           <Sidebar
             workspaceName={result.workspaceName}
@@ -49,6 +51,7 @@ export default async function AppLayout({
             {children}
           </Sidebar>
         </NewRequestProvider>
+        </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
       </PendingMutationsProvider>
     </RequestListViewProvider>

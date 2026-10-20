@@ -17,9 +17,9 @@ const meta = {
   parameters: { layout: "fullscreen" },
   args: {
     workspaceName: "Lane Studio", fullName: "Alex Morgan", email: "alex@example.test", role: "member",
-    pathname: "/settings/profile", statusFilter: "all", projects: [], notifications: <NotificationsFixture />,
+    pathname: "/requests/sidebar-fixture", statusFilter: "all", projects: [], notifications: <NotificationsFixture />,
     // Plan item 2.0: the page strip carries the expand control, as on every page.
-    children: <><PageStrip title="Profile" /><div className="p-6"><Input label="Notes" placeholder="Page content" /></div></>,
+    children: <><PageStrip title="Request detail" /><div className="p-6"><Input label="Notes" placeholder="Page content" /></div></>,
   },
 } satisfies Meta<typeof SidebarView>
 export default meta

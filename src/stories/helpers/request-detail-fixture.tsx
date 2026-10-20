@@ -29,7 +29,7 @@ export const request: RequestDetail = {
   reframedProblem: "Customers cannot find the delivery date before checkout", extractedSolution: "Show the expected delivery date on the product page.", classification: "hybrid",
   affectedPeople: "Customers comparing products with different delivery dates.", desiredChange: "Know the expected delivery date before starting checkout.", observedEvidence: "Support conversations mention uncertainty about delivery dates.", uncertainty: "We do not yet know how often this prevents a purchase.", usefulLink: "https://example.com/research/delivery",
   expectedImpact: { kind: "metric", metric: "Checkouts started with a known delivery date", baseline: 40, target: 70, unit: "%", source: "Checkout analytics", reviewAfterDays: 14 },
-  status: "open", assignedTo: null, createdBy: "fixture-person", createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: "Sam Lee", assigneeName: null, assigneeAvatarUrl: null,
+  status: "open", assignedTo: null, createdBy: viewer.id, createdAt: new Date("2026-10-01T09:00:00Z"), creatorName: viewer.name, assigneeName: null, assigneeAvatarUrl: null,
   projectId: websiteId, projectName: "Website", requestType: "improvement",
 }
 export const inProgress: RequestDetail = { ...request, status: "in_progress", assignedTo: "fixture-person-2", assigneeName: "Taylor Chen" }

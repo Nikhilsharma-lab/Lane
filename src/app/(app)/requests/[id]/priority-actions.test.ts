@@ -69,3 +69,11 @@ describe("setRequestPriority", () => {
     expect(await setRequestPriority("not-a-uuid", "high", { orgId: ORG })).toEqual({ error: "Not found" });
   });
 });
+
+it("only creator or admin can change an Open Request priority",async()=>{
+ const {setRequestPriority}=await api();
+ actAs(FOREIGN);expect(await setRequestPriority(requestId,"high",{orgId:ORG})).toHaveProperty("error");
+ actAs(FOREIGN,"org:admin");expect(await setRequestPriority(requestId,"high",{orgId:ORG})).toMatchObject({success:true});
+ await connection`update requests set status='in_progress' where id=${requestId}`;
+ expect(await setRequestPriority(requestId,"low",{orgId:ORG})).toHaveProperty("error");
+});

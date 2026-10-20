@@ -202,13 +202,15 @@ function skeletonStory(pathname: string, Loading: ComponentType, status: string,
     play: async context => {
       await expectPinnedViewport(context)
       const main = within(context.canvasElement).getByRole("main")
-      await expect(pageStrips(main)).toHaveLength(1)
-      await expectStripHeight(pageStrips(main)[0])
+      const settings = pathname.startsWith("/settings/")
+      await expect(pageStrips(main)).toHaveLength(settings ? 0 : 1)
+      if (!settings) await expectStripHeight(pageStrips(main)[0])
+      else await expect(within(main).getByRole("link", { name: "Back to Requests" })).toBeVisible()
       // Decorative bars sit in aria-hidden blocks, so the page exposes one live region.
       const statuses = within(main).getAllByRole("status")
       await expect(statuses).toHaveLength(1)
       await expect(statuses[0]).toHaveAccessibleName(status)
-      if (innerWidth <= 880) await expect(within(main).getByRole("button", { name: "Expand sidebar" })).toBeVisible()
+      if (!settings && innerWidth <= 880) await expect(within(main).getByRole("button", { name: "Expand sidebar" })).toBeVisible()
       noHorizontalScroll()
     },
   }

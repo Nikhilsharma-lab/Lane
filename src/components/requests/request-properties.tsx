@@ -6,11 +6,10 @@ import { Badge } from "@/components/arc/badge/badge"
 import { Avatar } from "@/components/arc/avatar/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { REQUEST_TYPE_LABELS } from "@/lib/request-constants"
+import { RequestLabels, useRequestLabels } from "./request-labels"
 import { statuses } from "./tasks/statuses"
 import { projectToneForId } from "@/lib/project-tone"
 import { ProjectMarker } from "@/components/projects/project-marker"
-import { RequestTypeGlyph } from "./request-type-presentation"
 import styles from "./request-rows.module.css"
 import avatarStyles from "./request-picker-avatar.module.css"
 import buttonStyles from "@/components/arc/button/button.module.css"
@@ -24,6 +23,7 @@ export type RequestPropertyKey = "status" | "project" | "pickedUpBy" | "createdA
 export function RequestProperty({ request, property, filter = "all", tabIndex }: { request: OverviewRequest; property: RequestPropertyKey; filter?: RequestStatusFilter;
   /** Plan item 2.4: -1 inside a Request row, whose row is the one tab stop. Standalone triggers keep the Tab order. */
   tabIndex?: number }) {
+  const labels = useRequestLabels(request)
   const compact = Boolean(useRequestRowPresentation())
   // The setter only: a filter keystroke, a page or a collapse must not re-render every row's pills (plan item 1.14).
   const setListView = useSetRequestListView()
@@ -35,13 +35,13 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
     project: { label: "Project", value: request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"), icon: <ProjectMarker projectId={request.projectId} />, tone: "neutral" as const },
     pickedUpBy: { label: "Assignee", value: pickerName, icon: <UserRound data-icon-size="xs" />, tone: "neutral" as const },
     createdAt: { label: "Submitted", value: date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace("Sept", "Sep"), icon: <CalendarDays data-icon-size="xs" />, tone: "neutral" as const },
-    requestType: { label: "Request type", value: request.requestType ? REQUEST_TYPE_LABELS[request.requestType] : "No type", icon: <RequestTypeGlyph type={request.requestType} />, tone: "neutral" as const },
+    requestType: { label: "Labels", value: labels.map(label => label.name).join(", ") || "No labels", icon: null, tone: "neutral" as const },
     submittedBy: { label: "Submitted by", value: request.creatorName ?? "Unknown member", icon: <UserRound data-icon-size="xs" />, tone: "neutral" as const },
   }
   const item = properties[property]
   return <Popover>
     <PopoverTrigger asChild><button type="button" tabIndex={tabIndex} data-property={property} className={[styles.propertyTrigger, property === "pickedUpBy" && avatarStyles.trigger].filter(Boolean).join(" ")} aria-label={`${item.label}: ${item.value}`}>
-      {compact && property === "createdAt" ? <time className={styles.submittedDate} dateTime={request.createdAt}>{date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).replace("Sept", "Sep")}</time>
+      {property === "requestType" ? <RequestLabels request={request} compact /> : compact && property === "createdAt" ? <time className={styles.submittedDate} dateTime={request.createdAt}>{date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).replace("Sept", "Sep")}</time>
         : property === "pickedUpBy" ? request.assignedTo
         ? <Avatar name={pickerName} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={avatarStyles.avatar} data-avatar-tone={compact ? projectToneForId(request.assignedTo) : undefined} aria-hidden="true" />
         : <span className={avatarStyles.unassigned} aria-hidden="true"><UserRound data-icon-size="xs" /></span>

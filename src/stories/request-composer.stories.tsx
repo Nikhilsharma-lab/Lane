@@ -1,4 +1,5 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
+import { page as browserPage } from "vitest/browser";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { getRouter, usePathname } from "@storybook/nextjs-vite/navigation.mock";
@@ -293,11 +294,12 @@ export const ReviewPreview: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     await userEvent.click(await (await projectSurface(page)).findByRole("option", { name: "Website" }));
     await expect(dialog).toHaveAttribute("data-state", "open");
-    await waitForInteractive(composer.getByRole("combobox", { name: "Request type" }));
-    await userEvent.click(composer.getByRole("combobox", { name: "Request type" }));
-    await userEvent.click(await page.findByRole("option", { name: "Improvement" }));
+    await waitForInteractive(composer.getByRole("button", { name: "Labels" }));
+    await userEvent.click(composer.getByRole("button", { name: "Labels" }));
+    await userEvent.click(await page.findByRole("checkbox", { name: "Improvement" }));
     await expect(dialog).toHaveAttribute("data-state", "open");
-    await waitFor(() => expect(page.queryByRole("listbox", { name: "Request type" })).not.toBeInTheDocument());
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Labels" })).not.toBeInTheDocument());
     await waitForInteractive(composer.getByRole("button", { name: "Review Request" }));
     await userEvent.click(composer.getByRole("button", { name: "Add link" }));
     await userEvent.type(within(canvasElement.ownerDocument.body).getByRole("textbox", { name: "Related link" }), "https://example.test/customer-interviews");
@@ -346,7 +348,7 @@ export const LongReviewKeepsActionsVisible: Story = {
   },
 };
 
-/** Older saved drafts retain the legacy impact editor; new drafts start with MeasurementPlanFields. */
+/** Older saved drafts use the same measurement controls without changing their saved format. */
 function restoreLegacyEmptyDraft() {
   writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
     source: { title: "", description: "", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement", expectedImpact: { ...EMPTY_METRIC_IMPACT } },
@@ -354,25 +356,16 @@ function restoreLegacyEmptyDraft() {
   });
 }
 
-/** Folds the complete Expected impact with Done, as a person who filled it would. */
-async function foldImpact(composer: ReturnType<typeof within>) {
-  await userEvent.click(composer.getByRole("button", { name: "Done" }));
-  await waitFor(() => expect(composer.queryByRole("textbox", { name: "What should improve?" })).not.toBeInTheDocument());
-  await expect(composer.getByRole("button", { name: "Edit expected impact" })).toHaveAttribute("aria-expanded", "false");
-}
-
-/** A server rejection of Expected impact opens the panel at once, focuses its first field and shows the message inside it. */
+/** Server rejections focus the shared metric picker and preserve the draft. */
 async function expectImpactRevealed(composer: ReturnType<typeof within>, message: string) {
-  const metric = await composer.findByRole("textbox", { name: "What should improve?" });
+  const metric = await composer.findByRole("combobox", { name: "Metric" });
   await waitFor(() => expect(metric).toHaveFocus());
-  await expect(metric).toHaveValue(metricImpact.metric);
-  await expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true");
-  const impact = composer.getByRole("region", { name: "Expected impact" });
-  await expect(within(impact).getByText(message)).toBeVisible();
-  return impact;
+  await expect(metric).toHaveTextContent(metricImpact.metric);
+  await expect(composer.getByText(message)).toBeVisible();
+  return composer.getByRole("region", { name: "Request measurement" });
 }
 
-export const TriageImpactErrorOpensDisclosure: Story = {
+export const TriageImpactErrorKeepsSharedControls: Story = {
   beforeEach: () => {
     restoreLegacyEmptyDraft();
     mocked(runTriage).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Check the expected impact before reviewing this Request." } });
@@ -380,7 +373,6 @@ export const TriageImpactErrorOpensDisclosure: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await fillComposer(composer);
-    await foldImpact(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await expectImpactRevealed(composer, "Check the expected impact before reviewing this Request.");
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
@@ -391,7 +383,7 @@ export const TriageImpactErrorOpensDisclosure: Story = {
   },
 };
 
-export const SaveImpactErrorOpensDisclosure: Story = {
+export const SaveImpactErrorKeepsSharedControls: Story = {
   beforeEach: () => {
     restoreLegacyEmptyDraft();
     mocked(saveRequest).mockResolvedValueOnce({ success: false, error: { code: "validation", field: "expectedImpact", message: "Add the expected impact, then review this Request again before creating it." } });
@@ -399,12 +391,11 @@ export const SaveImpactErrorOpensDisclosure: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await fillComposer(composer);
-    await foldImpact(composer);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await composer.findByRole("button", { name: "Create Request" }));
     await composer.findByRole("textbox", { name: "Request title" });
     const impact = await expectImpactRevealed(composer, "Add the expected impact, then review this Request again before creating it.");
-    await expect(within(impact).getByRole("spinbutton", { name: "Goal" })).toHaveValue(metricImpact.target);
+    await expect(within(impact).getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(metricImpact.target);
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request" })).toHaveFocus());
@@ -481,7 +472,7 @@ export const OptionalRequestProperties: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await expect(composer.getByRole("button", { name: "Project" })).toBeVisible();
-    await expect(composer.getByRole("combobox", { name: "Request type" })).toBeVisible();
+    await expect(composer.getByRole("button", { name: "Labels" })).toBeVisible();
     await expect(composer.getByRole("textbox", { name: "Request title" })).toBeVisible();
     await expect(composer.getByRole("textbox", { name: "Description" })).toBeVisible();
     await expect(composer.queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
@@ -549,7 +540,11 @@ export const AddLinkPopover: Story = {
     await waitFor(() => expect(toggle).toHaveFocus());
     await userEvent.click(toggle);
     await waitFor(() => expect(page.getByRole("textbox", { name: "Related link" })).toHaveFocus());
-    await userEvent.keyboard("{Tab}{Tab}");
+    await userEvent.keyboard("{Tab}");
+    await expect(page.getByRole("button", { name: "Remove link" })).toHaveFocus();
+    await userEvent.keyboard("{Tab}");
+    await expect(page.getByRole("button", { name: /^Done$/ })).toHaveFocus();
+    await userEvent.keyboard("{Tab}");
     await waitFor(() => expect(composer.getByRole("button", { name: "Attach files" })).toHaveFocus());
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Related link" })).not.toBeInTheDocument());
     await expect(dialog).toBeVisible();
@@ -849,14 +844,11 @@ export const CompactImpactValidation: Story = {
   beforeEach: restoreLegacyEmptyDraft,
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
-    const impact = composer.getByRole("button", { name: "Add expected impact" });
-    await expect(impact).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.queryByRole("textbox", { name: "What should improve?" })).not.toBeInTheDocument();
+    await expect(composer.getByRole("combobox", { name: "Metric" })).toBeVisible();
     await userEvent.type(composer.getByRole("textbox", { name: "Request title" }), source.title);
     await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
-    await waitFor(() => expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true"));
-    await waitFor(() => expect(composer.getByRole("textbox", { name: "What should improve?" })).toHaveFocus());
+    await waitFor(() => expect(composer.getByRole("combobox", { name: "Metric" })).toHaveFocus());
     await expect(runTriage).not.toHaveBeenCalled();
   },
 };
@@ -868,11 +860,12 @@ export const PropertiesSaveAndRestore: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     await userEvent.click(await (await projectSurface(page)).findByRole("option", { name: "Website" }));
     await expect(dialog).toHaveAttribute("data-state", "open");
-    await waitForInteractive(composer.getByRole("combobox", { name: "Request type" }));
-    await userEvent.click(composer.getByRole("combobox", { name: "Request type" }));
-    await userEvent.click(await page.findByRole("option", { name: "Bug" }));
+    await waitForInteractive(composer.getByRole("button", { name: "Labels" }));
+    await userEvent.click(composer.getByRole("button", { name: "Labels" }));
+    await userEvent.click(await page.findByRole("checkbox", { name: "Bug" }));
     await expect(dialog).toHaveAttribute("data-state", "open");
-    await waitFor(() => expect(page.queryByRole("listbox", { name: "Request type" })).not.toBeInTheDocument());
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Labels" })).not.toBeInTheDocument());
     await waitForInteractive(composer.getByRole("textbox", { name: "Request title" }));
     await expect(composer.getByRole("button", { name: "Project: Website" })).toBeVisible();
     await userEvent.click(composer.getByRole("textbox", { name: "Request title" }));
@@ -880,7 +873,7 @@ export const PropertiesSaveAndRestore: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
     const reopened = await openComposer(canvasElement);
     await expect(reopened.composer.getByRole("button", { name: "Project: Website" })).toBeVisible();
-    await expect(reopened.composer.getByRole("combobox", { name: "Request type: Bug" })).toBeVisible();
+    await expect(reopened.composer.getByRole("button", { name: "Labels: Bug" })).toBeVisible();
     await userEvent.click(reopened.composer.getByRole("button", { name: "Review Request" }));
     await waitFor(async () => expect(await reopened.composer.findByText("Website")).toBeVisible());
     await expect(reopened.composer.getByText("Bug")).toBeVisible();
@@ -918,7 +911,8 @@ export const NewProjectFromPicker: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    // A native click exercises Radix's deferred outside-pointer handler.
+    await browserPage.getByRole("dialog", { name: "Choose a Project" }).getByRole("button", { name: "New Project", exact: true }).click();
     const name = project.getByRole("textbox", { name: "Project name" });
     await waitFor(() => expect(name).toHaveFocus());
     await expect(project.getByRole("button", { name: "Create Project" })).toBeDisabled();
@@ -953,6 +947,9 @@ export const NewProjectCancelPreservesDraft: Story = {
     await userEvent.click(composer.getByRole("button", { name: "Project: Website" }));
     const project = await projectSurface(page);
     await userEvent.click(project.getByRole("button", { name: "New Project" }));
+    const projectForm = page.getByRole("dialog", { name: "Choose a Project" });
+    const formPadding = getComputedStyle(projectForm).padding;
+    const formWidth = getComputedStyle(projectForm).width;
     await userEvent.type(project.getByRole("textbox", { name: "Project name" }), "Abandoned name");
     await userEvent.click(project.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(project.getByRole("option", { name: "Website" })).toHaveFocus());
@@ -963,6 +960,11 @@ export const NewProjectCancelPreservesDraft: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Choose a Project" })).not.toBeInTheDocument());
     await expect(composer.getByRole("button", { name: "Project: Website" })).toBeVisible();
     await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(source.title);
+    await userEvent.click(composer.getByRole("button", { name: "Add link" }));
+    const linkForm = page.getByRole("dialog", { name: "Related link" });
+    await expect(getComputedStyle(linkForm).padding).toBe(formPadding);
+    await expect(getComputedStyle(linkForm).width).toBe(formWidth);
+    await userEvent.keyboard("{Escape}");
   },
 };
 
@@ -1016,6 +1018,9 @@ export const ExistingProjectAndClear: Story = {
     const project = await projectSurface(page);
     await expect(project.queryByRole("searchbox")).not.toBeInTheDocument();
     await waitFor(() => expect(project.getByRole("option", { name: "No project" })).toHaveFocus());
+    const selectedProject = project.getByRole("option", { name: "No project" });
+    await expect(selectedProject.querySelector(".lucide-check")!.getBoundingClientRect().right).toBeGreaterThan(selectedProject.getBoundingClientRect().right - 24);
+    await expect(project.getByRole("option", { name: "Website" }).querySelector(".lucide-check")).toBeNull();
     await userEvent.keyboard("{ArrowDown}{Enter}");
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Choose a Project" })).not.toBeInTheDocument());
     await waitFor(async () => expect(await composer.findByRole("button", { name: "Project: Website" })).toBeVisible());
@@ -1030,18 +1035,39 @@ export const ExistingProjectAndClear: Story = {
     await userEvent.keyboard("{ArrowDown}");
     await expect(reopenedProject.getByRole("option", { name: "No project" })).toHaveFocus();
     await userEvent.click(await reopenedProject.findByRole("option", { name: "No project" }));
-    await waitForInteractive(composer.getByRole("combobox", { name: "Request type" }));
+    await waitForInteractive(composer.getByRole("button", { name: "Labels" }));
     await expect(composer.getByRole("button", { name: "Project" })).toBeVisible();
     await expect(createProject).not.toHaveBeenCalled();
-    await userEvent.click(composer.getByRole("combobox", { name: "Request type" }));
-    await userEvent.click(await page.findByRole("option", { name: "Improvement" }));
-    await waitFor(() => expect(page.queryByRole("listbox", { name: "Request type" })).not.toBeInTheDocument());
-    await waitForInteractive(composer.getByRole("combobox", { name: "Request type: Improvement" }));
-    await userEvent.click(composer.getByRole("combobox", { name: "Request type: Improvement" }));
-    await userEvent.click(await page.findByRole("option", { name: "No type" }));
-    await waitFor(() => expect(page.queryByRole("listbox", { name: "Request type" })).not.toBeInTheDocument());
-    await expect(composer.getByRole("combobox", { name: "Request type" })).toBeVisible();
+    await userEvent.click(composer.getByRole("button", { name: "Labels" }));
+    await userEvent.click(await page.findByRole("checkbox", { name: "Improvement" }));
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Labels" })).not.toBeInTheDocument());
+    await waitForInteractive(composer.getByRole("button", { name: "Labels: Improvement" }));
+    await userEvent.click(composer.getByRole("button", { name: "Labels: Improvement" }));
+    await userEvent.click(await page.findByRole("checkbox", { name: "Improvement" }));
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog", { name: "Labels" })).not.toBeInTheDocument());
+    await expect(composer.getByRole("button", { name: "Labels" })).toBeVisible();
     await waitFor(() => expect(dialog.querySelector('[data-motion-pop-id][aria-hidden="true"]')).toBeNull());
+  },
+};
+
+export const LongProjectKeepsCheckVisible: Story = {
+  play: async ({ canvasElement }) => {
+    mocked(listProjects).mockResolvedValue({ success: true, projects: [{ id: "00000000-0000-4000-8000-000000000456", name: "A long Project name that should truncate without pushing the checkmark out", description: null }] });
+    const { page, composer } = await openComposer(canvasElement);
+    await userEvent.click(composer.getByRole("button", { name: "Project" }));
+    const project = await projectSurface(page);
+    const selected = await project.findByRole("option", { name: "No project" });
+    const longRow = project.getByRole("option", { name: /A long Project name/ });
+    const dot = longRow.querySelector("[data-tone]")!;
+    await expect(dot.getBoundingClientRect().width).toBeCloseTo(dot.getBoundingClientRect().height, 2);
+    await waitFor(() => {
+      const menu = page.getByRole("dialog", { name: "Choose a Project" }).getBoundingClientRect();
+      const check = selected.querySelector(".lucide-check")!.getBoundingClientRect();
+      expect(check.right).toBeLessThan(menu.right);
+      expect(check.left).toBeGreaterThan(menu.left + menu.width / 2);
+    });
   },
 };
 
@@ -1160,35 +1186,25 @@ export const DraftRestored: Story = {
     await expect(notice).not.toBeNull();
     await expect(notice!.closest('[role="status"], [role="alert"], [aria-live]')).toBeNull();
     await expect(notice!.querySelector('[role="status"], [role="alert"], [aria-live]')).toBeNull();
-    // Expected impact starts folded after a restore, as its two-line summary (decision 8.26).
-    const toggle = composer.getByRole("button", { name: "Edit expected impact" });
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.getByText(`${metricImpact.metric}, target 90%`)).toBeVisible();
-    // No evidence source is asked at creation (2026-10-13), so the check reads as detail's "Check in", never ", 14 days".
-    await expect(composer.getByText("Check in 14 days")).toBeVisible();
-    await expect(composer.queryByText(/^, |, 14 days after launch/)).not.toBeInTheDocument();
-    await expect(composer.queryByRole("textbox", { name: "What should improve?" })).not.toBeInTheDocument();
+    await expect(composer.getByRole("combobox", { name: "Metric" })).toHaveTextContent(metricImpact.metric);
+    await expect(composer.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
+    await expect(composer.getByRole("button", { name: "Measurement window" })).toHaveTextContent("14 days after release");
+    await expect(composer.getByRole("combobox", { name: "Audience" })).toHaveTextContent("Audience");
     await waitFor(() => expect(title).toHaveFocus());
-    await userEvent.click(toggle);
-    await waitFor(() => expect(composer.getByRole("textbox", { name: "What should improve?" })).toHaveFocus());
-    await expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true");
   },
 };
 
-export const ImpactValidationExpands: Story = {
+export const ImpactValidationFocusesSharedControls: Story = {
   beforeEach: restoreLegacyEmptyDraft,
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
     await userEvent.type(composer.getByRole("textbox", { name: "Request title" }), source.title);
     await userEvent.type(composer.getByRole("textbox", { name: "Description" }), source.description);
-    await expect(composer.getByRole("button", { name: "Add expected impact" })).toHaveAttribute("aria-expanded", "false");
-    await expect(composer.getByText("Required")).toBeVisible();
     await userEvent.click(composer.getByRole("button", { name: "Review Request" }));
-    // A failed submit opens the panel at once and focuses its first invalid field.
-    const metric = await composer.findByRole("textbox", { name: "What should improve?" });
+    // A failed submit keeps the shared controls visible and focuses the picker.
+    const metric = await composer.findByRole("combobox", { name: "Metric" });
     await waitFor(() => expect(metric).toHaveFocus());
-    await expect(metric).toHaveAttribute("aria-invalid", "true");
-    await expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true");
+    await expect(composer.getByText("Complete the metric or verified result and measurement window before reviewing.")).toBeVisible();
     await expect(runTriage).not.toHaveBeenCalled();
   },
 };
@@ -1645,8 +1661,8 @@ const still = (transform: string) => transform === "none" || transform === "matr
 export const ReducedMotion: Story = {
   beforeEach: restoreLegacyEmptyDraft,
   // Decision 8.22. Under prefers-reduced-motion (the visual harness, or
-  // STORYBOOK_REDUCED_MOTION=reduce) the panel only fades and Expected impact
-  // opens without a height animation. Otherwise the panel settles within the
+  // STORYBOOK_REDUCED_MOTION=reduce) the panel only fades.
+  // Otherwise the panel settles within the
   // 240 ms panel budget, plus three frames of sampling slack.
   play: async ({ canvasElement }) => {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1671,8 +1687,7 @@ export const ReducedMotion: Story = {
     await expect(overlay).toHaveAttribute("data-state", "open");
     await expect(getComputedStyle(overlay).backdropFilter).toBe("none");
     await expect(getComputedStyle(overlay).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Add expected impact" }));
-    const panel = canvasElement.ownerDocument.getElementById("intake-impact-panel")!;
+    const panel = within(dialog).getByRole("region", { name: "Request measurement" });
     if (reduce) await expect(getComputedStyle(panel).opacity).toBe("1");
     await waitFor(() => expect(getComputedStyle(panel).opacity).toBe("1"));
   },
@@ -1874,24 +1889,24 @@ export const RouteChangeWhileSaving: Story = {
   },
 };
 
-export const CompactRequestTypeMenu: Story = {
+export const CompactLabelsMenu: Story = {
   play: async ({ canvasElement }) => {
     const { composer, page } = await openComposer(canvasElement);
-    const trigger = composer.getByLabelText("Request type", { exact: true });
-    await userEvent.click(trigger);
-    const list = await page.findByRole("listbox");
-    const choices = within(list).getAllByRole("option");
-    await expect(choices).toHaveLength(4);
-    for (const choice of choices) {
-      await expect(choice.getBoundingClientRect().height).toBeLessThanOrEqual(44);
-    }
-    await expect(page.queryByText("You can leave this undecided.")).not.toBeInTheDocument();
-    await userEvent.keyboard("{ArrowDown}{Enter}");
-    await waitFor(() => expect(composer.getByRole("combobox", { name: "Request type: Bug" })).toHaveFocus());
-    await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
-    await userEvent.click(composer.getByRole("combobox", { name: "Request type: Bug" }));
+    await userEvent.click(composer.getByRole("button", { name: "Labels" }));
+    const list = await page.findByRole("group", { name: "Available labels" });
+    await expect(within(list).getAllByRole("checkbox")).toHaveLength(3);
+    await waitFor(() => expect(page.getByRole("textbox", { name: "Search labels" })).toHaveFocus());
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(page.getByRole("checkbox", { name: "Bug" })).toHaveFocus();
+    await userEvent.keyboard(" ");
+    await expect(page.getByRole("checkbox", { name: "Bug" })).toBeChecked();
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(composer.getByRole("combobox", { name: "Request type: Bug" })).toHaveFocus());
+    await waitFor(() => expect(composer.getByRole("button", { name: "Labels: Bug" })).toHaveFocus());
+    await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
+    await userEvent.click(composer.getByRole("button", { name: "Labels: Bug" }));
+    await expect(page.getByRole("checkbox", { name: "Bug" })).toBeChecked();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(composer.getByRole("button", { name: "Labels: Bug" })).toHaveFocus());
   },
 };
 
@@ -1900,36 +1915,27 @@ export const GuardrailDraftInComposer: Story = {
   play: async ({ canvasElement }) => {
     const { composer, page, dialog } = await openComposer(canvasElement);
     await fillComposer(composer);
-    await userEvent.click(composer.getByRole("button", { name: "Expected impact options" }));
-    await userEvent.click(await page.findByRole("menuitem", { name: "Add guardrail" }));
-    await expect(await composer.findByRole("region", { name: "Guardrail editor" })).toBeVisible();
-    await waitFor(() => expect(composer.getByRole("textbox", { name: "What should not get worse?" })).toHaveFocus());
-    await expect(within(composer.getByRole("region", { name: "Guardrail editor" })).getByRole("textbox", { name: "Measured in" })).toHaveValue("");
-    await userEvent.type(composer.getByRole("textbox", { name: "What should not get worse?" }), "Task completion");
-    await userEvent.type(composer.getByRole("spinbutton", { name: "Number" }), "80");
-    await userEvent.click(composer.getByRole("combobox", { name: /^Must stay/ }));
-    await page.findByRole("option", { name: "At or below" });
-    await userEvent.keyboard("{ArrowDown}{Enter}");
-    await waitFor(() => expect(composer.getByRole("combobox", { name: /^Must stay/ })).toHaveFocus());
-    await expect(composer.getByRole("combobox", { name: /^Must stay/ })).toHaveTextContent("At or above");
-    await expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
-    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1);
-    await expect(composer.getByRole("button", { name: "Review Request" })).toBeDisabled();
-    await expect(runTriage).not.toHaveBeenCalled();
+    await userEvent.click(composer.getByRole("button", {name:"Add guardrail"}));
+    let row=within(composer.getByRole("region",{name:"Guardrail 1"}));
+    await userEvent.click(row.getByRole("combobox",{name:"Guardrail metric"}));
+    await userEvent.click(await page.findByRole("option",{name:"Support contact rate"}));
+    await waitFor(()=>expect(row.getByRole("combobox",{name:"Guardrail metric"})).toHaveFocus());
+    await userEvent.click(row.getByRole("combobox",{name:"Comparison"}));
+    await userEvent.click(await page.findByRole("option",{name:"Greater than or equal to"}));
+    await waitFor(()=>expect(row.getByRole("combobox",{name:"Comparison"})).toHaveFocus());
+    await expect(composer.getByRole("button",{name:"Review Request"})).toBeDisabled();
+    await expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth+1);
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(page.queryByRole("dialog", { name: "New Request" })).not.toBeInTheDocument());
-    const reopened = await openComposer(canvasElement);
-    await expect(reopened.composer.getByRole("textbox", { name: "What should not get worse?" })).toHaveValue("Task completion");
-    await expect(reopened.composer.getByRole("spinbutton", { name: "Number" })).toHaveValue(80);
-    await expect(within(reopened.composer.getByRole("region", { name: "Guardrail editor" })).getByRole("textbox", { name: "Measured in" })).toHaveValue("");
-    await expect(reopened.composer.getByRole("combobox", { name: /^Must stay/ })).toHaveTextContent("At or above");
-    await expect(reopened.composer.getByRole("button", { name: "Review Request" })).toBeDisabled();
-    await userEvent.type(within(reopened.composer.getByRole("region", { name: "Guardrail editor" })).getByRole("textbox", { name: "Measured in" }), "%");
-    await userEvent.click(reopened.composer.getByRole("button", { name: "Add guardrail" }));
-    await expect(reopened.composer.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
-    await expect(reopened.composer.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Task completion must stay at or above 80 %.");
-    await userEvent.click(reopened.composer.getByRole("button", { name: "Review Request" }));
-    await waitFor(() => expect(reopened.composer.getByText("Task completion must stay at or above 80 %.")).toBeVisible());
+    await waitFor(()=>expect(page.queryByRole("dialog",{name:"New Request"})).not.toBeInTheDocument());
+    const reopened=await openComposer(canvasElement);
+    row=within(reopened.composer.getByRole("region",{name:"Guardrail 1"}));
+    await expect(row.getByRole("combobox",{name:"Guardrail metric"})).toHaveTextContent("Support contact rate");
+    await expect(row.getByRole("combobox",{name:"Comparison"})).toHaveTextContent("Greater than or equal to");
+    await expect(row.getByRole("spinbutton",{name:"Value"})).toHaveValue(null);
+    await expect(reopened.composer.getByRole("button",{name:"Review Request"})).toBeDisabled();
+    await userEvent.type(row.getByRole("spinbutton",{name:"Value"}),"80");
+    await userEvent.click(reopened.composer.getByRole("button",{name:"Review Request"}));
+    await waitFor(()=>expect(reopened.composer.getByText("Support contact rate must stay at or above 80 %.")).toBeVisible());
   },
 };
 
@@ -1943,10 +1949,8 @@ export const GuardrailDraftReopensPane: Story = {
   },
   play: async ({ canvasElement }) => {
     const { composer } = await openComposer(canvasElement);
-    // The restored open guardrail editor opens the Expected impact disclosure with it.
-    await expect(composer.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "true");
-    await expect(await composer.findByRole("region", { name: "Guardrail editor" })).toBeVisible();
-    await expect(composer.getByRole("textbox", { name: "What should not get worse?" })).toHaveValue("Support requests");
+    await expect(await composer.findByRole("region", { name: "Guardrail 1" })).toBeVisible();
+    await expect(within(composer.getByRole("region", { name: "Guardrail 1" })).getByRole("combobox", { name: "Guardrail metric" })).toHaveTextContent("Support requests");
     await userEvent.click(composer.getByRole("button", { name: "Cancel guardrail" }));
     await expect(composer.getByRole("button", { name: "Review Request" })).toBeEnabled();
   },

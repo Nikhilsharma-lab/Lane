@@ -1,32 +1,33 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
-import { CalendarDays, ChartNoAxesColumnIncreasing, Check, ListChecks, Monitor, Plus, Ruler, ShieldCheck, Users } from "lucide-react"
+import { CalendarDays, Check, ListChecks, Monitor, Plus, Users } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Input } from "@/components/arc/input/input"
 import { Textarea } from "@/components/arc/textarea/textarea"
-import { EMPTY_GUARDRAIL, IMPACT_METRIC_MAX, IMPACT_UNIT_MAX, IMPACT_SOURCE_MAX, IMPACT_RESULT_MAX, IMPACT_REVIEW_DAYS_MAX, type ExpectedImpactDraft } from "@/lib/request-impact"
+import { IMPACT_SOURCE_MAX, IMPACT_RESULT_MAX, guardrailSchema, expectedImpactDraftSchema, type ExpectedImpactDraft } from "@/lib/request-impact"
 import { Select } from "@/components/arc/select/select"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { MeasurementDateDialog } from "./measurement-date-dialog"
+import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison"
 import { preloadDateRangePicker } from "@/components/date-range-picker-lazy"
 import type { RequestType } from "@/lib/request-constants"
 import {
   changeMetricUnit, createMeasurementGuardrail, createMeasurementPrimary,
-  GUARDRAIL_METRIC_OPTIONS, MAX_MEASUREMENT_GUARDRAILS, MEASUREMENT_METRIC_OPTIONS, MEASUREMENT_SCOPE_NAME_MAX,
-  measurementMetricLabel, measurementPlanSchema, measurementRequestTypeIssue,
-  measurementUnitOptions,
-  type MeasurementGuardrailDraft, type MeasurementPlanDraft, type MeasurementPrimaryDraft,
+  MAX_MEASUREMENT_GUARDRAILS, MEASUREMENT_SCOPE_NAME_MAX,
+  measurementPlanSchema, measurementRequestTypeIssue,
 } from "@/lib/request-measurement"
+import { measurementEditorValue, measurementEditorChanges, editorUnitOptions, type EditorPlan, type EditorPrimary, type EditorGuardrail, type EditorMetric } from "@/lib/request-measurement-editor"
+import { MeasurementMetricPicker } from "./measurement-metric-picker"
 import styles from "./measurement-plan-fields.module.css"
 
-type Metric = MeasurementPrimaryDraft | MeasurementGuardrailDraft
-type Option = { value: string; label: string; disabled?: boolean }
+type Metric = EditorMetric
+type Option = { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }
 const audiences = [{ value: "all", label: "All users" }, { value: "new", label: "New users" }, { value: "returning", label: "Returning users" }, { value: "custom", label: "Add custom audience…" }]
 const platforms = [{ value: "all", label: "All platforms" }, { value: "web", label: "Web" }, { value: "ios", label: "iOS" }, { value: "android", label: "Android" }, { value: "custom", label: "Add custom platform…" }]
 const windows = [7, 14, 30, 90].map(days => ({ value: String(days), label: `${days} days after release` }))
-const boundaries = [{ value: "at_most", label: "At most" }, { value: "at_least", label: "At least" }]
+const boundaries = GUARDRAIL_COMPARISONS
 const checks = {
   keyboard: { label: "Keyboard navigation", steps: "Complete the flow described in this Request using only Tab, Shift+Tab, Enter and Space.", pass: "Every control is reachable, focus is visible, and the flow can be completed without a pointer." },
   required: { label: "Required-field validation", steps: "Leave each required field empty in turn and submit the form described in this Request.", pass: "Submission is blocked, each missing field is identified, and valid entries allow submission." },
@@ -40,14 +41,14 @@ function formatDate(value: string) {
 }
 
 /** Arc owns popup positioning, typeahead, arrow keys, Escape and focus return. */
-function CompactSelect({ id, label, value, options, onChange, disabled, error, icon, placeholder = "Choose an option", selectedLabel, hideLabel = false }: {
+function CompactSelect({ id, label, value, options, onChange, disabled, error, icon, placeholder = "Choose an option", selectedLabel, hideLabel = false, indicatorPosition }: {
   id: string; label: string; value: string; options: Option[]; onChange: (value: string) => void
-  disabled?: boolean; error?: string; icon?: ReactNode; placeholder?: string; selectedLabel?: string; hideLabel?: boolean
+  disabled?: boolean; error?: string; icon?: ReactNode; placeholder?: string; selectedLabel?: string; hideLabel?: boolean; indicatorPosition?: "left" | "right"
 }) {
   const shown = selectedLabel ?? options.find(option => option.value === value)?.label ?? placeholder
   return <div className={styles.field}>
     {!hideLabel && <div className={styles.labelRow}><span id={`${id}-label`} className={styles.label}>{label}</span></div>}
-    <Select id={id} label={label} value={value} options={options} disabled={disabled} onValueChange={next => {
+    <Select indicatorPosition={indicatorPosition} id={id} label={label} value={value} options={options} disabled={disabled} onValueChange={next => {
       // Radix's native form bridge can emit an empty change when dependent
       // options mount. Only a real option may replace the controlled value.
       if (options.some(option => option.value === next && !option.disabled)) onChange(next)
@@ -62,10 +63,10 @@ function CompactSelect({ id, label, value, options, onChange, disabled, error, i
   </div>
 }
 
-function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions, onUnitChange, unitLabel, disabled, noBaseline = false, error }: {
+function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions, onUnitChange, unitLabel, disabled, noBaseline = false, error, unrestricted = false, hideLabel = false }: {
   id: string; label: string; value: number | null; onChange: (value: number | null) => void
   metricKey: Metric["key"]; unit: Metric["unit"]; unitOptions?: Option[]; onUnitChange?: (unit: Metric["unit"]) => void; unitLabel?: string
-  disabled?: boolean; noBaseline?: boolean; error?: string
+  disabled?: boolean; noBaseline?: boolean; error?: string; unrestricted?: boolean; hideLabel?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [initialValue] = useState(() => value === null ? "" : String(value))
@@ -87,10 +88,10 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
   }, [entry])
   const message = entry.invalid ? "Enter a valid number." : error
   return <div className={styles.field}>
-    <div className={styles.labelRow}><label id={`${id}-label`} htmlFor={id} className={styles.label}>{label}</label></div>
+    <div className={hideLabel ? styles.srOnly : styles.labelRow}><label id={`${id}-label`} htmlFor={id} className={styles.label}>{label}</label></div>
     <div className={styles.valueControl}>
-      <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={0}
-        max={unit === "percent" ? 100 : undefined} step={unit === "count" ? 1 : "any"}
+      <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={unrestricted ? undefined : 0}
+        max={!unrestricted && unit === "percent" ? 100 : undefined} step={!unrestricted && unit === "count" ? 1 : "any"}
         disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? "Enter value" : "Choose a metric and unit"}
         defaultValue={initialValue} aria-labelledby={`${id}-label`} aria-invalid={Boolean(message) || undefined} aria-describedby={message ? `${id}-message` : undefined}
         onInput={event => {
@@ -120,70 +121,42 @@ function SectionHeader({ title, action, optional }: { title: string; action?: Re
   </header>
 }
 
-/** One editor for saved formats. Older values stay in their original schema:
- * arbitrary units, evidence and review periods cannot be losslessly coerced to v2. */
+/** All saved formats use this one renderer and its controls. */
 export function MeasurementPlanFields<T extends ExpectedImpactDraft>({ value, onChange, ...props }: {
   value: T; onChange: (value: T) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean
 }) {
-  return value.kind === "measurement"
-    ? <MeasurementFields value={value} onChange={next => onChange(next as T)} {...props} />
-    : <ExistingMeasurementFields value={value} onChange={next => onChange(next as T)} disabled={props.disabled} />
+  const source = JSON.stringify(expectedImpactDraftSchema.parse(value))
+  const [editor, setEditor] = useState(() => ({ source, plan: measurementEditorValue(value) }))
+  if (editor.source !== source) setEditor({ source, plan: measurementEditorValue(value) })
+  const recovery = value.kind !== "measurement" ? value.guardrailEdit : undefined
+  return <><MeasurementFields value={editor.plan} legacy={value.kind !== "measurement"}
+    onChange={next => {
+      const converted = measurementEditorChanges(next, value)
+      const saved = { ...converted, ...(recovery ? { guardrailEdit: recovery } : {}) } as T
+      // Keep in-progress picker choices (e.g. a custom metric before it has a
+      // name) even when the older saved format cannot encode that UI state.
+      setEditor({ source: JSON.stringify(expectedImpactDraftSchema.parse(saved)), plan: next })
+      onChange(saved)
+    }} {...props} />
+    {recovery && value.kind !== "measurement" && <div>
+      <p>Finish or cancel the guardrail changes restored from your draft.</p>
+      <Button type="button" variant="secondary" disabled={props.disabled || !guardrailSchema.safeParse(value.guardrail).success} onClick={() => {
+        const next = { ...value }; if (next.kind === "measurement") return; delete next.guardrailEdit; onChange(next)
+      }}>Keep guardrail changes</Button>
+      <Button type="button" variant="ghost" disabled={props.disabled} onClick={() => {
+        const next = { ...value }; if (next.kind === "measurement") return; delete next.guardrailEdit
+        if (recovery.previous) next.guardrail = recovery.previous
+        else delete next.guardrail
+        onChange(next)
+      }}>Cancel guardrail</Button>
+    </div>}
+  </>
 }
 
-type ExistingImpact = Exclude<ExpectedImpactDraft, { kind: "measurement" }>
-function ExistingMeasurementFields({ value, onChange, disabled }: {
-  value: ExistingImpact; onChange: (value: ExistingImpact) => void; disabled?: boolean
-}) {
-  const prefix = useId()
-  const guardrail = value.guardrail
-  const number = (label: string, current: number | null, update: (next: number | null) => void, max?: number) =>
-    <Input label={label} type="number" step="any" max={max} value={current ?? ""} disabled={disabled}
-      placeholder="Not recorded" onChange={event => update(Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : null)} />
-  return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan}>
-    <fieldset disabled={disabled} className={styles.body}>
-      <section className={styles.section} aria-label={value.kind === "metric" ? "Primary metric" : "Verified result"}>
-        <SectionHeader title={value.kind === "metric" ? "Primary metric" : "Verified result"} />
-        {value.kind === "metric" ? <>
-          <div className={styles.twoColumns}>
-            <Input label="Metric name" value={value.metric} maxLength={IMPACT_METRIC_MAX} disabled={disabled} onChange={event => onChange({ ...value, metric: event.target.value })} />
-            <Input label="Unit" value={value.unit} maxLength={IMPACT_UNIT_MAX} disabled={disabled} onChange={event => onChange({ ...value, unit: event.target.value })} />
-          </div>
-          <div className={styles.twoColumns}>
-            {number("Current value", value.baseline, baseline => onChange({ ...value, baseline }))}
-            {number("Target after release", value.target, target => onChange({ ...value, target }))}
-          </div>
-        </> : <Textarea label="Verified result" value={value.result} maxLength={IMPACT_RESULT_MAX} disabled={disabled} onChange={event => onChange({ ...value, result: event.target.value })} />}
-      </section>
-      <section className={styles.section} aria-label="Measurement">
-        <SectionHeader title="Define measurement" />
-        <div className={styles.twoColumns}>
-          {number("Days after release", value.reviewAfterDays, reviewAfterDays => onChange({ ...value, reviewAfterDays }), IMPACT_REVIEW_DAYS_MAX)}
-          <Input label="Evidence source" value={value.source} maxLength={IMPACT_SOURCE_MAX} disabled={disabled} onChange={event => onChange({ ...value, source: event.target.value })} />
-        </div>
-      </section>
-      {guardrail && <section className={styles.section} aria-label="Guardrail 1">
-        <SectionHeader title="Guardrail" optional action={<Button type="button" variant="ghost" size="sm" disabled={disabled} aria-label="Remove guardrail 1"
-          onClick={() => { const next = { ...value }; delete next.guardrail; delete next.guardrailEdit; onChange(next) }}>Remove</Button>} />
-        <div className={styles.twoColumns}>
-          <Input label="Guardrail metric" value={guardrail.metric} maxLength={IMPACT_METRIC_MAX} disabled={disabled} onChange={event => onChange({ ...value, guardrail: { ...guardrail, metric: event.target.value } })} />
-          <CompactSelect id={`${prefix}-boundary`} label="Boundary" value={guardrail.operator} options={boundaries} disabled={disabled}
-            icon={<ShieldCheck className={styles.icon} aria-hidden="true" />} onChange={operator => onChange({ ...value, guardrail: { ...guardrail, operator: operator as typeof guardrail.operator } })} />
-        </div>
-        <div className={styles.twoColumns}>
-          {number("Limit value", guardrail.limit, limit => onChange({ ...value, guardrail: { ...guardrail, limit } }))}
-          <Input label="Guardrail unit" value={guardrail.unit} maxLength={IMPACT_UNIT_MAX} disabled={disabled} onChange={event => onChange({ ...value, guardrail: { ...guardrail, unit: event.target.value } })} />
-        </div>
-      </section>}
-      {!guardrail && <Button type="button" variant="ghost" size="sm" disabled={disabled} className={styles.addGuardrail}
-        onClick={() => onChange({ ...value, guardrail: { ...EMPTY_GUARDRAIL } })}><Plus className={styles.icon} aria-hidden="true" />Add guardrail</Button>}
-    </fieldset>
-  </section>
-}
-
-function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false }: {
-  value: MeasurementPlanDraft; onChange: (value: MeasurementPlanDraft) => void
-  requestType: RequestType | null; disabled?: boolean; submitted?: boolean
+function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, legacy }: {
+  value: EditorPlan; onChange: (value: EditorPlan) => void
+  requestType: RequestType | null; disabled?: boolean; submitted?: boolean; legacy: boolean
 }) {
   const prefix = useId()
   const addRef = useRef<HTMLButtonElement>(null)
@@ -210,14 +183,14 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
     focusAfterAdd.current = null
   })
   const parsed = measurementPlanSchema.safeParse(value)
-  const issues = parsed.success ? [] : parsed.error.issues
+  const issues = legacy || parsed.success ? [] : parsed.error.issues
   const error = (path: string, edited = false) => submitted || edited ? issues.find(issue => issue.path.join(".") === path)?.message : undefined
   const primary = value.primary
   const measurement = value.measurement
   const primaryException = requestType === "new_feature" && primary.noBaseline
-  const typeIssue = measurementRequestTypeIssue(value, requestType)
-  const changePrimary = (next: Partial<MeasurementPrimaryDraft>) => onChange({ ...value, primary: { ...primary, ...next } })
-  const changeGuardrail = (index: number, next: Partial<MeasurementGuardrailDraft>) => onChange({ ...value, guardrails: value.guardrails.map((guardrail, position) => position === index ? { ...guardrail, ...next } : guardrail) })
+  const typeIssue = measurementRequestTypeIssue(legacy ? { kind: "metric", noBaseline: primary.noBaseline, baseline: primary.current } : value, requestType)
+  const changePrimary = (next: Partial<EditorPrimary>) => onChange({ ...value, version: 4, primary: { ...primary, ...next } })
+  const changeGuardrail = (index: number, next: Partial<EditorGuardrail>) => onChange({ ...value, version: 4, guardrails: value.guardrails.map((guardrail, position) => position === index ? { ...guardrail, ...next } : guardrail) })
   function changeUnit(metric: Metric, next: Metric["unit"], update: (metric: Metric) => void) {
     const conversion = ["seconds", "minutes"].includes(metric.unit) && ["seconds", "minutes"].includes(next)
     if (metric.unit !== next && !conversion && (metric.current !== null || ("target" in metric && metric.target !== null) || ("limit" in metric && metric.limit !== null))) {
@@ -225,49 +198,43 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
     }
     update(changeMetricUnit(metric, next))
   }
-  function changeMeasurement(next: Partial<MeasurementPlanDraft["measurement"]>) {
+  function changeMeasurement(next: Partial<EditorPlan["measurement"]>) {
     onChange({ ...value, measurement: { ...measurement, ...next } })
   }
   const windowLabel = measurement.exactDates
     ? measurement.startDate && measurement.endDate
       ? `${formatDate(measurement.startDate)} to ${formatDate(measurement.endDate)}`
       : "Custom date range"
-    : measurement.windowDays === 30 ? "Measurement dates" : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
-  const metricPicker = (metric: Metric, path: string, update: (key: Metric["key"]) => void, guardrail = false) => <CompactSelect
-    id={`${prefix}-${path}-key`} label={guardrail ? "Guardrail metric" : "Metric"} hideLabel value={metric.key}
-    options={guardrail ? GUARDRAIL_METRIC_OPTIONS : MEASUREMENT_METRIC_OPTIONS} placeholder="Choose a metric"
-    selectedLabel={metric.key ? measurementMetricLabel(metric) : undefined} onChange={key => update(key as Metric["key"])}
-    disabled={disabled} error={error(`${path}.key`)} icon={<ChartNoAxesColumnIncreasing className={styles.icon} aria-hidden="true" />} />
-  const customFields = (metric: Metric, path: string, update: (next: Partial<Metric>) => void) => metric.key === "custom" ? <div className={styles.twoColumns}>
-    <Input id={`${prefix}-${path}-name`} label="Metric name" value={metric.name} maxLength={120} disabled={disabled}
-      error={error(`${path}.name`)} onChange={event => update({ name: event.target.value })} />
-    <CompactSelect id={`${prefix}-${path}-custom-unit`} label="Unit" value={metric.unit} options={measurementUnitOptions(metric.key)}
-      placeholder="Choose a unit" disabled={disabled} error={error(`${path}.unit`)} icon={<Ruler className={styles.icon} aria-hidden="true" />}
-      onChange={unit => changeUnit(metric, unit as Metric["unit"], update)} />
-  </div> : null
+    : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : measurement.windowDays === 30 ? "Measurement dates" : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
+  const metricPicker = (metric: Metric, path: string, update: (key: Metric["key"], name?: string) => void, guardrail = false) => <MeasurementMetricPicker
+    id={`${prefix}-${path}-key`} metric={metric} guardrail={guardrail} disabled={disabled}
+    error={error(`${path}.key`) || error(`${path}.name`)} onSelect={update} />
 
   return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan}>
     <fieldset disabled={disabled} className={styles.body}>
       <section className={styles.section} aria-label="Primary metric">
         <SectionHeader title="Primary metric" />
         <div className={styles.metricRow}>
-          {metricPicker(primary, "primary", key => { setNotice(""); onChange({ ...value, primary: createMeasurementPrimary(key) }) })}
+          {metricPicker(primary, "primary", (key, name) => { setNotice(""); onChange({ ...value, version: 4, primary: { ...createMeasurementPrimary(key), ...(name ? { name, unit: "percent" } : {}) } }) })}
         </div>
-        {customFields(primary, "primary", next => changePrimary(next as Partial<MeasurementPrimaryDraft>))}
         {primary.key && (primary.key === "check" ? <>
-          <CompactSelect id={`${prefix}-check`} label="Test case" value={primary.check} options={checkOptions} placeholder="Choose a test case"
-            disabled={disabled} error={error("primary.check")} onChange={check => changePrimary({ check: check as MeasurementPrimaryDraft["check"] })}
+          <CompactSelect id={`${prefix}-check`} label="Test case" value={legacy && !primary.check && value.verificationResult !== undefined ? "saved" : primary.check} options={legacy && value.verificationResult !== undefined ? [{ value: "saved", label: "Saved verified result" }, ...checkOptions] : checkOptions} placeholder="Choose a test case"
+            disabled={disabled} error={error("primary.check")} onChange={check => onChange({ ...value,
+              primary: { ...primary, check: check === "saved" ? "" : check as EditorPrimary["check"] },
+              ...(legacy && check !== "saved" ? { verificationResult: checks[check as keyof typeof checks].pass } : {}),
+            })}
             icon={<ListChecks className={styles.icon} aria-hidden="true" />} />
+          {legacy && !primary.check && value.verificationResult !== undefined && <Textarea label="Verified result" value={value.verificationResult} maxLength={IMPACT_RESULT_MAX} disabled={disabled} onChange={event => onChange({ ...value, verificationResult: event.target.value })} />}
           {primary.check && <div className={styles.checkDefinition}><h3>Test steps</h3><p>{checks[primary.check].steps}</p><h3>Pass criterion</h3><p>{checks[primary.check].pass}</p></div>}
         </> : <>
           <div className={styles.twoColumns}>
-            <NumberField id={`${prefix}-current`} label="Current value" value={primary.current} metricKey={primary.key} unit={primary.unit} disabled={disabled} noBaseline={primaryException}
+            <NumberField unrestricted={legacy} id={`${prefix}-current`} label="Current value" value={primary.current} metricKey={primary.key} unit={primary.unit} disabled={disabled} noBaseline={primaryException}
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
-              unitOptions={measurementUnitOptions(primary.key)}
-              onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as MeasurementPrimaryDraft }))} />
-            <NumberField id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
+              unitOptions={editorUnitOptions(primary)}
+              onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, version: 4, primary: metric as EditorPrimary }))} />
+            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
-              unitOptions={measurementUnitOptions(primary.key)} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as MeasurementPrimaryDraft }))} />
+              unitOptions={editorUnitOptions(primary)} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, version: 4, primary: metric as EditorPrimary }))} />
           </div>
           {(requestType === "new_feature" || primary.noBaseline) && primary.key && <Checkbox
             label="No existing data. This is a brand-new feature." checked={primary.noBaseline} disabled={disabled}
@@ -279,10 +246,10 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
       <section className={styles.section} aria-label="Measurement">
         <SectionHeader title="Define measurement" />
         <div className={styles.measurementPills}>
-          <CompactSelect id={`${prefix}-audience`} label="Audience" hideLabel value={measurement.audience} options={audiences} disabled={disabled}
+          <CompactSelect id={`${prefix}-audience`} label="Audience" placeholder="Audience" hideLabel value={measurement.audience} options={audiences} disabled={disabled}
             selectedLabel={measurement.audience === "custom" ? measurement.audienceName?.trim() || "Custom audience" : undefined}
             icon={<Users className={styles.icon} aria-hidden="true" />} onChange={audience => changeMeasurement({ audience: audience as typeof measurement.audience })} />
-          <CompactSelect id={`${prefix}-platform`} label="Platform" hideLabel value={measurement.platform} options={platforms} disabled={disabled}
+          <CompactSelect id={`${prefix}-platform`} label="Platform" placeholder="Platform" hideLabel value={measurement.platform} options={platforms} disabled={disabled}
             selectedLabel={measurement.platform === "custom" ? measurement.platformName?.trim() || "Custom platform" : undefined}
             icon={<Monitor className={styles.icon} aria-hidden="true" />} onChange={platform => changeMeasurement({ platform: platform as typeof measurement.platform })} />
           <DropdownMenu label="Measurement window" onContentKeyDown={event => event.stopPropagation()}
@@ -298,7 +265,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               <span className={styles.triggerContent}><CalendarDays className={styles.icon} aria-hidden="true" /><span id={`${prefix}-window-value`} className={styles.triggerText}>{windowLabel}</span></span>
             </Button>}
             items={[
-              ...windows.map(option => ({
+              ...(legacy && measurement.windowDays !== null && !windows.some(option => Number(option.value) === measurement.windowDays) ? [...windows, { value: String(measurement.windowDays), label: `${measurement.windowDays} days after release` }] : windows).map(option => ({
                 label: option.label,
                 icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
                 trailingIcon: <Check className={styles.menuCheck} data-selected={!measurement.exactDates && option.value === String(measurement.windowDays)} aria-hidden="true" />,
@@ -308,6 +275,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
                 onSelect: () => { openDatesAfterMenu.current = true } },
             ]} />
         </div>
+        {legacy && <Input label="Evidence source" value={value.evidenceSource ?? ""} maxLength={IMPACT_SOURCE_MAX} disabled={disabled} onChange={event => onChange({ ...value, evidenceSource: event.target.value })} />}
         {(measurement.audience === "custom" || measurement.platform === "custom") && <div className={styles.twoColumns}>
           {measurement.audience === "custom" && <Input label="Custom audience" value={measurement.audienceName ?? ""} maxLength={MEASUREMENT_SCOPE_NAME_MAX} disabled={disabled}
             error={error("measurement.audienceName")} onChange={event => changeMeasurement({ audienceName: event.target.value })} />}
@@ -329,20 +297,17 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               onChange({ ...value, guardrails: value.guardrails.filter((_, position) => position !== index) })
             }}>Remove</Button>} />
           <div className={styles.metricRow}>
-            {metricPicker(guardrail, path, key => changeGuardrail(index, createMeasurementGuardrail(key as MeasurementGuardrailDraft["key"])), true)}
-            {guardrail.key && <CompactSelect id={`${prefix}-${path}-boundary`} label="Boundary" hideLabel value={guardrail.operator} options={boundaries} disabled={disabled}
-              icon={<ShieldCheck className={styles.icon} aria-hidden="true" />} onChange={operator => changeGuardrail(index, { operator: operator as MeasurementGuardrailDraft["operator"] })} />}
+            {metricPicker(guardrail, path, (key, name) => changeGuardrail(index, { ...createMeasurementGuardrail(key as EditorGuardrail["key"]), ...(name ? { name, unit: "percent" } : {}) }), true)}
           </div>
-          {customFields(guardrail, path, next => changeGuardrail(index, next as Partial<MeasurementGuardrailDraft>))}
-          {guardrail.key && <div className={styles.twoColumns}>
-            <NumberField id={`${prefix}-${path}-current`} label="Current value" value={guardrail.current} metricKey={guardrail.key} unit={guardrail.unit} disabled={disabled}
-              error={error(`${path}.current`, guardrail.current !== null)} onChange={current => changeGuardrail(index, { current })}
-              unitOptions={measurementUnitOptions(guardrail.key)} unitLabel="Guardrail current value unit"
-              onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as MeasurementGuardrailDraft))} />
-            <NumberField id={`${prefix}-${path}-limit`} label="Limit value" value={guardrail.limit} metricKey={guardrail.key} unit={guardrail.unit} disabled={disabled}
+          {guardrail.key && <div className={styles.thresholdRow}>
+            <CompactSelect id={`${prefix}-${path}-boundary`} label="Comparison" hideLabel value={guardrail.operator}
+              indicatorPosition="left" options={boundaries.map(option => ({ ...option, trailing: option.symbol }))} disabled={disabled}
+              onChange={operator => changeGuardrail(index, { operator: operator as EditorGuardrail["operator"] })} />
+            <NumberField hideLabel unrestricted={legacy} id={`${prefix}-${path}-limit`} label="Value" value={guardrail.limit} metricKey={guardrail.key} unit={guardrail.unit} disabled={disabled}
               error={error(`${path}.limit`, guardrail.limit !== null)} onChange={limit => changeGuardrail(index, { limit })}
-              unitOptions={measurementUnitOptions(guardrail.key)} onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as MeasurementGuardrailDraft))} />
+              unitOptions={editorUnitOptions(guardrail)} onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as EditorGuardrail))} />
           </div>}
+
         </section>
       })}
       <Button ref={addRef} type="button" variant="ghost" size="sm" className={styles.addGuardrail} disabled={disabled || value.guardrails.length >= MAX_MEASUREMENT_GUARDRAILS}

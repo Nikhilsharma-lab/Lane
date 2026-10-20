@@ -1,5 +1,7 @@
 "use client"
 
+import { useRequestLabels } from "./request-labels"
+import { requestLabelKeys } from "@/lib/request-labels"
 import { memo, useEffect, useId, useRef, useState } from "react"
 import { Check, Copy, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
@@ -106,6 +108,7 @@ function sameRow(previous: RequestRowProps, next: RequestRowProps) {
 }
 
 export const RequestRow = memo(function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
+  const labels = useRequestLabels(request)
   const presentation = useRequestRowPresentation()
   const identity = presentation?.identities[request.id]
   const savedCode = request.requestNumber === undefined ? null : formatRequestCode(request.requestNumber)
@@ -124,11 +127,11 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // An open row menu keeps the row lit while the pointer is on the menu.
   const [menuOpen, setMenuOpen] = useState(false)
   // Compact rows carry only saved facts; an unset type or Project is not one.
-  const unset = (key: string) => key === "requestType" ? !request.requestType : key === "project" ? !request.projectId : false
+  const unset = (key: string) => key === "requestType" ? !requestLabelKeys(request).length : key === "project" ? !request.projectId : false
   // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
   // stop and carries every value in its name; each control inside it is
   // tabIndex -1 and stays reachable through the row menu or a key.
-  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity)} tabIndex={tabbable ? 0 : -1}
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name))} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
     onFocus={event => { if (event.target === event.currentTarget) prefetch.schedule() }}

@@ -23,18 +23,20 @@ import SegmentedControl from "@/components/arc/segmented-control/segmented-contr
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { CopyButton } from "@/components/requests/copy-button";
 import { LocalTime } from "@/components/requests/local-time";
+import { RequestLabels, LabelDot } from "@/components/requests/request-labels";
+import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { ProjectMarker } from "@/components/projects/project-marker";
 import { statuses } from "@/components/requests/tasks/statuses";
 import { formatRequestCode } from "@/lib/request-code";
 import { requestDetailHref, requestListHref } from "@/lib/request-workspace";
-import type { SearchRequestType, SearchSort, WorkspaceSearchFilters, WorkspaceSearchProject, WorkspaceSearchRequest, WorkspaceSearchResponse } from "@/lib/workspace-search";
+import type { SearchSort, WorkspaceSearchFilters, WorkspaceSearchProject, WorkspaceSearchRequest, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { SidebarExpandButton } from "./sidebar-controls";
 import styles from "./workspace-search-pane.module.css";
 
 type Data = Extract<WorkspaceSearchResponse, { success: true }>;
 type Category = "all" | "requests" | "projects";
 type Match = { kind: "request"; item: WorkspaceSearchRequest } | { kind: "project"; item: WorkspaceSearchProject };
-const TYPES: { value: SearchRequestType; label: string }[] = [{ value: "bug", label: "Bug" }, { value: "improvement", label: "Improvement" }, { value: "new_feature", label: "New feature" }, { value: "none", label: "No type" }];
+function useLabelOptions() { const {labels}=useWorkspaceLabels(); return [...labels.map(label=>({value:label.id,label:label.name,colour:label.colour})),{value:"none",label:"No labels",colour:"grey" as const}]; }
 const SORTS = [{ value: "relevance", label: "Best match" }, { value: "newest", label: "Newest" }, { value: "title", label: "A to Z" }];
 const CATEGORIES: { value: Category; label: string }[] = [{ value: "all", label: "All" }, { value: "requests", label: "Requests" }, { value: "projects", label: "Projects" }];
 const titleOf = (result: Match) => result.kind === "request" ? result.item.title : result.item.name;
@@ -80,7 +82,7 @@ const Preview = memo(function Preview({ result, pattern, timeZone, onNavigate }:
     <div className={styles.previewBody}>{snippet ? <p><Highlight text={snippet} pattern={pattern} /></p> : null}</div>
     <dl className={styles.facts}>
       {status ? <div><dt>Status</dt><dd><Badge tone={status.tone} size="sm">{status.label}</Badge></dd></div> : null}
-      {result.kind === "request" ? <><div><dt>Project</dt><dd>{result.item.projectName ?? "No Project"}</dd></div><div><dt>Request type</dt><dd>{TYPES.find(type => type.value === (result.item.requestType ?? "none"))?.label}</dd></div></> : null}
+      {result.kind === "request" ? <><div><dt>Project</dt><dd>{result.item.projectName ?? "No Project"}</dd></div><div><dt>Labels</dt><dd><RequestLabels request={result.item} /></dd></div></> : null}
       {item.createdAt ? <div><dt>Created</dt><dd><LocalTime iso={item.createdAt} timeZone={timeZone} /></dd></div> : null}
     </dl>
     <div className={styles.previewActions}>
@@ -121,14 +123,15 @@ type FacetProps = { data: Data | null; filters: WorkspaceSearchFilters; category
 /** Memoised: counts come from the last server answer, so a keystroke re-renders no facet. */
 const Facets = memo(function Facets({ data, filters, category, onCategory, onChange, onDates }: FacetProps) {
   const total = (value: Category) => data ? value === "all" ? data.requests.total + data.projects.total : data[value].total : null;
+  const TYPES=useLabelOptions();
   return <div className={styles.facets}>
     <div className={styles.searchIn}><RadioGroup label="Search in" value={category} onValueChange={value => onCategory(value as Category)}
       options={CATEGORIES.map(option => { const count = total(option.value); return { ...option, description: count === null ? undefined : countLabel(count) }; })} /></div>
     <fieldset className={styles.facetGroup}><legend>Request status</legend>
       {statuses.map(status => { const on = filters.statuses?.includes(status.value) ?? false; const count = data?.facets ? data.facets.statuses[status.value] ?? 0 : undefined; return <div className={styles.option} key={status.value}><Checkbox label={status.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, statuses: checked ? [...(filters.statuses ?? []), status.value] : filters.statuses?.filter(value => value !== status.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
-    <fieldset className={styles.facetGroup}><legend>Request type</legend>
-      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
+    <fieldset className={styles.facetGroup}><legend>Labels</legend>
+      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><LabelDot colour={type.colour}/><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
     <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{dayLabel(filters.createdFrom)} to {dayLabel(filters.createdTo!)}</span> : null}</div>
   </div>;
@@ -150,6 +153,7 @@ type Props = {
 };
 
 export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data, facets, settled, loading, failure, filters, sort, maxLength, timeZone, onEdit, onSubmit, onClose, onLoadMore, onRetry, onOpen, onFiltersChange, onSortChange, onNavigate }: Props) {
+  const TYPES=useLabelOptions();
   const uid = useId();
   const reduced = useReducedMotion();
   const dateTrigger = useRef<HTMLElement | null>(null);
@@ -204,7 +208,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   const chips: FilterChip[] = [
     ...(category === "all" ? [] : [{ id: "category", label: "Search in", value: category === "requests" ? "Requests" : "Projects" }]),
     ...(filters.statuses ?? []).map(value => ({ id: `status:${value}`, label: "Status", value: statuses.find(status => status.value === value)!.label })),
-    ...(filters.types ?? []).map(value => ({ id: `type:${value}`, label: "Type", value: TYPES.find(type => type.value === value)!.label })),
+    ...(filters.types ?? []).map(value => ({ id: `type:${value}`, label: "Labels", value: TYPES.find(type => type.value === value)?.label ?? "Saved label" })),
     ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${dayLabel(filters.createdFrom)} to ${dayLabel(filters.createdTo!)}` }] : []),
   ];
   const filterCount = chips.length;

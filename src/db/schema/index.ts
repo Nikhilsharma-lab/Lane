@@ -4,3 +4,5 @@ export * from "./request-attachments";
 export * from "./comments";
 export * from "./notifications";
 export * from "./projects";
+
+export * from "./labels";

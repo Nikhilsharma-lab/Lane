@@ -37,3 +37,16 @@
   .compactButton, .addGuardrail { min-height: var(--sb-size-inner-xlarge); }
   .numericInput { min-height: calc(var(--sb-size-inner-xlarge) + var(--space-2)); }
 }
+
+:global([role="option"]):has(.customMetricIcon) { color: var(--accent); }
+:global([role="option"]):has(.customMetricIcon) > span { color: var(--accent); }
+
+.thresholdRow { display: grid; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+.thresholdRow > .field:first-child .compactButton { min-height: calc(var(--control-height-sm) + var(--space-2)); }
+.metricPanel { width: calc(var(--sb-spacing) * 80); max-width: calc(100vw - var(--space-8)); }
+.metricOptions { display: grid; max-height: calc(var(--sb-spacing) * 60); overflow-y: auto; }
+.metricOption { width: 100%; justify-content: flex-start; gap: var(--space-2); }
+.metricCheck { width: var(--icon-size-md); height: var(--icon-size-md); flex: none; visibility: hidden; }
+.metricCheck[data-selected="true"] { visibility: visible; }
+.createMetric { color: var(--accent); }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

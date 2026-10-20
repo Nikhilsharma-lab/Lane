@@ -14,7 +14,7 @@ import {
 import { sql } from "drizzle-orm";
 import { organizations, profiles } from "./users";
 import { projects } from "./projects";
-import type { ExpectedImpact } from "@/lib/request-impact";
+import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
 import type { DesignReview } from "@/lib/request-review";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
@@ -44,8 +44,10 @@ export const requests = pgTable(
     requestNumber: integer("request_number").notNull().default(0),
     projectId: uuid("project_id"),
     requestType: requestTypeEnum("request_type"),
+    labelKeys: text("label_keys").array(),
     priority: requestPriorityEnum("priority").notNull().default("none"),
     expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
+    measurementDraft: jsonb("measurement_draft").$type<IncompleteMeasurement>(),
     designReviews: jsonb("design_reviews").$type<DesignReview[]>().notNull().default([]),
     designReviewVersion: integer("design_review_version").notNull().default(0),
     title: text("title").notNull(),

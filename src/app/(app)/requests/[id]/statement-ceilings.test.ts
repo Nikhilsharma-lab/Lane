@@ -32,6 +32,7 @@ beforeAll(async () => {
   session.userId = MEMBER; session.orgId = ORG; session.orgRole = "org:member";
 });
 beforeEach(async () => {
+  session.userId = MEMBER; session.orgRole = "org:member";
   requestId = randomUUID();
   // Submitted by someone else, so every lifecycle move also writes a notification.
   await connection`insert into requests (id,org_id,title,description,created_by) values (${requestId},${ORG},'Ceiling probe','A Request',${REQUESTER})`;
@@ -69,6 +70,7 @@ describe("statement ceilings per Request mutation", () => {
   });
 
   it("setRequestPriority succeeds in one statement", async () => {
+    session.userId = REQUESTER;
     const { setRequestPriority } = await api();
     const { result, statements } = await measure(() => setRequestPriority(requestId, "high", { orgId: ORG }));
     expect(result).toEqual({ success: true, priority: "high" });

@@ -61,11 +61,8 @@ describe("measurement pickup readiness", () => {
     expect(await saved()).toMatchObject({ status: "open", assigned_to: null });
     expect(await saved(ready)).toMatchObject({ status: "in_progress", assigned_to: MEMBER });
   });
-  it("requires guardrail values even for an explicit new-feature primary exception", async () => {
+  it("allows pickup with a threshold and an explicit new-feature primary exception", async () => {
     const value = plan(); value.primary.noBaseline = true;
-    await setPlan(value, "new_feature");
-    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
-    value.guardrails[0].current = 0;
     await setPlan(value, "new_feature");
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
   });
@@ -105,9 +102,9 @@ describe("requester current-value recovery", () => {
     expect(await saved()).toEqual({ expected_impact: { ...plan(), primary: { ...plan().primary, current: 0 }, guardrails: [{ ...plan().guardrails[0], current: 0 }] }, status: "open", assigned_to: null });
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
   });
-  it("allows a requester to save partial current values without making the Request ready", async () => {
+  it("allows pickup after saving the primary value without a guardrail baseline", async () => {
     expect(await (await api()).saveRequestCurrentValues(requestId, patch(plan(), 35, [null]), { orgId: ORG })).toMatchObject({ success: true });
-    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
+    expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
     expect((await saved()).expected_impact.primary.current).toBe(35);
   });
   it("allows a guest to add values to their own Request but still forbids pickup", async () => {

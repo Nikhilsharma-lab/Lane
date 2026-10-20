@@ -27,6 +27,9 @@
 .item[data-disabled] { opacity: .45; }
 .optionIcon { display: inline-flex; align-items: center; flex: none; width: var(--icon-size-md); height: var(--icon-size-md); margin-inline-end: var(--space-2); }
 .indicator { position: absolute; right: calc(var(--space-1) * 2.5); display: inline-flex; align-items: center; color: var(--foreground); animation: indicator-in var(--duration-standard) var(--ease-enter) calc(var(--duration-standard) * 0.2) both; }
+.item[data-indicator-position="left"] { padding-inline: calc(var(--space-2) + var(--icon-size-md) + var(--space-2)) var(--space-2); gap: var(--space-3); }
+.item[data-indicator-position="left"] .indicator { left: var(--space-2); right: auto; }
+.trailing { display: inline-flex; flex: none; margin-inline-start: auto; color: var(--accent); }
 .scrollButton { display: grid; height: calc(var(--space-1) * 7); place-items: center; color: var(--text-muted); }
 @keyframes select-in { from { opacity: 0; transform: translate(var(--menu-x), var(--menu-y)) scale(.97); } }
 @keyframes select-out { to { opacity: 0; transform: translate(calc(var(--menu-x) / 2), calc(var(--menu-y) / 2)) scale(.98); } }

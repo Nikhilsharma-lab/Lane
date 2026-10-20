@@ -1,0 +1,20 @@
+/* Clerk owns the controls and table semantics; Lane supplies shared visual tokens. */
+.action { color: var(--foreground); }
+.action:hover { color: var(--foreground); }
+
+@media (max-width: 480px) {
+  .membersPage .table { width: 100%; table-layout: fixed; }
+  .membersPage .table th,
+  .membersPage .table td { padding: var(--space-2) calc(var(--sb-spacing) / 2); white-space: normal; overflow-wrap: anywhere; }
+  .membersPage .table th:first-child { width: 36%; }
+  .membersPage .table th:nth-child(2) { width: 27%; }
+  .membersPage .table th:nth-child(3) { width: 21%; }
+  .membersPage .table th:nth-child(4) { width: 16%; }
+  .membersPage .table :global(.cl-userPreview) { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+  .membersPage .table :global(.cl-userPreviewMainIdentifier) { flex-wrap: wrap; }
+  .membersPage .table :global(.cl-userPreviewTextContainer) { min-width: 0; max-width: 100%; }
+  .membersPage .table :global(.cl-userPreviewMainIdentifier),
+  .membersPage .table :global(.cl-userPreviewMainIdentifierText),
+  .membersPage .table :global(.cl-userPreviewSecondaryIdentifier),
+  .membersPage .table :global(.cl-formattedDate) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+}

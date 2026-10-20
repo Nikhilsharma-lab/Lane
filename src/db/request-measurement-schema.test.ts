@@ -86,3 +86,21 @@ describe("versioned measurement database constraint", () => {
     expect(legacy.ready).toBe(true);
   });
 });
+
+it.each(["less_than", "greater_than", "equal_to", "at_most", "at_least"])("round-trips v3 comparison %s and permits pickup without guardrail current values", async operator => {
+  const snapshot = { ...plan, version: 3, primary: { ...plan.primary, current: 0 }, guardrails: [{ key: "error", name: "", unit: "percent", current: null, noBaseline: false, operator, limit: 5 }] };
+  const [saved] = await insert(snapshot);
+  expect(saved.expected_impact).toEqual(snapshot);
+  const [ready] = await connection`select public.request_measurement_ready(${connection.json(snapshot)}, null) as ready`;
+  expect(ready.ready).toBe(true);
+  await expect(insert({ ...snapshot, guardrails: [{ ...snapshot.guardrails[0], operator: "approximately" }] })).rejects.toMatchObject({ code: "23514" });
+});
+
+it.each(["percent", "count", "minutes", "seconds"])("round-trips v4 %s for every numeric metric", async unit => {
+  for (const key of ["conversion", "adoption", "error", "support", "csat", "duration", "events", "custom"]) {
+    const snapshot = { ...plan, version: 4, primary: { ...plan.primary, key, name: "Custom", unit, current: 2 }, guardrails: [{ key, name: "Custom", unit, current: null, noBaseline: false, operator: "equal_to", limit: 3 }] };
+    const [saved] = await insert(snapshot);
+    expect(saved.expected_impact).toEqual(snapshot);
+    await expect(insert({ ...snapshot, primary: { ...snapshot.primary, unit: "unknown" } })).rejects.toMatchObject({ code: "23514" });
+  }
+});

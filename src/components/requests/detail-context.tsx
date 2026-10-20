@@ -7,7 +7,7 @@ import { useDetailSession, useSetDetailSession } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { settleSequence } from "./request-sequence"
 
-export type DetailViewer = { id: string; name: string }
+export type DetailViewer = { id: string; name: string; isAdmin?: boolean }
 
 export type DetailRequestValue = {
   /** The server row through the pending-mutation overlay: a move or a priority shows in the same frame. */

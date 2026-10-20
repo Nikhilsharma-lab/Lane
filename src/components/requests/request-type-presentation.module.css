@@ -1,4 +1,0 @@
-.icon[data-request-type="none"] { color: var(--text-muted); }
-.icon[data-request-type="bug"] { color: var(--state-danger-icon); }
-.icon[data-request-type="improvement"] { color: var(--state-info-icon); }
-.icon[data-request-type="new_feature"] { color: var(--state-success-icon); }

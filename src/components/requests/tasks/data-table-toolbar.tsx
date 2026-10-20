@@ -11,7 +11,8 @@ import SegmentedControl from "@/components/arc/segmented-control/segmented-contr
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
 import { ProjectMarker } from "@/components/projects/project-marker"
-import { requestTypeOptions } from "../request-type-presentation"
+import { useWorkspaceLabels } from "../workspace-labels"
+import { LabelDot } from "../request-labels"
 import { isRequestStatusFilter } from "@/lib/request-workspace"
 import type { OverviewRequest, RequestGrouping, RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
@@ -30,6 +31,8 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   ordering: RequestOrdering; grouping: RequestGrouping; onOrderingChange: (value: RequestOrdering) => void; onGroupingChange: (value: RequestGrouping) => void;
   onFilterChange: (id: string, value: string) => void; onStatusChange: (value: RequestStatusFilter) => void; onVisibilityChange: (value: Record<string, boolean>) => void; onClear: () => void
 }) {
+  const { labels } = useWorkspaceLabels()
+  const requestTypeOptions = [{ value: "none", label: "No labels", icon: <span /> }, ...labels.map(label => ({ value: label.id, label: label.name, icon: <LabelDot colour={label.colour} /> }))]
   const titleInput = useRef<HTMLInputElement>(null)
   const preview = summaryOpen !== undefined
   const sharedProjects = useSharedWorkspaceProjects()
@@ -47,7 +50,7 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   const fields = [
     { id: "status", label: "Status", options: statuses.map(item => ({ value: item.value, label: item.label, hint: summaryOpen !== undefined ? data.filter(row => row.status === item.value).length : undefined, icon: <item.icon aria-hidden="true" /> })) },
     { id: "project", label: "Project", options: [{ value: "none", label: noProjectLabel, icon: <ProjectMarker projectId={null} /> }, ...projects.map(([value, label]) => ({ value, label, icon: <ProjectMarker projectId={value} />, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === value).length : undefined }))] },
-    { id: "requestType", label: "Request type", options: requestTypeOptions },
+    { id: "requestType", label: "Labels", options: requestTypeOptions },
   ]
   const chips: FilterChip[] = fields.flatMap(field => { const value = field.id === "status" ? filter === "all" ? "" : filter : field.id === "project" ? project : requestType; return value ? [{ id: field.id, label: field.label, value: field.options.find(option => option.value === value)?.label ?? value }] : [] })
   const displayedChips: FilterChip[] = [...(title ? [{ id: "title", label: "Title", value: title }] : []), ...chips]

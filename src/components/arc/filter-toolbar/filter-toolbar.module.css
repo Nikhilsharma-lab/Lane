@@ -25,7 +25,7 @@
    Opening springs that same surface to the panel size, so the button itself becomes the menu. */
 .menu { position: relative; display: inline-flex; flex: none; isolation: isolate; }
 .popoverTrigger { width: var(--toolbar-icon-size, calc(var(--space-1) * 10)); min-width: var(--toolbar-icon-size, calc(var(--space-1) * 10)); min-height: var(--toolbar-icon-size, calc(var(--space-1) * 10)); border-radius: var(--radius-control); padding: 0; }
-.filterPopover { width: calc(var(--space-1) * 64); padding: calc(var(--space-1) * 1.5); }
+.filterPopover { width: calc(var(--space-1) * 64); padding: var(--menu-padding); }
 @media (pointer: coarse), (max-width: 640px) { .popoverTrigger { width: calc(var(--space-1) * 11); min-width: calc(var(--space-1) * 11); min-height: calc(var(--space-1) * 11); } }
 .menu[data-icon-only] { --filter-trigger-size: var(--toolbar-icon-size, calc(var(--space-1) * 10)); }
 .menu:not([data-state="closed"]) { z-index: 30; }
@@ -61,7 +61,7 @@
 .list { position: relative; display: grid; max-height: min(calc(var(--space-1) * 80), 55vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .highlight { position: absolute; top: 0; right: 0; left: 0; border-radius: var(--menu-item-radius, var(--radius-control)); background: var(--interaction-focus); opacity: 0; pointer-events: none; }
 .item:focus-visible { outline: none; }
-.item { position: relative; display: flex; min-width: 0; min-height: var(--control-height-sm); align-items: center; gap: calc(var(--space-1) * 2.5); padding: 0 calc(var(--space-1) * 2.5); border: 0; border-radius: var(--menu-item-radius, var(--radius-control)); background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-sm); letter-spacing: var(--tracking-body); text-align: left; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+.item { position: relative; display: flex; min-width: 0; min-height: var(--menu-row-height); align-items: center; gap: var(--menu-item-gap); padding: var(--menu-item-padding); border: 0; border-radius: var(--menu-item-radius, var(--radius-control)); background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-sm); letter-spacing: var(--tracking-body); text-align: left; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
 .itemIcon { display: inline-flex; min-width: var(--icon-size-md); flex: none; align-items: center; justify-content: center; color: var(--text-secondary); }
 .itemLabel { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itemMeta { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: calc(var(--space-1) * 1.5); max-width: 50%; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }

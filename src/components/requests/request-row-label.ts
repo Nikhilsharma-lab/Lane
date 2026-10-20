@@ -10,7 +10,7 @@ const STATUS_LABELS = { open: "Open", in_progress: "In Progress", done: "Done" }
  * Bug, Assignee Sam Lee". Dates are left out: they need the viewer's time zone,
  * which the first render does not know.
  */
-export function requestRowLabel(request: OverviewRequest, identity?: { code: string; priority: RequestPriority } | null) {
+export function requestRowLabel(request: OverviewRequest, identity?: { code: string; priority: RequestPriority } | null, labelNames?: string[]) {
   const code = identity?.code || ""
   const title = request.reframedProblem ?? request.title
   const priority = identity?.priority ?? request.priority ?? "none"
@@ -18,7 +18,7 @@ export function requestRowLabel(request: OverviewRequest, identity?: { code: str
     STATUS_LABELS[request.status],
     priority === "none" ? REQUEST_PRIORITY_LABELS.none : `${REQUEST_PRIORITY_LABELS[priority]} priority`,
     request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"),
-    ...(request.requestType ? [REQUEST_TYPE_LABELS[request.requestType]] : []),
+    ...(labelNames ?? (request.requestType ? [REQUEST_TYPE_LABELS[request.requestType]] : [])),
     request.assignedTo ? `Assignee ${request.assigneeName?.trim() || "Unknown member"}` : "No assignee",
   ]
   return `${code ? `${code}, ` : ""}${title}. ${facts.join(", ")}`

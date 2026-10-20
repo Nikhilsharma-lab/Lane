@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import { useState } from "react"
+import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter"
 import { SidebarView, type SidebarViewProps } from "@/components/shell/sidebar-view"
 import { NotificationBellView } from "@/components/shell/notification-bell-view"
 import { RequestListViewProvider, useRequestListView } from "@/components/requests/list-view-state"
@@ -210,16 +211,13 @@ export const IntakeSelected: Story = {
   },
 }
 export const ProfileSelected: Story = {
-  args: { pathname: "/settings/profile" },
+  args: { pathname: "/settings/profile", children: <SettingsCommandAdapter membership="member" workspaceName="Lane Studio" /> },
   play: async ({ canvasElement }) => {
-    const nav = await visibleNavigation(canvasElement)
-    await expect(nav.queryByRole("link", { name: "Profile" })).not.toBeInTheDocument()
-    await userEvent.click(nav.getByRole("button", { name: "Account menu, Nikhil Sharma" }))
-    const settings = await within(canvasElement.ownerDocument.body).findByRole("menuitem", { name: "Settings" })
-    await expect(settings).toHaveAttribute("href", "/settings/profile")
-    await expect(settings).toHaveAttribute("aria-current", "page")
-    await closeAccountMenu(canvasElement)
-    await closeMobile(canvasElement)
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByRole("complementary", { name: "Workspace sidebar" })).not.toBeInTheDocument()
+    await expect(canvas.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible()
+    await expect(canvas.getByRole("link", { name: "Back to Requests" })).toHaveAttribute("href", "/")
+    await expect(canvas.getByRole("link", { name: /^Profile$/ })).toHaveAttribute("aria-current", "page")
   },
 }
 

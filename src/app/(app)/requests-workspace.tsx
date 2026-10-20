@@ -12,17 +12,17 @@ import { RequestsOverview } from "./requests-overview"
 import { EditRequest } from "./requests/[id]/edit-request"
 import { measurementReadiness } from "@/lib/request-measurement"
 
-function RequestDetailPane({ orgId, currentUserId, viewerName, ...props }: {
+function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
-  returnHref: string; orgId: string; isGuest: boolean; currentUserId: string; viewerName: string;
+  returnHref: string; orgId: string; isGuest: boolean; currentUserId: string; viewerName: string; isAdmin: boolean;
 }) {
   const { request, isGuest } = props
   const impact = request.expectedImpact
   const pickupBlockedReason = measurementReadiness(impact, request.requestType)
   const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
-  return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName }}
+  return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }}
     lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
-    editRequest={request.status === "open" && request.createdBy === currentUserId ? <EditRequest request={request} orgId={orgId} /> : undefined}
+    editRequest={request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /> : undefined}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
   />
@@ -89,6 +89,7 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
             orgId={member.orgId}
             currentUserId={member.userId}
             viewerName={workspace.fullName}
+            isAdmin={member.role === "admin"}
             isGuest={isGuest}
           />
         </ListAnnouncerProvider>

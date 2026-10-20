@@ -407,3 +407,18 @@ Upstream Search Results source fingerprints retrieved for this adaptation:
 - `search-results.module.css`: `deb55aeb9ee6233b80fc2b5b9b792023bfc40430d78b07b05064e6d689af4425`
 
 2026-10-18: `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now renders Lane’s shared `ProjectMarker`. The existing ID-to-tone mapping and hollow No Project marker are unchanged; Intake, Request rows/detail, and search reuse the same marker.
+
+### 2026-10-18 Settings Command
+
+Licensed Arc Pro Settings Command retrieved through Arc MCP. `src/components/arc/blocks/settings-command/settings-command.tsx` extracts its command palette, highlighted matching, keyboard selection and morph animation. `src/components/arc/blocks/settings-command/settings-command.module.css` maps its palette styling to existing Supabase-backed tokens. Lane adds accessible search labeling and availability metadata. The application adapter and catalog retain its navigation/search pattern, replace demo data with permission-filtered settings, and route to existing Profile/Members pages. Stock save timers and demo controls are not used. Coming soon panels perform no mutations. Pro source is licensed for Lane only.
+
+Settings composition correction: the Lane adapter now adapts the full block's bounded frame, full-width header/search, 208px icon navigation, continuous section scroller, scroll tracking, 620px section measure and two-column setting rows. Dimensions map to the existing Supabase spacing tokens. Account and organization actions open supported Clerk modals rather than nesting a second navigation system. Existing role/theme immediate saves remain; the stock demo save bar is intentionally omitted because these settings do not share an atomic persistence operation. Future settings are one section, with subgroup headings beneath it.
+
+2026-10-18 Vercel layout correction: user-authorized read-only inspection of signed-in Vercel team General and Account Settings informed the Lane adapter's full-viewport shell, centered content column and filled bordered cards with separate help/action footers. `settings-card.tsx` is a structural wrapper; actual controls remain Arc. Visual values remain Supabase tokens, not copied Vercel colors. Each navigation destination shows one panel; future entries remain grouped in Coming soon with disabled Arc buttons. Role/theme preserve immediate saves and Clerk retains account/organization authority. This supersedes the bounded frame and continuous-scroller description above. The licensed command-palette source and motion remain unchanged.
+
+2026-10-20 dropdown audit: `src/components/arc/filter-toolbar/filter-toolbar.module.css` now consumes the shared menu padding, row height, item padding and gap hooks used by Select and DropdownMenu. Right-hand checkmarks and keyboard behaviour are unchanged. Request popover adapters use the same hooks, with separate shared form spacing for Add Project and Add link.
+The same audit maps `src/components/arc/user-menu/user-menu.module.css` panel inset and action-row padding/gap to those menu hooks; account header, theme controls and workspace selection semantics remain unchanged.
+
+### October 20 — comparison menu anatomy
+
+`src/components/arc/select/select.tsx` adds opt-in `indicatorPosition="left"` and an option `trailing` slot. `src/components/arc/select/select.module.css` aligns the selection mark left and trailing comparison symbols right using the existing accent token. Defaults and Radix keyboard/focus behaviour remain unchanged. Metric search composes the installed Arc Popover, Input and Button with the shared Request picker spacing.

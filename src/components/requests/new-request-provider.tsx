@@ -16,6 +16,7 @@ import { hasIntakeDraft, intakeDraftScope } from "@/lib/intake-draft-key";
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 import { parseRequestListContext, requestDetailHref, requestListHref, type RequestListContext } from "@/lib/request-workspace";
 import { requestRowSelector } from "./list-focus";
+import { isRequestPopoverEvent } from "./request-popover-events";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -252,7 +253,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
             onEscapeKeyDown={event => { if (busy.current) event.preventDefault(); }}
             onInteractOutside={event => {
               const target = event.target;
-              if (busy.current || (target instanceof Element && target.closest("[data-lane-request-property-popover]"))) {
+              if (busy.current || isRequestPopoverEvent(event.detail.originalEvent) || (target instanceof Element && target.closest("[data-lane-request-property-popover]"))) {
                 event.preventDefault();
               }
             }}>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/lib/fonts";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ui } from "@clerk/ui";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { WebVitals } from "@/components/web-vitals";
@@ -10,6 +11,13 @@ import "./globals.css";
 // See docs/design-system/supabase-tokens.md for source and approved differences.
 import "@/styles/supabase-tokens.css";
 import "@/styles/lane-arc-theme.css";
+// Styles used by the root error, global-error and not-found boundaries. Next.js preloads a boundary's CSS on
+// every page so the fallback paints instantly, and Chrome then warns that the file went unused. Loading these
+// small modules here makes them part of the layout's own stylesheet, so the boundaries need no separate file.
+import "@/components/arc/button/button.module.css";
+import "@/components/arc/empty-state/empty-state.module.css";
+import "@/components/shell/page-strip.module.css";
+import "./app-frame.module.css";
 
 export const metadata: Metadata = {
   title: "Lane",
@@ -47,7 +55,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {/* Plan item 1.15b: logs Web Vitals in development; posts nothing in production yet. */}
         <WebVitals />
+        {/* `ui` pins Clerk's components to the installed @clerk/ui version instead of the CDN build,
+            so the members table's .cl-* layout rules (clerk-profile.module.css) cannot break silently
+            and Clerk stops logging its structural_css_pin_clerk_ui warning on every page.
+            `prefetchUI={false}` drops the CDN preload of ui.browser.js, which the bundled UI never uses. */}
         <ClerkProvider
+          ui={ui}
+          prefetchUI={false}
           signInUrl="/login"
           signUpUrl="/signup"
           signInFallbackRedirectUrl="/"

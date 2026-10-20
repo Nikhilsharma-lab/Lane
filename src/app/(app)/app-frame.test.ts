@@ -44,26 +44,37 @@ const skeletons: [string, string, ComponentType, string, string][] = [
   ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
   ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
-  ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "profile", "Loading Profile settings"],
-  ["settings/members/loading.tsx", "/settings/members", MembersLoading, "members", "Loading Members"],
+]
+
+const settingsSkeletons: [string, string, ComponentType, string][] = [
+  ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading Profile settings"],
+  ["settings/members/loading.tsx", "/settings/members", MembersLoading, "Loading Members"],
 ]
 
 describe("(app) loading frames", () => {
   it("covers every loading.tsx under the (app) layout", () => {
     const root = join(process.cwd(), "src/app/(app)")
     const found = (readdirSync(root, { recursive: true }) as string[]).map(path => relative(root, join(root, path)).replaceAll("\\", "/")).filter(path => /(^|\/)loading\.tsx$/.test(path)).sort()
-    expect(found).toEqual(skeletons.map(([file]) => file).sort())
+    expect(found).toEqual([...skeletons, ...settingsSkeletons].map(([file]) => file).sort())
   })
 
   it.each(skeletons)("%s renders one strip, waits, and announces one status", (_file, pathname, Loading, name, label) => {
     const html = inShell(pathname, createElement(Loading))
     expect(strips(html)).toBe(1)
     expect(html).toContain('aria-busy="true"')
-    // Members keeps its unchanged loading.tsx; the Arc Skeleton carries aria-busy there.
-    if (name !== "members") expect(html).toContain(`data-skeleton="${name}"`)
+    expect(html).toContain(`data-skeleton="${name}"`)
     expect(exposedStatuses(html)).toEqual([label])
     // The strip, and with it the expand control, is never inside an aria-hidden block.
     expect(strips(withoutHidden(html))).toBe(1)
+  })
+
+  it.each(settingsSkeletons)("%s preserves Settings navigation and announces one loading status", (_file, pathname, Loading, label) => {
+    const html = inShell(pathname, createElement(Loading))
+    const visible = withoutHidden(page(html))
+    expect(html).toContain('aria-busy="true"')
+    expect(exposedStatuses(html)).toEqual([label])
+    expect([...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(match => match[1])).toEqual(["Settings"])
+    expect(visible).toMatch(/<a\b[^>]*href="\/"[^>]*>[\s\S]*?Back to Requests<\/a>/)
   })
 
   it("draws the list from the loaded list's toolbar and 44px compact rows, with no data selectors", () => {

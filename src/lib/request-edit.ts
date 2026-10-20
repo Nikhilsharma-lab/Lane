@@ -1,17 +1,26 @@
+import { requestLabelKeys, labelRequestType } from "./request-labels";
 import { z } from "zod";
 import { requestSchema, problemFramingSchema, DESCRIPTION_MAX } from "./request-schema";
+import { expectedImpactSchema, incompleteMeasurementSchema, type ExpectedImpactDraft } from "./request-impact";
+import { measurementRequestTypeIssue } from "./request-measurement";
 import type { RequestDetail } from "@/components/requests/detail-view";
-export const requestEditSchema = requestSchema.safeExtend({
+export const requestEditSchema = z.object({
+    ...requestSchema.shape,
+    expectedImpact: z.union([expectedImpactSchema, incompleteMeasurementSchema]).nullable(),
     reframedProblem: problemFramingSchema.nullable(),
     extractedSolution: z.string().trim().max(DESCRIPTION_MAX).nullable(),
+}).superRefine((value, context) => {
+    if (!value.expectedImpact) return;
+    const issue = measurementRequestTypeIssue(value.expectedImpact, value.labelKeys ? labelRequestType(value.labelKeys) : value.requestType);
+    if (issue) context.addIssue({ code: "custom", path: ["expectedImpact"], message: issue });
 });
-export function requestEditValues(request: Pick<RequestDetail, "title" | "description" | "affectedPeople" | "desiredChange" | "observedEvidence" | "uncertainty" | "usefulLink" | "projectId" | "requestType" | "priority" | "expectedImpact" | "reframedProblem" | "extractedSolution">) {
+export function requestEditValues(request: Pick<RequestDetail, "title" | "description" | "affectedPeople" | "desiredChange" | "observedEvidence" | "uncertainty" | "usefulLink" | "projectId" | "requestType" | "priority" | "reframedProblem" | "extractedSolution" | "measurementDraft" | "labelKeys"> & { expectedImpact?: ExpectedImpactDraft | null }) {
     return {
         title: request.title, description: request.description,
         affectedPeople: request.affectedPeople ?? "", desiredChange: request.desiredChange ?? "",
         observedEvidence: request.observedEvidence ?? "", uncertainty: request.uncertainty ?? "", usefulLink: request.usefulLink ?? "",
-        projectId: request.projectId ?? null, requestType: request.requestType ?? null, priority: request.priority,
-        expectedImpact: request.expectedImpact ?? null, reframedProblem: request.reframedProblem, extractedSolution: request.extractedSolution,
+        labelKeys: requestLabelKeys(request), projectId: request.projectId ?? null, requestType: request.requestType ?? null, priority: request.priority,
+        expectedImpact: request.expectedImpact ?? request.measurementDraft ?? null, reframedProblem: request.reframedProblem, extractedSolution: request.extractedSolution,
     };
 }
 function canonical(value: unknown): unknown {
@@ -24,3 +33,6 @@ function canonical(value: unknown): unknown {
 export function requestEditSnapshot(request: Parameters<typeof requestEditValues>[0]) {
     return JSON.stringify(canonical(requestEditValues(request)));
 }
+
+/** Source validation for existing Requests; New keeps requestSchema unchanged. */
+export const requestEditSourceSchema = z.object({ ...requestSchema.shape, expectedImpact: requestEditSchema.shape.expectedImpact });

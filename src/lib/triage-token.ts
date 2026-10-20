@@ -1,3 +1,4 @@
+import { labelKeysSchema, labelRequestType } from "./request-labels";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { expectedImpactSchema } from "./request-impact";
@@ -24,11 +25,13 @@ import {
 
 const tokenPayloadSchema = z.object({
   requestId: z.string().uuid(),
+  purpose: z.enum(["create", "edit"]).default("create"),
   orgId: z.string().min(1),
   userId: z.string().min(1),
   expectedImpact: expectedImpactSchema.nullable().default(null),
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  labelKeys: labelKeysSchema,
   priority: requestPrioritySchema.default("none"),
   title: z.string().min(1).max(TITLE_MAX),
   description: z.string().min(1).max(DESCRIPTION_MAX),
@@ -77,15 +80,18 @@ function sign(payload: TriageTokenPayload): string {
 export function createTriageToken(
   input: RequestInput,
   triage: TriageResult,
-  context: { orgId: string; userId: string }
+  context: { orgId: string; userId: string },
+  existingRequestId?: string
 ): string {
   return sign({
-    requestId: randomUUID(),
+    requestId: existingRequestId ?? randomUUID(),
+    purpose: existingRequestId ? "edit" : "create",
     orgId: context.orgId,
     userId: context.userId,
-    expectedImpact: expectedImpactSchema.parse(input.expectedImpact),
+    expectedImpact: existingRequestId ? expectedImpactSchema.safeParse(input.expectedImpact).data ?? null : expectedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
-    requestType: input.requestType ?? null,
+    requestType: input.labelKeys ? labelRequestType(input.labelKeys) : input.requestType ?? null,
+    labelKeys: input.labelKeys,
     priority: input.priority ?? "none",
     title: input.title,
     description: input.description,
@@ -102,7 +108,8 @@ export function createTriageToken(
 
 export function verifyTriageToken(
   token: string,
-  context: { orgId: string; userId: string }
+  context: { orgId: string; userId: string },
+  existingRequestId?: string
 ): TriageTokenVerification {
   const [encoded, suppliedSignature, ...extra] = token.split(".");
   if (!encoded || !suppliedSignature || extra.length > 0) {
@@ -143,6 +150,10 @@ export function verifyTriageToken(
       return { valid: false, reason: "context_mismatch" };
     }
 
+    if (parsed.data.purpose === "edit") {
+      if (!existingRequestId || parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
+      return { valid: true, payload: parsed.data };
+    }
     if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };
     if (measurementRequestTypeIssue(parsed.data.expectedImpact, parsed.data.requestType)) return { valid: false, reason: "invalid" };
     return { valid: true, payload: parsed.data };

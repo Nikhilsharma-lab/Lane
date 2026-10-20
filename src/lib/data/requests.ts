@@ -52,12 +52,14 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       status: requests.status,
       createdAt: requests.createdAt,
       creatorName: profiles.fullName,
+      canEdit: sql<boolean>`${requests.status} = 'open' and (${auth.role === "admin"} or ${requests.createdBy} = ${auth.userId})`,
       assigneeName: assignee.fullName,
       assigneeAvatarUrl: assignee.avatarUrl,
       assignedTo: requests.assignedTo,
       projectId: requests.projectId,
       projectName: projects.name,
       requestType: requests.requestType,
+      labelKeys: requests.labelKeys,
       priority: requests.priority,
     })
     .from(requests)
@@ -150,6 +152,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         uncertainty: requests.uncertainty,
         usefulLink: requests.usefulLink,
         expectedImpact: requests.expectedImpact,
+        measurementDraft: requests.measurementDraft,
         designReviews: requests.designReviews,
         designReviewVersion: requests.designReviewVersion,
         reframedProblem: requests.reframedProblem,
@@ -165,6 +168,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         projectId: requests.projectId,
         projectName: projects.name,
         requestType: requests.requestType,
+      labelKeys: requests.labelKeys,
       })
       .from(requests)
       .leftJoin(creator, eq(requests.createdBy, creator.id))

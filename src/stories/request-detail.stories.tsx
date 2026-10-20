@@ -96,7 +96,7 @@ export const Default: Story = {
     await expectStripHeight(bar)
     await expect(regionIds(canvasElement)).toEqual(["problem", "expected-impact", "files", "conversation"])
     const labels = [...main(canvasElement).querySelectorAll("[data-detail-panel] dt")].map(term => term.textContent)
-    await expect(labels).toEqual(["Status", "Priority", "Assignee", "Project", "Type", "Submitted"])
+    await expect(labels).toEqual(["Status", "Priority", "Assignee", "Project", "Labels", "Submitted"])
     await expectOneLineRows(canvasElement)
     const page = within(main(canvasElement))
     await expect(page.queryByRole("region", { name: "People" })).not.toBeInTheDocument()
@@ -177,10 +177,10 @@ export const Done: Story = {
   play: async ({ canvasElement }) => {
     await expect(within(strip(canvasElement)).queryByRole("button", { name: /Pick up|Mark Done/ })).not.toBeInTheDocument()
     await expect(filledButtons(canvasElement)).toHaveLength(0)
-    // Nothing to move to: Status is text. Priority stays editable on a Done Request.
+    // Both lifecycle and content edits are unavailable after Done.
     await expect(statusCell(canvasElement).querySelector("button")).toBeNull()
     await expect(statusCell(canvasElement)).toHaveTextContent("Done")
-    await expect(main(canvasElement).querySelector("[data-detail-panel] [data-detail-priority] button")).not.toBeNull()
+    await expect(main(canvasElement).querySelector("[data-detail-panel] [data-detail-priority] button")).toBeNull()
   },
 }
 
@@ -193,7 +193,8 @@ export const PropertyControlConsistency: Story = {
     group.style.display = "flex";
     const controls = Array.from(group.children) as HTMLElement[];
     const status = controls[0];
-    const priority = within(group).getByRole("combobox", { name: /^Priority:/ });
+    const priority = controls[1];
+    await expect(within(group).queryByRole("combobox", { name: /^Priority:/ })).not.toBeInTheDocument();
     const properties = within(group).getByRole("button", { name: /^Properties:/ });
     await expect(status.tagName).toBe("SPAN");
     await expect(status.querySelector("button")).toBeNull();

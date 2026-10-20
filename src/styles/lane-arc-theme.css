@@ -202,12 +202,12 @@
   --workspace-header-height: var(--sb-header-height);
   --request-row-height: var(--sb-size-inner-xlarge);
   --request-group-gap: calc(var(--sb-spacing) * 2);
-  /* Lane keeps avatars level with the metadata badges they sit beside. Compact badges take Supabase's
-     vertical padding with Lane's line height (2026-10-16), so they render taller than Supabase's 17px
-     badge; the avatar follows the rendered badge box, never shorter than the badge token. */
-  --request-avatar-size: max(var(--badge-sm-height), calc(var(--badge-sm-font) * var(--leading-body) + var(--badge-padding-y) * 2 + var(--border-width) * 2));
+  /* Lane keeps avatars level with the metadata badges they sit beside. */
+  --request-avatar-size: var(--badge-sm-height);
   --request-title-line-height: var(--sb-text-sm--line-height);
-  --badge-sm-height: var(--sb-badge-height);
+  /* The badge's text line or icon plus padding/borders determines its actual
+     height. Avatars consume the same computed metric instead of a 17px minimum. */
+  --badge-sm-height: max(var(--sb-badge-height), calc(max(calc(var(--badge-sm-font) * var(--leading-body)), var(--icon-size-xs)) + var(--badge-padding-y) * 2 + var(--border-width) * 2));
   --badge-sm-padding: calc(var(--sb-spacing) * 2);
   --badge-sm-font: var(--sb-text-badge);
   --badge-sm-gap: var(--sb-badge-gap);
@@ -332,11 +332,11 @@
 :root[data-visual-system="lane"] {
   --menu-padding: var(--sb-menu-padding);
   --menu-item-radius: var(--sb-radius-item);
-  --menu-item-padding: calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 2);
+  --menu-item-padding: 0 calc(var(--sb-spacing) * 2);
   --menu-item-gap: calc(var(--sb-spacing) * 2);
   --menu-shadow: var(--sb-shadow-md);
   --select-viewport-padding: 0;
-  --select-item-padding: calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 8) calc(var(--sb-spacing) * 1.5) calc(var(--sb-spacing) * 2);
+  --select-item-padding: 0 calc(var(--sb-spacing) * 8) 0 calc(var(--sb-spacing) * 2);
   --popover-padding: calc(var(--sb-spacing) * 4);
   --popover-shadow: var(--sb-shadow-md);
   --dialog-background: var(--sb-dash-sidebar);

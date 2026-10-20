@@ -41,7 +41,7 @@
   --project-slate: var(--selection-foreground);
   color: var(--selection-foreground);
 }
-:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyBadge {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] :is(.propertyBadge, [data-label-tag]) {
   --badge-color: var(--selection-foreground);
   --badge-foreground: var(--selection-foreground);
   --badge-background: var(--selection-background);
@@ -53,7 +53,7 @@
   --request-property-border: var(--selection-foreground);
   background: var(--selection-background);
 }
-:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger[data-state="open"] .propertyBadge {
+:global(:root[data-ui-state-contract="semantic"]) .row[data-selected] .propertyTrigger[data-state="open"] :is(.propertyBadge, [data-label-tag]) {
   --badge-border: var(--selection-foreground);
   --badge-hover-border: var(--selection-foreground);
 }

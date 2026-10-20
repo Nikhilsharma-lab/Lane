@@ -12,8 +12,10 @@ import "../src/styles/lane-arc-theme.css"
 // Preview real forms while keeping all database, AI and storage effects outside Storybook.
 sb.mock(import("../src/app/(app)/intake/actions.ts"))
 sb.mock(import("../src/app/(app)/intake/project-actions.ts"))
+sb.mock(import("../src/app/(app)/intake/label-actions.ts"))
 sb.mock(import("../src/app/(app)/intake/attachment-actions.ts"))
 sb.mock(import("../src/app/(app)/requests/[id]/actions.ts"))
+sb.mock(import("../src/app/(app)/requests/[id]/edit-actions.ts"))
 sb.mock(import("../src/app/(app)/notifications/actions.ts"))
 sb.mock(import("../src/app/(auth)/onboarding/actions.ts"))
 // The real measurement editor, with its renders counted: the composer must not render it on

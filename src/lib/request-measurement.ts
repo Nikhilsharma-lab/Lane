@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GUARDRAIL_OPERATORS } from "./guardrail-comparison";
 
 export const MEASUREMENT_METRIC_KEYS = ["conversion", "adoption", "error", "support", "csat", "duration", "events", "custom", "check", ""] as const;
 export const MEASUREMENT_UNITS = ["percent", "count", "seconds", "minutes", ""] as const;
@@ -14,8 +15,8 @@ export const MEASUREMENT_METRIC_OPTIONS: { value: Exclude<MeasurementMetricKey, 
   { value: "csat", label: "Customer satisfaction (CSAT)" },
   { value: "duration", label: "Median time to convert" },
   { value: "events", label: "Action count" },
-  { value: "custom", label: "Add custom metric…" },
   { value: "check", label: "Pass/fail check" },
+  { value: "custom", label: "Add custom metric…" },
 ];
 export const GUARDRAIL_METRIC_OPTIONS = MEASUREMENT_METRIC_OPTIONS.filter(({ value }) => value !== "check");
 
@@ -30,10 +31,10 @@ const primaryDraftSchema = z.object({
 });
 const guardrailDraftSchema = z.object({
   ...metricFields, noBaseline: z.literal(false),
-  operator: z.enum(["at_most", "at_least"]), limit: numberDraft,
+  operator: z.enum(GUARDRAIL_OPERATORS), limit: numberDraft,
 });
 export const measurementPlanDraftSchema = z.object({
-  kind: z.literal("measurement"), version: z.literal(2),
+  kind: z.literal("measurement"), version: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   primary: primaryDraftSchema,
   measurement: z.object({
     audience: z.enum(["all", "new", "returning", "custom"]),
@@ -49,11 +50,11 @@ export type MeasurementPlanDraft = z.infer<typeof measurementPlanDraftSchema>;
 export type MeasurementPrimaryDraft = MeasurementPlanDraft["primary"];
 export type MeasurementGuardrailDraft = MeasurementPlanDraft["guardrails"][number];
 
-export function measurementAudienceLabel(measurement: MeasurementPlanDraft["measurement"]): string {
+export function measurementAudienceLabel(measurement: Pick<MeasurementPlanDraft["measurement"], "audience" | "audienceName">): string {
   return measurement.audience === "custom" ? measurement.audienceName?.trim() || "Custom audience"
     : { all: "All users", new: "New users", returning: "Returning users" }[measurement.audience];
 }
-export function measurementPlatformLabel(measurement: MeasurementPlanDraft["measurement"]): string {
+export function measurementPlatformLabel(measurement: Pick<MeasurementPlanDraft["measurement"], "platform" | "platformName">): string {
   return measurement.platform === "custom" ? measurement.platformName?.trim() || "Custom platform"
     : { all: "All platforms", web: "Web", ios: "iOS", android: "Android" }[measurement.platform];
 }
@@ -67,10 +68,7 @@ export function measurementUnitOptions(key: MeasurementMetricKey): { value: Excl
     { value: "percent" as const, label: "Percentage (%)" }, { value: "count" as const, label: "Count" },
     { value: "seconds" as const, label: "Seconds" }, { value: "minutes" as const, label: "Minutes" },
   ];
-  if (key === "custom") return all;
-  if (key === "events") return all.filter(({ value }) => value === "count");
-  if (key === "duration") return all.filter(({ value }) => value === "seconds" || value === "minutes");
-  return all.filter(({ value }) => value === "percent" || value === "count");
+  return all;
 }
 export function measurementMetricLabel(metric: Pick<MeasurementPrimaryDraft, "key" | "name" | "unit">): string {
   if (metric.key === "custom") return metric.name.trim() || "Custom metric";
@@ -88,11 +86,11 @@ export function createMeasurementGuardrail(key: MeasurementMetricKey = ""): Meas
   return { key, name, unit, current, noBaseline: false, operator: "at_most", limit: null };
 }
 export function createEmptyMeasurementPlan(): MeasurementPlanDraft {
-  return { kind: "measurement", version: 2, primary: createMeasurementPrimary(), measurement: { audience: "all", audienceName: "", platform: "all", platformName: "", windowDays: 30, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
+  return { kind: "measurement", version: 4, primary: createMeasurementPrimary(), measurement: { audience: "all", audienceName: "", platform: "all", platformName: "", windowDays: 30, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
 }
 
 /** Unit changes never reinterpret 42 percent as 42 people. */
-export function changeMetricUnit<T extends { unit: MeasurementUnit; current: number | null; target?: number | null; limit?: number | null }>(metric: T, unit: MeasurementUnit): T {
+export function changeMetricUnit<T extends { unit: string; current: number | null; target?: number | null; limit?: number | null }>(metric: T, unit: string): T {
   if (metric.unit === unit) return { ...metric };
   const factor = metric.unit === "seconds" && unit === "minutes" ? 1 / 60 : metric.unit === "minutes" && unit === "seconds" ? 60 : null;
   const next = { ...metric, unit };
@@ -128,7 +126,7 @@ export const measurementPlanSchema = measurementPlanDraftSchema.extend({
       return;
     }
     if (metric.key === "custom" && !metric.name.trim()) issue([...path, "name"], "Name the custom metric");
-    if (!measurementUnitOptions(metric.key).some(({ value }) => value === metric.unit)) issue([...path, "unit"], "Choose a valid unit for this metric");
+    if (!measurementUnitOptions(metric.key).some(({ value }) => value === metric.unit) || (plan.version < 4 && metric.key !== "custom" && !(metric.key === "events" ? metric.unit === "count" : metric.key === "duration" ? ["seconds", "minutes"].includes(metric.unit) : ["percent", "count"].includes(metric.unit)))) issue([...path, "unit"], "Choose a valid unit for this metric");
     if ("check" in metric && metric.check !== "") issue([...path, "check"], "A numeric metric cannot include a pass/fail check");
     for (const field of ["current", "target", "limit"] as const) {
       if (!(field in metric)) continue;
@@ -142,7 +140,10 @@ export const measurementPlanSchema = measurementPlanDraftSchema.extend({
     if (metric.noBaseline && metric.current !== null) issue([...path, "current"], "Clear the current value when there is no existing data");
   };
   validateMetric(plan.primary, ["primary"], false);
-  plan.guardrails.forEach((guardrail, index) => validateMetric(guardrail, ["guardrails", index], true));
+  plan.guardrails.forEach((guardrail, index) => {
+    validateMetric(guardrail, ["guardrails", index], true);
+    if (plan.version === 2 && !["at_most", "at_least"].includes(guardrail.operator)) issue(["guardrails", index, "operator"], "Update the measurement plan to use this comparison");
+  });
   if (plan.measurement.audience === "custom" && !plan.measurement.audienceName) issue(["measurement", "audienceName"], "Name the audience");
   if (plan.measurement.platform === "custom" && !plan.measurement.platformName) issue(["measurement", "platformName"], "Name the platform");
   if (plan.measurement.exactDates) {
@@ -154,9 +155,13 @@ export const measurementPlanSchema = measurementPlanDraftSchema.extend({
 export type MeasurementPlan = z.infer<typeof measurementPlanSchema>;
 
 export function measurementRequestTypeIssue(impact: unknown, requestType: string | null | undefined): string | null {
+  if (impact && typeof impact === "object" && "kind" in impact && impact.kind === "metric" && "noBaseline" in impact && impact.noBaseline === true) {
+    if (requestType !== "new_feature") return "No existing data is only available for a Request with the New feature label. Add current numbers or change the labels.";
+    if (!("baseline" in impact) || impact.baseline !== null) return "Clear the current value when there is no existing data.";
+  }
   const parsed = measurementPlanDraftSchema.safeParse(impact);
   return parsed.success && parsed.data.primary.noBaseline && requestType !== "new_feature"
-    ? "No existing data is only available for a New feature Request. Add current numbers or change the Request type."
+    ? "No existing data is only available for a Request with the New feature label. Add current numbers or change the labels."
     : null;
 }
 /** Legacy snapshots retain their original pickup policy. */
@@ -167,6 +172,5 @@ export function measurementReadiness(impact: unknown, requestType: string | null
   const exceptionIssue = measurementRequestTypeIssue(parsed.data, requestType);
   if (exceptionIssue) return exceptionIssue;
   if (parsed.data.primary.key !== "check" && parsed.data.primary.current === null && !parsed.data.primary.noBaseline) return "Add the current value before picking up this Request.";
-  if (parsed.data.guardrails.some((guardrail) => guardrail.current === null)) return "Add current values for every guardrail before picking up this Request.";
   return null;
 }

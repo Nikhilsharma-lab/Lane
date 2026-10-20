@@ -1,3 +1,4 @@
+import { requestLabelKeys } from "./request-labels"
 import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
 
@@ -9,12 +10,14 @@ export type OverviewRequest = {
   reframedProblem: string | null
   status: "open" | "in_progress" | "done"
   createdAt: string
+  canEdit?: boolean
   creatorName: string | null
   assigneeName: string | null
   assigneeAvatarUrl?: string | null
   assignedTo?: string | null
   projectId?: string | null
   projectName?: string | null
+  labelKeys?: string[] | null
   requestType?: RequestType | null
   /** Saved triage signal. Optional only for older illustrative fixtures. */
   priority?: RequestPriority
@@ -76,7 +79,7 @@ export function filtersHiding(row: OverviewRequest, filters: ListFilters): ListF
   if (filters.project && filters.project !== "all" && (row.projectId ?? "none") !== filters.project) hiding.push("project")
   const query = filters.title.trim().toLocaleLowerCase()
   if (query && !(row.reframedProblem ?? row.title).toLocaleLowerCase().includes(query)) hiding.push("title")
-  if (filters.requestType && (row.requestType ?? "none") !== filters.requestType) hiding.push("requestType")
+  if (filters.requestType && !(filters.requestType === "none" ? requestLabelKeys(row).length === 0 : requestLabelKeys(row).includes(filters.requestType))) hiding.push("requestType")
   return hiding
 }
 
