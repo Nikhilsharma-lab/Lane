@@ -23,6 +23,10 @@ async function sslOptions() {
   return db.$client.options.ssl;
 }
 describe("database connection certificate verification", () => {
+  it("initializes the real Postgres.js client on Vercel without an incompatible pool adapter", async () => {
+    vi.stubEnv("VERCEL", "1");
+    expect(await sslOptions()).toEqual({ rejectUnauthorized: true });
+  });
   it("verifies hosted certificates even when the URL asks to disable TLS", async () => {
     vi.stubEnv("DATABASE_URL", "postgresql://user:password@database.example:6543/postgres?sslmode=disable");
     expect(await sslOptions()).toEqual({ rejectUnauthorized: true });

@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { attachDatabasePool } from "@vercel/functions";
 import { assertSafeDatabaseUrl } from "./hosted-database-guard";
 import { databaseTlsOptions } from "./tls-options";
 import { queryCounter } from "./query-counter";
@@ -35,9 +34,8 @@ function getDb(): DbClient {
       ssl: databaseTlsOptions(url, process.env.DATABASE_SSL_CA),
     });
 
-    // Fluid compute suspends an idle instance; the helper closes idle
-    // connections first so a resumed instance never reuses a dead socket.
-    if (process.env.VERCEL) attachDatabasePool(globalForDb._sql);
+    // Postgres.js manages this pool itself. Vercel's attachDatabasePool
+    // supports pg-style pools, not this driver's client, and throws for it.
 
     globalForDb._db = drizzle(globalForDb._sql, {
       schema,
