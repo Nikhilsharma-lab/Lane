@@ -6,7 +6,9 @@
 
 **Authority:** Plan §6.1 row "Manual deletion procedure (no Clerk webhooks by design)", owner N+A, ref G11. Data shapes come from `src/db/migrations/0013_clerk_clean_cutover.sql`, `0015`–`0018` and `src/db/schema/*.ts`. The rule that a Request outlives its creator comes from `REQUIREMENTS.md` "Closure ownership" ("If the creator leaves or loses access, a Clerk organization admin explicitly transfers outcome ownership to another active member").
 
-**Status:** Draft for Nikhil's approval. One decision is open (section 6). Nothing has been run against production.
+**Status:** Nikhil approved the privacy policy and deletion/retention rules on 2026-10-20. Operator: Nikhil Sharma, India. Privacy contact: uselaneapp@gmail.com. Acknowledge within 3 working days; aim to complete verified requests within 30 days, subject to applicable legal deadlines. Remove account identity and retain shared contributions under former-member attribution, separately reviewing personal information within content and removing it where required. Attribution changes alone do not anonymize content. No real-user deletion has been run against production.
+
+**Approved backup rule:** Nikhil owns the manual retention process. Record each archive's creation date and location (including downloaded and off-machine copies), expire ordinary copies within 28 days, and on deletion record a deadline no later than 28 days after live deletion. Remove all relevant copies by that deadline and record completion. This applies to pre-migration copies containing personal data too. If restoring an older copy, reapply completed deletion requests before reopening access. Existing pre-cutover archives contain disposable test data. No automated expiry job is implied.
 
 ---
 
@@ -201,7 +203,7 @@ COMMIT;
 
 ---
 
-## 5. What is NOT deleted (defaults, pending section 6)
+## 5. Shared contributions retained, subject to personal-information review
 
 - **Requests the person created** stay with the workspace, attributed to "Former member". `REQUIREMENTS.md` says closure ownership transfers to another active member when the creator leaves; it does not say the Request leaves with them.
 - **Comments** they wrote stay, attributed to "Former member". Other people replied to them; removing them would hollow out the thread.
@@ -214,15 +216,15 @@ COMMIT;
 
 ---
 
-## 6. Open decision for Nikhil
+## 6. Decision history — superseded by approval above
 
-**Content versus identity.** The defaults above delete identity (Clerk account, name, email, avatar, notifications) and keep content (Requests, comments, attachments, Projects) anonymised. `REQUIREMENTS.md` and `PRODUCT.md` do not say whether a person may demand that their own content be erased from a workspace that still uses it. That is a legal and product call:
+**Historical alternatives (not current policy).** The historical defaults below delete identity (Clerk account, name, email, avatar, notifications) and keep content (Requests, comments, attachments, Projects) anonymised. `REQUIREMENTS.md` and `PRODUCT.md` do not say whether a person may demand that their own content be erased from a workspace that still uses it. That is a legal and product call:
 
 - Option A (default here): identity deleted, content anonymised and kept. Matches "Closed is permanent; corrections are append-only" and the closure-ownership transfer rule.
 - Option B: identity deleted and the person's own Requests, comments and attachments deleted on request, with cascades removing other members' comments and attachments on those Requests. Simpler to promise, lossy for the workspace.
 - Option C: A by default, B when the person insists and the workspace admin agrees in writing.
 
-Get this into the DPDP/GDPR advice the plan already asks for (§6.1, "Get advice on DPDP/GDPR") and record the answer here and on the Privacy page. Until then, no content deletion runs.
+The 2026-10-20 approval adopts retention of shared contributions with separate review/removal of personal information as required. Never treat the workspace admin's preference as overriding an applicable deletion right. The options above are historical, not the current decision.
 
 ---
 
@@ -230,13 +232,13 @@ Get this into the DPDP/GDPR advice the plan already asks for (§6.1, "Get advice
 
 Plain language, for the page the plan requires before any non-founder data (§6.1, P1–P5):
 
-- "To delete your account, email support@uselane.app from the address on the account. We confirm within 3 working days and complete the deletion within 30 days."
+- "To delete your account, email uselaneapp@gmail.com from the address on the account. We confirm within 3 working days and complete the deletion within 30 days."
 - "We delete your account in Clerk (identity) and remove your name, email and avatar from Lane. Requests, comments and files you added to a workspace stay with that workspace and are shown as from a former member." (Adjust if section 6 changes the default.)
 - "Backup copies are kept for up to 28 days after deletion and then expire."
 - "Workspace admins can ask us to delete a whole workspace, including all its Requests and files."
 - List the processors: Clerk, Supabase, Vercel, Anthropic, Upstash, and the monitoring provider chosen under decision 8.13.
 
-The 30-day figure is the default to promise; it leaves room for the acknowledgement, a rehearsal on staging the first time, and the weekly backup rotation. The 28-day backup line depends on the retention default in the runbook (5.12), which Nikhil still has to confirm.
+The 3-working-day acknowledgement, 30-day target and 28-day maximum backup window were approved on 2026-10-20. The published privacy page is the current wording; these older examples are not stronger guarantees. Before executing a deletion, inventory every relevant local and off-machine copy and record its expiry deadline.
 
 ---
 

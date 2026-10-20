@@ -15,7 +15,7 @@ export function AuthHeaderLink({ prompt, href, label }: { prompt: string; href: 
 export function AuthShell({ children, headerAction, footer }: { children: ReactNode; headerAction?: ReactNode; footer?: ReactNode }) {
   return <div className={styles.shell}>
     <header className={styles.header}><Link href="/login" aria-label="Lane sign in" className={styles.link}><LaneMark /></Link>{headerAction}</header>
-    <main className={styles.main}><div className={styles.column}>{children}{footer}</div></main>
+    <main className={styles.main}><div className={styles.column}>{children}{footer}<Link href="/privacy" className={styles.link}>Privacy policy</Link></div></main>
   </div>;
 }
 
