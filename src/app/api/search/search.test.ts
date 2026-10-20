@@ -66,6 +66,9 @@ describe("GET /api/search query and authorization contract", () => {
     { createdSince: "2026-02-30" }, { createdSince: "2026-10-19" }, { createdBefore: "2026-10-20T25:00:00.000Z" },
     { createdSince: "2026-10-20T18:30:00.000Z", createdBefore: "2026-10-19T18:30:00.000Z" },
     { createdSince: "2026-10-19T18:30:00.000Z", createdBefore: "2026-10-19T18:30:00.000Z" },
+    // Instants Postgres cannot bind are a 400, not a database error.
+    { createdSince: "0000-01-01T00:00:00.000Z" }, { createdSince: "0001-01-01T00:00:00+05:00" },
+    { createdBefore: "9999-12-31T23:00:00-05:00" }, { createdSince: "not-a-date", createdBefore: "2026-10-19T18:30:00.000Z" },
   ])("rejects invalid rich filters before querying: %j", async (filters) => {
     const response = await searchResponse({ query: "signup", ...filters });
     expect(response.status).toBe(400);
@@ -93,6 +96,15 @@ describe("GET /api/search query and authorization contract", () => {
     const statuses = facets.find(({ sql }) => sql.includes('group by "requests"."status"'))!;
     expect(whereClause(statuses.sql).split("group by")[0]).not.toContain('"requests"."status" in');
     expect(statuses.params).toContain("bug");
+  });
+
+  it("accepts the widest bindable range and an offset instant, still inside guest access", async () => {
+    boundary.session.orgRole = "org:guest";
+    const response = await searchResponse({ query: "signup", createdSince: "1970-01-01T00:00:00.000Z", createdBefore: "2026-10-21T00:00:00+05:30" });
+    expect(response.status).toBe(200);
+    const row = queryFor("requests");
+    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "1970-01-01T00:00:00.000Z", "2026-10-20T18:30:00.000Z"]));
+    expect(queryFor("projects").params).toEqual(expect.arrayContaining(["org_a", "1970-01-01T00:00:00.000Z", "2026-10-20T18:30:00.000Z"]));
   });
   it.each([
     { userId: null, orgId: "org_a", orgRole: "org:member" },

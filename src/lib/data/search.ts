@@ -17,6 +17,12 @@ import {
 
 const pageSchema = z.number().int().min(0)
   .max(Math.floor(Number.MAX_SAFE_INTEGER / WORKSPACE_SEARCH_PAGE_SIZE) - 1).default(0);
+// An instant Postgres can bind: a year-0000 or post-9999 value (after its offset) would fail in the
+// database as a 500 instead of a 400. Any range inside these bounds is only a filter, so none is too wide.
+const CREATED_MIN = Date.UTC(1970, 0, 1);
+const CREATED_MAX = Date.UTC(10000, 0, 1);
+const createdInstant = z.iso.datetime({ offset: true })
+  .refine(value => { const at = Date.parse(value); return at >= CREATED_MIN && at < CREATED_MAX; }, { message: "Choose a date from 1970 on" });
 export const workspaceSearchInputSchema = z.object({
   query: z.string().trim().max(WORKSPACE_SEARCH_QUERY_MAX).refine((value) => !value.includes("\0")),
   requestsPage: pageSchema,
@@ -25,8 +31,8 @@ export const workspaceSearchInputSchema = z.object({
   types: z.array(z.enum(["bug", "improvement", "new_feature", "none"])).max(4).optional(),
   sort: z.enum(["relevance", "newest", "title"]).optional(),
   // Plan item 2.8: the viewer's local days, as the instants they start and end (inclusive, exclusive).
-  createdSince: z.iso.datetime({ offset: true }).optional(),
-  createdBefore: z.iso.datetime({ offset: true }).optional(),
+  createdSince: createdInstant.optional(),
+  createdBefore: createdInstant.optional(),
 }).refine(value => !value.createdSince || !value.createdBefore || Date.parse(value.createdSince) < Date.parse(value.createdBefore), { message: "The range must start before it ends" });
 export type WorkspaceSearchQuery = z.infer<typeof workspaceSearchInputSchema>;
 export type WorkspaceSearchResult = Extract<WorkspaceSearchResponse, { success: true }>;
