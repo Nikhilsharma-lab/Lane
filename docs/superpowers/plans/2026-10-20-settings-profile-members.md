@@ -1,6 +1,6 @@
 # Settings → Profile and Members (plan items 2.9 and 2.10), on the consolidated Settings
 
-**Goal:** Finish what launch-plan items 2.9 and 2.10 still ask for, on top of the Settings that `origin/main` gained on 2026-10-20 (`e1db295`, merged in `790f81a`).
+**Goal:** Finish what launch-plan items 2.9 and 2.10 still ask for, on top of the Settings that `origin/main` gained on 2026-10-20 (`e1db295`, merged in `790f81a`); rebased onto `7106482` after 2.8 merged.
 
 **Source:** `2026-10-10-mvp-launch-linear.md` §5, "2.9 Settings → Profile (S) and 2.10 Settings → Members (S–M), batchable". Batched per decision 8.6. The Profile auto-save is the interaction approved under decision 8.10.
 
