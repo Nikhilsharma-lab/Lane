@@ -246,7 +246,8 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   const openPreview = useCallback((result: Match) => { setActiveId(result.item.id); listRef.current?.focus({ preventScroll: true }); if (!wide) setPreviewOpen(true); }, [wide]);
   function moveTo(index: number) { const result = matches[Math.max(0, Math.min(matches.length - 1, index))]; if (!result) return; setActiveId(result.item.id); document.getElementById(`${uid}-${result.item.id}`)?.scrollIntoView({ block: "nearest" }); }
   function inputKey(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.nativeEvent.isComposing) return;
+    // Safari ends a composition before the Enter that commits it (isComposing is false, keyCode 229): that Enter never searches or opens a code.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === "ArrowDown") { event.preventDefault(); if (showMenu) setMenuIndex(index => (index + 1) % suggestions.length); else if (matches.length) listRef.current?.focus(); }
     else if (event.key === "ArrowUp" && showMenu) { event.preventDefault(); setMenuIndex(index => index <= 0 ? suggestions.length - 1 : index - 1); }
     else if (event.key === "Enter") { event.preventDefault(); submit(showMenu && menuIndex >= 0 ? suggestions[menuIndex] : draft.trim()); }

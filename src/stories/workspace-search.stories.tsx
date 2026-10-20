@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test";
+import { expect, fireEvent, fn, mocked, userEvent, waitFor, within } from "storybook/test";
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock";
 import { useState } from "react";
 import { WorkspaceSearchPane } from "@/components/shell/workspace-search-pane";
@@ -475,7 +475,12 @@ export const ExactCodeEnter: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByRole("combobox", { name: "Search workspace" });
-    await userEvent.type(input, "lan-12{Enter}");
+    await userEvent.type(input, "lan-12");
+    // An Enter that commits an IME composition opens nothing: Chrome's isComposing, and Safari's keyCode 229 after compositionend.
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+    await expect(args.onOpen).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Enter}");
     await expect(args.onOpen).toHaveBeenCalledWith("/requests/loaded-newer");
     await userEvent.clear(input);
     await userEvent.type(input, "LAN-31{Enter}");
