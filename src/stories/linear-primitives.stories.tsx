@@ -46,9 +46,16 @@ export const Requests: Story = {
     for (const icon of canvasElementIdentityControls(context.canvasElement)) {
       expect(controlContrast(icon, getComputedStyle(icon).color), icon.getAttribute("aria-label") ?? "Row icon").toBeGreaterThanOrEqual(3)
     }
+    // Avatars stay level with the compact metadata badges beside them (supabase-tokens.md, "Composition stays Lane's").
+    // Since 2026-10-16 those badges take Supabase's vertical padding with Lane's line height, so the shared
+    // height is the rendered badge box, never shorter than Supabase's 17px badge.
+    const badgeHeights = [...context.canvasElement.querySelectorAll('[data-request-id] [class*="_badge_"]')].map(badge => badge.getBoundingClientRect().height).filter(Boolean)
     for (const avatar of context.canvasElement.querySelectorAll('[data-avatar-tone]')) {
       expect(textContrast(avatar)).toBeGreaterThanOrEqual(4.5)
-      expect(avatar.getBoundingClientRect().height).toBe(17)
+      const { width, height } = avatar.getBoundingClientRect()
+      expect(height).toBeGreaterThanOrEqual(17)
+      expect(Math.abs(width - height)).toBeLessThan(0.1)
+      for (const badgeHeight of badgeHeights) expect(Math.abs(height - badgeHeight)).toBeLessThan(0.1)
     }
     if (innerWidth > 880) {
       const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
@@ -76,11 +83,15 @@ export const Selected: Story = {
     const metadata = '[class*="_badge_"], button[data-property="pickedUpBy"] > span'
     for (const row of rows.slice(0, 2)) {
       await waitFor(() => {
-        for (const pill of [...row.querySelectorAll(metadata)].filter(element => element.getBoundingClientRect().width)) {
+        const pills = [...row.querySelectorAll(metadata)].filter(element => element.getBoundingClientRect().width)
+        // One compact height for every pill and the picker avatar: the rendered badge box, never shorter than Supabase's 17px badge.
+        const height = pills[0]?.getBoundingClientRect().height ?? 0
+        expect(height).toBeGreaterThanOrEqual(17)
+        for (const pill of pills) {
           expect(getComputedStyle(pill).backgroundColor).toBe(getComputedStyle(row).backgroundColor)
           expect(getComputedStyle(pill).borderTopWidth).toBe("1px")
           expect(textContrast(pill)).toBeGreaterThanOrEqual(4.5)
-          expect(pill.getBoundingClientRect().height).toBe(17)
+          expect(Math.abs(pill.getBoundingClientRect().height - height)).toBeLessThan(0.1)
         }
       })
       expect(textContrast(within(row).getByRole("link"))).toBeGreaterThanOrEqual(4.5)
