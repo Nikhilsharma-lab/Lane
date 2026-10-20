@@ -60,6 +60,16 @@ type SetDetailSession = (patch: DetailSessionPatch) => void
 
 // Separate contexts again (the item 1.14 pattern): the list never re-renders when detail's session changes.
 const DetailSessionContext = createContext<DetailSession | null>(null)
+// Plan item 2.8: the Requests the list last loaded, for workspace search's instant local matches.
+// A ref-held list: publishing rows re-renders nothing, and search reads it on each keystroke.
+type LoadedRequestsStore = { get: () => readonly OverviewRequest[]; set: (rows: readonly OverviewRequest[]) => void }
+const LoadedRequestsContext = createContext<LoadedRequestsStore | null>(null)
+function createLoadedRequestsStore(): LoadedRequestsStore {
+  let rows: readonly OverviewRequest[] = []
+  return { get: () => rows, set: next => { rows = next } }
+}
+const noLoadedRequests = () => []
+LoadedRequestsContext.displayName = "LoadedRequests"
 const DetailSessionSetterContext = createContext<SetDetailSession | null>(null)
 DetailSessionContext.displayName = "RequestDetailSession"
 DetailSessionSetterContext.displayName = "RequestDetailSessionSetter"
@@ -85,7 +95,8 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
   const [session, setSession] = useState<Omit<DetailSession, "commentDrafts">>(() => ({ sequence: null, focusTitleOnArrival: false, focusOnArrival: null, ...initialDetailSession }))
   const detailSession = useMemo<DetailSession>(() => ({ ...session, commentDrafts: drafts }), [session, drafts])
   const setDetailSession = useCallback<SetDetailSession>(patch => setSession(current => ({ ...current, ...patch })), [])
-  return <ListViewSetterContext.Provider value={setState}>
+  const [loadedRequests] = useState(createLoadedRequestsStore)
+  return <LoadedRequestsContext.Provider value={loadedRequests}><ListViewSetterContext.Provider value={setState}>
     <ListViewSnapshotContext.Provider value={snapshot}>
       <ListContextContext.Provider value={listContext}>
         <DetailSessionSetterContext.Provider value={setDetailSession}>
@@ -95,7 +106,19 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
         </DetailSessionSetterContext.Provider>
       </ListContextContext.Provider>
     </ListViewSnapshotContext.Provider>
-  </ListViewSetterContext.Provider>
+  </ListViewSetterContext.Provider></LoadedRequestsContext.Provider>
+}
+
+/** Plan item 2.8: the Requests list records the rows it loaded; nothing re-renders. They stay after leaving the list, until the layout's key changes. */
+export function usePublishLoadedRequests(rows: readonly OverviewRequest[]) {
+  const store = useContext(LoadedRequestsContext)
+  useLayoutEffect(() => { store?.set(rows) }, [store, rows])
+}
+
+/** Plan item 2.8: reads the loaded Requests when called (empty outside the provider). Never re-renders. */
+export function useLoadedRequests(): () => readonly OverviewRequest[] {
+  const store = useContext(LoadedRequestsContext)
+  return store?.get ?? noLoadedRequests
 }
 
 /** The whole view and its setter. Outside the provider (older fixtures) it falls back to local state. */

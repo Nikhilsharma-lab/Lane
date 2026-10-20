@@ -9,7 +9,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { Button } from "@/components/arc/button/button"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { NewRequestLink } from "@/components/requests/new-request-link"
-import { useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { usePublishLoadedRequests, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import type { OverviewRequest } from "@/lib/request-overview"
@@ -58,6 +58,8 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
     const ids = new Set(requests.map(row => row.id))
     return [...requests, ...older.rows.filter(row => !ids.has(row.id))]
   }, [requests, older.rows])
+  // Plan item 2.8: workspace search matches these rows the moment a person types.
+  usePublishLoadedRequests(rows)
   // Plan item 2.1: the emptiness DataTable reads (composer inserts applied), so
   // the strip's New Request and the welcome swap in the same frame. The overlay
   // only adds rows, so a loaded row settles it without applying anything.

@@ -3,7 +3,13 @@
 // Arc Pro license as part of the Lane app. Not covered by any license of this repository; not for reuse outside Lane.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { WORKSPACE_SEARCH_QUERY_MAX, localDayRange, type WorkspaceSearchInput, type WorkspaceSearchResponse, type WorkspaceSearchFilters, type SearchSort } from "@/lib/workspace-search";
+import { useRouter } from "next/navigation";
+import { parseRequestCode } from "@/lib/request-code";
+import { requestDetailHref } from "@/lib/request-workspace";
+import {
+  WORKSPACE_SEARCH_QUERY_MAX, keepShownOrder, localDayRange, requestWithCode, searchLoaded,
+  type LocalSearchSource, type SearchSort, type WorkspaceSearchFilters, type WorkspaceSearchInput, type WorkspaceSearchResponse,
+} from "@/lib/workspace-search";
 import { WorkspaceSearchResults } from "./workspace-search-results";
 
 export type WorkspaceSearchPaneProps = {
@@ -11,7 +17,14 @@ export type WorkspaceSearchPaneProps = {
   /** Resolves one search. The signal aborts it when a newer query replaces it (plan item 1.16). */
   onSearch: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
   onClose: () => void;
+  /** A plain click on a result's link is about to navigate. */
   onNavigate?: (href: string) => void;
+  /** Opens a result without a link: Enter on an exact saved code, or Cmd or Ctrl+Enter on a result (plan item 2.8). Defaults to onNavigate and a client navigation. */
+  onOpen?: (href: string) => void;
+  /** The Requests and Projects already in the browser, read on each keystroke for instant local matches. Never re-renders the pane. */
+  getLoaded?: () => LocalSearchSource;
+  /** Fixtures only: the zone for shown dates and the created-date filter. Defaults to the viewer's. */
+  timeZone?: string;
 };
 
 /** Typing pauses this long before a search is sent; Enter searches at once. */
@@ -58,18 +71,32 @@ function appendUnique<T extends { id: string }>(previous: T[], incoming: T[]) {
   return [...new Map([...previous, ...incoming].map(item => [item.id, item])).values()];
 }
 
-/** Async controller for the licensed Arc Search Results presentation. */
-export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNavigate }: WorkspaceSearchPaneProps) {
+const firstPage = <T,>(items: T[]) => ({ items, total: items.length, page: 0, hasMore: false });
+
+/**
+ * Async controller for the licensed Arc Search Results presentation.
+ *
+ * Plan item 2.8: while a person types, the list shows, in this order: the
+ * server's results for the current query; instant matches among the loaded
+ * Requests and Projects; or the last results, kept. Never an empty state or a
+ * skeleton between keystrokes. The list is aria-busy only while a request is in flight.
+ */
+export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNavigate, onOpen, getLoaded, timeZone }: WorkspaceSearchPaneProps) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const sequence = useRef(0);
   const inflight = useRef<AbortController | null>(null);
   const debounce = useRef(0);
-  const pendingFocus = useRef<{ sequence: number; trigger: HTMLButtonElement; resultId?: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [filters, setFilters] = useState<WorkspaceSearchFilters>({});
   const [sort, setSort] = useState<SearchSort>("relevance");
-  const [data, setData] = useState<SearchData | null>(null);
+  const [server, setServer] = useState<SearchData | null>(null);
+  const [local, setLocal] = useState<SearchData | null>(null);
+  // What the list showed before the latest keystroke, kept until something for the new query arrives.
+  const [kept, setKept] = useState<SearchData | null>(null);
+  // The local matches on screen, read when the server answers so those rows keep their places.
+  const shownLocal = useRef<SearchData | null>(null);
   const [loading, setLoading] = useState<Operation | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [wasActive, setWasActive] = useState(active);
@@ -85,17 +112,12 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     // A response from before close or unmount must never populate a later view.
     return () => { sequence.current += 1; window.clearTimeout(debounce.current); inflight.current?.abort(); inflight.current = null; };
   }, [active]);
-  useLayoutEffect(() => {
-    const pending = pendingFocus.current;
-    if (!pending || pending.sequence !== sequence.current || pending.trigger.isConnected) return;
-    if (document.activeElement !== document.body && document.activeElement !== pending.trigger) { pendingFocus.current = null; return; }
-    const target = pending.resultId && rootRef.current?.querySelector<HTMLElement>(`[data-search-result="${CSS.escape(pending.resultId)}"]`);
-    (target || inputRef.current)?.focus();
-    pendingFocus.current = null;
-  }, [data, loading]);
 
   const normalized = draft.trim();
-  const current = data?.query === normalized ? data : null;
+  const settled = server?.query === normalized ? server : null;
+  const instant = !settled && local?.query === normalized && (local.requests.items.length || local.projects.items.length) ? local : null;
+  const shown = settled ?? instant ?? kept;
+  useLayoutEffect(() => { shownLocal.current = instant; }, [instant]);
   const currentFailure = failure?.input.query === normalized ? failure : null;
 
   function cancel() {
@@ -103,20 +125,33 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     window.clearTimeout(debounce.current);
     inflight.current?.abort(); inflight.current = null;
   }
+  function matchLoaded(query: string): SearchData | null {
+    const source = getLoaded?.();
+    if (!source || !query) return null;
+    const matches = searchLoaded(source, { ...wireFilters(filters, timeZone), sort, query });
+    return { success: true, query, requests: firstPage(matches.requests), projects: firstPage(matches.projects) };
+  }
   function edit(value: string) {
     cancel();
     setDraft(value); setLoading(null); setFailure(null);
     const query = value.trim();
-    if (!query) { setData(null); return; }
-    // Search as you type: a short pause, then one request that replaces any
-    // older one still in flight.
-    debounce.current = window.setTimeout(() => { void run({ ...wireFilters(filters), sort, query, requestsPage: 0, projectsPage: 0 }); }, SEARCH_DEBOUNCE_MS);
+    if (!query) { setServer(null); setLocal(null); setKept(null); return; }
+    // Plan item 2.8: matches among the loaded Requests and Projects show in this
+    // render; the server's answer follows a short pause, replacing any older
+    // request still in flight. Until either has something, the last results stay.
+    setLocal(matchLoaded(query));
+    setKept(shown);
+    debounce.current = window.setTimeout(() => { void run({ ...wireFilters(filters, timeZone), sort, query, requestsPage: 0, projectsPage: 0 }); }, SEARCH_DEBOUNCE_MS);
   }
-  function clear() { edit(""); inputRef.current?.focus(); }
   function close() { cancel(); setLoading(null); onClose(); }
+  function open(href: string) {
+    cancel(); setLoading(null);
+    if (onOpen) onOpen(href);
+    else { onNavigate?.(href); router.push(href); }
+  }
 
-  async function run(input: WorkspaceSearchInput, operation: Operation = "search") {
-    if (!input.query.trim()) { clear(); return; }
+  async function run(input: WorkspaceSearchInput, operation: Operation = "search", openCode = false) {
+    if (!input.query.trim()) { edit(""); inputRef.current?.focus(); return; }
     cancel();
     const id = sequence.current;
     const controller = new AbortController();
@@ -124,23 +159,29 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     const trigger = document.activeElement;
     if (trigger instanceof HTMLButtonElement && trigger.dataset.searchRetry !== undefined) inputRef.current?.focus();
     setLoading(operation); setFailure(null);
-    if (operation === "search") setData(null);
     try {
       const response = await onSearch(input, controller.signal);
       if (id !== sequence.current) return;
       if (!response.success) { setFailure({ message: response.error.message, input, operation }); return; }
-      setData(previous => {
-        if (operation === "search" || previous?.query !== response.query) return response;
+      if (operation === "search") {
+        // Rows already on screen from the local matches stay where they are.
+        const before = shownLocal.current?.query === response.query ? shownLocal.current : null;
+        const next = before ? {
+          ...response,
+          requests: keepShownOrder(before.requests.items.map(item => item.id), response.requests),
+          projects: keepShownOrder(before.projects.items.map(item => item.id), response.projects),
+        } : response;
+        setServer(next); setKept(next);
+        const target = openCode ? requestWithCode(response.query, response.requests.items) : null;
+        if (target) open(requestDetailHref(target.id, "all"));
+        return;
+      }
+      setServer(previous => {
+        if (previous?.query !== response.query) return response;
         return operation === "requests"
           ? { ...previous, requests: { ...response.requests, items: appendUnique(previous.requests.items, response.requests.items) } }
           : { ...previous, projects: { ...response.projects, items: appendUnique(previous.projects.items, response.projects.items) } };
       });
-      // If the last-page button disappears under keyboard focus, hand focus to
-      // the first new result. Other interactions keep their current focus.
-      if (operation !== "search" && !response[operation].hasMore && trigger instanceof HTMLButtonElement && trigger.dataset.loadMore === operation
-        && (document.activeElement === trigger || document.activeElement === document.body)) {
-        pendingFocus.current = { sequence: id, trigger, resultId: response[operation].items[0]?.id };
-      }
     } catch {
       if (id === sequence.current) setFailure({ message: "Search could not be completed. Try again.", input, operation });
     } finally {
@@ -148,25 +189,37 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     }
   }
   function loadMore(kind: Exclude<Category, "all">) {
-    if (!current || loading) return;
-    return run({ ...wireFilters(filters), sort, query: current.query, requestsPage: current.requests.page + (kind === "requests" ? 1 : 0), projectsPage: current.projects.page + (kind === "projects" ? 1 : 0) }, kind);
+    if (!settled || loading) return;
+    return run({ ...wireFilters(filters, timeZone), sort, query: settled.query, requestsPage: settled.requests.page + (kind === "requests" ? 1 : 0), projectsPage: settled.projects.page + (kind === "projects" ? 1 : 0) }, kind);
   }
   function changeFilters(next: WorkspaceSearchFilters) {
     setFilters(next);
-    if (normalized) void run({ ...wireFilters(next), sort, query: normalized, requestsPage: 0, projectsPage: 0 });
+    if (!normalized) return;
+    // Local matches were for the old filters; the server's order decides from here.
+    setLocal(null);
+    void run({ ...wireFilters(next, timeZone), sort, query: normalized, requestsPage: 0, projectsPage: 0 });
   }
   function changeSort(next: SearchSort) {
     setSort(next);
-    if (normalized) void run({ ...wireFilters(filters), sort: next, query: normalized, requestsPage: 0, projectsPage: 0 });
+    if (!normalized) return;
+    setLocal(null);
+    void run({ ...wireFilters(filters, timeZone), sort: next, query: normalized, requestsPage: 0, projectsPage: 0 });
   }
+  /**
+   * Enter in the field (decision 1, 2026-10-20): an exact saved code opens that
+   * Request; any other query searches at once. A code no loaded Request has is
+   * searched, and its Request opens when the server finds it.
+   */
   function submit(query = normalized) {
-    setDraft(query);
-    return run({ ...wireFilters(filters), sort, query, requestsPage: 0, projectsPage: 0 });
+    const known = requestWithCode(query, getLoaded?.().requests, server?.requests.items);
+    if (known) { setDraft(query); open(requestDetailHref(known.id, "all")); return Promise.resolve(); }
+    if (query !== normalized) { setDraft(query); setLocal(matchLoaded(query)); setKept(shown); }
+    return run({ ...wireFilters(filters, timeZone), sort, query, requestsPage: 0, projectsPage: 0 }, "search", parseRequestCode(query) !== null);
   }
   return <WorkspaceSearchResults active={active} rootRef={rootRef} inputRef={inputRef}
-    draft={draft} data={current} loading={loading} failure={currentFailure?.message}
-    filters={filters} sort={sort} maxLength={WORKSPACE_SEARCH_QUERY_MAX}
-    onEdit={edit} onSubmit={submit} onClose={close} onLoadMore={loadMore}
+    draft={draft} data={shown} facets={server} settled={settled !== null} loading={loading} failure={currentFailure?.message}
+    filters={filters} sort={sort} maxLength={WORKSPACE_SEARCH_QUERY_MAX} timeZone={timeZone}
+    onEdit={edit} onSubmit={submit} onClose={close} onLoadMore={loadMore} onOpen={open}
     onRetry={() => currentFailure && run(currentFailure.input, currentFailure.operation)}
     onFiltersChange={changeFilters} onSortChange={changeSort} onNavigate={onNavigate} />;
 }
