@@ -1,6 +1,6 @@
-import { AuthShell } from "@/components/auth/auth-shell";
-import { AuthLoading } from "@/components/auth/auth-loading";
+import { SignupFrame } from "@/components/auth/auth-frames";
+import { AuthCardSkeleton } from "@/components/auth/auth-card-skeleton";
 
 export default function SignupLoading() {
-  return <AuthShell><AuthLoading label="Loading account creation" /></AuthShell>;
+  return <SignupFrame><AuthCardSkeleton label="Loading account creation" fields={2} /></SignupFrame>;
 }

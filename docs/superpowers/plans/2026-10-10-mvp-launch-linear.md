@@ -461,7 +461,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - No layout shift while Clerk loads.
   - Verified against the production Clerk instance.
 
-### 2.11 Auth: login, signup, forgot/reset (M)
+### 2.11 Auth: login, signup, forgot/reset (M) *(built 2026-10-20; waiting on Nikhil's sign-off)*
 Production Clerk exists after the early cutover, so this is styled and verified against the real instance.
 
 - **Changes:**

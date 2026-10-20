@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 
 import { clerkEmbeddedAppearance } from "./clerk-appearance";
+import { AuthCardSkeleton } from "./auth-card-skeleton";
 export { clerkEmbeddedAppearance } from "./clerk-appearance";
 
 export function ClerkHashSignIn() {
@@ -18,6 +19,7 @@ export function ClerkHashSignIn() {
       signUpUrl="/signup"
       fallbackRedirectUrl="/"
       appearance={clerkEmbeddedAppearance}
+      fallback={<AuthCardSkeleton label="Loading sign in" />}
     />
   );
 }
@@ -34,6 +36,7 @@ export function ClerkSessionTasks({
       <TaskChooseOrganization
         redirectUrlComplete="/onboarding"
         appearance={clerkEmbeddedAppearance}
+        fallback={<AuthCardSkeleton label="Loading workspaces" fields={0} social={false} />}
       />
     );
   }
@@ -43,6 +46,7 @@ export function ClerkSessionTasks({
       <TaskResetPassword
         redirectUrlComplete="/"
         appearance={clerkEmbeddedAppearance}
+        fallback={<AuthCardSkeleton label="Loading password reset" fields={2} social={false} />}
       />
     );
   }

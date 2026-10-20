@@ -1,34 +1,17 @@
-"use client";
-
-import { LockKeyholeIcon } from "lucide-react";
-
+import { LoginFrame } from "@/components/auth/auth-frames";
 import {
   ClerkHashSignIn,
   ClerkSessionTasks,
 } from "@/components/auth/clerk-sign-in";
-import {
-  AuthHeaderLink,
-  AuthShell,
-  AuthTrust,
-} from "@/components/auth/auth-shell";
+import { LoginResetLink } from "@/components/auth/login-reset-link";
+import { HiddenDuringSessionTask } from "@/components/auth/session-task-gate";
 
+// A server component, so the frame and its links render on the server and only
+// Clerk's card and the session check ship as client code.
 export default function LoginPage() {
   return (
-    <AuthShell
-      headerAction={
-        <AuthHeaderLink
-          prompt="Forgot your password?"
-          href="/forgot-password"
-          label="Reset it"
-        />
-      }
-      footer={
-        <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">
-          Sign in to access your Lane workspace.
-        </AuthTrust>
-      }
-    >
+    <LoginFrame headerAction={<HiddenDuringSessionTask><LoginResetLink /></HiddenDuringSessionTask>}>
       <ClerkSessionTasks fallback={<ClerkHashSignIn />} />
-    </AuthShell>
+    </LoginFrame>
   );
 }
