@@ -1,34 +1,16 @@
 "use client";
 
-import { LockKeyholeIcon } from "lucide-react";
-
+import { LoginFrame } from "@/components/auth/auth-frames";
 import {
   ClerkHashSignIn,
   ClerkSessionTasks,
+  SignInResetLink,
 } from "@/components/auth/clerk-sign-in";
-import {
-  AuthHeaderLink,
-  AuthShell,
-  AuthTrust,
-} from "@/components/auth/auth-shell";
 
 export default function LoginPage() {
   return (
-    <AuthShell
-      headerAction={
-        <AuthHeaderLink
-          prompt="Forgot your password?"
-          href="/forgot-password"
-          label="Reset it"
-        />
-      }
-      footer={
-        <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">
-          Sign in to access your Lane workspace.
-        </AuthTrust>
-      }
-    >
+    <LoginFrame headerAction={<SignInResetLink />}>
       <ClerkSessionTasks fallback={<ClerkHashSignIn />} />
-    </AuthShell>
+    </LoginFrame>
   );
 }

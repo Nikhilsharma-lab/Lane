@@ -36,7 +36,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
         }
       >
     <form
-      className="grid gap-6"
+      className={styles.recoveryForm}
       onSubmit={async (event) => {
         event.preventDefault();
         await performAction(step === "request");
@@ -113,7 +113,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
       </AuthAction>
 
       {step === "code" && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className={styles.recoveryActions}>
           <AuthAction
             type="button"
             kind="secondary"

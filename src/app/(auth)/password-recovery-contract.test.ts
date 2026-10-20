@@ -22,7 +22,9 @@ describe("Clerk password recovery and invitation return", () => {
     expect(FORM).toContain("useSignIn");
     // Strategy, retry and continuation behavior is exercised in the flow tests.
     expect(FORM).toContain("createPasswordRecoveryFlow");
-    expect(LOGIN).toContain('href="/forgot-password"');
+    // Plan item 2.11: the link lives in SignInResetLink, which hides it during a session task.
+    expect(LOGIN).toContain("SignInResetLink");
+    expect(CLERK_SIGN_IN).toContain('href="/forgot-password"');
   });
 
   it("keeps /reset-password on Clerk's reset-password task", () => {
