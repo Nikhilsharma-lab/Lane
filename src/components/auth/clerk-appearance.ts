@@ -44,3 +44,42 @@ export const clerkAccountAppearance = {
     table: styles.table,
   },
 };
+
+const organizationControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--button-radius-md)" };
+const organizationRule = "var(--border-width) solid var(--border-subtle)";
+
+/**
+ * Plan item 2.10: the Organization Profile modals opened from Settings → Members
+ * and Workspace details. Lane's settings sections already choose the page
+ * (Members opens Clerk's members page, Manage workspace its General page), so
+ * Clerk's own navigation is hidden and each modal shows the one page asked for.
+ * Clerk keeps the members table, every invitation flow, its page and form
+ * titles, and all authorization. Type, control height, hairlines and corners
+ * come from Lane's tokens: the launch plan's 13px rows, 32px buttons and 0.5px
+ * borders predate the 2026-10-13 Supabase tokens and resolve to Lane's row
+ * type, control height and border width. Weights stop at medium (Arc: 400 and
+ * 500 only). No column is added: no "Last seen". The user-profile modals keep
+ * `clerkAccountAppearance` and their navigation.
+ */
+export const clerkOrganizationAppearance = {
+  variables: {
+    ...clerkNeutralVariables,
+    fontSize: { xs: "var(--text-xs)", sm: "var(--text-xs)", md: "var(--text-sm)", lg: "var(--text-base)", xl: "var(--text-base)" },
+    fontWeight: { normal: "var(--weight-normal)", medium: "var(--weight-medium)", semibold: "var(--weight-medium)", bold: "var(--weight-medium)" },
+  },
+  elements: {
+    ...clerkAccountAppearance.elements,
+    navbar: { display: "none" },
+    navbarMobileMenuRow: { display: "none" },
+    tableHeaderCell: { fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", color: "var(--text-secondary)", borderBottom: organizationRule },
+    tableBodyCell: { fontSize: "var(--text-sm)", borderBottom: organizationRule },
+    userPreviewMainIdentifierText: { fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)" },
+    userPreviewSecondaryIdentifier: { fontSize: "var(--text-xs)" },
+    membersPageInviteButton: organizationControl,
+    formButtonPrimary: organizationControl,
+    formButtonReset: { ...organizationControl, color: "var(--foreground)", "&:hover": { color: "var(--foreground)" } },
+    profileSectionPrimaryButton: { ...organizationControl, color: "var(--foreground)", "&:hover": { color: "var(--foreground)" } },
+    organizationProfileMembersSearchInput: { minHeight: "var(--control-height-md)", fontSize: "var(--text-sm)" },
+    selectButton: { minHeight: "var(--control-height-sm)", fontSize: "var(--text-sm)" },
+  },
+};

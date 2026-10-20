@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     include: [
       "src/components/settings/*.test.ts",
+      "src/components/auth/clerk-appearance.test.ts",
       "src/components/shell/sidebar-workspace-name.test.ts",
       "src/components/shell/workspace-switcher.test.ts",
       "src/components/shell/project-tone.test.ts",
