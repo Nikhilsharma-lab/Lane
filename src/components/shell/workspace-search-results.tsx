@@ -252,7 +252,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   function inputKey(event: KeyboardEvent<HTMLInputElement>) {
     // Safari ends a composition before the Enter that commits it (isComposing is false, keyCode 229): that Enter never searches or opens a code.
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-    if (event.key === "ArrowDown") { event.preventDefault(); if (showMenu) setMenuIndex(index => (index + 1) % suggestions.length); else if (matches.length) listRef.current?.focus(); }
+    if (event.key === "ArrowDown") { event.preventDefault(); if (showMenu) setMenuIndex(index => (index + 1) % suggestions.length); else if (matches.length) listRef.current?.focus({ preventScroll: true }); }
     else if (event.key === "ArrowUp" && showMenu) { event.preventDefault(); setMenuIndex(index => index <= 0 ? suggestions.length - 1 : index - 1); }
     else if (event.key === "Enter") { event.preventDefault(); submit(showMenu && menuIndex >= 0 ? suggestions[menuIndex] : draft.trim()); }
     else if (event.key === "Escape" && showMenu) { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); }

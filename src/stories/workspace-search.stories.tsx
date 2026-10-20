@@ -154,6 +154,9 @@ export const SearchAndCategories: Story = {
     await expect(within(searchIn).getAllByRole("radio")).toHaveLength(3);
     await expect(within(searchIn).getByRole("radio", { name: /^All/ })).toBeChecked();
     await expect(within(searchIn).getByRole("radio", { name: /^Requests/ })).toHaveAccessibleName(/25 results/);
+    // Critique 2026-10-20: the Label checkboxes share one axis (the colour dot used to push each one to a different x).
+    const labelBoxes = within(filters.getByRole("group", { name: "Labels" })).getAllByRole("checkbox");
+    await expect(new Set(labelBoxes.map(box => Math.round(box.getBoundingClientRect().left))).size).toBe(1);
     await userEvent.click(within(searchIn).getByRole("radio", { name: /^Requests/ }));
     await expect(within(searchIn).getByRole("radio", { name: /^Requests/ })).toBeChecked();
     await closeFilters();

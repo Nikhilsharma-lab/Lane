@@ -626,6 +626,25 @@ export const PhoneStrip: Story = {
   },
 }
 
+// Critique 2026-10-20 (P1): Edit Request shared the strip's tools box, which phones hid whole, so a creator
+// on a phone could not edit, nor add the current value that unblocks Pick up.
+export const PhoneStripCreatorCanEdit: Story = {
+  globals: phoneDark,
+  args: { editable: true },
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    const bar = strip(canvasElement)
+    const painted = [...bar.querySelectorAll<HTMLElement>("a, button, [aria-current] span")].filter(element => element.getClientRects().length > 0)
+    const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
+    await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Edit Request", "Pick up", "More actions"])
+    await expectStripHeight(bar)
+    noHorizontalScroll()
+    await userEvent.click(within(bar).getByRole("button", { name: "Edit Request" }))
+    await expect(await within(document.body).findByRole("dialog", { name: "Edit Request" })).toBeVisible()
+  },
+}
+
 export const ExpectedMetricImpact: Story = {
   args: { comments: [], attachments: [], current: { ...minimalRequest, expectedImpact: { kind: "metric", metric: "Customers finding a saved draft", baseline: null, target: 90, unit: "%", source: "Saved-draft usability check", reviewAfterDays: 14 } } },
   play: async ({ canvasElement }) => {

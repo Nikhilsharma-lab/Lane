@@ -89,7 +89,8 @@
 @media (max-width: 640px) {
   .back { display: inline-flex; }
   .phoneOnly { display: contents; }
-  .desktopTools, :global([data-slot="page-strip"]) div:has(> .desktopTools) { display: none; }
+  /* The tools box goes only when the desktop tools are all it holds: Edit Request shares it and stays on phones. */
+  .desktopTools, :global([data-slot="page-strip"]) div:has(> .desktopTools:only-child) { display: none; }
 }
 
 /* Match the compact empty review action while its chunk loads. */

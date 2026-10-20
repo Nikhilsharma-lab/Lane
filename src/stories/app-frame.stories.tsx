@@ -189,6 +189,12 @@ async function expectLongContentFits(context: StoryContext) {
   const project = within(strip).getByRole("link", { name: longProject })
   await expect(shown.at(-2)).toContainElement(project)
   await expect(project.scrollWidth).toBeGreaterThan(project.clientWidth)
+  // The ancestors truncate first: the current crumb (LAN-12) is shown whole. The text's own width is compared,
+  // since a fraction of a pixel short already draws "LAN-1…" while scrollWidth and clientWidth round equal.
+  const current = shown.at(-1)!.firstElementChild as HTMLElement
+  const text = document.createRange()
+  text.selectNodeContents(current)
+  await expect(text.getBoundingClientRect().width).toBeLessThanOrEqual(current.getBoundingClientRect().width + 0.01)
 }
 // The layout's list view state holds the Project, as it does after choosing one in the sidebar.
 const longContentNavigation = { nextjs: { navigation: { pathname: "/requests/fixture-request", query: { project: websiteId } } } }

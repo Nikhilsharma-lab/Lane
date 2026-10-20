@@ -1,5 +1,4 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
-import { page as browserPage } from "vitest/browser";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { getRouter, usePathname } from "@storybook/nextjs-vite/navigation.mock";
@@ -911,7 +910,9 @@ export const NewProjectFromPicker: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    // A native click exercises Radix's deferred outside-pointer handler.
+    // A native click exercises Radix's deferred outside-pointer handler. vitest/browser loads only in the
+    // Vitest run: imported at the top, it stopped every story in this file rendering in plain Storybook.
+    const { page: browserPage } = await import("vitest/browser");
     await browserPage.getByRole("dialog", { name: "Choose a Project" }).getByRole("button", { name: "New Project", exact: true }).click();
     const name = project.getByRole("textbox", { name: "Project name" });
     await waitFor(() => expect(name).toHaveFocus());
@@ -1226,6 +1227,12 @@ export const GateSlow5s: Story = {
   },
 };
 
+/** Critique 2026-10-20: at the 844px phone height the gate notice must be scrolled into view above the footer. */
+async function expectClearOfFooter(element: HTMLElement) {
+  const footer = element.closest('[role="dialog"]')!.querySelector("footer")!;
+  await waitFor(() => expect(element.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top));
+}
+
 export const GateTimeout: Story = {
   beforeEach: () => {
     mocked(runTriage).mockResolvedValue({ success: false, error: { code: "timeout", message: "Review unavailable right now. Your draft is kept." } });
@@ -1265,12 +1272,24 @@ export const SessionExpiredKeepsDraft: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await reachReview(canvasElement);
     await expect(await composer.findByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login#/?redirect_url=%2Fintake");
+    await expectClearOfFooter(composer.getByRole("link", { name: "Sign in again" }));
     await expect(composer.getByText("Your session ended")).toBeVisible();
     await expect(composer.getByText(/Your draft is kept\./)).toBeVisible();
     // One silent retry with a fresh token came first.
     await expect(runTriage).toHaveBeenCalledTimes(2);
     await expectDraftKept(composer);
     await expect(readIntakeDraft(window.sessionStorage, scope)?.source.title).toBe(source.title);
+  },
+};
+
+// The 844px phone height is where the notice sits below the fold, so it must be scrolled into view; the
+// 1000px test height fits it anyway. An instant mock would batch the checking step away and skip the scroll,
+// which is how a capture of SessionExpiredKeepsDraft showed the notice hidden (critique 2026-10-20).
+export const SessionExpiredOnPhone: Story = {
+  ...SessionExpiredKeepsDraft,
+  globals: { theme: "dark", viewport: { value: "mobile", isRotated: false } },
+  beforeEach: () => {
+    mocked(runTriage).mockImplementation(() => new Promise(resolve => { window.setTimeout(() => resolve({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } }), 50); }));
   },
 };
 

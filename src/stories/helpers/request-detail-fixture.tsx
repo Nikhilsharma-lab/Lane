@@ -13,6 +13,7 @@ import { PendingMutationsProvider, usePendingMutations } from "@/components/requ
 import { CommentForm } from "@/app/(app)/requests/[id]/comment-form"
 import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-download"
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
+import { EditRequest } from "@/app/(app)/requests/[id]/edit-request"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
 import type { RequestReviewState, ReviewPerson } from "@/lib/request-review"
 
@@ -63,10 +64,12 @@ export type DetailFixtureProps = {
   others?: RequestDetail[]
   /** Shows "Deliver stale server render" and "Deliver fresh server render" outside <main>, standing in for a revalidated payload. */
   fresh?: { request?: RequestDetail; comments?: RequestComment[] }
+  /** Passes Edit Request, as production does for the creator or an admin on an Open Request. */
+  editable?: boolean
 }
 
 /** The layout's providers, the shell, and Request detail keyed by Request id, as in production. */
-export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, review, session, others = [], fresh }: DetailFixtureProps) {
+export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, review, session, others = [], fresh, editable = false }: DetailFixtureProps) {
   const [render, setRender] = useState({ request: current, comments: initialComments })
   // Previous and next replace the URL; here the mocked router swaps the Request, as the server render would.
   useEffect(() => {
@@ -87,7 +90,8 @@ export function DetailFixture({ current = request, guest = false, comments: init
             <RequestDetailView request={{ ...shown, designReviews: review?.reviews ?? shown.designReviews }} comments={render.comments} attachments={files} isGuest={guest} viewer={viewer} orgId={context.orgId}
               lifecycleActions={<LifecycleButtons requestId={shown.id} status={shown.status} context={context} isGuest={guest} />}
               commentForm={<CommentForm requestId={shown.id} context={context} />}
-              attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />} />
+              attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
+              editRequest={editable ? <EditRequest request={shown} orgId={context.orgId} draftOwnerId={viewer.id} /> : undefined} />
           </ListAnnouncerProvider>
         </div>
       </WorkspaceSidebarFixture>

@@ -360,5 +360,7 @@
   --overlay-backdrop: color-mix(in oklab, var(--sb-background) 80%, transparent);
   --overlay: var(--overlay-backdrop);
   --tooltip-muted: color-mix(in oklab, var(--sb-background) 62%, var(--sb-foreground));
-  --skeleton-fill: var(--sb-surface-300);
+  /* Supabase's ShimmeringLoader base (packages/ui-patterns/src/ShimmeringLoader/index.css): border-default.
+   * surface-300 is the card's own white in the light theme, so every skeleton painted white on white. */
+  --skeleton-fill: var(--sb-border);
 }

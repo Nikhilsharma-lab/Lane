@@ -10,6 +10,9 @@
 .crumbs { min-width: 0; font-size: var(--text-sm); }
 .crumbs ol { display: flex; min-width: 0; margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
 .crumbs li { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+/* The ancestors give up their width, so the trail ends in something specific (LAN-12) rather than "LAN-…".
+ * The current crumb never shrinks below its text, and truncates only past the whole trail's width. */
+.crumbs li[aria-current] { flex-shrink: 0; max-width: 100%; }
 .crumbs li + li::before { content: "/"; margin: 0 calc(var(--space-1) * 2.5); color: var(--text-muted); }
 .crumbs a { overflow: hidden; text-overflow: ellipsis; border-radius: var(--radius-control); }
 .crumbs [aria-current] { color: var(--foreground); }
