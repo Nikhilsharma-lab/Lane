@@ -55,6 +55,7 @@ function retryHarness(attachments: Attachment[], outcomes: boolean[]) {
   let current = attachments.map((attachment) => ({ ...attachment }));
   const operationInFlight = { current: false };
   const sandbox = {
+    editing: undefined,
     attachments,
     createdRequestId: "saved-request",
     context: { orgId: "org-test" },
@@ -164,6 +165,7 @@ function recoveryHarness(files: Attachment[]) {
   const unmounted = { current: false };
   const uploadsRequest = { current: null as string | null };
   const sandbox = {
+    editing: undefined,
     attachments: state.files,
     createdRequestId: state.createdRequestId,
     context: { orgId: "org-test" },

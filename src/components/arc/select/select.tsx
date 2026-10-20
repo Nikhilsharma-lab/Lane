@@ -18,7 +18,8 @@ export interface SelectProps extends Omit<ComponentPropsWithoutRef<typeof Select
   /** Reuse an existing control while retaining the Select menu and keyboard behavior. */
   trigger?: ReactElement;
   onContentKeyDown?: ComponentPropsWithoutRef<typeof SelectPrimitive.Content>["onKeyDown"];
-  options: { value: string; label: string; disabled?: boolean; icon?: ReactNode }[];
+  options: { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }[];
+  indicatorPosition?: "left" | "right";
 }
 
 /** The shown value rolls in the direction of the list: a later option rises from below, an earlier one drops from above. */
@@ -31,7 +32,7 @@ const valueRoll: Variants = {
 const valueFade: Variants = { enter: { opacity: 0 }, center: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.instant } }, exit: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
-  { label, description, placeholder = "Select an option", options, id, className, trigger, onContentKeyDown, disabled, onValueChange, ...rootProps },
+  { label, description, placeholder = "Select an option", options, id, className, trigger, onContentKeyDown, indicatorPosition = "right", disabled, onValueChange, ...rootProps },
   ref,
 ) {
   const generatedId = useId();
@@ -77,9 +78,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
             </SelectPrimitive.ScrollUpButton>
             <SelectPrimitive.Viewport className={styles.viewport}>
               {options.map((option) => (
-                <SelectPrimitive.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.item}>
+                <SelectPrimitive.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.item} data-indicator-position={indicatorPosition}>
                   {option.icon && <span className={styles.optionIcon} aria-hidden="true">{option.icon}</span>}
                   <SelectPrimitive.ItemText className={styles.itemText}>{option.label}</SelectPrimitive.ItemText>
+                  {option.trailing && <span className={styles.trailing} aria-hidden="true">{option.trailing}</span>}
                   <SelectPrimitive.ItemIndicator className={styles.indicator}>
                     <Check strokeWidth={1.75} aria-hidden="true" />
                   </SelectPrimitive.ItemIndicator>

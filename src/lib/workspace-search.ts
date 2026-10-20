@@ -2,7 +2,7 @@ export const WORKSPACE_SEARCH_PAGE_SIZE = 20;
 export const WORKSPACE_SEARCH_QUERY_MAX = 200;
 
 export type SearchStatus = "open" | "in_progress" | "done";
-export type SearchRequestType = "bug" | "improvement" | "new_feature" | "none";
+export type SearchRequestType = string;
 export type SearchSort = "relevance" | "newest" | "title";
 export type WorkspaceSearchFilters = {
   statuses?: SearchStatus[];
@@ -35,6 +35,7 @@ export type WorkspaceSearchRequest = {
   status: "open" | "in_progress" | "done";
   projectId: string | null;
   projectName: string | null;
+  labelKeys?: string[] | null;
   requestType: "bug" | "improvement" | "new_feature" | null;
   createdAt: string;
 };

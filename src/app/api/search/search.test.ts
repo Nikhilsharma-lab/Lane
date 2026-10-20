@@ -29,7 +29,7 @@ vi.mock("@/db", async () => {
 
 const PROJECT_ID = "00000000-0000-4000-a000-000000000001";
 const REQUEST_ID = "00000000-0000-4000-a000-000000000002";
-const REQUEST = [REQUEST_ID, 42, "Signup", "People cannot finish signup", "open", PROJECT_ID, "Website", "bug", "2025-01-01T10:00:00.000Z", "People abandon signup at phone number"];
+const REQUEST = [REQUEST_ID, 42, "Signup", "People cannot finish signup", "open", PROJECT_ID, "Website", "bug", ["bug"], "2025-01-01T10:00:00.000Z", "People abandon signup at phone number"];
 const PROJECT = [PROJECT_ID, "Website", "Public website", "2025-01-01T10:00:00.000Z"];
 
 beforeEach(() => {
@@ -76,7 +76,7 @@ describe("GET /api/search query and authorization contract", () => {
     expect(response).toHaveProperty("facets");
     const row = queryFor("requests");
     expect(row.sql).toContain('"requests"."status" in');
-    expect(row.sql).toContain('"requests"."request_type" in');
+    expect(row.sql).toContain('"requests"."label_keys" && ARRAY[');
     expect(row.sql).toContain('order by lower("requests"."title") asc');
     expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "open", "done", "bug", "2026-10-01T00:00:00.000Z", "2026-10-19T00:00:00.000Z", 40]));
     expect(whereClause(row.sql)).toBe(whereClause(queryFor("requests", true).sql));
@@ -131,7 +131,7 @@ describe("GET /api/search query and authorization contract", () => {
     boundary.requestTotal = 41; boundary.projectTotal = 2;
     expect(await search({ query: "  Signup  ", requestsPage: 2 })).toEqual({
       success: true, query: "Signup",
-      requests: { items: [{ id: REQUEST_ID, requestNumber: 42, title: "Signup", reframedProblem: "People cannot finish signup", status: "open", projectId: PROJECT_ID, projectName: "Website", requestType: "bug", createdAt: "2025-01-01T10:00:00.000Z", description: "People abandon signup at phone number" }], total: 41, hasMore: false, page: 2 },
+      requests: { items: [{ id: REQUEST_ID, requestNumber: 42, title: "Signup", reframedProblem: "People cannot finish signup", status: "open", projectId: PROJECT_ID, projectName: "Website", requestType: "bug", labelKeys: ["bug"], createdAt: "2025-01-01T10:00:00.000Z", description: "People abandon signup at phone number" }], total: 41, hasMore: false, page: 2 },
       projects: { items: [{ id: PROJECT_ID, name: "Website", description: "Public website", createdAt: "2025-01-01T10:00:00.000Z" }], total: 2, hasMore: false, page: 0 },
       facets: { statuses: { open: 41 }, types: { bug: 41 } },
     });

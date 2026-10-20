@@ -6,6 +6,7 @@
   --tone-coral: var(--project-coral);
   --tone-slate: var(--project-slate);
   display: block;
+  flex: none;
   width: var(--space-2);
   height: var(--space-2);
   border-radius: var(--radius-pill);
@@ -21,6 +22,12 @@
 .dot[data-tone="coral"] { --tone: var(--tone-coral); }
 .dot[data-tone="slate"] { --tone: var(--tone-slate); }
 .dot[data-hollow] { background: transparent; }
+.empty {
+  width: var(--icon-size, var(--icon-size-md));
+  height: var(--icon-size, var(--icon-size-md));
+  flex: none;
+  color: var(--text-muted);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .dot { transition: none; }

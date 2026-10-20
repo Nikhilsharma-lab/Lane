@@ -149,7 +149,7 @@
     "source": "https://uiarc.dev/r/filter-toolbar.json",
     "file": "src/components/arc/filter-toolbar/filter-toolbar.module.css",
     "upstreamSha256": "b24254c41e9113d0765773381a17c7eca246ed533bcb0c6e711d25e34746b250",
-    "localSha256": "baa5262c49b8b337b0dd827fd24b0c24e6539aa50e8d7e68f3d973193b3f8074"
+    "localSha256": "9045e8a08437574dba3c50bb843fac6a290db2c742cbcdb15d8ae7813ae2f451"
   },
   {
     "id": "filter-toolbar",
@@ -288,14 +288,14 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.module.css",
     "upstreamSha256": "f700250cfa39db22e974f417d6d776e70b037e031500ca85c3c94e0c558a2b04",
-    "localSha256": "2d05161f4a03bf99d2dcd70d58d0bc3d9b90579f87e54e55e26d506a724782df"
+    "localSha256": "144c0f1b28a8d404151ec4e7f48913b3bd29ed746c25db6414fb277a29f84e24"
   },
   {
     "id": "select",
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "2733948d2d8160951f182f46795c36d7aa3568d9d8cfb79158f81dba26214d0f"
+    "localSha256": "987a0202946cd89bbfeb98b4e0593cf39e9c6fdc3dc03b106b209bd24e61f299"
   },
   {
     "id": "skeleton",
@@ -371,7 +371,7 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.module.css",
     "upstreamSha256": "182f0d9d3083efa61c40594e5227c3364f11445873524c368769eb13772aeac0",
-    "localSha256": "9a1beb21207722a6704bf2909a5e759292c263185bbb6d82902268bf1b6cdcd9"
+    "localSha256": "98b7c2c2b8785a24965b42b4f01e9bf61e1cccc6cdafa7ddbc943937c320e1a6"
   },
   {
     "id": "user-menu",
@@ -483,5 +483,19 @@
     "file": "src/components/arc/bottom-sheet/bottom-sheet.module.css",
     "upstreamSha256": "ddade2e6b872fe05ff64955f85ce4b5023591357dc4578ae0778b583ad949bc8",
     "localSha256": "13fc21e1ef7c3ad00f7b4a6cf6c42550f7810241643a8bd98eef6782cf4c2b60"
+  },
+  {
+    "id": "settings-command",
+    "source": "https://uiarc.dev/r/pro/settings-command.json",
+    "file": "src/components/arc/blocks/settings-command/settings-command.tsx",
+    "upstreamSha256": "93210b45eb4825ff09c0c82b616b2e37d1c900170516a82a5f5bf4b0b1ed7336",
+    "localSha256": "973ae53e8d23abcdd24d88addd5041c3a40041423fa5eebb151a224a16069e08"
+  },
+  {
+    "id": "settings-command",
+    "source": "https://uiarc.dev/r/pro/settings-command.json",
+    "file": "src/components/arc/blocks/settings-command/settings-command.module.css",
+    "upstreamSha256": "c6cb16a1fee97ce2a8eb1662d5b100c32ac32fa0f23689dadd74319a56d3adc9",
+    "localSha256": "2530d2f015b7eadf6345b3b0bbfcb3825550b44738e5109c5003cbdab5ae53b9"
   }
 ]

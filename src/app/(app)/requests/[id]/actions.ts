@@ -480,7 +480,7 @@ export async function setRequestPriority(
   const [updated] = await db
     .update(requests)
     .set({ priority: parsed.data })
-    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)))
+    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), eq(requests.status, "open"), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId)))
     .returning({ priority: requests.priority });
 
   if (!updated) return { error: "Request not found" };

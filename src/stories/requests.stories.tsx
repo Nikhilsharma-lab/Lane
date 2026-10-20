@@ -50,6 +50,7 @@ const requestTitles = [
 
 const requests: OverviewRequest[] = Array.from({ length: 32 }, (_, index) => ({
   id: `fixture-${index + 1}`,
+  canEdit: index % 3 === 0,
   title: requestTitles[index],
   reframedProblem: null,
   status: (["open", "in_progress", "done"] as const)[index % 3],
@@ -347,20 +348,20 @@ export const DisplayPropertiesAndOrder: Story = {
     const firstRow = requestRows(requestGroup(canvasElement, "Open Requests"))[0]
     await expect(within(firstRow).getByRole("link", { name: "The status menu is difficult to operate by keyboard" })).toBeVisible()
     const submittedBy = panel.getByRole("button", { name: "Submitted by" })
-    const requestType = panel.getByRole("button", { name: "Request type" })
-    // Request type shows by default; Submitted by stays opt-in.
+    const requestType = panel.getByRole("button", { name: "Labels" })
+    // Labels shows by default; Submitted by stays opt-in.
     await expect(submittedBy).toHaveAttribute("aria-pressed", "false")
     await expect(requestType).toHaveAttribute("aria-pressed", "true")
     await expect(canvas.queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
-    await expect(canvas.getAllByRole("button", { name: "Request type: No type" })[0]).toBeVisible()
+    await expect(canvas.getAllByRole("button", { name: "Labels: No labels" })[0]).toBeVisible()
     await userEvent.click(submittedBy)
     await userEvent.click(requestType)
     await expect(canvas.getAllByRole("button", { name: /^Submitted by:/ })[0]).toBeVisible()
-    await expect(canvas.queryByRole("button", { name: "Request type: No type" })).not.toBeInTheDocument()
+    await expect(canvas.queryByRole("button", { name: "Labels: No labels" })).not.toBeInTheDocument()
     await userEvent.click(submittedBy)
     await userEvent.click(requestType)
     await expect(canvas.queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
-    await expect(canvas.getAllByRole("button", { name: "Request type: No type" })[0]).toBeVisible()
+    await expect(canvas.getAllByRole("button", { name: "Labels: No labels" })[0]).toBeVisible()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Display Requests" })).not.toBeInTheDocument())
     await expect(canvas.getByRole("button", { name: "Display" })).toHaveFocus()
@@ -675,7 +676,7 @@ export const ProjectAndTypeFilters: Story = {
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")
     await expect(canvas.getByText("2 Requests match")).toBeVisible()
     await expect(canvas.queryByRole("link", { name: requests[2].title })).not.toBeInTheDocument()
-    await selectFilter(canvasElement, "Request type", "Bug")
+    await selectFilter(canvasElement, "Labels", "Bug")
     await expect(canvas.getByText("1 Request matches")).toBeVisible()
     await expect(canvas.getByRole("link", { name: requests[0].title })).toBeVisible()
     await userEvent.type(await openTitleFilter(canvasElement), "not found")
@@ -685,7 +686,7 @@ export const ProjectAndTypeFilters: Story = {
     await waitFor(() => expect(within(document.body).queryByRole("searchbox", { name: "Filter Requests by title" })).not.toBeInTheDocument())
     await userEvent.click(canvas.getByRole("button", { name: "Clear all" }))
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Project: Website" })).not.toBeInTheDocument())
-    await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Request type: Bug" })).not.toBeInTheDocument())
+    await waitFor(() => expect(canvas.queryByRole("button", { name: "Remove Labels: Bug" })).not.toBeInTheDocument())
     // No filter applied: the count leaves with the chips and every Request is back.
     await expect(canvas.queryByText(matchCountText)).not.toBeInTheDocument()
     await expect(requestRows(canvasElement)).toHaveLength(4)

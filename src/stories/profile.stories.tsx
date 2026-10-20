@@ -1,3 +1,5 @@
+import { ToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { textContrastDetails as textContrast } from "./helpers/rendered-colours"
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, fn, userEvent, waitFor, within } from "storybook/test"
 import { useState } from "react"
@@ -27,40 +29,6 @@ async function expectVisibleMessage(canvasElement: HTMLElement, message: string)
   await waitFor(() => expect(canvasElement.querySelector("[data-motion-pop-id]")).toBeNull())
 }
 
-function textContrast(element: HTMLElement) {
-  const context = element.ownerDocument.createElement("canvas").getContext("2d")!
-  const rgba = (value: string) => {
-    context.clearRect(0, 0, 1, 1)
-    context.fillStyle = value
-    context.fillRect(0, 0, 1, 1)
-    return Array.from(context.getImageData(0, 0, 1, 1).data)
-  }
-  const over = (front: number[], back: number[]) => front.slice(0, 3).map((channel, index) => channel * front[3] / 255 + back[index] * (1 - front[3] / 255))
-  const ancestors: HTMLElement[] = []
-  for (let node: HTMLElement | null = element; node; node = node.parentElement) ancestors.unshift(node)
-  let background = [255, 255, 255]
-  for (const node of ancestors) {
-    const css = getComputedStyle(node)
-    expect(Number(css.opacity), "Measure the settled, fully visible text state").toBe(1)
-    background = over(rgba(css.backgroundColor), background)
-    if (css.backgroundImage !== "none") {
-      // Refuse a solid-color contrast result for images or varying gradients.
-      const stops = css.backgroundImage.match(/(?:rgba?|oklch|color)\([^)]+\)/g) ?? []
-      expect(stops.length, `Unsupported background: ${css.backgroundImage}`).toBeGreaterThanOrEqual(2)
-      const colors = stops.map(rgba)
-      expect(colors.every((color) => color.every((channel, index) => channel === colors[0][index])), "Contrast requires a uniform background").toBe(true)
-      background = over(colors[0], background)
-    }
-  }
-  const foreground = over(rgba(getComputedStyle(element).color), background)
-  const luminance = (color: number[]) => color.map((channel) => {
-    const value = channel / 255
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-  }).reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
-  const levels = [luminance(foreground), luminance(background)].sort((a, b) => a - b)
-  return { ratio: (levels[1] + 0.05) / (levels[0] + 0.05), foreground, background }
-}
-
 // Mounting a settings form must not mutate shared Arc tokens.
 function SettingsChrome() {
   return (
@@ -77,7 +45,7 @@ const meta = {
   title: "Settings/Profile",
   component: ProfileRoleForm,
   args: { initialRole: "designer", onSave: fn<SaveRole>().mockResolvedValue({ success: true }) },
-  decorators: [(Story) => <div className="arc-surface"><Story /></div>],
+  decorators: [(Story) => <div className="arc-surface"><Story /><ToastStack morph="plain" label="Messages" /></div>],
   parameters: {
     nextjs: { appDirectory: true, navigation: { pathname: "/settings/profile" } },
     docs: {

@@ -107,6 +107,22 @@ describe("buildContentSecurityPolicy", () => {
     );
   });
 
+  it("adds the error-monitoring host from the DSN, without the key, only when set", () => {
+    expect(csp.get("connect-src")).not.toContain("https://app.glitchtip.com");
+
+    const withDsn = buildContentSecurityPolicy({
+      errorReportingDsn: "https://0123456789abcdef@app.glitchtip.com/28916",
+    });
+    expect(directiveMap(withDsn).get("connect-src")).toContain("https://app.glitchtip.com");
+    expect(withDsn).not.toContain("0123456789abcdef");
+    expect(withDsn).not.toContain("28916");
+
+    expect(buildContentSecurityPolicy({ errorReportingDsn: "" })).toBe(buildContentSecurityPolicy());
+    expect(buildContentSecurityPolicy({ errorReportingDsn: "http://key@localhost:8000/1" })).toBe(
+      buildContentSecurityPolicy(),
+    );
+  });
+
   it("allows Vercel tooling and Google Fonts", () => {
     expect(csp.get("script-src")).toContain("https://vercel.live");
     expect(csp.get("script-src")).toContain("https://va.vercel-scripts.com");

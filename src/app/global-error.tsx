@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { fontVariables } from "@/lib/fonts";
 import buttonStyles from "@/components/arc/button/button.module.css";
 import { PageStrip } from "@/components/shell/page-strip";
+import { reportClientError } from "@/lib/report-client-error";
 import frame from "./app-frame.module.css";
 import "@/components/arc/foundation.css";
 import "./globals.css";
@@ -27,6 +28,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("Lane could not render the root layout", { digest: error.digest, message: error.message });
+    void reportClientError(error, { boundary: "root-layout", digest: error.digest });
   }, [error]);
 
   return (

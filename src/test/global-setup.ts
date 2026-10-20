@@ -98,6 +98,11 @@ export async function setup() {
   sql(["-f", ATTACHMENT_CAPABILITIES_PATH]);
   sql(["-f", OPTIONAL_IMPACT_SOURCE_PATH]);
   sql(["-f", MEASUREMENT_PLAN_PATH]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0023_request_measurement_draft.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0024_workspace_labels.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0025_project_labels.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0026_guardrail_thresholds.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0027_measurement_value_units.sql")]);
   sql(["-f", FIXTURES_PATH]);
 
   console.log(

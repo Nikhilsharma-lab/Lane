@@ -6,16 +6,14 @@ import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
-import { Select } from "@/components/arc/select/select";
 import { Alert } from "@/components/arc/alert/alert";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import {
-  REQUEST_TYPE_LABELS,
-  type ProjectOption, type RequestType,
+  type ProjectOption,
 } from "@/lib/request-constants";
 import { ProjectMarker } from "@/components/projects/project-marker";
-import { RequestTypeGlyph, requestTypeOptions } from "./request-type-presentation";
 import styles from "./request-property-pickers.module.css";
+import { rememberRequestPopoverEvent } from "./request-popover-events";
 
 export function useWorkspaceProjects(orgId: string, active: boolean) {
   const workspaceProjects = useSharedWorkspaceProjects();
@@ -90,6 +88,7 @@ function leaveFromTrigger(event: KeyboardEvent<HTMLDivElement>) {
 
 export const pickerPopoverProps = {
   "data-lane-request-property-popover": "",
+  onPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => rememberRequestPopoverEvent(event.nativeEvent),
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => { leaveFromTrigger(event); event.stopPropagation(); },
 } as const;
 
@@ -131,14 +130,13 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
       return <Button key={keyOf(item)} ref={(element) => { optionRefs.current[index] = element; }}
         type="button" role="option" aria-selected={selected} tabIndex={keyOf(item) === focusKey ? 0 : -1}
         onFocus={() => setActiveKey(keyOf(item))}
-        variant="ghost" size="sm" morph={morph} className={styles.option} disabled={disabled} aria-disabled={inert || undefined}
+        variant="ghost" size="sm" morph={morph} className={`${styles.option} ${styles.projectOption}`} disabled={disabled} aria-disabled={inert || undefined}
         onClick={() => { if (!inert) onChoose(item); }}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
           if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
         }}>
-        {lead?.(item) ?? <span className={styles.iconSpace} aria-hidden="true">{selected && <Check />}</span>}
-        {render(item)}
+        <span className={styles.optionContent}>{lead?.(item)}{render(item)}{selected && <Check className={styles.selectionMark} aria-hidden="true" />}</span>
       </Button>;
     }) : emptyText ? <p className={styles.empty}>{emptyText}</p> : null}
   </div>;
@@ -218,7 +216,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       </Button>
     </PopoverTrigger>
     <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose a Project"
-      onOpenAutoFocus={(event) => { event.preventDefault(); focusProjectList(); }} className="space-y-3">
+      onOpenAutoFocus={(event) => { event.preventDefault(); focusProjectList(); }} className={naming ? styles.formPanel : styles.panel}>
       {naming ? <div className={styles.projectName}>
         <Input ref={nameRef} label="Project name" value={projectName} maxLength={80} disabled={creating} error={createError ?? undefined}
           onChange={(event) => { setProjectName(event.target.value); setCreateError(null); }}
@@ -238,7 +236,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       {!state.loading && !state.error && <div role="listbox" aria-label="Project options" className={styles.optionList}>
         {items.map((item, index) => <Button key={item.id ?? "none"} ref={(element) => { optionRefs.current[index] = element; }}
           type="button" role="option" aria-selected={(item.id ?? null) === value}
-          variant="ghost" size="sm" className={styles.option} disabled={creating}
+          variant="ghost" size="sm" className={`${styles.option} ${styles.projectOption}`} disabled={creating}
           onClick={() => void choose(item)}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") { event.preventDefault(); (optionRefs.current[index + 1] ?? newProjectRef.current)?.focus(); }
@@ -247,8 +245,8 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
             if (event.key === "End") { event.preventDefault(); newProjectRef.current?.focus(); }
           }}>
           <span className={styles.optionContent}>
-            {item.id === value ? <Check aria-hidden="true" /> : <span className={styles.iconSpace} aria-hidden="true" />}
             <ProjectMarker projectId={item.id ?? null} /><span>{item.name}</span>
+            {item.id === value && <Check className={styles.selectionMark} aria-hidden="true" />}
           </span>
         </Button>)}
       </div>}
@@ -269,17 +267,6 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       {creating && <p role="status" className="text-sm text-muted-foreground">Creating Project…</p>}
     </PopoverContent>
   </Popover>;
-}
-
-export function RequestTypePicker({ value, onChange, disabled, error }: {
-  value: RequestType | null; onChange: (value: RequestType | null) => void; disabled: boolean; error?: string;
-}) {
-  return <Select label="Request type" id="intake-request-type" options={requestTypeOptions} value={value ?? "none"} disabled={disabled}
-    onValueChange={(next) => onChange(next === "none" ? null : next as RequestType)}
-    onContentKeyDown={(event) => event.stopPropagation()}
-    trigger={<Button type="button" className={styles.trigger} variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-request-type-error" : undefined} aria-label={value ? `Request type: ${REQUEST_TYPE_LABELS[value]}` : "Request type"}>
-      <span className={styles.chipContent} data-request-type={value ?? undefined}><RequestTypeGlyph type={value} /><span className={styles.chipLabel}>{value ? REQUEST_TYPE_LABELS[value] : "Request type"}</span></span>
-    </Button>} />;
 }
 
 export { RequestPriorityPicker } from "./request-priority-picker";

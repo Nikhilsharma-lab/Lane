@@ -64,6 +64,11 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       "CLERK_JWT_KEY is not set. Clerk will fetch its JWKS over the network on cold starts, which adds latency.",
     );
   }
+  if (production && !env.NEXT_PUBLIC_SENTRY_DSN) {
+    warnings.push(
+      "NEXT_PUBLIC_SENTRY_DSN is not set. Errors will not reach GlitchTip (src/lib/error-reporting.ts).",
+    );
+  }
 
   return { ok: missing.length === 0, missing, warnings };
 }

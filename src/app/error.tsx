@@ -5,6 +5,7 @@ import { DatabaseZap } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { PageStrip } from "@/components/shell/page-strip";
+import { reportClientError } from "@/lib/report-client-error";
 import frame from "./app-frame.module.css";
 
 // Catches a throw in (app)/layout.tsx, most often getWorkspace() against a paused
@@ -20,6 +21,7 @@ export default function RootError({
 }) {
   useEffect(() => {
     console.error("Lane could not render the workspace", { digest: error.digest, message: error.message });
+    void reportClientError(error, { boundary: "workspace", digest: error.digest });
   }, [error]);
 
   return (

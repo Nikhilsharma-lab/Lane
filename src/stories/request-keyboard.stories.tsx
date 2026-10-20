@@ -20,6 +20,7 @@ const requests: OverviewRequest[] = Array.from({ length: 32 }, (_, index) => ({
   title: `Keyboard fixture Request ${index + 1}`,
   reframedProblem: null,
   status: statusOf(index),
+  canEdit: statusOf(index) === "open",
   // Newest first keeps this order inside each status group.
   createdAt: new Date(Date.UTC(2026, 9, 1, 9, 0, 0) - index * 60_000).toISOString(),
   creatorName: "Alex Morgan",

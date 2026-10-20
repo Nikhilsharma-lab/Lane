@@ -1,0 +1,29 @@
+/* Arc Pro source (https://uiarc.dev), adapted from licensed settings-command for Lane. Not covered by this repository's license; not for reuse outside Lane.  */
+/* Palette. The scrim only dims; the palette itself is a floating layer and the one shadowed thing. */
+.scrim { position: absolute; z-index: 14; inset: 0; background: var(--overlay); }
+.palette { position: absolute; z-index: 15; top: 0; left: 0; overflow: hidden; border: var(--sb-border-width) solid var(--border); background: var(--surface-raised); box-shadow: var(--shadow-floating); will-change: transform; }
+.paletteContent { max-width: none; }
+.paletteField { display: flex; height: calc(var(--sb-spacing) * 11.5); align-items: center; gap: calc(var(--sb-spacing) * 2.5); border-bottom: var(--sb-border-width) solid var(--border-subtle); padding: 0 calc(var(--sb-spacing) * 3) 0 calc(var(--sb-spacing) * 3.25); color: var(--text-muted); }
+.paletteField > svg { flex: none; }
+.paletteField input { flex: 1; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-sm); }
+.paletteField input::placeholder { color: var(--text-muted); }
+.paletteBody { padding: calc(var(--sb-spacing) * 1.5); }
+.paletteHint { margin: calc(var(--sb-spacing) * 1) calc(var(--sb-spacing) * 2) calc(var(--sb-spacing) * 1.5); color: var(--text-muted); font-size: var(--text-xs); }
+.results { position: relative; max-height: calc(var(--sb-spacing) * 79); margin: 0; padding: 0; overflow-y: auto; list-style: none; scrollbar-width: thin; }
+.result { position: relative; isolation: isolate; display: grid; grid-template-columns: calc(var(--sb-spacing) * 4) minmax(0, 1fr) calc(var(--sb-spacing) * 4); align-items: center; gap: calc(var(--sb-spacing) * 3); min-height: calc(var(--sb-spacing) * 13); border-radius: calc(var(--sb-spacing) * 2.25); padding: calc(var(--sb-spacing) * 1.75) calc(var(--sb-spacing) * 2.5); color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.result > svg { color: var(--text-muted); }
+.result[aria-selected="true"] { color: var(--foreground); }
+.result[aria-selected="true"] > svg, .result[aria-selected="true"] .resultEnd { color: var(--accent); }
+.resultHighlight { position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: var(--surface-muted); }
+.resultText { display: grid; min-width: 0; gap: var(--sb-border-width); }
+.resultLabel { overflow: hidden; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
+.resultDescription { overflow: hidden; color: var(--text-muted); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.resultEnd { display: grid; place-items: center; color: var(--text-muted); }
+.mark { border-radius: calc(var(--sb-spacing) * 0.75); background: var(--accent-subtle); color: var(--accent-strong); box-shadow: 0 0 0 var(--sb-border-width) var(--accent-subtle); }
+.empty { margin: 0; padding: calc(var(--sb-spacing) * 7) calc(var(--sb-spacing) * 3); color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
+.paletteFoot { display: flex; gap: calc(var(--sb-spacing) * 4); margin-top: calc(var(--sb-spacing) * 1.5); border-top: var(--sb-border-width) solid var(--border-subtle); padding: calc(var(--sb-spacing) * 2) calc(var(--sb-spacing) * 2) calc(var(--sb-spacing) * 0.5); color: var(--text-muted); font-size: var(--text-xs); }
+.paletteFoot > span { display: inline-flex; align-items: center; gap: calc(var(--sb-spacing) * 1); }
+
+
+.kbd { display: inline-flex; align-items: center; padding: 0 var(--space-1); border: var(--sb-border-width) solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-xs); }
+

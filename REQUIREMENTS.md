@@ -178,6 +178,16 @@ preserved through signed review and saved Request detail. Count units should sta
 percentage definitions should name their population. Relative change limits are deferred. This
 uses the existing Expected impact JSON record and adds no monitoring or outcome closure.
 
+2026-10-20 guardrail simplification, explicitly approved by Nikhil: a guardrail is metric +
+comparison + threshold value/unit. Comparisons are less than, greater than, equal to,
+less than or equal to, and greater than or equal to. Guardrails do not ask for current
+values and missing guardrail baselines do not block pickup. Primary baseline requirements
+remain. Historical values are preserved; new measurement snapshots use version 3.
+Existing at_most and at_least retain inclusive meanings. No automatic monitoring is added.
+
+2026-10-20 follow-up, explicitly approved by Nikhil: comparison menus put selection left and green symbols right, without brackets. The threshold field sits directly beside the comparison. Every numeric editor value offers Percentage (%), Count, Minutes and Seconds in the field. Custom metric creation uses search plus an inline Create metric action, with no separate name or unit form. New/edited numeric plans use version 4; v2/v3 saved validation remains unchanged. Switching seconds/minutes converts numbers; incompatible unit changes clear numbers. Selecting the same metric preserves its values. Custom names remain within the existing Request JSON; no catalogue table or route is added.
+
+
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where
 they will check the result. Source/method is no longer required at creation; previously saved
 source details remain preserved and readable. Keep the compact “Check in [X] days” interval.
@@ -211,7 +221,7 @@ Current Intake supports:
 - A freeform description of the need or observed problem, including any useful context or feedback.
 - Expected impact as Metric or Verified result, preserved through signed review and saved detail; locally
   implemented and locally verified. Current value may remain unknown; drafts may remain incomplete.
-- Optional Project and Request type.
+- Optional Project and multiple Labels.
 - An optional **Add link** control revealing the **Related link** field.
 - Optional private attachments.
 
@@ -232,6 +242,23 @@ replace or predetermine the AI framing classification. Preserve guest own-Reques
 Project options. The approved implementation covers persistence, composer selection/creation and display/
 filtering in existing Requests views; no separate Project management page. See
 `docs/superpowers/plans/2026-10-05-request-projects-and-types.md` for implementation and verification status.
+
+**Labels supersession — 2026-10-20:** Nikhil approved replacing the single Request type control with
+multiple reusable workspace Labels. Bug, Improvement and New feature remain defaults, and existing
+saved types become the corresponding labels. Any non-guest workspace member may create custom labels
+from the shared New/Edit picker; guests cannot create labels. Labels share presentation across detail,
+rows and filters. New feature retains its existing measurement-readiness meaning; labels never bypass
+the AI gate, Open-only editing or creator/admin authorization. No label-management screen is added.
+Migration `0024` is authorized only on verified, backed-up staging; production remains untouched.
+
+**Project label scope follow-up — 2026-10-20:** Nikhil subsequently approved Workspace and Project
+scopes, while retaining the separate Project assignment pill. Creation offers Workspace or the Request's
+currently selected Project; without a Project, choose one on the Request first. Project labels are
+available only for that Project. Changing Project preserves selected labels in the draft and requires
+explicit removal of incompatible labels before saving. Existing labels remain workspace-wide.
+Migration `0025` follows the same verified-backup and staging-only boundary. The picker matches name
+prefixes as typed; Create new label appears only for nonempty text with no matches, then scope and
+colour choices. Count changes keep the trigger content mounted, with identical round-dot sizes.
 
 ### 4.2 Pass the AI gate — Approved current
 

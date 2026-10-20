@@ -35,9 +35,14 @@ export async function fillMetricImpact(canvas: ReturnType<typeof within>) {
   const metric = canvas.queryByRole("combobox", { name: "Metric" });
   if (metric) {
     const page = within(metric.ownerDocument.body);
+    const legacy = Boolean(canvas.queryByRole("textbox", { name: "Evidence source" }));
     await userEvent.click(metric);
-    await userEvent.click(await page.findByRole("option", { name: "Conversion rate" }));
+    if (legacy) {
+      await userEvent.type(await page.findByRole("textbox", { name: "Search metrics" }), metricImpact.metric);
+      await userEvent.click(await page.findByRole("option", { name: `Create metric: “${metricImpact.metric}”` }));
+    } else await userEvent.click(await page.findByRole("option", { name: "Conversion rate" }));
     await waitFor(() => expect(metric).toHaveFocus());
+
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Target after release (optional)" }), "90");
     const window = canvas.getByRole("button", { name: "Measurement window" });
     await userEvent.click(window);

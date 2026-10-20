@@ -17,7 +17,8 @@ const REVIEW_DETAILS = source("src/components/requests/request-review-supporting
 
 describe("Private Request attachment contract", () => {
   it("creates the Request before uploading directly to private storage", () => {
-    expect(FORM).toContain("const result: SaveResponse = await saveRequest");
+    expect(FORM).toContain("await saveRequest(payload, context)");
+    expect(FORM.indexOf("await saveRequest(payload, context)")).toBeLessThan(FORM.indexOf("uploadAttachment(attachment, result.requestId)"));
     expect(FORM).toContain("setCreatedRequestId(result.requestId)");
     expect(FORM).toContain(
       "uploadAttachment(attachment, result.requestId)"
@@ -25,8 +26,8 @@ describe("Private Request attachment contract", () => {
     expect(FORM).toContain("prepareAttachmentUpload");
     expect(FORM).toContain("uploadToSignedUrl");
     expect(FORM).toContain("finalizeAttachmentUpload");
-    expect(FORM).toContain("Files upload after creation.");
-    expect(REVIEW_DETAILS).toContain("Files upload after you create the Request.");
+    expect(FORM).toContain("Files upload after saving.");
+    expect(REVIEW_DETAILS).toContain("Files upload after you save the Request.");
   });
 
   it("derives identity from the session and scopes every reservation", () => {

@@ -6,7 +6,7 @@ import type { StoryObj } from "@storybook/nextjs-vite"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { expect, fn, mocked, userEvent, waitFor, within } from "storybook/test"
 import requestsMeta, { ConsistentToolbarFlyouts, PropertyDetails } from "./requests.stories"
-import { textContrast, controlContrast } from "./helpers/rendered-colours"
+import { textContrast, controlContrast, resolvedStyle } from "./helpers/rendered-colours"
 import { Button } from "@/components/arc/button/button"
 import { Badge } from "@/components/arc/badge/badge"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
@@ -48,7 +48,7 @@ export const Requests: Story = {
     }
     for (const avatar of context.canvasElement.querySelectorAll('[data-avatar-tone]')) {
       expect(textContrast(avatar)).toBeGreaterThanOrEqual(4.5)
-      expect(avatar.getBoundingClientRect().height).toBe(17)
+      expect(avatar.getBoundingClientRect().height).toBeCloseTo(Number.parseFloat(resolvedStyle(avatar, "height", "var(--request-avatar-size)")), 1)
     }
     if (innerWidth > 880) {
       const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
@@ -75,12 +75,13 @@ export const Selected: Story = {
     expect(rows[1].getBoundingClientRect().top).toBe(rows[0].getBoundingClientRect().bottom)
     const metadata = '[class*="_badge_"], button[data-property="pickedUpBy"] > span'
     for (const row of rows.slice(0, 2)) {
+      const badgeHeight = Number.parseFloat(resolvedStyle(row, "height", "var(--badge-sm-height)"))
       await waitFor(() => {
         for (const pill of [...row.querySelectorAll(metadata)].filter(element => element.getBoundingClientRect().width)) {
           expect(getComputedStyle(pill).backgroundColor).toBe(getComputedStyle(row).backgroundColor)
           expect(getComputedStyle(pill).borderTopWidth).toBe("1px")
           expect(textContrast(pill)).toBeGreaterThanOrEqual(4.5)
-          expect(pill.getBoundingClientRect().height).toBe(17)
+          expect(pill.getBoundingClientRect().height).toBeCloseTo(badgeHeight, 1)
         }
       })
       expect(textContrast(within(row).getByRole("link"))).toBeGreaterThanOrEqual(4.5)
@@ -117,8 +118,8 @@ export const SeparateSelections: Story = {
     const rows = requestRows(requestGroup(canvasElement, "Open Requests"))
     await userEvent.click(within(rows[0]).getByRole("checkbox"))
     await userEvent.click(within(rows[2]).getByRole("checkbox"))
-    expect(getComputedStyle(rows[0]).borderBottomLeftRadius).toBe("0px")
-    expect(getComputedStyle(rows[2]).borderTopLeftRadius).toBe("0px")
+    expect(getComputedStyle(rows[0]).borderBottomLeftRadius).toBe(resolvedStyle(rows[0], "border-radius", "var(--request-row-radius)"))
+    expect(getComputedStyle(rows[2]).borderTopLeftRadius).toBe(resolvedStyle(rows[0], "border-radius", "var(--request-row-radius)"))
   },
 }
 export const ToolbarMenus: Story = {
@@ -129,9 +130,9 @@ export const ToolbarMenus: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Add filter" }))
     const panel = await page.findByRole("dialog", { name: "Add filter" })
     const style = getComputedStyle(panel)
-    expect(style.borderRadius).toBe("8px")
-    // Dropdown menus carry Supabase's shadow-lg.
-    expect(style.boxShadow).toBe("rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px")
+    expect(style.borderRadius).toBe(resolvedStyle(panel, "border-radius", "var(--radius-panel)"))
+    // Filter panels use the shared Popover material.
+    expect(style.boxShadow).toBe(resolvedStyle(panel, "box-shadow", "var(--popover-shadow)"))
     expect(style.getPropertyValue("--foreground")).toBe(getComputedStyle(document.documentElement).getPropertyValue("--sb-foreground"))
     for (const item of within(panel).getAllByRole("menuitem")) expect(textContrast(item)).toBeGreaterThanOrEqual(4.5)
     await userEvent.keyboard("{Escape}")
@@ -318,10 +319,10 @@ export const ListSummary: Story = {
     await waitFor(() => expect(within(summary).getByText("3 matching Requests")).toBeVisible())
     await userEvent.click(within(summary).getByRole("button", { name: "Filter Project: Website, 3 Requests" }))
     await waitFor(() => expect(within(summary).getByText("12 matching Requests")).toBeVisible())
-    await userEvent.click(within(summary).getByRole("button", { name: "Request type" }))
-    await userEvent.click(within(summary).getByRole("button", { name: "Filter Request type: Improvement, 4 Requests" }))
+    await userEvent.click(within(summary).getByRole("button", { name: "Labels" }))
+    await userEvent.click(within(summary).getByRole("button", { name: "Filter Labels: Improvement, 4 Requests" }))
     await waitFor(() => expect(within(summary).getByText("4 matching Requests")).toBeVisible())
-    await userEvent.click(within(summary).getByRole("button", { name: "Filter Request type: Improvement, 4 Requests" }))
+    await userEvent.click(within(summary).getByRole("button", { name: "Filter Labels: Improvement, 4 Requests" }))
     await waitFor(() => expect(within(summary).getByText("12 matching Requests")).toBeVisible())
     await userEvent.click(within(summary).getByRole("button", { name: "Close list summary" }))
     await waitFor(() => expect(summary).not.toBeInTheDocument())

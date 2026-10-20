@@ -33,7 +33,8 @@ describe("Intake Gate contract", () => {
     expect(PAGE).not.toContain("userId:");
     expect(ACTIONS).toContain("requireActiveMember(context.orgId)");
     expect(ACTIONS).toContain("userId: auth.userId");
-    expect(TOKEN).toContain("requestId: randomUUID()");
+    expect(TOKEN).toContain("requestId: existingRequestId ?? randomUUID()");
+    expect(TOKEN).toContain('purpose: existingRequestId ? "edit" : "create"');
     expect(TOKEN).toContain("orgId: context.orgId");
     expect(TOKEN).toContain("userId: context.userId");
     expect(ACTIONS).toContain("onConflictDoNothing");

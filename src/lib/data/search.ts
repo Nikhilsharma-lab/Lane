@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, or, sql, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, projects, requests } from "@/db";
@@ -22,7 +22,7 @@ export const workspaceSearchInputSchema = z.object({
   requestsPage: pageSchema,
   projectsPage: pageSchema,
   statuses: z.array(z.enum(["open", "in_progress", "done"])).max(3).optional(),
-  types: z.array(z.enum(["bug", "improvement", "new_feature", "none"])).max(4).optional(),
+  types: z.array(z.union([z.enum(["bug", "improvement", "new_feature", "none"]), z.uuid()])).max(21).optional(),
   sort: z.enum(["relevance", "newest", "title"]).optional(),
   createdFrom: z.iso.date().optional(),
   createdTo: z.iso.date().optional(),
@@ -96,7 +96,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
   const dates = (field: typeof requests.createdAt | typeof projects.createdAt) => and(from ? gte(field, from) : undefined, until ? lt(field, until) : undefined);
   const statusFilter = input.statuses?.length ? inArray(requests.status, input.statuses) : undefined;
   const typed = input.types?.filter(type => type !== "none") ?? [];
-  const typeFilter = input.types?.length ? or(typed.length ? inArray(requests.requestType, typed) : undefined, input.types.includes("none") ? isNull(requests.requestType) : undefined) : undefined;
+  const typeFilter = input.types?.length ? or(typed.length ? sql`${requests.labelKeys} && ARRAY[${sql.join(typed.map(key => sql`${key}`), sql`, `)}]::text[]` : undefined, input.types.includes("none") ? sql`cardinality(${requests.labelKeys}) = 0` : undefined) : undefined;
   const requestWhere = and(requestBase, dates(requests.createdAt), statusFilter, typeFilter);
   const projectWhere = and(
     accessibleProjectsWhere(auth),
@@ -123,6 +123,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       projectId: requests.projectId,
       projectName: projects.name,
       requestType: requests.requestType,
+      labelKeys: requests.labelKeys,
       createdAt: requests.createdAt,
       description: requests.description,
     }).from(requests)
@@ -137,8 +138,8 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
     // Disjunctive facet counts: omit only this group's filter, never tenant or guest guards.
     db.select({ value: requests.status, total: count() }).from(requests)
       .where(and(requestBase, dates(requests.createdAt), typeFilter)).groupBy(requests.status),
-    db.select({ value: requests.requestType, total: count() }).from(requests)
-      .where(and(requestBase, dates(requests.createdAt), statusFilter)).groupBy(requests.requestType),
+    db.select({ value: sql<string>`unnest(case when cardinality(${requests.labelKeys}) = 0 then array['none']::text[] else ${requests.labelKeys} end)`, total: count() }).from(requests)
+      .where(and(requestBase, dates(requests.createdAt), statusFilter)).groupBy(sql`1`),
   ]);
   return {
     success: true,

@@ -1,3 +1,4 @@
+import { labelKeysSchema, labelRequestType } from "./request-labels";
 import { z } from "zod";
 import { requiredExpectedImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
@@ -42,6 +43,7 @@ const usefulLinkSchema = z
 export const requestSchema = z.object({
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  labelKeys: labelKeysSchema,
   priority: requestPrioritySchema.default("none"),
   title: z
     .string()
@@ -62,7 +64,7 @@ export const requestSchema = z.object({
   usefulLink: usefulLinkSchema,
   expectedImpact: requiredExpectedImpactSchema,
 }).superRefine((value, context) => {
-  const issue = measurementRequestTypeIssue(value.expectedImpact, value.requestType);
+  const issue = measurementRequestTypeIssue(value.expectedImpact, value.labelKeys ? labelRequestType(value.labelKeys) : value.requestType);
   if (issue) context.addIssue({ code: "custom", path: ["expectedImpact", "primary", "noBaseline"], message: issue });
 });
 

@@ -24,6 +24,12 @@ export type SecurityHeaderOptions = {
    * beside the *.supabase.co wildcard so a custom storage domain still works.
    */
   supabaseUrl?: string;
+  /**
+   * The project's NEXT_PUBLIC_SENTRY_DSN. Its origin (the GlitchTip ingest
+   * host) is added to connect-src so the error boundaries can report
+   * (src/lib/report-client-error.ts). Unset means no monitoring and no entry.
+   */
+  errorReportingDsn?: string;
 };
 
 // Clerk: the dev instance lives on *.clerk.accounts.dev, production on
@@ -74,6 +80,8 @@ export function contentSecurityPolicyDirectives(
     ...SUPABASE_SOCKETS,
     ...(supabaseOrigin ? [supabaseOrigin.replace(/^https:/, "wss:")] : []),
   ]);
+  // A DSN is https://<key>@host/<project>; URL parsing drops the key.
+  const errorReportingOrigin = originOf(options.errorReportingDsn);
 
   return [
     ["default-src", ["'self'"]],
@@ -102,6 +110,7 @@ export function contentSecurityPolicyDirectives(
         ...supabaseSockets,
         ...VERCEL_HOSTS,
         VERCEL_VITALS,
+        ...(errorReportingOrigin ? [errorReportingOrigin] : []),
       ],
     ],
     ["frame-src", [...CLERK_HOSTS, CLOUDFLARE_CHALLENGE, "https://vercel.live"]],

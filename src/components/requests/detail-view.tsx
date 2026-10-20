@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import type { RequestPriority, RequestType } from "@/lib/request-constants"
-import type { ExpectedImpact } from "@/lib/request-impact"
+import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact"
 import type { DesignReview } from "@/lib/request-review"
 import { RequestDesignLink, isFigmaLink } from "./request-design-link"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
@@ -37,6 +37,7 @@ export type RequestDetail = {
   uncertainty: string | null
   usefulLink: string | null
   expectedImpact?: ExpectedImpact | null
+  measurementDraft?: IncompleteMeasurement | null
   reframedProblem: string | null
   extractedSolution: string | null
   classification: "problem" | "solution" | "hybrid" | null
@@ -49,6 +50,7 @@ export type RequestDetail = {
   assigneeAvatarUrl: string | null
   projectId?: string | null
   projectName?: string | null
+  labelKeys?: string[] | null
   requestType?: RequestType | null
 }
 
@@ -110,6 +112,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
             <section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
               <h2 id="problem-heading" className="sr-only">Problem</h2>
               <p className={detailStyles.description}>{problem}</p>
+              {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
               {request.reframedProblem && <details className={detailStyles.disclosure}>
                 <summary><h3>Original Request</h3></summary>
                 <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}>{request.description}</p></div>
@@ -118,15 +121,10 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
                 <h3 className={detailStyles.blockHeading}>Suggested change</h3>
                 <p className={detailStyles.secondaryText}>{request.extractedSolution}</p>
               </div>}
-              {(context.length > 0 || supportingLink) && <details className={detailStyles.disclosure}>
-                <summary><h3>Supporting details</h3></summary>
-                <div className={detailStyles.disclosureBody}>
-                  {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
-                  {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
-                </div>
-              </details>}
+              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
+
             </section>
-            {request.expectedImpact && <ExpectedImpactSummary id="expected-impact" impact={request.expectedImpact} />}
+            {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
             {currentValues}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
               <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>

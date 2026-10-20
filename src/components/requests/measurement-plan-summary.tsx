@@ -1,3 +1,4 @@
+import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison";
 import { measurementAudienceLabel, measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
 import styles from "./measurement-plan-summary.module.css";
 
@@ -60,13 +61,7 @@ export function MeasurementPlanSummary({ plan, id }: { plan: MeasurementPlan; id
             <h4 className={styles.metric}>{measurementMetricLabel(guardrail)}</h4>
             <dl className={styles.values}>
               <div className={styles.field}>
-                <dt className={styles.label}>Current</dt>
-                <dd className={guardrail.current === null ? styles.description : styles.value}>
-                  {guardrail.current === null ? "Required before pickup" : `${guardrail.current}${guardrailUnit}`}
-                </dd>
-              </div>
-              <div className={styles.field}>
-                <dt className={styles.label}>{guardrail.operator === "at_most" ? "Maximum" : "Minimum"}</dt>
+                <dt className={styles.label}>{GUARDRAIL_COMPARISONS.find(option => option.value === guardrail.operator)?.label}</dt>
                 <dd className={styles.value}>{`${guardrail.limit}${guardrailUnit}`}</dd>
               </div>
             </dl>

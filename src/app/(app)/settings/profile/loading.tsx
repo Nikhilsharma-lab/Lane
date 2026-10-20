@@ -1,7 +1,7 @@
-import { ProfileLayout, ProfileSkeleton } from "@/components/settings/profile-sections"
+import { SettingsLoading } from "@/components/settings/settings-loading"
 
 export default function ProfileLoading() {
   return (
-    <ProfileLayout><ProfileSkeleton /></ProfileLayout>
+    <SettingsLoading title="Profile" label="Loading Profile settings" />
   )
 }

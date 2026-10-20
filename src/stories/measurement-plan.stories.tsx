@@ -122,19 +122,17 @@ export const MultipleGuardrails: Story = {
     let first = canvas.getByRole("region", { name: "Guardrail 1" })
     await waitFor(() => expect(within(first).getByRole("combobox", { name: "Guardrail metric" })).toHaveFocus())
     await expect(within(first).queryByRole("spinbutton", { name: "Current value" })).not.toBeInTheDocument()
-    await expect(within(first).queryByRole("spinbutton", { name: "Limit value" })).not.toBeInTheDocument()
+    await expect(within(first).queryByRole("spinbutton", { name: "Value" })).not.toBeInTheDocument()
     await choose(first, "Guardrail metric", "Support contact rate")
-    await userEvent.type(within(first).getByRole("spinbutton", { name: "Limit value" }), "10")
+    await userEvent.type(within(first).getByRole("spinbutton", { name: "Value" }), "10")
     await userEvent.click(canvas.getByRole("button", { name: "Add another guardrail" }))
     const second = canvas.getByRole("region", { name: "Guardrail 2" })
     await choose(second, "Guardrail metric", "Customer satisfaction (CSAT)")
-    await userEvent.type(within(second).getByRole("spinbutton", { name: "Current value" }), "85")
-    await userEvent.type(within(second).getByRole("spinbutton", { name: "Limit value" }), "80")
+    await userEvent.type(within(second).getByRole("spinbutton", { name: "Value" }), "80")
     await userEvent.click(within(first).getByRole("button", { name: "Remove guardrail 1" }))
     first = canvas.getByRole("region", { name: "Guardrail 1" })
     await expect(within(first).getByRole("combobox", { name: "Guardrail metric" })).toHaveTextContent("Customer satisfaction (CSAT)")
-    await expect(within(first).getByRole("spinbutton", { name: "Current value" })).toHaveValue(85)
-    await expect(within(first).getByRole("spinbutton", { name: "Limit value" })).toHaveValue(80)
+    await expect(within(first).getByRole("spinbutton", { name: "Value" })).toHaveValue(80)
     await expect(canvas.getByRole("button", { name: "Add another guardrail" })).toHaveFocus()
     await expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   },
@@ -150,10 +148,10 @@ export const SameMetricGuardrailKeepsFieldIdentity: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Add another guardrail" }))
     const second = canvas.getByRole("region", { name: "Guardrail 2" })
     await choose(second, "Guardrail metric", "Support contact rate")
-    const secondCurrent = within(second).getByRole("spinbutton", { name: "Current value" })
+    const secondCurrent = within(second).getByRole("spinbutton", { name: "Value" })
     await userEvent.click(canvas.getByRole("button", { name: "Remove guardrail 1" }))
     const remaining = canvas.getByRole("region", { name: "Guardrail 1" })
-    await expect(within(remaining).getByRole("spinbutton", { name: "Current value" })).toBe(secondCurrent)
+    await expect(within(remaining).getByRole("spinbutton", { name: "Value" })).toBe(secondCurrent)
     await expect(canvas.getByRole("button", { name: "Add another guardrail" })).toHaveFocus()
   },
 }
@@ -162,16 +160,22 @@ export const SameMetricGuardrailKeepsFieldIdentity: Story = {
 export const CustomMetric: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await choose(canvasElement, "Metric", "Add custom metric…")
-    await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toBeDisabled()
-    await userEvent.type(canvas.getByRole("textbox", { name: "Metric name" }), "Qualified leads")
-    await choose(canvasElement, "Unit", "Count")
+    const page = within(canvasElement.ownerDocument.body)
+    await userEvent.click(canvas.getByRole("combobox", { name: "Metric" }))
+    await userEvent.type(await page.findByRole("textbox", { name: "Search metrics" }), "Qualified leads")
+    await userEvent.keyboard("{ArrowDown}{Enter}")
+    await waitFor(() => expect(canvas.getByRole("combobox", { name: "Metric" })).toHaveFocus())
+    await expect(canvas.queryByRole("textbox", { name: "Metric name" })).not.toBeInTheDocument()
+    await expect(canvas.queryByRole("combobox", { name: "Unit" })).not.toBeInTheDocument()
+    await choose(canvasElement, "Current value unit", "Count")
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Current value" }), "4.5")
     await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveAttribute("aria-invalid", "true")
     await userEvent.clear(canvas.getByRole("spinbutton", { name: "Current value" }))
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Current value" }), "0")
     await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(0)
     await expect(canvas.getByRole("spinbutton", { name: "Current value" })).not.toHaveAttribute("aria-invalid", "true")
+    await choose(canvasElement, "Metric", "Qualified leads")
+    await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(0)
   },
 }
 
@@ -201,11 +205,11 @@ export const NewFeatureException: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }))
     const guardrail = canvas.getByRole("region", { name: "Guardrail 1" })
     await choose(guardrail, "Guardrail metric", "Support contact rate")
-    await expect(within(guardrail).getByRole("spinbutton", { name: "Current value" })).toBeEnabled()
-    await userEvent.type(within(guardrail).getByRole("spinbutton", { name: "Current value" }), "8")
+    await expect(within(guardrail).queryByRole("spinbutton", { name: "Current value" })).not.toBeInTheDocument()
+    await userEvent.type(within(guardrail).getByRole("spinbutton", { name: "Value" }), "8")
     await userEvent.click(canvas.getByRole("checkbox", { name: "No existing data. This is a brand-new feature." }))
     await expect(within(canvas.getByRole("region", { name: "Primary metric" })).getByRole("spinbutton", { name: "Current value" })).toBeEnabled()
-    await expect(within(guardrail).getByRole("spinbutton", { name: "Current value" })).toHaveValue(8)
+    await expect(within(guardrail).getByRole("spinbutton", { name: "Value" })).toHaveValue(8)
   },
 }
 
@@ -215,7 +219,7 @@ export const KeyboardPassFail: Story = {
     const canvas = within(canvasElement)
     const metric = canvas.getByRole("combobox", { name: "Metric" })
     metric.focus()
-    await userEvent.keyboard("{Enter}{End}{Enter}")
+    await userEvent.keyboard("{Enter}{ArrowDown}{End}{Enter}")
     await waitFor(() => expect(metric).toHaveFocus())
     await expect(metric).toHaveTextContent("Pass/fail check")
     const check = canvas.getByRole("combobox", { name: "Test case" })
@@ -274,19 +278,17 @@ export const CustomAudienceAndPlatform: Story = {
   },
 }
 
-// Changing audience must not silently delete a guardrail baseline either.
+// Changing audience must not silently delete a guardrail threshold.
 export const GuardrailValuesSurviveScopeChanges: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }))
     const guardrail = canvas.getByRole("region", { name: "Guardrail 1" })
     await choose(guardrail, "Guardrail metric", "Support contact rate")
-    await userEvent.type(within(guardrail).getByRole("spinbutton", { name: "Current value" }), "4")
-    await userEvent.type(within(guardrail).getByRole("spinbutton", { name: "Limit value" }), "6")
+    await userEvent.type(within(guardrail).getByRole("spinbutton", { name: "Value" }), "6")
     await choose(canvasElement, "Audience", "Returning users")
     await choose(canvasElement, "Platform", "Android")
-    await expect(within(guardrail).getByRole("spinbutton", { name: "Current value" })).toHaveValue(4)
-    await expect(within(guardrail).getByRole("spinbutton", { name: "Limit value" })).toHaveValue(6)
+    await expect(within(guardrail).getByRole("spinbutton", { name: "Value" })).toHaveValue(6)
   },
 }
 
@@ -409,5 +411,67 @@ export const CalendarRapidReopenDiscardsDraft: Story = {
     await expect((await rangeDay(reopened, dateInCurrentMonth(20))).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "false")
     await userEvent.click(reopened.getByRole("button", { name: "Cancel" }))
     await waitFor(() => expect(trigger).toHaveFocus())
+  },
+}
+
+export const MetricMenuOrderAndColour: Story = {
+  args: { initialGuardrails: 1 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement), page = within(document.body)
+    for (const name of ["Metric", "Guardrail metric"]) {
+      await userEvent.click(canvas.getByRole("combobox", { name: new RegExp(`^${name}$`) }))
+      await userEvent.type(await page.findByRole("textbox", { name: "Search metrics" }), "A new custom metric")
+      const option = page.getByRole("option", { name: "Create metric: “A new custom metric”" })
+      const expected = getComputedStyle(option).getPropertyValue("--accent").trim()
+      const probe = document.createElement("span"); probe.style.color = expected; option.append(probe)
+      const colour = getComputedStyle(probe).color; probe.remove()
+      await expect(getComputedStyle(option).color).toBe(colour)
+      await userEvent.keyboard("{Escape}")
+      await waitFor(() => expect(page.queryByRole("listbox")).not.toBeInTheDocument())
+    }
+  },
+}
+
+export const GuardrailComparisons: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }));
+    const row = canvas.getByRole("region", { name: "Guardrail 1" });
+    await choose(row, "Guardrail metric", "User error rate");
+    await expect(within(row).queryByRole("spinbutton", { name: "Current value" })).not.toBeInTheDocument();
+    await userEvent.type(within(row).getByRole("spinbutton", { name: "Value" }), "5");
+    for (const option of ["Less than", "Greater than", "Equal to", "Less than or equal to", "Greater than or equal to"]) {
+      await choose(row, "Comparison", option);
+      await expect(within(row).getByRole("combobox", { name: "Comparison" })).toHaveTextContent(option);
+      await expect(within(row).getByRole("spinbutton", { name: "Value" })).toHaveValue(5);
+    }
+  },
+};
+
+export const FourUnitsAndInlineThreshold: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement), page = within(canvasElement.ownerDocument.body)
+    await choose(canvasElement, "Metric", "Action count")
+    await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }))
+    const region = canvas.getByRole("region", { name: "Guardrail 1" })
+    await choose(region, "Guardrail metric", "User error rate")
+    for (const name of ["Current value unit", "Target after release (optional) unit", "Value unit"]) {
+      await userEvent.click(canvas.getByRole("combobox", { name }))
+      await expect((await page.findAllByRole("option")).map(option => option.textContent)).toEqual(["Percentage (%)", "Count", "Seconds", "Minutes"])
+      await userEvent.keyboard("{Escape}")
+      await waitFor(() => expect(page.queryByRole("listbox")).not.toBeInTheDocument())
+    }
+    const comparison = within(region).getByRole("combobox", { name: "Comparison" })
+    const input = within(region).getByRole("spinbutton", { name: "Value" })
+    await expect(input.getBoundingClientRect().left).toBeGreaterThan(comparison.getBoundingClientRect().right)
+    await expect(Math.abs(input.getBoundingClientRect().top - comparison.getBoundingClientRect().top)).toBeLessThan(2)
+    await userEvent.click(comparison)
+    const selected = page.getByRole("option", { name: "Less than or equal to" })
+    const symbol = selected.querySelector('[aria-hidden="true"]')!
+    const check = selected.querySelector("svg")!
+    await expect(symbol.textContent).toBe("≤")
+    await expect(symbol.getBoundingClientRect().left).toBeGreaterThan(check.getBoundingClientRect().right)
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() => expect(page.queryByRole("listbox")).not.toBeInTheDocument())
   },
 }

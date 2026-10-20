@@ -71,10 +71,10 @@ describe("measurement values and pickup readiness", () => {
     expect(measurementReadiness(exception, null)).not.toBeNull();
     expect(measurementPlanSchema.safeParse({ ...exception, primary: { ...exception.primary, current: 1 } }).success).toBe(false);
   });
-  it("does not waive guardrail baselines through the primary exception", () => {
+  it("requires guardrail limits but no baseline with the primary exception", () => {
     const guarded = { ...plan, primary: { ...plan.primary, noBaseline: true }, guardrails: [{ ...createMeasurementGuardrail("support"), limit: 5 }] };
     expect(measurementPlanSchema.safeParse(guarded).success).toBe(true);
-    expect(measurementReadiness(guarded, "new_feature")).toMatch(/guardrail/);
+    expect(measurementReadiness(guarded, "new_feature")).toBeNull();
     expect(measurementReadiness({ ...guarded, guardrails: [{ ...guarded.guardrails[0], current: 0 }] }, "new_feature")).toBeNull();
     expect(measurementPlanSchema.safeParse({ ...guarded, guardrails: [{ ...guarded.guardrails[0], noBaseline: true }] }).success).toBe(false);
   });

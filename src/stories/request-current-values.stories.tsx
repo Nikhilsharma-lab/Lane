@@ -1,3 +1,4 @@
+import { ToastStack } from "@/components/arc/toast-stack/toast-stack";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite"
 import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 import { RequestCurrentValues } from "@/app/(app)/requests/[id]/current-values"
@@ -12,7 +13,7 @@ const impact: MeasurementPlan = {
   guardrails: [{ key: "support" as const, name: "", unit: "count" as const, current: null, noBaseline: false as const, operator: "at_most" as const, limit: 20 }],
 }
 
-const meta = {
+const meta = { decorators: [(Story) => <><Story /><ToastStack morph="plain" label="Messages" /></>],
   title: "Requests/Current values",
   component: RequestCurrentValues,
   parameters: { layout: "padded", nextjs: { appDirectory: true } },
@@ -26,7 +27,7 @@ export const MissingCurrentValues: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("spinbutton", { name: "Conversion rate current value" })).toHaveValue(null)
-    await expect(canvas.getByRole("spinbutton", { name: "Users who contacted support current value" })).toHaveValue(null)
+    await expect(canvas.queryByRole("spinbutton", { name: "Users who contacted support current value" })).not.toBeInTheDocument()
     await expect(canvas.queryByRole("combobox")).not.toBeInTheDocument()
     await expect(canvas.queryByRole("spinbutton", { name: /target|limit/i })).not.toBeInTheDocument()
   },
@@ -36,10 +37,9 @@ export const SavesZero: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole("spinbutton", { name: "Conversion rate current value" }), "0")
-    await userEvent.type(canvas.getByRole("spinbutton", { name: "Users who contacted support current value" }), "0")
     await userEvent.click(canvas.getByRole("button", { name: "Save current values" }))
-    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Current values saved"))
-    await expect(saveRequestCurrentValues).toHaveBeenLastCalledWith("measurement-request", { expectedImpact: impact, primary: 0, guardrails: [0] }, { orgId: "measurement-workspace" })
+    await waitFor(() => expect(canvas.getByRole("region", { name: /^Messages/ })).toHaveTextContent("Current values saved"))
+    await expect(saveRequestCurrentValues).toHaveBeenLastCalledWith("measurement-request", { expectedImpact: impact, primary: 0, guardrails: [null] }, { orgId: "measurement-workspace" })
   },
 }
 

@@ -47,8 +47,8 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     recorded.role = "guest"
     await RequestsWorkspace({})
     const [list] = recorded.queries
-    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(2)
-    expect(list.params.filter(value => value === "person_current")).toHaveLength(2)
+    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(4)
+    expect(list.params.filter(value => value === "person_current")).toHaveLength(4)
   })
 
   it("loads only the Request, its comments and its files on a Request page, never the list (plan item 1.10)", async () => {

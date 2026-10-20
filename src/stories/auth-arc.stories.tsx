@@ -34,4 +34,4 @@ export const ContinueVerification: Story = { render: () => <RecoveryPreview step
 
 // The onboarding role step's stories render the real RoleForm: src/stories/onboarding.stories.tsx.
 export const SignupLoading: Story = { render: () => <AuthShell><AuthLoading label="Loading account creation" /></AuthShell> };
-export const MembersLoadingState: Story = { render: () => <MembersLoading /> };
+export const MembersLoadingState: Story = { render: () => <main><MembersLoading /></main> };

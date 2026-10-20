@@ -93,8 +93,8 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         label,
         icon,
         checked: current === priority,
-        disabled: isGuest,
-        onSelect: isGuest || current === priority ? undefined : () => setPriority(request, priority),
+        disabled: isGuest || !request.canEdit || request.status !== "open",
+        onSelect: isGuest || !request.canEdit || request.status !== "open" || current === priority ? undefined : () => setPriority(request, priority),
       }))
     }
 

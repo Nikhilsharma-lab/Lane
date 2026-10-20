@@ -15,7 +15,7 @@ const input = { title: "Signup loses customers", description: "Customers abandon
 const triage = { classification: "problem" as const, reframedProblem: null, extractedSolution: null };
 const context = { orgId: "org_test", userId: "user_creator" };
 const SECRET = "expected-impact-test-secret".repeat(3);
-beforeEach(() => { vi.stubEnv("TRIAGE_TOKEN_SECRET", SECRET); boundary.queries = []; boundary.responses = []; boundary.aiInputs = []; });
+beforeEach(() => { vi.stubEnv("TRIAGE_TOKEN_SECRET", SECRET); boundary.queries = []; boundary.responses = []; boundary.aiInputs = []; boundary.session.orgRole="org:member"; });
 
 describe("Expected impact server contract", () => {
   it("rejects missing or incomplete impact before an AI call", async () => {
@@ -81,4 +81,32 @@ describe("Expected impact server contract", () => {
     expect(boundary.queries[0].params).toContain(JSON.stringify(reviewedImpact));
     expect(boundary.queries[0].params).not.toContain(JSON.stringify(data.expectedImpact));
   });
+});
+
+it("reviews blank historical measurements only for an owned Open Request and cannot create with that token", async () => {
+  const { runTriage, saveRequest } = await import("./actions");
+  const requestId = "a1000000-0000-4000-8000-000000000016";
+  boundary.responses = [[[requestId]]];
+  const review = await runTriage({ ...input, expectedImpact: null }, { orgId: "org_test" }, requestId);
+  expect(review.success).toBe(true);
+  expect(boundary.queries[0].params).toEqual(expect.arrayContaining([requestId, "org_test", "user_creator", "open"]));
+  if (!review.success) throw new Error("Expected existing Request review");
+  boundary.queries = [];
+  expect(await saveRequest({ token: review.token, editedProblemText: null }, { orgId: "org_test" })).toMatchObject({ success: false });
+  expect(boundary.queries).toHaveLength(0);
+});
+it("refuses unavailable existing Requests before spending an AI call", async () => {
+  const { runTriage } = await import("./actions");
+  expect(await runTriage({ ...input, expectedImpact: null }, { orgId: "org_test" }, "a1000000-0000-4000-8000-000000000016")).toMatchObject({ success: false });
+  expect(boundary.aiInputs).toHaveLength(0);
+});
+
+it("lets workspace admins review another creator's Open Request using session authority",async()=>{
+ boundary.session.orgRole="org:admin";
+ const requestId="a1000000-0000-4000-8000-000000000011";
+ boundary.responses=[[[requestId]]];
+ const {runTriage}=await import("./actions");
+ expect(await runTriage(input,{orgId:"org_test"},requestId)).toMatchObject({success:true});
+ expect(boundary.queries[0].params).not.toContain("user_creator");
+ expect(boundary.queries[0].params).toEqual(expect.arrayContaining([requestId,"org_test","open"]));
 });

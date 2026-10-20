@@ -1,6 +1,5 @@
-import { MembersHost } from "@/components/auth/members-host";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { SettingsLoading } from "@/components/settings/settings-loading";
 
 export default function MembersLoading() {
-  return <MembersHost><Skeleton label="Loading Members" avatar lines={6} /></MembersHost>;
+  return <SettingsLoading title="Members" label="Loading Members" />;
 }

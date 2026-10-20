@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { Alert } from "@/components/arc/alert/alert"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
@@ -28,7 +29,7 @@ export function RequestCurrentValues({ requestId, context, impact, requestType }
   const [values, setValues] = useState(() => valuesFrom(impact))
   const [expanded, setExpanded] = useState(() => measurementReadiness(impact, requestType) !== null)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const { toast } = useToastStack()
   const incoming = JSON.stringify(impact)
   if (source !== incoming) {
     setSource(incoming)
@@ -39,12 +40,11 @@ export function RequestCurrentValues({ requestId, context, impact, requestType }
 
   const readiness = measurementReadiness(base, requestType)
   const hasPrimaryValue = base.primary.key !== "check" && !base.primary.noBaseline
-  if (!hasPrimaryValue && !base.guardrails.length) return null
+  if (!hasPrimaryValue) return null
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setSaved(false)
     const proposed = {
       ...base,
       primary: { ...base.primary, current: values.primary },
@@ -66,12 +66,11 @@ export function RequestCurrentValues({ requestId, context, impact, requestType }
     if (outcome.value.status !== "success" || "error" in outcome.value.value) return
     setBase(outcome.value.value.impact)
     setValues(valuesFrom(outcome.value.value.impact))
-    setSaved(true)
+    toast({ type: "success", title: "Current values saved", description: measurementReadiness(outcome.value.value.impact, requestType) ?? "This Request is ready to be picked up." })
   }
 
   function updatePrimary(value: number | null) {
     setValues(current => ({ ...current, primary: value }))
-    setSaved(false)
   }
 
   return <section className={styles.section} aria-label="Current values">
@@ -85,14 +84,9 @@ export function RequestCurrentValues({ requestId, context, impact, requestType }
     {expanded && <form onSubmit={save} className={styles.form}>
       <div className={styles.fields}>
         {hasPrimaryValue && <Input label={measurementMetricLabel(base.primary)} aria-label={`${measurementMetricLabel(base.primary)} current value`} description={measurementUnitLabel(base.primary.unit)} type="number" min={0} max={base.primary.unit === "percent" ? 100 : undefined} step={base.primary.unit === "count" ? 1 : "any"} value={values.primary ?? ""} readOnly={pending} onChange={event => updatePrimary(event.target.value === "" ? null : event.target.valueAsNumber)} />}
-        {base.guardrails.map((metric, index) => <Input key={index} label={measurementMetricLabel(metric)} aria-label={`${measurementMetricLabel(metric)} current value`} description={`Guardrail · ${measurementUnitLabel(metric.unit)}`} type="number" min={0} max={metric.unit === "percent" ? 100 : undefined} step={metric.unit === "count" ? 1 : "any"} value={values.guardrails[index] ?? ""} readOnly={pending} onChange={event => {
-          const value = event.target.value === "" ? null : event.target.valueAsNumber
-          setValues(current => ({ ...current, guardrails: current.guardrails.map((previous, at) => at === index ? value : previous) }))
-          setSaved(false)
-        }} />)}
+
       </div>
       {error && <Alert tone="danger" title="Current values not saved">{error}</Alert>}
-      {saved && <Alert tone="success" title="Current values saved">{measurementReadiness(base, requestType) ?? "This Request is ready to be picked up."}</Alert>}
       <div className={styles.actions}><Button variant="secondary" size="sm" type="submit" loading={pending}>Save current values</Button></div>
     </form>}
   </section>

@@ -13,9 +13,9 @@ const meta = {
   parameters: { layout: "fullscreen" },
   args: {
     workspaceName: "Lane Studio", fullName: "Alex Morgan", email: "alex@example.test", role: "member",
-    pathname: "/settings/profile", statusFilter: "all", projects: [], notifications: null,
+    pathname: "/requests/sidebar-fixture", statusFilter: "all", projects: [], notifications: null,
     // Plan item 2.0: the page strip carries the expand control, as on every page.
-    children: <><PageStrip title="Profile" /><div className="p-6"><Input label="Notes" placeholder="Type here" /></div></>,
+    children: <><PageStrip title="Request detail" /><div className="p-6"><Input label="Notes" placeholder="Type here" /></div></>,
   },
 } satisfies Meta<typeof SidebarView>
 export default meta
@@ -78,7 +78,7 @@ export const KeyboardLimits: Story = {
 }
 
 export const TypingKeepsLayout: Story = {
-  args: { children: <><PageStrip title="Profile" /><div className="grid gap-4 p-6">
+  args: { children: <><PageStrip title="Request detail" /><div className="grid gap-4 p-6">
     <Input label="Notes" placeholder="Type here" />
     <Dialog><DialogTrigger asChild><Button variant="secondary">Open example dialog</Button></DialogTrigger>
       <DialogContent title="Example dialog" description="Check that a dialog keeps keyboard focus."><p>Sidebar shortcuts stay inactive here.</p></DialogContent>

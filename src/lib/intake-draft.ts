@@ -1,3 +1,4 @@
+import { labelKeysSchema } from "./request-labels";
 import { z } from "zod";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
@@ -29,6 +30,7 @@ const sourceSchema = z.object({
   expectedImpact: expectedImpactDraftSchema,
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
+  labelKeys: labelKeysSchema,
   priority: requestPrioritySchema.default("none"),
   title: z.string().max(TITLE_MAX),
   description: z.string().max(DESCRIPTION_MAX),
@@ -155,6 +157,7 @@ export function writeIntakeDraft(
     Boolean(draft.previousProblem?.trim()) ||
     draft.source.projectId != null ||
     draft.source.requestType != null ||
+    (draft.source.labelKeys?.length ?? 0) > 0 ||
     (draft.source.priority !== undefined && draft.source.priority !== "none") ||
     draft.source.title.trim().length > 0 ||
     draft.source.description.trim().length > 0 ||

@@ -20,7 +20,7 @@ beforeAll(async () => {
     await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test')`;
     vi.stubEnv("TRIAGE_TOKEN_SECRET", "edit-test-secret".repeat(4));
 });
-beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
+beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; session.orgRole = "org:member"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
 afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id='edit-owner'`; await sql.end(); vi.unstubAllEnvs(); });
 it("saves guardrail definitions, target and supporting context without AI review", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 8; x.expectedImpact.primary.target = 80; x.usefulLink = "https://example.com/research"; expect(await save(x)).toMatchObject({ success: true }); const [row] = await sql `select expected_impact,useful_link,status::text from requests where id=${id}`; expect(row).toMatchObject({ expected_impact: x.expectedImpact, useful_link: x.usefulLink, status: "open" }); });
 it.each(["other-user", "other-workspace", "in_progress", "done"])("rejects %s edits", async (kind) => { if (kind === "other-user")
@@ -56,4 +56,74 @@ it.each([
     expect(result).toMatchObject({ success: true });
     const [saved] = await sql`select expected_impact from requests where id=${id}`;
     expect(saved.expected_impact).toEqual(expectedImpact);
+});
+it("saves and reloads the complete editor fields on an older Request", async () => {
+    const original = { kind: "metric" as const, metric: "Revenue per visit", baseline: 0, target: 12.5, unit: "USD / visit", source: "Saved report", reviewAfterDays: 45,
+        guardrail: { metric: "Refund cost", operator: "at_most" as const, limit: 3.5, unit: "USD" } };
+    await sql`update requests set expected_impact=${sql.json(original)} where id=${id}`;
+    const { measurementEditorValue, measurementEditorChanges } = await import("@/lib/request-measurement-editor");
+    const { requestEditSchema } = await import("@/lib/request-edit");
+    const editor = measurementEditorValue(original);
+    editor.measurement = { ...editor.measurement, audience: "custom", audienceName: "Returning buyers", platform: "web", exactDates: true, startDate: "2026-10-01", endDate: "2026-10-15" };
+    editor.guardrails[0].current = 2;
+    editor.guardrails.push({ ...editor.guardrails[0], name: "Additional guardrail", limit: 5 });
+    const changes = requestEditSchema.parse({ ...input(), expectedImpact: measurementEditorChanges(editor, original) });
+    const result = await (await import("./edit-actions")).saveRequestEdits(id, { snapshot: requestEditSnapshot({ ...input(), expectedImpact: original }), changes }, { orgId: "org-edit" });
+    expect(result).toMatchObject({ success: true });
+    const [row] = await sql`select expected_impact from requests where id=${id}`;
+    expect(row.expected_impact).toMatchObject(original);
+    expect(measurementEditorValue(row.expected_impact)).toEqual(editor);
+    expect(requestEditSchema.safeParse({ ...changes, expectedImpact: { ...row.expected_impact, measurement: { ...row.expected_impact.measurement, endDate: "2026-02-30" } } }).success).toBe(false);
+    expect(requestEditSchema.safeParse({ ...changes, expectedImpact: { ...row.expected_impact, noBaseline: true } }).success).toBe(false);
+});
+it("saves scope on a historical Request without inventing a metric, and reloads it", async () => {
+    await sql`update requests set expected_impact=null where id=${id}`;
+    const original = { ...input(), expectedImpact: null };
+    const partial = { kind: "metric", metric: "", baseline: null, target: null, unit: "", source: "", reviewAfterDays: null,
+        measurement: { audience: "returning", platform: "web", exactDates: false, startDate: "", endDate: "" } };
+    const action = (await import("./edit-actions")).saveRequestEdits;
+    expect(await action(id, { snapshot: requestEditSnapshot(original), changes: { ...original, expectedImpact: partial } }, { orgId: "org-edit" })).toEqual({ success: true });
+    const [row] = await sql`select * from requests where id=${id}`;
+    expect(row.expected_impact).toBeNull();
+    expect(row.measurement_draft).toEqual(partial);
+    expect(row.title).toBe(original.title);
+    expect(row.description).toBe(original.description);
+    expect(row.priority).toBe("high");
+    expect(row.affected_people).toBeNull();
+    expect(row.useful_link).toBeNull();
+    const { requestEditValues } = await import("@/lib/request-edit");
+    const reopened = requestEditValues({ ...original, measurementDraft: row.measurement_draft });
+    expect(reopened.expectedImpact).toEqual(partial);
+    expect(await action(id, { snapshot: requestEditSnapshot({ ...original, measurementDraft: row.measurement_draft }), changes: reopened }, { orgId: "org-edit" })).toEqual({ success: true });
+    const { requestSchema } = await import("@/lib/request-schema");
+    expect(requestSchema.safeParse(reopened).success).toBe(false);
+});
+it("does not let a completed measurement be downgraded to an incomplete draft", async () => {
+    expect(await (await import("./edit-actions")).saveRequestEdits(id, { snapshot: base(), changes: { ...input(), expectedImpact: { kind: "metric", metric: "", unit: "", baseline: null, target: null, source: "", reviewAfterDays: null } } }, { orgId: "org-edit" })).toHaveProperty("error");
+    const [row] = await sql`select expected_impact from requests where id=${id}`;
+    expect(row.expected_impact).toEqual(plan);
+});
+it("promotes a completed historical draft and rejects stale partial saves", async () => {
+    const draft = { kind: "metric" as const, metric: "", unit: "", baseline: null, target: null, source: "", reviewAfterDays: null };
+    await sql`update requests set expected_impact=null, measurement_draft=${sql.json(draft)} where id=${id}`;
+    const stored = { ...input(), expectedImpact: null, measurementDraft: draft };
+    const action = (await import("./edit-actions")).saveRequestEdits;
+    const completed = { ...draft, metric: "Revenue", unit: "USD", target: 20, reviewAfterDays: 14 };
+    expect(await action(id, { snapshot: requestEditSnapshot(stored), changes: { ...input(), expectedImpact: completed } }, { orgId: "org-edit" })).toEqual({ success: true });
+    const [row] = await sql`select expected_impact,measurement_draft from requests where id=${id}`;
+    expect(row).toEqual({ expected_impact: completed, measurement_draft: null });
+    expect(await action(id, { snapshot: requestEditSnapshot(stored), changes: { ...input(), expectedImpact: draft } }, { orgId: "org-edit" })).toHaveProperty("error");
+});
+
+it("allows a workspace admin to edit another creator's Open Request without changing ownership", async () => {
+ session.userId="edit-admin"; session.orgRole="org:admin";
+ const changes=input();changes.expectedImpact.primary.target=82;
+ expect(await save(changes)).toMatchObject({success:true});
+ const [row]=await sql`select created_by,expected_impact from requests where id=${id}`;
+ expect(row.created_by).toBe("edit-owner");expect(row.expected_impact.primary.target).toBe(82);
+});
+it.each(["in_progress","done"])("admin cannot edit %s Requests",async(status)=>{
+ session.userId="edit-admin";session.orgRole="org:admin";
+ await sql`update requests set status=${status}::request_status where id=${id}`;
+ expect(await save(input())).toHaveProperty("error");
 });

@@ -14,7 +14,12 @@ const SENTINEL = "SENTINEL_VALUE_MUST_NOT_LEAK";
 
 function completeEnv(): Record<string, string> {
   const env: Record<string, string> = {};
-  for (const name of [...REQUIRED_ENV_NAMES, ...PRODUCTION_ONLY_ENV_NAMES, "CLERK_JWT_KEY"]) {
+  for (const name of [
+    ...REQUIRED_ENV_NAMES,
+    ...PRODUCTION_ONLY_ENV_NAMES,
+    "CLERK_JWT_KEY",
+    "NEXT_PUBLIC_SENTRY_DSN",
+  ]) {
     env[name] = `${SENTINEL}_${name}`;
   }
   return env;
@@ -65,6 +70,18 @@ describe("checkServerEnv", () => {
     expect(production.ok).toBe(true);
     expect(production.warnings).toHaveLength(1);
     expect(production.warnings[0]).toContain("CLERK_JWT_KEY");
+
+    expect(checkServerEnv({ env, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
+  it("warns, but does not fail, when NEXT_PUBLIC_SENTRY_DSN is missing in production", () => {
+    const env = completeEnv();
+    delete env.NEXT_PUBLIC_SENTRY_DSN;
+
+    const production = checkServerEnv({ env, vercelEnv: "production" });
+    expect(production.ok).toBe(true);
+    expect(production.warnings).toHaveLength(1);
+    expect(production.warnings[0]).toContain("NEXT_PUBLIC_SENTRY_DSN");
 
     expect(checkServerEnv({ env, vercelEnv: "preview" }).warnings).toEqual([]);
   });

@@ -1,5 +1,8 @@
 "use client";
 
+import pickerLayout from "@/components/requests/request-picker-layout.module.css";
+import { RequestLabelsPicker, RequestLabels } from "@/components/requests/request-labels";
+import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,7 +16,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { flushSync } from "react-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -59,16 +61,21 @@ import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
-import { ProjectPicker, RequestTypePicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
-import { REQUEST_TYPE_LABELS, REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
+import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
+import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
 import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
-import type { z } from "zod";
+
+import type { RequestDetail } from "@/components/requests/detail-view";
+import { requestEditValues, requestEditSnapshot, requestEditSchema, requestEditSourceSchema } from "@/lib/request-edit";
+import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
+import { saveRequestEdits } from "../requests/[id]/edit-actions";
+import { useOptimisticAction, useServerRefresh } from "@/components/requests/use-optimistic-action";
+
 import styles from "./intake-form.module.css";
-import { ExpectedImpactDisclosure, firstImpactField, IMPACT_PANEL_ID } from "./expected-impact-disclosure";
 
 import {
   discardAttachmentUpload,
@@ -231,13 +238,14 @@ function IntakeNotice({
   );
 }
 
-export default function IntakeForm({
+export default function RequestEditor({
   context,
   draftOwnerId,
   active = true,
   onCreated,
   onBusyChange,
   initialProjectId = null,
+  editing,
 }: {
   context: { orgId: string };
   draftOwnerId: string;
@@ -246,8 +254,18 @@ export default function IntakeForm({
   onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
   onBusyChange?: (busy: boolean) => void;
   initialProjectId?: string | null;
+  editing?: { request: RequestDetail; onSaved: () => void };
 }) {
   const router = useRouter();
+  const optimistic = useOptimisticAction();
+  const refresh = useServerRefresh();
+  const [original] = useState(() => editing ? requestEditValues(editing.request) : null);
+  const [snapshot] = useState(() => editing ? requestEditSnapshot(editing.request) : null);
+  const [initialValues] = useState<RequestInput>(() => original
+    ? { ...original, expectedImpact: original.expectedImpact ?? { ...EMPTY_METRIC_IMPACT, unit: "" } }
+    : emptyRequest);
+  const [savedProblem, setSavedProblem] = useState(original?.reframedProblem ?? null);
+  const [savedSolution, setSavedSolution] = useState(original?.extractedSolution ?? null);
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
@@ -273,9 +291,6 @@ export default function IntakeForm({
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
   const [mutationBusy, setMutationBusy] = useState(false);
-  // Only restored legacy Expected impact uses the folded editor. New measurement plans stay visible.
-  const [impactOpen, setImpactOpen] = useState(false);
-  const [impactInstant, setImpactInstant] = useState(false);
 
   const operationInFlight = useRef(false);
   // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
@@ -306,7 +321,7 @@ export default function IntakeForm({
   const attachFilesButtonRef = useRef<HTMLButtonElement>(null);
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
-  const draftScope = intakeDraftScope(draftOwnerId, context.orgId);
+  const draftScope = intakeDraftScope(draftOwnerId, context.orgId) + (editing ? `:edit:${editing.request.id}` : "");
 
   const {
     control,
@@ -319,9 +334,9 @@ export default function IntakeForm({
     setValue,
     trigger,
     formState: { errors, isSubmitted },
-  } = useForm<RequestInput, unknown, z.output<typeof requestSchema>>({
-    resolver: zodResolver(requestSchema),
-    defaultValues: emptyRequest,
+  } = useForm<RequestInput, unknown, RequestInput>({
+    resolver: zodResolver(editing ? requestEditSourceSchema : requestSchema),
+    defaultValues: initialValues,
   });
 
   const watched = useWatch({ control });
@@ -336,6 +351,7 @@ export default function IntakeForm({
       usefulLink: watched.usefulLink ?? "",
       projectId: watched.projectId ?? null,
       requestType: watched.requestType ?? null,
+      labelKeys: watched.labelKeys,
       priority: watched.priority ?? "none",
       expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? createEmptyMeasurementPlan(),
     }),
@@ -349,6 +365,7 @@ export default function IntakeForm({
       watched.usefulLink,
       watched.projectId,
       watched.requestType,
+      watched.labelKeys,
       watched.priority,
       watched.expectedImpact,
     ],
@@ -395,6 +412,17 @@ export default function IntakeForm({
   useEffect(() => {
     // A record of interrupted uploads comes before any draft: its Request
     // exists. Only a record an earlier document left means a reload.
+    // An edit draft can only be restored against the exact saved version it
+    // started from; never replay stale content over a newer Request.
+    if (snapshot !== null) {
+      const baseKey = `lane:edit-base:${draftScope}`;
+      try {
+        if (window.sessionStorage.getItem(baseKey) !== snapshot) clearIntakeDraft(window.sessionStorage, draftScope);
+        window.sessionStorage.setItem(baseKey, snapshot);
+      } catch {
+        clearIntakeDraft(window.sessionStorage, draftScope);
+      }
+    }
     const lost = readLostUploads(window.sessionStorage, draftScope);
     const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
@@ -407,7 +435,6 @@ export default function IntakeForm({
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
-        setImpactOpen(hasGuardrailEdits(draft.source.expectedImpact));
         setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
         // A stored review knows which text produced its framing. Older compose
         // drafts may retain wording without an origin; show it, but never
@@ -433,7 +460,7 @@ export default function IntakeForm({
     return () => {
       window.clearTimeout(restoreTimer);
     };
-  }, [draftScope, reset]);
+  }, [draftScope, reset, snapshot]);
 
   useEffect(() => {
     if (!draftReady || !active || !initialProjectId || projectDefaultApplied.current) return;
@@ -558,7 +585,7 @@ export default function IntakeForm({
       : stage === "framing" && triage
         ? "Your Request is ready to review."
         : creating
-          ? "Creating the Request."
+          ? editing ? "Saving changes." : "Creating the Request."
           : stage === "uploading"
             ? "Uploading Request files."
             : "";
@@ -652,12 +679,12 @@ export default function IntakeForm({
     setStage("checking");
 
     try {
-      let result: TriageResponse = await runTriage(data, context);
+      let result: TriageResponse = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
       if (!result.success && result.error.code === "session_expired") {
         // A tab left hidden is the likely cause: ask Clerk for a fresh token and
         // check once more before asking the person to sign in.
         await refreshClerkToken().catch(() => undefined);
-        result = await runTriage(data, context);
+        result = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
       }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
@@ -674,8 +701,8 @@ export default function IntakeForm({
             const field = result.error.field;
             // Optional controls may have just expanded. Wait for their render
             // before moving focus to the rejected field.
-            window.setTimeout(() => focusRequestField(field), 0);
-            return;
+            const focusTimeout = window.setTimeout(() => focusRequestField(field), 0);
+            return () => window.clearTimeout(focusTimeout);
           }
         } else {
           setFailure(result.error);
@@ -839,7 +866,7 @@ export default function IntakeForm({
    * save already revalidated the list. */
   function showCreatedInList(created: OverviewRequest | undefined) {
     if (!created) return;
-    const row = { ...created, projectName: projects.projects.find((project) => project.id === created.projectId)?.name ?? created.projectName };
+    const row = { ...created, canEdit: true, projectName: projects.projects.find((project) => project.id === created.projectId)?.name ?? created.projectName };
     createdRow.current = row;
     pendingWriter?.insert(row);
   }
@@ -849,6 +876,12 @@ export default function IntakeForm({
     uploadsRequest.current = null;
     clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
+    if (editing) {
+      onBusyChange?.(false);
+      editing.onSaved();
+      refresh();
+      return;
+    }
     if (onCreated) {
       onBusyChange?.(false);
       onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
@@ -917,10 +950,12 @@ export default function IntakeForm({
     setStage("compose");
   }
 
-  async function onConfirm() {
-    if (operationInFlight.current || !source || !triage || !token) return;
+  async function onConfirm(unchangedSource?: RequestInput) {
+    const savingSource = unchangedSource ?? source;
+    if (operationInFlight.current || !savingSource || (!unchangedSource && (!triage || !token))) return;
+    if (unchangedSource) setSource(unchangedSource);
 
-    if (triage.classification !== "problem") {
+    if (!unchangedSource && triage?.classification !== "problem") {
       const parsed = problemFramingSchema.safeParse(editedProblem);
       if (!parsed.success) {
         setProblemError(parsed.error.issues[0].message);
@@ -939,13 +974,29 @@ export default function IntakeForm({
 
     try {
       const payload = {
-        token,
+        token: token!,
         editedProblemText:
-          triage.classification === "problem" ? null : editedProblem,
+          triage?.classification === "problem" ? null : editedProblem,
       };
       // Saving is idempotent by the review's requestId, so an ended session
       // gets one silent retry with a fresh Clerk token, as the gate does.
-      const result: SaveResponse = await saveRequest(payload, context).then(async (first) => {
+      const result: SaveResponse = editing && original
+        ? await (async (): Promise<SaveResponse> => {
+          const changes = { ...savingSource,
+            expectedImpact: original.expectedImpact === null && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
+            reframedProblem: unchangedSource ? savedProblem : triage?.classification === "problem" ? null : editedProblem,
+            extractedSolution: unchangedSource ? savedSolution : triage?.extractedSolution ?? null,
+          };
+          const parsed = requestEditSchema.safeParse(changes);
+          if (!parsed.success) return { success: false, error: { code: "save_failed", message: parsed.error.issues[0].message } };
+          const outcome = await optimistic({ id: editing.request.id, waitForPending: true, refreshOnError: false,
+            run: () => saveRequestEdits(editing.request.id, { snapshot, changes: parsed.data, token: unchangedSource ? undefined : token ?? undefined }, context),
+            onError: () => {},
+          });
+          return outcome.status === "success" ? { success: true, requestId: editing.request.id }
+            : { success: false, error: { code: "save_failed", message: outcome.status === "error" ? outcome.error : "This Request has a pending change. Try again." } };
+        })()
+        : await saveRequest(payload, context).then(async (first) => {
         if (first.success || first.error.code !== "session_expired") return first;
         await refreshClerkToken().catch(() => undefined);
         return saveRequest(payload, context);
@@ -957,19 +1008,20 @@ export default function IntakeForm({
           setError(field, { type: "server", message: result.error.message });
           focusAfterCompose.current = "none";
           setStage("compose");
-          window.setTimeout(() => focusRequestField(field), 0);
-          return;
+          const focusTimeout = window.setTimeout(() => focusRequestField(field), 0);
+          return () => window.clearTimeout(focusTimeout);
         }
         if (
           result.error.code === "validation" &&
           result.error.field === "editedProblemText"
         ) {
           setProblemError(result.error.message);
-          window.setTimeout(() => problemRef.current?.focus(), 0);
+          const focusTimeout = window.setTimeout(() => problemRef.current?.focus(), 0);
+          return () => window.clearTimeout(focusTimeout);
         } else {
           setFailure(result.error);
         }
-        setStage("framing");
+        setStage(unchangedSource ? "compose" : "framing");
         return;
       }
 
@@ -994,7 +1046,7 @@ export default function IntakeForm({
       if (!leftUploadScreen.current) {
         writeUnfinishedUploads(window.sessionStorage, draftScope, {
           requestId: result.requestId,
-          title: source.title,
+          title: savingSource.title,
           files: attachments
             .filter((attachment) => attachment.status !== "uploaded")
             .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
@@ -1017,9 +1069,9 @@ export default function IntakeForm({
       setFailure({
         code: "save_failed",
         message:
-          "Your Request could not be created. Your text is still here. Try again.",
+          editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.",
       });
-      setStage("framing");
+      setStage(unchangedSource ? "compose" : "framing");
     } finally {
       operationInFlight.current = false;
       // A composer mounted since then owns the busy flag.
@@ -1162,7 +1214,7 @@ export default function IntakeForm({
   }
 
   const composing = stage === "compose" || checking;
-  // Review waits while the guardrail editor is open: Add or Cancel settles it first.
+  // Incomplete guardrails and recovered pending changes must be resolved first.
   const guardrailEditing = hasGuardrailEdits(currentValues.expectedImpact);
   const reviewing = stage === "framing" || creating;
   // Compose shows gate failures; review-step failures keep their own alert.
@@ -1180,26 +1232,15 @@ export default function IntakeForm({
     else setFocus("usefulLink");
   }
 
-  /** A failed submit focuses the visible measurement fields or opens a restored legacy editor. */
+  /** A failed submit focuses the shared measurement controls. */
   function revealImpact() {
-    const impact = currentValues.expectedImpact;
-    if (impact?.kind === "measurement") {
-      const section = document.getElementById("intake-expected-impact");
-      (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section?.querySelector<HTMLElement>('[role="combobox"]') ?? section)?.focus();
-      return;
-    }
-    flushSync(() => {
-      setImpactInstant(true);
-      setImpactOpen(true);
-    });
-    const panel = document.getElementById(IMPACT_PANEL_ID);
-    const kind = impact?.kind ?? "metric";
-    (panel?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? firstImpactField(kind))?.focus();
+    const section = document.getElementById("intake-expected-impact");
+    (section?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? section?.querySelector<HTMLElement>('[role="combobox"]') ?? section)?.focus();
   }
 
   function focusRequestField(field: keyof RequestInput) {
     if (field === "projectId") document.getElementById("intake-project")?.focus();
-    else if (field === "requestType") document.getElementById("intake-request-type")?.focus();
+    else if (field === "requestType") document.getElementById("intake-request-labels")?.focus();
     else if (field === "priority") document.getElementById("intake-priority")?.focus();
     else if (field === "expectedImpact") revealImpact();
     else if (earlierDraftFields.some(({ name }) => name === field)) document.getElementById("intake-earlier-details")?.focus();
@@ -1216,13 +1257,17 @@ export default function IntakeForm({
       return;
     }
     onBusyChange?.(true);
-    void handleSubmit(checkFraming, (fieldErrors) => {
+    void handleSubmit(data => {
+      if (original && data.title.trim() === original.title && data.description.trim() === original.description) {
+        void onConfirm(data);
+      } else void checkFraming(data);
+    }, (fieldErrors) => {
       onBusyChange?.(false);
       const firstField = Object.keys(fieldErrors)[0] as keyof RequestInput | undefined;
       if (!firstField) return;
       if (firstField !== "title" && firstField !== "description") {
         if (firstField === "usefulLink") setLinkOpen(true);
-        window.setTimeout(() => focusRequestField(firstField), 0);
+        focusRequestField(firstField);
       }
     })();
   }
@@ -1305,14 +1350,16 @@ export default function IntakeForm({
 
             <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
               <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
-              <RequestTypePicker value={currentValues.requestType ?? null} onChange={(value) => {
+              <RequestLabelsPicker orgId={context.orgId} project={projects.projects.find(project => project.id === currentValues.projectId)} value={requestLabelKeys(currentValues)} onChange={(keys) => {
+                const value = labelRequestType(keys);
+                setValue("labelKeys", keys, { shouldDirty: true, shouldValidate: true });
                 draftEdited.current = true;
                 const impact = getValues("expectedImpact");
                 if (value !== "new_feature" && impact?.kind === "measurement" && impact.primary.noBaseline) {
                   setValue("expectedImpact", { ...impact, primary: { ...impact.primary, noBaseline: false } }, { shouldDirty: true });
                 }
                 setValue("requestType", value, { shouldDirty: true, shouldValidate: true });
-              }} disabled={checking || projectBusy} error={errors.requestType?.message} />
+              }} disabled={checking || projectBusy} />
               <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
               <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
                 <PopoverTrigger asChild>
@@ -1320,7 +1367,7 @@ export default function IntakeForm({
                     <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent {...pickerPopoverProps} inert={linkOpen ? undefined : true} aria-label="Related link" className="w-80 space-y-3"
+                <PopoverContent {...pickerPopoverProps} inert={linkOpen ? undefined : true} aria-label="Related link" className={pickerLayout.formPanel}
                   onOpenAutoFocus={(event) => { event.preventDefault(); setFocus("usefulLink"); }}>
                   <Input label="Related link" id="intake-useful-link" type="url" inputMode="url" placeholder="https://…" maxLength={USEFUL_LINK_MAX} readOnly={checking}
                     error={errors.usefulLink?.message} {...register("usefulLink")}
@@ -1330,7 +1377,12 @@ export default function IntakeForm({
                         void finishLink();
                       }
                     }} />
-                  <div className="flex justify-end">
+                  <div className={pickerLayout.formActions}>
+                    {currentValues.usefulLink && <Button type="button" variant="ghost" size="sm" onClick={() => {
+                      draftEdited.current = true;
+                      setValue("usefulLink", "", { shouldDirty: true, shouldValidate: true });
+                      setLinkOpen(false);
+                    }}>Remove link</Button>}
                     <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Done</Button>
                   </div>
                 </PopoverContent>
@@ -1343,9 +1395,12 @@ export default function IntakeForm({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            {currentValues.expectedImpact?.kind === "measurement" ? <>
+            {currentValues.expectedImpact && <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
+              )}
+              {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
+                <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
               )}
               <MeasurementPlanFields
               value={currentValues.expectedImpact}
@@ -1353,15 +1408,9 @@ export default function IntakeForm({
               requestType={currentValues.requestType ?? null}
               disabled={checking}
               submitted={isSubmitted}
-            /></> : currentValues.expectedImpact && <ExpectedImpactDisclosure
-              value={currentValues.expectedImpact}
-              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
-              disabled={checking}
-              errors={errors.expectedImpact}
-              open={impactOpen}
-              instant={impactInstant}
-              onOpenChange={(open) => { setImpactInstant(false); setImpactOpen(open); }}
-            />}
+            /></>}
+            {editing && savedProblem !== null && <Textarea label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedProblem(event.target.value)} />}
+            {editing && savedSolution !== null && <Textarea label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedSolution(event.target.value)} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
             {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
               <h2 className="text-sm font-medium">Problem from your earlier review</h2>
@@ -1373,7 +1422,7 @@ export default function IntakeForm({
               onRemove={(item) => removeQueuedFile(item.key)} emptyFocusRef={attachFilesButtonRef} />
             {attachments.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after creation. Choose them again if you reload.
+                Up to {MAX_ATTACHMENT_FILES} files, 10 MB each and 25 MB together. Files upload after saving. Choose them again if you reload.
               </p>
             )}
             {gateNotice && (
@@ -1388,7 +1437,7 @@ export default function IntakeForm({
             )}
           </form>
         )}
-        {checking && (
+        {(checking || (creating && !triage)) && (
           // Plan item 2.3: the gate acknowledges within a frame with the review
           // step's shape. The compose form above stays mounted but hidden, so
           // its values, number text, disclosure state and files survive a failure.
@@ -1398,7 +1447,7 @@ export default function IntakeForm({
                   with its text is often not announced, and focus would win. */}
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="" aria-describedby="intake-checking-status">Review Request</h2>
               <p id="intake-checking-status" role="status" className="text-sm text-muted-foreground">
-                {showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
+                {creating ? "Saving changes…" : showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
               </p>
             </div>
             <div aria-hidden="true" className="space-y-6">
@@ -1432,11 +1481,12 @@ export default function IntakeForm({
 
           <div className="space-y-1">
             <h3 className="break-words text-lg font-medium">{source.title}</h3>
-            {(source.projectId || source.requestType || (source.priority && source.priority !== "none")) && (
+            {requestLabelKeys(source).length > 0 && <RequestLabels request={source} />}
+            {(source.projectId || requestLabelKeys(source).length > 0 || (source.priority && source.priority !== "none")) && (
               <p className="text-sm text-muted-foreground">
                 {[
                   source.projectId ? projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project" : null,
-                  source.requestType ? REQUEST_TYPE_LABELS[source.requestType] : null,
+                  null,
                   source.priority && source.priority !== "none" ? REQUEST_PRIORITY_LABELS[source.priority] : null,
                 ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
               </p>
@@ -1541,7 +1591,7 @@ export default function IntakeForm({
           <RequestReviewSupportingDetails relatedLink={source.usefulLink} files={attachments} />
 
           {failure && (
-            <IntakeNotice error title="Request not created">
+            <IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
                 <>
@@ -1654,11 +1704,11 @@ export default function IntakeForm({
       {composing && (
         <footer className={styles.footer}>
           <div className={styles.actions}>
-            {guardrailEditing && !checking && <p id="intake-guardrail-pending" className={styles.footerNote}>Add or cancel the guardrail to review your Request.</p>}
+            {guardrailEditing && !checking && <p id="intake-guardrail-pending" className={styles.footerNote}>Complete or remove the guardrail to review your Request.</p>}
             {shortcut}
             <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
               aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
-              Review Request
+              {editing && original && currentValues.title.trim() === original.title && currentValues.description.trim() === original.description ? "Save changes" : "Review Request"}
             </Button>
           </div>
         </footer>
@@ -1682,10 +1732,10 @@ export default function IntakeForm({
               aria-keyshortcuts="Meta+Enter Control+Enter"
             >
               {creating
-                ? "Creating Request…"
+                ? editing ? "Saving changes…" : "Creating Request…"
                 : failure?.code === "review_expired"
                   ? "Review again"
-                  : "Create Request"}
+                  : editing ? "Save changes" : "Create Request"}
             </Button>
           </div>
         </footer>

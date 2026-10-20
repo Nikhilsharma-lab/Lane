@@ -9,8 +9,8 @@ import { Button } from "@/components/arc/button/button"
 import { RequestStatusControl } from "./request-status-control"
 import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
-import { RequestTypeGlyph } from "./request-type-presentation"
-import { REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
+import { RequestLabels } from "./request-labels"
+import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { statusLabel } from "@/lib/request-status"
 import { useDetailRequest } from "./detail-context"
@@ -70,7 +70,7 @@ function SubmittedTime({ iso, label }: { iso: string; label: string }) {
  * context menu.
  */
 function usePropertyControls(inSheet = false) {
-  const { request, isGuest } = useDetailRequest()
+  const { request, isGuest, viewer } = useDetailRequest()
   const { move: runMove, setPriority } = useDetailMoves()
   const status = request.status
   const priority = request.priority
@@ -91,7 +91,7 @@ function usePropertyControls(inSheet = false) {
 
   const statusControl = <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
 
-  const priorityControl = isGuest ? <Badge appearance="control" className={styles.propertyButton} icon={priorityGlyph}>{priorityText}</Badge>
+  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Badge appearance="control" className={styles.propertyButton} icon={priorityGlyph}>{priorityText}</Badge>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }
@@ -114,7 +114,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
         ? <Value icon={<Avatar name={assignee} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={styles.avatar} aria-hidden="true" />}>{assignee}</Value>
         : <span className={styles.propertyMuted}>No one yet</span>}</Row>
       <Row label="Project"><Value icon={<ProjectMarker projectId={request.projectId} />}>{request.projectId ? request.projectName ?? "Unavailable Project" : "No Project"}</Value></Row>
-      <Row label="Type"><Value icon={<RequestTypeGlyph type={request.requestType} />}>{request.requestType ? REQUEST_TYPE_LABELS[request.requestType] : "No type"}</Value></Row>
+      <Row label="Labels"><RequestLabels request={request} /></Row>
       <Row label="Submitted"><span className={styles.propertyText}>{request.creatorName ?? "Unknown member"}, <SubmittedTime iso={new Date(request.createdAt).toISOString()} label={submittedAgo} /></span></Row>
     </dl>
   </div>

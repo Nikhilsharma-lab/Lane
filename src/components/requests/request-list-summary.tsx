@@ -8,12 +8,13 @@ import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
-import { REQUEST_TYPE_LABELS } from "@/lib/request-constants"
+import { requestLabelKeys } from "@/lib/request-labels"
+import { useWorkspaceLabels } from "./workspace-labels"
 import { statuses } from "./tasks/statuses"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import styles from "./tasks/data-table-toolbar.module.css"
 
-const dimensions = [{ value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "requestType", label: "Request type" }]
+const dimensions = [{ value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "requestType", label: "Labels" }]
 type Dimension = "status" | "project" | "requestType"
 // Plan item 2.4 (plan §2.3): the summary overlays the list and moves on transform only,
 // entering in 240 ms on the enter curve and leaving in 180 ms on the exit curve, like every Arc Dialog.
@@ -25,6 +26,7 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
   rows: OverviewRequest[]; filter: RequestStatusFilter; project: string; requestType: string;
   onFilter: (field: Dimension, value: string) => void; onClose: () => void;
 }) {
+  const { labels } = useWorkspaceLabels()
   const panel = useRef<HTMLElement>(null)
   const reduced = !!useReducedMotion()
   const present = useIsPresent()
@@ -32,10 +34,14 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
   const [dimension, setDimension] = useState<Dimension>("status")
   const counts = new Map<string, { label: string; count: number }>()
   for (const row of rows) {
+    if (dimension === "requestType") {
+      for (const key of requestLabelKeys(row).length ? requestLabelKeys(row) : ["none"]) counts.set(key, { label: key === "none" ? "No labels" : labels.find(label => label.id === key)?.name ?? "Saved label", count: (counts.get(key)?.count ?? 0) + 1 })
+      continue
+    }
     const value = dimension === "status" ? row.status : dimension === "project" ? row.projectId ?? "none" : row.requestType ?? "none"
     const label = dimension === "status" ? statuses.find(status => status.value === row.status)!.label
       : dimension === "project" ? row.projectName ?? (row.projectId ? "Unavailable Project" : "No Project")
-        : row.requestType ? REQUEST_TYPE_LABELS[row.requestType] : "No type"
+        : "No labels"
     counts.set(value, { label, count: (counts.get(value)?.count ?? 0) + 1 })
   }
   const active = dimension === "status" ? filter : dimension === "project" ? project : requestType

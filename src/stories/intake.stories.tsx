@@ -28,7 +28,7 @@ import {
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import IntakeLoading from "@/app/(app)/intake/loading";
 import type { TriageResult } from "@/lib/ai/triage";
-import { fillMetricImpact, measurementImpact, metricImpact, openImpact, verifiedImpact } from "./fixtures/request-impact";
+import { fillMetricImpact, measurementImpact, metricImpact, verifiedImpact } from "./fixtures/request-impact";
 import requestsMeta, { RequestsShellFixture } from "./requests.stories";
 
 const requestSource = {
@@ -170,7 +170,7 @@ export const MeasurementRequestReview: Story = {
     await userEvent.click(guard.getByRole("combobox", { name: "Guardrail metric" }));
     await userEvent.click(await page.findByRole("option", { name: "Support contact rate" }));
     await waitFor(() => expect(guard.getByRole("combobox", { name: "Guardrail metric" })).toHaveFocus());
-    await userEvent.type(guard.getByRole("spinbutton", { name: "Limit value" }), "5");
+    await userEvent.type(guard.getByRole("spinbutton", { name: "Value" }), "5");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     const summary = within(await canvas.findByRole("region", { name: "Measurement plan" }));
     await visible(await canvas.findByRole("heading", { name: "Review Request" }));
@@ -184,7 +184,7 @@ export const MeasurementRequestReview: Story = {
     } }), context);
     await expect(canvas.getByRole("button", { name: "Create Request" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
-    await expect(within(canvas.getByRole("region", { name: "Guardrail 1" })).getByRole("spinbutton", { name: "Limit value" })).toHaveValue(5);
+    await expect(within(canvas.getByRole("region", { name: "Guardrail 1" })).getByRole("spinbutton", { name: "Value" })).toHaveValue(5);
     await expect(canvas.getByRole("combobox", { name: "Priority: High" })).toBeVisible();
   },
 };
@@ -413,7 +413,7 @@ async function reviewSupportingDetails(
     await expect(fileTitle.scrollWidth).toBeLessThanOrEqual(fileTitle.clientWidth + 1);
     await expect(files.getByText("2.0 KB")).toBeVisible();
     await expect(files.queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
-    await expect(canvas.getByText(/files? (will )?upload.*creat/i)).toBeVisible();
+    await expect(canvas.getByText(/files? (will )?upload.*sav/i)).toBeVisible();
     const impact = within(canvas.getByRole("region", { name: "Measurement plan" }));
     await expect(impact.getByText("90%")).toBeVisible();
     await expect(impact.getByText("14 days after release")).toBeVisible();
@@ -1301,35 +1301,34 @@ export const ExpectedImpactRequired: Story = {
     await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
     await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await waitFor(() => expect(canvas.getByRole("textbox", { name: "What should improve?" })).toHaveFocus());
+    await waitFor(() => expect(canvas.getByRole("combobox", { name: "Metric" })).toHaveFocus());
     await expect(runTriage).not.toHaveBeenCalled();
     await fillMetricImpact(canvas);
-    const target = canvas.getByRole("spinbutton", { name: "Goal" });
+    const target = canvas.getByRole("spinbutton", { name: "Target after release (optional)" });
     await userEvent.clear(target);
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await waitFor(() => expect(target).toHaveFocus());
-    await expect(target).toHaveAttribute("aria-invalid", "true");
+    await expect(await canvas.findByText("Complete the metric or verified result and measurement window before reviewing.")).toBeVisible();
     await expect(runTriage).not.toHaveBeenCalled();
   },
 };
+
+async function chooseShared(canvasElement: HTMLElement, label: string, option: string, scope = within(canvasElement)) {
+  const control = scope.getByRole("combobox", { name: label });
+  await userEvent.click(control);
+  await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole("option", { name: option }));
+  await waitFor(() => expect(control).toHaveFocus());
+}
 
 export const ExpectedMetricImpactReview: Story = {
   beforeEach: restoreLegacyBlankDraft,
   play: async ({ canvasElement }) => {
     const canvas = await reachCheck(canvasElement);
     await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    const impact = within(canvas.getByRole("region", { name: "Expected impact" }));
-    await expect(impact.getByText("Not measured yet")).toBeVisible();
-    await expect(impact.getByText("90 %")).toBeVisible();
-    await expect(impact.getByText("14 days")).toBeVisible();
-    await expect(impact.queryByText("Data source")).not.toBeInTheDocument();
     await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
-    await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))?.source.expectedImpact).toEqual(metricImpact);
     await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
-    await expect(canvas.queryByRole("spinbutton", { name: "Today (optional)" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Add current value" })).toBeVisible();
-    await expect(canvas.getByRole("spinbutton", { name: "Goal" })).toHaveValue(90);
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("spinbutton", { name: "Current value" })).toHaveValue(null);
+    await expect(canvas.getByRole("spinbutton", { name: "Target after release (optional)" })).toHaveValue(90);
+    await expect(canvas.getByRole("combobox", { name: "Audience" })).toHaveTextContent("Audience");
     await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
     await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
@@ -1338,29 +1337,16 @@ export const ExpectedMetricImpactReview: Story = {
 };
 
 export const ExpectedVerifiedImpactReview: Story = {
-  beforeEach: restoreLegacyBlankDraft,
+  beforeEach: () => { writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {source: {...requestSource, expectedImpact: verifiedImpact}, review:null}); },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.type(canvas.getByRole("textbox", { name: "Request title" }), requestSource.title);
-    await userEvent.type(canvas.getByRole("textbox", { name: "Description" }), requestSource.description);
-    await openImpact(canvas);
-    await userEvent.click(canvas.getByRole("combobox", { name: "Measure with: Metric" }));
-    await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole("option", { name: "Verified result" }));
-    await waitFor(() => expect(canvas.getByRole("combobox", { name: "Measure with: Verified result" })).toHaveFocus());
-    await userEvent.type(canvas.getByRole("textbox", { name: "What should be true when this is done?" }), verifiedImpact.result);
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
-    await userEvent.type(canvas.getByRole("spinbutton", { name: "Check in days" }), String(verifiedImpact.reviewAfterDays));
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    const impact = within(canvas.getByRole("region", { name: "Expected impact" }));
-    await expect(impact.getByText(verifiedImpact.result)).toBeVisible();
-    await expect(impact.getByText("1 day")).toBeVisible();
-    await expect(impact.queryByText("Data source")).not.toBeInTheDocument();
-    await expect(impact.queryByText("Current value")).not.toBeInTheDocument();
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: verifiedImpact }), context);
-    await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))?.source.expectedImpact).toEqual(verifiedImpact);
-    await userEvent.click(canvas.getByRole("button", { name: "Create Request" }));
-    await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
+    await expect(await canvas.findByRole("combobox", {name:"Metric"})).toHaveTextContent("Pass/fail check");
+    await expect(canvas.getByRole("textbox", {name:"Verified result"})).toHaveValue(verifiedImpact.result);
+    await userEvent.click(canvas.getByRole("button", {name:"Review Request"}));
+    await visible(await canvas.findByRole("heading", {name:"Review Request"}));
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({expectedImpact:verifiedImpact}),context);
+    await expect(canvas.getByText(verifiedImpact.result)).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", {name:"Create Request"}));
     await waitForCreatedNotification(canvasElement);
   },
 };
@@ -1396,225 +1382,109 @@ export const LegacyReviewNeedsImpact: Story = {
 };
 
 export const ExpectedImpactRestoredZeroBaseline: Story = {
-  beforeEach: () => {
-    writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
-      source: { ...requestSource, expectedImpact: { ...metricImpact, baseline: 0, source: "Saved-draft usability check" } },
-      review: null,
-    });
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // Folded, the complete impact reads as its summary: the restored source keeps its line, with no dangling comma.
-    const impactRow = within(await canvas.findByRole("region", { name: "Expected impact" }));
-    await expect(impactRow.getByText("Customers finding a saved draft, 0% to 90%")).toBeVisible();
-    await expect(impactRow.getByText("Saved-draft usability check, 14 days after launch")).toBeVisible();
-    await openImpact(canvas);
-    await expect(await canvas.findByRole("spinbutton", { name: "Today (optional)" })).toHaveValue(0);
-    await expect(canvas.queryByRole("button", { name: "Add current value" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: { ...metricImpact, baseline: 0, source: "Saved-draft usability check" } }), context);
-    await expect(within(canvas.getByRole("region", { name: "Expected impact" })).getByText("Saved-draft usability check")).toBeVisible();
+  beforeEach: () => { writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {source:{...requestSource,expectedImpact:{...metricImpact,baseline:0,source:"Saved-draft usability check"}},review:null}); },
+  play: async ({canvasElement}) => {
+    const canvas=within(canvasElement);
+    await expect(await canvas.findByRole("spinbutton",{name:"Current value"})).toHaveValue(0);
+    await expect(canvas.getByRole("textbox",{name:"Evidence source"})).toHaveValue("Saved-draft usability check");
+    await userEvent.click(canvas.getByRole("button",{name:"Review Request"}));
+    await visible(await canvas.findByRole("heading",{name:"Review Request"}));
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({expectedImpact:{...metricImpact,baseline:0,source:"Saved-draft usability check"}}),context);
   },
 };
 
 export const ExpectedImpactModeSwitch: Story = {
   beforeEach: restoreLegacyBlankDraft,
-  play: async ({ canvasElement }) => {
-    const canvas = await fillRequest(canvasElement);
-    const changeMode = async (name: string) => {
-      await userEvent.click(canvas.getByRole("combobox", { name: /^Measure with:/ }));
-      await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole("option", { name }));
-      await waitFor(() => expect(canvas.getByRole("combobox", { name: `Measure with: ${name}` })).toHaveFocus());
-    };
-    await expect(canvas.queryByRole("spinbutton", { name: "Today (optional)" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Add current value" }));
-    await userEvent.type(canvas.getByRole("spinbutton", { name: "Today (optional)" }), "35");
-    await changeMode("Verified result");
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("spinbutton", { name: "Check in days" })).toHaveValue(14);
-    await userEvent.type(canvas.getByRole("textbox", { name: "What should be true when this is done?" }), verifiedImpact.result);
-    await userEvent.clear(canvas.getByRole("spinbutton", { name: "Check in days" }));
-    await userEvent.type(canvas.getByRole("spinbutton", { name: "Check in days" }), "7");
-    await changeMode("Metric");
-    await expect(canvas.getByRole("textbox", { name: "What should improve?" })).toHaveValue(metricImpact.metric);
-    await expect(canvas.getByRole("spinbutton", { name: "Today (optional)" })).toHaveValue(35);
-    await expect(canvas.getByRole("spinbutton", { name: "Goal" })).toHaveValue(90);
-    await expect(canvas.getByRole("textbox", { name: "Measured in" })).toHaveValue("%");
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("spinbutton", { name: "Check in days" })).toHaveValue(7);
-    await changeMode("Verified result");
-    await expect(canvas.getByRole("textbox", { name: "What should be true when this is done?" })).toHaveValue(verifiedImpact.result);
-    await expect(canvas.queryByRole("textbox", { name: "Where will you check this?" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("spinbutton", { name: "Check in days" })).toHaveValue(7);
+  play: async ({canvasElement}) => {
+    const canvas=await fillRequest(canvasElement);
+    await chooseShared(canvasElement,"Metric","Pass/fail check");
+    await chooseShared(canvasElement,"Test case","Keyboard navigation");
+    await expect(canvas.getByText("Test steps")).toBeVisible();
+    await expect(canvas.getByRole("button",{name:"Measurement window"})).toHaveTextContent("14 days after release");
+    await chooseShared(canvasElement,"Metric","Conversion rate");
+    await expect(canvas.getByRole("spinbutton",{name:"Current value"})).toHaveValue(null);
+    await expect(canvas.getByRole("spinbutton",{name:"Target after release (optional)"})).toHaveValue(null);
+    await expect(canvas.getByRole("button",{name:"Measurement window"})).toHaveTextContent("14 days after release");
   },
 };
 
+async function addGuardrail(canvasElement: HTMLElement) {
+  const canvas=within(canvasElement);
+  await userEvent.click(canvas.getByRole("button",{name:"Add guardrail"}));
+  const editor=within(await canvas.findByRole("region",{name:"Guardrail 1"}));
+  await chooseShared(canvasElement,"Guardrail metric","Support contact rate",editor);
+  return editor;
+}
+
 export const ExpectedGuardrailReview: Story = {
   beforeEach: restoreLegacyBlankDraft,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // The default % unit alone is not work: the folded row still reads as required.
-    await expect(within(canvas.getByRole("region", { name: "Expected impact" })).getByText("Required")).toBeVisible();
-    await openImpact(canvas);
-    await expect(canvas.getByRole("textbox", { name: "Measured in" })).toHaveValue("%");
-    await fillRequest(canvasElement);
-    const editor = await addGuardrail(canvasElement);
-    await expect(editor.getByRole("textbox", { name: "Measured in" })).toHaveValue("");
-    await userEvent.type(editor.getByRole("textbox", { name: "What should not get worse?" }), "Support requests");
-    await expect(canvas.getByRole("button", { name: "Review Request" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Review Request" })).toHaveAccessibleDescription("Add or cancel the guardrail to review your Request.");
-    await userEvent.click(editor.getByRole("button", { name: "Add guardrail" }));
-    const limit = editor.getByRole("spinbutton", { name: "Number" });
-    await waitFor(() => expect(limit).toHaveFocus());
-    await expect(limit).toHaveAttribute("aria-invalid", "true");
+  play: async ({canvasElement}) => {
+    const canvas=await fillRequest(canvasElement);
+    const editor=await addGuardrail(canvasElement);
+    await expect(canvas.getByRole("button",{name:"Review Request"})).toBeDisabled();
     await expect(runTriage).not.toHaveBeenCalled();
-    await userEvent.type(limit, "20");
-    await userEvent.click(editor.getByRole("button", { name: "Add guardrail" }));
-    await waitFor(() => expect(editor.getByRole("textbox", { name: "Measured in" })).toHaveFocus());
-    await userEvent.type(editor.getByRole("textbox", { name: "Measured in" }), "requests per week");
-    await userEvent.click(editor.getByRole("button", { name: "Add guardrail" }));
-    await expect(canvas.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
-    await expect(within(canvas.getByRole("region", { name: "Guardrail" })).getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
-    await expect(canvas.queryByText("Add or cancel the guardrail to review your Request.")).not.toBeInTheDocument();
-    // Folded, the disclosure reads the impact, then the check (no source: detail's "Check in"), then the guardrail sentence.
-    await userEvent.click(canvas.getByRole("button", { name: "Done" }));
-    await waitFor(() => expect(canvas.queryByRole("region", { name: "Guardrail" })).not.toBeInTheDocument());
-    const impactRow = within(canvas.getByRole("region", { name: "Expected impact" }));
-    await expect(impactRow.getByText("Customers finding a saved draft, target 90%")).toBeVisible();
-    await expect(impactRow.getByText("Check in 14 days")).toBeVisible();
-    await expect(impactRow.getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
-    await expect(impactRow.queryByText(/, 14 days after launch/)).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    const guardrail = { metric: "Support requests", operator: "at_most", limit: 20, unit: "requests per week" };
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: { ...metricImpact, guardrail } }), context);
-    await expect(canvas.getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
-    await expect(readIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId))?.source.expectedImpact).toMatchObject({ guardrail });
-    await userEvent.click(canvas.getByRole("button", { name: "Edit Request" }));
-    await openImpact(canvas);
-    await expect(canvas.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Support requests must stay at or below 20 requests per week.");
-    await expect(canvas.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Create Request" }));
-    await expect(saveRequest).toHaveBeenCalledWith({ token: "story-review-token", editedProblemText: null }, context);
+    await userEvent.type(editor.getByRole("spinbutton",{name:"Value"}),"20");
+    await userEvent.click(canvas.getByRole("button",{name:"Review Request"}));
+    await visible(await canvas.findByRole("heading",{name:"Review Request"}));
+    const guardrail={metric:"Support contact rate",operator:"at_most",limit:20,unit:"%"};
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({expectedImpact:{...metricImpact,guardrail}}),context);
+    await userEvent.click(canvas.getByRole("button",{name:"Edit Request"}));
+    await expect(within(canvas.getByRole("region",{name:"Guardrail 1"})).getByRole("spinbutton",{name:"Value"})).toHaveValue(20);
+    await userEvent.click(canvas.getByRole("button",{name:"Review Request"}));
+    await userEvent.click(await canvas.findByRole("button",{name:"Create Request"}));
     await waitForCreatedNotification(canvasElement);
   },
 };
 
 export const GuardrailSurvivesModeSwitch: Story = {
   beforeEach: restoreLegacyBlankDraft,
-  play: async ({ canvasElement }) => {
-    const canvas = await fillRequest(canvasElement);
-    const page = within(canvasElement.ownerDocument.body);
-    const editor = await addGuardrail(canvasElement);
-    await userEvent.type(editor.getByRole("textbox", { name: "What should not get worse?" }), "Task completion");
-    await userEvent.type(editor.getByRole("spinbutton", { name: "Number" }), "80");
-    await userEvent.type(editor.getByRole("textbox", { name: "Measured in" }), "%");
-    await userEvent.click(editor.getByRole("combobox", { name: /^Must stay/ }));
-    await userEvent.click(await page.findByRole("option", { name: "At or above" }));
-    await waitFor(() => expect(canvas.getByRole("combobox", { name: /^Must stay/ })).toHaveFocus());
-    for (const name of ["Verified result", "Metric"]) {
-      await userEvent.click(canvas.getByRole("combobox", { name: /^Measure with:/ }));
-      await userEvent.click(await page.findByRole("option", { name }));
-      await waitFor(() => expect(canvas.getByRole("combobox", { name: `Measure with: ${name}` })).toHaveFocus());
-      await expect(canvas.getByRole("textbox", { name: "What should not get worse?" })).toHaveValue("Task completion");
-      await expect(canvas.getByRole("spinbutton", { name: "Number" })).toHaveValue(80);
-      await expect(canvas.getByRole("combobox", { name: /^Must stay/ })).toHaveTextContent("At or above");
-      await expect(canvas.getByRole("button", { name: "Review Request" })).toBeDisabled();
+  play: async ({canvasElement}) => {
+    const canvas=await fillRequest(canvasElement);
+    const editor=await addGuardrail(canvasElement);
+    await userEvent.type(editor.getByRole("spinbutton",{name:"Value"}),"80");
+    await chooseShared(canvasElement,"Comparison","Greater than or equal to",editor);
+    for(const metric of ["Pass/fail check","Conversion rate"]) {
+      await chooseShared(canvasElement,"Metric",metric);
+      const row=within(canvas.getByRole("region",{name:"Guardrail 1"}));
+      await expect(row.getByRole("spinbutton",{name:"Value"})).toHaveValue(80);
+      await expect(row.getByRole("combobox",{name:"Comparison"})).toHaveTextContent("Greater than or equal to");
     }
-    await userEvent.click(canvas.getByRole("button", { name: "Add guardrail" }));
-    await expect(canvas.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Task completion must stay at or above 80 %.");
-    await userEvent.click(canvas.getByRole("button", { name: "Guardrail options" }));
-    await userEvent.click(await page.findByRole("menuitem", { name: "Remove guardrail" }));
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Expected impact options" })).toHaveFocus());
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({ expectedImpact: metricImpact }), context);
-    await expect(canvas.queryByText("Guardrail metric")).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button",{name:"Remove guardrail 1"}));
+    await expect(canvas.queryByRole("region",{name:"Guardrail 1"})).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button",{name:"Add guardrail"})).toHaveFocus();
   },
 };
 
-async function addGuardrail(canvasElement: HTMLElement) {
-  const canvas = within(canvasElement);
-  const page = within(canvasElement.ownerDocument.body);
-  await userEvent.click(canvas.getByRole("button", { name: "Expected impact options" }));
-  await userEvent.click(await page.findByRole("menuitem", { name: "Add guardrail" }));
-  const editor = within(await canvas.findByRole("region", { name: "Guardrail editor" }));
-  await waitFor(() => expect(editor.getByRole("textbox", { name: "What should not get worse?" })).toHaveFocus());
-  return editor;
-}
-
 export const GuardrailCancelAndSave: Story = {
   beforeEach: restoreLegacyBlankDraft,
-  play: async ({ canvasElement }) => {
-    const canvas = await fillRequest(canvasElement);
-    let editor = await addGuardrail(canvasElement);
-    await userEvent.type(editor.getByRole("textbox", { name: "What should not get worse?" }), "Discard this draft");
-    await userEvent.click(editor.getByRole("button", { name: "Cancel guardrail" }));
-    await expect(canvas.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("region", { name: "Guardrail" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Review Request" })).toBeEnabled();
-
-    editor = await addGuardrail(canvasElement);
-    await expect(editor.getByRole("textbox", { name: "What should not get worse?" })).toHaveValue("");
-    await userEvent.type(editor.getByRole("textbox", { name: "What should not get worse?" }), "Support requests");
-    await userEvent.type(editor.getByRole("spinbutton", { name: "Number" }), "20");
-    await userEvent.type(editor.getByRole("textbox", { name: "Measured in" }), "requests per week");
-    await userEvent.click(editor.getByRole("button", { name: "Add guardrail" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Edit guardrail" }));
-    editor = within(canvas.getByRole("region", { name: "Guardrail editor" }));
-    await userEvent.clear(editor.getByRole("spinbutton", { name: "Number" }));
-    await userEvent.type(editor.getByRole("spinbutton", { name: "Number" }), "99");
-    await expect(canvas.getByRole("button", { name: "Review Request" })).toBeDisabled();
-    await userEvent.keyboard("{Meta>}{Enter}{/Meta}{Control>}{Enter}{/Control}");
-    await expect(runTriage).not.toHaveBeenCalled();
-    await expect(editor.getByRole("spinbutton", { name: "Number" })).toHaveValue(99);
-    await userEvent.click(editor.getByRole("button", { name: "Cancel guardrail" }));
-    await expect(canvas.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Support requests must stay at or below 20 requests per week.");
-
-    await userEvent.click(canvas.getByRole("button", { name: "Edit guardrail" }));
-    editor = within(canvas.getByRole("region", { name: "Guardrail editor" }));
-    await expect(editor.getByRole("spinbutton", { name: "Number" })).toHaveValue(20);
-    await userEvent.clear(editor.getByRole("spinbutton", { name: "Number" }));
-    await userEvent.type(editor.getByRole("spinbutton", { name: "Number" }), "25");
-    await userEvent.click(editor.getByRole("button", { name: "Save guardrail" }));
-    await expect(canvas.queryByRole("region", { name: "Guardrail editor" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Support requests must stay at or below 25 requests per week.");
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
-    await expect(canvas.getByText("Support requests must stay at or below 25 requests per week.")).toBeVisible();
+  play: async ({canvasElement}) => {
+    const canvas=await fillRequest(canvasElement);
+    await addGuardrail(canvasElement);
+    await userEvent.click(canvas.getByRole("button",{name:"Remove guardrail 1"}));
+    await expect(canvas.getByRole("button",{name:"Review Request"})).toBeEnabled();
+    const editor=await addGuardrail(canvasElement);
+    await expect(editor.getByRole("spinbutton",{name:"Value"})).toHaveValue(null);
+    await userEvent.type(editor.getByRole("spinbutton",{name:"Value"}),"20");
+    await userEvent.clear(editor.getByRole("spinbutton",{name:"Value"}));
+    await userEvent.type(editor.getByRole("spinbutton",{name:"Value"}),"25");
+    await userEvent.click(canvas.getByRole("button",{name:"Review Request"}));
+    await visible(await canvas.findByRole("heading",{name:"Review Request"}));
+    await expect(runTriage).toHaveBeenLastCalledWith(expect.objectContaining({expectedImpact:expect.objectContaining({guardrail:expect.objectContaining({limit:25})})}),context);
   },
 };
 
 export const GuardrailEditorRestoredFromDraft: Story = {
-  beforeEach: () => {
-    writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {
-      source: {
-        ...requestSource,
-        expectedImpact: {
-          ...metricImpact,
-          guardrail: { metric: "Support requests", operator: "at_most", limit: 35, unit: "requests per week" },
-          guardrailEdit: {
-            previous: { metric: "Support requests", operator: "at_most", limit: 20, unit: "requests per week" },
-          },
-        },
-      },
-      review: null,
-    });
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const editor = within(await canvas.findByRole("region", { name: "Guardrail editor" }));
-    await expect(editor.getByRole("textbox", { name: "What should not get worse?" })).toHaveValue("Support requests");
-    await expect(editor.getByRole("spinbutton", { name: "Number" })).toHaveValue(35);
-    await expect(editor.getByRole("textbox", { name: "Measured in" })).toHaveValue("requests per week");
-    await expect(canvas.getByRole("button", { name: "Review Request" })).toBeDisabled();
-    await userEvent.click(editor.getByRole("button", { name: "Cancel guardrail" }));
-    await expect(canvas.getByRole("region", { name: "Guardrail" })).toHaveTextContent("Support requests must stay at or below 20 requests per week.");
-    await userEvent.click(canvas.getByRole("button", { name: "Review Request" }));
-    await visible(await canvas.findByRole("heading", { name: "Review Request" }));
+  beforeEach: () => { writeIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId), {source:{...requestSource,expectedImpact:{...metricImpact,guardrail:{metric:"Support requests",operator:"at_most",limit:35,unit:"requests per week"},guardrailEdit:{previous:{metric:"Support requests",operator:"at_most",limit:20,unit:"requests per week"}}}},review:null}); },
+  play: async ({canvasElement}) => {
+    const canvas=within(canvasElement);
+    const editor=within(await canvas.findByRole("region",{name:"Guardrail 1"}));
+    await expect(editor.getByRole("spinbutton",{name:"Value"})).toHaveValue(35);
+    await expect(editor.getByRole("combobox",{name:"Value unit"})).toHaveTextContent("requests per week");
+    await expect(canvas.getByRole("button",{name:"Review Request"})).toBeDisabled();
+    await userEvent.click(canvas.getByRole("button",{name:"Cancel guardrail"}));
+    await expect(editor.getByRole("spinbutton",{name:"Value"})).toHaveValue(20);
+    await userEvent.click(canvas.getByRole("button",{name:"Review Request"}));
+    await visible(await canvas.findByRole("heading",{name:"Review Request"}));
     await expect(canvas.getByText("Support requests must stay at or below 20 requests per week.")).toBeVisible();
   },
 };

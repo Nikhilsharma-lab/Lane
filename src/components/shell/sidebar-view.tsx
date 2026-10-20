@@ -103,6 +103,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     if (target) setListView(current => withListContext(current, target));
   }
   const searchShortcut = useEffectEvent((event: KeyboardEvent) => {
+    if (pathname.startsWith("/settings/")) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (event.key !== "/" || event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey || mobileOpen || switchingWorkspace || target?.isContentEditable || target?.closest('input,textarea,select,[role="dialog"],[role="menu"],[role="textbox"]')) return;
     event.preventDefault();
@@ -129,6 +130,9 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 strokeWidth={1.75} /> },
     ] },
   ];
+  // Settings has its own Arc navigation and search. Preserve all workspace state
+  // above this boundary so returning to Requests restores the same view.
+  if (pathname.startsWith("/settings/")) return <PageStripProvider value={frame}><main id="lane-main" tabIndex={-1}>{children}</main></PageStripProvider>;
   // Plan item 2.4: the content's width (--sidebar-width) changes once per toggle while the panel slides;
   // the strips keep their expand control until an expand ends, so it leaves with the width change.
   // Pinning a visible peek keeps the panel where it already is, with no slide.

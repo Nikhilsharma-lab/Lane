@@ -1,7 +1,11 @@
 "use server";
+import { canUseLabels } from "@/lib/label-access";
+import { labelRequestType } from "@/lib/request-labels";
 
 import type { OverviewRequest } from "@/lib/request-overview";
 
+import { z } from "zod";
+import { requestEditSourceSchema } from "@/lib/request-edit";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -63,7 +67,7 @@ export type SaveResponse =
  * from the client; the server row replaces this one as soon as it lands. */
 function savedListRow(
   row: { id: string; requestNumber?: number | null; createdAt?: Date | null },
-  payload: { title: string; projectId: string | null; requestType: OverviewRequest["requestType"]; priority: OverviewRequest["priority"] },
+  payload: { labelKeys?: string[]; title: string; projectId: string | null; requestType: OverviewRequest["requestType"]; priority: OverviewRequest["priority"] },
   reframedProblem: string | null
 ): OverviewRequest {
   return {
@@ -79,6 +83,7 @@ function savedListRow(
     projectId: payload.projectId,
     projectName: null,
     requestType: payload.requestType ?? null,
+    labelKeys: payload.labelKeys,
     priority: payload.priority,
   };
 }
@@ -119,6 +124,7 @@ export async function runTriage(
     expectedImpact?: RequestInput["expectedImpact"];
     projectId?: string | null;
     requestType?: RequestType | null;
+    labelKeys?: string[];
     priority?: RequestInput["priority"];
     title: string;
     description: string;
@@ -128,12 +134,25 @@ export async function runTriage(
     uncertainty?: string;
     usefulLink?: string;
   },
-  context: { orgId: string }
+  context: { orgId: string },
+  existingRequestId?: string
 ): Promise<TriageResponse> {
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { success: false, error: sessionFailure() };
 
-  const parsed = requestSchema.safeParse(formData);
+  if (existingRequestId !== undefined) {
+    if (!z.uuid().safeParse(existingRequestId).success) return { success: false, error: { code: "validation", message: "Request unavailable." } };
+    try {
+      const [owned] = await db.select({ id: requests.id }).from(requests).where(and(
+        eq(requests.id, existingRequestId), eq(requests.orgId, auth.orgId),
+        auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open"),
+      )).limit(1);
+      if (!owned) return { success: false, error: { code: "validation", message: "Only the creator or a workspace admin can edit an Open Request." } };
+    } catch {
+      return { success: false, error: { code: "network", message: "Could not check this Request. Your draft is kept." } };
+    }
+  }
+  const parsed = (existingRequestId ? requestEditSourceSchema : requestSchema).safeParse(formData);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field =
@@ -165,6 +184,7 @@ export async function runTriage(
   }
 
   try {
+    if (!await canUseLabels(parsed.data.labelKeys, auth.orgId, parsed.data.projectId ?? null)) return {success:false,error:{code:"validation",field:"requestType",message:"A selected label belongs to a different Project or is unavailable. Remove it or restore its Project."}};
     if (!(await canUseProject(parsed.data.projectId, auth))) {
       return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Choose another Project or clear the selection." } };
     }
@@ -200,7 +220,7 @@ export async function runTriage(
     const token = createTriageToken(parsed.data, triage, {
       orgId: auth.orgId,
       userId: auth.userId,
-    });
+    }, existingRequestId);
 
     return { success: true, triage, token };
   } catch (error) {
@@ -263,6 +283,7 @@ export async function saveRequest(
     payload.classification === "problem" ? null : parsedEdit.data;
 
   try {
+    if (!await canUseLabels(payload.labelKeys, auth.orgId, payload.projectId ?? null)) return {success:false,error:{code:"validation",field:"requestType",message:"A selected label belongs to a different Project or is unavailable. Remove it or restore its Project."}};
     if (!(await canUseProject(payload.projectId, auth))) {
       return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Return to your Request and choose another Project or clear the selection." } };
     }
@@ -272,7 +293,8 @@ export async function saveRequest(
         id: payload.requestId,
         orgId: auth.orgId,
         projectId: payload.projectId,
-        requestType: payload.requestType,
+        requestType: payload.labelKeys ? labelRequestType(payload.labelKeys) : payload.requestType,
+        labelKeys: payload.labelKeys,
         priority: payload.priority,
         expectedImpact: payload.expectedImpact,
         title: payload.title,
