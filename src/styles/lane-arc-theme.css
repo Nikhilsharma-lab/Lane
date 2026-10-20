@@ -202,8 +202,10 @@
   --workspace-header-height: var(--sb-header-height);
   --request-row-height: var(--sb-size-inner-xlarge);
   --request-group-gap: calc(var(--sb-spacing) * 2);
-  /* Lane keeps avatars level with the metadata badges they sit beside. */
-  --request-avatar-size: var(--sb-badge-height);
+  /* Lane keeps avatars level with the metadata badges they sit beside. Compact badges take Supabase's
+     vertical padding with Lane's line height (2026-10-16), so they render taller than Supabase's 17px
+     badge; the avatar follows the rendered badge box, never shorter than the badge token. */
+  --request-avatar-size: max(var(--badge-sm-height), calc(var(--badge-sm-font) * var(--leading-body) + var(--badge-padding-y) * 2 + var(--border-width) * 2));
   --request-title-line-height: var(--sb-text-sm--line-height);
   --badge-sm-height: var(--sb-badge-height);
   --badge-sm-padding: calc(var(--sb-spacing) * 2);
