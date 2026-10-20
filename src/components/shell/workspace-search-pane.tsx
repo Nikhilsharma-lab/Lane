@@ -140,8 +140,9 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
       if (id !== sequence.current) return;
       if (!response.success) { setFailure({ message: response.error.message, input, operation }); return; }
       if (operation === "search") {
-        // Rows already on screen from the local matches stay where they are.
-        const before = shownLocal.current?.query === response.query ? shownLocal.current : null;
+        // Rows already on screen from the local matches stay where they are, except for an exact
+        // saved code: the Request it names ranks first (decision 1), even when only the server has it.
+        const before = shownLocal.current?.query === response.query && parseRequestCode(response.query) === null ? shownLocal.current : null;
         const next = before ? {
           ...response,
           requests: keepShownOrder(before.requests.items.map(item => item.id), response.requests),

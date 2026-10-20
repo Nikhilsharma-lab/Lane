@@ -463,6 +463,25 @@ export const LocalMatchesFirst: Story = {
   },
 };
 
+const mentionsCode: WorkspaceSearchRequest = { id: "mentions-code", requestNumber: 50, title: "Follow up on LAN-31", reframedProblem: null, status: "open", projectId: null, projectName: null, requestType: null, createdAt: "2026-10-15T09:00:00.000Z" };
+/** A loaded Request that only mentions a code shows first while typing; when the server answers, the Request the code names ranks first. */
+export const ExactCodeRanksFirstAfterLocalMatches: Story = {
+  args: { getLoaded: () => ({ requests: [mentionsCode], projects: [] }) },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const hold = holdSearches(args.onSearch as never, async input => ({ success: true, query: input.query.trim(),
+      requests: { items: [serverOnly, mentionsCode], total: 2, page: 0, hasMore: false }, projects: { items: [], total: 0, page: 0, hasMore: false } }));
+    await userEvent.type(canvas.getByRole("combobox", { name: "Search workspace" }), "LAN-31");
+    const list = await canvas.findByRole("listbox", { name: "Search matches" });
+    const names = () => within(list).getAllByRole("option").map(option => option.getAttribute("aria-label"));
+    await expect(names()).toEqual(["Follow up on LAN-31, LAN-50"]);
+    await waitFor(() => expect(hold.count).toBe(1));
+    await hold.release();
+    await waitFor(() => expect(list).toHaveAttribute("aria-busy", "false"));
+    await expect(names()).toEqual(["Older checkout copy, LAN-31", "Follow up on LAN-31, LAN-50"]);
+  },
+};
+
 /** Enter on an exact saved code of a loaded Request opens it at once; with no loaded match, it opens when the server finds the code. */
 function codeFixture(input: WorkspaceSearchInput): WorkspaceSearchResponse {
   const query = input.query.trim();
