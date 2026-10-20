@@ -1,6 +1,6 @@
 import { ToastStack } from "@/components/arc/toast-stack/toast-stack";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, within, waitFor } from "storybook/test";
+import { expect, fn, userEvent, within, waitFor } from "storybook/test";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { AccountDetails } from "@/components/settings/account-details";
 import { ProfileRoleForm } from "@/components/settings/profile-role-form";
@@ -80,13 +80,19 @@ export const LongIdentity: Story = {
   },
 };
 
+const saveRole = fn<(role: string) => Promise<{ success: boolean }>>().mockResolvedValue({ success: true });
 export const CompactRoleSave: Story = {
+  args: { role: <ProfileRoleForm compact autoSave initialRole="designer" onSave={saveRole} /> },
+  beforeEach: () => { saveRole.mockClear(); },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("combobox", { name: "Role" }));
     await userEvent.click(await within(document.body).findByRole("option", { name: "PM" }));
-    await expect(await canvas.findByText("Role updated.")).toBeVisible();
+    // The toast confirms in the same frame; its copy fades in, so wait for it to settle.
+    const toast = await within(document.body).findByText("Role changed");
+    await waitFor(() => expect(toast).toBeVisible());
     await waitFor(() => expect(canvas.getByRole("combobox", { name: "Role" })).toHaveTextContent("PM"));
+    expect(saveRole).toHaveBeenCalledTimes(1); expect(saveRole).toHaveBeenCalledWith("pm");
   },
 };
 export const SearchFutureSetting: Story = {

@@ -1,6 +1,9 @@
 /* Clerk owns the controls and table semantics; Lane supplies shared visual tokens. */
 .action { color: var(--foreground); }
 .action:hover { color: var(--foreground); }
+/* Plan item 2.10: Clerk draws one rule above each member row and a frame around the table; they take Lane's quiet hairline colour. */
+.membersPage .table { border-color: var(--border-subtle); }
+.membersPage .table tr > td { border-top-color: var(--border-subtle); }
 
 @media (max-width: 480px) {
   .membersPage .table { width: 100%; table-layout: fixed; }

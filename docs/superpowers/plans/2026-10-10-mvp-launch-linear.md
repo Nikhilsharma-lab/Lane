@@ -443,7 +443,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - "Saved Request Code" story green.
   - Keyboard-only story.
 
-### 2.9 Settings → Profile (S) and 2.10 Settings → Members (S–M), batchable
+### 2.9 Settings → Profile (S) and 2.10 Settings → Members (S–M), batchable *(built 2026-10-20; waiting on Nikhil's sign-off)*
 - **Profile:**
   - 44px strip instead of the 36px h1.
   - Grouped rows: label and description on the left, control on the right.
