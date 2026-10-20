@@ -1,7 +1,8 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import { useState, type ComponentType } from "react"
+import { useEffect, useState, type ComponentType } from "react"
+import { Alert } from "@/components/arc/alert/alert"
+import { Button } from "@/components/arc/button/button"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import type { WorkspaceSearchPaneProps } from "./workspace-search-pane"
 import styles from "./workspace-search-pane.module.css"
@@ -18,11 +19,24 @@ export function preloadWorkspaceSearch() {
   void load().catch(() => undefined)
 }
 
-const LoadingPane = dynamic(load, { loading: () => <div className={styles.root}><div className={styles.loading}><Skeleton label="Loading search" lines={3} /></div></div> })
-
 /** The workspace search pane, loaded on demand. Props are the pane's. */
 export function WorkspaceSearchPane(props: WorkspaceSearchPaneProps) {
-  // The choice holds for this mount: a pane that opened on the fallback finishes loading in place instead of remounting.
-  const [Component] = useState<Pane>(() => loaded ?? LoadingPane)
-  return <Component {...props} />
+  // The pane mounts once its module arrives, so its own focus-on-open runs then.
+  const [Component, setComponent] = useState<Pane | null>(() => loaded)
+  const [attempt, setAttempt] = useState(0)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (Component) return
+    let current = true
+    load().then(pane => { if (current) setComponent(() => pane) }, () => { if (current) setFailed(true) })
+    return () => { current = false }
+  }, [Component, attempt])
+  if (Component) return <Component {...props} />
+  // The fallback follows the pane's own visibility: closing search hides it, as it hides the pane.
+  return <div className={styles.root} hidden={!props.active}>
+    {failed
+      ? <div className={styles.loading}><div className={styles.error}><Alert tone="danger" title="Search unavailable">Search could not load. Check your connection and try again.</Alert>
+        <Button variant="secondary" size="sm" onClick={() => { setFailed(false); setAttempt(value => value + 1) }}>Try again</Button></div></div>
+      : <div className={styles.loading}><Skeleton label="Loading search" lines={3} /></div>}
+  </div>
 }
