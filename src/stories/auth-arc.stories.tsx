@@ -3,7 +3,8 @@ import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { LoginFrame, RecoveryFrame, SignupFrame } from "@/components/auth/auth-frames";
 import { AuthHeaderLink } from "@/components/auth/auth-shell";
-import { AuthCardSkeleton, AuthLoading } from "@/components/auth/auth-loading";
+import { AuthHeaderSlot } from "@/components/auth/auth-header-slot";
+import { AuthCardSkeleton } from "@/components/auth/auth-card-skeleton";
 import { PasswordRecoveryView, type PasswordRecoveryViewProps } from "@/components/auth/password-recovery-view";
 import MembersLoading from "@/app/(app)/settings/members/loading";
 
@@ -34,12 +35,12 @@ export const FinishSignIn: Story = { render: () => <RecoveryPreview step="activa
 export const ContinueVerification: Story = { render: () => <RecoveryPreview step="continue" /> };
 
 // The onboarding role step's stories render the real RoleForm: src/stories/onboarding.stories.tsx.
-// Plan item 2.11: the routes' loading states and Clerk's fallback. The real routes pass SignInResetLink,
+// Plan item 2.11: the routes' loading states and Clerk's fallback. The real routes pass LoginResetLink,
 // which reads the Clerk session; these stories pass the two states it renders.
-const resetLink = (concealed: boolean) => <AuthHeaderLink prompt="Forgot your password?" href="/forgot-password" label="Reset it" concealed={concealed} />;
+const resetLink = (concealed: boolean) => <AuthHeaderSlot concealed={concealed}><AuthHeaderLink prompt="Forgot your password?" href="/forgot-password" label="Reset it" /></AuthHeaderSlot>;
 export const LoginLoading: Story = { render: () => <LoginFrame headerAction={resetLink(false)}><AuthCardSkeleton label="Loading sign in" /></LoginFrame>,
   play: async ({ canvasElement }) => { const c = within(canvasElement); await expect(c.getByRole("status", { name: "Loading sign in" })).toBeInTheDocument(); await expect(c.getAllByRole("status")).toHaveLength(1); await expect(c.getByRole("link", { name: "Reset it" })).toBeVisible(); } };
-export const LoginDuringSessionTask: Story = { render: () => <LoginFrame headerAction={resetLink(true)}><AuthLoading label="Loading workspaces" /></LoginFrame>,
+export const LoginDuringSessionTask: Story = { render: () => <LoginFrame headerAction={resetLink(true)}><AuthCardSkeleton label="Loading workspaces" fields={0} social={false} /></LoginFrame>,
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.queryByRole("link", { name: "Reset it" })).toBeNull();

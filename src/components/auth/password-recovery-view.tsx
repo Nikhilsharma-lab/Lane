@@ -42,98 +42,103 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
         await performAction(step === "request");
       }}
     >
+      {/* Fields, notices and errors, then the actions --space-8 below them, as in Clerk's form. */}
+      {(step === "request" || step === "code" || error) && (
+        <div className={styles.recoveryFields}>
+          {step === "request" && (
+            <AuthInputField
+              id="recovery-email"
+              label="Email address"
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+              disabled={pending}
+              autoFocus
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          )}
+          {step === "code" && (
+            <>
+              <AuthInputField
+                id="recovery-code"
+                label="Reset code"
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                disabled={pending}
+                autoFocus
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+              <AuthPasswordField
+                id="recovery-password"
+                label="New password"
+                name="password"
+                autoComplete="new-password"
+                required
+                disabled={pending}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </>
+          )}
 
+          {notice && step === "code" && !error && (
+            <p role="status" className={styles.notice}>
+              {notice}
+            </p>
+          )}
 
-      {step === "request" && (
-        <AuthInputField
-          id="recovery-email"
-          label="Email address"
-          type="email"
-          name="email"
-          autoComplete="email"
-          required
-          disabled={pending}
-          autoFocus
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      )}
-      {step === "code" && (
-        <>
-          <AuthInputField
-            id="recovery-code"
-            label="Reset code"
-            name="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-            disabled={pending}
-            autoFocus
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-          />
-          <AuthPasswordField
-            id="recovery-password"
-            label="New password"
-            name="password"
-            autoComplete="new-password"
-            required
-            disabled={pending}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </>
-      )}
-
-      {notice && step === "code" && !error && (
-        <p role="status" className={styles.notice}>
-          {notice}
-        </p>
-      )}
-
-      {error && (
-        <Alert tone="danger" title={error} />
-      )}
-
-      <AuthAction
-        type="submit"
-        disabled={!isLoaded || (step === "request" && resendIn > 0)}
-        loading={pending}
-        loadingLabel={
-          sending ? "Sending code…" : step === "code" ? "Saving password…" : "Continuing…"
-        }
-      >
-        {step === "request"
-          ? resendIn > 0 ? `Send code in ${resendIn}s` : "Send reset code"
-          : step === "code"
-            ? "Save new password"
-            : step === "continue"
-              ? "Continue verification"
-              : "Continue"}
-      </AuthAction>
-
-      {step === "code" && (
-        <div className={styles.recoveryActions}>
-          <AuthAction
-            type="button"
-            kind="secondary"
-            disabled={!isLoaded || pending || resendIn > 0}
-            onClick={() => performAction(true)}
-          >
-            {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
-          </AuthAction>
-          <AuthAction
-            type="button"
-            kind="tertiary"
-            disabled={pending}
-            onClick={() => {
-              onChangeEmail();
-            }}
-          >
-            Change email
-          </AuthAction>
+          {error && (
+            <Alert tone="danger" title={error} />
+          )}
         </div>
       )}
+
+      <div className={styles.recoveryActionGroup}>
+        <AuthAction
+          type="submit"
+          disabled={!isLoaded || (step === "request" && resendIn > 0)}
+          loading={pending}
+          loadingLabel={
+            sending ? "Sending code…" : step === "code" ? "Saving password…" : "Continuing…"
+          }
+        >
+          {step === "request"
+            ? resendIn > 0 ? `Send code in ${resendIn}s` : "Send reset code"
+            : step === "code"
+              ? "Save new password"
+              : step === "continue"
+                ? "Continue verification"
+                : "Continue"}
+        </AuthAction>
+
+        {step === "code" && (
+          <div className={styles.recoveryActions}>
+            <AuthAction
+              type="button"
+              kind="secondary"
+              disabled={!isLoaded || pending || resendIn > 0}
+              onClick={() => performAction(true)}
+            >
+              {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+            </AuthAction>
+            <AuthAction
+              type="button"
+              kind="tertiary"
+              disabled={pending}
+              onClick={() => {
+                onChangeEmail();
+              }}
+            >
+              Change email
+            </AuthAction>
+          </div>
+        )}
+      </div>
     </form>
     </AuthFormCard>
   );

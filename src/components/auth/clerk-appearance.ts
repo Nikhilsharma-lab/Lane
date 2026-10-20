@@ -24,8 +24,9 @@ const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fo
 /**
  * Plan item 2.11: Clerk's sign-in, sign-up and session-task cards in Lane's auth
  * column, so they read like the forgot and reset pages Lane draws itself.
- * Clerk's spacing unit becomes Lane's (its $N is then --space-N: the card's $8
- * heading-to-form gap and its form's $6 field gap match auth.module.css). The
+ * Clerk's spacing unit becomes Lane's (its $N is then --space-N: $8 from the
+ * heading to the form and from the fields to the button, $6 between fields,
+ * as auth.module.css spaces the recovery form). The
  * title takes Lane's auth title tokens (auth.module.css .title), the subtitle
  * Lane's description with its --space-3 gap (Clerk's own column gap is $1),
  * and inputs and buttons are Arc's md Input and Button. The plan's 24px title
@@ -39,14 +40,18 @@ export const clerkEmbeddedAppearance = {
     fontSize: { xs: "var(--text-xs)", sm: "var(--text-xs)", md: "var(--text-sm)", lg: "var(--text-base)", xl: "var(--text-base)" },
     fontWeight: { normal: "var(--weight-normal)", medium: "var(--weight-medium)", semibold: "var(--weight-medium)", bold: "var(--weight-medium)" },
   },
+  // Flush drops Clerk's card frame, padding and footer band (Tailwind classes lose to Clerk's
+  // unlayered styles, so main's class strings could not); no logo, since the header carries Lane's mark.
+  options: { elevation: "flush" as const, logoPlacement: "none" as const },
   elements: {
-    rootBox: "w-full",
-    cardBox: "w-full border-0 shadow-none bg-transparent",
-    card: "w-full border-0 shadow-none bg-transparent p-0",
+    rootBox: { width: "100%" },
+    cardBox: { width: "100%", maxWidth: "100%" },
+    card: { width: "100%" },
     headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--sb-font-weight-semibold)" },
     headerSubtitle: { marginTop: "calc(var(--space-3) - var(--space-1))", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
-    formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)" },
-    formButtonPrimary: authControl,
+    // Arc's Input answers focus with its border colour alone; Clerk's 4px halo would also show on pointer focus.
+    formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)", "&:focus, &:focus-visible": { boxShadow: "none" } },
+    formButtonPrimary: { ...authControl, "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
     socialButtonsBlockButton: authControl,
   },
 };

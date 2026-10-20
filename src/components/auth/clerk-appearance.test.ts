@@ -47,6 +47,17 @@ describe("clerkEmbeddedAppearance", () => {
     expect(variables.spacing).toBe("calc(var(--sb-spacing) * 4)");
   });
 
+  it("sits flush in the column through Clerk's documented options, not utility classes Clerk's styles outrank", () => {
+    expect(clerkEmbeddedAppearance.options).toEqual({ elevation: "flush", logoPlacement: "none" });
+    expect(elements.cardBox).toEqual({ width: "100%", maxWidth: "100%" });
+    expect(Object.values(elements).some(value => typeof value === "string")).toBe(false);
+  });
+
+  it("answers input focus with the border alone and hovers the primary with Lane's token", () => {
+    expect(elements.formFieldInput["&:focus, &:focus-visible"]).toEqual({ boxShadow: "none" });
+    expect(elements.formButtonPrimary["&:hover"]).toEqual({ backgroundColor: "var(--primary-hover-background)" });
+  });
+
   it("matches the title Lane draws on the forgot and reset pages", () => {
     const css = readFileSync(join(process.cwd(), "src/components/auth/auth.module.css"), "utf8");
     const title = /\.title \{([^}]*)\}/.exec(css)?.[1] ?? "";

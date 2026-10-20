@@ -8,9 +8,8 @@ export function LaneMark() {
   return <span className={styles.mark}><svg aria-hidden="true" viewBox="0 0 100 100"><path d="M0 100V0H93.2753L0 100Z" /><path d="M0 100H100V6.7247L0 100Z" /></svg><span>Lane</span></span>;
 }
 
-/** `concealed` keeps the link's place in the header but hides it from sight, the tab order and assistive tech. */
-export function AuthHeaderLink({ prompt, href, label, concealed = false }: { prompt: string; href: string; label: string; concealed?: boolean }) {
-  return <div className={styles.headerLink} data-concealed={concealed || undefined}><span>{prompt}</span><Link href={href} className={styles.link}>{label}</Link></div>;
+export function AuthHeaderLink({ prompt, href, label }: { prompt: string; href: string; label: string }) {
+  return <div className={styles.headerLink}><span>{prompt}</span><Link href={href} className={styles.link}>{label}</Link></div>;
 }
 
 export function AuthShell({ children, headerAction, footer }: { children: ReactNode; headerAction?: ReactNode; footer?: ReactNode }) {

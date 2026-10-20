@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { statusLabels, withoutHidden } from "@/test/exposed-markup";
 
 type SessionState = { isLoaded: boolean; session?: { currentTask?: { key: string } } | null };
-const clerk = vi.hoisted(() => ({ session: { isLoaded: false } as SessionState }));
+const clerk = vi.hoisted(() => ({ session: { isLoaded: false } as SessionState, status: "loading" }));
 
 // Clerk's components draw nothing without an instance; these stand-ins render
 // what Lane hands them as `fallback`, which is all Lane controls while Clerk mounts.
@@ -19,10 +19,14 @@ vi.mock("@clerk/nextjs", () => {
     TaskChooseOrganization: withFallback,
     TaskResetPassword: withFallback,
     useSession: () => clerk.session,
+    useClerk: () => ({ status: clerk.status }),
   };
 });
 
-const { ClerkHashSignIn, ClerkSessionTasks, SignInResetLink } = await import("./clerk-sign-in");
+const { ClerkHashSignIn, ClerkSessionTasks } = await import("./clerk-sign-in");
+const { LoginResetLink } = await import("./login-reset-link");
+const { HiddenDuringSessionTask } = await import("./session-task-gate");
+const gatedLink = () => createElement(HiddenDuringSessionTask, null, createElement(LoginResetLink));
 const { default: LoginPage } = await import("@/app/(auth)/login/page");
 const { default: LoginLoading } = await import("@/app/(auth)/login/loading");
 const { default: SignupPage } = await import("@/app/(auth)/signup/page");
@@ -32,10 +36,10 @@ const render = (element: ReturnType<typeof createElement>) => renderToStaticMark
 const source = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("Plan item 2.11: the reset link during a Clerk session task", () => {
-  beforeEach(() => { clerk.session = { isLoaded: false }; });
+  beforeEach(() => { clerk.session = { isLoaded: false }; clerk.status = "loading"; });
 
   it("is hidden but keeps its place until Clerk can say whether a task is open", () => {
-    const html = render(createElement(SignInResetLink));
+    const html = render(gatedLink());
     expect(html).toContain("data-concealed");
     expect(html).toContain('href="/forgot-password"');
   });
@@ -43,15 +47,20 @@ describe("Plan item 2.11: the reset link during a Clerk session task", () => {
   it("is hidden while either session task is open", () => {
     for (const key of ["choose-organization", "reset-password"]) {
       clerk.session = { isLoaded: true, session: { currentTask: { key } } };
-      expect(render(createElement(SignInResetLink))).toContain("data-concealed");
+      expect(render(gatedLink())).toContain("data-concealed");
     }
+  });
+
+  it("shows if Clerk fails to load, since no task can be open", () => {
+    clerk.status = "error";
+    expect(render(gatedLink())).not.toContain("data-concealed");
   });
 
   it("shows once Clerk has loaded and no task is open", () => {
     clerk.session = { isLoaded: true, session: null };
-    expect(render(createElement(SignInResetLink))).not.toContain("data-concealed");
+    expect(render(gatedLink())).not.toContain("data-concealed");
     clerk.session = { isLoaded: true, session: {} };
-    expect(render(createElement(SignInResetLink))).not.toContain("data-concealed");
+    expect(render(gatedLink())).not.toContain("data-concealed");
   });
 });
 
