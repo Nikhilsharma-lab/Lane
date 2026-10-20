@@ -12,7 +12,7 @@ import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRe
 import { parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
-import { WorkspaceSearchPane } from "./workspace-search-pane";
+import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
@@ -90,7 +90,14 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const [previousLocation, setPreviousLocation] = useState(`${pathname}?${filter}&${projectFilter}`);
   const location = `${pathname}?${filter}&${projectFilter}`;
   if (location !== previousLocation) { setPreviousLocation(location); setSearchOpen(false); }
+  // Plan item 2.8: the pane loads on demand; fetch it once the page is idle, so the first / finds it ready.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback !== "function") { const timer = window.setTimeout(preloadWorkspaceSearch, 1500); return () => window.clearTimeout(timer); }
+    const idle = window.requestIdleCallback(preloadWorkspaceSearch, { timeout: 3000 });
+    return () => window.cancelIdleCallback(idle);
+  }, []);
   function openSearch() {
+    preloadWorkspaceSearch();
     dismissPeek();
     setSearchVisited(true); setSearchOpen(true);
     if (searchOpen && !mobileOpen) document.querySelector<HTMLInputElement>('#lane-main input[type="search"]')?.focus();

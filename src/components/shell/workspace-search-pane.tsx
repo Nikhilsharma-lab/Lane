@@ -30,32 +30,8 @@ export type WorkspaceSearchPaneProps = {
 /** Typing pauses this long before a search is sent; Enter searches at once. */
 export const SEARCH_DEBOUNCE_MS = 150;
 
-const sessionExpired: WorkspaceSearchResponse = { success: false, error: { code: "session_expired", message: "Your workspace session changed. Refresh the page to search again." } };
-const searchFailed: WorkspaceSearchResponse = { success: false, error: { code: "search_failed", message: "Search could not be completed. Try again." } };
-
-/**
- * Plan item 1.16 (decision 8.15): search reads GET /api/search instead of a
- * server action, so typing never queues behind a pending mutation and a
- * stale request is aborted instead of finishing first. Status codes map to
- * the same response shape the action returned.
- */
-export function fetchWorkspaceSearch(orgId: string) {
-  return async (input: WorkspaceSearchInput, signal?: AbortSignal): Promise<WorkspaceSearchResponse> => {
-    const params = new URLSearchParams({ org: orgId, q: input.query });
-    if (input.requestsPage) params.set("requestsPage", String(input.requestsPage));
-    if (input.projectsPage) params.set("projectsPage", String(input.projectsPage));
-    if (input.statuses?.length) params.set("statuses", input.statuses.join(","));
-    if (input.types?.length) params.set("types", input.types.join(","));
-    if (input.sort) params.set("sort", input.sort);
-    if (input.createdSince) params.set("createdSince", input.createdSince);
-    if (input.createdBefore) params.set("createdBefore", input.createdBefore);
-    const response = await fetch(`/api/search?${params}`, { signal, headers: { accept: "application/json" }, credentials: "same-origin" });
-    if (response.status === 401 || response.status === 403) return sessionExpired;
-    const body = await response.json().catch(() => null) as WorkspaceSearchResponse | null;
-    if (!body || typeof body !== "object" || !("success" in body)) return searchFailed;
-    return body;
-  };
-}
+// Kept importable from here for existing callers; the shell imports the small module directly (plan item 2.8).
+export { fetchWorkspaceSearch } from "./workspace-search-fetch";
 
 type SearchData = Extract<WorkspaceSearchResponse, { success: true }>;
 type Category = "all" | "requests" | "projects";
