@@ -6,7 +6,7 @@ import { Select } from "@/components/arc/select/select";
 import { ChevronDown } from "lucide-react";
 import settingsStyles from "./settings.module.css";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
-import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
+import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack";
 import { Alert } from "@/components/arc/alert/alert";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
 import styles from "./profile.module.css";
@@ -40,9 +40,11 @@ const SAVE_ID = "profile-role";
  * Plan item 2.9: the role saves on change, optimistically. The control and a
  * toast show the new role in the same frame, as Mark Done does; saves run one
  * at a time in the order chosen, and a choice overtaken while it waited is
- * never sent. A failure puts back the last role the server confirmed and turns
- * that choice's toast into the reason. Once nothing is in flight, a role the
- * server sends (a refresh after a lost response, another tab) is adopted.
+ * never sent. A failure puts back the last role the server confirmed and
+ * replaces the toast on screen with the reason. A role the server sends (a
+ * refresh after a lost response, another tab) is adopted once nothing is in
+ * flight; one that arrives during a save is adopted if that save is then put
+ * back and no later save was confirmed after it arrived.
  */
 function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductRole; onSave: SaveRole; compact: boolean }) {
   const { toast, dismiss } = useToastStack();
@@ -51,29 +53,51 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
   const confirmed = useRef<ProductRole>(initialRole);
   const latest = useRef<ProductRole>(initialRole);
   const inFlight = useRef(0);
+  const confirmations = useRef(0);
+  const reverted = useRef(false);
+  // The role the server sent while a save was in flight, and how many saves had been confirmed then.
+  const postponed = useRef<{ role: ProductRole; at: number } | null>(null);
   const lastToast = useRef<string | null>(null);
   const toastCount = useRef(0);
 
   useEffect(() => {
-    if (inFlight.current > 0 || initialRole === latest.current) return;
+    if (inFlight.current > 0) { postponed.current = { role: initialRole, at: confirmations.current }; return; }
+    if (initialRole === latest.current) return;
     confirmed.current = initialRole;
     latest.current = initialRole;
     setRole(initialRole);
   }, [initialRole]);
 
+  /** One toast owns the screen. Each message replaces it under a fresh id, so a dismissed toast is never brought back. */
+  function say(options: Omit<ToastOptions, "id">) {
+    if (lastToast.current) dismiss(lastToast.current);
+    const id = `profile-role-${++toastCount.current}`;
+    lastToast.current = id;
+    toast({ id, ...options });
+  }
+
+  function settle() {
+    if (--inFlight.current > 0) return;
+    const server = postponed.current;
+    postponed.current = null;
+    const adopt = reverted.current && server && server.at === confirmations.current && server.role !== latest.current;
+    reverted.current = false;
+    if (!adopt) return;
+    confirmed.current = server.role;
+    latest.current = server.role;
+    setRole(server.role);
+  }
+
   function choose(next: ProductRole) {
     if (next === latest.current) return;
     latest.current = next;
     setRole(next);
-    // A fresh id per choice: a toast still leaving the screen is never brought back by a later one.
-    if (lastToast.current) dismiss(lastToast.current);
-    const toastId = `profile-role-${++toastCount.current}`;
-    lastToast.current = toastId;
-    toast({ id: toastId, type: "success", title: "Role changed", description: `Your profile label is now ${roleLabel(next)}.` });
+    say({ type: "success", title: "Role changed", description: `Your profile label is now ${roleLabel(next)}.` });
     // A later choice owns the screen; it goes back itself if it fails or is skipped.
     const revert = () => {
       if (latest.current !== next) return;
       latest.current = confirmed.current;
+      reverted.current = true;
       setRole(confirmed.current);
     };
     let sent = false;
@@ -88,12 +112,12 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
       },
       onError: (message) => {
         revert();
-        toast({ id: toastId, type: "error", title: "Could not save your role", description: message });
+        say({ type: "error", title: "Could not save your role", description: message });
       },
     }).then((outcome) => {
-      if (outcome.status === "success" && sent) confirmed.current = next;
+      if (outcome.status === "success" && sent) { confirmed.current = next; confirmations.current++; }
       else if (outcome.status === "skipped") revert();
-    }).finally(() => { inFlight.current--; });
+    }).finally(settle);
   }
 
   const changeRole = (value: string) => { if (isRole(value)) choose(value); };

@@ -41,22 +41,42 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Acknowledgement contract: the choice and its toast show while the save is still pending; nothing is disabled or asks to be saved. */
+/** Acknowledgement contract: the choice and its toast are in the page as soon as the click returns, while the save is still pending; nothing is disabled or asks to be saved. */
 export const SavesOnSelection: Story = {
   args: { onSave: held },
   beforeEach: () => { held.mockReset(); },
   play: async ({ canvasElement }) => {
     const pending = holdSaves(held);
     await userEvent.click(radio(canvasElement, "Developer"));
-    await expect(radio(canvasElement, "Developer")).toBeChecked();
-    await expect(radio(canvasElement, "PM")).toBeEnabled();
-    await shown(canvasElement, "Role changed");
-    await shown(canvasElement, "Your profile label is now Developer.");
-    await expect(held).toHaveBeenCalledWith("developer");
+    // Synchronous reads, no polling: these hold in the frame the click lands in.
+    expect(radio(canvasElement, "Developer")).toBeChecked();
+    expect(messages(canvasElement).getByText("Role changed")).toBeInTheDocument();
+    expect(messages(canvasElement).getByText("Your profile label is now Developer.")).toBeInTheDocument();
+    expect(radio(canvasElement, "PM")).toBeEnabled();
+    expect(held).toHaveBeenCalledTimes(1); expect(held).toHaveBeenCalledWith("developer");
     expect(within(canvasElement).queryByRole("button", { name: /save|retry/i })).not.toBeInTheDocument();
+    await shown(canvasElement, "Role changed");
     pending[0]({ success: true });
-    await waitFor(() => expect(held).toHaveBeenCalledTimes(1));
-    await expect(radio(canvasElement, "Developer")).toBeChecked();
+    await waitFor(() => expect(radio(canvasElement, "Developer")).toBeChecked());
+    expect(messages(canvasElement).queryByText("Could not save your role")).not.toBeInTheDocument();
+  },
+};
+
+/** Production's compact Select: the new role shows on the trigger as soon as it is picked, and that role is what is saved. */
+export const CompactSelectSavesOnChange: Story = {
+  args: { onSave: held, compact: true },
+  beforeEach: () => { held.mockReset(); },
+  play: async ({ canvasElement }) => {
+    holdSaves(held);
+    const select = within(canvasElement).getByRole("combobox", { name: "Role" });
+    await userEvent.click(select);
+    await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole("option", { name: "PM" }));
+    expect(select).toHaveTextContent("PM");
+    expect(select).toBeEnabled();
+    expect(held).toHaveBeenCalledTimes(1); expect(held).toHaveBeenCalledWith("pm");
+    expect(within(canvasElement).getByText("Your role is saved automatically.")).toBeInTheDocument();
+    // The listbox closes after the pick; the page leaves Radix's modal state before the accessibility check runs.
+    await waitFor(() => expect(canvasElement.querySelector("[aria-hidden='true'] button")).toBeNull());
   },
 };
 
@@ -108,7 +128,7 @@ export const QueuedChoicesKeepOrder: Story = {
   },
 };
 
-/** A choice waiting behind a failure is never sent and goes back with it. */
+/** A choice waiting behind a failure is never sent and goes back with it. The failure replaces the waiting choice's toast, and the error toast can be reached. */
 export const QueuedChoiceSkippedAfterFailure: Story = {
   args: { onSave: queued },
   beforeEach: () => { queued.mockReset(); },
@@ -120,10 +140,12 @@ export const QueuedChoiceSkippedAfterFailure: Story = {
     await shown(canvasElement, "Could not save your role");
     await waitFor(() => expect(radio(canvasElement, "Designer")).toBeChecked());
     await expect(queued).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(messages(canvasElement).queryByText("Your profile label is now PM.")).not.toBeInTheDocument());
+    expect(messages(canvasElement).getByText("Could not save your role").closest("[inert]")).toBeNull();
   },
 };
 
-/** An expired session refreshes the Clerk token and retries once; the person sees only the saved role. */
+/** A save rejected for an expired session before the action runs (an auth-shaped throw) refreshes the Clerk token and retries once; the person sees only the saved role. A refusal the action itself returns is shown as it is. */
 export const ExpiredSessionRetriesOnce: Story = {
   args: { onSave: expired },
   beforeEach: () => { expired.mockReset(); expired.mockRejectedValueOnce(new Error("401 Unauthorized")).mockResolvedValue({ success: true }); },

@@ -46,7 +46,6 @@ export const clerkAccountAppearance = {
 };
 
 const organizationControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--button-radius-md)" };
-const organizationRule = "var(--border-width) solid var(--border-subtle)";
 
 /**
  * Plan item 2.10: the Organization Profile modals opened from Settings → Members
@@ -54,7 +53,8 @@ const organizationRule = "var(--border-width) solid var(--border-subtle)";
  * (Members opens Clerk's members page, Manage workspace its General page), so
  * Clerk's own navigation is hidden and each modal shows the one page asked for.
  * Clerk keeps the members table, every invitation flow, its page and form
- * titles, and all authorization. Type, control height, hairlines and corners
+ * titles, and all authorization. Type, control height, hairline colour
+ * (Clerk's own row rules, recoloured in clerk-profile.module.css) and corners
  * come from Lane's tokens: the launch plan's 13px rows, 32px buttons and 0.5px
  * borders predate the 2026-10-13 Supabase tokens and resolve to Lane's row
  * type, control height and border width. Weights stop at medium (Arc: 400 and
@@ -71,8 +71,8 @@ export const clerkOrganizationAppearance = {
     ...clerkAccountAppearance.elements,
     navbar: { display: "none" },
     navbarMobileMenuRow: { display: "none" },
-    tableHeaderCell: { fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", color: "var(--text-secondary)", borderBottom: organizationRule },
-    tableBodyCell: { fontSize: "var(--text-sm)", borderBottom: organizationRule },
+    tableHeaderCell: { fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", color: "var(--text-secondary)" },
+    tableBodyCell: { fontSize: "var(--text-sm)" },
     userPreviewMainIdentifierText: { fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)" },
     userPreviewSecondaryIdentifier: { fontSize: "var(--text-xs)" },
     membersPageInviteButton: organizationControl,
