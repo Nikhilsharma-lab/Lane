@@ -85,7 +85,9 @@ export const CompactRoleSave: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("combobox", { name: "Role" }));
     await userEvent.click(await within(document.body).findByRole("option", { name: "PM" }));
-    await expect(await within(document.body).findByText("Role changed")).toBeVisible();
+    // The toast confirms in the same frame; its copy fades in, so wait for it to settle.
+    const toast = await within(document.body).findByText("Role changed");
+    await waitFor(() => expect(toast).toBeVisible());
     await waitFor(() => expect(canvas.getByRole("combobox", { name: "Role" })).toHaveTextContent("PM"));
   },
 };
