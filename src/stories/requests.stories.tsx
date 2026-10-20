@@ -229,7 +229,7 @@ export const WorkspaceSearchInShell: Story = {
     await waitFor(() => expect(canvas.getByRole("option", { name: /Customers cannot find the delivery date/ })).toBeVisible())
     await userEvent.clear(input)
     await userEvent.type(input, "Marketing{Enter}")
-    await waitFor(() => expect(within(canvas.getByRole("listbox", { name: "Search matches" })).getByRole("option", { name: /^Marketing Project/ })).toBeVisible())
+    await waitFor(() => expect(within(canvas.getByRole("listbox", { name: "Search matches" })).getByRole("option", { name: "Marketing, Project" })).toBeVisible())
     await waitFor(() => expect(getComputedStyle(canvas.getByRole("listbox", { name: "Search matches" }).parentElement!).opacity).toBe("1"))
   },
 }
