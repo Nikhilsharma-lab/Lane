@@ -132,8 +132,10 @@ Clerk cutover record still requires hosted invitation-return and production veri
    type, related link, private attachments, and the AI problem gate. Expected impact is implemented locally
    through signed review and save; local checks passed.
 4. Requests board: one shared workspace board grouped Open / In Progress / Done, with an optional status
-   filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`) for Requests by code
-   and title.
+   filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`): Requests and Projects
+   by saved code, title, description and Expected impact text; status, type and created-date filters (the
+   viewer's local days); recent searches; a result preview (a bottom sheet on narrow screens); Enter on an
+   exact saved code opens that Request (scope approved 2026-10-20).
 5. Request detail: problem, supporting context, saved Expected impact, assignment, lifecycle actions,
    attachments, coordination comments and saved design links. Design review discussion and decisions stay
    in Figma (2026-10-18); the earlier Ask for review workflow is retired. The Expected impact summary is
@@ -866,6 +868,12 @@ increment at a time.
   no in-app reviewer picker, review feedback form, decisions or new review notifications. Historical
   review data remains stored; links from those records remain accessible. This supersedes Ask for review
   from 2026-10-09 and does not add a Figma integration.
+- **2026-10-20:** Workspace search scope approved as shipped (plan item 2.8): Requests and Projects, matched by
+  saved code, title, description and Expected impact text; status, type and created-date filters; recent
+  searches (in memory only); a result preview, in a bottom sheet on narrow screens. Rich result rows stay
+  (title, metadata, snippet, date). Enter on an exact saved code (case-insensitive) opens that Request and
+  an exact code ranks first; Enter on other results previews them and Cmd or Ctrl+Enter opens them. Dates
+  and the created-date filter use the viewer's local days. No new routes, tables or AI calls.
 - **2026-10-10 launch decisions** (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` §8, defaults
   accepted by Nikhil): a free, invite-only pilot for design leads at small product teams; server and
   database co-located in Tokyo (`hnd1` + `ap-northeast-1`); optimistic UI un-deferred as a launch

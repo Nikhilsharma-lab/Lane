@@ -19,22 +19,37 @@ export function utcDayLabel(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
 }
 
+/** The year in a zone (the viewer's unless one is given), for the year-only-when-different rule. */
+function yearIn(date: Date, timeZone?: string) {
+  return Number(date.toLocaleDateString("en-US", { year: "numeric", timeZone }))
+}
+
 /** "Oct 9, 3:30 PM" or "9 Oct, 15:30" in the viewer's locale and zone; the year only outside the current one. */
-export function localLabel(iso: string, now = new Date()) {
+export function localLabel(iso: string, now = new Date(), timeZone?: string) {
   const date = new Date(iso)
   return date.toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
+    ...(yearIn(date, timeZone) !== yearIn(now, timeZone) ? { year: "numeric" } : {}),
+  })
+}
+
+/** Plan item 2.8: "Oct 9" or "9 Oct" on the viewer's calendar, for rows that show the day only; the year only outside the current one. */
+export function localDayLabel(iso: string, now = new Date(), timeZone?: string) {
+  const date = new Date(iso)
+  return date.toLocaleDateString(undefined, {
+    month: "short", day: "numeric", timeZone,
+    ...(yearIn(date, timeZone) !== yearIn(now, timeZone) ? { year: "numeric" } : {}),
   })
 }
 
 /** The full local date and time, for the title once the page is in the browser. */
-export function fullLocal(iso: string) {
-  return new Date(iso).toLocaleString()
+export function fullLocal(iso: string, timeZone?: string) {
+  return new Date(iso).toLocaleString(undefined, timeZone ? { timeZone } : undefined)
 }
 
-export function LocalTime({ iso, className }: { iso: string; className?: string }) {
+/** `day` shows the date only. `timeZone` is for fixtures; the viewer's zone otherwise. */
+export function LocalTime({ iso, className, day = false, timeZone }: { iso: string; className?: string; day?: boolean; timeZone?: string }) {
   // False on the server and in the hydrating render; true once the page is in the browser.
   const live = useSyncExternalStore(subscribe, () => true, () => false)
-  return <time dateTime={iso} className={className} title={live ? fullLocal(iso) : undefined}>{live ? localLabel(iso) : utcDayLabel(iso)}</time>
+  return <time dateTime={iso} className={className} title={live ? fullLocal(iso, timeZone) : undefined}>{live ? (day ? localDayLabel : localLabel)(iso, undefined, timeZone) : utcDayLabel(iso)}</time>
 }

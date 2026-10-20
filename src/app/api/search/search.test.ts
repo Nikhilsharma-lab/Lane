@@ -63,7 +63,12 @@ function whereClause(sql: string) {
 describe("GET /api/search query and authorization contract", () => {
   it.each([
     { statuses: "archived" }, { types: "task" }, { sort: "random" },
-    { createdFrom: "2026-02-30" }, { createdFrom: "2026-10-20", createdTo: "2026-10-01" },
+    { createdSince: "2026-02-30" }, { createdSince: "2026-10-19" }, { createdBefore: "2026-10-20T25:00:00.000Z" },
+    { createdSince: "2026-10-20T18:30:00.000Z", createdBefore: "2026-10-19T18:30:00.000Z" },
+    { createdSince: "2026-10-19T18:30:00.000Z", createdBefore: "2026-10-19T18:30:00.000Z" },
+    // Instants Postgres cannot bind are a 400, not a database error.
+    { createdSince: "0000-01-01T00:00:00.000Z" }, { createdSince: "0001-01-01T00:00:00+05:00" },
+    { createdBefore: "9999-12-31T23:00:00-05:00" }, { createdSince: "not-a-date", createdBefore: "2026-10-19T18:30:00.000Z" },
   ])("rejects invalid rich filters before querying: %j", async (filters) => {
     const response = await searchResponse({ query: "signup", ...filters });
     expect(response.status).toBe(400);
@@ -72,13 +77,14 @@ describe("GET /api/search query and authorization contract", () => {
 
   it("filters the authorized dataset before paging and keeps facet counts inside guest access", async () => {
     boundary.session.orgRole = "org:guest";
-    const response = await search({ query: "signup", statuses: "open,done", types: "bug", createdFrom: "2026-10-01", createdTo: "2026-10-18", sort: "title", requestsPage: 2 });
+    // The viewer's local days, 1 to 18 October in India (plan item 2.8).
+    const response = await search({ query: "signup", statuses: "open,done", types: "bug", createdSince: "2026-09-30T18:30:00.000Z", createdBefore: "2026-10-18T18:30:00.000Z", sort: "title", requestsPage: 2 });
     expect(response).toHaveProperty("facets");
     const row = queryFor("requests");
     expect(row.sql).toContain('"requests"."status" in');
     expect(row.sql).toContain('"requests"."label_keys" && ARRAY[');
     expect(row.sql).toContain('order by lower("requests"."title") asc');
-    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "open", "done", "bug", "2026-10-01T00:00:00.000Z", "2026-10-19T00:00:00.000Z", 40]));
+    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "open", "done", "bug", "2026-09-30T18:30:00.000Z", "2026-10-18T18:30:00.000Z", 40]));
     expect(whereClause(row.sql)).toBe(whereClause(queryFor("requests", true).sql));
     const facets = boundary.queries.filter(({ sql }) => sql.includes("group by"));
     expect(facets).toHaveLength(2);
@@ -90,6 +96,15 @@ describe("GET /api/search query and authorization contract", () => {
     const statuses = facets.find(({ sql }) => sql.includes('group by "requests"."status"'))!;
     expect(whereClause(statuses.sql).split("group by")[0]).not.toContain('"requests"."status" in');
     expect(statuses.params).toContain("bug");
+  });
+
+  it("accepts the widest bindable range and an offset instant, still inside guest access", async () => {
+    boundary.session.orgRole = "org:guest";
+    const response = await searchResponse({ query: "signup", createdSince: "1970-01-01T00:00:00.000Z", createdBefore: "2026-10-21T00:00:00+05:30" });
+    expect(response.status).toBe(200);
+    const row = queryFor("requests");
+    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "1970-01-01T00:00:00.000Z", "2026-10-20T18:30:00.000Z"]));
+    expect(queryFor("projects").params).toEqual(expect.arrayContaining(["org_a", "1970-01-01T00:00:00.000Z", "2026-10-20T18:30:00.000Z"]));
   });
   it.each([
     { userId: null, orgId: "org_a", orgRole: "org:member" },
@@ -208,6 +223,15 @@ describe("GET /api/search query and authorization contract", () => {
       }
     }
     expect(whereClause(queryFor("requests").sql)).toBe(whereClause(queryFor("requests", true).sql));
+  });
+
+  it("ranks an exact saved code first under Best match, and only a complete code", async () => {
+    await search({ query: "lan-42", sort: "relevance" });
+    const ranked = queryFor("requests");
+    expect(ranked.sql).toMatch(/order by case when "requests"\."request_number" = \$\d+ then 3 when lower\("requests"\."title"\)/);
+    boundary.queries = [];
+    await search({ query: "signup", sort: "relevance" });
+    expect(queryFor("requests").sql).toMatch(/order by case when lower\("requests"\."title"\)/);
   });
 
   it("does not interpret partial or malformed codes as identifiers", async () => {

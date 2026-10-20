@@ -46,6 +46,8 @@ const BUDGET = {
   reviewerSuggestions: { target: 300, limit: 300 }, // last keystroke to the matching reviewer options on screen, p75 (plan item 2.6)
   reviewerRoute: { target: 150, limit: 300 }, // GET /api/reviewers warm, requestStart to responseEnd, p75 (plan item 2.6)
   unreadRoute: { target: 150, limit: 300 }, // GET /api/notifications/unread warm, requestStart to responseEnd, p75 (plan item 2.7)
+  searchLocal: { target: 50, limit: 50 }, // keystroke to the first local search matches on screen, p75 (plan item 2.8)
+  searchRoute: { target: 400, limit: 400 }, // GET /api/search warm, requestStart to responseEnd, p75 (plan item 2.8)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -927,4 +929,90 @@ test("a window focus refreshes the unread count with one GET", async ({ page }) 
   report("GET /api/notifications/unread warm, requestStart to responseEnd", routeTimings, "ms", BUDGET.unreadRoute.target)
   expect(rsc, "A focus must not request RSC or page data").toEqual([])
   expect(p75(routeTimings)).toBeLessThanOrEqual(BUDGET.unreadRoute.limit * TOLERANCE)
+})
+
+// Plan item 2.8: workspace search. Read only. The member's workspace needs
+// Requests on the list; the query is a word from the first row's title, or
+// LANE_PERF_SEARCH_QUERY.
+const SEARCH_INPUT = 'input[role="combobox"][aria-label="Search workspace"]'
+const isSearchRequest = (request: Request) => new URL(request.url()).pathname === "/api/search"
+
+async function openSearch(page: Page) {
+  await openList(page)
+  const title = (await page.locator("[role=row][data-request-id] [data-request-title]").first().textContent()) ?? ""
+  const query = process.env.LANE_PERF_SEARCH_QUERY ?? title.split(/\s+/).find(word => word.length >= 4) ?? title.slice(0, 4)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press("/")
+  await expect(page.locator(SEARCH_INPUT)).toBeFocused()
+  return query.toLowerCase()
+}
+
+async function clearSearch(page: Page) {
+  if (await page.locator(SEARCH_INPUT).inputValue()) await page.getByRole("button", { name: "Clear search" }).click()
+  await expect(page.locator(SEARCH_INPUT)).toHaveValue("")
+  await page.locator(SEARCH_INPUT).focus()
+}
+
+test("workspace search shows local matches within 50 ms of a keystroke, aborts replaced requests and fetches no RSC while typing", async ({ page }) => {
+  const query = await openSearch(page)
+  const rsc: string[] = []
+  const aborted: string[] = []
+  let typing = false
+  page.on("request", request => { if (typing && isRscRequest(request)) rsc.push(request.url()) })
+  page.on("requestfailed", request => { if (isSearchRequest(request) && /ABORTED|cancel/i.test(request.failure()?.errorText ?? "")) aborted.push(request.url()) })
+  // Hold every server answer, so whatever shows while typing comes from the loaded rows.
+  const hold = "**/api/search?*"
+  await page.route(hold, route => { setTimeout(() => void route.continue().catch(() => {}), 2000) })
+  const timings: number[] = []
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      await clearSearch(page)
+      const shown = page.evaluate(() => new Promise<number>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const done = () => {
+          if (!document.querySelector('[role="listbox"][aria-label="Search matches"] [role="option"]')) return
+          observer.disconnect()
+          requestAnimationFrame(() => resolve(performance.now() - perf.lastInput))
+        }
+        const observer = new MutationObserver(done)
+        observer.observe(document.body, { childList: true, subtree: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("No local matches appeared")) }, 10_000)
+      }))
+      typing = true
+      // Slower than the 150 ms debounce, so each keystroke sends a request and replaces the one before.
+      await page.keyboard.type(query, { delay: 200 })
+      timings.push(await shown)
+      await page.waitForTimeout(300)
+      typing = false
+    }
+  } finally {
+    await page.unroute(hold)
+  }
+  report("keystroke to the first local search matches on screen", timings, "ms", BUDGET.searchLocal.target)
+  report("search requests aborted while typing", [aborted.length / RUNS], "requests per run")
+  expect(rsc, "Typing in workspace search must not request RSC or page data").toEqual([])
+  expect(aborted.length, "Each keystroke must abort the search request it replaces").toBeGreaterThanOrEqual(RUNS * (query.length - 1))
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.searchLocal.limit * TOLERANCE)
+})
+
+test("GET /api/search answers warm within 400 ms at p75", async ({ page }) => {
+  const query = await openSearch(page)
+  const timings: number[] = []
+  page.on("requestfinished", request => {
+    if (!isSearchRequest(request)) return
+    const timing = request.timing()
+    timings.push(timing.responseEnd - timing.requestStart)
+  })
+  // The first answer warms the route; the rest are measured.
+  for (let run = 0; run <= RUNS; run++) {
+    await clearSearch(page)
+    const answered = page.waitForResponse(response => isSearchRequest(response.request()))
+    await page.keyboard.type(query)
+    await page.keyboard.press("Enter")
+    await answered
+    await expect(page.getByRole("listbox", { name: "Search matches" })).toHaveAttribute("aria-busy", "false")
+  }
+  const warm = timings.slice(1)
+  report("GET /api/search warm, requestStart to responseEnd", warm, "ms", BUDGET.searchRoute.target)
+  expect(p75(warm)).toBeLessThanOrEqual(BUDGET.searchRoute.limit * TOLERANCE)
 })

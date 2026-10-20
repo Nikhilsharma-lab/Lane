@@ -39,7 +39,7 @@ The visual target is **Lane-owned tokens with Linear-like density and structure*
 
 ### 1.2 Pages in scope
 
-These are the 10 routes in code plus the overlays a user meets on the way. They match `AGENTS.md:16-27` and `REQUIREMENTS.md:117-135`, with one exception: the search pane needs whitelisting (decision 8.10). Grades come from the pages audit (§0 table): A means at the bar, B partial, C tokens only, D third-party UI.
+These are the 10 routes in code plus the overlays a user meets on the way. They match `AGENTS.md:16-27` and `REQUIREMENTS.md:117-135`. The search pane was whitelisted on 2026-10-10 (decision 8.10), and its shipped scope was approved on 2026-10-20 (`REQUIREMENTS.md` §15). Grades come from the pages audit (§0 table): A means at the bar, B partial, C tokens only, D third-party UI.
 
 | # | Surface | Route / file | Today |
 |---|---|---|---|
@@ -51,7 +51,7 @@ These are the 10 routes in code plus the overlays a user meets on the way. They 
 | 6 | Requests list | `/` → `requests-overview.tsx` | A- (uncommitted polish) |
 | 7 | Request detail with the Ask for review panel | `/requests/[id]` → `detail-view.tsx`, `design-review-panel.tsx` | C / B- |
 | 8 | Notifications popover | `shell/notification-bell*.tsx` | B- |
-| 9 | Workspace search pane | `shell/workspace-search-pane.tsx` | B- (not on the `AGENTS.md:16-27` whitelist; authorized only in `2026-10-07-requests-list-and-workspace-sidebar.md:31`) |
+| 9 | Workspace search pane | `shell/workspace-search-pane.tsx` | B- (on the `AGENTS.md:16-27` whitelist since 2026-10-10; shipped scope approved 2026-10-20; item 2.8) |
 | 10 | Settings → Profile | `/settings/profile` | C+ |
 | 11 | Settings → Members (Clerk) | `/settings/members` | D |
 | 12 | Shell: sidebar, breadcrumbs, loading, error, not-found | `shell/*`, `(app)/loading.tsx`, `(app)/error.tsx` | A- shell / C states |
@@ -60,7 +60,7 @@ These are the 10 routes in code plus the overlays a user meets on the way. They 
 
 - Saved priority (0019) is in the build. `REQUIREMENTS.md:22` and `lane-roadmap.md:95` still say "priority remains separate".
 - Ask for review (0018) appears nowhere in REQUIREMENTS, the roadmap or the whitelist (scope §4 row 3).
-- The workspace search pane is missing from both screen lists.
+- Resolved 2026-10-10: the workspace search pane is on both screen lists; its shipped scope was recorded on 2026-10-20.
 - Linear-style interaction is approved only for Requests, detail and Project navigation (`AGENTS.md:45`). Profile auto-save, the onboarding keys, and notification and search keyboard work all need that approval extended.
 - Saved `LAN-n` codes are already recorded (`REQUIREMENTS.md:20`).
 
@@ -430,7 +430,7 @@ Needs decision 8.5, which also records the go-ahead Nikhil deferred "until he as
   - The count updates after the user's own actions. It also updates on focus only with 8.15.
   - Stories for empty, error and retry.
 
-### 2.8 Workspace search (M), needs whitelisting (8.10)
+### 2.8 Workspace search (M), needs whitelisting (8.10) *(built 2026-10-20; waiting on Nikhil's sign-off)*
 - **Changes:**
   - Search as you type with a 150 ms debounce. The sequence guard exists at `:102-138`.
   - Instant local results from the loaded list, then server results.

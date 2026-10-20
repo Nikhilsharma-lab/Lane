@@ -8,7 +8,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { NotificationBell } from "./notification-bell";
 import { SidebarView } from "./sidebar-view";
-import { fetchWorkspaceSearch } from "./workspace-search-pane";
+import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 
 export function Sidebar({

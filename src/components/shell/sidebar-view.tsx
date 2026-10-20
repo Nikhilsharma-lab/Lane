@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useEffectEvent, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
-import { useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
+import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
 import { parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
-import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
-import { WorkspaceSearchPane } from "./workspace-search-pane";
+import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
+import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
@@ -38,7 +39,8 @@ export interface SidebarViewProps {
   /** No longer read: one bell instance serves both the panel and the rail (plan item 1.8, 2026-10-10). Kept so existing fixtures type-check. */
   compactNotifications?: ReactNode;
   onSignOut?: () => void | Promise<unknown>;
-  onSearch?: (input: WorkspaceSearchInput) => Promise<WorkspaceSearchResponse>;
+  /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
+  onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
   workspaceSwitcher?: UserMenuWorkspaces;
 }
 
@@ -65,6 +67,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // that context and the setter only, so typing in the list filter does not
   // re-render it. Fixtures without the provider fall back to the props.
   const setListView = useSetRequestListView();
+  const setDetailSession = useSetDetailSession();
+  const router = useRouter();
   const listContext = useRequestListContext();
   const filter = listContext?.status ?? parseRequestStatusFilter(statusFilter);
   const projectFilter = listContext?.project ?? urlProjectFilter;
@@ -86,7 +90,14 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const [previousLocation, setPreviousLocation] = useState(`${pathname}?${filter}&${projectFilter}`);
   const location = `${pathname}?${filter}&${projectFilter}`;
   if (location !== previousLocation) { setPreviousLocation(location); setSearchOpen(false); }
+  // Plan item 2.8: the pane loads on demand; fetch it once the page is idle, so the first / finds it ready.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback !== "function") { const timer = window.setTimeout(preloadWorkspaceSearch, 1500); return () => window.clearTimeout(timer); }
+    const idle = window.requestIdleCallback(preloadWorkspaceSearch, { timeout: 3000 });
+    return () => window.cancelIdleCallback(idle);
+  }, []);
   function openSearch() {
+    preloadWorkspaceSearch();
     dismissPeek();
     setSearchVisited(true); setSearchOpen(true);
     if (searchOpen && !mobileOpen) document.querySelector<HTMLInputElement>('#lane-main input[type="search"]')?.focus();
@@ -102,7 +113,26 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     closeSearch(false);
     const target = requestListContextFromHref(href);
     if (target) setListView(current => withListContext(current, target));
+    // Plan item 2.8: a Request opened from search lands as one opened from the list, with its title focused.
+    else if (href.startsWith("/requests/")) setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
   }
+  // Plan item 2.8: Enter on an exact saved code, or Cmd or Ctrl+Enter on a result.
+  function openFromSearch(href: string) {
+    if (href === pathname) { closeSearch(); return; }
+    navigateFromSearch(href);
+    // On "/", a Project or No Project view changes in place with no request, as in the sidebar.
+    if (pathname === "/" && requestListContextFromHref(href)) return;
+    router.push(href);
+  }
+  // Plan item 2.8: the loaded Requests and the sidebar's Projects, read on each keystroke for instant matches.
+  const loadedRequests = useLoadedRequests();
+  const loadedProjects = useRef(projects);
+  useLayoutEffect(() => { loadedProjects.current = projects; }, [projects]);
+  const getLoaded = useCallback((): LocalSearchSource => ({
+    requests: loadedRequests().map(row => ({ id: row.id, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem, status: row.status,
+      projectId: row.projectId ?? null, projectName: row.projectName ?? null, requestType: row.requestType ?? null, createdAt: row.createdAt })),
+    projects: loadedProjects.current.map(project => ({ id: project.id, name: project.name, description: project.description ?? null })),
+  }), [loadedRequests]);
   const searchShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (pathname.startsWith("/settings/")) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -165,7 +195,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <div {...separator} className={styles.resizeHandle} />
     <main id="lane-main" tabIndex={-1} className={styles.main} inert={mobileOpen || switchingWorkspace} aria-busy={switchingWorkspace || undefined} onPointerDownCapture={() => { if (peeking) dismissPeek(); }}>
       <PageStripProvider value={frame}><div className={styles.content} hidden={searchOpen}>{children}</div></PageStripProvider>
-      {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onNavigate={navigateFromSearch} />}
+      {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onNavigate={navigateFromSearch} onOpen={openFromSearch} getLoaded={getLoaded} />}
     </main>
     {/* Plan item 2.4: `?` lists the shortcuts on every authenticated page. */}
     <KeyboardShortcuts />
