@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
+  memo,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -63,7 +64,7 @@ import { usePendingMutationWriter } from "@/components/requests/pending-mutation
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
-import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema } from "@/lib/request-impact";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -118,6 +119,19 @@ type QueuedAttachment = {
 const reveal =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out";
 
+/** The draft's Expected impact as the editors read it; an empty form starts a new measurement plan. */
+const parseExpectedImpact = (value: unknown): ExpectedImpactDraft =>
+  expectedImpactDraftSchema.parse(value) ?? createEmptyMeasurementPlan();
+const hasText = (value: string | undefined) => Boolean(value);
+/** The fields whose values the compose step renders; the title and description are never among them. */
+const shownFields = ["affectedPeople", "desiredChange", "observedEvidence", "uncertainty", "projectId", "requestType", "priority", "labelKeys"] as const;
+
+// The measurement editor (four Radix selects, a menu, number fields and a date dialog) is the
+// largest part of the form. It renders only when its own value, the Request type or the step
+// changes, and sits out the renders the rest of the form still does (a loaded Project list, a
+// picker, a validation error).
+const PlanFields = memo(MeasurementPlanFields);
+
 const emptyRequest: RequestInput = {
   title: "",
   description: "",
@@ -144,7 +158,7 @@ function EarlierDraftDetails({
   values,
   error,
 }: {
-  values: RequestInput;
+  values: Pick<RequestInput, (typeof earlierDraftFields)[number]["name"]>;
   error?: string;
 }) {
   const details = earlierDraftFields.filter(({ name }) => values[name]);
@@ -332,6 +346,7 @@ export default function RequestEditor({
     setError,
     setFocus,
     setValue,
+    subscribe,
     trigger,
     formState: { errors, isSubmitted },
   } = useForm<RequestInput, unknown, RequestInput>({
@@ -339,36 +354,34 @@ export default function RequestEditor({
     defaultValues: initialValues,
   });
 
-  const watched = useWatch({ control });
+  // Typing in the title and description renders nothing: both fields are uncontrolled, and the
+  // form watches only the values it shows (the properties row, the earlier-draft details, the
+  // measurement editor's own value). A whole-form watch would hand out a fresh clone of every
+  // value on each keystroke and render the entire composer with it. The draft is persisted on
+  // every change through the render-free subscription below.
+  const [affectedPeople, desiredChange, observedEvidence, uncertainty, projectId, requestType, priority, labelKeys] = useWatch({ control, name: shownFields });
+  const originalTextUnchanged = useWatch({ control, name: ["title", "description"], compute: ([title, description]) => Boolean(editing && original && title?.trim() === original.title && description?.trim() === original.description) });
+  const hasLink = useWatch({ control, name: "usefulLink", compute: hasText });
+  // Expected impact keeps its identity until its content changes, so the measurement editor can
+  // skip every render its own value did not cause.
+  const expectedImpact = useWatch({ control, name: "expectedImpact", compute: parseExpectedImpact });
+  const changeExpectedImpact = useCallback((value: ExpectedImpactDraft) => {
+    draftEdited.current = true;
+    setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted });
+  }, [isSubmitted, setValue]);
   const currentValues = useMemo(
     () => ({
-      title: watched.title ?? "",
-      description: watched.description ?? "",
-      affectedPeople: watched.affectedPeople ?? "",
-      desiredChange: watched.desiredChange ?? "",
-      observedEvidence: watched.observedEvidence ?? "",
-      uncertainty: watched.uncertainty ?? "",
-      usefulLink: watched.usefulLink ?? "",
-      projectId: watched.projectId ?? null,
-      requestType: watched.requestType ?? null,
-      labelKeys: watched.labelKeys,
-      priority: watched.priority ?? "none",
-      expectedImpact: expectedImpactDraftSchema.parse(watched.expectedImpact) ?? createEmptyMeasurementPlan(),
+      affectedPeople: affectedPeople ?? "",
+      desiredChange: desiredChange ?? "",
+      observedEvidence: observedEvidence ?? "",
+      uncertainty: uncertainty ?? "",
+      projectId: projectId ?? null,
+      requestType: requestType ?? null,
+      labelKeys,
+      priority: priority ?? "none",
+      expectedImpact,
     }),
-    [
-      watched.affectedPeople,
-      watched.description,
-      watched.desiredChange,
-      watched.observedEvidence,
-      watched.title,
-      watched.uncertainty,
-      watched.usefulLink,
-      watched.projectId,
-      watched.requestType,
-      watched.labelKeys,
-      watched.priority,
-      watched.expectedImpact,
-    ],
+    [affectedPeople, desiredChange, observedEvidence, uncertainty, projectId, requestType, priority, labelKeys, expectedImpact],
   );
 
   const checking = stage === "checking";
@@ -494,7 +507,6 @@ export default function RequestEditor({
   useEffect(() => {
     persistDraft();
   }, [
-    currentValues,
     draftReady,
     draftScope,
     editedProblem,
@@ -505,6 +517,8 @@ export default function RequestEditor({
     previousProblem,
     previousProblemSource,
   ]);
+  // Every value change, keystrokes included, without a render of the form.
+  useEffect(() => subscribe({ formState: { values: true }, callback: () => { persistDraft(); } }), [subscribe]);
 
   useEffect(() => {
     if (!active || !draftReady) return;
@@ -1364,7 +1378,7 @@ export default function RequestEditor({
               <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="secondary" size="sm" disabled={checking} aria-invalid={Boolean(errors.usefulLink) || undefined}>
-                    <span className={styles.propertyContent}>{currentValues.usefulLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
+                    <span className={styles.propertyContent}>{hasLink ? <CheckIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}<span>Add link</span></span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent {...pickerPopoverProps} inert={linkOpen ? undefined : true} aria-label="Related link" className={pickerLayout.formPanel}
@@ -1378,7 +1392,7 @@ export default function RequestEditor({
                       }
                     }} />
                   <div className={pickerLayout.formActions}>
-                    {currentValues.usefulLink && <Button type="button" variant="ghost" size="sm" onClick={() => {
+                    {hasLink && <Button type="button" variant="ghost" size="sm" onClick={() => {
                       draftEdited.current = true;
                       setValue("usefulLink", "", { shouldDirty: true, shouldValidate: true });
                       setLinkOpen(false);
@@ -1402,9 +1416,9 @@ export default function RequestEditor({
               {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
                 <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
               )}
-              <MeasurementPlanFields
+              <PlanFields
               value={currentValues.expectedImpact}
-              onChange={(value) => { draftEdited.current = true; setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted }); }}
+              onChange={changeExpectedImpact}
               requestType={currentValues.requestType ?? null}
               disabled={checking}
               submitted={isSubmitted}
@@ -1708,7 +1722,7 @@ export default function RequestEditor({
             {shortcut}
             <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
               aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
-              {editing && original && currentValues.title.trim() === original.title && currentValues.description.trim() === original.description ? "Save changes" : "Review Request"}
+              {originalTextUnchanged ? "Save changes" : "Review Request"}
             </Button>
           </div>
         </footer>

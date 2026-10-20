@@ -300,14 +300,17 @@ export const RowMenuHints: Story = {
   },
 }
 
-/** The list has one polite live region, also with a selection, filter chips and the summary open. */
+/** The list speaks through one polite live region, the shell's (plan item 2.7, decision D6): the page adds none of its own, also with a selection, filter chips and the summary open. */
 export const OneLiveRegion: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const workspace = canvasElement.querySelector<HTMLElement>('[data-slot="requests-workspace"]')!
     const regions = () => workspace.querySelectorAll('[aria-live]:not([aria-live="off"]), [role="status"], [role="log"]')
-    await expect(regions()).toHaveLength(1)
-    await expect(regions()[0]).toBe(announcer(canvasElement))
+    const announcers = () => canvasElement.querySelectorAll('[data-slot="list-announcer"]')
+    await expect(regions()).toHaveLength(0)
+    await expect(announcers()).toHaveLength(1)
+    await expect(announcers()[0]).toBe(announcer(canvasElement))
+    await expect(canvasElement.querySelector("[data-workspace-shell]")!.contains(announcer(canvasElement))).toBe(true)
     requestRow(canvasElement, idOf(0)).focus()
     await userEvent.keyboard("x")
     await userEvent.click(canvas.getByRole("button", { name: "Filter Requests by title" }))
@@ -315,7 +318,8 @@ export const OneLiveRegion: Story = {
     await userEvent.keyboard("{Escape}")
     await userEvent.click(canvas.getByRole("button", { name: "Open list summary" }))
     await expect(canvas.getByRole("region", { name: "List summary" })).toBeVisible()
-    await expect(regions()).toHaveLength(1)
+    await expect(regions()).toHaveLength(0)
+    await expect(announcers()).toHaveLength(1)
   },
 }
 

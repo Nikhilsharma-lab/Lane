@@ -45,6 +45,7 @@ const BUDGET = {
   detailNeighbourPrefetches: 2, // full detail prefetches a Request page starts for its previous and next (plan item 2.5)
   reviewerSuggestions: { target: 300, limit: 300 }, // last keystroke to the matching reviewer options on screen, p75 (plan item 2.6)
   reviewerRoute: { target: 150, limit: 300 }, // GET /api/reviewers warm, requestStart to responseEnd, p75 (plan item 2.6)
+  unreadRoute: { target: 150, limit: 300 }, // GET /api/notifications/unread warm, requestStart to responseEnd, p75 (plan item 2.7)
 }
 
 test.skip(!BASE_URL, "Set LANE_PERF_BASE_URL to run the performance spec against a running app.")
@@ -806,4 +807,124 @@ test("reviewer suggestions show within 300 ms of the last keystroke, with no ser
   await expect(listbox).toBeHidden()
   await region.getByRole("button", { name: "Cancel" }).click()
   await expect(region.getByRole("button", { name: "Ask for review" })).toBeVisible()
+})
+
+// Plan item 2.7: the notifications popover. (a) and (c) read only; (b) marks
+// one notification read and then unread again, so it runs only with
+// LANE_PERF_MUTATE=1. The member needs at least one notification (for (b), an
+// unread one): seed it through the normal Request loop if the perf workspace has none.
+const NOTIFICATIONS_PANEL = '[role="dialog"][aria-label="Notifications"]'
+const NOTIFICATION_ROW = `${NOTIFICATIONS_PANEL} [data-notification-row]`
+const notificationsTrigger = (page: Page) => page.getByRole("button", { name: /^Notifications/ })
+const isShown = (locator: ReturnType<Page["locator"]>) => locator.waitFor({ state: "visible", timeout: 10_000 }).then(() => true, () => false)
+
+test("the notifications popover re-opens with its rows in the next frame", async ({ page }) => {
+  await openList(page)
+  const rsc: string[] = []
+  page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
+  await notificationsTrigger(page).click()
+  test.skip(!(await isShown(page.locator(NOTIFICATION_ROW).first())), "The member needs at least one notification.")
+  await page.keyboard.press("Escape")
+  await expect(page.locator(NOTIFICATIONS_PANEL)).toBeHidden()
+  // Hold the list read, so the paint cannot wait for it: the kept rows must show on their own.
+  const hold = "**/api/notifications?*"
+  await page.route(hold, route => { setTimeout(() => void route.continue(), 2000) })
+  const timings: number[] = []
+  try {
+    for (let run = 0; run < RUNS; run++) {
+      await notificationsTrigger(page).focus()
+      const painted = page.evaluate(([row, panel]) => new Promise<{ onScreen: number; loading: boolean }>((resolve, reject) => {
+        const perf = (window as unknown as PerfWindow).__lanePerf
+        const done = () => {
+          if (!document.querySelector(row)) return
+          observer.disconnect()
+          requestAnimationFrame(() => resolve({ onScreen: performance.now() - perf.lastInput, loading: Boolean(document.querySelector(`${panel} p[role="status"]`)) }))
+        }
+        const observer = new MutationObserver(done)
+        observer.observe(document.body, { childList: true, subtree: true })
+        setTimeout(() => { observer.disconnect(); reject(new Error("The notification rows did not appear")) }, 10_000)
+      }), [NOTIFICATION_ROW, NOTIFICATIONS_PANEL] as const)
+      await page.keyboard.press("Enter")
+      const { onScreen, loading } = await painted
+      timings.push(onScreen)
+      expect(loading, "The kept rows must paint without a loading status").toBe(false)
+      await page.keyboard.press("Escape")
+      await expect(page.locator(NOTIFICATIONS_PANEL)).toBeHidden()
+    }
+  } finally {
+    await page.unroute(hold)
+  }
+  report("Enter to the notification rows on screen", timings, "ms", BUDGET.visualResponse.target)
+  expect(rsc, "Opening the popover must not request RSC or page data").toEqual([])
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.visualResponse.limit * TOLERANCE)
+})
+
+test("mark read shows on the row and the badge in the next frame and never reverts", async ({ page }) => {
+  test.skip(!MUTATE, "Set LANE_PERF_MUTATE=1 to measure mark read; it marks a notification read and then unread again.")
+  await openList(page)
+  await notificationsTrigger(page).click()
+  const unreadRow = page.locator(`${NOTIFICATION_ROW}[data-unread]`).first()
+  test.skip(!(await isShown(unreadRow)), "The member needs at least one unread notification.")
+  const id = await unreadRow.getAttribute("data-notification-row")
+  const row = page.locator(`[data-notification-row="${id}"]`)
+  const timings: number[] = []
+  for (let run = 0; run < RUNS; run++) {
+    const before = await notificationsTrigger(page).getAttribute("aria-label")
+    // Records the time from the input to the first frame that shows the row read, and every value the
+    // row's unread marker and the trigger's label take for 1.5 s after it (the no-revert gate).
+    const watch = page.evaluate(rowId => new Promise<{ onScreen: number; sequence: string[]; labels: string[] }>(resolve => {
+      const perf = (window as unknown as PerfWindow).__lanePerf
+      const sequence: string[] = [], labels: string[] = []
+      let onScreen = NaN, scheduled = false
+      const tick = () => {
+        const element = document.querySelector(`[data-notification-row="${rowId}"]`)
+        const state = element ? (element.hasAttribute("data-unread") ? "unread" : "read") : "gone"
+        if (sequence.at(-1) !== state) sequence.push(state)
+        const label = document.querySelector('button[aria-label^="Notifications"]')?.getAttribute("aria-label") ?? ""
+        if (labels.at(-1) !== label) labels.push(label)
+        if (state === "read" && !scheduled) {
+          scheduled = true
+          requestAnimationFrame(() => { onScreen = performance.now() - perf.lastInput })
+        }
+      }
+      const observer = new MutationObserver(tick)
+      observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-unread", "aria-label"] })
+      tick()
+      setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, labels }) }, 1500)
+    }), id)
+    await row.getByRole("button", { name: "Mark notification as read" }).click()
+    const { onScreen, sequence, labels } = await watch
+    timings.push(onScreen)
+    expect(sequence.filter(state => state !== "gone"), "The row must go to read once and stay there").toEqual(["unread", "read"])
+    expect(labels.slice(1), "The badge must never return to the higher count").not.toContain(before)
+    // Leave the data as found.
+    await row.getByRole("button", { name: "Mark notification as unread" }).click()
+    await expect(row).toHaveAttribute("data-unread", "true", { timeout: 10_000 })
+    await page.waitForTimeout(500) // the reconciling count read
+  }
+  await page.keyboard.press("Escape")
+  report("mark read, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
+  expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
+})
+
+test("a window focus refreshes the unread count with one GET", async ({ page }) => {
+  await openList(page)
+  const rsc: string[] = []
+  const routeTimings: number[] = []
+  page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
+  page.on("requestfinished", request => {
+    if (!request.url().includes("/api/notifications/unread")) return
+    const timing = request.timing()
+    routeTimings.push(timing.responseEnd - timing.requestStart)
+  })
+  for (let run = 0; run < RUNS; run++) {
+    const before = routeTimings.length
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+    await expect.poll(() => routeTimings.length, { message: "A focus should start one count read" }).toBe(before + 1)
+    await page.waitForTimeout(300)
+    expect(routeTimings.length, "A focus must start exactly one count read").toBe(before + 1)
+  }
+  report("GET /api/notifications/unread warm, requestStart to responseEnd", routeTimings, "ms", BUDGET.unreadRoute.target)
+  expect(rsc, "A focus must not request RSC or page data").toEqual([])
+  expect(p75(routeTimings)).toBeLessThanOrEqual(BUDGET.unreadRoute.limit * TOLERANCE)
 })

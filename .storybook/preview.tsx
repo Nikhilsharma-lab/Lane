@@ -18,6 +18,10 @@ sb.mock(import("../src/app/(app)/requests/[id]/actions.ts"))
 sb.mock(import("../src/app/(app)/requests/[id]/edit-actions.ts"))
 sb.mock(import("../src/app/(app)/notifications/actions.ts"))
 sb.mock(import("../src/app/(auth)/onboarding/actions.ts"))
+// The real measurement editor, with its renders counted: the composer must not render it on
+// every keystroke of the title and description (Requests/New Request composer, Typing Leaves
+// The Measurement Editor Alone).
+sb.mock(import("../src/components/requests/measurement-plan-fields.tsx"), { spy: true })
 
 // Keep root styling with the mounted preview, including hot reloads and portals.
 // Story-test cleanup can run while the preview remains visible.

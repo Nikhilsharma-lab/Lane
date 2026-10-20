@@ -46,9 +46,17 @@ export const Requests: Story = {
     for (const icon of canvasElementIdentityControls(context.canvasElement)) {
       expect(controlContrast(icon, getComputedStyle(icon).color), icon.getAttribute("aria-label") ?? "Row icon").toBeGreaterThanOrEqual(3)
     }
+    // Avatars stay level with the compact metadata badges beside them (supabase-tokens.md, "Composition stays Lane's").
+    // Since 2026-10-16 those badges take Supabase's vertical padding with Lane's line height, so the shared
+    // height is the rendered badge box, never shorter than Supabase's 17px badge.
+    const badgeHeights = [...context.canvasElement.querySelectorAll('[data-request-id] [class*="_badge_"]')].map(badge => badge.getBoundingClientRect().height).filter(Boolean)
     for (const avatar of context.canvasElement.querySelectorAll('[data-avatar-tone]')) {
       expect(textContrast(avatar)).toBeGreaterThanOrEqual(4.5)
       expect(avatar.getBoundingClientRect().height).toBeCloseTo(Number.parseFloat(resolvedStyle(avatar, "height", "var(--request-avatar-size)")), 1)
+      const { width, height } = avatar.getBoundingClientRect()
+      expect(height).toBeGreaterThanOrEqual(17)
+      expect(Math.abs(width - height)).toBeLessThan(0.1)
+      for (const badgeHeight of badgeHeights) expect(Math.abs(height - badgeHeight)).toBeLessThan(0.1)
     }
     if (innerWidth > 880) {
       const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
@@ -77,7 +85,10 @@ export const Selected: Story = {
     for (const row of rows.slice(0, 2)) {
       const badgeHeight = Number.parseFloat(resolvedStyle(row, "height", "var(--badge-sm-height)"))
       await waitFor(() => {
-        for (const pill of [...row.querySelectorAll(metadata)].filter(element => element.getBoundingClientRect().width)) {
+        const pills = [...row.querySelectorAll(metadata)].filter(element => element.getBoundingClientRect().width)
+        // One compact height for every pill and the picker avatar: the rendered badge box, never shorter than Supabase's 17px badge.
+        expect(badgeHeight).toBeGreaterThanOrEqual(17)
+        for (const pill of pills) {
           expect(getComputedStyle(pill).backgroundColor).toBe(getComputedStyle(row).backgroundColor)
           expect(getComputedStyle(pill).borderTopWidth).toBe("1px")
           expect(textContrast(pill)).toBeGreaterThanOrEqual(4.5)
@@ -204,10 +215,16 @@ export const StatusChips: Story = {
     const page = within(document.body)
     // The status row also holds an inert, aria-hidden measurement copy of the chips; query only the visible group.
     const group = () => canvas.getByRole("group", { name: "Status views" })
+    // The row measures itself on mount and folds the views that do not fit: chips that fold out leave through
+    // Arc's exit animation (aria-hidden while they go) and the "N more" label swaps in. Read the settled row.
     // Views that do not fit fold into a "N more" menu; the current view always stays a chip.
-    const more = canvas.queryByRole("button", { name: /^\d more$/ })
-    const folded = more ? Number(/\d+/.exec(more.textContent ?? "")?.[0]) : 0
-    expect(group().querySelectorAll("[data-chip]").length + folded).toBe(4)
+    let folded = 0
+    await waitFor(() => {
+      expect(group().querySelector('[data-chip][aria-hidden="true"]')).toBeNull()
+      const more = canvas.queryByRole("button", { name: /^\d more$/ })
+      folded = more ? Number(/\d+/.exec(more.textContent ?? "")?.[0]) : 0
+      expect(group().querySelectorAll("[data-chip]").length + folded).toBe(4)
+    })
     async function choose(name: string) {
       const chip = within(group()).queryByRole("button", { name })
       if (chip) { await userEvent.click(chip); return }

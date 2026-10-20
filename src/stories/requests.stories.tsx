@@ -153,9 +153,11 @@ export const LongTitle: Story = { args: { requests: [{ ...requests[0], title: "A
 export function RequestsShellFixture(args: React.ComponentProps<typeof RequestsOverview> & {
   pathname?: string
   children?: React.ReactNode
+  /** The sidebar's bell, when a story mounts the real adapter (plan item 2.7). */
+  notifications?: React.ReactNode
 }) {
   return <RequestListViewProvider>
-    <WorkspaceSidebarFixture orgId={args.context?.orgId} role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"}
+    <WorkspaceSidebarFixture orgId={args.context?.orgId} role={args.isGuest ? "guest" : "member"} pathname={args.pathname ?? "/"} notifications={args.notifications}
       requests={args.requests.map(request => ({ ...request, description: fixtureDescriptions[request.id] }))}>
       {args.children ?? <RequestsOverview {...args} />}
     </WorkspaceSidebarFixture>
@@ -181,8 +183,10 @@ export const PopulatedInShell: Story = {
     await expect(within(firstRow).queryByRole("button", { name: /^Submitted by:/ })).not.toBeInTheDocument()
     await expect(canvas.getByRole("button", { name: "Display" })).toBeVisible()
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
-    if (window.innerWidth <= 640) {
-      await expect(canvas.getByRole("button", { name: "Open navigation" })).toBeVisible()
+    // Production collapses the sidebar at 880px and below; the page strip's Expand sidebar is the way into navigation.
+    if (window.innerWidth <= 880) {
+      await expect(canvas.getByRole("button", { name: "Expand sidebar" })).toBeVisible()
+      await expect(canvas.queryByRole("button", { name: "Open navigation" })).not.toBeInTheDocument()
     } else {
       await expect(canvas.getByRole("navigation", { name: "Primary navigation" })).toBeVisible()
       await expect(canvas.getByRole("link", { name: "All Requests" })).toHaveAttribute("aria-current", "page")
@@ -194,7 +198,8 @@ export const PopulatedInShell: Story = {
 export const SidebarHoverPreview: Story = {
   ...PopulatedInShell,
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    // At 880px and below production collapses the sidebar itself and disables the resize handle.
+    if (innerWidth <= 880) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     canvas.getByRole("separator", { name: "Resize sidebar" }).focus()
@@ -215,10 +220,11 @@ export const WorkspaceSearchInShell: Story = {
   render: args => <RequestsShellFixture {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const page = within(document.body)
-    if (window.innerWidth <= 640) {
-      await userEvent.click(canvas.getByRole("button", { name: "Open navigation" }))
-      await userEvent.click(within(await page.findByRole("dialog", { name: "Navigation" })).getByRole("button", { name: "Search workspace" }))
+    if (window.innerWidth <= 880) {
+      await userEvent.click(canvas.getByRole("button", { name: "Expand sidebar" }))
+      const sidebar = canvasElement.querySelector<HTMLElement>("#lane-sidebar")!
+      await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking"))
+      await userEvent.click(within(sidebar).getByRole("button", { name: "Search workspace" }))
     } else {
       await userEvent.click(canvas.getByRole("button", { name: "Search workspace" }))
     }
@@ -533,10 +539,14 @@ export const ProjectNavigationInShell: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
-    if (window.innerWidth <= 640) await userEvent.click(canvas.getByRole("button", { name: "Open navigation" }))
-    const navigation = within(await page.findByRole("navigation", { name: "Primary navigation" }))
+    const sidebar = canvasElement.querySelector<HTMLElement>("#lane-sidebar")!
+    if (window.innerWidth <= 880) {
+      await userEvent.click(canvas.getByRole("button", { name: "Expand sidebar" }))
+      await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking"))
+    }
+    const navigation = within(await within(sidebar).findByRole("navigation", { name: "Primary navigation" }))
     await userEvent.click(navigation.getByRole("link", { name: "Website" }))
-    if (window.innerWidth <= 640) await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
+    if (window.innerWidth <= 880) await waitFor(() => expect(sidebar).not.toHaveAttribute("data-peeking"))
     await expect(canvas.getByRole("heading", { name: "Website", level: 1 })).toBeVisible()
     // The shared layout retains the Project view; detail links stay canonical.
     await expect(canvas.getByRole("link", { name: requests[0].title })).toHaveAttribute("href", "/requests/fixture-1")

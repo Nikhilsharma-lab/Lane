@@ -8,7 +8,7 @@ import { NotificationBellView } from "@/components/shell/notification-bell-view"
 
 function NotificationsFixture() {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false} onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
+  return <NotificationBellView open={open} onOpenChange={setOpen} unread={0} items={[]} loaded onSelect={fn()} onMarkAllRead={fn()} onToggleRead={fn()} onRetry={fn()} />
 }
 
 const meta = {
@@ -25,6 +25,9 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+// Production collapses the sidebar itself at 880px and below, where the resize handle is disabled; the
+// manual-collapse stories below start from a resizable sidebar, so they run above that width only.
+const manualCollapseUnavailable = () => innerWidth <= 880
 const allowCloseDelay = () => new Promise<void>(resolve => setTimeout(resolve, 220))
 
 async function collapse(canvasElement: HTMLElement, rememberedWidth = 208) {
@@ -55,7 +58,7 @@ async function expectPeek(sidebar: HTMLElement, expand: HTMLElement, width = 208
 
 export const HoverWithoutLayoutShift: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { canvas, sidebar, resize, expand, main } = await collapse(canvasElement)
     const before = main.getBoundingClientRect()
     await userEvent.hover(expand)
@@ -82,7 +85,7 @@ export const HoverWithoutLayoutShift: Story = {
 
 export const HoverPreview: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { sidebar, resize, expand, main } = await collapse(canvasElement)
     const before = main.getBoundingClientRect()
     await userEvent.hover(expand)
@@ -95,7 +98,7 @@ export const HoverPreview: Story = {
 
 export const ClickPinsRememberedWidth: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { sidebar, resize, expand, main } = await collapse(canvasElement, 400)
     const before = main.getBoundingClientRect()
     await userEvent.hover(expand)
@@ -116,7 +119,7 @@ export const ClickPinsRememberedWidth: Story = {
 
 export const AccountMenuKeepsPreview: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { sidebar, resize, expand } = await collapse(canvasElement)
     await userEvent.hover(expand)
     await expectPeek(sidebar, expand)
@@ -145,7 +148,7 @@ export const AccountMenuKeepsPreview: Story = {
 
 export const NotificationPopoverKeepsPreview: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { canvas, sidebar, expand } = await collapse(canvasElement)
     await userEvent.hover(expand)
     await expectPeek(sidebar, expand)
@@ -155,7 +158,8 @@ export const NotificationPopoverKeepsPreview: Story = {
     const page = within(document.body)
     const notification = await page.findByRole("dialog", { name: "Notifications" })
     const close = within(notification).getByRole("button", { name: "Close notifications" })
-    await waitFor(() => expect(close).toHaveFocus())
+    // Plan item 2.7 (decision D1): focus lands on the first row, or on the panel itself when there are no rows, as here.
+    await waitFor(() => expect(notification).toHaveFocus())
     await userEvent.hover(close)
     await userEvent.unhover(close)
     await allowCloseDelay()
@@ -172,7 +176,7 @@ export const NotificationPopoverKeepsPreview: Story = {
 
 export const RemovedMenuDoesNotKeepPreviewOpen: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { canvas, sidebar, expand } = await collapse(canvasElement)
     await userEvent.hover(expand)
     await expectPeek(sidebar, expand)
@@ -191,7 +195,7 @@ export const RemovedMenuDoesNotKeepPreviewOpen: Story = {
 
 export const EscapeClosesWithoutResizing: Story = {
   play: async ({ canvasElement }) => {
-    if (innerWidth <= 640) return
+    if (manualCollapseUnavailable()) return
     const { sidebar, resize, expand, main } = await collapse(canvasElement)
     const before = main.getBoundingClientRect()
     await userEvent.hover(expand)
@@ -204,22 +208,26 @@ export const EscapeClosesWithoutResizing: Story = {
   },
 }
 
-export const MobileStillUsesDrawer: Story = {
+/** Phones keep a way into navigation (plan item 2.0): production collapses the sidebar at 880px and below, so the
+ * page strip's Expand sidebar opens the same peek rather than Arc's separate phone drawer. */
+export const MobileUsesStripPeek: Story = {
   play: async ({ canvasElement }) => {
     if (innerWidth > 640) return
     const canvas = within(canvasElement)
-    const page = within(document.body)
-    const opener = canvas.getByRole("button", { name: "Open navigation" })
-    await userEvent.hover(opener)
-    await expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument()
-    await expect(canvas.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument()
-    await userEvent.click(opener)
-    const navigation = await page.findByRole("dialog", { name: "Navigation" })
-    await userEvent.unhover(opener)
+    const sidebar = canvasElement.querySelector<HTMLElement>("#lane-sidebar")!
+    await expect(canvas.queryByRole("button", { name: "Open navigation" })).not.toBeInTheDocument()
+    const expand = within(canvas.getByRole("main")).getByRole("button", { name: "Expand sidebar" })
+    await expect(expand).toBeVisible()
+    await userEvent.click(expand)
+    await expectPeek(sidebar, expand)
+    const navigation = within(sidebar).getByRole("navigation", { name: "Primary navigation" })
+    await expect(navigation.parentElement!.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth)
+    await waitFor(() => expect(within(navigation).getByRole("link", { name: "All Requests" })).toBeVisible())
+    await userEvent.unhover(expand)
     await allowCloseDelay()
-    await expect(navigation).toBeVisible()
+    await expect(sidebar).toHaveAttribute("data-peeking", "true")
     await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-    await expect(opener).toHaveFocus()
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-peeking"))
+    await expect(expand).toHaveFocus()
   },
 }

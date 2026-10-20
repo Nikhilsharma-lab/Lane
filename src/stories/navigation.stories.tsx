@@ -22,23 +22,39 @@ const createProject = fn<(name: string) => Promise<ProjectOption>>()
 
 function NotificationsFixture({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
-  return <NotificationBellView compact={compact} open={open} onOpenChange={setOpen} unread={0} items={[]} loaded isPending={false} onMarkAllRead={fn()} onToggleRead={fn()} onSelect={fn()} onRetry={fn()} />
+  return <NotificationBellView compact={compact} open={open} onOpenChange={setOpen} unread={0} items={[]} loaded onMarkAllRead={fn()} onToggleRead={fn()} onSelect={fn()} onRetry={fn()} />
+}
+
+/** Production collapses the sidebar at 880px and below (`useSidebarResize`, docs/design-system/linear-primitives.md,
+ * "Production enables the shell's automatic collapse"). Phones reach navigation through the page strip's Expand
+ * sidebar control, which opens the sidebar as a peek; Arc's separate phone drawer is not used by the shell. */
+const compact = () => window.innerWidth <= 880
+
+/** The shell's sidebar landmark. Collapsed, it is hidden from the accessibility tree, so it is found by id. */
+function workspaceSidebar(canvasElement: HTMLElement) {
+  const sidebar = canvasElement.querySelector<HTMLElement>("#lane-sidebar")
+  if (!sidebar) throw new Error("Workspace sidebar is missing")
+  return sidebar
 }
 
 async function visibleNavigation(canvasElement: HTMLElement) {
   const canvas = within(canvasElement)
-  if (window.innerWidth <= 640) {
-    await userEvent.click(await canvas.findByRole("button", { name: "Open navigation" }))
-    return within(await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Navigation" }))
+  await waitFor(() => expect(canvasElement.querySelector('nav[aria-label="Primary navigation"]')).not.toBeNull())
+  const sidebar = workspaceSidebar(canvasElement)
+  await expect(sidebar).toHaveAttribute("aria-label", "Workspace sidebar")
+  if (compact()) {
+    await userEvent.click(await canvas.findByRole("button", { name: "Expand sidebar" }))
+    await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking"))
+    await expect(sidebar).not.toHaveAttribute("inert")
+    await waitFor(() => expect(within(sidebar).getByRole("navigation", { name: "Primary navigation" })).toBeVisible())
   }
-  await canvas.findByRole("navigation", { name: "Primary navigation" })
-  return within(canvas.getByRole("complementary", { name: "Workspace sidebar" }))
+  return within(sidebar)
 }
 
 async function closeMobile(canvasElement: HTMLElement) {
-  if (window.innerWidth > 640) return
+  if (!compact()) return
   await userEvent.keyboard("{Escape}")
-  await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
+  await waitFor(() => expect(workspaceSidebar(canvasElement)).not.toHaveAttribute("data-peeking"))
 }
 
 /** A modified click leaves navigation to the browser and must not touch the drawer. The synthetic
@@ -116,12 +132,12 @@ export const MemberNavigation: Story = {
     await expect(await page.findByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/settings/profile")
     await expect(page.getByRole("menuitem", { name: "Invite and manage members" })).toHaveAttribute("href", "/settings/members")
     await closeAccountMenu(canvasElement)
-    if (window.innerWidth > 640) {
+    await expect(canvas.queryByRole("button", { name: "Open navigation" })).not.toBeInTheDocument()
+    if (!compact()) {
       const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
       await expect(Math.round(sidebar.getBoundingClientRect().width)).toBe(208)
       await expect(canvas.getByRole("separator", { name: "Resize sidebar" })).toHaveAttribute("aria-valuenow", "208")
       await expect(canvas.queryByRole("button", { name: "Collapse sidebar" })).not.toBeInTheDocument()
-      await expect(canvas.queryByRole("button", { name: "Open navigation" })).not.toBeInTheDocument()
     }
     await closeMobile(canvasElement)
   },
@@ -140,15 +156,15 @@ export const GlobalSearchEntry: Story = {
     requestsCategory.focus()
     await userEvent.keyboard("/")
     await expect(search).toHaveFocus()
-    if (window.innerWidth > 640) {
+    if (!compact()) {
       requestsCategory.focus()
       await userEvent.click(nav.getByRole("button", { name: "Search workspace" }))
       await expect(search).toHaveFocus()
     }
     await userEvent.keyboard("{Escape}")
     await expect(canvas.getByText("Page content stays separate from shared navigation.")).toBeVisible()
-    await expect(canvas.getByRole("button", { name: window.innerWidth <= 640 ? "Open navigation" : "Search workspace" })).toHaveFocus()
-    // Let Arc's mobile page-label swap settle before the contrast audit.
+    await expect(canvas.getByRole("button", { name: compact() ? "Expand sidebar" : "Search workspace" })).toHaveFocus()
+    // Let the strip and sidebar motion settle before the contrast audit.
     await waitFor(() => expect(canvasElement.getAnimations({ subtree: true }).some(animation => animation.playState === "running")).toBe(false))
   },
 }
@@ -225,12 +241,10 @@ export const AccountMenuKeyboard: Story = {
     await userEvent.keyboard("{Enter}")
     await expect(signOut).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(page.queryByRole("menuitem", { name: "Log out" })).not.toBeInTheDocument())
-    if (window.innerWidth <= 640) {
-      await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-      await waitFor(() => expect(within(canvasElement).getByRole("button", { name: "Open navigation" })).toHaveFocus())
-    } else {
-      await expect(trigger).toHaveFocus()
-    }
+    // Focus returns to the account trigger; on compact widths the peek it sits in stays open.
+    await waitFor(() => expect(trigger).toHaveFocus())
+    if (compact()) await expect(workspaceSidebar(canvasElement)).toHaveAttribute("data-peeking")
+    await closeMobile(canvasElement)
   },
 }
 
@@ -249,16 +263,18 @@ export const ArcAccountIdentity: Story = {
 
 export const ModifiedLinksKeepMobileNavigationOpen: Story = {
   play: async ({ canvasElement }) => {
-    if (window.innerWidth > 640) return
+    if (!compact()) return
     const nav = await visibleNavigation(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
-    const dialog = page.getByRole("dialog", { name: "Navigation" })
+    const sidebar = workspaceSidebar(canvasElement)
     modifiedClick(nav.getByRole("link", { name: "New Request" }))
-    await expect(dialog).toBeVisible()
+    await expect(sidebar).toHaveAttribute("data-peeking")
+    modifiedClick(nav.getByRole("link", { name: "Website" }))
+    await expect(sidebar).toHaveAttribute("data-peeking")
     await userEvent.click(nav.getByRole("button", { name: "Account menu, Nikhil Sharma" }))
     const settings = await page.findByRole("menuitem", { name: "Settings" })
     modifiedClick(settings)
-    await expect(dialog).toBeVisible()
+    await expect(sidebar).toHaveAttribute("data-peeking")
     await closeAccountMenu(canvasElement)
     await closeMobile(canvasElement)
   },
@@ -266,36 +282,39 @@ export const ModifiedLinksKeepMobileNavigationOpen: Story = {
 
 export const MobileDismissalAndNavigation: Story = {
   play: async ({ canvasElement, args }) => {
-    if (window.innerWidth > 640) return
+    if (!compact()) return
     const canvas = within(canvasElement)
-    const toggle = await canvas.findByRole("button", { name: "Open navigation" })
+    const sidebar = workspaceSidebar(canvasElement)
+    const toggle = await canvas.findByRole("button", { name: "Expand sidebar" })
     toggle.focus()
     await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking"))
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
     const page = within(canvasElement.ownerDocument.body)
-    const dialog = await page.findByRole("dialog", { name: "Navigation" })
-    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
-    await expect(canvas.getByRole("main", { hidden: true })).toHaveAttribute("inert")
-    const account = within(dialog).getByRole("button", { name: `Account menu, ${args.fullName}` })
-    account.focus()
+    const account = within(sidebar).getByRole("button", { name: `Account menu, ${args.fullName}` })
+    // Opening from the keyboard moves focus to the first control in the peek.
+    await waitFor(() => expect(account).toHaveFocus())
     await userEvent.tab()
-    await expect(within(dialog).getByRole("button", { name: "Search workspace" })).toHaveFocus()
+    await expect(within(sidebar).getByRole("button", { name: "Search workspace" })).toHaveFocus()
     await userEvent.tab()
-    await expect(within(dialog).getByRole("link", { name: "New Request" })).toHaveFocus()
+    await expect(within(sidebar).getByRole("link", { name: "New Request" })).toHaveFocus()
     // The tip now carries the C shortcut after the label.
     const composeTip = await page.findByRole("tooltip", { name: /^New Request/ })
     await waitFor(() => expect(composeTip).toHaveStyle({ opacity: "1" }))
+    // The first Escape closes only the tooltip.
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(page.queryByRole("tooltip", { name: /^New Request/ })).not.toBeInTheDocument())
-    await expect(dialog).toBeVisible()
+    await expect(sidebar).toHaveAttribute("data-peeking")
     await closeMobile(canvasElement)
     await expect(toggle).toHaveFocus()
     const nav = await visibleNavigation(canvasElement)
     await userEvent.click(nav.getByRole("link", { name: "Website" }))
-    await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-    await expect(toggle).toHaveFocus()
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-peeking"))
+    // Choosing a destination closes the peek without stranding focus in the hidden sidebar.
+    await waitFor(() => expect(sidebar.contains(document.activeElement)).toBe(false))
     await userEvent.click(toggle)
-    const reopened = await page.findByRole("dialog", { name: "Navigation" })
-    await waitFor(() => expect(reopened).toBeVisible())
+    await waitFor(() => expect(sidebar).toHaveAttribute("data-peeking"))
+    await waitFor(() => expect(within(sidebar).getByRole("navigation", { name: "Primary navigation" })).toBeVisible())
     await closeMobile(canvasElement)
   },
 }
@@ -325,19 +344,21 @@ export const AccountMenuOpen: Story = {
   },
 }
 
-export const MobileDrawerOpen: Story = {
+export const MobileNavigationOpen: Story = {
   play: async ({ canvasElement }) => {
-    if (window.innerWidth > 640) return
+    if (!compact()) return
     await visibleNavigation(canvasElement)
-    const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog", { name: "Navigation" })
-    await waitFor(() => expect(dialog).toBeVisible())
-    await waitFor(() => expect(dialog.getAnimations({ subtree: true }).some((animation) => animation.playState === "running")).toBe(false))
+    const panel = within(workspaceSidebar(canvasElement)).getByRole("navigation", { name: "Primary navigation" }).parentElement!
+    await waitFor(() => expect(Math.abs(panel.getBoundingClientRect().left)).toBeLessThan(0.1))
+    await expect(panel.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    await waitFor(() => expect(canvasElement.getAnimations({ subtree: true }).some((animation) => animation.playState === "running")).toBe(false))
   },
 }
 
 export const TemplateOffcanvasControls: Story = {
   play: async ({ canvasElement, args }) => {
-    if (window.innerWidth <= 640) return
+    if (compact()) return
     const canvas = within(canvasElement)
     const sidebar = canvas.getByRole("complementary", { name: "Workspace sidebar" })
     const main = canvas.getByRole("main")
@@ -405,31 +426,31 @@ export const ProjectContextMenus: Story = {
       await userEvent.keyboard("{Escape}")
       await waitFor(() => expect(page.queryByRole("menu")).not.toBeInTheDocument())
       await expect(link).toHaveFocus()
-      if (window.innerWidth <= 640) await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible()
+      if (compact()) await expect(workspaceSidebar(canvasElement)).toHaveAttribute("data-peeking")
     }
     await closeMobile(canvasElement)
   },
 }
 
-export const ProjectMenuBackdropKeepsDrawerFocus: Story = {
+export const ProjectMenuOutsidePressLeavesNavigation: Story = {
   play: async ({ canvasElement }) => {
-    if (window.innerWidth > 640) return
+    if (!compact()) return
     const nav = await visibleNavigation(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
+    const sidebar = workspaceSidebar(canvasElement)
     const link = nav.getByRole("link", { name: "Website" })
     link.focus()
     await userEvent.keyboard("{Shift>}{F10}{/Shift}")
     await waitFor(() => expect(page.getByRole("menuitem", { name: "Open" })).toHaveFocus())
-    const dialog = page.getByRole("dialog", { name: "Navigation" })
-    const backdrop = dialog.previousElementSibling
-    if (!(backdrop instanceof HTMLElement)) throw new Error("Navigation backdrop is missing")
-    await userEvent.click(backdrop)
+    // The peek has no backdrop: a press in the page content closes the Project menu and the peek together,
+    // and focus must not stay behind in the hidden sidebar.
+    await userEvent.click(within(canvasElement).getByText("Page content stays separate from shared navigation."))
     await waitFor(() => expect(page.queryByRole("menu")).not.toBeInTheDocument())
-    await expect(dialog).toBeVisible()
-    await expect(link).toHaveFocus()
-    await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(page.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-    await expect(within(canvasElement).getByRole("button", { name: "Open navigation" })).toHaveFocus()
+    await waitFor(() => expect(sidebar).not.toHaveAttribute("data-peeking"))
+    await expect(sidebar).toHaveAttribute("inert")
+    await waitFor(() => expect(sidebar.contains(document.activeElement)).toBe(false))
+    // The way back in is still there.
+    await expect(within(canvasElement).getByRole("button", { name: "Expand sidebar" })).toBeVisible()
   },
 }
 
@@ -456,8 +477,8 @@ export const ProjectsLoadErrorAndRetry: Story = {
     await userEvent.click(nav.getByRole("button", { name: "Retry Projects" }))
     await expect(nav.getByRole("link", { name: "Website" })).toBeVisible()
     await expect(nav.queryByRole("alert")).not.toBeInTheDocument()
-    if (window.innerWidth <= 640) {
-      await waitFor(() => expect(within(canvasElement.ownerDocument.body).getByRole("dialog", { name: "Navigation" }).contains(document.activeElement)).toBe(true))
+    if (compact()) {
+      await waitFor(() => expect(workspaceSidebar(canvasElement).contains(document.activeElement)).toBe(true))
     }
     await closeMobile(canvasElement)
   },
@@ -525,7 +546,7 @@ export const CreateProjectFailureAndRetry: Story = {
 
 export const SidebarKeyboardShortcut: Story = {
   play: async ({ canvasElement }) => {
-    if (window.innerWidth <= 640) return
+    if (compact()) return
     await visibleNavigation(canvasElement)
     const canvas = within(canvasElement)
     const trigger = canvas.getByRole("separator", { name: "Resize sidebar" })
@@ -542,6 +563,7 @@ export const SidebarKeyboardShortcut: Story = {
 function RequestPageCheckpoint() {
   const [view, setView] = useRequestListView()
   return <div className="flex items-center gap-4 p-6">
+    <SidebarExpandButton />
     <Button variant="secondary" onClick={() => setView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 2 } }))}>Show page 3</Button>
     <output aria-label="Current Request page">{view.pagination.pageIndex + 1}</output>
   </div>
@@ -556,9 +578,7 @@ export const ComposerPreservesListPage: Story = {
     const nav = await visibleNavigation(canvasElement)
     await userEvent.click(nav.getByRole("link", { name: "New Request" }))
     await expect(canvas.getByLabelText("Current Request page")).toHaveTextContent("3")
-    if (window.innerWidth <= 640) {
-      await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument())
-    }
+    if (compact()) await waitFor(() => expect(workspaceSidebar(canvasElement)).not.toHaveAttribute("data-peeking"))
     const reopened = await visibleNavigation(canvasElement)
     await userEvent.click(reopened.getByRole("link", { name: "Website" }))
     await expect(canvas.getByLabelText("Current Request page")).toHaveTextContent("1")

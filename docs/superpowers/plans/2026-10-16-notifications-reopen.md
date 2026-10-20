@@ -8,7 +8,7 @@
 
 ## Scope
 
-First bounded slice of launch-plan step 2.7. Keep workspace authorization, read-state actions and navigation intact. Remaining 2.7 work: optimistic read/unread, J/K navigation, Request code/problem labels, Done capitalization and empty-state copy. No Inbox route.
+First bounded slice of launch-plan step 2.7. Keep workspace authorization, read-state actions and navigation intact. Remaining 2.7 work: optimistic read/unread, J/K navigation, Request code/problem labels, Done capitalization and empty-state copy. No Inbox route. *(2026-10-18: that remaining work landed with plan item 2.7 on `codex/phase-2-7-notifications`; the kept-list behaviour from this slice stays as built, and `ReopenKeepsLoadedNotifications` keeps proving it.)*
 
 ## Implementation
 
