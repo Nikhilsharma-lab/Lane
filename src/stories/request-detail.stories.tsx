@@ -653,7 +653,9 @@ export const PhoneStripCreatorCanEdit: Story = {
     await expect(Math.round(edit.getBoundingClientRect().width)).toBe(Math.round(within(bar).getByRole("button", { name: "More actions" }).getBoundingClientRect().width))
     noHorizontalScroll()
     await userEvent.click(within(bar).getByRole("button", { name: "Edit Request" }))
-    await expect(await within(document.body).findByRole("dialog", { name: "Edit Request" })).toBeVisible()
+    const editor = await within(document.body).findByRole("dialog", { name: "Edit Request" })
+    // The dialog fades in; it is visible once its entrance has started.
+    await waitFor(() => expect(editor).toBeVisible())
   },
 }
 
