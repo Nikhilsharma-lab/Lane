@@ -92,12 +92,24 @@ function dayParts(day: string): [number, number, number] {
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-/** The instant a calendar day starts in a zone. A second pass settles days that cross a daylight-saving change. */
+/** The calendar day an instant falls on in a zone, as YYYY-MM-DD. */
+function zonedDay(instant: number, timeZone: string): string {
+  return new Date(instant + zoneOffset(instant, timeZone)).toISOString().slice(0, 10);
+}
+
+/**
+ * The instant a calendar day starts in a zone. Midnight is tried under the
+ * offsets on both sides of a daylight-saving change; the earliest that falls on
+ * the day wins. Where a change skips midnight (Santiago, Havana, Beirut) the
+ * day starts at the first instant that exists, 01:00, never in the day before.
+ */
 export function startOfZonedDay(day: string, timeZone: string): Date {
   const [year, month, date] = dayParts(day);
   const midnight = Date.UTC(year, month - 1, date);
   const first = midnight - zoneOffset(midnight, timeZone);
-  return new Date(midnight - zoneOffset(first, timeZone));
+  const second = midnight - zoneOffset(first, timeZone);
+  const onDay = [first, second].filter(instant => zonedDay(instant, timeZone) === day);
+  return new Date(onDay.length ? Math.min(...onDay) : second);
 }
 
 function nextDay(day: string): string {

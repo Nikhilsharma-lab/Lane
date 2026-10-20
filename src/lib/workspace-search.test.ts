@@ -33,6 +33,17 @@ describe("local day boundaries", () => {
     expect(localDayRange("2026-10-20", "2026-10-20", "UTC")).toEqual({ createdSince: "2026-10-20T00:00:00.000Z", createdBefore: "2026-10-21T00:00:00.000Z" });
   });
 
+  it("starts a day whose midnight a daylight-saving change skips at 01:00, never in the day before", () => {
+    // Santiago springs forward at midnight on 6 September 2026: 00:00 to 00:59 never happen.
+    expect(startOfZonedDay("2026-09-06", "America/Santiago").toISOString()).toBe("2026-09-06T04:00:00.000Z");
+    expect(localDayRange("2026-09-05", "2026-09-05", "America/Santiago")).toEqual({ createdSince: "2026-09-05T04:00:00.000Z", createdBefore: "2026-09-06T04:00:00.000Z" });
+    // Havana on 8 March 2026 and Beirut on 29 March 2026 skip midnight too.
+    expect(startOfZonedDay("2026-03-08", "America/Havana").toISOString()).toBe("2026-03-08T05:00:00.000Z");
+    expect(startOfZonedDay("2026-03-29", "Asia/Beirut").toISOString()).toBe("2026-03-28T22:00:00.000Z");
+    // Santiago falls back at midnight on 5 April 2026: the day starts at the one 00:00 that follows.
+    expect(startOfZonedDay("2026-04-05", "America/Santiago").toISOString()).toBe("2026-04-05T04:00:00.000Z");
+  });
+
   it("rejects a value that is not a calendar day", () => {
     expect(() => localDayRange("20 Oct", "2026-10-20", "Asia/Kolkata")).toThrow(RangeError);
   });
