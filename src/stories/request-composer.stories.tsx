@@ -1230,7 +1230,9 @@ export const GateSlow5s: Story = {
 /** Critique 2026-10-20: at the 844px phone height the gate notice must be scrolled into view above the footer. */
 async function expectClearOfFooter(element: HTMLElement) {
   const footer = element.closest('[role="dialog"]')!.querySelector("footer")!;
+  const region = footer.previousElementSibling!;
   await waitFor(() => expect(element.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top));
+  await expect(element.getBoundingClientRect().top).toBeGreaterThanOrEqual(region.getBoundingClientRect().top);
 }
 
 export const GateTimeout: Story = {
@@ -1288,6 +1290,11 @@ export const SessionExpiredKeepsDraft: Story = {
 export const SessionExpiredOnPhone: Story = {
   ...SessionExpiredKeepsDraft,
   globals: { theme: "dark", viewport: { value: "mobile", isRotated: false } },
+  play: async (context) => {
+    // At the 1000px test height the notice fits anyway, so the story first proves the phone viewport applied.
+    await expect([window.innerWidth, window.innerHeight]).toEqual([390, 844]);
+    await SessionExpiredKeepsDraft.play!(context);
+  },
   beforeEach: () => {
     mocked(runTriage).mockImplementation(() => new Promise(resolve => { window.setTimeout(() => resolve({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } }), 50); }));
   },

@@ -42,6 +42,13 @@ type Story = StoryObj<typeof meta>
 const toasts = (canvasElement: HTMLElement) => within(canvasElement).getByRole("region", { name: /^Messages/ })
 const regionIds = (canvasElement: HTMLElement) => [...main(canvasElement).querySelectorAll<HTMLElement>("[data-detail-main] > section[id]")].map(section => section.id)
 const noHorizontalScroll = () => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+/** The strip's code is drawn whole: a fraction of a pixel short already paints "LAN-1…", so the text's own width is compared. */
+async function expectCodeWhole(strip: Element) {
+  const current = strip.querySelector<HTMLElement>("[aria-current] span")!
+  const text = document.createRange()
+  text.selectNodeContents(current)
+  await expect(text.getBoundingClientRect().width).toBeLessThanOrEqual(current.getBoundingClientRect().width + 0.01)
+}
 
 /** Resolve the approved header token in the browser, then check its exact rendered height. */
 async function expectStripHeight(strip: Element) {
@@ -619,6 +626,7 @@ export const PhoneStrip: Story = {
     const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
     await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Pick up", "More actions"])
     await expectStripHeight(bar)
+    await expectCodeWhole(bar)
     const end = bar.lastElementChild!
     const boxes = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...boxes.map(box => box.right)))).toBeLessThanOrEqual(0.5)
@@ -639,6 +647,10 @@ export const PhoneStripCreatorCanEdit: Story = {
     const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
     await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Edit Request", "Pick up", "More actions"])
     await expectStripHeight(bar)
+    await expectCodeWhole(bar)
+    // It folds to its icon, square like More actions, so the code keeps its room.
+    const edit = within(bar).getByRole("button", { name: "Edit Request" })
+    await expect(Math.round(edit.getBoundingClientRect().width)).toBe(Math.round(within(bar).getByRole("button", { name: "More actions" }).getBoundingClientRect().width))
     noHorizontalScroll()
     await userEvent.click(within(bar).getByRole("button", { name: "Edit Request" }))
     await expect(await within(document.body).findByRole("dialog", { name: "Edit Request" })).toBeVisible()

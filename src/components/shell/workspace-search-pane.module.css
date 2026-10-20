@@ -21,7 +21,7 @@
 .facetGroup { min-width: 0; margin: 0; padding: 0; border: 0; }
 /* Plan item 2.8: "Search in" is Arc's radio group; its legend matches the other facet groups. */
 .facets .searchIn legend, .facetGroup legend, .legend { display: block; width: 100%; padding: 0; margin-bottom: var(--space-2); font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-secondary); }
-/* The count takes the free space, so a Label's dot and checkbox sit on the same axis as the status checkboxes. */
+/* The count takes the free space, so every Label checkbox sits at the same x after its dot. */
 .option { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height-md); }
 .optionCount { margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .hint { display: block; margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }

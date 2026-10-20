@@ -181,6 +181,12 @@ async function expectLongContentFits(context: StoryContext) {
   await expect(shown).toHaveLength(innerWidth <= 640 ? 1 : 3)
   await expect(shown.at(-1)).toHaveAttribute("aria-current", "page")
   await expect(getComputedStyle(shown[0], "::before").content, "The first shown crumb has no leading separator").toBe("none")
+  // The ancestors truncate first: the current crumb (LAN-12) is shown whole. The text's own width is compared,
+  // since a fraction of a pixel short already draws "LAN-1…" while scrollWidth and clientWidth round equal.
+  const current = shown.at(-1)!.firstElementChild as HTMLElement
+  const text = document.createRange()
+  text.selectNodeContents(current)
+  await expect(text.getBoundingClientRect().width).toBeLessThanOrEqual(current.getBoundingClientRect().width + 0.01)
   if (innerWidth <= 640) {
     await expect(within(strip).getByRole("link", { name: "Back to Requests" })).toBeVisible()
     return
@@ -189,12 +195,6 @@ async function expectLongContentFits(context: StoryContext) {
   const project = within(strip).getByRole("link", { name: longProject })
   await expect(shown.at(-2)).toContainElement(project)
   await expect(project.scrollWidth).toBeGreaterThan(project.clientWidth)
-  // The ancestors truncate first: the current crumb (LAN-12) is shown whole. The text's own width is compared,
-  // since a fraction of a pixel short already draws "LAN-1…" while scrollWidth and clientWidth round equal.
-  const current = shown.at(-1)!.firstElementChild as HTMLElement
-  const text = document.createRange()
-  text.selectNodeContents(current)
-  await expect(text.getBoundingClientRect().width).toBeLessThanOrEqual(current.getBoundingClientRect().width + 0.01)
 }
 // The layout's list view state holds the Project, as it does after choosing one in the sidebar.
 const longContentNavigation = { nextjs: { navigation: { pathname: "/requests/fixture-request", query: { project: websiteId } } } }
@@ -212,6 +212,16 @@ function skeletonStory(pathname: string, Loading: ComponentType, status: string,
       await expect(pageStrips(main)).toHaveLength(settings ? 0 : 1)
       if (!settings) await expectStripHeight(pageStrips(main)[0])
       else await expect(within(main).getByRole("link", { name: "Back to Requests" })).toBeVisible()
+      // The bars are drawn in a colour the pane does not have (critique 2026-10-20: they were white on white).
+      const [fill, pane] = ["--skeleton-fill", "--surface"].map(token => {
+        const probe = document.createElement("span")
+        probe.style.background = `var(${token})`
+        main.append(probe)
+        const colour = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return colour
+      })
+      await expect(fill).not.toBe(pane)
       // Decorative bars sit in aria-hidden blocks, so the page exposes one live region.
       const statuses = within(main).getAllByRole("status")
       await expect(statuses).toHaveLength(1)
