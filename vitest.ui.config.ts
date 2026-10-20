@@ -15,6 +15,7 @@ export default defineConfig({
       "src/lib/request-workspace.test.ts",
       "src/lib/request-overview.test.ts",
       "src/lib/request-code.test.ts",
+      "src/lib/workspace-search.test.ts",
       "src/components/projects/workspace-projects-provider.test.ts",
       "src/components/requests/new-request-link.test.ts",
       "src/app/**/requests-workspace-properties.test.ts",

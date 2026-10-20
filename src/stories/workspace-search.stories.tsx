@@ -343,7 +343,7 @@ export const FiltersAndDates: Story = {
     await waitFor(() => expect(page.queryByRole("dialog", { name: "Created date" })).not.toBeInTheDocument());
     await waitFor(() => expect(dateTrigger).toHaveFocus());
     await closeFilters();
-    await expect(args.onSearch).toHaveBeenLastCalledWith(expect.objectContaining({ statuses: ["done"], createdFrom: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), createdTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), requestsPage: 0, projectsPage: 0 }), expect.any(AbortSignal));
+    await expect(args.onSearch).toHaveBeenLastCalledWith(expect.objectContaining({ statuses: ["done"], createdSince: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/), createdBefore: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/), requestsPage: 0, projectsPage: 0 }), expect.any(AbortSignal));
     await openFilters(canvasElement);
     await userEvent.click(page.queryByRole("button", { name: "Clear filters" }) ?? within(canvas.getByRole("complementary", { name: "Search filters" })).getByRole("button", { name: "Clear all" }));
     await closeFilters();

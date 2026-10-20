@@ -3,7 +3,7 @@
 // Arc Pro license as part of the Lane app. Not covered by any license of this repository; not for reuse outside Lane.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { WORKSPACE_SEARCH_QUERY_MAX, type WorkspaceSearchInput, type WorkspaceSearchResponse, type WorkspaceSearchFilters, type SearchSort } from "@/lib/workspace-search";
+import { WORKSPACE_SEARCH_QUERY_MAX, localDayRange, type WorkspaceSearchInput, type WorkspaceSearchResponse, type WorkspaceSearchFilters, type SearchSort } from "@/lib/workspace-search";
 import { WorkspaceSearchResults } from "./workspace-search-results";
 
 export type WorkspaceSearchPaneProps = {
@@ -34,8 +34,8 @@ export function fetchWorkspaceSearch(orgId: string) {
     if (input.statuses?.length) params.set("statuses", input.statuses.join(","));
     if (input.types?.length) params.set("types", input.types.join(","));
     if (input.sort) params.set("sort", input.sort);
-    if (input.createdFrom) params.set("createdFrom", input.createdFrom);
-    if (input.createdTo) params.set("createdTo", input.createdTo);
+    if (input.createdSince) params.set("createdSince", input.createdSince);
+    if (input.createdBefore) params.set("createdBefore", input.createdBefore);
     const response = await fetch(`/api/search?${params}`, { signal, headers: { accept: "application/json" }, credentials: "same-origin" });
     if (response.status === 401 || response.status === 403) return sessionExpired;
     const body = await response.json().catch(() => null) as WorkspaceSearchResponse | null;
@@ -48,6 +48,11 @@ type SearchData = Extract<WorkspaceSearchResponse, { success: true }>;
 type Category = "all" | "requests" | "projects";
 type Operation = "search" | Exclude<Category, "all">;
 type Failure = { message: string; input: WorkspaceSearchInput; operation: Operation };
+
+/** The pane's filters as GET /api/search takes them: created dates become the viewer's local day boundaries (plan item 2.8). */
+function wireFilters({ createdFrom, createdTo, ...filters }: WorkspaceSearchFilters, timeZone?: string) {
+  return createdFrom && createdTo ? { ...filters, ...localDayRange(createdFrom, createdTo, timeZone) } : filters;
+}
 
 function appendUnique<T extends { id: string }>(previous: T[], incoming: T[]) {
   return [...new Map([...previous, ...incoming].map(item => [item.id, item])).values()];
@@ -105,7 +110,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     if (!query) { setData(null); return; }
     // Search as you type: a short pause, then one request that replaces any
     // older one still in flight.
-    debounce.current = window.setTimeout(() => { void run({ ...filters, sort, query, requestsPage: 0, projectsPage: 0 }); }, SEARCH_DEBOUNCE_MS);
+    debounce.current = window.setTimeout(() => { void run({ ...wireFilters(filters), sort, query, requestsPage: 0, projectsPage: 0 }); }, SEARCH_DEBOUNCE_MS);
   }
   function clear() { edit(""); inputRef.current?.focus(); }
   function close() { cancel(); setLoading(null); onClose(); }
@@ -144,19 +149,19 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
   }
   function loadMore(kind: Exclude<Category, "all">) {
     if (!current || loading) return;
-    return run({ ...filters, sort, query: current.query, requestsPage: current.requests.page + (kind === "requests" ? 1 : 0), projectsPage: current.projects.page + (kind === "projects" ? 1 : 0) }, kind);
+    return run({ ...wireFilters(filters), sort, query: current.query, requestsPage: current.requests.page + (kind === "requests" ? 1 : 0), projectsPage: current.projects.page + (kind === "projects" ? 1 : 0) }, kind);
   }
   function changeFilters(next: WorkspaceSearchFilters) {
     setFilters(next);
-    if (normalized) void run({ ...next, sort, query: normalized, requestsPage: 0, projectsPage: 0 });
+    if (normalized) void run({ ...wireFilters(next), sort, query: normalized, requestsPage: 0, projectsPage: 0 });
   }
   function changeSort(next: SearchSort) {
     setSort(next);
-    if (normalized) void run({ ...filters, sort: next, query: normalized, requestsPage: 0, projectsPage: 0 });
+    if (normalized) void run({ ...wireFilters(filters), sort: next, query: normalized, requestsPage: 0, projectsPage: 0 });
   }
   function submit(query = normalized) {
     setDraft(query);
-    return run({ ...filters, sort, query, requestsPage: 0, projectsPage: 0 });
+    return run({ ...wireFilters(filters), sort, query, requestsPage: 0, projectsPage: 0 });
   }
   return <WorkspaceSearchResults active={active} rootRef={rootRef} inputRef={inputRef}
     draft={draft} data={current} loading={loading} failure={currentFailure?.message}

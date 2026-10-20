@@ -24,9 +24,10 @@ export const workspaceSearchInputSchema = z.object({
   statuses: z.array(z.enum(["open", "in_progress", "done"])).max(3).optional(),
   types: z.array(z.enum(["bug", "improvement", "new_feature", "none"])).max(4).optional(),
   sort: z.enum(["relevance", "newest", "title"]).optional(),
-  createdFrom: z.iso.date().optional(),
-  createdTo: z.iso.date().optional(),
-}).refine(value => !value.createdFrom || !value.createdTo || value.createdFrom <= value.createdTo, { message: "Start date must not follow end date" });
+  // Plan item 2.8: the viewer's local days, as the instants they start and end (inclusive, exclusive).
+  createdSince: z.iso.datetime({ offset: true }).optional(),
+  createdBefore: z.iso.datetime({ offset: true }).optional(),
+}).refine(value => !value.createdSince || !value.createdBefore || Date.parse(value.createdSince) < Date.parse(value.createdBefore), { message: "The range must start before it ends" });
 export type WorkspaceSearchQuery = z.infer<typeof workspaceSearchInputSchema>;
 export type WorkspaceSearchResult = Extract<WorkspaceSearchResponse, { success: true }>;
 
@@ -91,8 +92,8 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       sql`${requests.expectedImpact} ->> 'result'`,
     ].map((field) => containsText(field, query))),
   );
-  const from = input.createdFrom ? new Date(`${input.createdFrom}T00:00:00.000Z`) : undefined;
-  const until = input.createdTo ? new Date(new Date(`${input.createdTo}T00:00:00.000Z`).getTime() + 86400000) : undefined;
+  const from = input.createdSince ? new Date(input.createdSince) : undefined;
+  const until = input.createdBefore ? new Date(input.createdBefore) : undefined;
   const dates = (field: typeof requests.createdAt | typeof projects.createdAt) => and(from ? gte(field, from) : undefined, until ? lt(field, until) : undefined);
   const statusFilter = input.statuses?.length ? inArray(requests.status, input.statuses) : undefined;
   const typed = input.types?.filter(type => type !== "none") ?? [];
@@ -105,7 +106,8 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
     statusFilter || typeFilter ? sql`false` : undefined,
   );
   const requestOrder = input.sort === "title" ? [asc(sql`lower(${requests.title})`), asc(requests.id)]
-    : input.sort === "relevance" ? [desc(sql`case when lower(${requests.title}) = lower(${query}) then 2 when ${containsText(requests.title, query)} then 1 else 0 end`), desc(requests.createdAt), desc(requests.id)]
+    // Plan item 2.8: an exact saved code ranks first, then an exact title, then title words.
+    : input.sort === "relevance" ? [desc(sql`case ${requestNumber === null ? sql`` : sql`when ${requests.requestNumber} = ${requestNumber} then 3 `}when lower(${requests.title}) = lower(${query}) then 2 when ${containsText(requests.title, query)} then 1 else 0 end`), desc(requests.createdAt), desc(requests.id)]
     : [desc(requests.createdAt), desc(requests.id)];
   const projectOrder = input.sort === "newest" ? [desc(projects.createdAt), desc(projects.id)]
     : input.sort === "relevance" ? [desc(sql`case when lower(${projects.name}) = lower(${query}) then 2 when ${containsText(projects.name, query)} then 1 else 0 end`), asc(sql`lower(${projects.name})`), asc(projects.id)]

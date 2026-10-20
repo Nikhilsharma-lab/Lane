@@ -8,7 +8,7 @@ function page(value: string | null) {
   return Number.isInteger(number) ? number : -1;
 }
 
-/** GET /api/search?org=&q=&requestsPage=&projectsPage= (plan item 1.16). */
+/** GET /api/search?org=&q=&requestsPage=&projectsPage=&statuses=&types=&sort=&createdSince=&createdBefore= (plan items 1.16 and 2.8). */
 export async function GET(request: Request) {
   const access = await authorizeReadRoute(request, requireActiveMember);
   if (!access.ok) return access.response;
@@ -21,8 +21,8 @@ export async function GET(request: Request) {
     statuses: params.has("statuses") ? params.get("statuses")!.split(",") : undefined,
     types: params.has("types") ? params.get("types")!.split(",") : undefined,
     sort: params.get("sort") ?? undefined,
-    createdFrom: params.get("createdFrom") ?? undefined,
-    createdTo: params.get("createdTo") ?? undefined,
+    createdSince: params.get("createdSince") ?? undefined,
+    createdBefore: params.get("createdBefore") ?? undefined,
   });
   if (!parsed.success) {
     return json({ success: false, error: { code: "validation", message: "Check your search, filters and date range, then try again." } }, { status: 400 });
