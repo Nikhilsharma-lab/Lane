@@ -27,7 +27,7 @@ Product CSS outside `src/components/arc/` uses Arc hooks or `--sb-*` tokens only
 
 - **Typeface.** Studio uses Inter, Manrope and Source Code Pro; Lane uses Geist and Geist Mono (Nikhil, 2026-10-13). Weights and sizes are Studio's.
 - **Accessibility.** Values are pixel-exact even where they miss WCAG AA (Nikhil, 2026-10-13). This overrides the contrast and touch-target floor in `PRODUCT.md` for visual values: light warning text (`warning-600`, 3.05:1), dark destructive text (3.36:1), translucent control outlines (about 1.4:1) and 9px badge text ship as Supabase has them. The 44px coarse-pointer overrides were removed. Storybook's axe run keeps every rule except `color-contrast`; the story contrast floors were removed. Keyboard focus rings remain (Supabase draws them too).
-- **Composition stays Lane's.** Tokens set values, not layout. Lane keeps its inset content pane (Supabase's inset sidebar variant, rounded-xl), its row anatomy, and its rule that avatars match the height of the metadata badges beside them (now 17px).
+- **Composition stays Lane's.** Tokens set values, not layout. Lane keeps its inset content pane (Supabase's inset sidebar variant, rounded-xl), its row anatomy, and its rule that avatars match the height of the metadata badges beside them. Compact badges take Supabase's 3px vertical padding with Lane's line height (2026-10-16), so they render about 20.8px rather than Supabase's 17px; `--request-avatar-size` follows the rendered badge box and never drops below the 17px badge token (2026-10-20).
 
 ## Role mapping (summary)
 
