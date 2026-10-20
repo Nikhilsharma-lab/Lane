@@ -22,15 +22,16 @@
 ### 2.9 Profile: the role saves optimistically
 - `ProfileRoleForm` with `autoSave` goes through `useOptimisticAction`. The Select and a "Role changed" toast show the new role in the same frame, like Mark Done. Nothing is disabled while saving.
 - Saves run one at a time on the overlay id `profile-role`, in the order chosen (`waitForPending`). A choice that was overtaken while it waited is never sent.
-- A failure puts back the last role the server confirmed and turns that choice's toast into "Could not save your role" with the reason. Choices queued behind a failure are skipped and go back with it. An expired session refreshes the Clerk token and retries once.
-- With no save in flight, a role the server sends is adopted. This covers a refresh after a lost response and a change made in another tab.
-- Each choice gets its own toast id, so a toast that is still leaving the screen is never brought back inert.
+- A failure puts back the last role the server confirmed and replaces the toast on screen with "Could not save your role" and the reason. Choices queued behind a failure are skipped and go back with it, and their success toast goes too.
+- A save rejected by an auth-shaped throw (a session that expired before the action ran) refreshes the Clerk token and retries once, through the shared hook. A refusal that the action itself returns ("You do not have access to this workspace.") is shown as it is, without a retry.
+- With no save in flight, a role the server sends is adopted. This covers a refresh after a lost response and a change made in another tab. A role that arrives during a save is adopted if that save is then put back and no later save was confirmed after it arrived.
+- One toast owns the screen. Every message replaces it under a fresh id, so a dismissed toast is never brought back, which could otherwise leave it inert.
 - The explicit-save form, which takes no `autoSave`, is unchanged.
 
 ### 2.10 Members: Clerk's modals at Lane density
 - `clerkOrganizationAppearance`, used by both organization modals:
   - Clerk's navigation is hidden, because Lane's sections already choose the page.
-  - Table type: `--text-sm` cells and `--text-xs` heads, with `--border-subtle` hairlines.
+  - Table type: `--text-sm` cells and `--text-xs` heads. Clerk's own single row rules and table frame are recoloured to `--border-subtle` in `clerk-profile.module.css`. A second border per cell would have doubled every line.
   - Controls: `--control-height-md` with the md button radius.
   - Weights are capped at medium.
   - Clerk's page and form titles stay. Hiding `header` would also remove the titles of the Invite, Leave and Delete forms.
@@ -52,3 +53,4 @@ In the PR description and in the 2.9/2.10 row of `docs/design-system/page-qualit
 - The walk-through on the staging build.
 - Staging perf numbers.
 - Verification of both Clerk modals against the **production** Clerk instance after cutover: the invite, resend and revoke flows, Leave organization, and the hidden navigation.
+- Hiding Clerk's navbar also hides the "Secured by Clerk" tag and the development-mode notice, which Clerk renders inside the navbar. Confirm the Clerk plan allows that, and that Billing, API keys and Security stay switched off on the instance. With the navbar hidden, nothing in Lane would reach those pages.
