@@ -85,7 +85,7 @@ export const CompactRoleSave: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("combobox", { name: "Role" }));
     await userEvent.click(await within(document.body).findByRole("option", { name: "PM" }));
-    await expect(await canvas.findByText("Role updated.")).toBeVisible();
+    await expect(await within(document.body).findByText("Role changed")).toBeVisible();
     await waitFor(() => expect(canvas.getByRole("combobox", { name: "Role" })).toHaveTextContent("PM"));
   },
 };
