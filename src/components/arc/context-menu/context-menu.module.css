@@ -7,8 +7,13 @@
 /* The gliding highlight is the focus indicator, as in the dropdown menu. */
 .item:focus-visible { outline: none; }
 /* Rows press with a tint, not a scale. */
-.item:active:not(:disabled) { background: var(--interaction-pressed); }
+.item:active:not(:disabled):not([aria-disabled="true"]) { background: var(--interaction-pressed); }
 .item:disabled { opacity: .45; cursor: default; }
+/* Lane adaptation: a described unavailable item dims its icon and label, keeps its reason legible, and stays focusable. */
+.item[aria-disabled="true"] { cursor: default; }
+.item[aria-disabled="true"] > .icon, .item[aria-disabled="true"] .label { opacity: .45; }
+.text { display: flex; min-width: 0; flex: 1; flex-direction: column; padding-block: var(--space-1); }
+.description { max-width: calc(var(--space-1) * 56); color: var(--text-secondary); font-size: var(--text-xs); white-space: normal; }
 .item.destructive { color: var(--danger); }
 .icon { display: inline-flex; flex: none; width: var(--icon-size-md); align-items: center; justify-content: center; color: var(--text-secondary); }
 .label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

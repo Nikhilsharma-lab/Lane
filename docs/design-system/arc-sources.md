@@ -422,3 +422,7 @@ The same audit maps `src/components/arc/user-menu/user-menu.module.css` panel in
 ### October 20 — comparison menu anatomy
 
 `src/components/arc/select/select.tsx` adds opt-in `indicatorPosition="left"` and an option `trailing` slot. `src/components/arc/select/select.module.css` aligns the selection mark left and trailing comparison symbols right using the existing accent token. Defaults and Radix keyboard/focus behaviour remain unchanged. Metric search composes the installed Arc Popover, Input and Button with the shared Request picker spacing.
+
+### 2026-10-21 — unavailable menu items say why
+
+`src/components/arc/context-menu/context-menu.tsx` adds an optional item `description`. A disabled item with a description shows it under its label and stays focusable with `aria-disabled` and `aria-describedby`, so arrow keys and screen readers reach the reason; selecting it does nothing. Items without a description keep upstream's native `disabled`. `src/components/arc/context-menu/context-menu.module.css` dims only that item's icon and label, keeps the reason in secondary text, and wraps it at a fixed measure. The Request row menu uses it for a Pick up that isn't ready yet.

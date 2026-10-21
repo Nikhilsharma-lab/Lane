@@ -1,6 +1,6 @@
 import { createElement, type SVGProps } from "react"
 import { StatusGlyph } from "../status-glyph"
-import { statusLabel } from "@/lib/request-status"
+import { statusLabel } from "@/lib/request-lifecycle"
 
 const iconFor = (status: "open" | "in_progress" | "done") =>
   function StatusIcon(props: SVGProps<SVGSVGElement>) { return createElement(StatusGlyph, { ...props, status }) }

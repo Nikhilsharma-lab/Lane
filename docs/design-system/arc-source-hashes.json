@@ -399,14 +399,14 @@
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "5bd7dee8d5b95f5e17c3e8fe94cd0c41729b335e885509dd2580c46dcfd1f098"
+    "localSha256": "ed9184f9cc2b07655133d493f808611cee813304c0e805a9f006205ba548ef05"
   },
   {
     "id": "context-menu",
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.module.css",
     "upstreamSha256": "bde4e0d0430b1f6ae812515d9a2964fcb39944f61fc3c7a9a58852cd38fa4238",
-    "localSha256": "c443b841d7b4bfa32a1f64f47b47edc58d20c670acd3cba238f10c8e554aba96"
+    "localSha256": "165b15624c1b7f2f40c028ae74e20009f5adf287db973895f9fc66eee29849ed"
   },
   {
     "id": "checkbox",

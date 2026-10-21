@@ -44,6 +44,16 @@ afterAll(async () => {
 });
 
 describe("measurement pickup readiness", () => {
+  it("tells the list and detail why pickup is blocked, without sending the plan to the list", async () => {
+    const { loadRequestDetail, loadRequestList } = await import("@/lib/data/requests");
+    const auth = { userId: MEMBER, orgId: ORG, role: "member" as const };
+    const row = (await loadRequestList(auth)).rows.find(item => item.id === requestId)!;
+    expect(row.pickupBlockedReason).toMatch(/current value/i);
+    expect(row).not.toHaveProperty("expectedImpact");
+    expect((await loadRequestDetail(auth, requestId))?.request.pickupBlockedReason).toBe(row.pickupBlockedReason);
+    await setPlan(plan(40));
+    expect((await loadRequestList(auth)).rows.find(item => item.id === requestId)?.pickupBlockedReason).toBeNull();
+  });
   it("refuses pickup with a missing current value and writes no notification or assignment", async () => {
     const { pickUpRequest } = await api();
     actAs(MEMBER);

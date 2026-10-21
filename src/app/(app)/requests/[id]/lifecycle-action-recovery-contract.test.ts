@@ -10,6 +10,9 @@ const LIFECYCLE = source(
   "src/app/(app)/requests/[id]/lifecycle-buttons.tsx"
 );
 const ACTIONS = source("src/app/(app)/requests/[id]/actions.ts");
+// Every Pick up and Mark Done, single or bulk, runs through this one module.
+const TRANSITION = source("src/lib/request-transition.ts");
+const MOVE_RULES = source("src/lib/request-lifecycle.ts");
 const RECOVERY_HOOK = source(
   "src/hooks/use-recoverable-action.ts"
 );
@@ -54,39 +57,34 @@ describe("Reliable Request lifecycle action contract", () => {
     // status guard and the notification INSERT reads from its RETURNING row,
     // so the two commit or fail together (decision 8.17) and a race can only
     // win once. Pick up guards Open → In Progress; Done guards In Progress → Done.
-    expect(ACTIONS).toContain('from: "open"');
-    expect(ACTIONS).toContain('to: "in_progress"');
-    expect(ACTIONS).toContain('from: "in_progress"');
-    expect(ACTIONS).toContain('to: "done"');
-    expect(ACTIONS).toContain(
+    expect(MOVE_RULES).toContain('from: "open", to: "in_progress"');
+    expect(MOVE_RULES).toContain('from: "in_progress", to: "done"');
+    expect(TRANSITION).toContain(
       "and ${requests.status} = ${transition.from}::request_status"
     );
-    expect(ACTIONS).toContain("insert into ${notifications}");
-    expect(ACTIONS).toContain("where u.created_by <> ${auth.userId}");
-    // The outer SELECT reads the updated row even when no notification was
-    // inserted (self pick up), so success never depends on the INSERT.
-    expect(ACTIONS).toContain("from u left join n on true");
-    expect(ACTIONS).not.toContain("createNotification(");
-    expect(ACTIONS).toContain("changed before Lane could pick it up");
-    expect(ACTIONS).toContain("changed before Lane could mark it Done");
+    expect(TRANSITION).toContain("insert into ${notifications}");
+    expect(TRANSITION).toContain("where u.created_by <> ${auth.userId}");
+    // The moved ids come from the UPDATE, not the INSERT, so a self pick up
+    // (no notification) still succeeds.
+    expect(TRANSITION).toContain("select u.id as id from u");
+    expect(TRANSITION).not.toContain("createNotification(");
+    expect(MOVE_RULES).toContain('verb: "pick it up"');
+    expect(MOVE_RULES).toContain('verb: "mark it Done"');
+    expect(TRANSITION).toContain("changed before Lane could ${transition.verb}");
   });
 
-  it("runs the diagnostic read only after the single statement matched nothing", () => {
-    for (const move of ["PICK_UP", "MARK_DONE"]) {
-      const update = ACTIONS.indexOf(`transitionRequest(${move}`);
-      const explain = ACTIONS.indexOf(`explainFailedTransition(${move}`);
-      expect(update).toBeGreaterThan(-1);
-      expect(explain).toBeGreaterThan(update);
-      expect(ACTIONS.slice(update, explain)).toContain("if (!updated)");
-    }
+  it("makes a single move a bulk move of one", () => {
+    expect(ACTIONS).toContain('transitionRequests(move, [requestId], context)');
+    expect(ACTIONS).not.toContain("explainFailedTransition");
   });
 
   it("tells a guest or an outsider apart from a missing Request", () => {
-    expect(ACTIONS).toContain(
-      'const CANNOT_CHANGE_REQUESTS = "You can\'t change Requests in this workspace."'
+    expect(TRANSITION).toContain(
+      'export const CANNOT_CHANGE_REQUESTS = "You can\'t change Requests in this workspace."'
     );
+    expect(TRANSITION).toContain("if (!auth) return { error: CANNOT_CHANGE_REQUESTS");
     expect(ACTIONS.match(/return \{ error: CANNOT_CHANGE_REQUESTS \}/g)).toHaveLength(
-      4
+      2
     );
   });
 

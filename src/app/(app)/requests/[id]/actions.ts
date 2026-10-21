@@ -1,6 +1,6 @@
 "use server";
 
-import { withRequestProgress } from "@/lib/request-progress";
+import { CANNOT_CHANGE_REQUESTS, transitionRequests } from "@/lib/request-transition";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
@@ -10,280 +10,39 @@ import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { MAX_MEASUREMENT_GUARDRAILS, measurementPlanSchema, measurementReadiness, measurementRequestTypeIssue, type MeasurementPlan } from "@/lib/request-measurement";
+import { MAX_MEASUREMENT_GUARDRAILS, measurementPlanSchema, measurementRequestTypeIssue, type MeasurementPlan } from "@/lib/request-measurement";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Members and admins change Requests; guests and anyone outside the
- * workspace get this instead of "Not found", which is kept for a Request that
- * is missing or belongs to another workspace. */
-const CANNOT_CHANGE_REQUESTS = "You can't change Requests in this workspace.";
-
-type LifecycleTransition = {
-  /** The status the Request must still have for the move to apply. */
-  from: "open" | "in_progress";
-  to: "in_progress" | "done";
-  notification: "request_picked_up" | "request_done";
-  /** What the Request is "no longer" when the status guard fails. */
-  label: "Open" | "In Progress";
-  /** The verb for the race copy: the row matched the guard but did not update. */
-  verb: "pick it up" | "mark it Done";
-};
-
-const PICK_UP: LifecycleTransition = {
-  from: "open",
-  to: "in_progress",
-  notification: "request_picked_up",
-  label: "Open",
-  verb: "pick it up",
-};
-
-const MARK_DONE: LifecycleTransition = {
-  from: "in_progress",
-  to: "done",
-  notification: "request_done",
-  label: "In Progress",
-  verb: "mark it Done",
-};
-
-/** Moves a Request between lifecycle statuses in ONE statement (plan item 1.4).
- * A data-modifying CTE does the conditional UPDATE and inserts the requester's
- * notification from the row it returned, so both commit or fail together and
- * concurrent callers can only win once: the second UPDATE re-checks the status
- * guard on the locked row and matches nothing. The outer SELECT reads from `u`
- * with a LEFT JOIN on the insert, so the caller still sees the update when the
- * insert skipped a self-notification (`created_by <> actor`).
- *
- * Decision 8.17: a failed notification insert now fails the whole mutation.
- * Nothing swallows the error any more; a Done Request without its notification
- * was the worse outcome. */
-async function transitionRequest(
-  transition: LifecycleTransition,
-  requestId: string,
-  auth: { userId: string; orgId: string }
-): Promise<{ id: string } | { error: string } | undefined> {
-  const assignment =
-    transition.to === "in_progress"
-      ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
-      : sql`"status" = ${transition.to}::request_status`;
-  const readiness = transition.to === "in_progress"
-    ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
-    : sql`true`;
-  return withRequestProgress(auth.orgId, auth.userId, [requestId], transition.from, async (tx, eligible, blocked) => {
-  if (!eligible.length) return { error: blocked[0].error };
-  const rows = await tx.execute<{ id: string; notification_id: string | null }>(sql`
-    with u as (
-      update ${requests}
-      set ${assignment}
-      where ${requests.id} = ${requestId}
-        and ${requests.orgId} = ${auth.orgId}
-        and ${requests.status} = ${transition.from}::request_status
-        and ${readiness}
-      returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
-    ), n as (
-      insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
-      select u.created_by, u.org_id, ${transition.notification}::notification_type, u.id, ${auth.userId}
-      from u
-      where u.created_by <> ${auth.userId}
-      returning ${notifications.id}
-    )
-    select u.id as id, n.id as notification_id
-    from u left join n on true
-  `);
-  return rows[0];
-  });
-}
-
-/** Diagnoses a missed transition only within the authorized workspace.
- * Missing and invisible Requests have the same response; visible Requests
- * retain the status and race messages that explain how to recover. */
-async function explainFailedTransition(
-  transition: LifecycleTransition,
-  requestId: string,
-  orgId: string
-): Promise<string> {
-  const [req] = await db
-    .select({ status: requests.status, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
-    .from(requests)
-    .where(and(eq(requests.id, requestId), eq(requests.orgId, orgId)));
-
-  if (!req) return "Not found";
-  if (req.status !== transition.from) {
-    return `This Request is no longer ${transition.label}. Refresh to see its current state.`;
-  }
-  if (transition.to === "in_progress") {
-    const readiness = measurementReadiness(req.expectedImpact, req.requestType);
-    if (readiness) return readiness;
-  }
-  return `This Request changed before Lane could ${transition.verb}. Refresh and try again.`;
-}
-
-export async function pickUpRequest(
+/** One Request's move: the same rules, copy and statement as a bulk move. */
+async function transitionOne(
+  move: "pick-up" | "done",
   requestId: string,
   context: { orgId: string }
 ): Promise<{success?: boolean; error?: string}> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
-
-  const updated = await transitionRequest(PICK_UP, requestId, auth);
-  if (updated && "error" in updated) return updated;
-  if (!updated) {
-    // "changed before Lane could pick it up" when the guard matched after all.
-    return { error: await explainFailedTransition(PICK_UP, requestId, auth.orgId) };
-  }
-
-  revalidatePath("/");
-  revalidatePath(`/requests/${requestId}`);
-  return { success: true };
+  const outcome = await transitionRequests(move, [requestId], context);
+  if (outcome.error) return { error: outcome.error };
+  return outcome.moved.length ? { success: true } : { error: outcome.failed[0]?.error ?? "Not found" };
 }
 
-export async function markDone(
-  requestId: string,
-  context: { orgId: string }
-): Promise<{success?: boolean; error?: string}> {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
-
-  const updated = await transitionRequest(MARK_DONE, requestId, auth);
-  if (updated && "error" in updated) return updated;
-  if (!updated) {
-    // "changed before Lane could mark it Done" when the guard matched after all.
-    return { error: await explainFailedTransition(MARK_DONE, requestId, auth.orgId) };
-  }
-
-  revalidatePath("/");
-  revalidatePath(`/requests/${requestId}`);
-  return { success: true };
+export async function pickUpRequest(requestId: string, context: { orgId: string }) {
+  return transitionOne("pick-up", requestId, context);
 }
 
-/** The most rows one bulk move accepts: a page of the list at its largest. */
-const BULK_LIMIT = 50;
-
-type BulkOutcome = {
-  error?: string;
-  /** Ids the statement moved; their notifications were written with them. */
-  moved: string[];
-  /** Ids it did not move, each with the same copy a single move would show. */
-  failed: { id: string; error: string }[];
-};
-
-/** Moves many Requests between lifecycle statuses in ONE statement (plan item
- * 1.6), with the single-row guards: the workspace, the from-status and the
- * member check before it. The notification INSERT reads the moved rows from
- * the UPDATE's RETURNING, so a row and its notification commit together. Only
- * when some ids did not move does one diagnostic read say why. */
-async function transitionRequests(
-  transition: LifecycleTransition,
-  requestIds: string[],
-  context: { orgId: string }
-): Promise<BulkOutcome> {
-  // Never trust the client's ids: anything but a string is dropped.
-  const unique = [
-    ...new Set(
-      (Array.isArray(requestIds) ? requestIds : []).filter(
-        (id): id is string => typeof id === "string"
-      )
-    ),
-  ];
-  const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
-  const invalid = unique
-    .filter((id) => !valid.includes(id))
-    .map((id) => ({ id, error: "Not found" }));
-  const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) {
-    return {
-      error: CANNOT_CHANGE_REQUESTS,
-      moved: [],
-      failed: unique.map((id) => ({ id, error: CANNOT_CHANGE_REQUESTS })),
-    };
-  }
-  if (!valid.length) return { moved: [], failed: invalid };
-
-  // Validated UUIDs only, so the array literal is one bound parameter.
-  const outcome = await withRequestProgress(auth.orgId, auth.userId, valid, transition.from, async (tx, eligible, blocked) => {
-  if (!eligible.length) return { moved: [], failed: [...invalid, ...blocked] };
-  const ids = `{${eligible.join(",")}}`;
-  const assignment =
-    transition.to === "in_progress"
-      ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
-      : sql`"status" = ${transition.to}::request_status`;
-  const readiness = transition.to === "in_progress"
-    ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
-    : sql`true`;
-  const rows = await tx.execute<{ id: string }>(sql`
-    with u as (
-      update ${requests}
-      set ${assignment}
-      where ${requests.id} = any(${ids}::uuid[])
-        and ${requests.orgId} = ${auth.orgId}
-        and ${requests.status} = ${transition.from}::request_status
-        and ${readiness}
-      returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
-    ), n as (
-      insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
-      select u.created_by, u.org_id, ${transition.notification}::notification_type, u.id, ${auth.userId}
-      from u
-      where u.created_by <> ${auth.userId}
-      returning ${notifications.id}
-    )
-    select u.id as id from u
-  `);
-  const moved = rows.map((row) => row.id);
-  const missed = eligible.filter((id) => !moved.includes(id));
-
-  let failed = [...invalid, ...blocked];
-  if (missed.length) {
-    const found = await tx
-      .select({ id: requests.id, status: requests.status, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
-      .from(requests)
-      .where(and(
-        eq(requests.orgId, auth.orgId),
-        sql`${requests.id} = any(${`{${missed.join(",")}}`}::uuid[])`,
-      ));
-    failed = [
-      ...invalid, ...blocked,
-      ...missed.map((id) => {
-        const req = found.find((row) => row.id === id);
-        if (!req) return { id, error: "Not found" };
-        if (req.status !== transition.from) {
-          return { id, error: `This Request is no longer ${transition.label}. Refresh to see its current state.` };
-        }
-        if (transition.to === "in_progress") {
-          const readiness = measurementReadiness(req.expectedImpact, req.requestType);
-          if (readiness) return { id, error: readiness };
-        }
-        return { id, error: `This Request changed before Lane could ${transition.verb}. Refresh and try again.` };
-      }),
-    ];
-  }
-
-  return { moved, failed };
-  });
-  const { moved, failed } = outcome;
-  if (moved.length) {
-    revalidatePath("/");
-    for (const id of moved) revalidatePath(`/requests/${id}`);
-  }
-  return { moved, failed };
+export async function markDone(requestId: string, context: { orgId: string }) {
+  return transitionOne("done", requestId, context);
 }
 
 /** Bulk pick up from the list's selection: one statement for every row. */
-export async function pickUpRequests(
-  requestIds: string[],
-  context: { orgId: string }
-) {
-  return transitionRequests(PICK_UP, requestIds, context);
+export async function pickUpRequests(requestIds: string[], context: { orgId: string }) {
+  return transitionRequests("pick-up", requestIds, context);
 }
 
 /** Bulk Done from the list's selection: one statement for every row. */
-export async function markDoneMany(
-  requestIds: string[],
-  context: { orgId: string }
-) {
-  return transitionRequests(MARK_DONE, requestIds, context);
+export async function markDoneMany(requestIds: string[], context: { orgId: string }) {
+  return transitionRequests("done", requestIds, context);
 }
 
 const commentSchema = z.object({
