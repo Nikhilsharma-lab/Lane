@@ -11,6 +11,7 @@
 - **Space** on a focused Request row opens a peek of that Request at the list's trailing edge. The list stays mounted: its scroll, filters, page, grouping, selection and roving tab stop do not change, and focus stays on the row.
 - While the peek is open, **J/K** (and ↑/↓, Home/End) move the list focus as today, and the peek follows the focused Request row. A group header keeps the last Request shown.
 - **Esc** closes the peek and puts focus on the peeked Request's row. It runs before the list's "clear the selection" Esc, so the first Esc closes the peek and the second clears the selection.
+- **A click on a row** opens the preview on desktop (Nikhil, 2026-10-21, after trying the built peek: a mouse had no visible way in). ⌘/Ctrl, Shift and middle clicks still open the page in a new tab, and phones keep tap → full page.
 - **Enter** on the row still opens the full page. The peek has **Open full page** (a link to `/requests/[id]`, which stays the only canonical URL) and **Close preview**.
 - The row menu gets **Peek** with the hint `Space`, only where the peek is available. The `?` overlay lists Space in "Requests list" and Esc in a new "Request preview" group.
 - **Phones keep full-page navigation:** the peek is available only at `(min-width: 768px) and (pointer: fine)`. Elsewhere Space does nothing and the menu item is not shown.

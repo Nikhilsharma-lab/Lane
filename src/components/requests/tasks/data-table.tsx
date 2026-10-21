@@ -181,8 +181,19 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     const link = event.target instanceof Element ? event.target.closest("a[data-request-title]") : null
     const openedId = link?.closest<HTMLElement>("[data-request-id]")?.dataset.requestId
     if (!openedId) return
+    // Plan item 2.12 (Nikhil, 2026-10-21): on desktop a click on a row previews it beside the list.
+    // Only a pointer click (detail > 0): Enter and the row menu's "Open Request" click the title in
+    // code and still open the page, as do modifier and middle clicks (a new tab) and every phone tap.
+    // Prevented here, in capture, so neither Next's Link nor the browser navigates.
+    if (peekAvailable && event.detail > 0) {
+      event.preventDefault()
+      // The row takes the list's focus, so J and K carry on from it and the preview follows.
+      focusGridKey(`r:${openedId}`)
+      openPeek(openedId)
+      return
+    }
     setDetailSession({ sequence: captureSequence(matching.map(row => row.id), openedId), focusTitleOnArrival: true })
-  }, [matching, setDetailSession])
+  }, [matching, setDetailSession, peekAvailable, focusGridKey, openPeek])
   const setFilter = useCallback((id: string, value: string) => {
     if (id === "project") {
       setView(previous => withListContext(previous, { project: value || "all" }))

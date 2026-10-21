@@ -177,6 +177,51 @@ export const OpenWithSpace: Story = {
   },
 }
 
+/** Records whether the title link's click was let through (a navigation) or kept for the preview. */
+function watchTitle(canvasElement: HTMLElement, index: number) {
+  const link = requestRow(canvasElement, idOf(index)).querySelector<HTMLAnchorElement>("a[data-request-title]")!
+  const clicks: boolean[] = []
+  // Bubble phase on the link itself runs after the list's capture handler has decided.
+  link.addEventListener("click", event => clicks.push(event.defaultPrevented))
+  return { link, clicks }
+}
+
+/** Nikhil, 2026-10-21: on desktop a click on a row previews it beside the list; the page stays where it is. */
+export const ClickOpensThePreview: Story = {
+  play: async ({ canvasElement }) => {
+    if (!previewAvailable()) return expectPhoneFallback(canvasElement)
+    const { link, clicks } = watchTitle(canvasElement, 0)
+    await userEvent.click(link)
+    await expect(await previewTitle(canvasElement)).toHaveTextContent(requests[0].title)
+    await expect(clicks).toEqual([true])
+    await expect(getRouter().push).not.toHaveBeenCalled()
+    // The clicked row takes the list's focus, so J carries on from it and the preview follows.
+    await waitFor(() => expect(requestRow(canvasElement, idOf(0))).toHaveFocus())
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(requestRow(canvasElement, idOf(1))).toHaveFocus())
+    await waitFor(async () => expect(await previewTitle(canvasElement)).toHaveTextContent(requests[1].title))
+    // A click on another row moves the preview to it.
+    await userEvent.click(watchTitle(canvasElement, 3).link)
+    await waitFor(async () => expect(await previewTitle(canvasElement)).toHaveTextContent(requests[3].title))
+  },
+}
+
+/** The full page stays one action away: Enter on the row, and a modifier click for a new tab, still open it. */
+export const EnterAndModifierClickOpenThePage: Story = {
+  play: async ({ canvasElement }) => {
+    if (!previewAvailable()) return expectPhoneFallback(canvasElement)
+    const { link, clicks } = watchTitle(canvasElement, 1)
+    requestRow(canvasElement, idOf(1)).focus()
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() => expect(clicks).toEqual([false]))
+    // A ⌘-click (Ctrl-click elsewhere), dispatched as the browser sends it.
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, detail: 1, metaKey: true }))
+    await expect(clicks).toEqual([false, false])
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await expect(preview(canvasElement)).toBeNull()
+  },
+}
+
 /** J and K move the list as always, and the preview follows the focused Request; a group header keeps the last one. */
 export const JAndKMoveThePreview: Story = {
   play: async ({ canvasElement }) => {
@@ -394,5 +439,10 @@ export const Phone: Story = {
     row.focus()
     await userEvent.keyboard("{Enter}")
     await waitFor(() => expect(opened).toBe(true))
+    // A click (a tap on a phone) opens the page too: it is let through, and no preview opens.
+    const { clicks } = watchTitle(canvasElement, 1)
+    await userEvent.click(requestRow(canvasElement, idOf(1)).querySelector<HTMLAnchorElement>("a[data-request-title]")!)
+    await expect(clicks).toEqual([false])
+    await expect(preview(canvasElement)).toBeNull()
   },
 }
