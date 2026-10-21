@@ -14,15 +14,17 @@ Release freezes agreement, superseding and Done undo. Done priority is hidden in
 
 Migration `0029_request_release.sql` adds nullable `requests.release_state` (no new table). Local lane_test only.
 
-Local verification: 1,214 application tests passed (1 existing skip); release actions 14 passed; typecheck,
+Local verification: 1,215 application tests passed (1 existing skip); release actions 15 passed; typecheck,
 lint on changed files, design checks and production build passed. Full Storybook: 596+ passed; the 3 remaining
 failures (detail Default/In Progress 33px row, Copy And Search In Workspace) are the persistent ones recorded for #58
 on baseline. Four Mark Done story failures caused by the Done state line dropping priority were fixed.
 
 **Not done:** `e2e/request-release.spec.ts` (hosted three-member acceptance, light/dark, 1440/390, transfer)
 is authored but not run. Before hosted 0029: verified backup, staging 0028 then 0029, run the e2e there.
-**Open for Nikhil:** a fixed window is due at 00:00 UTC on its end date, i.e. before that last day finishes;
-confirm or move to end date + 1. Exposure dates have no lower bound (legacy work may predate agreement).
+**Decided by Nikhil (October 21):** a fixed window stays due on its agreed end date. Exposure cannot predate
+the UTC date the agreement became complete (the last agree decision), for releases and corrections; all current
+Requests are dummy data, so legacy exposure is not a concern. The e2e therefore records today's exposure and
+checks the live countdown; due/overdue boundaries are covered by controlled-clock tests and stories.
 No push, hosted migration or deployment.
 
 ## October 21 — #58 agreement implemented locally

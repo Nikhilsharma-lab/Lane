@@ -7,7 +7,7 @@ import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
 import { agreementRoster } from '@/lib/request-agreement-members';
 import { agreementBlockReason, agreementContextSchema, disciplines, type AgreementContext } from '@/lib/request-agreement';
 import { insist, AgreementError, commitmentToken } from '@/lib/request-agreement-store';
-import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, type ReleaseState } from '@/lib/request-release';
+import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
 export async function changeRequestRelease(context: AgreementContext, input: unknown) {
     try {
         insist(agreementContextSchema.safeParse(context).success, 'Invalid release action.');
@@ -62,6 +62,8 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
                         insist(!incoming || incoming.confirmedAt, 'Confirm the original as Superseded before releasing its replacement.');
                     }
                     insist(change.exposureDate <= new Date().toISOString().slice(0, 10), 'Exposure cannot be in the future.');
+                    const earliest = earliestExposure(agreement.seats);
+                    insist(!earliest || change.exposureDate >= earliest, `Exposure cannot be before the agreement was complete on ${earliest} (UTC).`);
                     nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreement.snapshot.prepared.audience, ...releaseWindow(agreement.snapshot.request.expectedImpact, change.exposureDate) };
                 }
             }
@@ -114,6 +116,7 @@ export async function readRequestRelease(requestId: string, context: {
             ownerName: names[ownerId], names,
             release, measurement: releaseMeasurement(release, now), today: now.toISOString().slice(0, 10),
             audience: agreement?.snapshot?.prepared.audience ?? null,
+            earliestExposure: agreement ? earliestExposure(agreement.seats) : null,
             canRelease: canEdit && request.status === 'done' && !release && !blocked && (!incoming || !!incoming.confirmedAt),
             canCorrect: canEdit && request.status === 'done' && !!release,
             canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId) && !request.exceptionClosure,

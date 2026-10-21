@@ -136,7 +136,7 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
      {(view.canRelease || (view.canCorrect && mode === 'correct')) && <form className={styles.stack} onSubmit={e => { e.preventDefault(); if (!confirmed)
                 return; void save(mode === 'correct' ? { kind: 'correct', exposureDate: date, evidence, audienceConfirmed: true, reason } : { kind: 'release', exposureDate: date, evidence, audienceConfirmed: true }); }}>
        <p>Agreed audience: {view.audience}</p>
-       <Input label="Actual exposure date (UTC)" type="date" required max={view.today} value={date} onChange={e => setDate(e.target.value)} disabled={busy}/>
+       <Input label="Actual exposure date (UTC)" type="date" required min={view.earliestExposure ?? undefined} max={view.today} value={date} onChange={e => setDate(e.target.value)} disabled={busy}/>
        <Textarea label="Release evidence" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Record where the agreed audience exposure can be checked. Deployment alone is not release."/>
        <Checkbox label="The agreed audience received this work" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} disabled={busy}/>
        {mode === 'correct' && <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} description="The original stays in history. Relative deadlines are recalculated; fixed dates stay unchanged."/>}

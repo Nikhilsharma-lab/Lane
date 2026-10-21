@@ -3,7 +3,7 @@ import { expect, mocked, userEvent, within, waitFor } from 'storybook/test';
 import { RequestReleasePanel } from '@/components/requests/request-release-panel';
 import * as api from '@/app/(app)/requests/[id]/release-actions';
 const requestId = '00000000-0000-4000-a000-000000005900';
-const initial = { requestId, revision: 0, ownerId: 'owner', ownerName: 'Maya Chen', names: { owner: 'Maya Chen' } as Record<string, string>, release: null, measurement: null, today: '2026-10-25', audience: 'All shoppers', canRelease: true, canCorrect: false, canTransfer: false, people: [], blocked: null, history: [] };
+const initial = { requestId, revision: 0, ownerId: 'owner', ownerName: 'Maya Chen', names: { owner: 'Maya Chen' } as Record<string, string>, release: null, measurement: null, today: '2026-10-25', audience: 'All shoppers', earliestExposure: '2026-10-14' as string | null, canRelease: true, canCorrect: false, canTransfer: false, people: [], blocked: null, history: [] };
 const released = { ...initial, revision: 1, canRelease: false, canCorrect: true, release: { exposureDate: '2026-10-21', audience: 'All shoppers', evidence: 'Full audience release log', startDate: '2026-10-21', dueDate: '2026-10-28', windowKind: 'relative' as const }, measurement: { due: false, days: 3, label: '3 days remaining' } };
 const meta = { title: 'Requests/Release and measurement', component: RequestReleasePanel, args: { requestId, orgId: 'org-story', revision: 0 }, beforeEach: () => { mocked(api.readRequestRelease).mockReset().mockResolvedValue(structuredClone(initial)); mocked(api.changeRequestRelease).mockReset(); } } satisfies Meta<typeof RequestReleasePanel>;
 export default meta;

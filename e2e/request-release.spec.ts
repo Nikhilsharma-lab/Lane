@@ -7,7 +7,7 @@ import { assertOwnedOrganization } from './helpers/fixtures';
 test('release, correction, countdown and explicit owner transfer survive reloads', async ({ browser, page }, testInfo) => {
   test.setTimeout(600_000);
   const team = await createAgreementTeam(browser, page);
-  const ago = (days: number) => { const now = new Date(); now.setUTCDate(now.getUTCDate() - days); return now.toISOString().slice(0, 10); };
+  const today = () => new Date().toISOString().slice(0, 10);
   let lastPath = '';
   try {
     for (const width of [1440, 390]) for (const colorScheme of ['light', 'dark'] as const) {
@@ -18,21 +18,22 @@ test('release, correction, countdown and explicit owner transfer survive reloads
       await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
       await page.getByRole('button', { name: 'Mark Done', exact: true }).click(); await page.reload();
       const release = page.getByRole('region', { name: 'Release and measurement', exact: true });
-      await release.getByLabel('Actual exposure date (UTC)').fill(ago(13));
+      // Exposure cannot predate the agreement made moments ago, so this run records today and checks the live
+      // countdown. Due/overdue boundaries are proven with a controlled clock in release-actions.test.ts and stories.
+      await release.getByLabel('Actual exposure date (UTC)').fill(today());
       await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
       await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
       await release.getByRole('button', { name: 'Mark as released' }).focus(); await page.keyboard.press('Enter');
-      await expect(release.getByText('1 day remaining', { exact: true })).toBeVisible();
-      await page.reload(); await expect(release.getByText('1 day remaining', { exact: true })).toBeVisible();
-      for (const [days, label] of [[14, 'Due today'], [15, '1 day overdue']] as const) {
-        await release.getByRole('button', { name: 'Correct release', exact: true }).click();
-        await release.getByLabel('Actual exposure date (UTC)').fill(ago(days));
-        await release.getByLabel('Correction reason').fill('Acceptance fixture: verified earlier exposure date');
-        await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
-        await release.getByRole('button', { name: 'Save correction' }).click();
-        await expect(release.getByText(label, { exact: true })).toBeVisible();
-        await page.reload(); await expect(release.getByText(label, { exact: true })).toBeVisible();
-      }
+      await expect(release.getByText('14 days remaining', { exact: true })).toBeVisible();
+      await page.reload(); await expect(release.getByText('14 days remaining', { exact: true })).toBeVisible();
+      await release.getByRole('button', { name: 'Correct release', exact: true }).click();
+      await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: corrected exposure log link');
+      await release.getByLabel('Correction reason').fill('Acceptance fixture: evidence pointed at the wrong log');
+      await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
+      await release.getByRole('button', { name: 'Save correction' }).click();
+      await page.reload();
+      await expect(release.getByText('Staging acceptance: corrected exposure log link', { exact: true })).toBeVisible();
+      await expect(release.getByText('14 days remaining', { exact: true })).toBeVisible();
       expect(await page.locator('[data-detail-priority]').count()).toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await testInfo.attach(`release-${width}-${colorScheme}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
@@ -47,6 +48,6 @@ test('release, correction, countdown and explicit owner transfer survive reloads
     await panel.getByLabel('Transfer reason').fill('Original owner left the acceptance workspace');
     await panel.getByRole('button', { name: 'Transfer responsibility' }).click();
     await admin.reload(); await expect(panel).toContainText('Release and outcome owner: Agreement Developer');
-    await expect(panel.getByText('1 day overdue', { exact: true })).toBeVisible();
+    await expect(panel.getByText('14 days remaining', { exact: true })).toBeVisible();
   } finally { await team.close(testInfo); }
 });

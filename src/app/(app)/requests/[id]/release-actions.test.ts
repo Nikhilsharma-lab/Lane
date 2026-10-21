@@ -170,6 +170,18 @@ it('lets the owner correct and void a frozen release after an agreement particip
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All shoppers' } });
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
 });
+it('rejects exposure before the agreement was complete, for releases and corrections alike', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    // The last of the three agreements lands late on 20 October UTC; work cannot reach users before that day.
+    await connection `update request_agreements set seats=jsonb_set(seats,'{designer,decision,at}','"2026-10-20T23:30:00.000Z"') where request_id=${id}`;
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ earliestExposure: '2026-10-20' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'Exposure cannot be before the agreement was complete on 2026-10-20 (UTC).' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-20' })).toHaveProperty('success', true);
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-19', reason: 'Wrong log' })).toHaveProperty('error');
+});
 it('serializes concurrent duplicate release and rejects reuse of its operation key for different facts', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
