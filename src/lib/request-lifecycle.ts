@@ -14,7 +14,8 @@ const MARK_DONE: AllowedMove = { move: "done", to: "done", label: "Mark Done" }
  * this body; the server actions keep their own guards and must gain the same
  * check then.
  */
-export function allowedMove(request: { status: RequestStatus }, viewer: MoveViewer): AllowedMove | null {
+export function allowedMove(request: { status: RequestStatus; agreementBlocked?: boolean }, viewer: MoveViewer): AllowedMove | null {
+  if (request.agreementBlocked) return null
   if (viewer.isGuest) return null
   if (request.status === "open") return PICK_UP
   if (request.status === "in_progress") return MARK_DONE

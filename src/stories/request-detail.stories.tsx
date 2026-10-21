@@ -81,8 +81,8 @@ async function choosePriority(canvasElement: HTMLElement, label: string) {
 async function expectStatus(canvasElement: HTMLElement, status: "open" | "in_progress" | "done") {
   const label = { open: "Open", in_progress: "In Progress", done: "Done" }[status]
   await expect(statusCell(canvasElement)).toHaveAttribute("data-status", status)
-  // The new label is there in the same frame; the Arc Button lets the old one fade out first.
-  await waitFor(() => expect(stateLine(canvasElement)).toHaveAttribute("aria-label", expect.stringMatching(new RegExp(`^Properties: ${label},`))))
+  // The new label is there in the same frame; the Arc Button lets the old one fade out first. Done omits priority.
+  await waitFor(() => expect(stateLine(canvasElement)).toHaveAttribute("aria-label", expect.stringMatching(new RegExp(`^Properties: ${label}(,|$)`))))
 }
 
 /** One-line values keep every panel row at 32px, the editable ones and the Assignee's avatar included. */
@@ -745,3 +745,14 @@ export const FigmaOnlyReview: Story = {
     noHorizontalScroll()
   },
 }
+
+export const DoneHidesHistoricalPriority: Story = {
+  ...desktopLight,
+  args: { current: { ...request, status: 'done', priority: 'high' } },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-detail-priority]')).toBeNull()
+    await expect(canvasElement.querySelector('[data-detail-state-line]')?.getAttribute('aria-label')).toBe('Properties: Done')
+    await expect(canvasElement.querySelector('[aria-label="Request properties"]')?.textContent).not.toContain('High')
+  },
+}
+export const DoneHidesHistoricalPriorityMobile: Story = { ...DoneHidesHistoricalPriority, ...phoneDark }

@@ -1,3 +1,4 @@
+import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
 /**
  * Notification creation forge proof.
  *
@@ -26,6 +27,7 @@ vi.mock("next/cache", () => ({
 let mockSession = { userId: "", orgId: "", orgRole: "" };
 
 vi.mock("@clerk/nextjs/server", () => ({
+  clerkClient: async () => fixtureClerkClient(WS_ID, [REQUESTER_ID,PICKER_ID,THIRD_PARTY_ID]),
   auth: vi.fn(async () => mockSession),
 }));
 
@@ -70,9 +72,11 @@ beforeAll(async () => {
       { id: REQ_GUEST, orgId: WS_ID, title: "Guest comment test", description: "d", status: "in_progress", assignedTo: PICKER_ID, createdBy: GUEST_ID },
     ])
     .onConflictDoNothing();
+  await seedAgreedRequests(WS_ID);
 });
 
 afterAll(async () => {
+  await removeAgreementFixtures(WS_ID);
   await db.delete(notifications).where(eq(notifications.orgId, WS_ID));
   await db.delete(comments).where(
     eq(comments.requestId, REQ_COMMENT)

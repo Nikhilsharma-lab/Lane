@@ -4,67 +4,67 @@
   "toleranceBytes": 2048,
   "routes": {
     "/": {
-      "gzipBytes": 505756,
-      "uncompressedBytes": 1707950,
+      "gzipBytes": 505836,
+      "uncompressedBytes": 1708025,
       "chunks": 34
     },
     "/_not-found": {
-      "gzipBytes": 284780,
+      "gzipBytes": 284781,
       "uncompressedBytes": 937055,
       "chunks": 19
     },
     "/forgot-password": {
-      "gzipBytes": 313880,
+      "gzipBytes": 313881,
       "uncompressedBytes": 1028477,
       "chunks": 23
     },
     "/intake": {
-      "gzipBytes": 438472,
-      "uncompressedBytes": 1495876,
+      "gzipBytes": 438521,
+      "uncompressedBytes": 1495897,
       "chunks": 28
     },
     "/login": {
-      "gzipBytes": 311289,
+      "gzipBytes": 311290,
       "uncompressedBytes": 1016208,
       "chunks": 23
     },
     "/onboarding": {
-      "gzipBytes": 316637,
+      "gzipBytes": 316639,
       "uncompressedBytes": 1032236,
       "chunks": 23
     },
     "/privacy": {
-      "gzipBytes": 288409,
+      "gzipBytes": 288410,
       "uncompressedBytes": 945948,
       "chunks": 20
     },
     "/requests/[id]": {
-      "gzipBytes": 486839,
-      "uncompressedBytes": 1643036,
-      "chunks": 33
+      "gzipBytes": 503421,
+      "uncompressedBytes": 1702354,
+      "chunks": 34
     },
     "/reset-password": {
-      "gzipBytes": 316010,
+      "gzipBytes": 316011,
       "uncompressedBytes": 1036022,
       "chunks": 23
     },
     "/settings/members": {
-      "gzipBytes": 468439,
-      "uncompressedBytes": 1588581,
+      "gzipBytes": 468488,
+      "uncompressedBytes": 1588602,
       "chunks": 30
     },
     "/settings/profile": {
-      "gzipBytes": 468439,
-      "uncompressedBytes": 1588581,
+      "gzipBytes": 468488,
+      "uncompressedBytes": 1588602,
       "chunks": 30
     },
     "/signup": {
-      "gzipBytes": 305026,
+      "gzipBytes": 305027,
       "uncompressedBytes": 997257,
       "chunks": 22
     },
     "/terms": {
-      "gzipBytes": 288409,
+      "gzipBytes": 288410,
       "uncompressedBytes": 945948,
       "chunks": 20
     }

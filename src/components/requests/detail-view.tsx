@@ -22,6 +22,11 @@ import styles from "./requests.module.css"
 export type RequestStatus = "open" | "in_progress" | "done"
 
 export type RequestDetail = {
+  agreementRevision?: number
+  agreementBlocked?: boolean
+  agreementSubmitted?: boolean
+  exceptionClosure?: import("@/lib/request-agreement").ExceptionClosure | null
+  outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
   designReviews?: DesignReview[]
   designReviewVersion?: number
   id: string
@@ -89,11 +94,11 @@ export function RequestUnavailable({ returnHref }: { returnHref: string }) {
  * times are phrased here so the client islands never disagree with the
  * server about "3h ago".
  */
-export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, peekStrip }: {
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, agreement, peekStrip }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
   /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
   viewer: DetailViewer; orgId: string; returnHref?: string;
-  lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode;
+  lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode; agreement?: ReactNode;
   /** Plan item 2.12: the list's peek. Its strip replaces the page's, the title is the panel's h2 (the list keeps the page's h1), and arrival moves no focus. */
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
@@ -130,6 +135,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
             </section>
             {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
             {currentValues}
+            {agreement}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
               <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
               <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon aria-hidden="true" /> : <FileText aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>

@@ -494,3 +494,12 @@ export const Controls: Story = {
     expect(textContrast(primary), "Primary keyboard focus text").toBeGreaterThanOrEqual(4.5)
   },
 }
+
+export const DoneRowsHidePriority: Story = {
+  args: { requests: meta.args.requests.map(request => ({ ...request, status: 'done' as const, priority: 'high' as const })) },
+  play: async ({ canvasElement }) => {
+    const rows = canvasElement.querySelectorAll('[data-request-id]')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) expect(row.querySelector('button[data-priority]')).toBeNull()
+  },
+}

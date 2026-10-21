@@ -1,10 +1,11 @@
+import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, OWNER]) }));
 
 const ORG = "org_measurement_actions", OTHER_ORG = "org_measurement_other";
 const OWNER = "user_measurement_owner", MEMBER = "user_measurement_member";
@@ -37,6 +38,7 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (!connection) return;
+  await removeAgreementFixtures(ORG);
   await connection`delete from organizations where id in (${ORG},${OTHER_ORG})`;
   await connection`delete from profiles where id in (${OWNER},${MEMBER})`;
   await connection.end();
@@ -46,6 +48,7 @@ describe("measurement pickup readiness", () => {
   it("refuses pickup with a missing current value and writes no notification or assignment", async () => {
     const { pickUpRequest } = await api();
     actAs(MEMBER);
+    await seedAgreedRequests(ORG);
     expect(await pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
     expect(await saved()).toMatchObject({ status: "open", assigned_to: null });
     expect(await connection`select id from notifications where request_id=${requestId}`).toHaveLength(0);
@@ -55,6 +58,7 @@ describe("measurement pickup readiness", () => {
     const value = plan(50); value.guardrails[0].current = 10;
     await connection`insert into requests(id,org_id,title,description,created_by,request_type,expected_impact) values (${ready},${ORG},'Ready Request','Context',${OWNER},'improvement',${connection.json(value)})`;
     actAs(MEMBER);
+    await seedAgreedRequests(ORG);
     const result = await (await api()).pickUpRequests([requestId, ready], { orgId: ORG });
     expect(result.moved).toEqual([ready]);
     expect(result.failed).toEqual([{ id: requestId, error: expect.stringMatching(/current value/i) }]);
@@ -64,6 +68,7 @@ describe("measurement pickup readiness", () => {
   it("allows pickup with a threshold and an explicit new-feature primary exception", async () => {
     const value = plan(); value.primary.noBaseline = true;
     await setPlan(value, "new_feature");
+    await seedAgreedRequests(ORG);
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
   });
   it.each(["single", "bulk"])("rechecks %s pickup readiness after waiting for a concurrent row update", async mode => {
@@ -72,6 +77,7 @@ describe("measurement pickup readiness", () => {
     const actions = await api();
     actAs(MEMBER);
     let attempt: Promise<unknown> | undefined;
+    await seedAgreedRequests(ORG);
     await connection.begin(async transaction => {
       await transaction`select id from requests where id=${requestId} for update`;
       attempt = mode === "single"
@@ -80,7 +86,7 @@ describe("measurement pickup readiness", () => {
       // Prove the pickup has reached its UPDATE and is waiting on this lock.
       let waiting = false;
       for (let check = 0; check < 100 && !waiting; check++) {
-        const rows = await connection`select pid from pg_stat_activity where datname='lane_test' and wait_event_type='Lock' and query like '%request_measurement_ready%'`;
+        const rows = await connection`select pid from pg_stat_activity where datname='lane_test' and wait_event_type='Lock' and query like '%requests%' AND query like '%for update%'`;
         waiting = rows.length > 0;
         if (!waiting) await new Promise(resolve => setTimeout(resolve, 10));
       }
@@ -100,16 +106,19 @@ describe("requester current-value recovery", () => {
     const result = await (await api()).saveRequestCurrentValues(requestId, patch(plan(), 0, [0]), { orgId: ORG });
     expect(result).toMatchObject({ success: true });
     expect(await saved()).toEqual({ expected_impact: { ...plan(), primary: { ...plan().primary, current: 0 }, guardrails: [{ ...plan().guardrails[0], current: 0 }] }, status: "open", assigned_to: null });
+    await seedAgreedRequests(ORG);
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
   });
   it("allows pickup after saving the primary value without a guardrail baseline", async () => {
     expect(await (await api()).saveRequestCurrentValues(requestId, patch(plan(), 35, [null]), { orgId: ORG })).toMatchObject({ success: true });
+    await seedAgreedRequests(ORG);
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
     expect((await saved()).expected_impact.primary.current).toBe(35);
   });
   it("allows a guest to add values to their own Request but still forbids pickup", async () => {
     actAs(OWNER, "org:guest");
     expect(await (await api()).saveRequestCurrentValues(requestId, patch(), { orgId: ORG })).toMatchObject({ success: true });
+    await seedAgreedRequests(ORG);
     expect(await (await api()).pickUpRequest(requestId, { orgId: ORG })).toHaveProperty("error");
   });
   it.each(["org:member", "org:admin", "org:guest"])("does not give a %s a requester ownership bypass", async role => {
@@ -154,6 +163,7 @@ describe("requester current-value recovery", () => {
     const ready = plan(50); ready.guardrails[0].current = 10;
     await setPlan(ready);
     const actions = await api();
+    await seedAgreedRequests(ORG);
     expect(await actions.pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
     expect(await actions.saveRequestCurrentValues(requestId, patch(ready, 80, [15]), { orgId: ORG })).toHaveProperty("error");
     expect((await saved()).expected_impact).toEqual(ready);

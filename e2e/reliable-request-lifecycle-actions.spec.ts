@@ -1,11 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
-  cleanupTestWorkspace,
-  seedTestRequest,
-} from "./helpers/cleanup";
-import { createTestUser, deleteTestUser } from "./helpers/test-user";
-import { provisionAndSignIn } from "./helpers/auth";
+  createAgreementTeam,
+  createRequestThroughIntake,
+  prepareAgreementThroughUI,
+  agreeThroughUI,
+} from "./helpers/agreement";
 
 const SURFACES = [
   {
@@ -43,10 +43,7 @@ async function holdAndFailNextAction(page: Page, path: string) {
 
   await page.route(path, async (route) => {
     const request = route.request();
-    if (
-      request.method() === "POST" &&
-      request.headers()["next-action"]
-    ) {
+    if (request.method() === "POST" && request.headers()["next-action"]) {
       requestCount += 1;
       markSeen?.();
       await released;
@@ -76,22 +73,20 @@ async function clickTwice(button: Locator) {
 
 test("Pick up and Mark Done recover reliably across responsive themes", async ({
   page,
-}) => {
-  test.setTimeout(180_000);
-  const user = await createTestUser("reliable-lifecycle");
+  browser,
+}, testInfo) => {
+  test.setTimeout(600_000);
+  const team = await createAgreementTeam(browser, page);
 
   try {
-    await provisionAndSignIn(page, user, {
-      name: "Lifecycle Reliability Test",
-      workspaceName: "Lifecycle Reliability",
-    });
-
     for (const surface of SURFACES) {
       await page.setViewportSize(surface.viewport);
       await page.emulateMedia({ colorScheme: surface.colorScheme });
 
       const title = `${surface.name}: lifecycle action`;
-      const request = await seedTestRequest(user.id, title);
+      const request = await createRequestThroughIntake(team, title);
+      await prepareAgreementThroughUI(team);
+      await agreeThroughUI(team, `/requests/${request.id}`);
       const detailPath = `/requests/${request.id}`;
       const actionPath = `**/requests/${request.id}**`;
       await page.goto(detailPath);
@@ -103,7 +98,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       }
 
       const lifecycle = page.locator(
-        '[data-slot="request-lifecycle-actions"]:visible'
+        '[data-slot="request-lifecycle-actions"]:visible',
       );
       const detail = page.getByRole("region", {
         name: `Request detail: ${title}`,
@@ -115,12 +110,17 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       // 960px of content width, and from the state line below it.
       const toasts = page.getByRole("region", { name: /^Messages/ });
       await expect(
-        detail.locator('[data-slot="page-strip"]').locator(lifecycle)
+        detail.locator('[data-slot="page-strip"]').locator(lifecycle),
       ).toHaveCount(1);
-      const status = surface.viewport.width >= 1440
-        ? detail.locator("[data-detail-panel] [data-detail-status]")
-        : detail.locator("[data-detail-state-line]");
-      const expectStatus = (value: "open" | "in_progress" | "done", label: string, timeout?: number) =>
+      const status =
+        surface.viewport.width >= 1440
+          ? detail.locator("[data-detail-panel] [data-detail-status]")
+          : detail.locator("[data-detail-state-line]");
+      const expectStatus = (
+        value: "open" | "in_progress" | "done",
+        label: string,
+        timeout?: number,
+      ) =>
         surface.viewport.width >= 1440
           ? expect(status).toHaveAttribute("data-status", value, { timeout })
           : expect(status).toContainText(`${label},`, { timeout });
@@ -143,7 +143,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
 
       failedPickup.release();
       await expect(toasts).toContainText(
-        "Try again if this Request is still Open"
+        "Try again if this Request is still Open",
       );
       await expect(pickUp).toBeEnabled();
       await expectStatus("open", "Open");
@@ -171,7 +171,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
 
       failedCompletion.release();
       await expect(toasts).toContainText(
-        "Try again if this Request is still In Progress"
+        "Try again if this Request is still In Progress",
       );
       await expect(markDone).toBeEnabled();
       await expectStatus("in_progress", "In Progress");
@@ -182,7 +182,6 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await expect(toasts).toContainText("Marked Done");
     }
   } finally {
-    await cleanupTestWorkspace(user.id);
-    await deleteTestUser(user.id);
+    await team.close(testInfo);
   }
 });

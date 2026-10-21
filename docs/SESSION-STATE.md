@@ -1,8 +1,100 @@
 # Shared Claude / Codex handoff
 
+## October 21 — #60 actual impact and permanent closure implemented locally
+
+Implemented [#60](https://github.com/Nikhilsharma-lab/Lane/issues/60) per the approved
+[contract](superpowers/plans/2026-10-21-outcome-closure.md). The current release/outcome owner closes with a
+measured result from the UTC due date: the actual is recorded against the agreed baseline/target, every agreed
+guardrail needs an actual (held/breached shown, never a gate), plus evidence and observation period. Any result
+direction closes. A reasoned exception can be recorded any time: not launched (before release only), rolled
+back or inconclusive (after release), or measurement unavailable. Superseded is unchanged. Closed never reopens:
+the owner appends corrections, only for parts the closure kind has. An admin can still transfer a closed Request
+when the owner loses access. Any active non-guest member can create linked follow-ups after release, with copied
+context and fresh agreement. The original's obligation is untouched. Outcome panel on Request detail; detail
+shows Closed / Closed with exception / Superseded.
+
+Migration `0030_request_outcome_closure.sql` adds `requests.outcome_closure`, `closure_corrections` and
+`follow_up_of`, and v2 exception codes (no new table). Local lane_test only.
+
+Local verification: 1,233 application tests passed (1 existing skip); outcome actions 11 and schema 6 tests;
+6 outcome stories plus release/agreement stories passed; typecheck, lint on changed files, design checks and
+build passed. Full Storybook: 605 passed, 4 failed. Three are the known baseline failures (detail Default/In Progress,
+Copy And Search In Workspace). Requests/Labels "Prefix Matching And Stable Count" also fails with the
+outcome preview mock removed and imports nothing changed here; it is untriaged. Standards and Spec reviews ran.
+Fixed: trigger revision/Superseded holes, Superseded transfer, correction fields per closure kind, owner-vs-admin race test.
+
+**Not done:** `e2e/request-outcome.spec.ts` (exception, correction, follow-up, transfer at 1440/390 light/dark)
+is authored, not run. Hosted measured closure can't reach a deadline. Before hosted 0030: verified backup,
+staging 0028 → 0029 → 0030, run the release and outcome e2e there. No push, hosted migration or deployment.
+
+## October 21 — #59 release and measurement implemented locally
+
+Implemented [#59](https://github.com/Nikhilsharma-lab/Lane/issues/59) per the approved
+[contract](superpowers/plans/2026-10-21-release-measurement.md), resuming Codex work that stopped before
+verification. The creator/current owner records a past or present UTC exposure date, the agreed audience and
+evidence after Done with a valid agreement. Relative deadlines start from exposure; fixed dates stay fixed.
+Due today on the due date, then N days overdue. Nothing auto-closes, no cron. Owner-only reasoned corrections and
+voids append to immutable history; corrections reuse the frozen agreement snapshot, so a departed participant
+cannot block them. A Clerk admin may transfer ownership only when the owner has lost access; authorship is kept.
+History and owner names come from saved profiles, so departed owners and guests see names, not IDs.
+Release freezes agreement, superseding and Done undo. Done priority is hidden in rows, row menus and detail, never erased.
+
+Migration `0029_request_release.sql` adds nullable `requests.release_state` (no new table). Local lane_test only.
+
+Local verification: 1,215 application tests passed (1 existing skip); release actions 15 passed; typecheck,
+lint on changed files, design checks and production build passed. Full Storybook: 596+ passed; the 3 remaining
+failures (detail Default/In Progress 33px row, Copy And Search In Workspace) are the persistent ones recorded for #58
+on baseline. Four Mark Done story failures caused by the Done state line dropping priority were fixed.
+
+**Not done:** `e2e/request-release.spec.ts` (hosted three-member acceptance, light/dark, 1440/390, transfer)
+is authored but not run. Before hosted 0029: verified backup, staging 0028 then 0029, run the e2e there.
+**Decided by Nikhil (October 21):** a fixed window stays due on its agreed end date. Exposure cannot predate
+the UTC date the agreement became complete (the last agree decision), for releases and corrections; all current
+Requests are dummy data, so legacy exposure is not a concern. The e2e therefore records today's exposure and
+checks the live countdown; due/overdue boundaries are covered by controlled-clock tests and stories.
+No push, hosted migration or deployment.
+
+## October 21 — #58 agreement implemented locally
+
+Implemented the approved persistence contract for [#58](https://github.com/Nikhilsharma-lab/Lane/issues/58):
+three explicit named decisions, immutable commitment/history, locked pickup/Done guards, durable concerns,
+participant replacement, corrections and linked creator-confirmed Superseded exceptions. Existing work
+statuses remain unchanged. REQUIREMENTS.md and lane-roadmap.md are reconciled.
+
+Local verification: 1,197 application tests passed (1 existing skip), 7 agreement Storybook tests passed,
+typecheck/lint/design checks and production build passed. Full Storybook: 588 passed, 5 failures;
+2 Intake recovery failures passed on recheck, and the 3 persistent search/detail failures reproduced on
+baseline e3f8360. Both review axes cleared implementation findings. See
+[rollout evidence and gates](operations/request-agreement-rollout.md).
+
+Migration 0028 has run only in disposable local lane_test. The real three-member browser suite is authored
+and typechecked, not executed on hosted providers. Verified backup, staging migration and multi-user
+acceptance are still required before deployment. No push, hosted migration or production deployment.
+Pre-existing tracker/spec/AGENTS edits remain outside this commit.
+
+## October 21 — Three implementation tickets published
+
+Nikhil approved consolidating the lifecycle work into exactly three tickets. Published through to-tickets as native sub-issues of #57, each labelled `ready-for-agent` and `enhancement`:
+
+1. [#58 Agreement before work starts](https://github.com/Nikhilsharma-lab/Lane/issues/58) — no blockers; current frontier.
+2. [#59 Release and measurement](https://github.com/Nikhilsharma-lab/Lane/issues/59) — natively blocked by #58.
+3. [#60 Actual impact and permanent closure](https://github.com/Nikhilsharma-lab/Lane/issues/60) — natively blocked by #59.
+
+Read back and verified exact ticket bodies, labels, parent relationships and blocking edges. Parent #57 title/body/state are unchanged. Each ticket includes acceptance criteria and the approved test boundaries; unresolved timing/release recovery decisions remain explicit in #59. No product implementation or deployment occurred. Next work begins with scoped planning for #58.
+
+## October 21 — GitHub issue tracker and Request lifecycle spec
+
+Configured GitHub Issues for `Nikhilsharma-lab/Lane` in `docs/agents/`; AGENTS.md points to the tracker, default triage mapping and domain rules. User confirmed all five default workflow labels and existing server-action/database tests plus browser acceptance. Created four missing labels; reused `wontfix`.
+
+Published and read back [issue #57](https://github.com/Nikhilsharma-lab/Lane/issues/57), “Request agreement before pickup, creator-owned release and outcome closure”, with `ready-for-agent` and `enhancement`. The published body matched the local spec at publication. Local copy: `docs/specs/2026-10-21-request-agreement-release-outcomes.md` (includes the issue backlink). Captures all 26 interview decisions and 51 user stories. Next: bounded implementation planning, starting with agreement before pickup; reconcile requirements/roadmap. Product implementation, schema decisions and production deployment were not performed by this spec task. Tracker/spec files are local uncommitted changes; issue and labels are live on GitHub.
+
 ## Production promotion preparation — October 20
 
 ### Current status — production promoted, final authenticated checks pending
+
+**Temporary credential cleanup completed:** Stopped confirmed local password-entry Python helper PID15460 on127.0.0.1:8769. Removed `/private/tmp/lane-prod-db-password-20261020`, `lane-clerk-prod-20261020.env`, `lane-prod-existing-20261020.env`, `lane-prod-redis-token-20261020` and `lane-db-password-entry.py`. Backup archives and separate recovery key retained. This supersedes pending-cleanup notes below.
+
+**Second-account acceptance / reported flicker:** User reported flicker after second Google signup. Chrome disconnected; error logs for 16:09:10–16:24:10Z returned no server errors. After reconnect, new Chrome tab654163522 (`flickerTab`, browser3) showed the distinct second account in Profile with PM role and its own “nikhil's Organization”. Requests settled to “No Requests yet”, with no Project2; browser warning/error capture was empty. Direct navigation to first workspace LAN-1 returned “This Request can’t be opened … not available in this workspace”, exposing neither content nor file controls. Screenshot `production-workspace-isolation.png`. Returned to Requests and full reload also settled normally. **Earlier flicker was not reproduced, diagnosed or fixed; no code/config change made for it.** Cross-workspace list/detail denial now has live production evidence. A forged attachment-download action from the second account remains untested; do not claim this separately passed. Tab left at test workspace Requests. Temporary DB/Clerk credential/helper cleanup remains outstanding.
 
 **Latest acceptance — Redis repair verified live:** Redeployment `dpl_2qhTPXj8mnB36KcjVGysRygEFtp1` is READY and aliased to app.uselane.app; compilation, TypeScript and all 19 pages completed. Refreshed browser restored unsaved draft; reselected test attachment. AI review succeeded, Request **LAN-1** (`39bd6680-c258-46e4-a3f0-1a7a6347dcb8`) saved with one private 100-byte attachment. Downloaded `/Users/nikhilsharma/Downloads/lane-production-verification.txt` matches original by `cmp` exit0. Reload preserved content/file, pickup changed to In Progress, Mark Done and reload confirmed Done. No comments posted. Disposable test Request intentionally remains, clearly titled “Production verification — Request and attachment flow”. Screenshot `production-request-verified.png`; IAB7 (`draftTab`) deliverable. Runtime error query 16:06:49–16:11:49Z returned zero errors. Anonymous Chrome access to exact Request redirected to `/login`.
 

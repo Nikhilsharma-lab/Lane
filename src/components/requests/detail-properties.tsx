@@ -27,6 +27,7 @@ const preloadDrawer = () => { void import("./detail-properties-drawer") }
 
 /** "In Progress, High priority" or "Open, No priority": the phone's one state line (plan item 2.5). */
 export function stateLineText(status: Parameters<typeof statusLabel>[0], priority: RequestPriority) {
+  if (status === "done") return statusLabel(status)
   return `${statusLabel(status)}, ${priority === "none" ? "No priority" : `${REQUEST_PRIORITY_LABELS[priority]} priority`}`
 }
 
@@ -74,7 +75,7 @@ function usePropertyControls(inSheet = false) {
   const { move: runMove, setPriority } = useDetailMoves()
   const status = request.status
   const priority = request.priority
-  const move = allowedMove({ status }, { isGuest })
+  const move = allowedMove({ status, agreementBlocked: request.agreementBlocked }, { isGuest })
   const priorityText = REQUEST_PRIORITY_LABELS[priority]
   const priorityGlyph = <span className={styles.priorityGlyph} data-priority={priority}><PriorityGlyph priority={priority} /></span>
   const selectMove = (kind: LifecycleMove) => {
@@ -112,7 +113,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
       <Row label="Status" data-detail-status="" data-status={status}>{statusControl}</Row>
     </dl>
     <dl className={styles.propertyGroup}>
-      <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>
+      {status !== "done" && <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>}
       <Row label="Assignee">{assignee
         ? <Value icon={<Avatar name={assignee} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={styles.avatar} aria-hidden="true" />}>{assignee}</Value>
         : <span className={styles.propertyMuted}>No one yet</span>}</Row>
@@ -147,7 +148,7 @@ export function DetailStateLine() {
   return <>
     <div className={styles.compactProperties} role="group" aria-label="Request properties">
       {statusControl}
-      {priorityControl}
+      {request.status !== "done" && priorityControl}
     <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(request.status, request.priority)}`} aria-haspopup="dialog" aria-expanded={open}
       onPointerDown={preloadDrawer} onFocus={preloadDrawer}
       onClick={() => { setLoaded(true); setOpen(true) }}>

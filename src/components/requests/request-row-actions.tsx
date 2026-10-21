@@ -106,7 +106,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, onSelect: () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next) },
-        { id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) },
+        ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
         { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
           ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
           { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
