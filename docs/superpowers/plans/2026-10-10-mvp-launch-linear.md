@@ -167,6 +167,8 @@ Sources: `phase-0-ux-skeleton.md:14-51`, `ux-copy-launch-review.md:198`.
 
 ### 2.4 How the bar is enforced
 
+*(2026-10-21: Nikhil removed Storybook and its tests from Lane. Every Storybook line in this plan, here, in §6.4 and in §7.1, no longer applies; pages are verified in the running app, by unit tests, the e2e journeys and the perf spec.)*
+
 **Required CI on every PR.** This is one workflow with Storybook sharded across parallel jobs. Estimate 15–25 minutes: one Storybook width takes 283 s on a local Mac, and Linux runners also need Chromium installed (critique 1 #6).
 1. `pnpm typecheck && pnpm lint && pnpm design:check`, after adding `artifacts/**` to the ESLint ignores.
 2. ESLint restrictions. `router.refresh` is allowed only inside the mutation helper. No read server action is imported into a client file. No `router.replace`/`push` with `requestListHref` in list components.

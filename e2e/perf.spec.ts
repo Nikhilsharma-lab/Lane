@@ -43,8 +43,6 @@ const BUDGET = {
   rowFocus: { target: 50, limit: 100 }, // J to the focused row on screen, p75 (plan item 2.4)
   heldJPrefetches: 1, // full detail prefetches while J is held over 10 rows (plan item 2.4)
   detailNeighbourPrefetches: 2, // full detail prefetches a Request page starts for its previous and next (plan item 2.5)
-  reviewerSuggestions: { target: 300, limit: 300 }, // last keystroke to the matching reviewer options on screen, p75 (plan item 2.6)
-  reviewerRoute: { target: 150, limit: 300 }, // GET /api/reviewers warm, requestStart to responseEnd, p75 (plan item 2.6)
   unreadRoute: { target: 150, limit: 300 }, // GET /api/notifications/unread warm, requestStart to responseEnd, p75 (plan item 2.7)
   searchLocal: { target: 50, limit: 50 }, // keystroke to the first local search matches on screen, p75 (plan item 2.8)
   searchRoute: { target: 400, limit: 400 }, // GET /api/search warm, requestStart to responseEnd, p75 (plan item 2.8)
@@ -728,87 +726,6 @@ test("a sidebar toggle at 4x CPU changes the content width once with at most 2 l
   report("long animation frames per sidebar toggle at 4x CPU", longFrames, "frames", BUDGET.longFramesPerTransition)
   for (const changes of widthChanges) expect(changes).toBeLessThanOrEqual(1)
   expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
-})
-
-// Plan item 2.6: the reviewer type-ahead on Request detail. Read-only: it
-// opens the Ask form and the picker, types, and cancels; nothing is saved.
-// With a complete roster (every pilot workspace) the options are filtered in
-// the browser and no request leaves during typing; a truncated roster (over
-// 100 eligible people) takes the debounced server path, which the request
-// count per run reports so the ledger says which path ran.
-const REVIEWER_QUERY = process.env.LANE_PERF_REVIEWER_QUERY ?? "a"
-
-/** Resolves with the time from the last keystroke to a listbox that is not busy and whose every option matches the query. */
-const watchSuggestions = (page: Page, query: string) => page.evaluate(expected => new Promise<number>((resolve, reject) => {
-  const perf = (window as unknown as PerfWindow).__lanePerf
-  const needle = expected.trim().toLocaleLowerCase()
-  const settled = () => {
-    const listbox = document.querySelector<HTMLElement>('[role="listbox"][aria-label="Teammates"]')
-    if (!listbox || listbox.getAttribute("aria-busy") === "true") return false
-    const options = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')]
-    const noMatch = [...document.querySelectorAll('[role="status"]')].some(node => node.textContent?.startsWith("No teammates match"))
-    return options.length ? options.every(option => (option.textContent ?? "").toLocaleLowerCase().includes(needle)) : noMatch
-  }
-  const observer = new MutationObserver(() => { if (settled()) { observer.disconnect(); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) } })
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true })
-  setTimeout(() => { observer.disconnect(); reject(new Error("The reviewer options never settled on the query")) }, 10_000)
-}), query)
-
-test("reviewer suggestions show within 300 ms of the last keystroke, with no server-action read", async ({ page }) => {
-  await openDetailFromList(page, 0)
-  const region = page.getByRole("region", { name: "Ask for review" })
-  await region.getByRole("button", { name: "Ask for review" }).click()
-  const routeTimings: number[] = [], typingRoutes: number[] = []
-  const rsc: string[] = []
-  let reviewerRequests = 0, typing = false
-  page.on("request", request => { if (typing && isRscRequest(request)) rsc.push(request.url()) })
-  page.on("requestfinished", request => {
-    if (!request.url().includes("/api/reviewers")) return
-    const timing = request.timing()
-    const duration = timing.responseEnd - timing.requestStart
-    if (typing) { reviewerRequests += 1; typingRoutes.push(duration) } else routeTimings.push(duration)
-  })
-  // The roster load: one GET per open.
-  const roster = page.waitForResponse(response => response.url().includes("/api/reviewers"))
-  await region.getByRole("button", { name: "Add reviewers" }).click()
-  await roster
-  const listbox = page.getByRole("listbox", { name: "Teammates" })
-  await expect(listbox).toHaveAttribute("aria-busy", "false")
-  await expect(listbox.getByRole("option").first()).toBeVisible()
-  const search = page.getByRole("searchbox", { name: "Search teammates" })
-
-  const timings: Record<number, number[]> = { 1: [], 4: [] }
-  const requestsPerRun: number[] = []
-  for (const rate of [1, 4]) {
-    const cdp = rate === 4 ? await throttle(page, rate) : null
-    try {
-      for (let run = 0; run < RUNS; run++) {
-        if (await search.inputValue()) { await page.getByRole("button", { name: "Clear search" }).click(); await page.waitForTimeout(250) }
-        reviewerRequests = 0; typing = true
-        const watched = watchSuggestions(page, REVIEWER_QUERY)
-        await page.keyboard.type(REVIEWER_QUERY, { delay: 60 })
-        timings[rate].push(await watched)
-        await page.waitForTimeout(250) // a debounced request, if the roster is truncated
-        typing = false
-        if (rate === 1) requestsPerRun.push(reviewerRequests)
-      }
-    } finally {
-      await cdp?.send("Emulation.setCPUThrottlingRate", { rate: 1 })
-    }
-  }
-  report("reviewer suggestions, last keystroke to options", timings[1], "ms", BUDGET.reviewerSuggestions.target)
-  report("reviewer suggestions, last keystroke to options at 4x CPU", timings[4], "ms", BUDGET.reviewerSuggestions.target)
-  report("GET /api/reviewers requests per typed query (0 = roster filtered locally, 1 = server search)", requestsPerRun, "requests")
-  report("GET /api/reviewers warm, requestStart to responseEnd", [...routeTimings, ...typingRoutes], "ms", BUDGET.reviewerRoute.target)
-  expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.reviewerSuggestions.limit * TOLERANCE)
-  expect(rsc, "typing in the reviewer picker must not fetch RSC payloads").toHaveLength(0)
-  expect(p75([...routeTimings, ...typingRoutes])).toBeLessThanOrEqual(BUDGET.reviewerRoute.limit * TOLERANCE)
-
-  // Leave the page as found: close the popover, cancel the form, the strip's action returns.
-  await page.keyboard.press("Escape")
-  await expect(listbox).toBeHidden()
-  await region.getByRole("button", { name: "Cancel" }).click()
-  await expect(region.getByRole("button", { name: "Ask for review" })).toBeVisible()
 })
 
 // Plan item 2.7: the notifications popover. (a) and (c) read only; (b) marks

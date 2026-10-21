@@ -46,7 +46,9 @@ describe("Pilot entry and transition contract", () => {
     expect(INTAKE_LOADING).toContain("className={launcher.launcher}")
     expect(INTAKE_LOADING).not.toContain("RequestsWorkspaceLoading")
 
-    expect(source("src/components/settings/profile-sections.tsx")).toContain('label="Loading Profile settings"')
+    // The consolidated Settings (2026-10-20) waits in its own frame, not the Requests skeleton.
+    expect(PROFILE_LOADING).toContain('label="Loading Profile settings"')
+    expect(PROFILE_LOADING).toContain('from "@/components/settings/settings-loading"')
     expect(PROFILE_LOADING).not.toContain("RequestsWorkspaceLoading")
   })
 })

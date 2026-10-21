@@ -84,6 +84,13 @@ export async function setup() {
 
   run("dropdb", ["--if-exists", DB_NAME]);
   run("createdb", [DB_NAME]);
+  // Supabase creates the anon and authenticated roles in every project, and
+  // 0028_request_agreements.sql revokes from them directly. A bare PostgreSQL
+  // (CI's postgres:17 service) has neither, so create them, only when missing
+  // and never with a login. Roles are cluster-wide; this runs over the same
+  // validated lane_test connection as every other statement. Earlier
+  // migrations guard their grants with IF EXISTS and are unaffected.
+  sql(["-c", "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$"]);
   sql([], baseline);
   // Do not let a hosted-project convenience trigger hide missing RLS in the
   // canonical migrations. Fresh databases must be protected by the SQL itself.
