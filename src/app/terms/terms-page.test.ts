@@ -24,7 +24,9 @@ describe("Plan item L1: the Terms of service page", () => {
   });
 
   it("writes no em or en dashes", () => {
-    expect(text).not.toMatch(/[—–]/);
+    const dashes = /[\u2014\u2013]/;
+    expect(text).not.toMatch(dashes);
+    expect(`${metadata.title} ${metadata.description}`).not.toMatch(dashes);
   });
 
   it("numbers its sections in order", () => {
@@ -37,6 +39,9 @@ describe("Plan item L1: the Terms of service page", () => {
 describe("Plan item L1: the auth shell's legal links", () => {
   it("links to the Privacy policy and the Terms of service", () => {
     const shell = renderToStaticMarkup(createElement(AuthShell, null, "form"));
-    expect(shell).toMatch(/<nav aria-label="Legal"[^>]*>.*href="\/privacy".*href="\/terms".*<\/nav>/);
+    const nav = shell.slice(shell.indexOf("<nav"), shell.indexOf("</nav>"));
+    expect(nav).toContain('aria-label="Legal"');
+    expect(nav.indexOf('href="/privacy"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('href="/terms"')).toBeGreaterThan(nav.indexOf('href="/privacy"'));
   });
 });
