@@ -1,4 +1,4 @@
-import { createElement } from "react"
+import { createElement, type ReactElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
@@ -29,13 +29,15 @@ vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () =>
 // Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
 
 import { RequestsWorkspace } from "./requests-workspace"
+import { RequestDetailWorkspace } from "./request-detail-workspace"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 
 // The root layout always supplies the toast stack that row actions report errors through,
 // and the (app) layout the list view state.
-const render = async (props: Parameters<typeof RequestsWorkspace>[0], search = "") => {
+const wrap = (page: ReactElement) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, page)))
+const render = async (search = "") => {
   state.search = search
-  return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, await RequestsWorkspace(props))))
+  return wrap(await RequestsWorkspace())
 }
 
 const intakeLinksOf = (html: string) => html.match(/<a [^>]*href="\/intake"[^>]*>/g) ?? []
@@ -47,7 +49,7 @@ describe("Requests first-use landing", () => {
   it.each(["admin", "member", "guest"])("gives an empty %s workspace the list's frame with the welcome inside it", async (role) => {
     state.role = role
     state.rows = []
-    const html = await render({})
+    const html = await render()
     expect(html.match(/data-slot="page-strip"/g)).toHaveLength(1)
     expect(html).toMatch(new RegExp(`<h1[^>]*>${role === "guest" ? "My Requests" : "Requests"}</h1>`))
     expect(html).toContain("data-requests-welcome")
@@ -82,7 +84,7 @@ describe("Requests first-use landing", () => {
   it("keeps the welcome for a filtered view of an empty workspace", async () => {
     state.role = "member"
     state.rows = []
-    const html = await render({}, "status=done")
+    const html = await render("status=done")
     expect(html).toContain("data-requests-welcome")
     expect(html).not.toContain("No matching Requests")
     expect(html).not.toContain("Active filters")
@@ -91,7 +93,7 @@ describe("Requests first-use landing", () => {
   it("does not mistake a status with no matches for a new workspace", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
-    const html = await render({}, "status=open")
+    const html = await render("status=open")
     expect(html).toContain('aria-label="Active filters"')
     expect(html).toContain('aria-label="Remove Status: Open"')
     expect(html).toContain("Clear all")
@@ -103,14 +105,15 @@ describe("Requests first-use landing", () => {
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
     state.rows = []
-    const html = await render({ selectedRequestId: "invalid-id" })
+    state.search = ""
+    const html = wrap(await RequestDetailWorkspace({ selectedRequestId: "invalid-id" }))
     expect(html).toContain("Back to Requests")
   })
 
   it("keeps existing work visible in the shared list", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
-    const html = await render({})
+    const html = await render()
     expect(html).toContain('href="/requests/request-1"')
     expect(html).toContain("Existing problem")
     expect(html).toContain('aria-label="Filter Requests by title"')
