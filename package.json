@@ -16,7 +16,8 @@
     "test:storybook": "vitest run --config vitest.storybook.config.ts --no-file-parallelism",
     "test:ui": "vitest run --config vitest.ui.config.ts --no-file-parallelism",
     "typecheck": "tsc --noEmit",
-    "design:check": "node --test scripts/design-system/token-contract.test.mjs && node scripts/design-system/token-contract.mjs && node scripts/design-system/arc-source-check.mjs",
+    "design:check": "node --test scripts/design-system/token-contract.test.mjs && node scripts/design-system/token-contract.mjs && node scripts/design-system/arc-source-check.mjs && node scripts/brand/brand-assets.mjs --check",
+    "brand:assets": "node scripts/brand/brand-assets.mjs",
     "bundle:check": "node scripts/bundle-baseline.mjs"
   },
   "dependencies": {

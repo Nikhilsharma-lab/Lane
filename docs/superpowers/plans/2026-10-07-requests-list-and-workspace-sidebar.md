@@ -198,7 +198,7 @@ If editable Project/type, independent assignment or arbitrary status selection i
 
 - [ ] Update affected Storybook play tests and behavior tests for Project/status URL composition, grouping, keyboard/focus and navigation recovery.
 - [ ] Preserve guest tests, detail access checks and lifecycle concurrency tests; do not trade access correctness for visual parity.
-- [ ] Update stale `e2e/requests-workspace.spec.ts` assumptions about the previous pane/table/combobox structure before calling it release evidence.
+- [ ] Update stale `e2e/requests-workspace.spec.ts` assumptions about the previous pane/table/combobox structure before calling it release evidence. *(Retired 2026-10-21 under launch plan §6.4 instead: its J/Esc checks live in `e2e/perf.spec.ts`.)*
 - [ ] Inspect 390, 768, 1024 and 1440px in light/dark modes, expanded/collapsed navigation, browser zoom and reduced motion.
 - [ ] Run applicable local checks once after the final changes; repeat only checks affected by subsequent fixes.
 - [ ] Update `DESIGN.md`/`DESIGN-NOTES.md` and the source record to state the scoped Linear interaction reference, actual Arc block, and intentional Lane differences.
