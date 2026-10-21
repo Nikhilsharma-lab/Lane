@@ -253,14 +253,14 @@ export const EscReturnsFocusToTheRow: Story = {
     await expect(row).toHaveFocus()
     // With a selection, the first Esc closes the preview and the second clears the selection.
     await userEvent.keyboard("x")
-    await expect(row).toHaveAttribute("aria-selected", "true")
+    await waitFor(() => expect(row).toHaveAttribute("aria-selected", "true"))
     await userEvent.keyboard(" ")
     await previewTitle(canvasElement)
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(preview(canvasElement)).toBeNull())
     await expect(row).toHaveAttribute("aria-selected", "true")
     await userEvent.keyboard("{Escape}")
-    await expect(row).toHaveAttribute("aria-selected", "false")
+    await waitFor(() => expect(row).toHaveAttribute("aria-selected", "false"))
     // Close preview does the same as Esc.
     await userEvent.keyboard(" ")
     await userEvent.click(within(await within(canvasElement).findByRole("region", { name: "Request preview" })).getByRole("button", { name: "Close preview" }))
