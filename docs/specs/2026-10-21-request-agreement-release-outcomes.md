@@ -2,6 +2,8 @@
 
 Status: product decisions and testing approach confirmed by Nikhil on 20–21 October 2026. Approved for specification tracking with `ready-for-agent`; implementation requires a scoped plan.
 
+> **Superseded in part (Nikhil, 2026-10-21, after seeing the built UI):** agreement is the three people agreeing to build the Request as written. Stories and decisions about a separate commitment form, Discovery/Delivery, frozen snapshots, concerns, withdrawal, linked replacements and Superseded no longer apply. Editing the Request clears agreement; the requester deletes an unwanted Request before pickup; after pickup, work closes without a result as Rolled back, Can't be measured or Other. See `REQUIREMENTS.md` §4.4 and migration `0031`.
+
 Tracker: [GitHub issue #57](https://github.com/Nikhilsharma-lab/Lane/issues/57).
 
 ## Problem Statement

@@ -2,11 +2,10 @@ import { expect, test } from "@playwright/test";
 import {
   createAgreementTeam,
   createRequestThroughIntake,
-  prepareAgreementThroughUI,
-  agreeThroughUI,
+  addReviewerThroughUI,
 } from "./helpers/agreement";
 
-test("three real participants agree, withdraw, recover and supersede across responsive themes", async ({
+test("reviewers answer without blocking pickup; the list is read-only after; an unwanted Request is deleted before pickup", async ({
   browser,
   page,
 }, testInfo) => {
@@ -24,109 +23,45 @@ test("three real participants agree, withdraw, recover and supersede across resp
           `${width} ${colorScheme}: checkout recovery`,
         );
         const path = `/requests/${request.id}`;
-        await prepareAgreementThroughUI(team);
-        await page.reload();
-        await expect(
-          page.getByRole("link", { name: "Agreement blocked", exact: true }),
-        ).toBeVisible();
-        await agreeThroughUI(team, path);
-        await expect(
-          page.getByText("All three participants agree", { exact: true }),
-        ).toBeVisible();
-        await page
-          .getByRole("button", { name: "Pick up", exact: true })
-          .click();
+        await addReviewerThroughUI(team, "Agreement Designer");
+        await addReviewerThroughUI(team, "Agreement Developer");
+
+        // A concern needs a reason; the designer says it looks good.
         const developer = team.pages[2];
-        await developer.reload();
-        const agreement = developer.getByRole("region", {
-          name: "Agreement",
-          exact: true,
-        });
-        await agreement
-          .getByRole("textbox", { name: "Reason or resolution" })
-          .fill("Recovery API is unavailable");
-        await agreement
-          .getByRole("button", { name: "Withdraw agreement" })
-          .click();
-        await developer.reload();
-        await expect(agreement).toContainText("Recovery API is unavailable");
-        await expect(
-          developer.getByRole("button", { name: "Mark Done", exact: true }),
-        ).toHaveCount(0);
-        await agreement
-          .getByRole("textbox", { name: "Reason or resolution" })
-          .fill("Recovery API verified with evidence");
-        await agreement
-          .getByRole("button", { name: "Record resolution" })
-          .click();
-        await agreement
-          .getByRole("button", { name: "Agree as Developer" })
-          .click();
-        await page.reload();
-        await page
-          .getByRole("button", { name: "Mark Done", exact: true })
-          .click();
-        await page.reload();
-        const original = page.getByRole("region", {
-          name: "Agreement",
-          exact: true,
-        });
-        await original
-          .getByText("Corrections and material changes", { exact: true })
-          .click();
-        await original
-          .getByRole("textbox", { name: "Reason or resolution" })
-          .fill("New scope requires a different delivery commitment");
-        await original
-          .getByRole("button", { name: "Create linked replacement" })
-          .click();
-        await page.waitForURL(
-          (url) =>
-            url.pathname !== path && url.pathname.startsWith("/requests/"),
-        );
-        const replacementPath = new URL(page.url()).pathname;
-        const replacement = page.getByRole("region", {
-          name: "Agreement",
-          exact: true,
-        });
-        await replacement
-          .getByRole("textbox", { name: "Included scope" })
-          .fill("Checkout recovery and refund confirmation");
-        await replacement
-          .getByRole("button", { name: "Save preparation" })
-          .click();
-        await expect(replacement).toContainText(
-          "Changed fields: Included scope",
-        );
+        await developer.goto(path);
+        const developerPanel = developer.getByRole("region", { name: "Reviewers", exact: true });
+        await developerPanel.getByRole("button", { name: "Raise a concern" }).click();
+        await developerPanel.getByLabel("What concerns you?").fill("Recovery API is unavailable");
+        await developerPanel.getByRole("button", { name: "Raise concern", exact: true }).click();
+        await expect(developerPanel).toContainText("Recovery API is unavailable");
+        const designer = team.pages[1];
+        await designer.goto(path);
+        const designerPanel = designer.getByRole("region", { name: "Reviewers", exact: true });
+        await designerPanel.getByRole("button", { name: "Looks good", exact: true }).click();
+        await expect(designerPanel.getByRole("listitem").filter({ hasText: "Agreement Designer" })).toContainText("Looks good");
+
+        // Reviews never block pickup; afterwards the list is a record.
         await page.goto(path);
-        await original
-          .getByText("Corrections and material changes", { exact: true })
-          .click();
-        await original
-          .getByRole("textbox", { name: "Reason or resolution" })
-          .fill("Use the revised scope");
-        await original
-          .getByRole("button", { name: "Confirm original as Superseded" })
-          .click();
+        await page.getByRole("button", { name: "Pick up", exact: true }).click();
         await page.reload();
-        await expect(original).toContainText(
-          "Superseded · Exception excluded from measured impact",
-        );
-        await expect(
-          original.getByRole("button", { name: /Agree as/ }),
-        ).toHaveCount(0);
-        await page.goto(replacementPath);
-        await expect(
-          replacement.getByRole("button", { name: "Request agreement" }),
-        ).toBeEnabled();
-        await expect(
-          page.getByRole("button", { name: "Pick up", exact: true }),
-        ).toHaveCount(0);
+        const reviewers = page.getByRole("region", { name: "Reviewers", exact: true });
+        await expect(reviewers).toContainText("Recovery API is unavailable");
+        await expect(reviewers.getByRole("button")).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Delete Request" })).toHaveCount(0);
+
+        // An unwanted Request is deleted before pickup, for good.
+        const unwanted = await createRequestThroughIntake(team, `${width} ${colorScheme}: not needed`);
+        await page.goto(`/requests/${unwanted.id}`);
+        await page.getByRole("button", { name: "Delete Request" }).click();
+        await page.getByRole("button", { name: "Delete Request", exact: true }).last().click();
+        await page.waitForURL((url) => url.pathname === "/");
+        await page.goto(`/requests/${unwanted.id}`);
+        await expect(page.getByText(/can’t be opened|unavailable/i).first()).toBeVisible();
+
         expect(
-          await page.evaluate(
-            () => document.documentElement.scrollWidth <= innerWidth,
-          ),
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         ).toBe(true);
+        await page.goto(path);
         await testInfo.attach(`${width}-${colorScheme}`, {
           body: await page.screenshot({ fullPage: true }),
           contentType: "image/png",

@@ -1,14 +1,18 @@
 'use server';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { db, profiles, requests, requestAgreements, requestAgreementEvents, requestReplacements } from '@/db';
+import { db, profiles, requests, requestAgreements, requestAgreementEvents } from '@/db';
 import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
 import { agreementRoster } from '@/lib/request-agreement-members';
-import { agreementContextSchema, commitmentValues, disciplines, type AgreementContext, type AgreementSeats } from '@/lib/request-agreement';
-import { insist, AgreementError, commitmentToken } from '@/lib/request-agreement-store';
+import { agreementContextSchema, type AgreementContext } from '@/lib/request-agreement';
+import { insist, AgreementError, fingerprintOf } from '@/lib/request-agreement-store';
 import { releaseOwner, releaseMeasurement } from '@/lib/request-release';
-import { agreedResult, correctableFields, guardrailHeld, isClosed, isSuperseded, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
+import { agreedResult, correctableFields, guardrailHeld, isClosed, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
+import { expectedImpactSchema } from '@/lib/request-impact';
+/** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
+const requestContent = (r: typeof requests.$inferSelect) => ({ title: r.title, description: r.description, classification: r.classification, reframedProblem: r.reframedProblem, extractedSolution: r.extractedSolution, affectedPeople: r.affectedPeople, desiredChange: r.desiredChange, observedEvidence: r.observedEvidence, uncertainty: r.uncertainty, usefulLink: r.usefulLink, requestType: r.requestType, projectId: r.projectId, labelKeys: r.labelKeys, expectedImpact: r.expectedImpact });
 const utcToday = () => new Date().toISOString().slice(0, 10);
 export async function changeRequestOutcome(context: AgreementContext, input: unknown) {
     try {
@@ -21,12 +25,12 @@ export async function changeRequestOutcome(context: AgreementContext, input: unk
         // Fetch once immediately before locking; Clerk and Postgres cannot share a transaction.
         const people = await agreementRoster(auth.orgId);
         insist(people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId), 'Your workspace membership is no longer active.');
-        const fingerprint = commitmentToken({ requestId: context.requestId, change });
+        const fingerprint = fingerprintOf({ requestId: context.requestId, change });
         const result = await db.transaction(async (tx) => {
             const [request] = await tx.select().from(requests).where(and(eq(requests.id, context.requestId), eq(requests.orgId, auth.orgId))).for('update');
             insist(request, 'Request unavailable.');
             const ownerId = releaseOwner(request);
-            const replayed = [request.outcomeClosure, request.exceptionClosure?.version === 2 ? request.exceptionClosure : null, ...request.closureCorrections]
+            const replayed = [request.outcomeClosure, request.exceptionClosure, ...request.closureCorrections]
                 .find(entry => entry?.operationId === context.operationId);
             if (replayed) {
                 insist(replayed.actorId === auth.userId && replayed.fingerprint === fingerprint, 'This retry key was used for another change.');
@@ -36,7 +40,6 @@ export async function changeRequestOutcome(context: AgreementContext, input: unk
             const revision = request.agreementRevision + 1;
             const closedAt = new Date().toISOString();
             if (change.kind === 'correction') {
-                insist(!isSuperseded(request), 'Superseded Requests keep their corrections in Agreement.');
                 insist(isClosed(request), 'Only a Closed Request takes corrections.');
                 insist(correctableFields(request.outcomeClosure ? 'measured' : 'exception').includes(change.field), 'Choose a part of this closure to correct.');
                 insist(request.agreementRevision === context.expectedRevision, 'Request changed. Reload before trying again.');
@@ -48,9 +51,9 @@ export async function changeRequestOutcome(context: AgreementContext, input: unk
             const release = request.releaseState?.release ?? null;
             if (change.kind === 'measured') {
                 insist(request.status === 'done' && release, 'Record release before closing with a measured result.');
-                insist(utcToday() >= release.dueDate, `Measured closure opens on ${release.dueDate} (UTC). Use Close with exception if measurement cannot happen.`);
-                const [agreement] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, request.id), eq(requestAgreements.orgId, auth.orgId)));
-                const expected = agreement?.snapshot?.request.expectedImpact;
+                insist(utcToday() >= release.dueDate, `Measured closure opens on ${release.dueDate} (UTC). If it can’t be measured, close it without a result.`);
+                // Content cannot change after pickup, so the Request's Expected impact is the agreed one.
+                const expected = expectedImpactSchema.safeParse(request.expectedImpact).data;
                 insist(expected, 'The agreed Expected impact is unavailable.');
                 const agreed = agreedResult(expected);
                 insist(change.primary.kind === agreed.form, agreed.form === 'numeric' ? 'Record the actual value.' : 'Record whether the check passed.');
@@ -67,13 +70,9 @@ export async function changeRequestOutcome(context: AgreementContext, input: unk
                 return { success: true as const, revision };
             }
             if (change.kind === 'exception') {
-                if (change.reasonCode === 'cancelled')
-                    insist(!release, 'Released work cannot close as not launched. Choose rolled back, unavailable or inconclusive.');
-                if (change.reasonCode === 'rolled_back' || change.reasonCode === 'inconclusive')
-                    insist(release, 'Record release before closing as rolled back or inconclusive.');
-                const [pending] = await tx.select().from(requestReplacements).where(and(eq(requestReplacements.originalId, request.id), eq(requestReplacements.orgId, auth.orgId)));
-                insist(!pending || pending.confirmedAt, 'A linked replacement is pending. Confirm the original as Superseded instead.');
-                const closure: OutcomeException = { version: 2, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId, closedAt, operationId: context.operationId, fingerprint, release, revision };
+                insist(request.status !== 'open', 'Nobody has picked this up yet. Delete the Request instead.');
+                insist(change.reasonCode !== 'other' || change.reason, 'Say why this is closing without a result.');
+                const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId, closedAt, operationId: context.operationId, fingerprint, release, revision };
                 await tx.update(requests).set({ exceptionClosure: closure, agreementRevision: revision }).where(and(eq(requests.id, request.id), eq(requests.orgId, auth.orgId)));
                 return { success: true as const, revision };
             }
@@ -96,7 +95,7 @@ export async function createFollowUpRequest(context: AgreementContext, input: un
         const auth = await requireMemberOrAbove(context.orgId);
         insist(auth, 'You cannot create Requests in this workspace.');
         insist((await agreementRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId), 'Your workspace membership is no longer active.');
-        const fingerprint = commitmentToken({ requestId: context.requestId, kind: 'follow_up_created', input: parsed.data });
+        const fingerprint = fingerprintOf({ requestId: context.requestId, kind: 'follow_up_created', input: parsed.data });
         const result = await db.transaction(async (tx) => {
             // Locked only to serialise duplicate submissions; the original row is never written.
             const [original] = await tx.select().from(requests).where(and(eq(requests.id, context.requestId), eq(requests.orgId, auth.orgId))).for('update');
@@ -106,19 +105,15 @@ export async function createFollowUpRequest(context: AgreementContext, input: un
                 insist(previous.kind === 'follow_up_created' && previous.payload.fingerprint === fingerprint, 'This retry key was used for another change.');
                 return previous.payload.result as { success: true; revision: number; followUpId: string };
             }
-            insist(!isSuperseded(original), 'Superseded Requests continue in their replacement.');
             const closure = original.outcomeClosure ?? original.exceptionClosure;
-            insist(original.releaseState?.release || (closure && 'release' in closure && closure.release), 'Follow-ups start after release. Before release, create a linked replacement.');
-            const [follow] = await tx.insert(requests).values({ ...commitmentValues(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
+            insist(original.releaseState?.release || (closure && 'release' in closure && closure.release), 'Follow-ups start after release.');
+            const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
             const [agreement] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
-            const seats: AgreementSeats = { pm: null, designer: null, developer: null };
-            // Participants are suggestions only: every seat starts undecided, so approval never carries forward.
-            for (const d of disciplines) {
-                const old = agreement?.seats[d];
-                if (old) seats[d] = { ...old, generation: 1, decision: null };
-            }
-            const prepared = agreement?.snapshot?.prepared ?? agreement?.prepared ?? { version: 1 as const, scopeIncluded: '', scopeExcluded: '', audience: '', timing: '', constraints: '', feasibility: '', commitmentKind: 'delivery' as const };
-            const [after] = await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: follow.id, prepared, seats }).returning();
+            // Reviewers carry over as suggestions only: every answer starts empty, so approval never carries forward.
+            const reviewers = (agreement?.reviewers ?? [])
+                .filter(r => !(r.nominee.kind === 'member' && r.nominee.userId === auth.userId))
+                .map(r => ({ ...r, id: randomUUID(), addedBy: auth.userId, note: '', decision: null }));
+            const [after] = await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: follow.id, reviewers }).returning();
             const saved = { success: true as const, revision: 1, followUpId: follow.id };
             await tx.insert(requestAgreementEvents).values({ orgId: auth.orgId, requestId: follow.id, revision: 1, operationId: context.operationId, actorId: auth.userId, kind: 'follow_up_created', payload: { version: 1, fingerprint, input: { ...parsed.data, originalId: original.id }, before: null, after, result: saved } });
             return saved;
@@ -141,8 +136,7 @@ export async function readRequestOutcome(requestId: string, context: {
         insist(auth, 'Request unavailable.');
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined));
         insist(request, 'Request unavailable.');
-        const [agreement] = await db.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, requestId), eq(requestAgreements.orgId, auth.orgId)));
-        const expected = agreement?.snapshot?.request.expectedImpact ?? null;
+        const expected = request.status === 'open' ? null : expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
         const release = request.releaseState?.release ?? null;
         const ownerId = releaseOwner(request);
         const closure = request.outcomeClosure
@@ -159,7 +153,6 @@ export async function readRequestOutcome(requestId: string, context: {
             }
             catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
         const owner = active && ownerId === auth.userId;
-        const [pending] = await db.select().from(requestReplacements).where(and(eq(requestReplacements.originalId, requestId), eq(requestReplacements.orgId, auth.orgId)));
         const releasedOnce = release ?? (closure && 'release' in closure ? closure.release : null);
         const guestScope = auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined;
         const followRows = await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber, createdBy: requests.createdBy, createdAt: requests.createdAt }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.followUpOf, requestId), guestScope)).orderBy(asc(requests.createdAt), asc(requests.id));
@@ -171,9 +164,9 @@ export async function readRequestOutcome(requestId: string, context: {
             agreed: expected ? agreedResult(expected) : null,
             release, measurement, closure: closure ?? null, corrections: request.closureCorrections,
             canClose: owner && !closure && request.status === 'done' && !!expected && !!measurement?.due,
-            canCloseException: owner && !closure && (!pending || !!pending.confirmedAt),
-            canCorrect: owner && !!closure && !isSuperseded(request),
-            canFollowUp: active && !!releasedOnce && !isSuperseded(request),
+            canCloseException: owner && !closure && request.status !== 'open',
+            canCorrect: owner && !!closure,
+            canFollowUp: active && !!releasedOnce,
             followUpOf: parent ?? null,
             followUps: followRows.map(f => ({ ...f, createdAt: f.createdAt.toISOString(), reason: String((reasons.find(r => r.requestId === f.id)?.payload.input as { reason?: string } | undefined)?.reason ?? '') })),
         };

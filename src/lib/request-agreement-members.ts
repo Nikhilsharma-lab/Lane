@@ -1,6 +1,7 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
-import type { Nominee } from "./request-agreement";
+import { nomineeKey, type Nominee } from "./request-agreement";
+export { nomineeKey };
 export type AgreementPerson = { nominee: Nominee; name: string; email: string; role?: string };
 /** Fresh provider data, never a Lane membership registry. */
 export async function agreementRoster(
@@ -69,11 +70,6 @@ export async function agreementInvitations(
       throw new Error("Could not verify pending invitations. Try again.");
   }
   return people;
-}
-export function nomineeKey(n: Nominee) {
-  return n.kind === "member"
-    ? `member:${n.userId}`
-    : `invitation:${n.invitationId}`;
 }
 export async function resolveInvitedMember(
   orgId: string,

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAgreementTeam, createRequestThroughIntake, prepareAgreementThroughUI, agreeThroughUI } from './helpers/agreement';
+import { createAgreementTeam, createRequestThroughIntake } from './helpers/agreement';
 import { assertOwnedOrganization } from './helpers/fixtures';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028/0029.
@@ -14,7 +14,6 @@ test('release, correction, countdown and explicit owner transfer survive reloads
       await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
       const request = await createRequestThroughIntake(team, `${width} ${colorScheme}: release acceptance`);
       lastPath = `/requests/${request.id}`;
-      await prepareAgreementThroughUI(team); await agreeThroughUI(team, lastPath);
       await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
       await page.getByRole('button', { name: 'Mark Done', exact: true }).click(); await page.reload();
       const release = page.getByRole('region', { name: 'Release and measurement', exact: true });

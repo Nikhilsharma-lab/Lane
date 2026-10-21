@@ -116,8 +116,11 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
             setBusy(false);
         }
     }
+    // Release is only a question once the work is Done.
+    if (!error && (!view || !view.done))
+        return null;
     return <section className={styles.panel} aria-labelledby="release-heading" aria-busy={busy}>
-   <div className={styles.controls}><h2 id="release-heading" tabIndex={-1} ref={heading}>Release and measurement</h2><Button variant="ghost" size="sm" disabled={busy} onClick={() => void reload()}>Refresh release</Button></div>
+   <div className={styles.header}><h2 id="release-heading" tabIndex={-1} ref={heading}>Release and measurement</h2></div>
    {error && <p role="alert">{error}</p>}
    {!view ? <p role="status">{error ? 'Release details unavailable.' : 'Loading release…'}</p> : <>
      <p className={styles.muted}>Release and outcome owner: {view.ownerName}</p>

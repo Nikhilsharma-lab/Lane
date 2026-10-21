@@ -1,4 +1,4 @@
-import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/agreement-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,7 +33,6 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (!connection) return;
-  await removeAgreementFixtures(ORG);
   await connection`delete from organizations where id in (${ORG},${FOREIGN_ORG})`;
   await connection`delete from profiles where id in (${MEMBER},${REQUESTER},${GUEST},${FOREIGN})`;
   await connection.end();
@@ -42,7 +41,6 @@ afterAll(async () => {
 describe("undoMarkDone", () => {
   it("returns a Done Request to In Progress, keeps its owner and withdraws the Done notification", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
-    await seedAgreedRequests(ORG);
     expect(await pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
     expect(await markDone(requestId, { orgId: ORG })).toEqual({ success: true });
     expect(await doneNotifications()).toBe(1);
@@ -53,7 +51,6 @@ describe("undoMarkDone", () => {
 
   it("refuses once the Done move is older than the undo window", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
-    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
     // The 0002 trigger stamps updated_at on every update, so age the row with it paused.
@@ -73,7 +70,6 @@ describe("undoMarkDone", () => {
 
   it("denies guests, members of other workspaces and a forged workspace context", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
-    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
     // Plan item 1.4: a failed membership check (guest, or a workspace context

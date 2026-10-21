@@ -33,30 +33,53 @@ it("preserves legacy columns, measurement versions, dates and comments across mi
     await connection`select c.body from comments c join requests r on r.id=c.request_id where r.org_id='org_agreement_legacy' and c.body='Original comment'`,
   ).toHaveLength(6);
 });
-it("enforces tenant foreign keys and submission nullability", async () => {
+it("enforces tenant foreign keys, and 0031 replaces the seats and agreement form with reviewers", async () => {
   const [request] =
     await connection`select id from requests where org_id='org_agreement_legacy' limit 1`;
-  const prepared = {
-    version: 1,
-    scopeIncluded: "Scope",
-    scopeExcluded: "Other",
-    audience: "Users",
-    timing: "Now",
-    constraints: "Existing API",
-    feasibility: "Verified",
-    commitmentKind: "delivery",
-  };
   await expect(
-    connection`insert into request_agreements(request_id,org_id,prepared,seats) values (${request.id},'org_test_b',${connection.json(prepared)},'{"pm":null,"designer":null,"developer":null}')`,
+    connection`insert into request_agreements(request_id,org_id) values (${request.id},'org_test_b')`,
   ).rejects.toThrow(/foreign key/);
-  await expect(
-    connection`insert into request_agreements(request_id,org_id,prepared,seats,submitted_by,submitted_at) values (${request.id},'org_agreement_legacy',${connection.json(prepared)},'{"pm":null,"designer":null,"developer":null}','user_test_admin_a',now())`,
-  ).rejects.toThrow(/check constraint/);
-  const [other] =
-    await connection`select id from requests where org_id='org_test_a' limit 1`;
-  await expect(
-    connection`insert into request_replacements(original_id,replacement_id,org_id,created_by,reason,changed_fields) values (${request.id},${other.id},'org_agreement_legacy','user_test_admin_a','Cross-tenant attempt','[]')`,
-  ).rejects.toThrow(/foreign key/);
+  const columns =
+    await connection`select column_name from information_schema.columns where table_name='request_agreements' order by column_name`;
+  expect(columns.map((c) => c.column_name)).toEqual(["org_id", "request_id", "reviewers"]);
+  const [replacements] =
+    await connection`select to_regclass('public.request_replacements') as name`;
+  expect(replacements.name).toBeNull();
+});
+it("turns filled seats into reviewers in seat order, keeping answers and dropping the requester and empty seats", async () => {
+  const rows =
+    await connection`select r.title, a.reviewers from request_agreements a join requests r on r.id=a.request_id where a.org_id='org_agreement_seats' order by r.title`;
+  const [answered, partly, repeated] = rows.map((row) => row.reviewers);
+  // Old seats never had to be different people; one person becomes one reviewer, keeping their answer.
+  expect(repeated).toEqual([
+    expect.objectContaining({ nominee: { kind: "member", userId: "seat_both" }, decision: expect.objectContaining({ kind: "looks_good" }) }),
+  ]);
+  expect(answered).toEqual([
+    {
+      id: expect.any(String),
+      nominee: { kind: "member", userId: "seat_designer" },
+      displayNameAtSelection: "Designer",
+      addedBy: "seat_requester",
+      note: "",
+      decision: { kind: "looks_good", actorId: "seat_designer", at: "2026-10-20T01:00:00Z", reason: "" },
+    },
+    {
+      id: expect.any(String),
+      nominee: { kind: "member", userId: "seat_developer" },
+      displayNameAtSelection: "Developer",
+      addedBy: "seat_requester",
+      note: "",
+      decision: { kind: "concern", actorId: "seat_developer", at: "2026-10-20T02:00:00Z", reason: "The API cannot do this yet" },
+    },
+  ]);
+  expect(partly).toEqual([
+    expect.objectContaining({ nominee: { kind: "member", userId: "seat_pm" }, decision: null }),
+    expect.objectContaining({
+      nominee: { kind: "invitation", invitationId: "inv_seat", email: "invited@seat.test" },
+      displayNameAtSelection: "invited@seat.test",
+      decision: null,
+    }),
+  ]);
 });
 it("keeps existing Requests without invented agreement or exception closure", async () => {
   const rows =
@@ -71,41 +94,43 @@ it("keeps existing Requests without invented agreement or exception closure", as
     await connection`select * from request_agreements where org_id='org_test_a'`,
   ).toHaveLength(0);
 });
-it("rejects unknown seat/nominee/decision keys and invalid decision attribution", async () => {
-  const seat = {
-    generation: 1,
-    nominee: { kind: "member", userId: "person" },
-    decision: null,
-    displayNameAtSelection: "Person",
-  };
+const reviewer = (userId: string, decision: Record<string, string> | null = null) => ({
+  id: crypto.randomUUID(),
+  nominee: { kind: "member", userId },
+  displayNameAtSelection: userId,
+  addedBy: "requester",
+  note: "",
+  decision,
+});
+const reviewersValid = async (value: unknown) =>
+  (await connection`select valid_request_reviewers(${connection.json(value as never)}) as valid`)[0].valid;
+it("accepts an empty list, twenty reviewers, Looks good and a concern with a reason", async () => {
+  expect(await reviewersValid([])).toBe(true);
+  expect(await reviewersValid(Array.from({ length: 20 }, (_, i) => reviewer(`person_${i}`)))).toBe(true);
+  expect(await reviewersValid([
+    reviewer("a", { kind: "looks_good", actorId: "a", at: "2026-10-21", reason: "" }),
+    reviewer("b", { kind: "concern", actorId: "b", at: "2026-10-21", reason: "Too big" }),
+  ])).toBe(true);
+});
+it("rejects more than twenty, a repeated person, a concern without a reason, an answer by someone else and an answered invitation", async () => {
+  const invitation = { ...reviewer("x"), nominee: { kind: "invitation", invitationId: "inv_1", email: "x@example.test" } };
   for (const invalid of [
-    { ...seat, unknown: true },
-    { ...seat, nominee: { ...seat.nominee, invitationId: "forged" } },
-    {
-      ...seat,
-      decision: {
-        kind: "agree",
-        actorId: "person",
-        reason: "",
-        at: "2026-10-21",
-        unknown: true,
-      },
-    },
-    {
-      ...seat,
-      decision: {
-        kind: "agree",
-        actorId: "other",
-        reason: "",
-        at: "2026-10-21",
-      },
-    },
-    { ...seat, generation: 1.5 },
-  ]) {
-    const [row] =
-      await connection`select valid_agreement_seats(${connection.json({ pm: invalid, designer: null, developer: null })}) as valid`;
-    expect(row.valid).toBe(false);
-  }
+    Array.from({ length: 21 }, (_, i) => reviewer(`person_${i}`)),
+    [reviewer("a"), reviewer("a")],
+    [invitation, { ...invitation, id: crypto.randomUUID() }],
+    [reviewer("a", { kind: "concern", actorId: "a", at: "2026-10-21", reason: " " })],
+    [reviewer("a", { kind: "looks_good", actorId: "b", at: "2026-10-21", reason: "" })],
+    [{ ...invitation, decision: { kind: "looks_good", actorId: "x", at: "2026-10-21", reason: "" } }],
+    [reviewer("a", { kind: "agree", actorId: "a", at: "2026-10-21", reason: "" })],
+    [{ ...reviewer("a"), unknown: true }],
+    [{ ...reviewer("a"), note: "x".repeat(501) }],
+  ])
+    expect(await reviewersValid(invalid)).toBe(false);
+  const [request] =
+    await connection`select id from requests where org_id='org_agreement_legacy' limit 1`;
+  await expect(
+    connection`insert into request_agreements(request_id,org_id,reviewers) values (${request.id},'org_agreement_legacy',${connection.json([reviewer("a"), reviewer("a")] as never)})`,
+  ).rejects.toThrow(/request_reviewers_valid/);
 });
 it("rejects malformed exception closure at the database boundary", async () => {
   const [request] =

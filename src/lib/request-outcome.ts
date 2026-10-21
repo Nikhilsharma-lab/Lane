@@ -5,19 +5,19 @@ import { measurementMetricLabel, measurementUnitLabel } from './request-measurem
 import type { ReleaseFact } from './request-release';
 const text = z.string().trim().min(1).max(4000);
 const date = z.iso.date();
-export const EXCEPTION_REASONS = ['cancelled', 'rolled_back', 'measurement_unavailable', 'inconclusive'] as const;
+/** Why picked-up work ends without a measured result. Before pickup, the requester deletes instead. */
+export const EXCEPTION_REASONS = ['rolled_back', 'cannot_measure', 'other'] as const;
 export type ExceptionReason = typeof EXCEPTION_REASONS[number];
 export const EXCEPTION_REASON_OPTIONS: { value: ExceptionReason; label: string }[] = [
-    { value: 'cancelled', label: 'Not launched or cancelled' },
     { value: 'rolled_back', label: 'Rolled back' },
-    { value: 'measurement_unavailable', label: 'Measurement unavailable' },
-    { value: 'inconclusive', label: 'Inconclusive result' },
+    { value: 'cannot_measure', label: 'Can’t be measured' },
+    { value: 'other', label: 'Other' },
 ];
 export const CORRECTION_FIELDS = ['actual', 'guardrails', 'evidence', 'observation', 'reason'] as const;
 export const CORRECTION_FIELD_OPTIONS: { value: typeof CORRECTION_FIELDS[number]; label: string }[] = [
     { value: 'actual', label: 'Actual result' }, { value: 'guardrails', label: 'Guardrails' },
     { value: 'evidence', label: 'Evidence' }, { value: 'observation', label: 'Observation period' },
-    { value: 'reason', label: 'Exception reason' },
+    { value: 'reason', label: 'Reason' },
 ];
 export const outcomeChangeSchema = z.discriminatedUnion('kind', [
     z.object({
@@ -30,7 +30,7 @@ export const outcomeChangeSchema = z.discriminatedUnion('kind', [
         guardrails: z.array(z.number().finite()).max(20),
         evidence: text, observedFrom: date, observedTo: date,
     }).strict(),
-    z.object({ kind: z.literal('exception'), reasonCode: z.enum(EXCEPTION_REASONS), reason: text }).strict(),
+    z.object({ kind: z.literal('exception'), reasonCode: z.enum(EXCEPTION_REASONS), reason: z.string().trim().max(4000) }).strict(),
     z.object({ kind: z.literal('correction'), field: z.enum(CORRECTION_FIELDS), correction: text, reason: text }).strict(),
 ]);
 /** Each closure kind only has its own parts to correct. */
@@ -57,7 +57,7 @@ export type OutcomeClosure = {
     revision: number;
 };
 export type OutcomeException = {
-    version: 2;
+    version: 1;
     kind: 'exception';
     reasonCode: ExceptionReason;
     reason: string;
@@ -107,15 +107,10 @@ export function guardrailHeld(guardrail: AgreedGuardrail & { actual: number }) {
     return { less_than: actual < limit, greater_than: actual > limit, equal_to: actual === limit, at_most: actual <= limit, at_least: actual >= limit }[guardrail.operator];
 }
 /** Detail lifecycle label for a terminal Request; the work status column never changes. */
-export function closureLabel(request: { exceptionClosure?: { reasonCode: string } | null; outcomeClosure?: unknown }) {
+export function closureLabel(request: { exceptionClosure?: unknown; outcomeClosure?: unknown }) {
     if (request.outcomeClosure)
         return 'Closed';
-    if (!request.exceptionClosure)
-        return null;
-    return request.exceptionClosure.reasonCode === 'superseded' ? 'Superseded' : 'Closed with exception';
-}
-export function isSuperseded(request: { exceptionClosure?: { reasonCode: string } | null }) {
-    return request.exceptionClosure?.reasonCode === 'superseded';
+    return request.exceptionClosure ? 'Closed without a result' : null;
 }
 export function isClosed(request: { exceptionClosure?: unknown; outcomeClosure?: unknown }) {
     return Boolean(request.exceptionClosure || request.outcomeClosure);

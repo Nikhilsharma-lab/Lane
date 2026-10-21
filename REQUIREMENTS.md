@@ -21,6 +21,14 @@
 > are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
 > **2026-10-21 #59 approval:** Release/measurement implementation is authorized locally, with UTC date boundaries, owner-only attributed correction/void recovery, and admin transfer when the current owner loses eligible access. Relative deadlines use actual exposure; fixed dates stay fixed. See `docs/superpowers/plans/2026-10-21-release-measurement.md`. Hosted migration/acceptance and #60 closure remain separate.
 > **2026-10-21 #60 approval:** Measured and exception closure, append-only closure corrections and linked follow-ups are authorized locally with no new table. The current release/outcome owner closes (measured only from the UTC due date; exceptions any time with a reason) and corrects; admin transfer stays available after closure when the owner loses access. Every agreed guardrail needs an actual value. Any active non-guest member may create a follow-up after release. See `docs/superpowers/plans/2026-10-21-outcome-closure.md`. Hosted migration `0030` and acceptance remain separate gates; quarter/year totals remain target only.
+> **2026-10-21 reviewers (Nikhil, supersedes the #58 trio gate and #60 exception rules above):** No
+> required PM/Designer/Developer agreement. The requester may add any number of optional reviewers (none
+> is fine); anyone may ask for a review before pickup. Reviewers answer Looks good or Raise a concern
+> (with a reason). Reviews never block pickup; open concerns and unanswered reviews are confirmed at
+> pickup. Editing the Request resets answers. Before pickup the requester (or an admin) deletes an unwanted
+> Request for good. After pickup, work that is rolled back or can't be measured closes without a result
+> (Rolled back, Can't be measured, Other with a reason); it stays on record and outside measured impact.
+> Migration `0031`.
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
@@ -288,52 +296,29 @@ Saving does not authorize execution under the confirmed target. A Request may re
 for alignment or, once aligned, while waiting for capacity. Naming participants before agreement is allowed;
 commitment to roadmap work, formal discovery and delivery execution are blocked until alignment.
 
-### 4.4 Name the trio and align — Approved for #58 local implementation
+### 4.4 Optional reviewers — Approved for local implementation (2026-10-21)
 
-Every team Request names three distinct people in its PM, Designer and Developer seats. A lead can
-represent a discipline. The creator may occupy one seat but is not automatically a participant. The three
-agree upstream on intended work and known feasibility, not an unseen final design. Pending Clerk
-invitations may be nominated and submitted; only verified, active members may decide.
-Workspace membership remains the access boundary; Request participation is not inferred from profile labels.
-The exact guest-created Request sponsorship path must be resolved before that path enters implementation.
+Supersedes the named PM/Designer/Developer agreement gate. Workspace membership remains the access boundary.
 
-Use one compact shared agreement, reusing Intake and existing evidence rather than requiring separate briefs:
-
-| Subject | What the team agrees |
-|---|---|
-| Problem and audience | Who is affected, what is happening and why it matters. |
-| Scope | What the Request covers and explicitly excludes. |
-| Success and guardrails | Expected result, evidence and relevant things that must not deteriorate (§4.5). |
-| Timing | Discovery timebox or delivery commitment, why it matters and any dependencies. |
-| Complexity | Added user decisions/settings, technical maintenance, support burden and opportunities to simplify. |
-| Unknowns | Uncertainty that matters and how it will be resolved. |
-
-These are content requirements, not six mandatory essays or a fixed field layout. Links and existing artifacts
-may supply context. Complexity has no mandatory numerical score.
-
-Two valid commitments:
-
-- **Discovery:** align on the problem, boundaries, questions, timebox and evidence that would justify building.
-  No speculative delivery date may be presented as an agreed discovery commitment.
-- **Delivery:** align on a sufficiently understood direction, scope, success criteria and timing. Existing
-  evidence may make a separate discovery period unnecessary. Build readiness still applies (§4.8).
-
-Submission freezes the commitment and never grants approval. Each of the three named participants must
-explicitly agree, including the creator when named. Profile labels grant no seat or action authority.
-
-**Disagreement is a hard guard:**
-
-- A dissenter records a short, specific reason explaining what must change before they can align.
-- Discussion, clarification and amendments remain possible; progression to the next commitment does not.
-- Silence, elapsed time, assignment, creator status and administrator status cannot supply agreement.
-- No administrator override, automatic timeout approval or creator bypass is permitted. Enforce on the server.
-- Resolve concerns with attribution. Material commitment changes require a linked fresh Request with fresh
-  agreement; preserve the original concern and resolution. An approval alone never clears a concern.
-- Departure or unavailability may require attributable participant replacement. The replacement must align;
-  replacement never erases an unresolved concern or acts as a way to evade it. Recovery details remain scoped
-  implementation decisions.
-- The creator may withdraw/stop a Request with a recorded reason. Agreement to proceed is not required to
-  stop pursuing it; creator-owned truthful exception closure remains available.
+- While creating a Request, the requester may add reviewers: "Add people who should look at this before
+  work starts. Optional." Any number up to 20, including none.
+- Before pickup, the requester and any member may add reviewers, with an optional short question (for
+  example a designer asking a developer whether it can be built). Only the requester or an admin removes one.
+- Reviewers are active members or admins, or (admin only) a pending email invitation. Guests, the person
+  adding, and the requester cannot be reviewers. Each row shows the person's profile role as information only.
+- A reviewer answers **Looks good** or **Raise a concern** with a reason. A concern clears only when that
+  reviewer changes their answer or the Request is edited.
+- Editing what the Request says (content, Expected impact, type, Project, labels) resets every answer and
+  tells reviewers who had answered; priority does not.
+- Reviews never block pickup. Picking up with open concerns or unanswered reviews asks for confirmation
+  (one combined confirmation for bulk pickup). After pickup the reviewer list is read-only; unanswered
+  reviews read "No answer before pickup". A reviewer who leaves the workspace stays listed, greyed out,
+  and their answer no longer counts.
+- Notifications are in-app only: added → reviewer; answered → whoever added them; reset → reviewers who had answered.
+- Request rows show a marker for open concerns. No separate "waiting on me" page.
+- Before pickup, the requester or an admin deletes an unwanted Request for good, with its comments, files and
+  reviews. After pickup a Request cannot be deleted: it ends with a measured result or closes without a
+  result (Rolled back, Can't be measured, Other with a reason).
 
 ### 4.5 Define success and preserve expectations — Approved target
 

@@ -1,6 +1,6 @@
 .panel {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
   border-top: var(--border-width) solid var(--border);
   padding-block: var(--space-5);
@@ -11,20 +11,27 @@
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
 }
-.panel h3 {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
 .panel p {
-  margin-block: var(--space-2);
+  margin: 0;
   white-space: pre-wrap;
+}
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.end {
+  margin-inline-start: auto;
 }
 .muted {
   color: var(--text-secondary);
 }
+.warning {
+  color: var(--danger);
+}
 .stack,
-.fields,
-.facts {
+.fields {
   display: grid;
   gap: var(--space-4);
   min-width: 0;
@@ -43,21 +50,44 @@
 }
 .seats {
   display: grid;
-  gap: var(--space-4);
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.seats > li {
+.seat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
   border-bottom: var(--border-width) solid var(--border);
-  padding-block: var(--space-3);
+  padding-block: var(--space-2);
+}
+.role {
+  color: var(--text-secondary);
+}
+/* A reviewer who left the workspace stays listed; their answer no longer counts. */
+.inactive,
+.inactive .warning {
+  color: var(--text-secondary);
+}
+.reason {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+@media (max-width: 640px) {
+  .seat {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+.facts {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
 }
 .facts dd {
   margin: 0;
   color: var(--text-secondary);
   white-space: pre-wrap;
-}
-.panel summary {
-  cursor: pointer;
-  padding-block: var(--space-2);
 }

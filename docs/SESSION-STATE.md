@@ -1,5 +1,44 @@
 # Shared Claude / Codex handoff
 
+## October 21 — #75 reviewers replace the PM/Designer/Developer agreement (branch `lifecycle-simplify`)
+
+Implemented [#75](https://github.com/Nikhilsharma-lab/Lane/issues/75) (parent #74). `0031` (still unapplied
+anywhere) stores an ordered reviewer list; filled seats convert (agree → Looks good, request changes → concern,
+withdraw → unanswered), the requester's own seat and empty seats are dropped. Reviewer actions in
+`agreement-actions.ts`: `addReviewers` (any non-guest member; not guests, self or the requester; invitations
+admin-only; hidden cap 20), `removeReviewer` (requester or admin), `answerReview` (named reviewer only; concern needs
+a reason; an invitee once accepted and verified), `readReviews` (profile role, departed reviewers greyed out),
+`loadReviewerPeople`. Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement
+(earliest exposure = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator. The
+Reviewers panel replaces the three-seat picker, "N of 3 agreed" and "Waiting for agreement". The agreement stories
+were deleted (no Storybook stories). Seat-to-reviewer conversion is checked from `src/test/agreement-seat-fixtures.sql`.
+
+Verified locally: typecheck; full unit suite; lint on changed files (repo-wide lint only fails inside the ignored
+`.claude/worktrees`); CI-env build; bundle check (`/requests/[id]` −5.7 KB); design check. E2E specs updated,
+not run (hosted only). Left for #76–#78: notifications, review question UI, pickup confirmation, list marker,
+reviewers at creation, full e2e.
+
+## October 21 — agreement simplified (branch `lifecycle-simplify`, migration 0031)
+
+Nikhil rejected the built agreement panel ("they are agreeing to build the request"). Decisions: no agreement
+form fields, no Discovery/Delivery dropdown; agree or request changes with a reason; an edit clears every
+decision (DB trigger `reset_agreement_on_edit`); no concerns, withdrawal, linked replacement or Superseded;
+requester or admin deletes before pickup (hard delete, files removed from storage); after pickup, close without
+a result: Rolled back / Can't be measured / Other. Release audience is now the Request's "Users" field.
+0028–0030 are unchanged because staging already ran them; `0031_simple_request_agreement.sql` converts
+(open Superseded rows return to Open; old exception codes map to the new three). Verified on a scratch copy of
+lane_test with old-shape rows. Unit tests, lifecycle stories, design check, CI-env build and bundle gate pass
+(`/requests/[id]` −5.2 KB). E2E specs updated but not run. Not applied to staging or production.
+
+## October 21 — staging 0028 → 0030 applied (user-approved)
+
+Local Create Request failed with "Request not created" because `.env.local` points at Lane Staging
+(`jznepeqghjixcrpuddym`), which lacked 0028–0030; Drizzle's insert names every schema column. With the user's
+explicit approval: verified backup in ignored `backups/lifecycle-0028-0030-2026-10-21/` (13 Requests, sha256 in
+`manifest.json`), rolled-back dry run passed, then 0028, 0029 and 0030 applied in one transaction. All 13
+pre-existing Request rows are unchanged; LAN-31 "Test" was created by the user afterwards. Production is
+untouched. Still not done: the release and outcome e2e on staging, and any production migration.
+
 ## October 21 — #60 actual impact and permanent closure implemented locally
 
 Implemented [#60](https://github.com/Nikhilsharma-lab/Lane/issues/60) per the approved

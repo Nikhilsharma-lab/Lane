@@ -24,7 +24,6 @@ export type RequestStatus = "open" | "in_progress" | "done"
 export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
-  agreementSubmitted?: boolean
   exceptionClosure?: import("@/lib/request-agreement").ExceptionClosure | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
   designReviews?: DesignReview[]

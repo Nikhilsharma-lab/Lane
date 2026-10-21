@@ -5,7 +5,7 @@ const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false 
 beforeAll(async () => { await connection `insert into organizations(id,name,slug) values ('org_outcome_schema','Outcome schema','outcome-schema')`; });
 afterAll(() => connection.end());
 const fingerprint = 'a'.repeat(64);
-const exception = (reasonCode = 'cancelled') => ({ version: 2, kind: 'exception', reasonCode, reason: 'Never launched', actorId: 'user_test_admin_a', ownerId: 'user_test_admin_a', closedAt: '2026-10-21T00:00:00.000Z', operationId: randomUUID(), fingerprint, release: null, revision: 1 });
+const exception = (reasonCode = 'other') => ({ version: 1, kind: 'exception', reasonCode, reason: 'Never launched', actorId: 'user_test_admin_a', ownerId: 'user_test_admin_a', closedAt: '2026-10-21T00:00:00.000Z', operationId: randomUUID(), fingerprint, release: null, revision: 1 });
 const correction = (revision: number) => ({ operationId: randomUUID(), fingerprint, actorId: 'user_test_admin_a', at: '2026-10-22T00:00:00.000Z', field: 'reason', correction: 'It was paused, not cancelled', reason: 'Wrong wording', revision });
 async function legacyRow(status = 'open') {
     const [row] = await connection `insert into requests(org_id,title,description,created_by,status) values ('org_outcome_schema','Outcome schema','Fixture','user_test_admin_a',${status}) returning id`;
@@ -19,15 +19,16 @@ it('migration preserves legacy Requests without inventing closures, corrections 
     expect(rows[1].expected_impact).toMatchObject({ kind: 'metric', baseline: 50, target: 80 });
     expect(rows.every(r => r.updated_at.toISOString() === '2026-09-02T00:00:00.000Z')).toBe(true);
 });
-it('accepts the four new exception codes, keeps v1 superseded valid, and rejects invented or dual closures', async () => {
-    for (const code of ['cancelled', 'rolled_back', 'measurement_unavailable', 'inconclusive']) {
-        const id = await legacyRow();
+it('accepts the three reasons after pickup only, and rejects invented, superseded or dual closures', async () => {
+    for (const code of ['rolled_back', 'cannot_measure', 'other']) {
+        const id = await legacyRow('in_progress');
         await connection `update requests set exception_closure=${connection.json(exception(code))} where id=${id}`;
     }
-    const v1 = await legacyRow();
-    await connection `update requests set exception_closure=${connection.json({ version: 1, kind: 'exception', reasonCode: 'superseded', reason: 'Replaced', actorId: 'user_test_admin_a', closedAt: '2026-10-21T00:00:00.000Z', replacementId: randomUUID() })} where id=${v1}`;
-    const id = await legacyRow();
-    for (const invalid of [{ ...exception(), reasonCode: 'superseded' }, { ...exception(), reason: ' ' }, { ...exception(), reasonCode: 'succeeded' }])
+    const blank = await legacyRow('done');
+    await connection `update requests set exception_closure=${connection.json({ ...exception('cannot_measure'), reason: '' })} where id=${blank}`;
+    await expect(connection `update requests set exception_closure=${connection.json(exception())} where id=${await legacyRow()}`).rejects.toThrow(/after_pickup/);
+    const id = await legacyRow('in_progress');
+    for (const invalid of [{ ...exception(), reasonCode: 'superseded' }, { ...exception(), reason: ' ' }, { ...exception(), reasonCode: 'cancelled' }, { ...exception(), version: 2 }])
         await expect(connection `update requests set exception_closure=${connection.json(invalid)} where id=${id}`).rejects.toThrow();
     for (const invalid of [{}, { version: 1, kind: 'measured' }])
         await expect(connection `update requests set outcome_closure=${connection.json(invalid)} where id=${id}`).rejects.toThrow();
@@ -35,7 +36,7 @@ it('accepts the four new exception codes, keeps v1 superseded valid, and rejects
 });
 it('a closed Request only accepts one appended correction at a time and never reopens', async () => {
     const id = await legacyRow('in_progress');
-    await connection `update requests set exception_closure=${connection.json(exception('measurement_unavailable'))}, agreement_revision=1 where id=${id}`;
+    await connection `update requests set exception_closure=${connection.json(exception('cannot_measure'))}, agreement_revision=1 where id=${id}`;
     await connection `update requests set closure_corrections=${connection.json([correction(2)])}, agreement_revision=2 where id=${id}`;
     const [row] = await connection `select closure_corrections from requests where id=${id}`;
     await expect(connection `update requests set closure_corrections='[]' where id=${id}`).rejects.toThrow(/immutable/);
@@ -59,13 +60,8 @@ it('a closed Request accepts only one appended transfer and never rewrites relea
     const state = (history: postgres.JSONValue[]) => ({ version: 1, ownerId: 'user_test_admin_a', release: null, history });
     const first = event('transfer', 1);
     await connection `update requests set release_state=${connection.json(state([first]))}, agreement_revision=1 where id=${id}`;
-    await connection `update requests set exception_closure=${connection.json(exception('measurement_unavailable'))}, agreement_revision=2 where id=${id}`;
+    await connection `update requests set exception_closure=${connection.json(exception('cannot_measure'))}, agreement_revision=2 where id=${id}`;
     await expect(connection `update requests set release_state=${connection.json(state([event('transfer', 3)]))}, agreement_revision=3 where id=${id}`).rejects.toThrow(/immutable/);
     await expect(connection `update requests set release_state=${connection.json(state([first, event('void', 3)]))}, agreement_revision=3 where id=${id}`).rejects.toThrow(/immutable/);
     await connection `update requests set release_state=${connection.json(state([first, event('transfer', 3)]))}, agreement_revision=3 where id=${id}`;
-});
-it('Superseded Requests take no closure corrections', async () => {
-    const id = await legacyRow();
-    await connection `update requests set exception_closure=${connection.json({ version: 1, kind: 'exception', reasonCode: 'superseded', reason: 'Replaced', actorId: 'user_test_admin_a', closedAt: '2026-10-21T00:00:00.000Z', replacementId: randomUUID() })}, agreement_revision=1 where id=${id}`;
-    await expect(connection `update requests set closure_corrections=${connection.json([correction(2)])}, agreement_revision=2 where id=${id}`).rejects.toThrow(/immutable/);
 });

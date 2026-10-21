@@ -1,4 +1,4 @@
-import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/agreement-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,7 +38,6 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (!connection) return;
-  await removeAgreementFixtures(ORG);
   await connection`delete from organizations where id = ${ORG}`;
   await connection`delete from profiles where id in (${MEMBER},${REQUESTER})`;
   await connection.end();
@@ -47,7 +46,6 @@ afterAll(async () => {
 describe("statement ceilings per Request mutation", () => {
   it("pickUpRequest stays within the agreement transaction budget", async () => {
     const { pickUpRequest } = await api();
-    await seedAgreedRequests(ORG);
     const { result, statements } = await measure(() => pickUpRequest(requestId, { orgId: ORG }));
     expect(result).toEqual({ success: true });
     expect(statements).toBeLessThanOrEqual(7);
@@ -55,7 +53,6 @@ describe("statement ceilings per Request mutation", () => {
 
   it("markDone stays within the agreement transaction budget", async () => {
     const { markDone, pickUpRequest } = await api();
-    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));
     expect(result).toEqual({ success: true });
@@ -64,7 +61,6 @@ describe("statement ceilings per Request mutation", () => {
 
   it("undoMarkDone succeeds within the transaction budget", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
-    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
     const { result, statements } = await measure(() => undoMarkDone(requestId, { orgId: ORG }));
@@ -137,7 +133,6 @@ describe("statement ceilings per bulk Request mutation", () => {
   it("pickUpRequests moves ten Requests within the transaction budget", async () => {
     const { pickUpRequests } = await api();
     const ids = await insertRequests(10);
-    await seedAgreedRequests(ORG);
     const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
     expect(result.error).toBeUndefined();
     expect([...result.moved].sort()).toEqual([...ids].sort());
@@ -150,7 +145,6 @@ describe("statement ceilings per bulk Request mutation", () => {
   it("markDoneMany moves ten Requests within the transaction budget", async () => {
     const { markDoneMany, pickUpRequests } = await api();
     const ids = await insertRequests(10);
-    await seedAgreedRequests(ORG);
     await pickUpRequests(ids, { orgId: ORG });
     const { result, statements } = await measure(() => markDoneMany(ids, { orgId: ORG }));
     expect([...result.moved].sort()).toEqual([...ids].sort());
@@ -163,7 +157,6 @@ describe("statement ceilings per bulk Request mutation", () => {
   it("reports the rows a bulk move skipped, within the transaction budget", async () => {
     const { markDoneMany, pickUpRequests } = await api();
     const ids = await insertRequests(3);
-    await seedAgreedRequests(ORG);
     await pickUpRequests(ids.slice(0, 2), { orgId: ORG });
     const { result, statements } = await measure(() => markDoneMany([...ids, "not-a-uuid"], { orgId: ORG }));
     expect([...result.moved].sort()).toEqual(ids.slice(0, 2).sort());
@@ -179,7 +172,6 @@ describe("statement ceilings per bulk Request mutation", () => {
     const ids = await insertRequests(2);
     session.orgRole = "org:guest";
     try {
-      await seedAgreedRequests(ORG);
     const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
       expect(result.error).toBe("You can't change Requests in this workspace.");
       expect(result.moved).toEqual([]);

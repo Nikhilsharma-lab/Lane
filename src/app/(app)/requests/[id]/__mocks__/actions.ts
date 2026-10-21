@@ -11,3 +11,4 @@ export const setRequestPriority = fn<typeof Actions.setRequestPriority>().mockNa
 export const saveRequestCurrentValues = fn<typeof Actions.saveRequestCurrentValues>().mockName("saveRequestCurrentValues")
 export const addComment = fn<typeof Actions.addComment>().mockName("addComment")
 export const getAttachmentDownloadUrl = fn<typeof Actions.getAttachmentDownloadUrl>().mockName("getAttachmentDownloadUrl")
+export const deleteRequest = fn<typeof Actions.deleteRequest>().mockName("deleteRequest")

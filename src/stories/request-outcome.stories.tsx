@@ -50,23 +50,23 @@ export const NotYetDue: Story = { beforeEach: () => { mocked(api.readRequestOutc
         const c = within(canvasElement);
         await c.findByText('Measuring · 3 days remaining');
         expect(c.queryByRole('button', { name: 'Close Request' })).toBeNull();
-        await c.findByRole('button', { name: 'Close with exception' });
+        await c.findByRole('button', { name: 'Close without a result…' });
     } };
-export const CloseWithException: Story = { play: async ({ canvasElement }) => {
+export const CloseWithoutResult: Story = { play: async ({ canvasElement }) => {
         const c = within(canvasElement);
-        await userEvent.click(await c.findByRole('button', { name: 'Close with exception' }));
-        await userEvent.click(c.getByRole('combobox', { name: 'Exception' }));
+        await userEvent.click(await c.findByRole('button', { name: 'Close without a result…' }));
+        await userEvent.click(c.getByRole('combobox', { name: 'Why' }));
         const body = within(canvasElement.ownerDocument.body);
-        expect(body.queryByRole('option', { name: 'Not launched or cancelled' })).toBeNull();
+        expect(body.getAllByRole('option').map(o => o.textContent)).toEqual(['Rolled back', 'Can’t be measured', 'Other']);
         await userEvent.click(body.getByRole('option', { name: 'Rolled back' }));
         await waitFor(() => expect(getComputedStyle(canvasElement.ownerDocument.body).pointerEvents).not.toBe('none'));
-        await userEvent.type(c.getByLabelText('Exception reason'), 'Payment errors spiked');
+        await userEvent.type(c.getByLabelText('Details (optional)'), 'Payment errors spiked');
         mocked(api.changeRequestOutcome).mockImplementationOnce(async () => {
-            mocked(api.readRequestOutcome).mockResolvedValue({ ...due, revision: 2, state: 'closed', canClose: false, canCloseException: false, canCorrect: true, closure: { version: 2, kind: 'exception', reasonCode: 'rolled_back', reason: 'Payment errors spiked', actorId: 'owner', ownerId: 'owner', closedAt: '2026-10-25T00:00:00.000Z', operationId: '00000000-0000-4000-a000-000000006002', fingerprint: 'f'.repeat(64), release, revision: 2 } });
+            mocked(api.readRequestOutcome).mockResolvedValue({ ...due, revision: 2, state: 'closed', canClose: false, canCloseException: false, canCorrect: true, closure: { version: 1, kind: 'exception', reasonCode: 'rolled_back', reason: 'Payment errors spiked', actorId: 'owner', ownerId: 'owner', closedAt: '2026-10-25T00:00:00.000Z', operationId: '00000000-0000-4000-a000-000000006002', fingerprint: 'f'.repeat(64), release, revision: 2 } });
             return { success: true, revision: 2 };
         });
-        await userEvent.click(c.getByRole('button', { name: 'Close with exception' }));
-        await c.findByText('Closed · Exception: Rolled back. Excluded from measured impact.');
+        await userEvent.click(c.getByRole('button', { name: 'Close without a result' }));
+        await c.findByText('Closed without a result · Rolled back');
         expect(c.queryByText(/^Actual$/)).toBeNull();
     } };
 export const CorrectionBesideImmutableClosure: Story = { beforeEach: () => { mocked(api.readRequestOutcome).mockResolvedValue(structuredClone(closed)); }, play: async ({ canvasElement }) => {

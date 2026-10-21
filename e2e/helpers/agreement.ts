@@ -16,7 +16,7 @@ import {
 } from "../../src/lib/intake-draft";
 import { createTriageToken } from "../../src/lib/triage-token";
 
-// These fixtures have permanent agreement history. Retain exact creation receipts
+// These fixtures have review history. Retain exact creation receipts
 // for staging inspection; do not disable history triggers for teardown.
 export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
   const users = await Promise.all(
@@ -108,7 +108,7 @@ export async function createRequestThroughIntake(
     extractedSolution: null,
   };
   // Same signed-review seam as session-continuity-intake-draft.spec.ts. The save,
-  // memberships, agreement decisions and lifecycle below use the real app.
+  // memberships, reviews and lifecycle below use the real app.
   const draft: IntakeDraft = {
     version: 2,
     savedAt: Date.now(),
@@ -143,52 +143,18 @@ export async function createRequestThroughIntake(
   };
 }
 
-export async function prepareAgreementThroughUI(team: AgreementTeam) {
+/** The requester asks a teammate to review the Request before work starts. */
+export async function addReviewerThroughUI(team: AgreementTeam, name: string) {
   const panel = team.pages[0].getByRole("region", {
-    name: "Agreement",
+    name: "Reviewers",
     exact: true,
   });
-  for (const [label, text] of Object.entries({
-    "Included scope": "Checkout recovery",
-    "Excluded scope": "Payment migration",
-    Audience: "Returning customers",
-    "Timing and dependencies": "Before November campaign",
-    Constraints: "Current provider",
-    "Known feasibility": "Existing recovery API checked",
-  }))
-    await panel.getByRole("textbox", { name: label, exact: true }).fill(text);
-  for (const discipline of ["PM", "Designer", "Developer"]) {
-    await panel
-      .getByRole("combobox", { name: `${discipline} participant`, exact: true })
-      .click();
-    await team.pages[0]
-      .getByRole("option", { name: `Agreement ${discipline}`, exact: true })
-      .click();
-  }
-  await panel.getByRole("button", { name: "Save preparation" }).click();
-  await expect(
-    panel.getByRole("button", { name: "Request agreement" }),
-  ).toBeEnabled();
-  const submit = panel.getByRole("button", { name: "Request agreement" });
+  await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
+  await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
+  await team.pages[0].getByRole("option", { name, exact: true }).click();
+  const submit = panel.getByRole("button", { name: "Add", exact: true });
   await submit.focus();
   await expect(submit).toBeFocused();
   await submit.press("Enter");
-  await expect(
-    panel.getByRole("button", { name: "Agree as PM" }),
-  ).toBeVisible();
-}
-
-export async function agreeThroughUI(team: AgreementTeam, path: string) {
-  for (const [index, discipline] of ["PM", "Designer", "Developer"].entries()) {
-    const page = team.pages[index];
-    await page.goto(path);
-    const panel = page.getByRole("region", { name: "Agreement", exact: true });
-    await panel.getByRole("button", { name: `Agree as ${discipline}` }).click();
-    await expect(
-      panel
-        .getByRole("heading", { name: discipline, exact: true })
-        .locator(".."),
-    ).toContainText("Agreed");
-  }
-  await team.pages[0].goto(path);
+  await expect(panel.getByRole("listitem").filter({ hasText: name })).toContainText("Waiting");
 }

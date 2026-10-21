@@ -1,9 +1,4 @@
 import { z } from "zod";
-import type { Request } from "@/db/schema/requests";
-export const disciplines = ["pm", "designer", "developer"] as const;
-export const disciplineSchema = z.enum(disciplines);
-export type Discipline = z.infer<typeof disciplineSchema>;
-const text = z.string().trim().min(1).max(4000);
 export const nomineeSchema = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("member"), userId: z.string().min(1).max(200) })
@@ -17,74 +12,34 @@ export const nomineeSchema = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 export type Nominee = z.infer<typeof nomineeSchema>;
-export const preparedSchema = z
-  .object({
-    version: z.literal(1),
-    scopeIncluded: text,
-    scopeExcluded: text,
-    audience: text,
-    timing: text,
-    constraints: text,
-    feasibility: text,
-    commitmentKind: z.enum(["discovery", "delivery"]),
-  })
-  .strict();
-export type PreparedAgreement = z.infer<typeof preparedSchema>;
-export type AgreementDecision = {
-  kind: "agree" | "request_changes" | "withdraw";
+/** A hidden ceiling against runaway lists; the screen says nothing unless someone reaches it. */
+export const MAX_REVIEWERS = 20;
+export const REVIEW_NOTE_MAX = 500;
+export const REVIEW_REASON_MAX = 4000;
+/** One identity per reviewer: a member, or an invitation until the invitee answers. */
+export function nomineeKey(n: Nominee) {
+  return n.kind === "member"
+    ? `member:${n.userId}`
+    : `invitation:${n.invitationId}`;
+}
+/** A reviewer's answer. A concern carries its reason. */
+export type ReviewDecision = {
+  kind: "looks_good" | "concern";
   actorId: string;
   at: string;
   reason: string;
 };
-export type AgreementSeat = {
-  generation: number;
-  nominee: Nominee;
-  decision: AgreementDecision | null;
-  displayNameAtSelection: string;
-};
-export type AgreementSeats = Record<Discipline, AgreementSeat | null>;
-export type AgreementConcern = {
+/** Someone asked to look at the Request before work starts. Optional, and never a gate on pickup. */
+export type Reviewer = {
   id: string;
-  author: string;
-  seat: Discipline;
-  generation: number;
-  reason: string;
-  openedAt: string;
-  resolution: null | { actorId: string; reason: string; resolvedAt: string };
+  nominee: Nominee;
+  displayNameAtSelection: string;
+  addedBy: string;
+  /** The optional question from whoever asked for the review. */
+  note: string;
+  decision: ReviewDecision | null;
 };
-export type AgreementSnapshot = {
-  version: 1;
-  request: Pick<
-    Request,
-    | "title"
-    | "description"
-    | "classification"
-    | "reframedProblem"
-    | "extractedSolution"
-    | "affectedPeople"
-    | "desiredChange"
-    | "observedEvidence"
-    | "uncertainty"
-    | "usefulLink"
-    | "requestType"
-    | "projectId"
-    | "labelKeys"
-    | "expectedImpact"
-  >;
-  prepared: PreparedAgreement;
-  attachmentIds: string[];
-};
-export type SupersededClosure = {
-  version: 1;
-  kind: "exception";
-  reasonCode: "superseded";
-  reason: string;
-  actorId: string;
-  closedAt: string;
-  replacementId: string;
-};
-/** Superseded (#58) or an owner-recorded #60 exception; both stay outside measured-impact totals. */
-export type ExceptionClosure = SupersededClosure | import("./request-outcome").OutcomeException;
+export type { OutcomeException as ExceptionClosure } from "./request-outcome";
 export const agreementContextSchema = z
   .object({
     orgId: z.string().min(1),
@@ -94,77 +49,49 @@ export const agreementContextSchema = z
   })
   .strict();
 export type AgreementContext = z.infer<typeof agreementContextSchema>;
-export const prepareAgreementSchema = z
+export const reviewerNomineesSchema = z.array(nomineeSchema).max(MAX_REVIEWERS);
+export const addReviewersSchema = z
   .object({
-    prepared: preparedSchema,
-    nominees: z
-      .object({
-        pm: nomineeSchema.nullable(),
-        designer: nomineeSchema.nullable(),
-        developer: nomineeSchema.nullable(),
-      })
-      .strict(),
-    blockers: z
-      .array(z.object({ seat: disciplineSchema, reason: text }).strict())
-      .max(30),
+    nominees: reviewerNomineesSchema.min(1),
+    note: z.string().trim().max(REVIEW_NOTE_MAX),
   })
   .strict();
-export function agreementBlockReason(
-  agreement:
-    | { snapshot: unknown; seats: AgreementSeats; concerns: AgreementConcern[] }
-    | undefined
-    | null,
-): string | null {
-  if (!agreement?.snapshot) return "Request agreement before picking up work.";
-  if (agreement.concerns.some((c) => !c.resolution))
-    return "Agreement blocked: resolve the recorded concerns.";
-  const seats = disciplines.map((d) => agreement.seats[d]);
-  if (
-    seats.some(
-      (s) => s?.nominee.kind !== "member" || s.decision?.kind !== "agree",
-    )
-  )
-    return "Agreement blocked: all three participants must agree.";
-  const ids = seats.map((s) =>
-    s?.nominee.kind === "member" ? s.nominee.userId : "",
-  );
-  return new Set(ids).size === 3
-    ? null
-    : "Agreement requires three distinct people.";
+export const removeReviewerSchema = z
+  .object({ reviewerId: z.uuid() })
+  .strict();
+export const answerReviewSchema = z
+  .object({
+    reviewerId: z.uuid(),
+    kind: z.enum(["looks_good", "concern"]),
+    reason: z.string().trim().max(REVIEW_REASON_MAX),
+  })
+  .strict();
+/** What pickup confirms first. Null or empty means there is nothing to confirm. */
+export type ReviewState = {
+  concerns: { name: string; reason: string }[];
+  unanswered: number;
+};
+export function needsPickupConfirmation(state: ReviewState | null | undefined) {
+  return Boolean(state && (state.concerns.length || state.unanswered));
 }
-export function commitmentValues(
-  request: Request,
-): AgreementSnapshot["request"] {
-  const {
-    title,
-    description,
-    classification,
-    reframedProblem,
-    extractedSolution,
-    affectedPeople,
-    desiredChange,
-    observedEvidence,
-    uncertainty,
-    usefulLink,
-    requestType,
-    projectId,
-    labelKeys,
-    expectedImpact,
-  } = request;
-  return {
-    title,
-    description,
-    classification,
-    reframedProblem,
-    extractedSolution,
-    affectedPeople,
-    desiredChange,
-    observedEvidence,
-    uncertainty,
-    usefulLink,
-    requestType,
-    projectId,
-    labelKeys,
-    expectedImpact,
-  };
+const plural = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+/** One line per Request: "2 concerns open, 1 review unanswered". */
+export function reviewStateSummary(state: ReviewState) {
+  return [
+    state.concerns.length
+      ? `${plural(state.concerns.length, "concern", "concerns")} open`
+      : null,
+    state.unanswered
+      ? `${plural(state.unanswered, "review", "reviews")} unanswered`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 }
+/** Profile roles are grey information on a reviewer row; they never grant or block anything. */
+export const PROFILE_ROLE_LABELS = {
+  pm: "PM",
+  designer: "Designer",
+  developer: "Developer",
+} as const;

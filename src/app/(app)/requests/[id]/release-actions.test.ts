@@ -20,11 +20,9 @@ afterEach(() => { vi.useRealTimers(); session.userId = 'release_owner'; session.
 const context = (requestId: string, expectedRevision = 0) => ({ orgId, requestId, expectedRevision, operationId: randomUUID() });
 const release = { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full audience rollout confirmed in release log', audienceConfirmed: true };
 async function fixture(fixed = false) {
-    const [row] = await connection `insert into requests(org_id,title,description,created_by,status,priority) values (${orgId},'Checkout problem','Unable to pay','release_owner','done','high') returning *`;
-    const prepared = { version: 1, scopeIncluded: 'Checkout', scopeExcluded: 'Pricing', audience: 'All shoppers', timing: 'October', constraints: 'Existing API', feasibility: 'Verified', commitmentKind: 'delivery' };
+    const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,created_at) values (${orgId},'Checkout problem','Unable to pay','All shoppers','release_owner','done','high','2026-10-01T00:00:00Z') returning *`;
     const impact = { kind: 'measurement', version: 2, primary: { key: 'conversion', name: '', unit: 'percent', current: 50, target: 80, noBaseline: false, check: '' }, measurement: { audience: 'all', platform: 'all', windowDays: 7, exactDates: fixed, startDate: fixed ? '2026-10-01' : '', endDate: fixed ? '2026-10-15' : '' }, guardrails: [] };
-    const seats = Object.fromEntries(['pm', 'designer', 'developer'].map(seat => [seat, { generation: 1, nominee: { kind: 'member', userId: 'release_' + seat }, displayNameAtSelection: seat, decision: { kind: 'agree', actorId: 'release_' + seat, at: '2026-10-20T00:00:00.000Z', reason: '' } }]));
-    await connection `insert into request_agreements(request_id,org_id,prepared,snapshot,seats,submitted_by,submitted_at) values (${row.id},${orgId},${connection.json(prepared)},${connection.json({ version: 1, request: { expectedImpact: impact }, prepared, attachmentIds: [] })},${connection.json(seats)},'release_owner',now())`;
+    await connection `update requests set expected_impact=${connection.json(impact)} where id=${row.id}`;
     return row.id as string;
 }
 it('records past exposure once and derives UTC measurement deadline from exposure rather than recording time', async () => {
@@ -86,7 +84,7 @@ it('corrects relative exposure, requires reasons and explicit agreed-audience co
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { dueDate: '2026-10-27' } });
 });
-it('blocks legacy records without agreement, wrong lifecycle, guests, unrelated admins and foreign workspace reads/writes', async () => {
+it('blocks wrong lifecycle, guests, unrelated admins and foreign workspace reads/writes', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
     session.userId = 'release_admin';
@@ -106,8 +104,6 @@ it('blocks legacy records without agreement, wrong lifecycle, guests, unrelated 
     session.userId = 'release_owner';
     await connection `update requests set status='in_progress' where id=${id}`;
     expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('error');
-    const [legacy] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Legacy','No agreement','release_owner','done') returning id`;
-    expect(await api.changeRequestRelease(context(legacy.id), release)).toHaveProperty('error');
 });
 it('transfers only a departed owner to an active member, retains authorship and permits repeat transfers and lost-response retry', async () => {
     const api = await import('./release-actions');
@@ -158,7 +154,7 @@ it('names a departed owner and every history actor from saved profiles, for gues
         await connection `update profiles set full_name=id where id in ('release_owner','release_admin')`;
     }
 });
-it('lets the owner correct and void a frozen release after an agreement participant departs', async () => {
+it('lets the owner correct and void a release after another member departs', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
     const api = await import('./release-actions');
@@ -170,17 +166,24 @@ it('lets the owner correct and void a frozen release after an agreement particip
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All shoppers' } });
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
 });
-it('rejects exposure before the agreement was complete, for releases and corrections alike', async () => {
+it('rejects exposure before the Request was created, for releases and corrections alike', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
     const api = await import('./release-actions');
     const id = await fixture();
-    // The last of the three agreements lands late on 20 October UTC; work cannot reach users before that day.
-    await connection `update request_agreements set seats=jsonb_set(seats,'{designer,decision,at}','"2026-10-20T23:30:00.000Z"') where request_id=${id}`;
+    // Created late on 20 October UTC; work cannot reach users before that day. Reviews play no part.
+    await connection `update requests set created_at='2026-10-20T23:30:00Z' where id=${id}`;
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ earliestExposure: '2026-10-20' });
-    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'Exposure cannot be before the agreement was complete on 2026-10-20 (UTC).' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'Exposure cannot be before the Request was created on 2026-10-20 (UTC).' });
     expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-20' })).toHaveProperty('success', true);
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-19', reason: 'Wrong log' })).toHaveProperty('error');
+});
+it('records release with no reviewers and with an open concern', async () => {
+    const api = await import('./release-actions');
+    const reviewed = await fixture();
+    await connection `insert into request_agreements(request_id,org_id,reviewers) values (${reviewed},${orgId},${connection.json([{ id: randomUUID(), nominee: { kind: 'member', userId: 'release_developer' }, displayNameAtSelection: 'Developer', addedBy: 'release_owner', note: '', decision: { kind: 'concern', actorId: 'release_developer', at: '2026-10-20T00:00:00.000Z', reason: 'API not ready' } }])})`;
+    expect(await api.changeRequestRelease(context(reviewed), release)).toHaveProperty('success', true);
+    expect(await api.changeRequestRelease(context(await fixture()), release)).toHaveProperty('success', true);
 });
 it('serializes concurrent duplicate release and rejects reuse of its operation key for different facts', async () => {
     const api = await import('./release-actions');
@@ -191,29 +194,11 @@ it('serializes concurrent duplicate release and rejects reuse of its operation k
     expect(await api.changeRequestRelease(ctx, { ...release, evidence: 'Different evidence' })).toHaveProperty('error');
     expect(await api.changeRequestRelease(context(id, 1), release)).toHaveProperty('error');
 });
-it('release locks out withdrawal, participant changes, superseding and Done undo', async () => {
+it('release locks out Done undo', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
     await api.changeRequestRelease(context(id), release);
-    const agreements = await import('./agreement-actions');
-    session.userId = 'release_developer';
-    expect(await agreements.decideAgreement(context(id, 1), { seat: 'developer', generation: 1, kind: 'withdraw', reason: 'Too late' })).toHaveProperty('error');
-    session.userId = 'release_owner';
-    expect(await agreements.createAgreementReplacement(context(id, 1), { reason: 'Cannot erase measurement' })).toHaveProperty('error');
     expect(await (await import('./actions')).undoMarkDone(id, { orgId })).toHaveProperty('error');
-});
-it('serializes withdrawal against release with exactly one valid result', async () => {
-    const api = await import('./release-actions');
-    const agreements = await import('./agreement-actions');
-    const id = await fixture();
-    // The creator also occupies the developer seat for this race, using the same session for both concurrent calls.
-    await connection `update request_agreements set seats=jsonb_set(jsonb_set(seats,'{developer,nominee,userId}','"release_owner"'),'{developer,decision,actorId}','"release_owner"') where request_id=${id}`;
-    const results = await Promise.all([api.changeRequestRelease(context(id), release), agreements.decideAgreement(context(id), { seat: 'developer', generation: 1, kind: 'withdraw', reason: 'New blocker' })]);
-    expect(results.filter(r => 'success' in r)).toHaveLength(1);
-    const view = await api.readRequestRelease(id, { orgId });
-    if ('error' in view)
-        throw Error(view.error);
-    expect(Boolean(view.release)).toBe('success' in results[0]);
 });
 it('preserves fixed-date additions on legacy metric and verification commitments', async () => {
     const api = await import('./release-actions');
@@ -221,14 +206,7 @@ it('preserves fixed-date additions on legacy metric and verification commitments
         const id = await fixture();
         const impact = kind === 'metric' ? { kind, metric: 'Checkout', baseline: 50, target: 80, unit: '%', source: 'Analytics', reviewAfterDays: 7 } : { kind, result: 'Keyboard checkout works', source: 'Checklist', reviewAfterDays: 14 };
         const measurement = { audience: 'all', platform: 'web', exactDates: true, startDate: '2026-10-01', endDate: '2026-10-15' };
-        // Build a legacy snapshot fixture before the action, without weakening runtime snapshot protection.
-        await connection `alter table request_agreements disable trigger protect_agreement_snapshot`;
-        try {
-            await connection `update request_agreements set snapshot=jsonb_set(snapshot,'{request,expectedImpact}',${connection.json({ ...impact, measurement })}) where request_id=${id}`;
-        }
-        finally {
-            await connection `alter table request_agreements enable trigger protect_agreement_snapshot`;
-        }
+        await connection `update requests set expected_impact=${connection.json({ ...impact, measurement })} where id=${id}`;
         expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('success', true);
         expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { windowKind: 'fixed', dueDate: '2026-10-15' } });
     }

@@ -1,7 +1,6 @@
 "use server";
 
 import { withAgreementProgress } from "@/lib/request-agreement-progress";
-import { requestAgreements } from "@/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
@@ -529,7 +528,6 @@ export async function saveRequestCurrentValues(
   // grants neither pickup permission nor access to another person's Request.
   const [request] = await tx.select({
     status: requests.status,
-    exceptionClosure: requests.exceptionClosure,
     expectedImpact: requests.expectedImpact,
     requestType: requests.requestType,
   }).from(requests).where(and(
@@ -538,8 +536,7 @@ export async function saveRequestCurrentValues(
     eq(requests.createdBy, auth.userId),
   )).for("update");
   if (!request) return { error: "Not found" };
-  const [agreement] = await tx.select({ snapshot: requestAgreements.snapshot }).from(requestAgreements).where(and(eq(requestAgreements.orgId, auth.orgId), eq(requestAgreements.requestId, requestId)));
-  if (request.exceptionClosure || agreement?.snapshot) return { error: "This commitment is frozen. Create a linked replacement to change Expected impact." };
+  // Changing values clears any agreement already given (reset_agreement_on_edit, migration 0028).
   if (request.status !== "open") return { error: "Current values can only change before this Request is picked up." };
   const stored = measurementPlanSchema.safeParse(request.expectedImpact);
   if (!stored.success) return { error: "This Request does not have an editable measurement plan." };
@@ -573,4 +570,41 @@ export async function saveRequestCurrentValues(
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
   return result;
+}
+
+/** The requester (or an admin) deletes a Request nobody has picked up yet. It
+ * goes for good: its comments, files, notifications and agreement go with it.
+ * Once work starts, a Request can only end with a result or a reason. */
+export async function deleteRequest(
+  requestId: string,
+  context: { orgId: string }
+): Promise<{ success: true } | { error: string }> {
+  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  const auth = await requireActiveMember(context.orgId);
+  if (!auth) return { error: "Not found" };
+
+  const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
+    const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })
+      .from(requests)
+      .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)))
+      .for("update");
+    if (!request || (auth.role === "guest" && request.createdBy !== auth.userId)) return { error: "Not found" };
+    if (request.createdBy !== auth.userId && auth.role !== "admin") return { error: "Only the requester or an admin can delete this Request." };
+    if (request.status !== "open") return { error: "Work has started, so this Request can’t be deleted. Close it without a result instead." };
+    const files = await tx.select({ storagePath: requestAttachments.storagePath })
+      .from(requestAttachments)
+      .where(and(eq(requestAttachments.requestId, requestId), eq(requestAttachments.orgId, auth.orgId)));
+    await tx.delete(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), eq(requests.status, "open")));
+    return { files: files.map(f => f.storagePath) };
+  });
+  if ("error" in result) return result;
+
+  // The rows are gone; a stored file left behind is unreachable, so log rather than fail.
+  if (result.files.length) {
+    const { error } = await createServiceClient().storage.from(REQUEST_ATTACHMENTS_BUCKET).remove(result.files);
+    if (error) console.error("[request/delete] file cleanup failed", { count: result.files.length, kind: error.name });
+  }
+
+  revalidatePath("/");
+  return { success: true };
 }

@@ -2,12 +2,15 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, profiles, requests, requestAgreements, requestReplacements } from '@/db';
+import { db, profiles, requests } from '@/db';
 import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
 import { agreementRoster } from '@/lib/request-agreement-members';
-import { agreementBlockReason, agreementContextSchema, disciplines, type AgreementContext } from '@/lib/request-agreement';
-import { insist, AgreementError, commitmentToken } from '@/lib/request-agreement-store';
-import { isClosed, isSuperseded } from '@/lib/request-outcome';
+import { agreementContextSchema, type AgreementContext } from '@/lib/request-agreement';
+import { insist, AgreementError, fingerprintOf } from '@/lib/request-agreement-store';
+import { isClosed } from '@/lib/request-outcome';
+import { expectedImpactSchema } from '@/lib/request-impact';
+/** The Request is what was agreed, so its "Users" are the agreed audience. */
+const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
 export async function changeRequestRelease(context: AgreementContext, input: unknown) {
     try {
@@ -21,7 +24,7 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
         const people = await agreementRoster(auth.orgId);
         const member = (id: string) => people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id);
         insist(member(auth.userId), 'Your workspace membership is no longer active.');
-        const fingerprint = commitmentToken({ requestId: context.requestId, change });
+        const fingerprint = fingerprintOf({ requestId: context.requestId, change });
         const result = await db.transaction(async (tx) => {
             const [request] = await tx.select().from(requests).where(and(eq(requests.id, context.requestId), eq(requests.orgId, auth.orgId))).for('update');
             insist(request, 'Request unavailable.');
@@ -34,7 +37,7 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
                 insist(previous.actorId === auth.userId && previous.fingerprint === fingerprint, 'This retry key was used for another change.');
                 return { success: true as const, revision: previous.revision };
             }
-            insist(!isClosed(request) || (change.kind === 'transfer' && !isSuperseded(request)), 'This Request is permanently closed.');
+            insist(!isClosed(request) || change.kind === 'transfer', 'This Request is permanently closed.');
             insist(request.agreementRevision === context.expectedRevision, 'Request changed. Reload before trying again.');
             const before = state.release;
             let nextOwner = ownerId;
@@ -52,20 +55,10 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
                 }
                 else {
                     insist(change.kind === 'correct' ? before : !before, change.kind === 'correct' ? 'There is no release to correct.' : 'Release is already recorded. Reload to view it.');
-                    const [agreement] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, request.id), eq(requestAgreements.orgId, auth.orgId)));
-                    insist(agreement?.snapshot, 'Complete agreement before release.');
-                    // Release freezes the agreement, so only the first release rechecks it; corrections reuse the frozen snapshot.
-                    if (change.kind === 'release') {
-                        const blocked = agreementBlockReason(agreement);
-                        insist(!blocked, blocked ?? 'Complete agreement before release.');
-                        insist(disciplines.every(d => { const n = agreement.seats[d]?.nominee; return n?.kind === 'member' && member(n.userId); }), 'Agreement blocked: a participant is no longer an active member.');
-                        const [incoming] = await tx.select().from(requestReplacements).where(and(eq(requestReplacements.replacementId, request.id), eq(requestReplacements.orgId, auth.orgId)));
-                        insist(!incoming || incoming.confirmedAt, 'Confirm the original as Superseded before releasing its replacement.');
-                    }
                     insist(change.exposureDate <= new Date().toISOString().slice(0, 10), 'Exposure cannot be in the future.');
-                    const earliest = earliestExposure(agreement.seats);
-                    insist(!earliest || change.exposureDate >= earliest, `Exposure cannot be before the agreement was complete on ${earliest} (UTC).`);
-                    nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreement.snapshot.prepared.audience, ...releaseWindow(agreement.snapshot.request.expectedImpact, change.exposureDate) };
+                    const earliest = earliestExposure(request);
+                    insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${earliest} (UTC).`);
+                    nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null, change.exposureDate) };
                 }
             }
             const revision = request.agreementRevision + 1;
@@ -90,7 +83,6 @@ export async function readRequestRelease(requestId: string, context: {
         insist(auth, 'Request unavailable.');
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined));
         insist(request, 'Request unavailable.');
-        const [agreement] = await db.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, requestId), eq(requestAgreements.orgId, auth.orgId)));
         const ownerId = releaseOwner(request);
         let people: Awaited<ReturnType<typeof agreementRoster>> = [];
         let membershipAvailable = false;
@@ -103,8 +95,6 @@ export async function readRequestRelease(requestId: string, context: {
         }
         const active = (id: string) => people.some(p => p.nominee.kind === 'member' && p.nominee.userId === id);
         const canEdit = auth.role !== 'guest' && active(auth.userId) && ownerId === auth.userId && !isClosed(request);
-        const [incoming] = await db.select().from(requestReplacements).where(and(eq(requestReplacements.replacementId, requestId), eq(requestReplacements.orgId, auth.orgId)));
-        const blocked = agreementBlockReason(agreement) ?? (agreement && disciplines.some(d => { const n = agreement.seats[d]?.nominee; return n?.kind !== 'member' || !active(n.userId); }) ? 'Agreement blocked: verify all participants are active members.' : null);
         const release = request.releaseState?.release ?? null;
         const history = request.releaseState?.history ?? [];
         // Saved profile names cover departed owners and guests, who receive no fresh roster.
@@ -113,16 +103,16 @@ export async function readRequestRelease(requestId: string, context: {
         const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id)?.name ?? saved.find(p => p.id === id)?.name ?? 'Former member']));
         const now = new Date();
         return {
-            requestId, revision: request.agreementRevision, ownerId,
+            requestId, revision: request.agreementRevision, ownerId, done: request.status === 'done',
             ownerName: names[ownerId], names,
             release, measurement: releaseMeasurement(release, now), today: now.toISOString().slice(0, 10),
-            audience: agreement?.snapshot?.prepared.audience ?? null,
-            earliestExposure: agreement ? earliestExposure(agreement.seats) : null,
-            canRelease: canEdit && request.status === 'done' && !release && !blocked && (!incoming || !!incoming.confirmedAt),
+            audience: agreedAudience(request),
+            earliestExposure: earliestExposure(request),
+            canRelease: canEdit && request.status === 'done' && !release,
             canCorrect: canEdit && request.status === 'done' && !!release,
-            canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId) && !isSuperseded(request),
+            canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId),
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
-            blocked: request.status !== 'done' ? 'Complete work before recording release.' : blocked,
+            blocked: request.status !== 'done' ? 'Complete work before recording release.' : null,
             history: history.map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),
         };
     }

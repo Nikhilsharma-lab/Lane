@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { ExpectedImpact } from './request-impact';
-import type { AgreementSeats } from './request-agreement';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
 const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true) };
@@ -64,8 +63,7 @@ export function releaseMeasurement(release: ReleaseFact | null, now: Date) {
     const days = Math.round((Date.parse(release.dueDate + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
     return { due: days <= 0, days, label: days === 0 ? 'Due today' : days > 0 ? `${days} day${days === 1 ? '' : 's'} remaining` : `${-days} day${days === -1 ? '' : 's'} overdue` };
 }
-/** Work starts only after named agreement, so exposure cannot predate the last agree decision (UTC date). */
-export function earliestExposure(seats: AgreementSeats) {
-    const agreed = Object.values(seats).flatMap(seat => seat?.decision?.kind === 'agree' ? [seat.decision.at] : []);
-    return agreed.length ? agreed.reduce((a, b) => (a > b ? a : b)).slice(0, 10) : null;
+/** Exposure cannot predate the Request itself (UTC date). */
+export function earliestExposure(request: { createdAt: Date }) {
+    return request.createdAt.toISOString().slice(0, 10);
 }
