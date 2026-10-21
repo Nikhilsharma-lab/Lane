@@ -62,6 +62,8 @@ export type NotificationRow = {
   /** Null for an invite (no Request); 0 before allocation, which the row copy renders as "Request" (plan item 2.7). */
   requestNumber: number | null;
   reframedProblem: string | null;
+  /** A reviewer's question, or the reason for a concern. */
+  detail: string | null;
 };
 
 /**
@@ -82,6 +84,7 @@ export async function loadNotifications(auth: MemberAuth): Promise<NotificationR
       requestTitle: requests.title,
       requestNumber: requests.requestNumber,
       reframedProblem: requests.reframedProblem,
+      detail: notifications.detail,
     })
     .from(notifications)
     .leftJoin(profiles, eq(notifications.actorId, profiles.id))
