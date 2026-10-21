@@ -89,24 +89,28 @@ export function RequestUnavailable({ returnHref }: { returnHref: string }) {
  * times are phrased here so the client islands never disagree with the
  * server about "3h ago".
  */
-export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest }: {
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, peekStrip }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
   /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
   viewer: DetailViewer; orgId: string; returnHref?: string;
   lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode;
+  /** Plan item 2.12: the list's peek. Its strip replaces the page's, the title is the panel's h2 (the list keeps the page's h1), and arrival moves no focus. */
+  peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.description
   const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
   const timed: ConversationComment[] = comments.map(comment => ({ ...comment, timeLabel: relativeTime(comment.createdAt) }))
-  return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)}>
-    <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-request-id={request.id}>
-      <DetailStrip returnHref={returnHref} editAction={editRequest} action={isGuest ? undefined : lifecycleActions} />
+  const Title = peekStrip ? "h2" : "h1"
+  const action = isGuest ? undefined : lifecycleActions
+  return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)} arrival={!peekStrip}>
+    <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
+      {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}
       <div className={`${detailStyles.body} px-5 py-6 md:px-8`}>
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             <header className={detailStyles.titleBlock} data-detail-title="">
-              <h1 id="request-title" tabIndex={-1} className={detailStyles.title}>{request.title}</h1>
+              <Title id="request-title" tabIndex={-1} className={detailStyles.title}>{request.title}</Title>
               <DetailStateLine />
             </header>
             <section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>

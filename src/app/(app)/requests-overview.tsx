@@ -19,6 +19,7 @@ import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestsWelcome } from "./requests-welcome"
+import type { PeekViewer } from "@/components/requests/request-peek"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -30,7 +31,7 @@ async function fetchOlderDone(orgId: string, beforeId: string): Promise<{ rows: 
   return { rows: body.rows, hasOlderDone: Boolean(body.hasOlderDone) }
 }
 
-export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false, canInvite = false }: {
+export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false, canInvite = false, viewer }: {
   requests: OverviewRequest[]
   isGuest: boolean
   /** The empty workspace's welcome offers Invite teammates (admins only). */
@@ -40,6 +41,8 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   activeCapped?: boolean
   /** Done Requests older than the loaded ones exist on the server. */
   hasOlderDone?: boolean
+  /** Plan item 2.12: who is reading, for the Request preview (read with the page; no extra query). */
+  viewer?: PeekViewer
   /** No longer read: the status view comes from the layout's list view state (plan item 1.7). Kept so fixtures type-check. */
   filter?: RequestStatusFilter
   /** No longer read, as `filter`. */
@@ -110,7 +113,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>
         {context
-          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} /></RequestRowActions>
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} /></RequestRowActions>
           : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
       </ListAnnouncerProvider>
     </div>

@@ -13,6 +13,8 @@ const WORKSPACE = source("src/app/(app)/requests-workspace.tsx")
 const LIST_PAGE = source("src/app/(app)/page.tsx")
 const DETAIL_PAGE = source("src/app/(app)/requests/[id]/page.tsx")
 const DETAIL_VIEW = source("src/components/requests/detail-view.tsx")
+// Plan item 2.12: the detail pane both the Request page and the list's preview render.
+const DETAIL_PANE = source("src/components/requests/request-detail-pane.tsx")
 const REQUEST_STYLES = source("src/components/requests/requests.module.css")
 const DATA_TABLE = source("src/components/requests/tasks/data-table.tsx")
 const SIDEBAR_VIEW = source("src/components/shell/sidebar-view.tsx")
@@ -47,7 +49,8 @@ describe("Requests workspace contract", () => {
 
   it("keeps lifecycle actions in detail instead of the Request list", () => {
     expect(WORKSPACE).not.toContain("PickUpButton")
-    expect(WORKSPACE).toContain("<LifecycleButtons")
+    expect(WORKSPACE).toContain("<RequestDetailPane")
+    expect(DETAIL_PANE).toContain("<LifecycleButtons")
   })
 
   it("keeps the status view and Project filter out of the server render (plan item 1.7)", () => {

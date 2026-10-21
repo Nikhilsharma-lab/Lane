@@ -38,6 +38,7 @@ import { GET as search } from "./search/route";
 import { GET as reviewers } from "./reviewers/route";
 import { GET as notificationList } from "./notifications/route";
 import { GET as unread } from "./notifications/unread/route";
+import { GET as requestDetail } from "./requests/[id]/route";
 
 const ORG = "org_test_a", OTHER_ORG = "org_test_b";
 const ADMIN = "user_test_admin_a", MEMBER = "user_test_member_a", OTHER_ADMIN = "user_test_admin_b";
@@ -182,5 +183,44 @@ describe("GET /api/notifications/unread", () => {
     actAs(GUEST, "org:guest");
     // The guest's only notification is workspace-wide, which guests never see.
     expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 0 });
+  });
+});
+
+describe("GET /api/requests/[id]", () => {
+  const detail = (id: string, params: Record<string, string> = { org: ORG }) =>
+    requestDetail(new Request(`http://lane.test/api/requests/${id}?${new URLSearchParams(params)}`), { params: Promise.resolve({ id }) });
+
+  it("refuses a signed-out caller with 401, no workspace with 400 and a mismatched workspace with 403", async () => {
+    actAs(null, "org:member", null);
+    expect((await detail(memberRequest)).status).toBe(401);
+    actAs(MEMBER);
+    expect((await detail(memberRequest, {})).status).toBe(400);
+    actAs(OTHER_ADMIN, "org:admin", OTHER_ORG);
+    expect((await detail(memberRequest)).status).toBe(403);
+  });
+
+  it("returns the Request with its comments and files, private and uncacheable", async () => {
+    const response = await detail(memberRequest);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.json();
+    expect(body.request).toMatchObject({ id: memberRequest, title: `${MARK} member`, reframedProblem: `${MARK} reframed problem`, status: "open" });
+    expect(typeof body.request.createdAt).toBe("string");
+    expect(body.comments).toEqual([]);
+    expect(body.attachments).toEqual([]);
+  });
+
+  it("answers another workspace's Request, a malformed id and a guest's view of someone else's Request with the same 404", async () => {
+    const missing = await detail(foreignRequest);
+    expect(missing.status).toBe(404);
+    const body = await missing.json();
+    expect((await detail("not-a-uuid")).status).toBe(404);
+    actAs(GUEST, "org:guest");
+    const hidden = await detail(memberRequest);
+    expect(hidden.status).toBe(404);
+    expect(await hidden.json()).toEqual(body);
+    const own = await detail(guestRequest);
+    expect(own.status).toBe(200);
+    expect((await own.json()).request).toMatchObject({ id: guestRequest, title: `${MARK} guest` });
   });
 });

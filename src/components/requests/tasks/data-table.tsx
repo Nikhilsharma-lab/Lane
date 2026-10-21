@@ -23,8 +23,9 @@ import { RequestSelectionBar } from "../request-selection-bar"
 import { useListAnnouncer } from "../list-announcer"
 import { matchCountText, requestCount } from "../request-row-label"
 import { useRequestGrid } from "../use-request-grid"
-import { gridKeysFor } from "../request-grid-keys"
-import { isShown, requestRowSelector } from "../list-focus"
+import { gridKeysFor, requestIdOf } from "../request-grid-keys"
+import { isShown, requestRowSelector, restoreRequestFocus } from "../list-focus"
+import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "../request-peek"
 import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
@@ -52,9 +53,11 @@ const ListFooter = memo(function ListFooter({ pageIndex, pageCount, pageSize, to
  * sort and the in-list filter) re-renders here with no network request. The
  * "/" URL mirrors that state through useRequestListUrlSync.
  */
-export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer, welcome }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode;
+export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer, welcome, viewer }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode;
   /** Plan item 2.1: shown in the records region while the workspace has no Requests at all. */
-  welcome?: ReactNode }) {
+  welcome?: ReactNode
+  /** Plan item 2.12: who is reading, for the Request preview. Without it (older fixtures) the list offers no preview. */
+  viewer?: PeekViewer }) {
   const presentation = useRequestRowPresentation()
   const layoutRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -96,6 +99,21 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const selectionScope = JSON.stringify([context?.orgId, isGuest, filter, projectFilter, localFilters, ordering, grouping, collapsedGroups, pagination])
   const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest)
   const announce = useListAnnouncer()
+  // Plan item 2.12: the Request preview beside the list. Space or the row menu opens it; it follows
+  // the list's active row (J and K), and phones keep full-page navigation.
+  const peekAvailable = usePeekAvailable() && Boolean(presentation && context && viewer)
+  const [peekId, setPeekId] = useState<string | null>(null)
+  const shownPeek = peekAvailable ? peekId : null
+  const peekIdRef = useRef(peekId)
+  useLayoutEffect(() => { peekIdRef.current = peekId })
+  const openPeek = useCallback((id: string) => {
+    // Said once on opening; following J and K reads the row's own name instead.
+    if (!peekIdRef.current) announce("Preview open. Esc closes it.", { key: "preview" })
+    setPeekId(id)
+    // One panel at the list's edge: the preview and the summary replace each other.
+    setSummaryOpen(false)
+    preloadRequestPeek()
+  }, [announce])
   // Plan item 2.4 (decision 8.24): the list is a treegrid when grouped and a
   // grid when not, with the row as its one tab stop (use-request-grid.ts).
   const grouped = grouping !== "none"
@@ -111,8 +129,49 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     page: { index: pageIndex, count: pageCount, go: index => setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: index } })) },
     // A page crossing drops the selection; the same message says so.
     announce: text => announce(selection.withDropNotice(text), { key: "page" }),
+    onPeek: id => {
+      if (!peekAvailable) return false
+      // Space on the previewed row closes the preview; focus is already on the row.
+      if (shownPeek === id) setPeekId(null)
+      else openPeek(id)
+      return true
+    },
   })
   const setGridActive = grid.setActive
+  const focusGridKey = grid.focusKey
+  // The preview follows the active row; a group header keeps the last Request. The active row,
+  // not the tab stop: a Request that leaves the view after a change made in the preview stays in it.
+  const activeRequestId = grid.activeKey ? requestIdOf(grid.activeKey) : null
+  const [followedId, setFollowedId] = useState(activeRequestId)
+  let nextPeekId = peekId
+  if (followedId !== activeRequestId) {
+    setFollowedId(activeRequestId)
+    if (peekId && activeRequestId) nextPeekId = activeRequestId
+  }
+  // A filter, view or page change that leaves the previewed Request off the page closes the
+  // preview (a J or K across a page has already moved it to the new row above). A change made in
+  // the preview that moves its Request out of the view does not: that is no view change.
+  const viewSignature = JSON.stringify([filter, projectFilter, localFilters, ordering, grouping, pagination])
+  const [peekView, setPeekView] = useState(viewSignature)
+  if (peekView !== viewSignature) {
+    setPeekView(viewSignature)
+    if (nextPeekId && !gridKeys.includes(`r:${nextPeekId}`)) nextPeekId = null
+  }
+  // Phones keep full-page navigation: a window narrowed past the breakpoint closes the preview, and
+  // widening it again does not bring one back unasked.
+  if (!peekAvailable && nextPeekId) nextPeekId = null
+  if (nextPeekId !== peekId) setPeekId(nextPeekId)
+  const peekFromMenu = useMemo(() => peekAvailable ? (id: string) => { setGridActive(`r:${id}`); openPeek(id) } : null, [peekAvailable, setGridActive, openPeek])
+  const closePeek = useCallback(() => {
+    const id = peekId
+    setPeekId(null)
+    if (!id) return
+    announce("Preview closed.", { key: "preview" })
+    // Back to the previewed Request's row, else the row that took its place.
+    if (gridKeys.includes(`r:${id}`)) focusGridKey(`r:${id}`)
+    else restoreRequestFocus(id, { force: true })
+  }, [peekId, gridKeys, focusGridKey, announce])
+  const peekRow = useMemo(() => shownPeek ? serverRows.find(row => row.id === shownPeek) ?? null : null, [serverRows, shownPeek])
   // Plan item 2.5: opening a Request from the list records the order it shows,
   // across every page, so detail can offer previous and next. The row menu's
   // "Open Request" and Enter both click the title link, so one capture covers all three.
@@ -143,6 +202,13 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     else setFilter(field, value)
   }, [setView, setFilter])
   const closeSummary = useCallback(() => { setSummaryOpen(false); summaryTrigger.current?.focus() }, [])
+  const changeSummary = useCallback((open: boolean) => { setSummaryOpen(open); if (open) setPeekId(null) }, [])
+  // Open full page from the preview records the list's order, as Enter on the row does (captureOpen).
+  const openPeekFullPage = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
+    // A new tab or window leaves this tab's detail session alone, as on the row (captureOpen).
+    if (!peekId || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    setDetailSession({ sequence: captureSequence(matching.map(row => row.id), peekId), focusTitleOnArrival: true })
+  }, [matching, peekId, setDetailSession])
   const restoreRequest = useCallback((id: string) => {
     const index = matching.findIndex(row => row.id === id)
     const group = groups.find(item => item.rows.some(row => row.id === id))
@@ -193,16 +259,18 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const renderRow = (request: OverviewRequest, level?: number) => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} filter={filter} projectFilter={projectFilter} level={level}
     tabbable={grid.tabbable === `r:${request.id}`} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
-  return <div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
+  return <RequestPeekOpener value={peekFromMenu}><div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
-      summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={setSummaryOpen} summaryTrigger={summaryTrigger}
+      summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
     <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined}>
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
       {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
-        : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}>
+        : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}
+          // A keyboard user on a row may press Space next: fetch the preview's code ahead of it.
+          onFocus={event => { grid.gridProps.onFocus(event); if (peekAvailable) preloadRequestPeek() }}>
           {!grouped ? currentRows.map(request => renderRow(request))
           : groups.map(group => {
             const rows = group.rows.filter(row => pageIds.has(row.id))
@@ -231,7 +299,11 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <AnimatePresence initial={false}>
     {presentation && summaryOpen && <RequestListSummary rows={matching} filter={filter} project={project} requestType={requestType} onFilter={filterFromSummary} onClose={closeSummary} />}
     </AnimatePresence>
+    <AnimatePresence initial={false}>
+    {/* One panel for the preview's life: J and K swap its content, not the panel. */}
+    {shownPeek && context && viewer && <RequestPeek key="request-peek" requestId={shownPeek} serverRow={peekRow} orgId={context.orgId} isGuest={isGuest} viewer={viewer} onClose={closePeek} onOpenFullPage={openPeekFullPage} />}
+    </AnimatePresence>
     </div>
     <RequestSelectionBar busy={selection.busy} count={selection.count} action={selection.action} allSelected={selection.allSelected} error={selection.error} message={selection.message} actions={selection.actions} />
-  </div>
+  </div></RequestPeekOpener>
 }
