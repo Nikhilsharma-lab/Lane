@@ -6,7 +6,7 @@ import { Button } from "@/components/arc/button/button";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import { nomineeKey as keyOf, REVIEW_REASON_MAX } from "@/lib/request-agreement";
+import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX } from "@/lib/request-agreement";
 import * as actions from "@/app/(app)/requests/[id]/agreement-actions";
 import styles from "./request-agreement.module.css";
 type View = Exclude<
@@ -58,6 +58,7 @@ export function RequestAgreementPanel({
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState("");
+  const [note, setNote] = useState("");
   const [concernFor, setConcernFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const retry = useRef<{ fingerprint: string; id: string } | null>(null);
@@ -148,7 +149,7 @@ export function RequestAgreementPanel({
       <div className={styles.header}>
         <h2 id="agreement-heading">Reviewers</h2>
         {view.canAdd && !adding && (
-          <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); }} disabled={busy}>Add reviewer</Button>
+          <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
       </div>
       {view.open && <p className={styles.muted}>Optional. People who should look at this before work starts.</p>}
@@ -160,7 +161,7 @@ export function RequestAgreementPanel({
             e.preventDefault();
             const nominee = people.find((p) => keyOf(p.nominee) === selected)?.nominee;
             if (!nominee) return;
-            void run("addReviewers", { nominees: [nominee], note: "" }).then((saved) => { if (saved) setAdding(false); });
+            void run("addReviewers", { nominees: [nominee], note }).then((saved) => { if (saved) setAdding(false); });
           }}
         >
           <div className={styles.fields}>
@@ -173,6 +174,16 @@ export function RequestAgreementPanel({
               disabled={busy || !people.length}
             />
           </div>
+          <Textarea
+            label="Question (optional)"
+            description="They see it on the Request and in their notification."
+            placeholder="Can we build this with the current API?"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={REVIEW_NOTE_MAX}
+            rows={2}
+            disabled={busy}
+          />
           <div className={styles.controls}>
             <Button type="submit" disabled={busy || !selected}>{busy ? "Adding…" : "Add"}</Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
@@ -203,6 +214,7 @@ export function RequestAgreementPanel({
                     <Button variant="ghost" disabled={busy} aria-label={`Remove ${reviewer.name}`} onClick={() => void run("removeReviewer", { reviewerId: reviewer.id })}>Remove</Button>
                   )}
                 </span>
+                {reviewer.note && <p className={`${styles.reason} ${styles.muted}`}>Asked: {reviewer.note}</p>}
                 {decision?.kind === "concern" && <p className={styles.reason}>{decision.reason}</p>}
                 {concernFor === reviewer.id && (
                   <form

@@ -554,6 +554,8 @@ export async function saveRequestCurrentValues(
   const typeIssue = measurementRequestTypeIssue(next.data, request.requestType);
   if (typeIssue) return { error: typeIssue };
 
+  // Changing values resets reviews (reset_reviews_on_edit, migration 0031); the notification names this editor.
+  await tx.execute(sql`select set_config('lane.actor_id', ${auth.userId}, true)`);
   const [updated] = await tx.update(requests).set({ expectedImpact: next.data }).where(and(
     eq(requests.id, requestId),
     eq(requests.orgId, auth.orgId),

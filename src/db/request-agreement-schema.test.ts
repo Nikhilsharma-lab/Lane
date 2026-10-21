@@ -132,6 +132,55 @@ it("rejects more than twenty, a repeated person, a concern without a reason, an 
     connection`insert into request_agreements(request_id,org_id,reviewers) values (${request.id},'org_agreement_legacy',${connection.json([reviewer("a"), reviewer("a")] as never)})`,
   ).rejects.toThrow(/request_reviewers_valid/);
 });
+it("resets answers when any content column of an Open Request changes, never for priority, naming the requester when no editor is set", async () => {
+  const org = "org_review_reset";
+  await connection`insert into organizations(id,name,slug) values (${org},'Review reset','review-reset')`;
+  for (const id of ["reset_owner", "reset_a", "reset_b"])
+    await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`;
+  const [project] = await connection`insert into projects(org_id,name,created_by) values (${org},'Checkout','reset_owner') returning id`;
+  const [request] = await connection`insert into requests(org_id,title,description,created_by) values (${org},'Checkout problem','People cannot complete checkout','reset_owner') returning id`;
+  const answered = [
+    { ...reviewer("reset_a", { kind: "looks_good", actorId: "reset_a", at: "2026-10-21", reason: "" }), addedBy: "reset_owner" },
+    { ...reviewer("reset_b"), addedBy: "reset_owner" },
+  ];
+  await connection`insert into request_agreements(request_id,org_id,reviewers) values (${request.id},${org},${connection.json(answered as never)})`;
+  const state = async () => {
+    const [row] = await connection`select r.agreement_revision, a.reviewers from requests r join request_agreements a on a.request_id=r.id where r.id=${request.id}`;
+    return { revision: row.agreement_revision as number, decisions: (row.reviewers as { decision: unknown }[]).map((r) => r.decision) };
+  };
+  const answerAgain = () => connection`update request_agreements set reviewers=${connection.json(answered as never)} where request_id=${request.id}`;
+  await connection`update requests set priority='urgent' where id=${request.id}`;
+  expect(await state()).toEqual({ revision: 0, decisions: [expect.objectContaining({ kind: "looks_good" }), null] });
+  const changes = [
+    connection`update requests set title='Checkout problem again' where id=${request.id}`,
+    connection`update requests set description='Changed description' where id=${request.id}`,
+    connection`update requests set classification='problem' where id=${request.id}`,
+    connection`update requests set reframed_problem='Reframed' where id=${request.id}`,
+    connection`update requests set extracted_solution='A solution' where id=${request.id}`,
+    connection`update requests set affected_people='Shoppers' where id=${request.id}`,
+    connection`update requests set desired_change='Finish checkout' where id=${request.id}`,
+    connection`update requests set observed_evidence='Drop-off' where id=${request.id}`,
+    connection`update requests set uncertainty='Mobile' where id=${request.id}`,
+    connection`update requests set useful_link='https://example.com' where id=${request.id}`,
+    connection`update requests set request_type='improvement' where id=${request.id}`,
+    connection`update requests set project_id=${project.id} where id=${request.id}`,
+    connection`update requests set label_keys='{bug}' where id=${request.id}`,
+    connection`update requests set expected_impact=${connection.json({ kind: "metric", metric: "Conversion", unit: "%", baseline: 1, target: 2, source: "", reviewAfterDays: 30 })} where id=${request.id}`,
+  ];
+  let revision = 0;
+  for (const change of changes) {
+    await change;
+    revision += 1;
+    expect(await state()).toEqual({ revision, decisions: [null, null] });
+    await answerAgain();
+  }
+  const notified = await connection`select user_id, type::text, actor_id from notifications where request_id=${request.id}`;
+  expect(notified).toHaveLength(changes.length);
+  expect(new Set(notified.map((n) => `${n.user_id} ${n.type} ${n.actor_id}`))).toEqual(new Set(["reset_a review_reset reset_owner"]));
+  await connection`update requests set status='in_progress' where id=${request.id}`;
+  await connection`update requests set desired_change='After pickup' where id=${request.id}`;
+  expect((await state()).decisions[0]).toEqual(expect.objectContaining({ kind: "looks_good" }));
+});
 it("rejects malformed exception closure at the database boundary", async () => {
   const [request] =
     await connection`select id from requests where org_id='org_test_a' limit 1`;

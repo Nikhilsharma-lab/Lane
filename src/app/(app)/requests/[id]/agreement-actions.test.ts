@@ -290,3 +290,111 @@ it("the requester or an admin deletes an Open Request with its reviews; nobody d
   expect(await lifecycle.pickUpRequest(started, { orgId })).toEqual({ success: true });
   expect(await lifecycle.deleteRequest(started, { orgId })).toHaveProperty("error");
 });
+
+async function notificationsFor(id: string) {
+  return connection`select user_id, type::text, actor_id, detail from notifications where request_id=${id} order by created_at, user_id`;
+}
+
+it("adding reviewers asks each of them, with the optional question on their row and in the notification", async () => {
+  const api = await import("./agreement-actions");
+  const id = await freshRequest();
+  as(designer);
+  const question = "Can we build this with the current API?";
+  expect(await api.addReviewers(contextFor(id, 0), { nominees: [member(developer), member(other)], note: question })).toMatchObject({ success: true });
+  expect(await api.addReviewers(contextFor(id, 1), { nominees: [member(guest)], note: "x".repeat(501) })).toEqual({ error: "Choose people to review." });
+  expect(await notificationsFor(id)).toEqual([
+    { user_id: developer, type: "review_requested", actor_id: designer, detail: question },
+    { user_id: other, type: "review_requested", actor_id: designer, detail: question },
+  ]);
+  as(developer);
+  expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ name: "agreement_dev", note: question }, { note: question }] });
+  const plain = await freshRequest();
+  expect(await add(plain, [member(designer)])).toMatchObject({ success: true });
+  expect(await notificationsFor(plain)).toEqual([{ user_id: designer, type: "review_requested", actor_id: owner, detail: null }]);
+});
+
+it("an answer tells whoever added that reviewer: looks good, or the concern with its reason", async () => {
+  const id = await freshRequest();
+  await add(id, [member(developer)], designer);
+  await add(id, [member(other)]);
+  await connection`delete from notifications where request_id=${id}`;
+  expect(await answer(id, developer, "looks_good")).toMatchObject({ success: true });
+  expect(await answer(id, other, "concern", "The empty state is missing")).toMatchObject({ success: true });
+  expect(await notificationsFor(id)).toEqual([
+    { user_id: designer, type: "review_looks_good", actor_id: developer, detail: null },
+    { user_id: owner, type: "review_concern", actor_id: other, detail: "The empty state is missing" },
+  ]);
+});
+
+const editValues = (change: Record<string, unknown> = {}) => ({
+  title: "Checkout problem", description: "People cannot complete checkout", affectedPeople: "", desiredChange: "", observedEvidence: "",
+  uncertainty: "", usefulLink: "", labelKeys: [] as string[], projectId: null, requestType: null, priority: "none",
+  expectedImpact: null, reframedProblem: null, extractedSolution: null, ...change,
+});
+async function edit(id: string, change: Record<string, unknown>, before: Record<string, unknown> = {}) {
+  const { saveRequestEdits } = await import("./edit-actions");
+  const { requestEditSnapshot } = await import("@/lib/request-edit");
+  return saveRequestEdits(id, { snapshot: requestEditSnapshot(editValues(before) as never), changes: editValues({ ...before, ...change }) }, { orgId });
+}
+
+it("editing what an Open Request says resets every answer and tells reviewers who had answered, naming the editor", async () => {
+  const api = await import("./agreement-actions");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer), member(other)]);
+  await answer(id, designer, "looks_good");
+  await answer(id, developer, "concern", "Too vague");
+  await connection`delete from notifications where request_id=${id}`;
+  const revision = await revisionOf(id);
+  as(owner);
+  expect(await edit(id, { desiredChange: "People finish checkout" })).toEqual({ success: true });
+  expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null, null]);
+  expect(await revisionOf(id)).toBe(revision + 1);
+  expect(await notificationsFor(id)).toEqual([
+    { user_id: designer, type: "review_reset", actor_id: owner, detail: null },
+    { user_id: developer, type: "review_reset", actor_id: owner, detail: null },
+  ]);
+  // The reviewers' screens reload at the new revision and can answer again.
+  as(designer);
+  expect(await api.answerReview(contextFor(id, revision + 1), { reviewerId: (await reviewersOf(id))[0].id, kind: "looks_good", reason: "" })).toMatchObject({ success: true });
+});
+
+it("a priority change leaves answers alone, from the priority control or the edit form", async () => {
+  const lifecycle = await import("./actions");
+  const id = await freshRequest();
+  await add(id, [member(designer)]);
+  await answer(id, designer, "looks_good");
+  await connection`delete from notifications where request_id=${id}`;
+  const revision = await revisionOf(id);
+  as(owner);
+  expect(await lifecycle.setRequestPriority(id, "urgent", { orgId })).toMatchObject({ success: true });
+  expect(await edit(id, { priority: "low" }, { priority: "urgent" })).toEqual({ success: true });
+  expect((await reviewersOf(id))[0].decision).toMatchObject({ kind: "looks_good" });
+  expect(await revisionOf(id)).toBe(revision);
+  expect(await notificationsFor(id)).toEqual([]);
+});
+
+it("supplying current values for Expected impact also resets answers", async () => {
+  const lifecycle = await import("./actions");
+  const plan = { kind: "measurement", version: 2, primary: { key: "conversion", name: "", unit: "percent", current: null, target: 75, noBaseline: false, check: "" }, measurement: { audience: "all", platform: "web", windowDays: 14, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
+  const [row] = await connection`insert into requests(org_id,title,description,created_by,request_type,expected_impact) values (${orgId},'Checkout problem','People cannot complete checkout',${owner},'improvement',${connection.json(plan)}) returning id`;
+  const id = row.id as string;
+  await add(id, [member(designer)]);
+  await answer(id, designer, "looks_good");
+  await connection`delete from notifications where request_id=${id}`;
+  as(owner);
+  expect(await lifecycle.saveRequestCurrentValues(id, { expectedImpact: plan, primary: 62, guardrails: [] }, { orgId })).toMatchObject({ success: true });
+  expect((await reviewersOf(id))[0].decision).toBeNull();
+  expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: owner, detail: null }]);
+});
+
+it("an admin who edits is named, and is not told about their own edit", async () => {
+  const id = await freshRequest();
+  await add(id, [member(designer), member(other)]);
+  await answer(id, designer, "looks_good");
+  await answer(id, other, "looks_good");
+  await connection`delete from notifications where request_id=${id}`;
+  as(other, "org:admin");
+  expect(await edit(id, { uncertainty: "Unsure about mobile" })).toEqual({ success: true });
+  expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: other, detail: null }]);
+  expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
+});

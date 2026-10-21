@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
-import { db, profiles, requests, requestAgreements } from "@/db";
+import { db, notifications, profiles, requests, requestAgreements } from "@/db";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
@@ -50,6 +50,42 @@ async function saveReviewers(
     await tx
       .insert(requestAgreements)
       .values({ orgId: request.orgId, requestId: request.id, reviewers });
+}
+
+type ReviewNotification = {
+  userId: string;
+  type: "review_requested" | "review_looks_good" | "review_concern";
+  detail: string;
+};
+
+/** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
+async function notifyReviewers(
+  tx: AgreementTx,
+  request: AgreementRequest,
+  actorId: string,
+  items: ReviewNotification[],
+) {
+  const recipients = items.filter((item) => item.userId !== actorId);
+  if (!recipients.length) return;
+  const known = new Set(
+    (
+      await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(inArray(profiles.id, recipients.map((item) => item.userId)))
+    ).map((p) => p.id),
+  );
+  const values = recipients
+    .filter((item) => known.has(item.userId))
+    .map((item) => ({
+      userId: item.userId,
+      orgId: request.orgId,
+      type: item.type,
+      requestId: request.id,
+      actorId,
+      detail: item.detail || null,
+    }));
+  if (values.length) await tx.insert(notifications).values(values);
 }
 
 /** Any non-guest member asks people to look at an Open Request. Only admins invite by email. */
@@ -117,6 +153,16 @@ export async function addReviewers(context: AgreementContext, input: unknown) {
           "That invitation is for someone who is already a reviewer.",
         );
       await saveReviewers(tx, request, agreement, reviewers);
+      await notifyReviewers(
+        tx,
+        request,
+        auth.userId,
+        added.flatMap((person) =>
+          person.nominee.kind === "member"
+            ? [{ userId: person.nominee.userId, type: "review_requested" as const, detail: parsed.data.note }]
+            : [],
+        ),
+      );
     },
   );
 }
@@ -187,6 +233,13 @@ export async function answerReview(context: AgreementContext, input: unknown) {
         reason: parsed.data.kind === "concern" ? parsed.data.reason : "",
       };
       await saveReviewers(tx, request, agreement, reviewers);
+      await notifyReviewers(tx, request, auth.userId, [
+        {
+          userId: reviewer.addedBy,
+          type: parsed.data.kind === "concern" ? "review_concern" : "review_looks_good",
+          detail: reviewer.decision.reason,
+        },
+      ]);
     },
   );
 }

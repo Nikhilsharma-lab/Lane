@@ -17,6 +17,9 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "invite_accepted",
   "review_requested",
   "review_responded",
+  "review_looks_good",
+  "review_concern",
+  "review_reset",
 ]);
 
 export const notifications = pgTable(
@@ -36,6 +39,8 @@ export const notifications = pgTable(
     actorId: text("actor_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    /** A reviewer's question, or the reason for a concern. */
+    detail: text("detail"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

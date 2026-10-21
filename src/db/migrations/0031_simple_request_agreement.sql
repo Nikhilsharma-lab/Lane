@@ -142,6 +142,47 @@ REVOKE ALL ON FUNCTION public.valid_agreement_exception(jsonb), public.protect_r
  public.protect_agreement_events(), public.request_agreement_blocked(uuid) FROM PUBLIC;
 COMMIT;
 
+-- #76: reviews stay honest and people find out about them.
+-- A review question or answer travels with its notification. Editing what an Open Request says resets every
+-- answer, bumps the revision and tells reviewers who had answered. Priority is not content.
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_looks_good';
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_concern';
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_reset';
+BEGIN;
+ALTER TABLE public.notifications ADD COLUMN detail text CHECK(length(detail)<=4000);
+-- The editor sets lane.actor_id in the same transaction so the notification names them; otherwise the requester.
+CREATE FUNCTION public.reset_reviews_on_edit() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE actor text := COALESCE(NULLIF(current_setting('lane.actor_id',true),''),NEW.created_by);
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.request_agreements a, jsonb_array_elements(a.reviewers) x
+   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id AND x->'decision'<>'null'::jsonb) THEN
+  INSERT INTO public.notifications(user_id,org_id,type,request_id,actor_id)
+   SELECT DISTINCT x->'nominee'->>'userId',NEW.org_id,'review_reset'::public.notification_type,NEW.id,actor
+   FROM public.request_agreements a, jsonb_array_elements(a.reviewers) x
+   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id AND x->'decision'<>'null'::jsonb
+    AND x->'nominee'->>'userId'<>actor
+    AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=x->'nominee'->>'userId')
+    AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=actor);
+  UPDATE public.request_agreements a SET reviewers=(SELECT jsonb_agg(jsonb_set(x,'{decision}','null'::jsonb) ORDER BY i) FROM jsonb_array_elements(a.reviewers) WITH ORDINALITY t(x,i))
+   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id;
+  NEW.agreement_revision := OLD.agreement_revision + 1;
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER reset_reviews_on_edit BEFORE UPDATE ON public.requests FOR EACH ROW
+ WHEN (OLD.status='open' AND (
+  NEW.title, NEW.description, NEW.classification, NEW.reframed_problem, NEW.extracted_solution, NEW.affected_people,
+  NEW.desired_change, NEW.observed_evidence, NEW.uncertainty, NEW.useful_link, NEW.request_type, NEW.project_id,
+  NEW.label_keys, NEW.expected_impact
+ ) IS DISTINCT FROM (
+  OLD.title, OLD.description, OLD.classification, OLD.reframed_problem, OLD.extracted_solution, OLD.affected_people,
+  OLD.desired_change, OLD.observed_evidence, OLD.uncertainty, OLD.useful_link, OLD.request_type, OLD.project_id,
+  OLD.label_keys, OLD.expected_impact
+ ))
+ EXECUTE FUNCTION public.reset_reviews_on_edit();
+REVOKE ALL ON FUNCTION public.reset_reviews_on_edit() FROM PUBLIC;
+COMMIT;
+
 -- #77: what pickup confirms and what the list's concern marker counts: open concerns (who and why) and
 -- how many reviews are unanswered. Saved data only, so a departed reviewer's concern may still count
 -- (accepted). Null when nothing is outstanding, so unchanged list rows stay equal between responses.

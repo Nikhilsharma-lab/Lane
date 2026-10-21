@@ -29,6 +29,8 @@ export type NotificationItem = {
   requestTitle: string | null;
   requestNumber: number | null;
   reframedProblem: string | null;
+  /** A reviewer's question, or the reason for a concern. */
+  detail?: string | null;
 };
 
 export type NotificationBellViewProps = {
@@ -87,7 +89,7 @@ function NotificationRow({ item, active, pending, onSelect, onToggleRead }: {
     <button type="button" className={`${notificationStyles.itemToggle} ${styles.open}`} data-notification-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} onFocus={() => { if (href) prefetch.schedule(); }} onBlur={() => prefetch.cancel()}>
       <span className={styles.primary}>{copy.primary}</span>
-      <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} /></span>
+      <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} />{copy.detail && ` · “${copy.detail}”`}</span>
     </button>
     {/* aria-disabled, not disabled, while the row's own action is pending: a disabled button would drop the keyboard focus that just pressed it.
         The name says which Request; the tooltip says what the glyph does. */}
