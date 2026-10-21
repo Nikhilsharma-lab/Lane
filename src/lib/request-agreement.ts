@@ -74,7 +74,7 @@ export type AgreementSnapshot = {
   prepared: PreparedAgreement;
   attachmentIds: string[];
 };
-export type ExceptionClosure = {
+export type SupersededClosure = {
   version: 1;
   kind: "exception";
   reasonCode: "superseded";
@@ -83,6 +83,8 @@ export type ExceptionClosure = {
   closedAt: string;
   replacementId: string;
 };
+/** Superseded (#58) or an owner-recorded #60 exception; both stay outside measured-impact totals. */
+export type ExceptionClosure = SupersededClosure | import("./request-outcome").OutcomeException;
 export const agreementContextSchema = z
   .object({
     orgId: z.string().min(1),

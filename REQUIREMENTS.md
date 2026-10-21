@@ -20,6 +20,7 @@
 > implementation/testing. Migration `0028` is prepared; hosted backup, staging acceptance and promotion
 > are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
 > **2026-10-21 #59 approval:** Release/measurement implementation is authorized locally, with UTC date boundaries, owner-only attributed correction/void recovery, and admin transfer when the current owner loses eligible access. Relative deadlines use actual exposure; fixed dates stay fixed. See `docs/superpowers/plans/2026-10-21-release-measurement.md`. Hosted migration/acceptance and #60 closure remain separate.
+> **2026-10-21 #60 approval:** Measured and exception closure, append-only closure corrections and linked follow-ups are authorized locally with no new table. The current release/outcome owner closes (measured only from the UTC due date; exceptions any time with a reason) and corrects; admin transfer stays available after closure when the owner loses access. Every agreed guardrail needs an actual value. Any active non-guest member may create a follow-up after release. See `docs/superpowers/plans/2026-10-21-outcome-closure.md`. Hosted migration `0030` and acceptance remain separate gates; quarter/year totals remain target only.
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
@@ -533,7 +534,9 @@ or cancelled Request may close directly from Not started with its reason, withou
 A Closed Request cannot reopen. Preserve its closure snapshot, commitment, outcome and evidence. Factual
 errors may receive an attributable append-only correction displayed beside the original; never silently
 overwrite history. A typo or mistaken evidence link is not new product work and must not inflate follow-up
-counts. Correction authority and presentation must be specified before implementation.
+counts. **Specified 2026-10-21 (#60):** only the current release/outcome owner adds corrections, each naming
+the corrected part (actual, guardrails, evidence, observation period or exception reason) with a reason; they
+appear beside the unchanged closure record.
 
 ### Amendments and follow-up Requests — Confirmed 2026-09-28
 

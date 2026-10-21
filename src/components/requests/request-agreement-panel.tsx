@@ -368,7 +368,9 @@ export function RequestAgreementPanel({
         <h2 id="agreement-heading">Agreement</h2>
         <p>
           {view.closure
-            ? "Superseded · Exception excluded from measured impact"
+            ? view.closure.reasonCode === "superseded"
+              ? "Superseded · Exception excluded from measured impact"
+              : "Closed · Agreement is final"
             : agreementBlockReason(agreement) || "All three participants agree"}
         </p>
       </header>

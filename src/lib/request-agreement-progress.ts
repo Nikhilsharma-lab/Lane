@@ -60,7 +60,11 @@ export async function withAgreementProgress<T>(
       let error: string | null = null;
       if (!request) error = "Not found";
       else if (request.exceptionClosure)
-        error = "This Request is Superseded and cannot advance.";
+        error = request.exceptionClosure.reasonCode === "superseded"
+          ? "This Request is Superseded and cannot advance."
+          : "This Request is closed with an exception and cannot advance.";
+      else if (request.outcomeClosure)
+        error = "This Request is Closed and cannot advance.";
       else if (request.status !== from) {
         eligible.push(id);
         continue;

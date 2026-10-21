@@ -258,3 +258,7 @@ product approval and sequencing rules above:
 ### October 21 — #59 release and measurement increment
 
 Approved for local implementation after #58: creator/current-owner release, UTC measurement deadlines, attributed correction/void history and explicit admin responsibility transfer. Done priority is hidden, never erased. Migration 0029 follows 0028 through verified backups and staging acceptance before any hosted promotion. Actual-impact closure remains #60. Contract: `docs/superpowers/plans/2026-10-21-release-measurement.md`.
+
+### October 21 — #60 actual impact and permanent closure increment
+
+Approved for local implementation after #59: owner-recorded measured closure from the due date (numeric or pass/fail, every agreed guardrail, evidence and observation period; any result direction closes), reasoned exception closure (not launched, rolled back, unavailable, inconclusive; Superseded unchanged), owner-only append-only corrections and linked follow-ups that never supersede the original obligation. Migration 0030 adds Request columns only and follows 0028/0029 through verified backups and staging acceptance. No reporting screen. Contract: `docs/superpowers/plans/2026-10-21-outcome-closure.md`.

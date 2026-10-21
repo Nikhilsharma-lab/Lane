@@ -109,7 +109,9 @@ export async function mutateAgreement(
       insist(!request.releaseState?.release, "Release is recorded. Agreement is frozen; new work needs a follow-up.");
       insist(
         !request.exceptionClosure,
-        "This Request is permanently closed as Superseded.",
+        request.exceptionClosure?.reasonCode === "superseded"
+          ? "This Request is permanently closed as Superseded."
+          : "This Request is permanently closed.",
       );
       insist(
         request.agreementRevision === context.expectedRevision,

@@ -1,5 +1,32 @@
 # Shared Claude / Codex handoff
 
+## October 21 — #60 actual impact and permanent closure implemented locally
+
+Implemented [#60](https://github.com/Nikhilsharma-lab/Lane/issues/60) per the approved
+[contract](superpowers/plans/2026-10-21-outcome-closure.md). The current release/outcome owner closes with a
+measured result from the UTC due date: the actual is recorded against the agreed baseline/target, every agreed
+guardrail needs an actual (held/breached shown, never a gate), plus evidence and observation period. Any result
+direction closes. A reasoned exception can be recorded any time: not launched (before release only), rolled
+back or inconclusive (after release), or measurement unavailable. Superseded is unchanged. Closed never reopens:
+the owner appends corrections, only for parts the closure kind has. An admin can still transfer a closed Request
+when the owner loses access. Any active non-guest member can create linked follow-ups after release, with copied
+context and fresh agreement. The original's obligation is untouched. Outcome panel on Request detail; detail
+shows Closed / Closed with exception / Superseded.
+
+Migration `0030_request_outcome_closure.sql` adds `requests.outcome_closure`, `closure_corrections` and
+`follow_up_of`, and v2 exception codes (no new table). Local lane_test only.
+
+Local verification: 1,233 application tests passed (1 existing skip); outcome actions 11 and schema 6 tests;
+6 outcome stories plus release/agreement stories passed; typecheck, lint on changed files, design checks and
+build passed. Full Storybook: 605 passed, 4 failed. Three are the known baseline failures (detail Default/In Progress,
+Copy And Search In Workspace). Requests/Labels "Prefix Matching And Stable Count" also fails with the
+outcome preview mock removed and imports nothing changed here; it is untriaged. Standards and Spec reviews ran.
+Fixed: trigger revision/Superseded holes, Superseded transfer, correction fields per closure kind, owner-vs-admin race test.
+
+**Not done:** `e2e/request-outcome.spec.ts` (exception, correction, follow-up, transfer at 1440/390 light/dark)
+is authored, not run. Hosted measured closure can't reach a deadline. Before hosted 0030: verified backup,
+staging 0028 → 0029 → 0030, run the release and outcome e2e there. No push, hosted migration or deployment.
+
 ## October 21 — #59 release and measurement implemented locally
 
 Implemented [#59](https://github.com/Nikhilsharma-lab/Lane/issues/59) per the approved

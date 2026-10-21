@@ -17,6 +17,7 @@ import { projects } from "./projects";
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
 import type { ReleaseState } from "@/lib/request-release";
 import type { ExceptionClosure } from "@/lib/request-agreement";
+import type { ClosureCorrection, OutcomeClosure } from "@/lib/request-outcome";
 import type { DesignReview } from "@/lib/request-review";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
@@ -41,6 +42,9 @@ export const requests = pgTable(
     releaseState: jsonb("release_state").$type<ReleaseState>(),
     agreementRevision: integer("agreement_revision").notNull().default(0),
     exceptionClosure: jsonb("exception_closure").$type<ExceptionClosure>(),
+    outcomeClosure: jsonb("outcome_closure").$type<OutcomeClosure>(),
+    closureCorrections: jsonb("closure_corrections").$type<ClosureCorrection[]>().notNull().default([]),
+    followUpOf: uuid("follow_up_of"),
     id: uuid("id").primaryKey().defaultRandom(),
     orgId: text("org_id")
       .notNull()
@@ -84,6 +88,7 @@ export const requests = pgTable(
     orgIdUnique: unique("requests_org_id_id_unique").on(table.orgId, table.id),
     orgRequestNumberUnique: unique("requests_org_request_number_unique").on(table.orgId, table.requestNumber),
     projectFk: foreignKey({ name: "requests_project_workspace_fk", columns: [table.orgId, table.projectId], foreignColumns: [projects.orgId, projects.id] }),
+    followUpFk: foreignKey({ name: "requests_follow_up_workspace_fk", columns: [table.orgId, table.followUpOf], foreignColumns: [table.orgId, table.id] }),
     projectIdIdx: index("requests_project_id_idx").on(table.projectId),
     orgIdIdx: index("requests_org_id_idx").on(table.orgId),
     createdByIdx: index("requests_created_by_idx").on(table.createdBy),

@@ -7,6 +7,7 @@ import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
 import { agreementRoster } from '@/lib/request-agreement-members';
 import { agreementBlockReason, agreementContextSchema, disciplines, type AgreementContext } from '@/lib/request-agreement';
 import { insist, AgreementError, commitmentToken } from '@/lib/request-agreement-store';
+import { isClosed, isSuperseded } from '@/lib/request-outcome';
 import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
 export async function changeRequestRelease(context: AgreementContext, input: unknown) {
     try {
@@ -33,7 +34,7 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
                 insist(previous.actorId === auth.userId && previous.fingerprint === fingerprint, 'This retry key was used for another change.');
                 return { success: true as const, revision: previous.revision };
             }
-            insist(!request.exceptionClosure, 'This Request is permanently closed.');
+            insist(!isClosed(request) || (change.kind === 'transfer' && !isSuperseded(request)), 'This Request is permanently closed.');
             insist(request.agreementRevision === context.expectedRevision, 'Request changed. Reload before trying again.');
             const before = state.release;
             let nextOwner = ownerId;
@@ -101,7 +102,7 @@ export async function readRequestRelease(requestId: string, context: {
             catch { /* Saved facts remain readable during provider outages. */ }
         }
         const active = (id: string) => people.some(p => p.nominee.kind === 'member' && p.nominee.userId === id);
-        const canEdit = auth.role !== 'guest' && active(auth.userId) && ownerId === auth.userId && !request.exceptionClosure;
+        const canEdit = auth.role !== 'guest' && active(auth.userId) && ownerId === auth.userId && !isClosed(request);
         const [incoming] = await db.select().from(requestReplacements).where(and(eq(requestReplacements.replacementId, requestId), eq(requestReplacements.orgId, auth.orgId)));
         const blocked = agreementBlockReason(agreement) ?? (agreement && disciplines.some(d => { const n = agreement.seats[d]?.nominee; return n?.kind !== 'member' || !active(n.userId); }) ? 'Agreement blocked: verify all participants are active members.' : null);
         const release = request.releaseState?.release ?? null;
@@ -119,7 +120,7 @@ export async function readRequestRelease(requestId: string, context: {
             earliestExposure: agreement ? earliestExposure(agreement.seats) : null,
             canRelease: canEdit && request.status === 'done' && !release && !blocked && (!incoming || !!incoming.confirmedAt),
             canCorrect: canEdit && request.status === 'done' && !!release,
-            canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId) && !request.exceptionClosure,
+            canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId) && !isSuperseded(request),
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
             blocked: request.status !== 'done' ? 'Complete work before recording release.' : blocked,
             history: history.map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),

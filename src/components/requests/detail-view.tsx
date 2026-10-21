@@ -26,6 +26,7 @@ export type RequestDetail = {
   agreementBlocked?: boolean
   agreementSubmitted?: boolean
   exceptionClosure?: import("@/lib/request-agreement").ExceptionClosure | null
+  outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
   designReviews?: DesignReview[]
   designReviewVersion?: number
   id: string
