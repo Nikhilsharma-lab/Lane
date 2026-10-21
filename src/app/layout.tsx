@@ -19,9 +19,18 @@ import "@/components/arc/empty-state/empty-state.module.css";
 import "@/components/shell/page-strip.module.css";
 import "./app-frame.module.css";
 
+// The favicon, icons, manifest and Open Graph image beside this file are generated from the Lane mark and the
+// Supabase tokens by scripts/brand/brand-assets.mjs (plan §6.4, O4). Open Graph and Twitter need absolute image
+// URLs; without a parseable NEXT_PUBLIC_APP_URL, Next falls back to its own deployment URL.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+const description = "Collect design requests, clarify the problem, and track the work from Open to Done.";
+
 export const metadata: Metadata = {
+  metadataBase: appUrl && URL.canParse(appUrl) ? new URL(appUrl) : undefined,
   title: "Lane",
-  description: "Collect design requests, clarify the problem, and track the work from Open to Done.",
+  description,
+  openGraph: { type: "website", siteName: "Lane", title: "Lane", description },
+  twitter: { card: "summary_large_image", title: "Lane", description },
 };
 
 // Origins Clerk may redirect back to after sign-in, sign-up and invite flows.
