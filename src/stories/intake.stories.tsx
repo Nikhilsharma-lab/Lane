@@ -1168,7 +1168,7 @@ export const WorkspaceCalendarReturnsToRequest: Story = {
     await waitFor(() => expect(windowTrigger).toHaveFocus());
     await expect(page.getByRole("dialog", { name: "New Request" })).toBeVisible();
     await expect(request.getByRole("textbox", { name: "Request title" })).toHaveValue(requestSource.title);
-    await expect(windowTrigger).toHaveTextContent("Measurement dates");
+    await expect(windowTrigger).toHaveTextContent("30 days after release");
     await userEvent.click(windowTrigger);
     await userEvent.click(await page.findByRole("menuitem", { name: "Custom date range…" }));
     const reopened = within(await page.findByRole("dialog", { name: "Measurement date range" }));

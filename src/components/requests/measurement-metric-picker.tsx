@@ -21,7 +21,8 @@ export function MeasurementMetricPicker({ id, metric, guardrail, disabled, error
   const name = query.trim().replace(/\s+/g, " ")
   const options = MEASUREMENT_METRIC_OPTIONS.filter(option => option.value !== "custom" && (!guardrail || option.value !== "check"))
   if (metric.key === "custom" && metric.name.trim()) options.push({ value: "custom", label: metric.name })
-  const shown = options.filter(option => option.label.toLowerCase().startsWith(name.toLowerCase()))
+  // Anywhere in the name, so "CSAT" finds "Customer satisfaction (CSAT)"; create is offered only when nothing matches (critique 2.3).
+  const shown = options.filter(option => option.label.toLowerCase().includes(name.toLowerCase()))
   const select = (key: MeasurementMetricKey, customName?: string) => {
     if (key !== metric.key || (key === "custom" && customName !== metric.name)) onSelect(key, customName)
     setOpen(false); setQuery("")
