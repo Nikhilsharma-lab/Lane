@@ -72,9 +72,29 @@ and typechecked, not executed on hosted providers. Verified backup, staging migr
 acceptance are still required before deployment. No push, hosted migration or production deployment.
 Pre-existing tracker/spec/AGENTS edits remain outside this commit.
 
+## October 21 — Three implementation tickets published
+
+Nikhil approved consolidating the lifecycle work into exactly three tickets. Published through to-tickets as native sub-issues of #57, each labelled `ready-for-agent` and `enhancement`:
+
+1. [#58 Agreement before work starts](https://github.com/Nikhilsharma-lab/Lane/issues/58) — no blockers; current frontier.
+2. [#59 Release and measurement](https://github.com/Nikhilsharma-lab/Lane/issues/59) — natively blocked by #58.
+3. [#60 Actual impact and permanent closure](https://github.com/Nikhilsharma-lab/Lane/issues/60) — natively blocked by #59.
+
+Read back and verified exact ticket bodies, labels, parent relationships and blocking edges. Parent #57 title/body/state are unchanged. Each ticket includes acceptance criteria and the approved test boundaries; unresolved timing/release recovery decisions remain explicit in #59. No product implementation or deployment occurred. Next work begins with scoped planning for #58.
+
+## October 21 — GitHub issue tracker and Request lifecycle spec
+
+Configured GitHub Issues for `Nikhilsharma-lab/Lane` in `docs/agents/`; AGENTS.md points to the tracker, default triage mapping and domain rules. User confirmed all five default workflow labels and existing server-action/database tests plus browser acceptance. Created four missing labels; reused `wontfix`.
+
+Published and read back [issue #57](https://github.com/Nikhilsharma-lab/Lane/issues/57), “Request agreement before pickup, creator-owned release and outcome closure”, with `ready-for-agent` and `enhancement`. The published body matched the local spec at publication. Local copy: `docs/specs/2026-10-21-request-agreement-release-outcomes.md` (includes the issue backlink). Captures all 26 interview decisions and 51 user stories. Next: bounded implementation planning, starting with agreement before pickup; reconcile requirements/roadmap. Product implementation, schema decisions and production deployment were not performed by this spec task. Tracker/spec files are local uncommitted changes; issue and labels are live on GitHub.
+
 ## Production promotion preparation — October 20
 
 ### Current status — production promoted, final authenticated checks pending
+
+**Temporary credential cleanup completed:** Stopped confirmed local password-entry Python helper PID15460 on127.0.0.1:8769. Removed `/private/tmp/lane-prod-db-password-20261020`, `lane-clerk-prod-20261020.env`, `lane-prod-existing-20261020.env`, `lane-prod-redis-token-20261020` and `lane-db-password-entry.py`. Backup archives and separate recovery key retained. This supersedes pending-cleanup notes below.
+
+**Second-account acceptance / reported flicker:** User reported flicker after second Google signup. Chrome disconnected; error logs for 16:09:10–16:24:10Z returned no server errors. After reconnect, new Chrome tab654163522 (`flickerTab`, browser3) showed the distinct second account in Profile with PM role and its own “nikhil's Organization”. Requests settled to “No Requests yet”, with no Project2; browser warning/error capture was empty. Direct navigation to first workspace LAN-1 returned “This Request can’t be opened … not available in this workspace”, exposing neither content nor file controls. Screenshot `production-workspace-isolation.png`. Returned to Requests and full reload also settled normally. **Earlier flicker was not reproduced, diagnosed or fixed; no code/config change made for it.** Cross-workspace list/detail denial now has live production evidence. A forged attachment-download action from the second account remains untested; do not claim this separately passed. Tab left at test workspace Requests. Temporary DB/Clerk credential/helper cleanup remains outstanding.
 
 **Latest acceptance — Redis repair verified live:** Redeployment `dpl_2qhTPXj8mnB36KcjVGysRygEFtp1` is READY and aliased to app.uselane.app; compilation, TypeScript and all 19 pages completed. Refreshed browser restored unsaved draft; reselected test attachment. AI review succeeded, Request **LAN-1** (`39bd6680-c258-46e4-a3f0-1a7a6347dcb8`) saved with one private 100-byte attachment. Downloaded `/Users/nikhilsharma/Downloads/lane-production-verification.txt` matches original by `cmp` exit0. Reload preserved content/file, pickup changed to In Progress, Mark Done and reload confirmed Done. No comments posted. Disposable test Request intentionally remains, clearly titled “Production verification — Request and attachment flow”. Screenshot `production-request-verified.png`; IAB7 (`draftTab`) deliverable. Runtime error query 16:06:49–16:11:49Z returned zero errors. Anonymous Chrome access to exact Request redirected to `/login`.
 
