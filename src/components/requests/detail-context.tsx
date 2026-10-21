@@ -40,10 +40,11 @@ export function requestCodeOrNull(requestNumber: number | undefined) {
  * clear the arrival flags. Either way the page J or K left gives up its place
  * in the sequence. A deep link or a reload moves nothing.
  */
-function useArrival(focus: (button: "previous" | "next" | null) => void) {
+function useArrival(focus: (button: "previous" | "next" | null) => void, enabled = true) {
   const { sequence, focusTitleOnArrival, focusOnArrival } = useDetailSession()
   const setSession = useSetDetailSession()
   useLayoutEffect(() => {
+    if (!enabled) return
     const settled = settleSequence(sequence)
     if (!focusTitleOnArrival && !focusOnArrival && settled === sequence) return
     if (focusTitleOnArrival || focusOnArrival) focus(focusOnArrival)
@@ -71,14 +72,17 @@ export function DetailArrivalReset() {
  * layout-level overlay, so a lifecycle move or a priority change shows
  * everywhere in the next frame and clears only when the server row shows it.
  * It also moves focus to the title when the person arrived from the list or
- * with J or K, never on a deep link or reload.
+ * with J or K, never on a deep link or reload. The list's peek (plan item
+ * 2.12) passes `arrival={false}`: focus stays on the list's row, and the
+ * page's J and K sequence is left as it was.
  */
-export function DetailRequestProvider({ request: serverRequest, viewer, orgId, isGuest, submittedAgo, children }: {
+export function DetailRequestProvider({ request: serverRequest, viewer, orgId, isGuest, submittedAgo, arrival = true, children }: {
   request: RequestDetail
   viewer: DetailViewer
   orgId: string
   isGuest: boolean
   submittedAgo: string
+  arrival?: boolean
   children: ReactNode
 }) {
   const overlay = usePendingMutations()
@@ -92,7 +96,7 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
     // J or K from the previous or next button keeps focus on that button; every other arrival reads the new title.
     const target = button ? document.querySelector<HTMLElement>(`[data-detail-sequence="${button}"]:not(:disabled)`) : null
     ;(target ?? document.getElementById("request-title"))?.focus({ preventScroll: true })
-  })
+  }, arrival)
 
   const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),
     [request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm])

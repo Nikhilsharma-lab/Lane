@@ -3,30 +3,10 @@ import { getMember, getWorkspace } from "@/lib/ensure-workspace"
 import { loadRequestDetail, loadRequestList } from "@/lib/data/requests"
 import { requestListHref } from "@/lib/request-workspace"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
-import { RequestDetailView, RequestUnavailable, type RequestDetail, type RequestComment, type RequestAttachment } from "@/components/requests/detail-view"
-import { CommentForm } from "./requests/[id]/comment-form"
-import { AttachmentDownload } from "./requests/[id]/attachment-download"
-import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
+import { RequestUnavailable } from "@/components/requests/detail-view"
+import { RequestDetailPane } from "@/components/requests/request-detail-pane"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
 import { RequestsOverview } from "./requests-overview"
-import { EditRequest } from "./requests/[id]/edit-request"
-import { measurementReadiness } from "@/lib/request-measurement"
-
-function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props }: {
-  request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[];
-  returnHref: string; orgId: string; isGuest: boolean; currentUserId: string; viewerName: string; isAdmin: boolean;
-}) {
-  const { request, isGuest } = props
-  const impact = request.expectedImpact
-  const pickupBlockedReason = measurementReadiness(impact, request.requestType)
-  const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
-  return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }}
-    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
-    editRequest={request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /> : undefined}
-    commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
-    attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} fileName={attachment.fileName} context={{ orgId }} />}
-  />
-}
 
 export async function RequestsWorkspace({ selectedRequestId }: { selectedRequestId?: string }) {
   const member = await getMember()
