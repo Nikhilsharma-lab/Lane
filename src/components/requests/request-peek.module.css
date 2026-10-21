@@ -1,0 +1,13 @@
+/* Plan item 2.12: the Request preview overlays the list's trailing edge, as the list summary does
+   (data-table-toolbar.module.css), so opening it never reflows the rows. The viewport clips the
+   sliding panel and lets the pointer through around it. Tokens only. */
+/* At most 60% of the list, so rows stay in view beside it on a small desktop (J and K are seen to move). */
+.viewport { position: absolute; z-index: 2; inset-block: 0; inset-inline-end: 0; width: min(calc(var(--sb-spacing) * 142), 60%); overflow: hidden; pointer-events: none; }
+.panel { position: absolute; inset: 0 var(--space-2) var(--space-2) auto; display: flex; width: calc(var(--sb-spacing) * 140); max-width: calc(100% - var(--space-2)); flex-direction: column; overflow: hidden; pointer-events: auto; border: var(--sb-border-width) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-raised); }
+/* The detail's own scroll region scrolls inside the panel; the list behind never scrolls with it. */
+.panel :global([data-detail]) { min-height: 0; }
+.panel :global([data-detail]) > div { overscroll-behavior: contain; }
+.state { display: flex; flex: 1; align-items: center; justify-content: center; padding: var(--space-5); }
+.skeleton { display: grid; gap: var(--space-6); padding: var(--space-6) var(--space-5); }
+.skeletonTitle { width: 60%; }
+.kbd { margin-inline-start: var(--space-3); font: inherit; color: var(--tooltip-muted); }

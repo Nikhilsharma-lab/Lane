@@ -46,7 +46,7 @@
 - Loaded on first use (and preloaded on idle) so no route grows more than 2 KB.
 - Done: stories for open, filter, keyboard path, Esc and focus return, guest; VoiceOver pass pending; the usual checks.
 
-### L5 Request peek
+### L5 Request peek *(built 2026-10-21; waiting on Nikhil's sign-off)*
 - From the Requests list, open a Request in a side peek without leaving the list: the list keeps its place, filters and selection. The full page `/requests/[id]` stays the canonical URL and is one action away (Enter or a button in the peek).
 - The peek reuses the detail view's existing islands (properties, lifecycle actions, comments, attachments) and the pending-mutation overlay, so a change made in the peek shows in the row in the same frame.
 - Keyboard: a key opens the peek on the focused row, J/K move it, Esc closes it and returns focus to the row. Phones keep full-page navigation.

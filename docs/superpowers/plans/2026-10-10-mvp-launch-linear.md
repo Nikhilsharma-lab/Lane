@@ -475,9 +475,9 @@ Production Clerk exists after the early cutover, so this is styled and verified 
   - Auth JS does not regress from 257–271 KB gzip, plus the Clerk runtime.
   - A real reset and a real invite return work on **production**.
 
-### 2.12 Later, if selected
+### 2.12 Later, if selected *(both selected by Nikhil 2026-10-21, `2026-10-21-leftover-build-plan.md`; Request peek built 2026-10-21; waiting on Nikhil's sign-off)*
 - ⌘K palette (8.24): existing actions only.
-- Request peek (`DEFERRED.md:210-222`).
+- Request peek (was `DEFERRED.md:214-226`; now under its Resolved list). Spec: `2026-10-21-request-peek.md`.
 
 **Cut line** if the timeline must shrink: 2.7 and 2.8 are B- today and can follow the soft launch. That saves about 2 weeks.
 

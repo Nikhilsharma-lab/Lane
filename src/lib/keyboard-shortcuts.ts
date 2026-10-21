@@ -3,7 +3,7 @@
  * supports, in one map. The `?` overlay renders from it, and a unit test keeps
  * it free of clashes. Handlers own registration; this map only describes them.
  */
-export type ShortcutScope = "anywhere" | "list" | "detail" | "notifications" | "forms"
+export type ShortcutScope = "anywhere" | "list" | "preview" | "detail" | "notifications" | "forms"
 
 export type Shortcut = {
   /** The keys as shown, one entry per interchangeable alternative ("J" or "↓"); a chord is one string ("Shift F10"). Keys that do different things get their own entries. */
@@ -30,10 +30,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["→"], label: "Expand a group, then go to its first Request" },
     { keys: ["←"], label: "Collapse a group, or go to the Request's group" },
     { keys: ["Enter"], label: "Open the Request, or show or hide the group" },
+    { keys: ["Space"], label: "Preview the Request beside the list" },
     { keys: ["X"], label: "Select or deselect the Request" },
     { keys: ["Esc"], label: "Clear the selection" },
     { keys: ["F"], label: "Add a filter" },
     { keys: ["Shift F10"], label: "Request actions" },
+  ] },
+  // Plan item 2.12: the preview follows the list's focus (J and K above); Enter on the row still opens the page.
+  { scope: "preview", title: "Request preview", shortcuts: [
+    { keys: ["Esc"], label: "Close the preview, back to its row" },
   ] },
   // Plan item 2.5 (decision D1): the arrows move between Requests only from the previous and next buttons.
   { scope: "detail", title: "Request detail", shortcuts: [
@@ -56,4 +61,4 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
 ]
 
 /** The hints the row menu shows. Only actions the menu itself can run carry one. */
-export const ROW_MENU_HINTS = { select: "X", open: "Enter" } as const
+export const ROW_MENU_HINTS = { select: "X", open: "Enter", peek: "Space" } as const

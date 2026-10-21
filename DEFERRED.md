@@ -211,20 +211,6 @@ not authorize implementing these unrelated deferrals.
   env may still say `localhost:3000`. Trigger: if an e2e spec fails on invite-link or redirect
   assertions.
 
-## REQUEST PEEK/PREVIEW — when board-context viewing is needed
-
-- **Detail-page peek/preview.** What: view a request's detail while staying in board/list context
-  (Plane's issue peek), instead of full-page nav to `/requests/{id}`. Status: **UNGATED, not banned.**
-  Not on the MVP screen whitelist (CLAUDE.md lines 17–26) → needs Nikhil's explicit written decision
-  before building. Deliberately unbuilt; full-page detail nav is sufficient at current scale. Why
-  deferred: not on the GTM path. Its main payoff for Lane — the notification inbox-pane form (see
-  NOTIFICATION AT-SCALE section below) — is already covered by the popover. No demonstrated need to
-  stay in board context while viewing a request at small scale. Plane ref: issue peek-overview
-  (`apps/web/core/components/issues/peek-overview/`), plus the notifications route that depends on it
-  (`NotificationsRoot` renders `IssuePeekOverview` in the right pane). Trigger: a real need to view a
-  request without losing board/list place, OR the inbox-pane notification form becomes wanted (peek is
-  its prerequisite) — either fires a Nikhil decision.
-
 ## NOTIFICATION AT-SCALE — Plane-sourced deferrals (notification recon, 2025-06-20)
 
 Items identified by comparing Lane's notification system against Plane's (`makeplane/plane`).
@@ -288,6 +274,8 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   request peek/preview interaction exists (read a request without leaving the current page). Trigger
   (secondary): notification surface gains tabs/filters/snooze needing dedicated vertical room.
   Reassess to route-based two-pane when either trigger lands.
+  **2026-10-21: the primary trigger has fired** (the Request preview on the list, plan item 2.12). The
+  reassessment is Nikhil's decision; nothing here is built by it, and the popover stays as it is.
 
 ## RLS BACKSTOP (PATH 1) — pre-GTM hardening pass
 
@@ -332,6 +320,14 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
 
 ## Resolved (kept for the trail)
 
+- Request peek/preview — **BUILT 2026-10-21** (launch plan item 2.12, leftover build item L5). The deferral
+  (ungated, needed Nikhil's explicit written decision; Plane's issue peek-overview as reference; trigger: a real
+  need to view a Request without losing list place) was cleared by Nikhil in chat on 2026-10-21 ("build all"
+  leftover items, `docs/superpowers/plans/2026-10-21-leftover-build-plan.md`, PR #63). Built as a non-modal
+  preview on the Requests list (Space, J/K follow, Esc back to the row; phones keep full-page navigation),
+  reusing the Request page's detail pane through a read-only `GET /api/requests/[id]`. Spec:
+  `docs/superpowers/plans/2026-10-21-request-peek.md`. The inbox-pane notification form it was a prerequisite
+  for stays deferred under NOTIFICATION AT-SCALE, whose primary trigger this fires (noted there).
 - Gate bypass — client controlled `classification`. Fixed Day 3 morning (HMAC token). — Day 2 #1.
 - `ensureWorkspace` as public server action; called 6×/submission. Fixed Day 3 morning + Day 4 morning. — Day 2 #2/#3, Day 3 #2.
 - Prompt-injection surface. Fixed Day 3 morning (XML-tag wrapping). — Day 2 #6.
