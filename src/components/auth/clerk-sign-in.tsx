@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ClerkFailed,
+  ClerkLoading,
   SignIn,
   TaskChooseOrganization,
   TaskResetPassword,
@@ -10,6 +12,7 @@ import type { ReactNode } from "react";
 
 import { clerkEmbeddedAppearance } from "./clerk-appearance";
 import { AuthCardSkeleton } from "./auth-card-skeleton";
+import { ClerkUnavailable } from "./clerk-unavailable";
 export { clerkEmbeddedAppearance } from "./clerk-appearance";
 
 export function ClerkHashSignIn() {
@@ -19,7 +22,7 @@ export function ClerkHashSignIn() {
       signUpUrl="/signup"
       fallbackRedirectUrl="/"
       appearance={clerkEmbeddedAppearance}
-      fallback={<AuthCardSkeleton label="Loading sign in" />}
+      fallback={<><ClerkLoading><AuthCardSkeleton label="Loading sign in" /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign in is unavailable right now" href="/login" /></ClerkFailed></>}
     />
   );
 }

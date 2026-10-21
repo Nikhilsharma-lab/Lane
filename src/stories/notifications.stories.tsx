@@ -108,7 +108,7 @@ const trigger = (canvasElement: HTMLElement) => within(canvasElement).getByRole(
 const badge = (canvasElement: HTMLElement, unread: number) => within(canvasElement).getByRole("button", { name: unread ? `Notifications, ${unread} unread` : "Notifications" })
 const rowsOf = (panel: HTMLElement) => [...panel.querySelectorAll<HTMLElement>("[data-notification-row]")]
 const openButton = (panel: HTMLElement, index: number) => rowsOf(panel)[index].querySelector<HTMLElement>("[data-notification-open]")!
-const toggleOf = (row: HTMLElement) => within(row).getByRole("button", { name: /^Mark notification as/ })
+const toggleOf = (row: HTMLElement) => within(row).getByRole("button", { name: /^Mark .+ (read|unread)$/ })
 /** A pending toggle is aria-disabled, not disabled, so the keyboard focus that pressed it stays put. */
 const expectPending = (button: HTMLElement) => expect(button).toHaveAttribute("aria-disabled", "true")
 async function expectLive(button: HTMLElement) {
@@ -136,6 +136,22 @@ export const Empty: Story = {
     await expect(within(panel).getByText("No notifications")).toBeVisible()
     await expect(within(panel).queryByRole("button", { name: "Mark all read" })).not.toBeInTheDocument()
     await expect(panel.querySelector('[role="alert"], [role="status"]')).toBeNull()
+  },
+}
+
+/** Critique 2.7: each icon-only read toggle names its own row's Request, and an Arc tooltip says what the glyph does. */
+export const ReadToggleNamesAndTooltip: Story = {
+  globals: desktopLight,
+  play: async ({ canvasElement, globals, parameters }) => {
+    await expectPinnedViewport({ globals, parameters })
+    const panel = await openNotifications(canvasElement)
+    await expect(rowsOf(panel).map(row => toggleOf(row).getAttribute("aria-label"))).toEqual(["Mark LAN-12 read", "Mark LAN-7 unread", "Mark Someone’s invite read"])
+    await userEvent.hover(toggleOf(rowsOf(panel)[0]))
+    await expect(await page().findByRole("tooltip")).toHaveTextContent("Mark read")
+    await userEvent.hover(toggleOf(rowsOf(panel)[1]))
+    await waitFor(() => expect(page().getByRole("tooltip")).toHaveTextContent("Mark unread"))
+    await userEvent.unhover(toggleOf(rowsOf(panel)[1]))
+    await waitFor(() => expect(page().queryByRole("tooltip")).not.toBeInTheDocument())
   },
 }
 
@@ -344,11 +360,14 @@ async function keyboardPlay(canvasElement: HTMLElement) {
   await userEvent.keyboard("{Home}")
   await expectRing(openButton(panel, 0))
   await expect(panel.querySelectorAll('[data-notification-open][tabindex="0"]')).toHaveLength(1)
-  // Tab from the row reaches its toggle, Shift+Tab comes back.
+  // Tab from the row reaches its toggle, whose tooltip shows on focus; Shift+Tab comes back.
   await userEvent.tab()
   await expect(toggleOf(rowsOf(panel)[0])).toHaveFocus()
+  await waitFor(() => expect(page().getByRole("tooltip")).toHaveTextContent("Mark read"))
   await userEvent.tab({ shift: true })
   await expect(openButton(panel, 0)).toHaveFocus()
+  // A closing tooltip takes the next Esc for itself, as Radix layers do (request-detail-keyboard.stories.tsx).
+  await waitFor(() => expect(page().queryByRole("tooltip")).not.toBeInTheDocument())
   await userEvent.keyboard("{Escape}")
   await waitFor(() => expect(page().queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument())
   await expect(button).toHaveFocus()
@@ -488,7 +507,7 @@ export const MarkReadIsOptimisticAndNeverReverts: Story = {
     await userEvent.click(toggleOf(row))
     // The same frame: dot off, toggle relabelled and disabled, badge and chip down by one.
     await expect(row).not.toHaveAttribute("data-unread")
-    await expectPending(within(row).getByRole("button", { name: "Mark notification as unread" }))
+    await expectPending(within(row).getByRole("button", { name: "Mark LAN-12 unread" }))
     await expect(badge(canvasElement, 1)).toBeVisible()
     await expect(within(panel).getByRole("heading", { name: "Notifications" }).parentElement).toHaveTextContent("1")
     await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Marked read.")
@@ -499,7 +518,7 @@ export const MarkReadIsOptimisticAndNeverReverts: Story = {
     await expect(badge(canvasElement, 1)).toBeVisible()
     // The action succeeds: the toggle is live again, the reconciling count agrees, still read.
     optimisticResolve?.()
-    await waitFor(() => expectLive(within(row).getByRole("button", { name: "Mark notification as unread" })))
+    await waitFor(() => expectLive(within(row).getByRole("button", { name: "Mark LAN-12 unread" })))
     await waitFor(() => expect(optimisticCalls?.count).toBeGreaterThanOrEqual(3))
     await settle()
     await expect(row).not.toHaveAttribute("data-unread")
@@ -533,17 +552,17 @@ export const MarkUnreadRollsBack: Story = {
     const panel = await openNotifications(canvasElement)
     await waitFor(() => expect(rowsOf(panel)).toHaveLength(3))
     const row = rowsOf(panel)[1]
-    await userEvent.click(within(row).getByRole("button", { name: "Mark notification as unread" }))
+    await userEvent.click(within(row).getByRole("button", { name: "Mark LAN-7 unread" }))
     await expect(row).toHaveAttribute("data-unread")
     await expect(badge(canvasElement, 3)).toBeVisible()
-    await expectPending(within(row).getByRole("button", { name: "Mark notification as read" }))
+    await expectPending(within(row).getByRole("button", { name: "Mark LAN-7 read" }))
     await expect(canvasElement.querySelector('[data-slot="list-announcer"]')).toHaveTextContent("Marked unread.")
     rollbackFailure?.fail()
     await waitFor(() => expect(row).not.toHaveAttribute("data-unread"))
     await expect(badge(canvasElement, 2)).toBeVisible()
     await toastShown(FAILURE_TITLE)
     await expect(page().getByText("Check your connection and try again.")).toBeVisible()
-    await expectLive(within(row).getByRole("button", { name: "Mark notification as unread" }))
+    await expectLive(within(row).getByRole("button", { name: "Mark LAN-7 unread" }))
     await expect(within(panel).queryByRole("alert")).not.toBeInTheDocument()
   },
 }
@@ -702,7 +721,8 @@ export const CountOnFocusLatestWins: Story = {
 let focusSlow: ReturnType<typeof held> | undefined
 let focusCalls: { list: number; count: number } | undefined
 
-/** An expired session: a 403 keeps the rows and shows the route's message with Try again; an auth-shaped action failure retries once, then rolls back with the toast. */
+/** An expired session: a 403 keeps the rows and shows the route's message with Refresh, since a retry cannot work; an auth-shaped
+ * action failure retries once, then rolls back with a toast that says to refresh, never "Check your connection". */
 export const ExpiredSession: Story = {
   globals: phoneDark,
   render: () => <Bell orgId="fixture-expired" />,
@@ -720,7 +740,8 @@ export const ExpiredSession: Story = {
     window.dispatchEvent(new Event("focus"))
     const alert = await within(panel).findByRole("alert")
     await expect(alert).toHaveTextContent("Your workspace session changed. Refresh the page to continue.")
-    await expect(within(panel).getByRole("button", { name: "Try again" })).toBeVisible()
+    await expect(within(panel).getByRole("button", { name: "Refresh" })).toBeVisible()
+    await expect(within(panel).queryByRole("button", { name: "Try again" })).not.toBeInTheDocument()
     await expect(rowsOf(panel)).toHaveLength(3)
     await expect(badge(canvasElement, 2)).toBeVisible()
     const row = rowsOf(panel)[0]
@@ -736,6 +757,9 @@ export const ExpiredSession: Story = {
     await waitFor(() => expect(row).toHaveAttribute("data-unread"))
     await expect(badge(canvasElement, 2)).toBeVisible()
     await toastShown(FAILURE_TITLE)
+    const messages = within(page().getByRole("region", { name: /^Messages/ }))
+    await expect(messages.getByText("Your workspace session changed. Refresh the page to continue.")).toBeVisible()
+    await expect(messages.queryByText("Check your connection and try again.")).not.toBeInTheDocument()
     await expect(mocked(markNotificationRead)).toHaveBeenCalledTimes(2)
   },
 }

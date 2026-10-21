@@ -3,7 +3,8 @@
  * its saved code and reframed problem ("LAN-12 · Customers cannot find the
  * delivery date before checkout"), line 2 is the event with "Done" as a
  * status, and the accessible name joins them with the local time and ends in
- * "unread" only for unread rows. Pure, so the view and the tests share it.
+ * "unread" only for unread rows. The read toggle names the same Request, so each
+ * row's toggle is told apart. Pure, so the view and the tests share it.
  */
 
 import { formatRequestCode } from "@/lib/request-code"
@@ -24,6 +25,8 @@ export type NotificationRowCopy = {
   secondary: string | null
   /** The row button's accessible name. */
   name: string
+  /** The read toggle's accessible name, naming the row's Request ("Mark LAN-12 read"). */
+  toggle: string
 }
 
 const ACTOR_FALLBACK = "Someone"
@@ -54,5 +57,7 @@ export function notificationRow(item: NotificationCopyInput, time?: string): Not
   const primary = item.type === "invite_accepted" ? `${actor} accepted your invite` : subject ? `${code} · ${subject}` : code
   const secondary = notificationEvent(item.type, actor)
   const name = [primary, secondary, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
-  return { primary, secondary, name }
+  const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "notification"
+  const toggle = `Mark ${target} ${item.readAt ? "unread" : "read"}`
+  return { primary, secondary, name, toggle }
 }

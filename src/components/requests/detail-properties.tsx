@@ -3,10 +3,10 @@
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
-import { Badge } from "@/components/arc/badge/badge"
 import { Avatar } from "@/components/arc/avatar/avatar"
 import { Button } from "@/components/arc/button/button"
 import { RequestStatusControl } from "./request-status-control"
+import { StatusGlyph } from "./status-glyph"
 import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
@@ -90,9 +90,12 @@ function usePropertyControls(inSheet = false) {
     })
   }
 
-  const statusControl = <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
+  // Decision 2026-10-21 (critique 2.5): a value this viewer cannot change reads as plain glyph and text, like
+  // Assignee and Project; only a control that opens something keeps the chip.
+  const statusControl = move ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
+    : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
 
-  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Badge appearance="control" className={styles.propertyButton} icon={priorityGlyph}>{priorityText}</Badge>
+  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }

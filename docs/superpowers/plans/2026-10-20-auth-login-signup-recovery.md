@@ -152,5 +152,5 @@ Measured on Next 16.3.8 against a same-version build of `origin/main` (`ce0bd7f`
 
 ## Follow-ups (not built)
 - **The `setup-mfa` task.** Clerk 6.16 ships `TaskSetupMFA`. If that task is ever enabled, `ClerkSessionTasks` falls through to `SignIn`, and `taskUrls` in `layout.tsx` has no entry for it. The gap predates this item; the reset link is hidden during it.
-- **Clerk failing to load.** The card skeleton then stays up and keeps announcing "Loading sign in". That was a blank card before this item. A `ClerkFailed` message would need copy and a decision.
-- **Light-theme skeleton fill.** `--skeleton-fill` resolves to `--sb-surface-300`, which in the light theme is nearly the page background. Every Lane skeleton is faint there, this one included.
+- ~~**Clerk failing to load.**~~ *Decided and built 2026-10-21: once Clerk's status is "error", sign-in and sign-up replace the skeleton with an unavailable message and a Reload link (`clerk-unavailable.tsx`, inside Clerk's `ClerkFailed`; the skeleton sits in `ClerkLoading`).*
+- ~~**Light-theme skeleton fill.**~~ *Resolved 2026-10-20 (Phase 2 critique sweep): `--skeleton-fill` now reads `--sb-border`, the base of Supabase's ShimmeringLoader, instead of `--sb-surface-300`, the card's own white in the light theme.*

@@ -70,7 +70,7 @@ async function expectFixedLanes(row: Locator) {
 async function expectNotificationLanes(row: Locator) {
   const lead = row.locator('span[aria-hidden="true"]').first();
   const content = row.locator("[data-notification-open]");
-  const toggle = row.getByRole("button", { name: /^Mark notification as/ });
+  const toggle = row.getByRole("button", { name: /^Mark .+ (read|unread)$/ });
 
   await expect(lead).toHaveCSS("width", "16px");
   await expect(content).toHaveCSS("min-width", "0px");
@@ -145,7 +145,7 @@ test("rows and identities keep one contract on every surface", async ({
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
       const readAction = notificationRow.getByRole("button", {
-        name: "Mark notification as read",
+        name: /^Mark .+ read$/,
       });
       await expect(readAction).toBeVisible();
       const iconContrast = await readAction.locator("svg").evaluate((icon) => ({

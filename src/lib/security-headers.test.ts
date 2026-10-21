@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { injectSpeedInsights } from "@vercel/speed-insights";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildContentSecurityPolicy,
@@ -126,9 +127,51 @@ describe("buildContentSecurityPolicy", () => {
   it("allows Vercel tooling and Google Fonts", () => {
     expect(csp.get("script-src")).toContain("https://vercel.live");
     expect(csp.get("script-src")).toContain("https://va.vercel-scripts.com");
-    expect(csp.get("connect-src")).toContain("https://vitals.vercel-insights.com");
+    // Speed Insights v1's intake; v2 posts to its own origin (below).
+    expect(csp.get("connect-src")).not.toContain("https://vitals.vercel-insights.com");
     expect(csp.get("style-src")).toContain("https://fonts.googleapis.com");
     expect(csp.get("font-src")).toContain("https://fonts.gstatic.com");
+  });
+
+  describe("Speed Insights in production", () => {
+    // Just enough DOM for injectSpeedInsights, which appends one <script> to <head>.
+    function injectedScript(confString?: string) {
+      const appended: Array<{ src: string; dataset: Record<string, string> }> = [];
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubGlobal("window", {});
+      vi.stubGlobal("document", {
+        head: { querySelector: () => null, appendChild: (node: (typeof appended)[number]) => appended.push(node) },
+        createElement: () => ({ src: "", dataset: {} }),
+      });
+      injectSpeedInsights({ framework: "next" }, confString);
+      expect(appended).toHaveLength(1);
+      return appended[0];
+    }
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    const origin = "https://app.uselane.app";
+    const sameOrigin = (url: string) => new URL(url, origin).origin === origin;
+
+    it("loads the script and posts the vitals to the page's own origin, which 'self' covers", () => {
+      // Without Vercel's build-time config: the package defaults.
+      const fallback = injectedScript();
+      expect(fallback.src).toBe("/_vercel/speed-insights/script.js");
+      expect(fallback.dataset.endpoint).toBeUndefined(); // the script posts beside itself
+
+      // With the per-build paths Vercel passes through NEXT_PUBLIC_VERCEL_OBSERVABILITY_CLIENT_CONFIG.
+      const configured = injectedScript(
+        JSON.stringify({ speedInsights: { scriptSrc: "/a1b2c3/script.js", endpoint: "/a1b2c3/vitals" } }),
+      );
+      expect(sameOrigin(configured.src)).toBe(true);
+      expect(sameOrigin(configured.dataset.endpoint)).toBe(true);
+
+      expect(csp.get("script-src")).toContain("'self'");
+      expect(csp.get("connect-src")).toContain("'self'");
+    });
   });
 
   it("keeps inline styles and scripts (nonce-free policy) and images from self, data and blob", () => {

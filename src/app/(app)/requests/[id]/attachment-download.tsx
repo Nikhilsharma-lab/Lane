@@ -10,9 +10,12 @@ import { getAttachmentDownloadUrl } from "./actions"
 
 export function AttachmentDownload({
   attachmentId,
+  fileName,
   context,
 }: {
   attachmentId: string
+  /** Names the button, so each file's download is told apart by a screen reader. */
+  fileName: string
   context: { orgId: string }
 }) {
   const [pending, setPending] = useState(false)
@@ -47,7 +50,7 @@ export function AttachmentDownload({
         type="button"
         size="sm"
         variant="ghost"
-        aria-label={pending ? "Preparing download" : "Download file"}
+        aria-label={pending ? `Preparing ${fileName}` : `Download ${fileName}`}
         aria-busy={pending || undefined}
         disabled={pending}
         onClick={() => void download()}

@@ -9,7 +9,7 @@ export { isTypingTarget } from "@/lib/keyboard-guards"
 /** A row in the grid: "r:{Request id}" or "g:{group key}". */
 export type GridKey = string
 
-export type GridCommand = "next" | "previous" | "first" | "last" | "expand" | "collapse" | "activate" | "select" | "filter"
+export type GridCommand = "next" | "previous" | "first" | "last" | "expand" | "collapse" | "activate" | "select" | "filter" | "peek"
 /** Keys that work while focus is elsewhere on the list page. */
 export type ListCommand = "focus-next" | "focus-previous" | "filter"
 
@@ -52,7 +52,9 @@ export function gridCommand(event: KeyLike, typing = false): GridCommand | null 
                 : key === "Enter" ? "activate"
                   : key === "x" ? "select"
                     : key === "f" ? "filter"
-                      : null
+                      // Plan item 2.12: Space previews the Request beside the list.
+                      : key === " " ? "peek"
+                        : null
   if (command && event.repeat && !REPEATS.has(command)) return null
   return command
 }

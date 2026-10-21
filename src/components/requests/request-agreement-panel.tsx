@@ -412,7 +412,7 @@ export function RequestAgreementPanel({
                 <li key={a.id}>
                   <span>{a.fileName} · </span>
                   <Link href={`/requests/${a.sourceId}`}>Original Request</Link>
-                  <AttachmentDownload attachmentId={a.id} context={{ orgId }} />
+                  <AttachmentDownload attachmentId={a.id} fileName={a.fileName} context={{ orgId }} />
                 </li>
               ))}
           </ul>

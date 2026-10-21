@@ -119,6 +119,7 @@ describe("error frames", () => {
     const alert = /<div\b[^>]*role="alert"[^>]*>[\s\S]*<\/div>/.exec(html)?.[0] ?? ""
     expect(alert).toMatch(/<h2\b[^>]*>Lane can’t load right now<\/h2>/)
     expect(alert).toContain("Your data is safe.")
+    expect(alert).toContain('href="mailto:uselaneapp@gmail.com"')
     expect(alert).not.toContain('data-slot="page-strip"')
   })
 

@@ -2,7 +2,7 @@
 
 **Goal:** Fix the actual workspace search and Request properties through shared Arc components and the existing Supabase token mapping.
 
-**Architecture:** Keep Arc behavior and motion. Replace the workspace's hand-written search shell with SearchField; map SegmentedControl to the pinned Supabase text-tone segmented control; reuse Button's surface for read-only property Badges instead of maintaining a third chip style.
+**Architecture:** Keep Arc behavior and motion. Replace the workspace's hand-written search shell with SearchField; map SegmentedControl to the pinned Supabase text-tone segmented control; reuse Button's surface for read-only property Badges instead of maintaining a third chip style. *(Superseded 2026-10-21 for read-only values, Nikhil: Request detail shows a Status or Priority the viewer cannot change as plain glyph and text, like Assignee and Project; see `REQUIREMENTS.md`.)*
 
 **Constraints:** Preserve saved data, permissions, search cancellation/debounce, keyboard focus, reduced motion and responsive layout. No new visual values outside the Supabase source. No deployment or database changes.
 

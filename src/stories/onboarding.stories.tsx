@@ -4,6 +4,7 @@ import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 
 import { RoleForm } from "@/app/(auth)/onboarding/role-form"
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions"
+import { SignOutLink } from "@/components/auth/sign-out-link"
 
 // Plan item 2.2: the real onboarding role step. Storybook mocks the action and
 // the Next router, so nothing here saves a profile or navigates.
@@ -89,8 +90,10 @@ export const KeyboardOnly: Story = {
     await expect(getRouter().push).not.toHaveBeenCalled()
     await expect(getRouter().refresh).not.toHaveBeenCalled()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    // Saved: the form stays disabled until the navigation commits, so it never re-enables in between.
-    await expect(submit).toBeDisabled()
+    // Saved: the form stays unavailable until the navigation commits, so it never re-enables in between,
+    // and the button keeps the focus that pressed it.
+    await expect(submit).toHaveAttribute("aria-disabled", "true")
+    await expect(submit).toHaveFocus()
     await expect(designer).toBeDisabled()
     await userEvent.keyboard("3")
     await expect(developer).not.toBeChecked()
@@ -109,7 +112,7 @@ export const SaveFailure: Story = {
     await expect(designer).toBeChecked()
     await expect(getRouter().replace).not.toHaveBeenCalled()
     // The keys and the button work again for the retry.
-    await waitFor(() => expect(continueButton(canvasElement)).toBeEnabled())
+    await waitFor(() => expect(continueButton(canvasElement)).not.toHaveAttribute("aria-disabled"))
     ;(document.activeElement as HTMLElement | null)?.blur()
     await userEvent.keyboard("3")
     const developer = radio(canvasElement, "Developer")
@@ -121,7 +124,7 @@ export const SaveFailure: Story = {
     await expect(saveOnboardingRole).toHaveBeenLastCalledWith({ role: "developer" })
     await afterLatestSave()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(continueButton(canvasElement)).toHaveAttribute("aria-disabled", "true")
     await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
@@ -134,7 +137,7 @@ export const ServerError: Story = {
     await expect(await within(canvasElement).findByRole("alert")).toHaveTextContent("Create or join a workspace before choosing your role.")
     await expect(radio(canvasElement, "PM")).toBeChecked()
     await expect(getRouter().replace).not.toHaveBeenCalled()
-    await waitFor(() => expect(continueButton(canvasElement)).toBeEnabled())
+    await waitFor(() => expect(continueButton(canvasElement)).not.toHaveAttribute("aria-disabled"))
   },
 }
 
@@ -153,8 +156,12 @@ export const Pending: Story = {
     await userEvent.click(pm)
     await userEvent.click(continueButton(canvasElement))
     const submit = within(canvasElement).getByRole("button", { name: "Saving role…" })
-    await expect(submit).toBeDisabled()
+    // Arc's loading: unavailable to presses, but still focused, so keyboard focus never drops to the page.
+    await expect(submit).not.toBeDisabled()
+    await expect(submit).toHaveAttribute("aria-disabled", "true")
     await expect(submit).toHaveAttribute("aria-busy", "true")
+    await expect(submit).toHaveFocus()
+    await userEvent.click(submit)
     await expect(pm).toBeDisabled()
     ;(document.activeElement as HTMLElement | null)?.blur()
     await userEvent.keyboard("2")
@@ -172,7 +179,7 @@ export const PointerChoose: Story = {
     await waitFor(() => expect(saveOnboardingRole).toHaveBeenCalledWith({ role: "designer" }))
     await afterLatestSave()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(continueButton(canvasElement)).toHaveAttribute("aria-disabled", "true")
     await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
@@ -234,5 +241,30 @@ export const ShortcutHints: Story = {
       if (fine) await expect(getComputedStyle(key).display).not.toBe("none")
       else await expect(getComputedStyle(key).display).toBe("none")
     }
+  },
+}
+
+/** Decision 2026-10-21 (critique 2.2): a wrong account or workspace can sign out from the header. */
+const signOutAttempts: Array<{ resolve: () => void; reject: (error: Error) => void }> = []
+const heldSignOut = () => new Promise<void>((resolve, reject) => { signOutAttempts.push({ resolve, reject }) })
+export const SignOut: Story = {
+  beforeEach: () => { signOutAttempts.length = 0 },
+  render: (args) => <RoleForm {...args} headerAction={<SignOutLink onSignOut={heldSignOut} />} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText("Wrong account?")).toBeVisible()
+    const button = canvas.getByRole("button", { name: "Sign out" })
+    await userEvent.click(button)
+    // Pending keeps the focus that pressed it, and a second press sends nothing.
+    await expect(button).toHaveTextContent("Signing out…")
+    await expect(button).toHaveAttribute("aria-disabled", "true")
+    await expect(button).toHaveFocus()
+    await userEvent.click(button)
+    await expect(signOutAttempts).toHaveLength(1)
+    signOutAttempts[0].reject(new Error("Network"))
+    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Couldn’t sign out."))
+    await expect(button).toHaveTextContent("Try again")
+    await userEvent.click(button)
+    await expect(signOutAttempts).toHaveLength(2)
   },
 }
