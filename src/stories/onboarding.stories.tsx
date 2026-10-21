@@ -4,6 +4,7 @@ import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 
 import { RoleForm } from "@/app/(auth)/onboarding/role-form"
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions"
+import { SignOutLink } from "@/components/auth/sign-out-link"
 
 // Plan item 2.2: the real onboarding role step. Storybook mocks the action and
 // the Next router, so nothing here saves a profile or navigates.
@@ -234,5 +235,30 @@ export const ShortcutHints: Story = {
       if (fine) await expect(getComputedStyle(key).display).not.toBe("none")
       else await expect(getComputedStyle(key).display).toBe("none")
     }
+  },
+}
+
+/** Decision 2026-10-21 (critique 2.2): a wrong account or workspace can sign out from the header. */
+const signOutAttempts: Array<{ resolve: () => void; reject: (error: Error) => void }> = []
+const heldSignOut = () => new Promise<void>((resolve, reject) => { signOutAttempts.push({ resolve, reject }) })
+export const SignOut: Story = {
+  beforeEach: () => { signOutAttempts.length = 0 },
+  render: (args) => <RoleForm {...args} headerAction={<SignOutLink onSignOut={heldSignOut} />} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText("Wrong account?")).toBeVisible()
+    const button = canvas.getByRole("button", { name: "Sign out" })
+    await userEvent.click(button)
+    // Pending keeps the focus that pressed it, and a second press sends nothing.
+    await expect(button).toHaveTextContent("Signing out…")
+    await expect(button).toHaveAttribute("aria-disabled", "true")
+    await expect(button).toHaveFocus()
+    await userEvent.click(button)
+    await expect(signOutAttempts).toHaveLength(1)
+    signOutAttempts[0].reject(new Error("Network"))
+    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Couldn’t sign out."))
+    await expect(button).toHaveTextContent("Try again")
+    await userEvent.click(button)
+    await expect(signOutAttempts).toHaveLength(2)
   },
 }

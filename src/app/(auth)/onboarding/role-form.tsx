@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 
 import { AuthAction } from "@/components/auth/auth-action";
@@ -29,7 +29,8 @@ function isRedirect(error: unknown) {
     && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT;");
 }
 
-export function RoleForm() {
+/** `headerAction` is the page's Sign out (decision 2026-10-21); stories pass the Clerk-free link. */
+export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [role, setRole] = useState<FunctionalRole | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function RoleForm() {
   }
 
   return (
-    <OnboardingChrome>
+    <OnboardingChrome headerAction={headerAction}>
       <AuthFormCard title="Choose your role" description="A label for your team, not a permission. Change it any time in Profile settings.">
         <form ref={formRef} onSubmit={submit} className="grid gap-6" noValidate>
           <RoleSelection value={role} disabled={busy} invalid={Boolean(error)} onValueChange={(value) => { setRole(value); setError(null); }} />
