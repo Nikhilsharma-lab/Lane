@@ -15,6 +15,14 @@ it('rejects malformed release state and retains the existing Requests RLS and gr
     }
     const [row] = await connection `select relrowsecurity from pg_class where oid='public.requests'::regclass`;
     expect(row.relrowsecurity).toBe(true);
-    const [grants] = await connection `select has_table_privilege('anon','public.requests','SELECT') as anon, has_table_privilege('authenticated','public.requests','UPDATE') as authenticated`;
-    expect(grants).toMatchObject({ anon: false, authenticated: false });
+    // Supabase has these roles; a plain Postgres (CI) has neither, and nothing can be granted to a role that does not exist.
+    const roles = (await connection `select rolname from pg_roles where rolname in ('anon','authenticated')`).map(role => role.rolname);
+    if (roles.includes('anon')) {
+        const [grant] = await connection `select has_table_privilege('anon','public.requests','SELECT') as allowed`;
+        expect(grant.allowed).toBe(false);
+    }
+    if (roles.includes('authenticated')) {
+        const [grant] = await connection `select has_table_privilege('authenticated','public.requests','UPDATE') as allowed`;
+        expect(grant.allowed).toBe(false);
+    }
 });

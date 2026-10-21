@@ -91,7 +91,11 @@ CREATE TRIGGER protect_request_exception BEFORE UPDATE OR DELETE ON public.reque
 ALTER TABLE public.request_agreements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.request_agreement_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.request_replacements ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.request_agreements, public.request_agreement_events, public.request_replacements FROM anon,authenticated;
+-- Guarded like 0013 and 0024: Supabase has these roles, a plain Postgres (CI, fresh local) does not.
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN REVOKE ALL ON public.request_agreements, public.request_agreement_events, public.request_replacements FROM anon; END IF;
+ IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN REVOKE ALL ON public.request_agreements, public.request_agreement_events, public.request_replacements FROM authenticated; END IF;
+END $$;
 REVOKE ALL ON FUNCTION public.agreement_has_keys(jsonb,text[]), public.valid_agreement_exception(jsonb), public.valid_agreement_seats(jsonb), public.protect_agreement_history() FROM PUBLIC;
 -- A rendering hint only. Server actions additionally verify current Clerk membership.
 CREATE FUNCTION public.request_agreement_blocked(request_uuid uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
