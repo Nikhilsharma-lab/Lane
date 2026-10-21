@@ -541,9 +541,9 @@ If anything fails, follow the rollback runbook.
 
 ### 6.4 Before the wider soft launch
 - All Phase 2 pages above the cut line have shipped and been promoted.
-- Favicon, OG image and manifest, with the boilerplate SVGs in `public/` removed (O4).
+- Favicon, OG image and manifest, with the boilerplate SVGs in `public/` removed (O4). *(Done 2026-10-21: the boilerplate SVGs had already gone in `fd687c0`; the default `favicon.ico` is replaced. `pnpm brand:assets` generates the favicon, icons, manifest and OG image from `LaneMark` and the Supabase tokens, and `pnpm design:check` keeps them in sync. See `docs/design-system/supabase-tokens.md`.)*
 - Marketing: `marketing/` is a broken gitlink with no `.gitmodules`. Ship a truthful landing page or record that it is out (decision 8.27).
-- The full Storybook matrix is green with visual compare mode on. Stale e2e specs and the 41 orphan PNGs are retired. Linux baselines are re-captured.
+- The full Storybook matrix is green with visual compare mode on. Stale e2e specs and the 41 orphan PNGs are retired. *(Done 2026-10-21: removed the 41 PNGs whose specs `8490730` deleted, 13 more PNGs that no remaining spec shoots, and `requests-workspace.spec.ts` (with its 14 PNGs) and `profile.spec.ts`, which target UI that no longer exists. `reliable-comment-posting`, `clerk-attachments`, `row-identity-system` and `selection-controls` still need rebuilding. No spec covers the invited-teammate journey.)* Linux baselines are re-captured.
 
 ---
 
