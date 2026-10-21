@@ -7,7 +7,7 @@ import { addComment, getAttachmentDownloadUrl, markDone, pickUpRequest, setReque
 import type { RequestPriority } from "@/lib/request-constants"
 import {
   DetailFixture, ShellOnly, announcer, comments, deferred, desktopLight, expectPinnedViewport, filledButtons, inProgress, main, minimalRequest,
-  panelShown, pendingLayers, phoneDark, request, stateLine, statusCell, strip, waitingOnViewer, waitingReview,
+  panelShown, pendingLayers, phoneDark, request, stateLine, statusCell, strip, savedDesignReviews,
 } from "./helpers/request-detail-fixture"
 
 // Plan item 2.5: Request detail. Illustrative fixtures; every server action is mocked.
@@ -94,7 +94,7 @@ async function expectOneLineRows(canvasElement: HTMLElement) {
 
 /** One strip, the regions in reading order, the panel's rows, and one filled button. */
 export const Default: Story = {
-  args: { attachments: undefined, review: { version: 0, reviews: [] } },
+  args: { attachments: undefined },
   play: async ({ canvasElement }) => {
     const bar = strip(canvasElement)
     await expect(main(canvasElement).querySelectorAll('[data-slot="page-strip"]')).toHaveLength(1)
@@ -244,10 +244,10 @@ export const Guest: Story = {
 
 /** Guests who can read a Request can also open its saved design link. */
 export const GuestWithDesignLink: Story = {
-  args: { current: inProgress, guest: true, review: waitingReview },
+  args: { current: inProgress, guest: true, savedReviews: savedDesignReviews },
   play: async ({ canvasElement }) => {
     const review = within(within(main(canvasElement)).getByRole("region", { name: "Design" }))
-    await expect(review.getByRole("link", { name: /Open design/ })).toHaveAttribute("href", waitingReview.reviews[0].designUrl)
+    await expect(review.getByRole("link", { name: /Open design/ })).toHaveAttribute("href", savedDesignReviews[0].designUrl)
     await expect(review.queryByRole("button")).not.toBeInTheDocument()
   },
 }
@@ -735,7 +735,7 @@ export const Loading: Story = {
 
 /** Lane tracks the Request; the Figma link is the only design-review control. */
 export const FigmaOnlyReview: Story = {
-  args: { current: { ...inProgress, usefulLink: "https://www.figma.com/design/example?node-id=1-2" }, review: waitingOnViewer },
+  args: { current: { ...inProgress, usefulLink: "https://www.figma.com/design/example?node-id=1-2" }, savedReviews: savedDesignReviews },
   play: async ({ canvasElement }) => {
     const canvas = within(main(canvasElement))
     await expect(canvas.queryByRole("region", { name: "Ask for review" })).not.toBeInTheDocument()

@@ -6,7 +6,7 @@ import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import type { RequestPriority, RequestType } from "@/lib/request-constants"
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact"
-import type { DesignReview } from "@/lib/request-review"
+import type { SavedDesignReview } from "@/lib/request-design-link"
 import { RequestDesignLink, isFigmaLink } from "./request-design-link"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { relativeTime } from "@/lib/relative-time"
@@ -28,8 +28,7 @@ export type RequestDetail = {
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
-  designReviews?: DesignReview[]
-  designReviewVersion?: number
+  designReviews?: SavedDesignReview[]
   id: string
   /** Saved workspace-local number (LAN-n). NOT NULL, CHECK > 0 in the schema. */
   requestNumber: number

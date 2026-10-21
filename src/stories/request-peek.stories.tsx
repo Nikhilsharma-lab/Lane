@@ -43,7 +43,7 @@ function detailOf(row: OverviewRequest) {
       id: row.id, requestNumber: row.requestNumber, priority: row.priority ?? "none", title: row.title,
       description: `What people run into on ${row.title.toLowerCase()}, as the requester wrote it.`,
       affectedPeople: "Workspace members", desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null,
-      expectedImpact: null, measurementDraft: null, designReviews: [], designReviewVersion: 0,
+      expectedImpact: null, measurementDraft: null, designReviews: [],
       reframedProblem: null, extractedSolution: null, classification: "problem",
       status: row.status, assignedTo: row.assignedTo ?? null, createdBy: "person-alex", createdAt: row.createdAt,
       creatorName: row.creatorName, assigneeName: row.assigneeName, assigneeAvatarUrl: null,

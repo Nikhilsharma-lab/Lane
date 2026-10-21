@@ -39,7 +39,7 @@ const populatedLan13: RequestDetail = {
   id: requestId, requestNumber: 13, createdAt: new Date("2026-10-16T09:00:00Z"),
   createdBy: viewer.id, creatorName: viewer.name,
   projectName: projectNames["00000000-0000-4000-8000-000000000456"],
-  designReviews: [], designReviewVersion: 0,
+  designReviews: [],
 }
 
 /** Local-only journey: the real form feeds the real detail view through mocked actions. */
@@ -63,7 +63,7 @@ function IntakeToDetail() {
         assignedTo: null, assigneeName: null, assigneeAvatarUrl: null,
         createdBy: viewer.id, creatorName: viewer.name,
         projectName: values.projectId ? projectNames[values.projectId] ?? null : null,
-        designReviews: [], designReviewVersion: 0,
+        designReviews: [],
       }
       return { success: true, requestId, created: { ...saved.current, createdAt: createdAt.toISOString() } }
     })
@@ -77,7 +77,7 @@ function IntakeToDetail() {
     }
   }, [])
 
-  if (current) return <DetailFixture current={current} comments={[]} attachments={[]} review={{ version: 0, reviews: [] }} />
+  if (current) return <DetailFixture current={current} comments={[]} attachments={[]} />
   return <>
     <NewRequestProvider context={intakeMeta.args.context} draftOwnerId={intakeMeta.args.draftOwnerId}>
       <RequestsShellFixture {...requestsMeta.args} pathname="/intake">
@@ -109,7 +109,7 @@ export const PopulatedLan13: Story = {
     nextjs: { navigation: { pathname: `/requests/${requestId}` } },
     docs: { description: { story: "Illustrative LAN-13 data in the production Request detail components. Available immediately after a reload; no Request is written to a Lane workspace." } },
   },
-  render: () => <DetailFixture current={populatedLan13} comments={[]} attachments={[]} review={{ version: 0, reviews: [] }} />,
+  render: () => <DetailFixture current={populatedLan13} comments={[]} attachments={[]} />,
 }
 
 /** Guards the complete shell wiring, not just the detail component in isolation. */

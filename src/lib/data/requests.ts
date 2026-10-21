@@ -165,7 +165,6 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         expectedImpact: requests.expectedImpact,
         measurementDraft: requests.measurementDraft,
         designReviews: requests.designReviews,
-        designReviewVersion: requests.designReviewVersion,
         reframedProblem: requests.reframedProblem,
         extractedSolution: requests.extractedSolution,
         classification: requests.classification,

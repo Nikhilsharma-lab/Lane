@@ -15,7 +15,7 @@ import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-downloa
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
 import { EditRequest } from "@/app/(app)/requests/[id]/edit-request"
 import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
-import type { RequestReviewState, ReviewPerson } from "@/lib/request-review"
+import type { SavedDesignReview } from "@/lib/request-design-link"
 
 // Plan item 2.5: Request detail as requests-workspace.tsx composes it, under the
 // layout's providers. Illustrative fixture content only; Storybook mocks every
@@ -40,10 +40,8 @@ export const attachments = [{ id: "fixture-file", fileName: "Delivery context.pn
 /** A five-Request list order, as the list records it when one is opened from it. */
 export const sequenceIds = ["fixture-request-0", "fixture-request", "fixture-request-2", "fixture-request-3", "fixture-request-4"]
 
-const people: ReviewPerson[] = [{ id: viewer.id, name: viewer.name }, { id: "sam", name: "Sam Lee" }, { id: "taylor", name: "Taylor Chen" }]
-export const waitingReview: RequestReviewState = { version: 1, reviews: [{ id: "round-1", designUrl: "https://example.com/design/checkout?version=1", question: "Is the delivery date clear before payment?", requestedBy: people[1], requestedAt: "2026-10-09T10:00:00.000Z", reviewers: [people[2]], responses: [], withdrawal: null }] }
-/** Plan item 2.6: the same round with the fixture viewer as its named reviewer, so the panel offers the response form on arrival. */
-export const waitingOnViewer: RequestReviewState = { ...waitingReview, reviews: [{ ...waitingReview.reviews[0], reviewers: [people[0]] }] }
+/** A design link saved by a review round from before design reviews moved to Figma. */
+export const savedDesignReviews: SavedDesignReview[] = [{ designUrl: "https://example.com/design/checkout?version=1" }]
 
 /** Test hook, outside <main>: the Request ids the overlay still holds a layer for, space separated. */
 function PendingLayers() {
@@ -57,7 +55,7 @@ export type DetailFixtureProps = {
   comments?: RequestComment[]
   attachments?: typeof attachments
   /** Legacy saved reviews supply a design link only; review activity stays in Figma. */
-  review?: RequestReviewState | null
+  savedReviews?: SavedDesignReview[]
   /** A detail session, as if the Request had been opened from the list. */
   session?: DetailSessionPatch
   /** Other Requests the mocked router can navigate to with previous and next. */
@@ -69,7 +67,7 @@ export type DetailFixtureProps = {
 }
 
 /** The layout's providers, the shell, and Request detail keyed by Request id, as in production. */
-export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, review, session, others = [], fresh, editable = false }: DetailFixtureProps) {
+export function DetailFixture({ current = request, guest = false, comments: initialComments = comments, attachments: files = attachments, savedReviews, session, others = [], fresh, editable = false }: DetailFixtureProps) {
   const [render, setRender] = useState({ request: current, comments: initialComments })
   // Previous and next replace the URL; here the mocked router swaps the Request, as the server render would.
   useEffect(() => {
@@ -87,7 +85,7 @@ export function DetailFixture({ current = request, guest = false, comments: init
         <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
           <RequestWorkspaceKeyboard selectedRequestId={shown.id} returnHref="/" />
           <ListAnnouncerProvider key={shown.id}>
-            <RequestDetailView request={{ ...shown, designReviews: review?.reviews ?? shown.designReviews }} comments={render.comments} attachments={files} isGuest={guest} viewer={viewer} orgId={context.orgId}
+            <RequestDetailView request={{ ...shown, designReviews: savedReviews ?? shown.designReviews }} comments={render.comments} attachments={files} isGuest={guest} viewer={viewer} orgId={context.orgId}
               lifecycleActions={<LifecycleButtons requestId={shown.id} status={shown.status} context={context} isGuest={guest} />}
               commentForm={<CommentForm requestId={shown.id} context={context} />}
               attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} fileName={attachment.fileName} context={context} />}
