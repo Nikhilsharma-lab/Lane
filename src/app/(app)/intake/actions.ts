@@ -19,7 +19,7 @@ import {
 } from "@/lib/ai/triage";
 import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
@@ -242,7 +242,7 @@ export async function runTriage(
  */
 async function reviewersForNewRequest(
   input: unknown,
-  auth: { userId: string; orgId: string; role: string },
+  auth: MemberAuth,
 ): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] } | IntakeFailure> {
   const failure = (message: string): IntakeFailure => ({ code: "validation", field: "reviewers", message });
   const parsed = createReviewersSchema.safeParse(input);

@@ -1,24 +1,22 @@
 "use server";
 import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
-import { db, profiles, requests, requestAgreements } from "@/db";
+import { and, eq } from "drizzle-orm";
+import { db, requests, requestAgreements } from "@/db";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
   answerReviewSchema,
-  PROFILE_ROLE_LABELS,
+  nomineeKey,
   type AgreementContext,
   type Reviewer,
 } from "@/lib/request-agreement";
 import {
   agreementRoster,
   agreementInvitations,
-  nomineeKey,
   resolveInvitedMember,
-  invitationState,
 } from "@/lib/request-agreement-members";
-import { appendReviewers, notifyReviewers } from "@/lib/request-reviewers";
+import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
   mutateAgreement,
   insist,
@@ -177,67 +175,8 @@ export async function readReviews(
         ),
       );
     const saved = agreement?.reviewers ?? [];
-    // Worked out at read time from the identity provider; if it is unreachable nobody is greyed out.
-    let active: Set<string> | null = null;
-    try {
-      active = new Set(
-        (await agreementRoster(auth.orgId)).flatMap((p) =>
-          p.nominee.kind === "member" ? [p.nominee.userId] : [],
-        ),
-      );
-    } catch {
-      active = null;
-    }
-    const memberIds = saved.flatMap((r) =>
-      r.nominee.kind === "member" ? [r.nominee.userId] : [],
-    );
-    const roles = memberIds.length
-      ? await db
-          .select({ id: profiles.id, role: profiles.role })
-          .from(profiles)
-          .where(inArray(profiles.id, memberIds))
-      : [];
     const open = request.status === "open";
-    const reviewers = await Promise.all(
-      saved.map(async (r) => {
-        const view = {
-          id: r.id,
-          name: r.displayNameAtSelection,
-          note: r.note,
-          decision: r.decision,
-        };
-        if (r.nominee.kind === "member") {
-          const userId = r.nominee.userId;
-          const role = roles.find((p) => p.id === userId)?.role;
-          return {
-            ...view,
-            role: role ? PROFILE_ROLE_LABELS[role] : null,
-            active: !active || active.has(userId),
-            invitation: null,
-            canAnswer: open && auth.role !== "guest" && userId === auth.userId,
-          };
-        }
-        let state = "unavailable";
-        let canAnswer = false;
-        try {
-          state = (await invitationState(auth.orgId, r.nominee)) ?? "unavailable";
-          canAnswer =
-            open &&
-            auth.role !== "guest" &&
-            state === "accepted" &&
-            (await resolveInvitedMember(auth.orgId, r.nominee, auth.userId));
-        } catch {
-          state = "unavailable";
-        }
-        return {
-          ...view,
-          role: null,
-          active: state === "pending" || state === "accepted",
-          invitation: state,
-          canAnswer,
-        };
-      }),
-    );
+    const reviewers = await reviewerViews(saved, auth, open);
     return {
       requestId,
       revision: request.agreementRevision,

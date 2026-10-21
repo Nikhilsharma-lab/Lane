@@ -1,7 +1,7 @@
 "use server";
 import { canUseLabels } from "@/lib/label-access";
 import { labelRequestType } from "@/lib/request-labels";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, requests } from "@/db";
 import { requireActiveMember } from "@/lib/auth-guard";
@@ -9,6 +9,7 @@ import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, incompleteMeasurementSchema } from "@/lib/request-impact";
 import { verifyTriageToken } from "@/lib/triage-token";
+import { nameReviewResetActor } from "@/lib/request-reviewers";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
     orgId: string;
@@ -63,8 +64,8 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
                     .filter(key => stored[key] === null && changes[key] === "")
                     .map(key => [key, null])
             );
-            // Content edits reset reviews (reset_reviews_on_edit, migration 0031); the notification names this editor.
-            await tx.execute(sql`select set_config('lane.actor_id', ${auth.userId}, true)`);
+            // Content edits reset reviews; the notification names this editor.
+            await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
             return { success: true as const };
         });

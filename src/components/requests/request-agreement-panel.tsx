@@ -9,16 +9,12 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-agreement";
 import * as actions from "@/app/(app)/requests/[id]/agreement-actions";
 import { useReportReviewState } from "./pickup-confirmation";
-import { REVIEW_QUESTION } from "./request-reviewers-picker";
+import { INVITATION_PENDING, REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
 import styles from "./request-agreement.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
 >;
-type People = Extract<
-  Awaited<ReturnType<typeof actions.loadReviewerPeople>>,
-  { people: unknown }
->["people"];
 type Kind = "addReviewers" | "removeReviewer" | "answerReview";
 const SAVED: Record<Kind, string> = {
   addReviewers: "Reviewer added",
@@ -26,7 +22,7 @@ const SAVED: Record<Kind, string> = {
   answerReview: "Review saved",
 };
 
-function status(reviewer: View["reviewers"][number], open: boolean) {
+function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
   if (reviewer.decision?.kind === "looks_good") return "Looks good";
   if (reviewer.decision?.kind === "concern") return "Raised a concern";
   if (!open) return "No answer before pickup";
@@ -55,7 +51,8 @@ export function RequestAgreementPanel({
   const runAction = useOptimisticAction();
   const { toast } = useToastStack();
   const [view, setView] = useState<View | null>(null);
-  const [people, setPeople] = useState<People>([]);
+  const { people: loaded, error: peopleError, load: loadPeople, loading: loadingPeople } = useReviewerPeople(orgId);
+  const people = loaded ?? [];
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -97,17 +94,9 @@ export function RequestAgreementPanel({
     return () => { active = false; };
   }, [applyView, requestId, orgId, revision]);
   useEffect(() => {
-    if (isGuest || !adding || people.length) return;
-    let active = true;
-    void actions.loadReviewerPeople({ orgId })
-      .then((result) => {
-        if (!active) return;
-        if ("error" in result) setError(result.error || "Could not load people.");
-        else setPeople(result.people);
-      })
-      .catch(() => { if (active) setError("Could not load people. Try again."); });
-    return () => { active = false; };
-  }, [adding, isGuest, orgId, people.length]);
+    if (isGuest || !adding || loaded || loadingPeople || peopleError) return;
+    void loadPeople();
+  }, [adding, isGuest, loaded, loadingPeople, peopleError, loadPeople]);
 
   async function run(kind: Kind, input: unknown): Promise<boolean> {
     if (!view || running.current) return false;
@@ -151,7 +140,7 @@ export function RequestAgreementPanel({
     .filter((p) => !view.unavailable.includes(keyOf(p.nominee)))
     .map((p) => ({
       value: keyOf(p.nominee),
-      label: p.name + (p.nominee.kind === "invitation" ? " · Invitation pending" : ""),
+      label: p.name + (p.nominee.kind === "invitation" ? INVITATION_PENDING : ""),
     }));
 
   return (
@@ -184,6 +173,10 @@ export function RequestAgreementPanel({
               disabled={busy || !people.length}
             />
           </div>
+          {peopleError && <div className={styles.controls}>
+            <p role="alert">{peopleError}</p>
+            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Retry</Button>
+          </div>}
           <Textarea
             label={REVIEW_QUESTION.label}
             description={REVIEW_QUESTION.description}
@@ -212,7 +205,7 @@ export function RequestAgreementPanel({
               <li key={reviewer.id} className={reviewer.active ? styles.seat : `${styles.seat} ${styles.inactive}`}>
                 <span>{reviewer.name}</span>
                 <span className={styles.role}>{reviewer.active ? reviewer.role : "No longer in the workspace"}</span>
-                <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{status(reviewer, view.open)}</span>
+                <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>
                 <span className={styles.controls}>
                   {reviewer.canAnswer && concernFor !== reviewer.id && (
                     <>

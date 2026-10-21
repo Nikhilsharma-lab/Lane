@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
@@ -21,6 +21,40 @@ export const REVIEW_QUESTION = {
   description: "They see it on the Request and in their notification.",
   placeholder: "Can we build this with the current API?",
 } as const;
+
+/** Shown after a person who is invited but has not joined yet. */
+export const INVITATION_PENDING = " · Invitation pending";
+
+/**
+ * The people a reviewer can be chosen from, for the creation picker and for
+ * adding on Request detail: members, plus pending invitations for admins.
+ * Nothing is fetched until `load` is called; `load` again retries.
+ */
+export function useReviewerPeople(orgId: string) {
+  const [people, setPeople] = useState<ReviewerChoice[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await loadReviewerPeople({ orgId });
+      if (!mounted.current) return;
+      if ("error" in result) setError(result.error ?? "Could not load people. Try again.");
+      else setPeople(result.people);
+    } catch {
+      if (mounted.current) setError("Could not load people. Try again.");
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
+  }, [orgId]);
+  return { people, loading, error, load };
+}
 
 /** "Reviewers", one name, or "3 reviewers". */
 export function reviewerSummary(chosen: { name: string }[]) {
@@ -48,25 +82,9 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [people, setPeople] = useState<ReviewerChoice[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { people, loading, error: loadError, load } = useReviewerPeople(orgId);
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  async function load() {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const result = await loadReviewerPeople({ orgId });
-      if ("error" in result) setLoadError(result.error ?? "Could not load people. Try again.");
-      else setPeople(result.people);
-    } catch {
-      setLoadError("Could not load people. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const chosenKeys = new Set(value.map((person) => nomineeKey(person.nominee)));
   const isSelected = (person: ReviewerChoice) => chosenKeys.has(nomineeKey(person.nominee));
@@ -102,7 +120,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
       <p className={labelStyles.caption}>{REVIEWERS_SUBTEXT}</p>
       {people && <PickerOptions items={options} label="People" optionRefs={optionRefs} searchRef={searchRef} keyOf={(person) => nomineeKey(person.nominee)}
         isSelected={isSelected} isInert={(person) => full && !isSelected(person)} onChoose={toggle} multiselectable morph="plain"
-        render={(person) => <span>{person.name}{person.nominee.kind === "invitation" && <span className={labelStyles.scopeHint}> · Invitation pending</span>}</span>}
+        render={(person) => <span>{person.name}{person.nominee.kind === "invitation" && <span className={labelStyles.scopeHint}>{INVITATION_PENDING}</span>}</span>}
         emptyText={needle ? "No matching people" : "Nobody else to ask yet"} />}
       {loading && <p role="status" className={labelStyles.caption}>Loading people…</p>}
       {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}

@@ -1,12 +1,15 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
-import { notifications, profiles } from "@/db";
-import { MAX_REVIEWERS, type Nominee, type Reviewer } from "./request-agreement";
+import { inArray, sql } from "drizzle-orm";
+import { db, notifications, profiles } from "@/db";
+import type { MemberAuth } from "./auth-guard";
+import { MAX_REVIEWERS, nomineeKey, PROFILE_ROLE_LABELS, type Nominee, type Reviewer } from "./request-agreement";
 import {
   agreementInvitations,
+  agreementRoster,
   distinctAgreementPeople,
-  nomineeKey,
+  invitationState,
+  resolveInvitedMember,
   type AgreementPerson,
 } from "./request-agreement-members";
 import { insist, type AgreementTx } from "./request-agreement-store";
@@ -35,7 +38,7 @@ export async function appendReviewers({
   existing: Reviewer[];
   nominees: Nominee[];
   note: string;
-  auth: { userId: string; orgId: string; role: string };
+  auth: MemberAuth;
   requesterId: string;
   roster: AgreementPerson[];
 }): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] }> {
@@ -98,6 +101,15 @@ export async function appendReviewers({
   return { reviewers, asked };
 }
 
+/**
+ * Editing what an Open Request says resets its reviews (reset_reviews_on_edit,
+ * migration 0031). Call inside the editing transaction, before the update, so
+ * the reset notification names this editor rather than the requester.
+ */
+export async function nameReviewResetActor(tx: AgreementTx, userId: string) {
+  await tx.execute(sql`select set_config('lane.actor_id', ${userId}, true)`);
+}
+
 /** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
 export async function notifyReviewers(
   tx: AgreementTx,
@@ -126,4 +138,73 @@ export async function notifyReviewers(
       detail: item.detail || null,
     }));
   if (values.length) await tx.insert(notifications).values(values);
+}
+
+/**
+ * Each saved reviewer as the reviewers panel shows it to this viewer: the
+ * profile role (grey information only), whether they are still in the
+ * workspace or their invitation still stands, and whether this viewer may
+ * answer.
+ */
+export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: boolean) {
+  // Worked out at read time from the identity provider; if it is unreachable nobody is greyed out.
+  let active: Set<string> | null = null;
+  try {
+    active = new Set(
+      (await agreementRoster(auth.orgId)).flatMap((p) =>
+        p.nominee.kind === "member" ? [p.nominee.userId] : [],
+      ),
+    );
+  } catch {
+    active = null;
+  }
+  const memberIds = saved.flatMap((r) =>
+    r.nominee.kind === "member" ? [r.nominee.userId] : [],
+  );
+  const roles = memberIds.length
+    ? await db
+        .select({ id: profiles.id, role: profiles.role })
+        .from(profiles)
+        .where(inArray(profiles.id, memberIds))
+    : [];
+  return Promise.all(
+    saved.map(async (r) => {
+      const view = {
+        id: r.id,
+        name: r.displayNameAtSelection,
+        note: r.note,
+        decision: r.decision,
+      };
+      if (r.nominee.kind === "member") {
+        const userId = r.nominee.userId;
+        const role = roles.find((p) => p.id === userId)?.role;
+        return {
+          ...view,
+          role: role ? PROFILE_ROLE_LABELS[role] : null,
+          active: !active || active.has(userId),
+          invitation: null,
+          canAnswer: open && auth.role !== "guest" && userId === auth.userId,
+        };
+      }
+      let state = "unavailable";
+      let canAnswer = false;
+      try {
+        state = (await invitationState(auth.orgId, r.nominee)) ?? "unavailable";
+        canAnswer =
+          open &&
+          auth.role !== "guest" &&
+          state === "accepted" &&
+          (await resolveInvitedMember(auth.orgId, r.nominee, auth.userId));
+      } catch {
+        state = "unavailable";
+      }
+      return {
+        ...view,
+        role: null,
+        active: state === "pending" || state === "accepted",
+        invitation: state,
+        canAnswer,
+      };
+    }),
+  );
 }

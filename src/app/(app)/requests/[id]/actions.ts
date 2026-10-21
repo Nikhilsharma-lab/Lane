@@ -7,6 +7,7 @@ import { db, requests, comments, notifications, requestAttachments } from "@/db"
 import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
+import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { MAX_MEASUREMENT_GUARDRAILS, measurementPlanSchema, measurementReadiness, measurementRequestTypeIssue, type MeasurementPlan } from "@/lib/request-measurement";
@@ -554,8 +555,8 @@ export async function saveRequestCurrentValues(
   const typeIssue = measurementRequestTypeIssue(next.data, request.requestType);
   if (typeIssue) return { error: typeIssue };
 
-  // Changing values resets reviews (reset_reviews_on_edit, migration 0031); the notification names this editor.
-  await tx.execute(sql`select set_config('lane.actor_id', ${auth.userId}, true)`);
+  // Changing values resets reviews; the notification names this editor.
+  await nameReviewResetActor(tx, auth.userId);
   const [updated] = await tx.update(requests).set({ expectedImpact: next.data }).where(and(
     eq(requests.id, requestId),
     eq(requests.orgId, auth.orgId),

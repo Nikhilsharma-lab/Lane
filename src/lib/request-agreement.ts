@@ -39,7 +39,6 @@ export type Reviewer = {
   note: string;
   decision: ReviewDecision | null;
 };
-export type { OutcomeException as ExceptionClosure } from "./request-outcome";
 export const agreementContextSchema = z
   .object({
     orgId: z.string().min(1),

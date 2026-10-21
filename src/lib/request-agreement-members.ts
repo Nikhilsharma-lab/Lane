@@ -1,7 +1,6 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
 import { nomineeKey, type Nominee } from "./request-agreement";
-export { nomineeKey };
 export type AgreementPerson = { nominee: Nominee; name: string; email: string; role?: string };
 /** Fresh provider data, never a Lane membership registry. */
 export async function agreementRoster(
