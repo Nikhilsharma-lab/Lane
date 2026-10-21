@@ -17,8 +17,8 @@ const REVIEW_DETAILS = source("src/components/requests/request-review-supporting
 
 describe("Private Request attachment contract", () => {
   it("creates the Request before uploading directly to private storage", () => {
-    expect(FORM).toContain("await saveRequest(payload, context, nominees)");
-    expect(FORM.indexOf("await saveRequest(payload, context, nominees)")).toBeLessThan(FORM.indexOf("uploadAttachment(attachment, result.requestId)"));
+    expect(FORM).toContain("await saveRequest(payload, context, picks)");
+    expect(FORM.indexOf("await saveRequest(payload, context, picks)")).toBeLessThan(FORM.indexOf("uploadAttachment(attachment, result.requestId)"));
     expect(FORM).toContain("setCreatedRequestId(result.requestId)");
     expect(FORM).toContain(
       "uploadAttachment(attachment, result.requestId)"

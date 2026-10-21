@@ -4,7 +4,8 @@ import { Users } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { SearchField } from "@/components/arc/search-field/search-field";
-import { MAX_REVIEWERS, nomineeKey } from "@/lib/request-agreement";
+import { Textarea } from "@/components/arc/textarea/textarea";
+import { MAX_REVIEWERS, nomineeKey, REVIEW_NOTE_MAX } from "@/lib/request-agreement";
 import { loadReviewerPeople } from "@/app/(app)/requests/[id]/agreement-actions";
 import { PickerOptions, focusOnOpen, pickerPopoverProps, searchListKeyDown } from "./request-property-pickers";
 import labelStyles from "./request-labels.module.css";
@@ -13,6 +14,13 @@ import pickerStyles from "./request-property-pickers.module.css";
 export type ReviewerChoice = Extract<Awaited<ReturnType<typeof loadReviewerPeople>>, { people: unknown }>["people"][number];
 
 export const REVIEWERS_SUBTEXT = "Add people who should look at this before work starts. Optional.";
+
+/** The optional question asked with a review, the same on Request detail and while creating. */
+export const REVIEW_QUESTION = {
+  label: "Question (optional)",
+  description: "They see it on the Request and in their notification.",
+  placeholder: "Can we build this with the current API?",
+} as const;
 
 /** "Reviewers", one name, or "3 reviewers". */
 export function reviewerSummary(chosen: { name: string }[]) {
@@ -24,12 +32,16 @@ export function reviewerSummary(chosen: { name: string }[]) {
  * Priority. The people come from the same loader as adding from Request
  * detail (members, plus pending invitations for admins), fetched once when the
  * popover first opens and filtered locally. The requester is left out; the
- * server checks every rule again when the Request is created.
+ * server checks every rule again when the Request is created. Once someone is
+ * chosen, the same optional question as on detail is offered; every chosen
+ * reviewer is sent it.
  */
-export function RequestReviewersPicker({ orgId, value, onChange, excludeUserId, disabled, error }: {
+export function RequestReviewersPicker({ orgId, value, onChange, question, onQuestionChange, excludeUserId, disabled, error }: {
   orgId: string;
   value: ReviewerChoice[];
   onChange: (next: ReviewerChoice[]) => void;
+  question: string;
+  onQuestionChange: (next: string) => void;
   excludeUserId: string;
   disabled?: boolean;
   error?: string;
@@ -95,6 +107,10 @@ export function RequestReviewersPicker({ orgId, value, onChange, excludeUserId, 
       {loading && <p role="status" className={labelStyles.caption}>Loading people…</p>}
       {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}
+      {value.length > 0 && <div className={labelStyles.question}>
+        <Textarea label={REVIEW_QUESTION.label} description={REVIEW_QUESTION.description} placeholder={REVIEW_QUESTION.placeholder}
+          value={question} onChange={(event) => onQuestionChange(event.target.value)} maxLength={REVIEW_NOTE_MAX} rows={2} disabled={disabled} />
+      </div>}
     </PopoverContent>
   </Popover>;
 }

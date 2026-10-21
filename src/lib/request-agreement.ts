@@ -50,8 +50,20 @@ export const agreementContextSchema = z
   .strict();
 export type AgreementContext = z.infer<typeof agreementContextSchema>;
 export const reviewerNomineesSchema = z.array(nomineeSchema).max(MAX_REVIEWERS);
-/** Reviewers picked while creating a Request. The cap of twenty is enforced with its own message by the shared add rules; this bound only refuses an absurd payload. */
-export const createReviewersSchema = z.array(nomineeSchema).max(100).optional();
+/**
+ * The most picks a create payload may carry. MAX_REVIEWERS is enforced with
+ * its own message by the shared add rules; this bound only refuses an absurd
+ * payload before those rules run.
+ */
+const CREATE_PICKS_LIMIT = MAX_REVIEWERS * 5;
+/** Reviewers picked while creating a Request, with the optional question each of them is sent. */
+export const createReviewersSchema = z
+  .object({
+    nominees: z.array(nomineeSchema).max(CREATE_PICKS_LIMIT),
+    note: z.string().trim().max(REVIEW_NOTE_MAX, `Keep the question to ${REVIEW_NOTE_MAX} characters.`),
+  })
+  .strict()
+  .optional();
 export const addReviewersSchema = z
   .object({
     nominees: reviewerNomineesSchema.min(1),

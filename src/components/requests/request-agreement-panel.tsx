@@ -9,6 +9,7 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-agreement";
 import * as actions from "@/app/(app)/requests/[id]/agreement-actions";
 import { useReportReviewState } from "./pickup-confirmation";
+import { REVIEW_QUESTION } from "./request-reviewers-picker";
 import styles from "./request-agreement.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
@@ -184,9 +185,9 @@ export function RequestAgreementPanel({
             />
           </div>
           <Textarea
-            label="Question (optional)"
-            description="They see it on the Request and in their notification."
-            placeholder="Can we build this with the current API?"
+            label={REVIEW_QUESTION.label}
+            description={REVIEW_QUESTION.description}
+            placeholder={REVIEW_QUESTION.placeholder}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={REVIEW_NOTE_MAX}

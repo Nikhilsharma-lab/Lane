@@ -303,6 +303,7 @@ export default function RequestEditor({
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
   const [reviewers, setReviewers] = useState<ReviewerChoice[]>([]);
+  const [reviewQuestion, setReviewQuestion] = useState("");
   const [reviewersError, setReviewersError] = useState<string | null>(null);
   const offerReviewers = canAddReviewers && !editing;
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
@@ -1046,11 +1047,11 @@ export default function RequestEditor({
         })()
         : await (async () => {
           // #78: the picks travel beside the signed review and are checked on their own.
-          const nominees = offerReviewers ? reviewers.map((person) => person.nominee) : [];
-          const first = await saveRequest(payload, context, nominees);
+          const picks = offerReviewers && reviewers.length ? { nominees: reviewers.map((person) => person.nominee), note: reviewQuestion } : undefined;
+          const first = await saveRequest(payload, context, picks);
           if (first.success || first.error.code !== "session_expired") return first;
           await refreshClerkToken().catch(() => undefined);
-          return saveRequest(payload, context, nominees);
+          return saveRequest(payload, context, picks);
         })();
 
       if (!result.success) {
@@ -1421,7 +1422,8 @@ export default function RequestEditor({
               }} disabled={checking || projectBusy} />
               <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
               {offerReviewers && <RequestReviewersPicker orgId={context.orgId} value={reviewers} excludeUserId={draftOwnerId} disabled={checking}
-                error={reviewersError ?? undefined} onChange={(next) => { draftEdited.current = true; setReviewers(next); setReviewersError(null); }} />}
+                error={reviewersError ?? undefined} onChange={(next) => { draftEdited.current = true; setReviewers(next); setReviewersError(null); }}
+                question={reviewQuestion} onQuestionChange={(next) => { draftEdited.current = true; setReviewQuestion(next); setReviewersError(null); }} />}
               <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="secondary" size="sm" disabled={checking} aria-invalid={Boolean(errors.usefulLink) || undefined}>

@@ -246,15 +246,16 @@ async function reviewersForNewRequest(
 ): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] } | IntakeFailure> {
   const failure = (message: string): IntakeFailure => ({ code: "validation", field: "reviewers", message });
   const parsed = createReviewersSchema.safeParse(input);
-  if (!parsed.success) return failure("Choose people to review.");
-  const nominees = parsed.data ?? [];
+  if (!parsed.success)
+    return failure(parsed.error.issues.find((issue) => issue.path[0] === "note")?.message ?? "Choose people to review.");
+  const { nominees, note } = parsed.data ?? { nominees: [], note: "" };
   if (!nominees.length) return { reviewers: [], asked: [] };
   try {
     insist(auth.role !== "guest", "Guests can’t add reviewers.");
     return await appendReviewers({
       existing: [],
       nominees,
-      note: "",
+      note,
       auth,
       requesterId: auth.userId,
       roster: await agreementRoster(auth.orgId),
