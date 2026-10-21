@@ -136,6 +136,13 @@ export const OpenWithSpace: Story = {
   play: async ({ canvasElement }) => {
     if (!previewAvailable()) return expectPhoneFallback(canvasElement)
     const canvas = within(canvasElement)
+    // The first frame is the loading skeleton, in the panel's place, before the Request is read.
+    requestRow(canvasElement, idOf(1)).focus()
+    await userEvent.keyboard(" ")
+    const opening = await canvas.findByRole("region", { name: "Request preview" })
+    await expect(opening.querySelector('[aria-busy="true"]')).not.toBeNull()
+    await userEvent.keyboard(" ")
+    await waitFor(() => expect(preview(canvasElement)).toBeNull())
     const row = await previewRow(canvasElement, 1)
     await expect(row).toHaveFocus()
     const panel = preview(canvasElement)!
