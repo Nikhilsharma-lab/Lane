@@ -2,7 +2,7 @@
 
 Arc UI supplies Lane's product components and the current production visual theme. The approved Linear primitives preview is documented below. [The official docs](https://uiarc.dev/docs/introduction), [theming guide](https://uiarc.dev/docs/theming), and [AI/MCP guide](https://uiarc.dev/docs/ai) govern future changes. The marketing repository is outside this migration.
 
-`src/components/arc/` contains official `@uiarc` registry source and licensed `@uiarc-pro` source retrieved through MCP. `arc-source-hashes.json` records the source URL, installed file, and upstream SHA-256. Changed local files are explicit adaptations. Free install IDs are `arc-foundation`, `alert`, `avatar`, `badge`, `button`, `calendar`, `checkbox`, `chip-group`, `floating-button-group`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `empty-state`, `filter-toolbar`, `input`, `notification-center`, `pagination`, `password-field`, `popover`, `progress`, `radio-group`, `search-field`, `segmented-control`, `select`, `skeleton`, `sortable-data-table`, `textarea`, `toast-stack`, `tooltip`, and `user-menu`. The Pro block is `workspace-sidebar`. Free source docs are at `https://uiarc.dev/components/<id>`; the sidebar reference is `https://uiarc.dev/components/blocks/sidebar?variant=workspace-sidebar`.
+`src/components/arc/` contains official `@uiarc` registry source and licensed `@uiarc-pro` source retrieved through MCP. `arc-source-hashes.json` records the source URL, installed file, and upstream SHA-256. Changed local files are explicit adaptations. Free install IDs are `arc-foundation`, `alert`, `avatar`, `badge`, `button`, `checkbox`, `chip-group`, `floating-button-group`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `empty-state`, `filter-toolbar`, `input`, `notification-center`, `pagination`, `password-field`, `popover`, `progress`, `radio-group`, `search-field`, `segmented-control`, `select`, `skeleton`, `textarea`, `toast-stack`, `tooltip`, and `user-menu`. The Pro block is `workspace-sidebar`. Free source docs are at `https://uiarc.dev/components/<id>`; the sidebar reference is `https://uiarc.dev/components/blocks/sidebar?variant=workspace-sidebar`.
 
 | Lane surface | Arc source actually used | Lane adaptation |
 | --- | --- | --- |
@@ -47,7 +47,6 @@ The Requests toolbar now opts into `FilterMenu`'s documented Lane `presentation=
 - `src/components/arc/progress/progress.tsx`: an explicit `aria-label` is preserved when the visible `label` prop is absent, so upload progress announces its file-specific name.
 - `src/app/(app)/intake/intake-form.module.css` (plan item 2.3; centred dialog since 2026-10-13): one composition inside the composer dialog. The fields scroll in their own region with the composer's 24px gutter (16px at 40rem and below), and each step's actions sit in one footer below it with a top rule on the dialog's raised surface. The title and description use the plain Arc Input and Textarea at `--text-lg`/500 and `--text-base`/400.
 - `src/components/arc/user-menu/user-menu.module.css`: the email uses Arc's `--text-secondary` token because the upstream muted token did not meet the observed text-contrast threshold on Lane's selected default theme. Workspace submenu styles reuse Arc's panel, item and motion tokens; long identities shrink within the sidebar's available width. The theme selector thumb now uses the shared resting-shadow token instead of a hard-coded light-theme shadow, so it follows the approved shadow-free treatment. Avatar/presence edge separators remain intact; these are crisp boundaries rather than elevation shadows.
-- `src/components/arc/sortable-data-table/sortable-data-table.module.css`: the supplied compact-row layout responds to the table's available container width rather than the viewport. Its threshold is 800px, keeping Project, Assignee and Submitted readable when the persistent sidebar narrows a tablet or laptop content area; the Arc row design is unchanged.
 - `src/components/shell/` composes the licensed sidebar pattern with Lane's real navigation and notifications. Its CSS is an application adaptation, not a registry copy. `use-sidebar-resize.ts` adds the requested desktop edge drag: 272px initially, 200–400px expanded, below 160px collapsed to zero. It remembers the last expanded width, follows captured pointer movement directly, cancels safely, and supports keyboard separators and `[`. Since plan item 2.4 a toggle (the expand control, `[`, Enter on the separator) slides the panel on transform only, 180 ms out on `ease.exit` and 240 ms in on `ease.enter`, and the content's width changes once: at the start of a collapse and at the end of an expand (`sidebar-motion.ts`). A toggle mid-slide reverses it; drags, arrow keys, End, reduced motion, the automatic collapse and pinning a visible peek change the width in one jump. Arc's smooth spring no longer runs on the sidebar width. After collapse the expand button sits at the start of each page's own strip (below); there is no shell topbar. Phone navigation continues to use the original drawer.
 - `src/components/shell/use-workspace-switcher.ts` and `workspace-switcher.ts` use existing Clerk memberships only, with pagination/retry and `setActive`. Successful switching replaces the document at `/`, clearing the previous workspace's mounted state. Pending switching blocks old content; an Intake guard prevents losing in-memory files or interrupting a mutation. Text drafts remain scoped to their original workspace. This adds no workspace/account creation flow.
 - `src/components/shell/page-strip.tsx` and `.module.css` (plan item 2.0) replace the shell topbar: each page renders one 44px page strip, and skeletons and the error and not-found frames render the same strip. It is a Lane composition, not an Arc block. The strip holds the shell's expand control (an Arc ghost `button`), an optional leading back or close link drawn with Arc `button` styles, the breadcrumb trail ending in the page title (an `h1` where the strip is the page heading), tools such as the Request's Arc `badge`, one action slot (the list's New Request link with its Arc `tooltip`, or the detail's Pick up and Mark done Arc `button`s from 1024px) and an Arc `dropdown-menu` overflow only when it has items; skeleton titles use Arc `skeleton`. The expand button now lives in each page strip rather than a shell header. The shell passes the trail, its next/link component and the expand control through `PageStripProvider` context instead of the strip importing next/link: the root error, global-error and not-found render the strip with no provider, and these boundaries load with every route, so a next/link import in the strip measured +5.4 KB gzip on every route's first load, over the 2 KB client JS budget. The bottom rule is drawn over the strip's last pixel rather than as a border, so 44px touch controls keep the strip at 44px. Breadcrumb links use only the shared `:focus-visible` ring; fills mark hover, open menus and selection only.
@@ -301,7 +300,6 @@ Updated licensed files:
 - `src/components/arc/badge/badge.module.css`
 - `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css`
 - `src/components/arc/button/button.module.css`
-- `src/components/arc/calendar/calendar.module.css`
 - `src/components/arc/checkbox/checkbox.module.css`
 - `src/components/arc/chip-group/chip-group.module.css`
 - `src/components/arc/context-menu/context-menu.module.css`
@@ -325,7 +323,6 @@ Updated licensed files:
 - `src/components/arc/segmented-control/segmented-control.module.css`
 - `src/components/arc/select/select.module.css`
 - `src/components/arc/skeleton/skeleton.module.css`
-- `src/components/arc/sortable-data-table/sortable-data-table.module.css`
 - `src/components/arc/textarea/textarea.module.css`
 - `src/components/arc/toast-stack/toast-stack.module.css`
 - `src/components/arc/tooltip/tooltip.module.css`
@@ -343,7 +340,6 @@ Adapted files:
 
 - `src/components/arc/alert/alert.tsx`
 - `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx`
-- `src/components/arc/calendar/calendar.tsx`
 - `src/components/arc/checkbox/checkbox.tsx`
 - `src/components/arc/chip-group/chip-group.tsx`
 - `src/components/arc/context-menu/context-menu.tsx`
@@ -353,13 +349,11 @@ Adapted files:
 - `src/components/arc/dropdown-menu/dropdown-menu.tsx`
 - `src/components/arc/empty-state/empty-state.tsx`
 - `src/components/arc/filter-toolbar/filter-toolbar.tsx`
-- `src/components/arc/notification-center/notification-center.tsx`
 - `src/components/arc/pagination/pagination.tsx`
 - `src/components/arc/password-field/password-field.tsx`
 - `src/components/arc/progress/progress.tsx`
 - `src/components/arc/search-field/search-field.tsx`
 - `src/components/arc/select/select.tsx`
-- `src/components/arc/sortable-data-table/sortable-data-table.tsx`
 - `src/components/arc/toast-stack/toast-stack.tsx`
 - `src/components/arc/user-menu/user-menu.tsx`
 - `src/components/arc/alert/alert.module.css`
@@ -374,7 +368,6 @@ Adapted files:
 - `src/components/arc/filter-toolbar/filter-toolbar.module.css`
 - `src/components/arc/floating-button-group/floating-button-group.module.css`
 - `src/components/arc/select/select.module.css`
-- `src/components/arc/sortable-data-table/sortable-data-table.module.css`
 - `src/components/arc/toast-stack/toast-stack.module.css`
 - `src/components/arc/user-menu/user-menu.module.css`
 - `src/components/arc/foundation.css`
@@ -422,3 +415,7 @@ The same audit maps `src/components/arc/user-menu/user-menu.module.css` panel in
 ### October 20 — comparison menu anatomy
 
 `src/components/arc/select/select.tsx` adds opt-in `indicatorPosition="left"` and an option `trailing` slot. `src/components/arc/select/select.module.css` aligns the selection mark left and trailing comparison symbols right using the existing accent token. Defaults and Radix keyboard/focus behaviour remain unchanged. Metric search composes the installed Arc Popover, Input and Button with the shared Request picker spacing.
+
+### October 21 — unused components removed
+
+Nothing in Lane imported these installed Arc sources, so they were deleted with their ledger entries: `calendar` (`calendar.tsx`, `calendar.module.css`; the measurement dialogs use the Arc Date Range Picker), `sortable-data-table` (`sortable-data-table.tsx`, `sortable-data-table.module.css`) and the `notification-center` component (`notification-center.tsx`). `notification-center.module.css` stays: the notifications popover uses its styles. The install notes above are kept as history.

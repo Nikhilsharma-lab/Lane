@@ -35,7 +35,6 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 import { db, notifications, profiles, projects, requests } from "@/db";
 import { GET as search } from "./search/route";
-import { GET as reviewers } from "./reviewers/route";
 import { GET as notificationList } from "./notifications/route";
 import { GET as unread } from "./notifications/unread/route";
 import { GET as requestDetail } from "./requests/[id]/route";
@@ -108,27 +107,6 @@ describe("GET /api/search", () => {
     const body = await (await get(search, "/api/search", { org: ORG, q: MARK })).json();
     expect(body.requests.items.map((item: { id: string }) => item.id)).toEqual([guestRequest]);
     expect((await get(search, "/api/search", { org: ORG, q: MARK, requestsPage: "-1" })).status).toBe(400);
-  });
-});
-
-describe("GET /api/reviewers", () => {
-  it("refuses signed-out callers, guests and other workspaces", async () => {
-    actAs(null, "org:member", null);
-    expect((await get(reviewers, "/api/reviewers", { org: ORG, request: memberRequest })).status).toBe(401);
-    actAs(GUEST, "org:guest");
-    expect((await get(reviewers, "/api/reviewers", { org: ORG, request: memberRequest })).status).toBe(403);
-    actAs(OTHER_ADMIN, "org:admin", OTHER_ORG);
-    expect((await get(reviewers, "/api/reviewers", { org: OTHER_ORG, request: memberRequest })).status).toBe(404);
-    expect(clerk.calls).toEqual([]);
-  });
-
-  it("lists onboarded teammates other than the caller for a Request in the workspace", async () => {
-    const response = await get(reviewers, "/api/reviewers", { org: ORG, request: memberRequest, q: "test" });
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(await response.json()).toEqual({ members: [{ id: ADMIN, name: "Test Admin" }] });
-    expect(clerk.calls.at(-1)).toEqual({ userId: undefined, query: "test" });
-    expect((await get(reviewers, "/api/reviewers", { org: ORG, request: "not-a-uuid" })).status).toBe(404);
   });
 });
 
