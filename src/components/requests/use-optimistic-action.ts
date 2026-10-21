@@ -20,7 +20,8 @@ export type OptimisticOptions<R> = {
   patch?: Omit<RequestPatch, "since">
   run: () => Promise<R>
   /** Replaces the default failure toast (an inline alert, or a toast the move already owns). */
-  onError?: (message: string, detail: { thrown: boolean }) => void
+  /** `auth` is true when the failure looks like an expired session even after the one token refresh. */
+  onError?: (message: string, detail: { thrown: boolean; auth: boolean }) => void
   /** Waits for the action already in flight on this Request and is not sent if it failed (Undo after Mark Done). */
   waitForPending?: boolean
   /** Re-syncs the page after a failure. On by default; batch callers refresh once themselves. */
@@ -105,7 +106,7 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
   const message = error ?? CONNECTION_ERROR
   rollback()
   finish(false)
-  if (options.onError) options.onError(message, { thrown })
+  if (options.onError) options.onError(message, { thrown, auth: "thrown" in outcome ? authShaped(outcome) : authShaped({ error: message }) })
   else deps.notifyError(message)
   if (options.refreshOnError !== false) deps.refresh()
   return { status: "error", error: message, thrown }

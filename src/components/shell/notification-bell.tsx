@@ -88,6 +88,8 @@ function LoadedNotificationBell({
   const [loaded, setLoaded] = useState(false);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The last list read was refused for the session: only a reload can fix it.
+  const [sessionExpired, setSessionExpired] = useState(false);
   // The committed state and open flag, for handlers that run after a promise settles.
   const latest = useRef({ state, open });
   useLayoutEffect(() => { latest.current = { state, open }; });
@@ -120,14 +122,17 @@ function LoadedNotificationBell({
       const body = await response.json().catch(() => null);
       if (controller.signal.aborted) return;
       if (!response.ok || !Array.isArray(body?.notifications)) {
-        // An expired or changed session reads the route's own message; anything else the generic one. Rows stay as they are.
-        setError((response.status === 401 || response.status === 403) && typeof body?.error === "string" ? body.error : LOAD_FAILED);
+        // An expired or changed session reads the route's own message and offers Refresh; anything else the generic one. Rows stay as they are.
+        const expired = (response.status === 401 || response.status === 403) && typeof body?.error === "string";
+        setError(expired ? body.error : LOAD_FAILED);
+        setSessionExpired(expired);
         return;
       }
       setState(current => receiveList(current, body.notifications as NotificationItem[], startedAt));
       setError(null);
+      setSessionExpired(false);
     } catch {
-      if (!controller.signal.aborted) setError(LOAD_FAILED);
+      if (!controller.signal.aborted) { setError(LOAD_FAILED); setSessionExpired(false); }
     } finally {
       if (!controller.signal.aborted) { setLoaded(true); setReading(false); }
     }
@@ -173,10 +178,12 @@ function LoadedNotificationBell({
     listRequest.current?.abort();
     setReading(false);
     setError(null);
+    setSessionExpired(false);
   }, []);
 
-  const failed = useCallback((message: string) => {
-    toast({ type: "error", title: FAILURE_TITLE, description: message === "Not found" ? SESSION_CHANGED : message });
+  // An expired session, refused or thrown, says to refresh; "Check your connection" is only for real network failures.
+  const failed = useCallback((message: string, { auth }: { auth: boolean }) => {
+    toast({ type: "error", title: FAILURE_TITLE, description: auth || message === "Not found" ? SESSION_CHANGED : message });
   }, [toast]);
 
   /** Adds the row's patch, or null while an earlier one on the row is unconfirmed (its toggle is disabled; this is the guard). */
@@ -264,6 +271,7 @@ function LoadedNotificationBell({
     pendingIds={pending}
     allReadPending={isAllReadPending(state)}
     error={error}
+    sessionExpired={sessionExpired}
     onOpenChange={nextOpen => { if (nextOpen) setOpen(true); else close(); }}
     onSelect={handleSelect}
     onMarkAllRead={handleMarkAllRead}

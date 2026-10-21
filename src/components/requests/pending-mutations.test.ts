@@ -325,9 +325,19 @@ describe("useOptimisticAction core", () => {
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "pick-up", status: "in_progress" }, run: async () => { throw new TypeError("Failed to fetch") }, onError })
     expect(outcome).toMatchObject({ status: "error", thrown: true })
     expect(view().patches.a).toBeUndefined()
-    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true })
+    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: false })
     expect(deps.notifyError).not.toHaveBeenCalled()
     expect(deps.refreshToken).not.toHaveBeenCalled()
+  })
+
+  // Critique 2.7: a session that is still expired after the one token refresh is not a connection problem.
+  it("tells onError when the failure is still auth-shaped after the retry", async () => {
+    const { view } = setup()
+    const deps = depsFor(view)
+    const onError = vi.fn()
+    await runOptimistic(deps, { id: "a", run: async () => { throw new Error("401 Unauthorized") }, onError })
+    expect(deps.refreshToken).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: true })
   })
 
   it("refreshes the Clerk token and retries once on an auth-shaped refusal", async () => {
