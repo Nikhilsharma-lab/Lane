@@ -37,10 +37,16 @@ describe("pickupConfirmation", () => {
 });
 
 describe("concernMarker", () => {
-  it("shows only when at least one concern is open", () => {
-    expect(concernMarker(null)).toBeNull();
-    expect(concernMarker({ concerns: [], unanswered: 4 })).toBeNull();
-    expect(concernMarker({ concerns: [concern], unanswered: 0 })).toBe("1 concern");
-    expect(concernMarker({ concerns: [concern, concern], unanswered: 0 })).toBe("2 concerns");
+  const open = "open" as const;
+  it("shows on an Open Request only when at least one concern is open", () => {
+    expect(concernMarker({ status: open, reviewState: null })).toBeNull();
+    expect(concernMarker({ status: open, reviewState: { concerns: [], unanswered: 4 } })).toBeNull();
+    expect(concernMarker({ status: open, reviewState: { concerns: [concern], unanswered: 0 } })).toBe("1 concern");
+    expect(concernMarker({ status: open, reviewState: { concerns: [concern, concern], unanswered: 0 } })).toBe("2 concerns");
+  });
+
+  it("is gone once work has started: the concerns stay on the Request as a record", () => {
+    for (const status of ["in_progress", "done"] as const)
+      expect(concernMarker({ status, reviewState: { concerns: [concern], unanswered: 1 } })).toBeNull();
   });
 });

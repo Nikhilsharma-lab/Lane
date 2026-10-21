@@ -75,9 +75,12 @@ export type ReviewState = {
 };
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
-/** The list's marker: "2 concerns", or null when no concern is open. */
-export function concernMarker(state: ReviewState | null | undefined) {
-  const count = state?.concerns.length ?? 0;
+/** The list's marker on an Open Request: "2 concerns", or null when none is open or work has started. */
+export function concernMarker(request: {
+  status: "open" | "in_progress" | "done";
+  reviewState?: ReviewState | null;
+}) {
+  const count = request.status === "open" ? request.reviewState?.concerns.length ?? 0 : 0;
   return count ? plural(count, "concern", "concerns") : null;
 }
 export type PickupConfirmation = {

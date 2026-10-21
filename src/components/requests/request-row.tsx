@@ -129,8 +129,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     ...(peek ? [{ id: "peek", label: "Preview", shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
   ] : []
   const status = statuses.find(item => item.value === request.status)!
-  // #77: open concerns from saved reviews. The row's name already reads it, so the marker is not read twice.
-  const concerns = concernMarker(request.reviewState)
+  // #77: open concerns from saved reviews, on Open rows only. The row's name already reads it, so the marker is not read twice.
+  const concerns = concernMarker(request)
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
   // An open row menu keeps the row lit while the pointer is on the menu.
   const [menuOpen, setMenuOpen] = useState(false)
