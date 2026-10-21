@@ -7,6 +7,7 @@ import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 import { RequestsWorkspaceLoading } from "@/app/(app)/requests-workspace-loading"
 import { RequestsOverview } from "@/app/(app)/requests-overview"
+import { fullLocal, localDayLabel, localLabel } from "@/components/requests/local-time"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { announcer, requestGroup, requestRows, rowOf } from "./helpers/request-grid"
 
@@ -406,10 +407,15 @@ export const PropertyDetails: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const row = within(requestRows(requestGroup(canvasElement, "Open Requests"))[0])
-    const submitted = row.getByRole("button", { name: "Submitted: 28 Sep 2026" })
+    // Critique 2.4: the viewer's day and time, never UTC; the title carries the full local date and time.
+    const created = requests[0].createdAt
+    const submitted = row.getByRole("button", { name: `Submitted: ${localDayLabel(created)}` })
     await userEvent.click(submitted)
     const panel = within(await within(document.body).findByRole("dialog", { name: "Submitted" }))
-    await waitFor(() => expect(panel.getByText("Mon, 28 Sep 2026 09:00:00 GMT")).toBeVisible())
+    const shown = await panel.findByText(localLabel(created))
+    await waitFor(() => expect(shown).toBeVisible())
+    await expect(shown).toHaveAttribute("title", fullLocal(created))
+    await expect(panel.queryByText(/GMT|UTC/)).not.toBeInTheDocument()
     await userEvent.keyboard("{Escape}")
     await waitFor(() => expect(submitted).toHaveFocus())
     // Canonical /requests/[id] (plan item 1.7); the property links still name the list view they open.
