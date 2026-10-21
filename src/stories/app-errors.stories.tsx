@@ -6,6 +6,7 @@ import AuthError from "@/app/(auth)/error"
 import NotFound from "@/app/not-found"
 import AppError from "@/app/(app)/error"
 import { WorkspaceSidebarFixture } from "./helpers/workspace-sidebar-fixture"
+import { SUPPORT_EMAIL } from "@/app/support-contact"
 
 // Plan item 1.12. getWorkspace() in (app)/layout.tsx throws while the database is
 // paused; Next renders src/app/error.tsx inside the root layout. These stories render
@@ -34,6 +35,12 @@ async function expectRootStrip(canvasElement: HTMLElement, title: string) {
   await expect(canvas.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument()
 }
 
+/** "Let us know" goes somewhere: the support address, written out and linked (decision 2026-10-21). */
+async function expectSupportContact(canvasElement: HTMLElement) {
+  const link = within(within(canvasElement).getByRole("alert")).getByRole("link", { name: SUPPORT_EMAIL })
+  await expect(link).toHaveAttribute("href", `mailto:${SUPPORT_EMAIL}`)
+}
+
 export const WorkspaceUnavailable: Story = {
   name: "(app) layout: database paused",
   render: (args) => <RootError error={pausedDatabase} reset={args.reset} />,
@@ -42,6 +49,7 @@ export const WorkspaceUnavailable: Story = {
     await expectRootStrip(canvasElement, "Database unavailable")
     await expect(canvas.getByRole("heading", { name: "Lane can’t reach its database right now" })).toBeVisible()
     await expect(canvas.getByRole("alert")).toHaveTextContent("Your data is safe.")
+    await expectSupportContact(canvasElement)
     await expect(canvas.getByRole("button", { name: "Reload" })).toBeVisible()
     await userEvent.click(canvas.getByRole("button", { name: "Try again" }))
     await expect(args.reset).toHaveBeenCalledOnce()
@@ -55,6 +63,7 @@ export const AuthUnavailable: Story = {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole("link", { name: "Lane sign in" })).toHaveAttribute("href", "/login")
     await expect(canvas.getByRole("heading", { level: 1 })).toHaveTextContent("Database unavailable")
+    await expectSupportContact(canvasElement)
     await expect(canvas.getByRole("heading", { name: "Lane can’t reach its database right now" })).toBeVisible()
     await userEvent.click(canvas.getByRole("button", { name: "Try again" }))
     await expect(args.reset).toHaveBeenCalledOnce()

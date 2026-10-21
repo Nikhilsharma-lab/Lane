@@ -5,6 +5,7 @@ import { DatabaseZap } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { SupportContact } from "../support-contact";
 
 // Same pattern as src/app/error.tsx for the auth group (plan item 1.12): onboarding and
 // the sign-in tasks read the database, which can be paused on the free tier. The auth
@@ -26,7 +27,7 @@ export default function AuthError({
         <h1 className="sr-only">Database unavailable</h1>
         <EmptyState
           title="Lane can’t reach its database right now"
-          description="Your data is safe. Try again in a minute, and if this keeps happening let us know."
+          description="Your data is safe. Try again in a minute."
           icon={<DatabaseZap aria-hidden="true" />}
           action={
             <>
@@ -35,6 +36,7 @@ export default function AuthError({
             </>
           }
         />
+        <SupportContact />
       </div>
     </AuthShell>
   );

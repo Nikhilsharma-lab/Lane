@@ -6,6 +6,7 @@ import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { PageStrip } from "@/components/shell/page-strip";
 import { reportClientError } from "@/lib/report-client-error";
+import { SupportContact } from "./support-contact";
 import frame from "./app-frame.module.css";
 
 // Catches a throw in (app)/layout.tsx, most often getWorkspace() against a paused
@@ -30,7 +31,7 @@ export default function RootError({
       <div className={frame.body} role="alert">
         <EmptyState
           title="Lane can’t reach its database right now"
-          description="Your data is safe. Try again in a minute, and if this keeps happening let us know."
+          description="Your data is safe. Try again in a minute."
           icon={<DatabaseZap aria-hidden="true" />}
           action={
             <>
@@ -39,6 +40,7 @@ export default function RootError({
             </>
           }
         />
+        <SupportContact />
       </div>
     </main>
   );
