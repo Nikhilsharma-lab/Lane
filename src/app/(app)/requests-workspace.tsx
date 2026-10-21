@@ -24,7 +24,7 @@ function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props
     lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
     editRequest={request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /> : undefined}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
-    attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
+    attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} fileName={attachment.fileName} context={{ orgId }} />}
   />
 }
 

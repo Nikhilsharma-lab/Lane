@@ -90,7 +90,7 @@ export function DetailFixture({ current = request, guest = false, comments: init
             <RequestDetailView request={{ ...shown, designReviews: review?.reviews ?? shown.designReviews }} comments={render.comments} attachments={files} isGuest={guest} viewer={viewer} orgId={context.orgId}
               lifecycleActions={<LifecycleButtons requestId={shown.id} status={shown.status} context={context} isGuest={guest} />}
               commentForm={<CommentForm requestId={shown.id} context={context} />}
-              attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={context} />}
+              attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} fileName={attachment.fileName} context={context} />}
               editRequest={editable ? <EditRequest request={shown} orgId={context.orgId} draftOwnerId={viewer.id} /> : undefined} />
           </ListAnnouncerProvider>
         </div>

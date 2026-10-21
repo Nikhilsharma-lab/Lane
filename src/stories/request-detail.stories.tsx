@@ -606,6 +606,24 @@ export const CopyFails: Story = {
   },
 }
 
+/** Each file's download button carries that file's name, so a screen reader can tell them apart. */
+export const FileDownloadsNamed: Story = {
+  args: {
+    attachments: [
+      { id: "fixture-file", fileName: "Delivery context.png", mimeType: "image/png", sizeBytes: 182400, uploadedAt: new Date("2026-10-01T09:00:00Z") },
+      { id: "fixture-file-2", fileName: "Interview notes.txt", mimeType: "text/plain", sizeBytes: 2048, uploadedAt: new Date("2026-10-01T09:30:00Z") },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const files = within(within(main(canvasElement)).getByRole("list", { name: "Request files" }))
+    const names = files.getAllByRole("button").map(button => button.getAttribute("aria-label"))
+    await expect(names).toEqual(["Download Delivery context.png", "Download Interview notes.txt"])
+    await userEvent.click(files.getByRole("button", { name: "Download Interview notes.txt" }))
+    await waitFor(() => expect(getAttachmentDownloadUrl).toHaveBeenCalledWith("fixture-file-2", { orgId: "fixture-workspace" }))
+    await expect(await files.findByText("Couldn’t prepare the download. Try again.")).toBeVisible()
+  },
+}
+
 /** At 390 the state line opens Properties; priority changes there and the line follows in the same frame. */
 export const PhoneProperties: Story = {
   globals: phoneDark,
