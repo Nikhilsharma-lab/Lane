@@ -3,6 +3,9 @@ import { expect, mocked, userEvent, waitFor, within } from "storybook/test"
 import { getRouter } from "@storybook/nextjs-vite/navigation.mock"
 import { listProjects } from "@/app/(app)/intake/project-actions"
 import { addComment, markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
+import { loadAgreementPeople, readAgreement } from "@/app/(app)/requests/[id]/agreement-actions"
+import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
+import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
 import { clearIntakeDraft, intakeDraftScope } from "@/lib/intake-draft"
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { RequestPriority } from "@/lib/request-constants"
@@ -86,6 +89,13 @@ const meta = {
     mocked(undoMarkDone).mockReset().mockResolvedValue({ success: true, status: "in_progress" })
     mocked(setRequestPriority).mockReset().mockImplementation(async (_id, priority) => ({ success: true as const, priority: priority as RequestPriority }))
     mocked(addComment).mockReset().mockImplementation(async () => ({ success: true as const, comment: { id: "fixture-new-comment", createdAt: new Date() } }))
+    // The pane's agreement, release and outcome panels (#58–#60) read on their own; their stories cover them.
+    // Held pending here, so each stays in its loading state and the preview's own behaviour is what is tested.
+    const pending = () => new Promise<never>(() => {})
+    mocked(readAgreement).mockReset().mockImplementation(pending)
+    mocked(loadAgreementPeople).mockReset().mockImplementation(pending)
+    mocked(readRequestRelease).mockReset().mockImplementation(pending)
+    mocked(readRequestOutcome).mockReset().mockImplementation(pending)
     for (const method of ["push", "replace", "prefetch", "refresh"] as const) getRouter()[method].mockClear()
     clearIntakeDraft(window.sessionStorage, intakeDraftScope("linear-preview-person", context.orgId))
     return () => route?.restore()
