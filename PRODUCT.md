@@ -58,9 +58,13 @@ free-plan production is Admin/Member only. Public or anonymous Intake is a diffe
 → Measurement → Closure. These are journey moments, not eight mandatory board columns. Discovery and
 delivery can overlap within agreed boundaries; specialist work remains in existing tools.
 
-- Each Request names a PM, Designer, and Developer. The creator represents one discipline and selects the
-  other two participants. Explicit alignment is required before prioritization/execution; disagreement
-  blocks progress and requires a short reason. Silence and administrator authority cannot override it.
+> **2026-10-21:** Optional reviewers replace the named PM/Designer/Developer agreement gate
+> (`REQUIREMENTS.md` §4.4). Where the bullets below still speak of the trio, agreement or alignment,
+> `REQUIREMENTS.md` is authoritative.
+
+- A Request may have optional **reviewers**, added while creating it or by any member before pickup. Each
+  answers **Looks good** or **Raise a concern** with a reason. Reviews never block pickup: open concerns or
+  unanswered reviews only ask the person picking up to confirm. Editing the Request resets every answer.
 - The trio can commit to bounded discovery or to delivery. Assignment by the creator or an administrator,
   or self-pickup of unassigned work by a Designer, does not start work or supply alignment. Request-specific
   responsibilities are not global permissions derived from `profiles.role`.
