@@ -5,7 +5,8 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
-import { pickupConfirmation, type ReviewState } from "@/lib/request-agreement"
+import type { ReviewState } from "@/lib/request-agreement"
+import { requestCodeOrNull } from "./detail-context"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import type { Announce } from "./list-announcer"
 import { useCopy } from "./use-copy"
@@ -15,11 +16,18 @@ import { FAILURE_TITLE, useOptimisticAction, type OptimisticOutcome } from "./us
  * and, for a pick up, its saved reviews (#77). */
 export type MoveTarget = { id: string; name: string; reviewState?: ReviewState | null }
 
+/** A list row as a MoveTarget: named by its saved code, else its title. */
+export function moveTarget(row: { id: string; requestNumber?: number; reframedProblem: string | null; title: string; reviewState?: ReviewState | null }): MoveTarget {
+  return { id: row.id, name: requestCodeOrNull(row.requestNumber) ?? row.reframedProblem ?? row.title, reviewState: row.reviewState }
+}
+
 export type MoveOptions = {
   /** Replaces the failure description when the action threw (a lost response), so the copy can say what to check. */
   networkError?: string
   /** Pick up only: who becomes the Assignee, shown in the same frame (Request detail's panel). */
   assignee?: { id: string; name: string }
+  /** Pick up only: the caller already asked "Pick up anyway?" and the person confirmed. */
+  confirmed?: boolean
 }
 
 type MoveOutcome = OptimisticOutcome<unknown> | { status: "busy" } | { status: "cancelled" }
@@ -92,9 +100,9 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   }, [afterMove, announce, optimistic, orgId, toast, undo])
 
   // #77: a pick up with an open concern or an unanswered review asks "Pick up anyway?" first.
-  // With nothing outstanding it starts in the same frame, as before.
+  // With nothing outstanding the confirmation resolves at once and the move starts before the next paint.
   const move = useCallback((request: MoveTarget, kind: LifecycleMove, options?: MoveOptions): Promise<MoveOutcome> => {
-    if (kind !== "pick-up" || !pickupConfirmation([request])) return start(request, kind, options)
+    if (kind !== "pick-up" || options?.confirmed) return start(request, kind, options)
     return confirmPickup([request]).then(confirmed => confirmed ? start(request, kind, options) : { status: "cancelled" as const })
   }, [confirmPickup, start])
 

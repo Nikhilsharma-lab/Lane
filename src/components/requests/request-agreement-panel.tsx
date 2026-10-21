@@ -6,8 +6,9 @@ import { Button } from "@/components/arc/button/button";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX } from "@/lib/request-agreement";
+import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-agreement";
 import * as actions from "@/app/(app)/requests/[id]/agreement-actions";
+import { useReportReviewState } from "./pickup-confirmation";
 import styles from "./request-agreement.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
@@ -63,6 +64,14 @@ export function RequestAgreementPanel({
   const [reason, setReason] = useState("");
   const retry = useRef<{ fingerprint: string; id: string } | null>(null);
   const running = useRef(false);
+  const reportReviewState = useReportReviewState();
+  // #77: pickup confirms from what this panel last read, which is newer than the
+  // page's or the preview's loaded copy once a reviewer is added, removed or answers.
+  useEffect(() => {
+    if (!view) return;
+    reportReviewState(view.requestId, reviewStateOf(view.reviewers));
+    return () => reportReviewState(view.requestId, undefined);
+  }, [reportReviewState, view]);
 
   const applyView = useCallback((result: Awaited<ReturnType<typeof actions.readReviews>>) => {
     if ("error" in result) {

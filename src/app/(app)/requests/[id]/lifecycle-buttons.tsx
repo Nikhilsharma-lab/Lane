@@ -67,7 +67,7 @@ export function LifecycleButtons({
     // Focus is read before the confirmation takes it; the dialog hands it back to the button on close.
     const hadFocus = Boolean(slot.current?.contains(document.activeElement));
     const name = detail?.name ?? "This Request";
-    if (kind === "pick-up" && !(await moves.confirmPickup([{ name, reviewState: detail?.request.reviewState }]))) return;
+    if (kind === "pick-up" && !(await moves.confirmPickup([{ id: requestId, name, reviewState: detail?.request.reviewState }]))) return;
     setPressedFrom(shownStatus);
     // On a refusal or a lost response useOptimisticAction rolls the patch back
     // and calls router.refresh() so the detail re-syncs with the server; a
@@ -75,6 +75,7 @@ export function LifecycleButtons({
     const outcome = await run(() => moves.move({ id: requestId, name }, kind, {
       networkError: NETWORK_ERRORS[kind],
       assignee: kind === "pick-up" && detail ? detail.viewer : undefined,
+      confirmed: kind === "pick-up",
     }));
     if (outcome.status !== "completed" || outcome.value.status !== "success" || !hadFocus) return;
     // Focus stays with the person: on the new Mark Done after a pick up, on the title once nothing is left to press.

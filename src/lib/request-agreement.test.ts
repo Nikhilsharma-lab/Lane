@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { concernMarker, pickupConfirmation } from "./request-agreement";
+import { concernMarker, pickupConfirmation, reviewStateOf } from "./request-agreement";
 
 // #77: pickup stays one click unless something is outstanding. Every entry
 // point (detail button, detail status menu, row menu, bulk bar) asks this.
@@ -33,6 +33,31 @@ describe("pickupConfirmation", () => {
       ["LAN-1", "2 concerns open"],
       ["LAN-3", "3 reviews unanswered"],
     ]);
+  });
+});
+
+describe("fresh review state at pickup", () => {
+  const waiting = { name: "Sam", decision: null };
+  const fine = { name: "Alex", decision: { kind: "looks_good" as const, reason: "" } };
+  const worried = { name: "Priya", decision: { kind: "concern" as const, reason: concern.reason } };
+
+  it("reads the reviewers list the way saved reviews are summarised: concerns in order, then the unanswered count", () => {
+    expect(reviewStateOf([])).toBeNull();
+    expect(reviewStateOf([fine])).toBeNull();
+    expect(reviewStateOf([waiting, worried, fine, waiting])).toEqual({ concerns: [concern], unanswered: 2 });
+  });
+
+  it("confirms from what the reviewers panel last read, not the older copy the page or preview loaded", () => {
+    // A reviewer was just added in the preview: the loaded copy still says nothing is outstanding.
+    const added = new Map([["req-1", reviewStateOf([waiting])]]);
+    expect(pickupConfirmation([{ id: "req-1", name: "LAN-1", reviewState: null }], added)?.requests).toEqual([
+      { name: "LAN-1", summary: "1 review unanswered", concerns: [] },
+    ]);
+    // Every review was answered Looks good meanwhile: nothing left to confirm.
+    const answered = new Map([["req-1", reviewStateOf([fine])]]);
+    expect(pickupConfirmation([{ id: "req-1", name: "LAN-1", reviewState: { concerns: [concern], unanswered: 1 } }], answered)).toBeNull();
+    // Requests the panel has not read keep their loaded copy.
+    expect(pickupConfirmation([{ id: "req-2", name: "LAN-2", reviewState: { concerns: [], unanswered: 1 } }], answered)?.requests).toHaveLength(1);
   });
 });
 

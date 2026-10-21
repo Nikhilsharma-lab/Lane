@@ -147,6 +147,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     if (serverRow.priority !== undefined) merged.priority = serverRow.priority
     if (serverRow.assignedTo !== undefined) merged.assignedTo = serverRow.assignedTo
     if (serverRow.assigneeAvatarUrl !== undefined) merged.assigneeAvatarUrl = serverRow.assigneeAvatarUrl
+    if (serverRow.reviewState !== undefined) merged.reviewState = serverRow.reviewState
     return merged
   }, [detail, serverRow])
 

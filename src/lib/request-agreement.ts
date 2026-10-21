@@ -73,6 +73,20 @@ export type ReviewState = {
   concerns: { name: string; reason: string }[];
   unanswered: number;
 };
+/**
+ * The review state of a reviewers list, as `request_review_state` summarises
+ * the saved one: each concern in order (who and why) and the unanswered
+ * count, or null when nothing is outstanding.
+ */
+export function reviewStateOf(
+  reviewers: { name: string; decision: { kind: ReviewDecision["kind"]; reason: string } | null }[],
+): ReviewState | null {
+  const concerns = reviewers.flatMap(({ name, decision }) =>
+    decision?.kind === "concern" ? [{ name, reason: decision.reason }] : [],
+  );
+  const unanswered = reviewers.filter(({ decision }) => decision === null).length;
+  return concerns.length || unanswered ? { concerns, unanswered } : null;
+}
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 /** The list's marker on an Open Request: "2 concerns", or null when none is open or work has started. */
@@ -98,9 +112,12 @@ export type PickupConfirmation = {
  * Request and gets one combined confirmation. Reviews never block pickup.
  */
 export function pickupConfirmation(
-  targets: { name: string; reviewState?: ReviewState | null }[],
+  targets: { id?: string; name: string; reviewState?: ReviewState | null }[],
+  /** What a reviewers panel last read, by Request id. It is newer than any loaded copy. */
+  latest: ReadonlyMap<string, ReviewState | null> = new Map(),
 ): PickupConfirmation | null {
-  const requests = targets.flatMap(({ name, reviewState }) => {
+  const requests = targets.flatMap(({ id, name, reviewState: loaded }) => {
+    const reviewState = id !== undefined && latest.has(id) ? latest.get(id) : loaded;
     if (!reviewState || (!reviewState.concerns.length && !reviewState.unanswered)) return [];
     const { concerns, unanswered } = reviewState;
     const summary = [

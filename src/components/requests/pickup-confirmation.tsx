@@ -1,20 +1,24 @@
 "use client"
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
 import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-agreement"
 import detailStyles from "./detail.module.css"
 import styles from "./pickup-confirmation.module.css"
 
-export type PickupTarget = { name: string; reviewState?: ReviewState | null }
+export type PickupTarget = { id: string; name: string; reviewState?: ReviewState | null }
 /** Resolves true to pick up: at once when nothing is outstanding, else once the person confirms. */
 export type ConfirmPickup = (targets: PickupTarget[]) => Promise<boolean>
 
-const PickupConfirmationContext = createContext<ConfirmPickup | null>(null)
+/** A reviewers panel tells the confirmation what it last read for its Request; undefined when it goes away. */
+export type ReportReviewState = (requestId: string, state: ReviewState | null | undefined) => void
+
+const PickupConfirmationContext = createContext<{ confirm: ConfirmPickup; report: ReportReviewState } | null>(null)
 PickupConfirmationContext.displayName = "PickupConfirmation"
 
 const pickUpAtOnce: ConfirmPickup = async () => true
+const reportNowhere: ReportReviewState = () => {}
 
 /**
  * #77: the one pickup confirmation, used by the detail button, the detail
@@ -23,10 +27,21 @@ const pickUpAtOnce: ConfirmPickup = async () => true
  * (who and why) and the unanswered count, and asks "Pick up anyway?". Bulk
  * pickup passes every selected Request and gets one combined confirmation.
  * Reviews never block pickup; the server does not check them.
+ *
+ * The page and the preview load review state with the Request, and the
+ * preview loads it on demand, so either copy can be older than a reviewer
+ * just added, removed or answered. The reviewers panel reports what it last
+ * read, and that wins for its Request at every entry point.
  */
 export function PickupConfirmationProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<PickupConfirmation | null>(null)
   const resolver = useRef<((confirmed: boolean) => void) | null>(null)
+  const latest = useRef(new Map<string, ReviewState | null>())
+
+  const report = useCallback<ReportReviewState>((requestId, state) => {
+    if (state === undefined) latest.current.delete(requestId)
+    else latest.current.set(requestId, state)
+  }, [])
 
   const settle = useCallback((confirmed: boolean) => {
     resolver.current?.(confirmed)
@@ -35,7 +50,7 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
   }, [])
 
   const confirm = useCallback<ConfirmPickup>(targets => {
-    const confirmation = pickupConfirmation(targets)
+    const confirmation = pickupConfirmation(targets, latest.current)
     if (!confirmation) return Promise.resolve(true)
     // A second request while one is open cancels the first.
     resolver.current?.(false)
@@ -45,8 +60,9 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
     })
   }, [])
 
+  const value = useMemo(() => ({ confirm, report }), [confirm, report])
   const single = shown?.requests.length === 1
-  return <PickupConfirmationContext.Provider value={confirm}>
+  return <PickupConfirmationContext.Provider value={value}>
     {children}
     <Dialog open={shown !== null} onOpenChange={open => { if (!open) settle(false) }}>
       {shown && <DialogContent title={shown.title}
@@ -73,5 +89,10 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
 
 /** The shared confirmation. Outside the provider (an isolated fixture) pickup goes ahead at once. */
 export function usePickupConfirmation(): ConfirmPickup {
-  return useContext(PickupConfirmationContext) ?? pickUpAtOnce
+  return useContext(PickupConfirmationContext)?.confirm ?? pickUpAtOnce
+}
+
+/** For the reviewers panel: report what it read so pickup confirms from it. Outside the provider it goes nowhere. */
+export function useReportReviewState(): ReportReviewState {
+  return useContext(PickupConfirmationContext)?.report ?? reportNowhere
 }
