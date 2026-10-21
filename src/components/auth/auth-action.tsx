@@ -44,9 +44,10 @@ export function AuthAction({
             ? "ghost"
             : "primary"
       }
+      // Arc's loading keeps the pressed button focusable and swallows presses; disabling it too would drop keyboard focus to the page.
       loading={loading}
       className={kind === "utility" ? undefined : "w-full"}
-      disabled={disabled || loading}
+      disabled={disabled}
       aria-busy={loading || undefined}
       data-loading={loading || undefined}
     >

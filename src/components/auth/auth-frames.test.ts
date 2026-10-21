@@ -120,10 +120,20 @@ describe("Plan item 2.11: forgot and reset share one frame", () => {
   it("draws both pages through RecoveryFrame", () => {
     for (const path of ["src/app/(auth)/forgot-password/page.tsx", "src/app/(auth)/reset-password/page.tsx"]) {
       const page = source(path);
-      expect(page).toContain("<RecoveryFrame>");
+      expect(page).toContain("<RecoveryFrame headerAction={");
+      expect(page).toContain("<RecoveryLoginLink />");
       expect(page).not.toContain("AuthTrust");
       expect(page).not.toContain("AuthHeaderLink");
     }
+  });
+
+  // During the forced reset task /login only resumes the task, so "Sign in" would loop back here.
+  it("hides /reset-password's Sign in link while the reset task is open, as /login hides its reset link", async () => {
+    const { default: ResetPasswordPage } = await import("@/app/(auth)/reset-password/page");
+    clerk.status = "ready";
+    clerk.session = { isLoaded: true, session: { currentTask: { key: "reset-password" } } };
+    const html = render(createElement(ResetPasswordPage));
+    expect(html).toMatch(/<div[^>]*data-concealed[^>]*><div[^>]*><span>Remembered it\?<\/span><a [^>]*href="\/login"[^>]*>Sign in<\/a>/);
   });
 
   it("spaces the recovery form with Lane's tokens rather than utilities", () => {

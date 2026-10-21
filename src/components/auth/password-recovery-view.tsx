@@ -118,11 +118,13 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
 
         {step === "code" && (
           <div className={styles.recoveryActions}>
+            {/* Unavailable while sending and through the cooldown, but focusable, so a keyboard press of Resend keeps its place. */}
             <AuthAction
               type="button"
               kind="secondary"
-              disabled={!isLoaded || pending || resendIn > 0}
-              onClick={() => performAction(true)}
+              disabled={!isLoaded}
+              aria-disabled={pending || resendIn > 0 || undefined}
+              onClick={() => { if (!pending && resendIn === 0) void performAction(true); }}
             >
               {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
             </AuthAction>

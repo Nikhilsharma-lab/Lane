@@ -90,8 +90,10 @@ export const KeyboardOnly: Story = {
     await expect(getRouter().push).not.toHaveBeenCalled()
     await expect(getRouter().refresh).not.toHaveBeenCalled()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    // Saved: the form stays disabled until the navigation commits, so it never re-enables in between.
-    await expect(submit).toBeDisabled()
+    // Saved: the form stays unavailable until the navigation commits, so it never re-enables in between,
+    // and the button keeps the focus that pressed it.
+    await expect(submit).toHaveAttribute("aria-disabled", "true")
+    await expect(submit).toHaveFocus()
     await expect(designer).toBeDisabled()
     await userEvent.keyboard("3")
     await expect(developer).not.toBeChecked()
@@ -110,7 +112,7 @@ export const SaveFailure: Story = {
     await expect(designer).toBeChecked()
     await expect(getRouter().replace).not.toHaveBeenCalled()
     // The keys and the button work again for the retry.
-    await waitFor(() => expect(continueButton(canvasElement)).toBeEnabled())
+    await waitFor(() => expect(continueButton(canvasElement)).not.toHaveAttribute("aria-disabled"))
     ;(document.activeElement as HTMLElement | null)?.blur()
     await userEvent.keyboard("3")
     const developer = radio(canvasElement, "Developer")
@@ -122,7 +124,7 @@ export const SaveFailure: Story = {
     await expect(saveOnboardingRole).toHaveBeenLastCalledWith({ role: "developer" })
     await afterLatestSave()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(continueButton(canvasElement)).toHaveAttribute("aria-disabled", "true")
     await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
@@ -135,7 +137,7 @@ export const ServerError: Story = {
     await expect(await within(canvasElement).findByRole("alert")).toHaveTextContent("Create or join a workspace before choosing your role.")
     await expect(radio(canvasElement, "PM")).toBeChecked()
     await expect(getRouter().replace).not.toHaveBeenCalled()
-    await waitFor(() => expect(continueButton(canvasElement)).toBeEnabled())
+    await waitFor(() => expect(continueButton(canvasElement)).not.toHaveAttribute("aria-disabled"))
   },
 }
 
@@ -154,8 +156,12 @@ export const Pending: Story = {
     await userEvent.click(pm)
     await userEvent.click(continueButton(canvasElement))
     const submit = within(canvasElement).getByRole("button", { name: "Saving role…" })
-    await expect(submit).toBeDisabled()
+    // Arc's loading: unavailable to presses, but still focused, so keyboard focus never drops to the page.
+    await expect(submit).not.toBeDisabled()
+    await expect(submit).toHaveAttribute("aria-disabled", "true")
     await expect(submit).toHaveAttribute("aria-busy", "true")
+    await expect(submit).toHaveFocus()
+    await userEvent.click(submit)
     await expect(pm).toBeDisabled()
     ;(document.activeElement as HTMLElement | null)?.blur()
     await userEvent.keyboard("2")
@@ -173,7 +179,7 @@ export const PointerChoose: Story = {
     await waitFor(() => expect(saveOnboardingRole).toHaveBeenCalledWith({ role: "designer" }))
     await afterLatestSave()
     await expect(within(canvasElement).queryByRole("alert")).not.toBeInTheDocument()
-    await expect(continueButton(canvasElement)).toBeDisabled()
+    await expect(continueButton(canvasElement)).toHaveAttribute("aria-disabled", "true")
     await expect(getRouter().replace).not.toHaveBeenCalled()
   },
 }
