@@ -203,15 +203,24 @@ export const PropertyControlConsistency: Story = {
     const priority = controls[1];
     await expect(within(group).queryByRole("combobox", { name: /^Priority:/ })).not.toBeInTheDocument();
     const properties = within(group).getByRole("button", { name: /^Properties:/ });
-    await expect(status.tagName).toBe("SPAN");
-    await expect(status.querySelector("button")).toBeNull();
+    await expect(properties).toBeVisible();
+    // Decision 2026-10-21 (critique 2.5), replacing 2026-10-18's matching chips: a value this viewer cannot
+    // change reads as plain glyph and text, like Assignee and Project. Only a control that opens something is a chip.
     for (const control of [status, priority]) {
-      for (const property of ["borderRadius", "backgroundColor", "boxShadow", "paddingInlineStart", "paddingInlineEnd", "fontSize"] as const) {
-        await expect(getComputedStyle(control)[property], property).toBe(getComputedStyle(properties)[property]);
-      }
-      await expect(control.getBoundingClientRect().height).toBe(properties.getBoundingClientRect().height);
+      await expect(control.tagName).toBe("SPAN");
+      await expect(control.querySelector("button")).toBeNull();
+      await expect(getComputedStyle(control).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      await expect(getComputedStyle(control).borderTopWidth).toBe("0px");
+      await expect(getComputedStyle(control).boxShadow).toBe("none");
     }
     group.style.removeProperty("display");
+    // The panel's rows keep one height whether a value is a control or plain, so nothing moves.
+    const panel = main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!;
+    if (panel.getClientRects().length) {
+      const heights = ["[data-detail-status]", "[data-detail-priority]"].map(selector => Math.round(panel.querySelector<HTMLElement>(selector)!.getBoundingClientRect().height));
+      const assignee = [...panel.querySelectorAll("dt")].find(term => term.textContent === "Assignee")!.nextElementSibling!;
+      await expect(heights).toEqual([Math.round(assignee.getBoundingClientRect().height), Math.round(assignee.getBoundingClientRect().height)]);
+    }
   },
 }
 
