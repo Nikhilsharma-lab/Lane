@@ -258,6 +258,7 @@ export default function RequestEditor({
   active = true,
   onCreated,
   onBusyChange,
+  onCancelCheckChange,
   initialProjectId = null,
   editing,
 }: {
@@ -267,6 +268,8 @@ export default function RequestEditor({
   /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. */
   onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
   onBusyChange?: (busy: boolean) => void;
+  /** Decision 2026-10-21 (critique 2.3): a way to abandon the problem check while it runs, null otherwise. The composer's X and Esc use it. */
+  onCancelCheckChange?: (cancel: (() => void) | null) => void;
   initialProjectId?: string | null;
   editing?: { request: RequestDetail; onSaved: () => void };
 }) {
@@ -307,6 +310,8 @@ export default function RequestEditor({
   const [mutationBusy, setMutationBusy] = useState(false);
 
   const operationInFlight = useRef(false);
+  // Each problem check's number; a cancelled check's late answer no longer matches and is ignored.
+  const checkRun = useRef(0);
   // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
   // which stops the uploads; or this composer unmounted (its host left: the
   // layout leaves, or a workspace switch re-keys it), which lets them finish
@@ -551,6 +556,8 @@ export default function RequestEditor({
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
+  // An unmounted form leaves no stale cancel behind in the composer.
+  useEffect(() => () => onCancelCheckChange?.(null), [onCancelCheckChange]);
 
   const blocksWorkspaceSwitch = stage !== "complete" &&
     (busy || attachments.some((attachment) => attachment.status !== "uploaded"));
@@ -679,9 +686,20 @@ export default function RequestEditor({
     setFileFailure(null);
   }
 
+  function cancelCheck() {
+    checkRun.current += 1;
+    operationInFlight.current = false;
+    onCancelCheckChange?.(null);
+    // The draft was never left: the form comes back as it was, with Review Request ready to try again.
+    focusAfterCompose.current = "submit";
+    setStage("compose");
+  }
+
   async function checkFraming(data: RequestInput) {
     if (operationInFlight.current) return;
     operationInFlight.current = true;
+    const run = ++checkRun.current;
+    const abandoned = () => checkRun.current !== run;
     setLinkOpen(false);
     onBusyChange?.(true);
     setRestoredDraft(false);
@@ -691,14 +709,18 @@ export default function RequestEditor({
     setSource(data);
     setShowSlowCue(false);
     setStage("checking");
+    onCancelCheckChange?.(cancelCheck);
 
     try {
       let result: TriageResponse = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
+      if (abandoned()) return;
       if (!result.success && result.error.code === "session_expired") {
         // A tab left hidden is the likely cause: ask Clerk for a fresh token and
         // check once more before asking the person to sign in.
         await refreshClerkToken().catch(() => undefined);
+        if (abandoned()) return;
         result = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
+        if (abandoned()) return;
       }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
@@ -743,12 +765,17 @@ export default function RequestEditor({
       }
       setStage("framing");
     } catch {
+      if (abandoned()) return;
       setFailure(thrownGateFailure(navigator.onLine !== false));
       focusAfterCompose.current = "submit";
       setStage("compose");
     } finally {
-      operationInFlight.current = false;
-      onBusyChange?.(false);
+      // A cancelled check has already handed the form back; a newer check may own these now.
+      if (!abandoned()) {
+        operationInFlight.current = false;
+        onBusyChange?.(false);
+        onCancelCheckChange?.(null);
+      }
     }
   }
 

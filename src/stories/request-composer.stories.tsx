@@ -635,8 +635,14 @@ export const CreateWithoutLeaving: Story = {
   },
 };
 
-export const CheckingCannotDismiss: Story = {
-  beforeEach: () => { mocked(runTriage).mockImplementation(() => new Promise(() => {})); },
+// Decision 2026-10-21 (critique 2.3): X and Esc cancel a running check. The form comes back with the draft,
+// the dialog stays open, and the cancelled check's late answer is ignored.
+const heldChecks: Array<(result: Awaited<ReturnType<typeof runTriage>>) => void> = [];
+export const CheckingCanBeCancelled: Story = {
+  beforeEach: () => {
+    heldChecks.length = 0;
+    mocked(runTriage).mockImplementation(() => new Promise(resolve => { heldChecks.push(resolve); }));
+  },
   play: async ({ canvasElement }) => {
     const { composer, dialog } = await openComposer(canvasElement);
     await fillComposer(composer);
@@ -648,10 +654,30 @@ export const CheckingCannotDismiss: Story = {
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request", level: 2 })).toHaveFocus());
     await expect(composer.queryByRole("textbox", { name: "Request title" })).not.toBeInTheDocument();
     await expect(composer.getByRole("button", { name: "Review Request" })).toHaveAttribute("aria-busy", "true");
+    // Esc cancels the check; the dialog stays, the draft is back, Review Request takes focus to try again.
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(dialog).toBeVisible();
+    await expectDraftKept(composer);
+    const review = composer.getByRole("button", { name: "Review Request" });
+    await waitFor(() => expect(review).toHaveFocus());
+    await expect(review).not.toHaveAttribute("aria-busy");
+    // The cancelled check answering late changes nothing.
+    heldChecks[0]({ success: false, error: { code: "timeout", message: "Review unavailable right now. Your draft is kept." } });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await expect(composer.queryByText("Review unavailable right now")).not.toBeInTheDocument();
+    await expectDraftKept(composer);
+    // The close button cancels a second check the same way.
+    await userEvent.click(review);
+    await composer.findByText("Checking whether this describes a problem…");
+    await userEvent.click(composer.getByRole("button", { name: "Close dialog" }));
+    await expect(dialog).toBeVisible();
+    await expectDraftKept(composer);
+    // With nothing running, Esc closes as usual.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
     await expect(getRouter().push).not.toHaveBeenCalled();
     await expect(saveRequest).not.toHaveBeenCalled();
+    await expect(runTriage).toHaveBeenCalledTimes(2);
   },
 };
 
