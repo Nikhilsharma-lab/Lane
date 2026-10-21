@@ -1,13 +1,10 @@
 -- Simplify #58–#60 (decided by Nikhil, 2026-10-21):
 --  * No required PM/Designer/Developer agreement and no agreement form. A Request has optional reviewers
 --    (any number up to 20, none is fine). Each answers Looks good or Raise a concern (with a reason).
---    Reviews never block pickup. Editing the Request resets answers and tells reviewers who had answered.
+--    Reviews never block pickup.
 --  * No frozen snapshot, concerns list, linked replacements or Superseded.
 --  * Before pickup the requester deletes an unwanted Request. After pickup, work that is rolled back or
 --    cannot be measured closes without a result: Rolled back, Can't be measured or Other (with a reason).
-ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_looks_good';
-ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_concern';
-ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'review_reset';
 BEGIN;
 -- 1. Exception closures: new reason codes, only after pickup. Convert existing rows first.
 ALTER TABLE public.requests DISABLE TRIGGER protect_request_closure;
@@ -137,53 +134,10 @@ BEGIN
 END $$;
 CREATE TRIGGER protect_agreement_events BEFORE UPDATE ON public.request_agreement_events FOR EACH ROW EXECUTE FUNCTION public.protect_agreement_events();
 
--- 3. A review question or answer can travel with its notification.
-ALTER TABLE public.notifications ADD COLUMN detail text CHECK(length(detail)<=4000);
-
--- 4. Changing what the Request says resets every answer: reviewers looked at the old wording.
--- The editor sets lane.actor_id in the same transaction so the notification names them.
-CREATE FUNCTION public.reset_reviews_on_edit() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE actor text := COALESCE(NULLIF(current_setting('lane.actor_id',true),''),NEW.created_by);
-BEGIN
- IF EXISTS(SELECT 1 FROM public.request_agreements a, jsonb_array_elements(a.reviewers) x
-   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id AND x->'decision'<>'null'::jsonb) THEN
-  INSERT INTO public.notifications(user_id,org_id,type,request_id,actor_id)
-   SELECT DISTINCT x->'nominee'->>'userId',NEW.org_id,'review_reset'::public.notification_type,NEW.id,actor
-   FROM public.request_agreements a, jsonb_array_elements(a.reviewers) x
-   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id AND x->'decision'<>'null'::jsonb
-    AND x->'nominee'->>'userId'<>actor
-    AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=x->'nominee'->>'userId')
-    AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=actor);
-  UPDATE public.request_agreements a SET reviewers=(SELECT jsonb_agg(jsonb_set(x,'{decision}','null'::jsonb) ORDER BY i) FROM jsonb_array_elements(a.reviewers) WITH ORDINALITY t(x,i))
-   WHERE a.request_id=NEW.id AND a.org_id=NEW.org_id;
-  NEW.agreement_revision := OLD.agreement_revision + 1;
- END IF;
- RETURN NEW;
-END $$;
-CREATE TRIGGER reset_reviews_on_edit BEFORE UPDATE ON public.requests FOR EACH ROW
- WHEN (OLD.status='open' AND (
-  NEW.title, NEW.description, NEW.classification, NEW.reframed_problem, NEW.extracted_solution, NEW.affected_people,
-  NEW.desired_change, NEW.observed_evidence, NEW.uncertainty, NEW.useful_link, NEW.request_type, NEW.project_id,
-  NEW.label_keys, NEW.expected_impact
- ) IS DISTINCT FROM (
-  OLD.title, OLD.description, OLD.classification, OLD.reframed_problem, OLD.extracted_solution, OLD.affected_people,
-  OLD.desired_change, OLD.observed_evidence, OLD.uncertainty, OLD.useful_link, OLD.request_type, OLD.project_id,
-  OLD.label_keys, OLD.expected_impact
- ))
- EXECUTE FUNCTION public.reset_reviews_on_edit();
-
--- 5. Reviews never block pickup; only a closure stops a Request advancing.
+-- 3. Reviews never block pickup; only a closure stops a Request advancing.
 CREATE OR REPLACE FUNCTION public.request_agreement_blocked(request_uuid uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT r.exception_closure IS NOT NULL OR r.outcome_closure IS NOT NULL FROM public.requests r WHERE r.id=request_uuid
 $$;
--- What pickup confirms: open concerns (who and why) and how many reviews are unanswered.
-CREATE FUNCTION public.request_review_state(request_uuid uuid) RETURNS jsonb LANGUAGE sql STABLE AS $$
- SELECT jsonb_build_object(
-  'concerns',COALESCE((SELECT jsonb_agg(jsonb_build_object('name',x->>'displayNameAtSelection','reason',x->'decision'->>'reason'))
-    FROM jsonb_array_elements(a.reviewers) x WHERE x->'decision'->>'kind'='concern'),'[]'::jsonb),
-  'unanswered',(SELECT count(*) FROM jsonb_array_elements(a.reviewers) x WHERE x->'decision'='null'::jsonb))
- FROM public.request_agreements a WHERE a.request_id=request_uuid
-$$;
 REVOKE ALL ON FUNCTION public.valid_agreement_exception(jsonb), public.protect_request_closure(), public.valid_request_reviewers(jsonb),
- public.protect_agreement_events(), public.reset_reviews_on_edit(), public.request_agreement_blocked(uuid), public.request_review_state(uuid) FROM PUBLIC;
+ public.protect_agreement_events(), public.request_agreement_blocked(uuid) FROM PUBLIC;
 COMMIT;

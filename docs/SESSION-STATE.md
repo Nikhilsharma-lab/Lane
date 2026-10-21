@@ -16,7 +16,9 @@ were deleted (no Storybook stories). Seat-to-reviewer conversion is checked from
 Verified locally: typecheck; full unit suite; lint on changed files (repo-wide lint only fails inside the ignored
 `.claude/worktrees`); CI-env build; bundle check (`/requests/[id]` −5.7 KB); design check. E2E specs updated,
 not run (hosted only). Left for #76–#78: notifications, review question UI, pickup confirmation, list marker,
-reviewers at creation, full e2e.
+reviewers at creation, full e2e. The earlier start had put #76/#77 pieces into 0031 (edit-reset trigger, review
+notification types, `notifications.detail`, `request_review_state`); they were removed, so an edit does not yet
+reset answers. Each issue adds its own part to 0031 while it is still unapplied.
 
 ## October 21 — agreement simplified (branch `lifecycle-simplify`, migration 0031)
 

@@ -66,29 +66,6 @@ export const answerReviewSchema = z
     reason: z.string().trim().max(REVIEW_REASON_MAX),
   })
   .strict();
-/** What pickup confirms first. Null or empty means there is nothing to confirm. */
-export type ReviewState = {
-  concerns: { name: string; reason: string }[];
-  unanswered: number;
-};
-export function needsPickupConfirmation(state: ReviewState | null | undefined) {
-  return Boolean(state && (state.concerns.length || state.unanswered));
-}
-const plural = (count: number, one: string, many: string) =>
-  `${count} ${count === 1 ? one : many}`;
-/** One line per Request: "2 concerns open, 1 review unanswered". */
-export function reviewStateSummary(state: ReviewState) {
-  return [
-    state.concerns.length
-      ? `${plural(state.concerns.length, "concern", "concerns")} open`
-      : null,
-    state.unanswered
-      ? `${plural(state.unanswered, "review", "reviews")} unanswered`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
 /** Profile roles are grey information on a reviewer row; they never grant or block anything. */
 export const PROFILE_ROLE_LABELS = {
   pm: "PM",

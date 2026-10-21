@@ -536,7 +536,6 @@ export async function saveRequestCurrentValues(
     eq(requests.createdBy, auth.userId),
   )).for("update");
   if (!request) return { error: "Not found" };
-  // Changing values clears any agreement already given (reset_agreement_on_edit, migration 0028).
   if (request.status !== "open") return { error: "Current values can only change before this Request is picked up." };
   const stored = measurementPlanSchema.safeParse(request.expectedImpact);
   if (!stored.success) return { error: "This Request does not have an editable measurement plan." };

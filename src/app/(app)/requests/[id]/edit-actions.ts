@@ -34,7 +34,6 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId))).for("update");
             if (!stored)
                 return { error: "Request unavailable." };
-            // Editing clears any agreement already given (reset_agreement_on_edit, migration 0028).
             if (stored.status !== "open")
                 return { error: "Only Open Requests can be edited. This Request has already been picked up." };
             if (requestEditSnapshot(stored) !== snapshot)
