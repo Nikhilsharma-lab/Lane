@@ -62,6 +62,11 @@
       "gzipBytes": 304823,
       "uncompressedBytes": 996566,
       "chunks": 22
+    },
+    "/terms": {
+      "gzipBytes": 288252,
+      "uncompressedBytes": 945460,
+      "chunks": 20
     }
   }
 }
