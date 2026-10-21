@@ -1,80 +1,40 @@
 import { redirect } from "next/navigation"
 import { getMember, getWorkspace } from "@/lib/ensure-workspace"
-import { loadRequestDetail, loadRequestList } from "@/lib/data/requests"
-import { requestListHref } from "@/lib/request-workspace"
-import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
-import { RequestUnavailable } from "@/components/requests/detail-view"
-import { RequestDetailPane } from "@/components/requests/request-detail-pane"
-import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
+import { loadRequestList } from "@/lib/data/requests"
 import { RequestsOverview } from "./requests-overview"
 
-export async function RequestsWorkspace({ selectedRequestId }: { selectedRequestId?: string }) {
+/**
+ * The Requests list at "/". Request pages render request-detail-workspace.tsx:
+ * kept apart so neither route's first load carries the other's client code
+ * (plan item 2.12); the list's preview loads the detail islands on demand.
+ */
+export async function RequestsWorkspace() {
   const member = await getMember()
   if (!member) redirect("/login")
 
-  // Plan item 1.8: the list and detail reads start from Clerk claims and run
-  // in parallel with the profile/workspace join, so the page waits for one
-  // round trip. Plan items 1.7 and 1.10: the server no longer reads the status
-  // view or the Project filter. The list loads every active Request (capped)
-  // plus the latest Done, and the browser filters it; a Request page loads
-  // only that Request, its comments and its files. Both loaders keep the
-  // workspace and guest guards (src/lib/data/requests.ts).
-  const [workspace, list, selected] = await Promise.all([
+  // Plan item 1.8: the list read starts from Clerk claims and runs in parallel
+  // with the profile/workspace join, so the page waits for one round trip.
+  // Plan items 1.7 and 1.10: the server no longer reads the status view or the
+  // Project filter. The list loads every active Request (capped) plus the
+  // latest Done, and the browser filters it. The loader keeps the workspace
+  // and guest guards (src/lib/data/requests.ts).
+  const [workspace, list] = await Promise.all([
     getWorkspace(),
-    selectedRequestId ? null : loadRequestList(member),
-    selectedRequestId ? loadRequestDetail(member, selectedRequestId) : null,
+    loadRequestList(member),
   ])
   if (!workspace) redirect("/login")
   if (workspace.needsOnboarding) redirect("/onboarding")
 
-  const isGuest = member.role === "guest"
-
-  if (list) {
-    // Plan item 2.1: an empty workspace renders the same list, whose records
-    // region shows the welcome, so the first Request lands in place.
-    return <RequestsOverview
-      requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
-      activeCapped={list.activeCapped}
-      hasOlderDone={list.hasOlderDone}
-      isGuest={isGuest}
-      // The welcome is about the workspace, never about the current filter.
-      canInvite={member.role === "admin"}
-      context={{ orgId: member.orgId }}
-      viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin" }}
-    />
-  }
-
-  // Canonical /requests/[id]: the list context lives in the layout's list view
-  // state, so returning to "/" restores the status view and Project filter.
-  const returnHref = requestListHref("all")
-
-  return (
-    <div
-      data-slot="requests-workspace"
-      className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"
-    >
-      <RequestWorkspaceKeyboard
-        selectedRequestId={selectedRequestId}
-        returnHref={returnHref}
-      />
-      {selected ? (
-        // Plan item 2.5: keyed by Request, so previous and next mount a fresh
-        // detail (scrolled to the top, no comment draft carried across). Copy,
-        // pick up and priority speak in one polite region, as on the list.
-        <ListAnnouncerProvider key={selected.request.id}>
-          <RequestDetailPane
-            request={selected.request}
-            comments={selected.comments}
-            attachments={selected.attachments}
-            returnHref={returnHref}
-            orgId={member.orgId}
-            currentUserId={member.userId}
-            viewerName={workspace.fullName}
-            isAdmin={member.role === "admin"}
-            isGuest={isGuest}
-          />
-        </ListAnnouncerProvider>
-      ) : <RequestUnavailable returnHref={returnHref} />}
-    </div>
-  )
+  // Plan item 2.1: an empty workspace renders the same list, whose records
+  // region shows the welcome, so the first Request lands in place.
+  return <RequestsOverview
+    requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
+    activeCapped={list.activeCapped}
+    hasOlderDone={list.hasOlderDone}
+    isGuest={member.role === "guest"}
+    // The welcome is about the workspace, never about the current filter.
+    canInvite={member.role === "admin"}
+    context={{ orgId: member.orgId }}
+    viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin" }}
+  />
 }

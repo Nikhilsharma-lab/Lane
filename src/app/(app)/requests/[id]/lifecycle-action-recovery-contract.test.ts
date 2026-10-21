@@ -13,7 +13,7 @@ const ACTIONS = source("src/app/(app)/requests/[id]/actions.ts");
 const RECOVERY_HOOK = source(
   "src/hooks/use-recoverable-action.ts"
 );
-const WORKSPACE = source("src/app/(app)/requests-workspace.tsx");
+const WORKSPACE = source("src/app/(app)/request-detail-workspace.tsx");
 // Plan item 2.12: the page and the list's preview render the same detail pane.
 const DETAIL_PANE = source("src/components/requests/request-detail-pane.tsx");
 

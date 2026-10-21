@@ -10,6 +10,8 @@ function source(path: string) {
 }
 
 const WORKSPACE = source("src/app/(app)/requests-workspace.tsx")
+// Plan item 2.12: the Request page has its own server module, so neither route's first load carries the other's client code.
+const DETAIL_WORKSPACE = source("src/app/(app)/request-detail-workspace.tsx")
 const LIST_PAGE = source("src/app/(app)/page.tsx")
 const DETAIL_PAGE = source("src/app/(app)/requests/[id]/page.tsx")
 const DETAIL_VIEW = source("src/components/requests/detail-view.tsx")
@@ -21,10 +23,14 @@ const SIDEBAR_VIEW = source("src/components/shell/sidebar-view.tsx")
 const NEXT_CONFIG = source("next.config.ts")
 
 describe("Requests workspace contract", () => {
-  it("keeps one shared workspace behind list and deep-link routes", () => {
+  it("renders the list and deep-link routes in the same workspace frame, from separate modules", () => {
     expect(LIST_PAGE).toContain("<RequestsWorkspace")
-    expect(DETAIL_PAGE).toContain("<RequestsWorkspace")
-    expect(WORKSPACE).toContain('data-slot="requests-workspace"')
+    expect(DETAIL_PAGE).toContain("<RequestDetailWorkspace")
+    expect(DETAIL_WORKSPACE).toContain('data-slot="requests-workspace"')
+    // The list's server module imports no detail island, so "/" ships none in its first load.
+    expect(WORKSPACE).not.toContain("RequestDetailPane")
+    expect(WORKSPACE).not.toContain("detail-view")
+    expect(DETAIL_WORKSPACE).not.toContain("requests-overview")
   })
 
   // Plan item 2.5: the legacy list pane, People and the duplicate phone lifecycle block are gone.
@@ -33,15 +39,17 @@ describe("Requests workspace contract", () => {
       expect(DETAIL_VIEW, removed).not.toContain(removed)
       expect(REQUEST_STYLES, removed).not.toContain(removed)
     }
-    expect(WORKSPACE).not.toContain("mobileLifecycleActions")
-    expect(WORKSPACE).toContain("viewer={")
+    expect(DETAIL_WORKSPACE).not.toContain("mobileLifecycleActions")
+    expect(DETAIL_WORKSPACE).toContain("viewerName={")
     expect(REQUEST_STYLES).not.toMatch(/(?:border-left|border-inline-start)\s*:/)
   })
 
   it("reads through the server-only loaders instead of querying inline (plan items 1.8 and 1.9)", () => {
-    expect(WORKSPACE).toContain('from "@/lib/data/requests"')
-    expect(WORKSPACE).toContain("Promise.all([")
-    expect(WORKSPACE).not.toContain('from "@/db"')
+    for (const workspace of [WORKSPACE, DETAIL_WORKSPACE]) {
+      expect(workspace).toContain('from "@/lib/data/requests"')
+      expect(workspace).toContain("Promise.all([")
+      expect(workspace).not.toContain('from "@/db"')
+    }
     for (const loader of ["shell", "requests", "projects", "notifications"]) {
       expect(source(`src/lib/data/${loader}.ts`)).toMatch(/^import "server-only"/)
     }
@@ -49,7 +57,7 @@ describe("Requests workspace contract", () => {
 
   it("keeps lifecycle actions in detail instead of the Request list", () => {
     expect(WORKSPACE).not.toContain("PickUpButton")
-    expect(WORKSPACE).toContain("<RequestDetailPane")
+    expect(DETAIL_WORKSPACE).toContain("<RequestDetailPane")
     expect(DETAIL_PANE).toContain("<LifecycleButtons")
   })
 
@@ -65,8 +73,9 @@ describe("Requests workspace contract", () => {
   })
 
   it("loads only the selected Request on a Request page (plan item 1.10)", () => {
-    expect(WORKSPACE).toMatch(/selectedRequestId \? null : loadRequestList\(member\)/)
-    expect(WORKSPACE).not.toContain("<RequestListPane")
+    expect(DETAIL_WORKSPACE).not.toContain("loadRequestList")
+    expect(DETAIL_WORKSPACE).toContain("loadRequestDetail(member, selectedRequestId)")
+    expect(DETAIL_WORKSPACE).not.toContain("<RequestListPane")
   })
 
   it("keeps fully prefetched routes fresh for 30 seconds (plan item 1.11)", () => {
