@@ -22,10 +22,18 @@ describe("gridCommand", () => {
     for (const key of ["x", "Enter", "f", "Home", "ArrowRight"]) expect(gridCommand({ key, repeat: true })).toBeNull()
   })
   it("leaves the app-wide keys alone", () => {
-    for (const key of ["c", "/", "?", "[", " "]) {
+    for (const key of ["c", "/", "?", "["]) {
       expect(gridCommand({ key, shiftKey: key === "?" })).toBeNull()
       expect(listCommand({ key, shiftKey: key === "?" })).toBeNull()
     }
+  })
+  // Plan item 2.12: Space previews the focused row (as workspace search's Space opens its preview); never repeated, chorded or outside the grid.
+  it("previews with Space on a row only", () => {
+    expect(gridCommand({ key: " " })).toBe("peek")
+    expect(gridCommand({ key: " ", repeat: true })).toBeNull()
+    expect(gridCommand({ key: " ", shiftKey: true })).toBeNull()
+    expect(gridCommand({ key: " " }, true)).toBeNull()
+    expect(listCommand({ key: " " })).toBeNull()
   })
 })
 

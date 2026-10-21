@@ -40,6 +40,7 @@ export async function RequestsWorkspace({ selectedRequestId }: { selectedRequest
       // The welcome is about the workspace, never about the current filter.
       canInvite={member.role === "admin"}
       context={{ orgId: member.orgId }}
+      viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin" }}
     />
   }
 

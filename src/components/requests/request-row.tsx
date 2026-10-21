@@ -21,6 +21,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
 import { useListAnnouncer } from "./list-announcer"
+import { useRequestPeekOpener } from "./request-peek"
 
 function RequestCodeControl({ code }: { code: string }) {
   const feedbackId = useId()
@@ -117,10 +118,13 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // Plan item 2.4: keyboard focus rests on the row, so the row prefetches its detail once the person stops on it.
   const prefetch = useIntentPrefetch(requestDetailHref(request.id, "all"))
   const actionItems = presentation?.menuItems(request) ?? []
+  // Plan item 2.12: Preview, where the list offers it (not on phones).
+  const peek = useRequestPeekOpener()
   // The row menu names the two keys it can stand in for; nothing else carries a hint.
   const menuItems: ContextMenuItem[] = presentation ? [...actionItems,
     { id: "select", label: checked ? "Deselect" : "Select", shortcut: ROW_MENU_HINTS.select, separatorBefore: true, disabled, onSelect: () => onCheckedChange(!checked) },
     { id: "open", label: "Open Request", shortcut: ROW_MENU_HINTS.open, onSelect: () => rowRef.current?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click() },
+    ...(peek ? [{ id: "peek", label: "Preview", shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
   ] : []
   const status = statuses.find(item => item.value === request.status)!
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
