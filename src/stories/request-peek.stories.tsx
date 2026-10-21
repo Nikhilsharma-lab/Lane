@@ -118,6 +118,8 @@ async function expectPhoneFallback(canvasElement: HTMLElement) {
   const row = requestRow(canvasElement, idOf(0))
   row.focus()
   await userEvent.keyboard(" ")
+  // Past the panel's entrance and the read's 80 ms intent delay, so a preview that did open would show.
+  await new Promise(resolve => setTimeout(resolve, 400))
   await expect(preview(canvasElement)).toBeNull()
   await expect(row).toHaveFocus()
   await expect(route?.calls).toEqual([])
@@ -200,11 +202,15 @@ export const PickUpFromThePreview: Story = {
     await userEvent.click(pending)
     await expect(pickUpRequest).toHaveBeenCalledTimes(1)
     finish()
-    // Saved: the revalidated row and the preview agree, and nothing flips back.
+    // Saved: the revalidated row and the preview agree, and nothing flips back, even once the
+    // preview has read the Request again (this stub still answers the old Open copy, as a read
+    // that raced the save would): the row's saved state wins.
     await waitFor(() => expect(within(panel).getByRole("button", { name: "Mark Done" })).toBeEnabled())
+    await waitFor(() => expect(route?.calls.filter(id => id === idOf(0)).length).toBeGreaterThanOrEqual(2))
+    await new Promise(resolve => setTimeout(resolve, 200))
     await expect(requestRow(canvasElement, idOf(0)).querySelector('button[data-status="in_progress"]')).not.toBeNull()
     await expect(panel.querySelector('[data-detail-state-line], [data-detail-status]')).toHaveAccessibleName(/In Progress/)
-    await waitFor(() => expect(route?.calls.filter(id => id === idOf(0)).length).toBeGreaterThanOrEqual(2))
+    await expect(within(panel).getByRole("button", { name: "Mark Done" })).toBeEnabled()
   },
 }
 
@@ -266,6 +272,33 @@ export const EscReturnsFocusToTheRow: Story = {
     await userEvent.click(within(await within(canvasElement).findByRole("region", { name: "Request preview" })).getByRole("button", { name: "Close preview" }))
     await waitFor(() => expect(preview(canvasElement)).toBeNull())
     await expect(row).toHaveFocus()
+  },
+}
+
+/** Esc while typing a comment belongs to the comment box; the preview stays open. */
+export const EscWhileTypingStaysOpen: Story = {
+  play: async ({ canvasElement }) => {
+    if (!previewAvailable()) return expectPhoneFallback(canvasElement)
+    await previewRow(canvasElement, 1)
+    const box = within(preview(canvasElement)!).getByRole("textbox", { name: /comment/i })
+    await userEvent.click(box)
+    await userEvent.type(box, "Half a thought")
+    await userEvent.keyboard("{Escape}")
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await expect(preview(canvasElement)).not.toBeNull()
+    await expect(box).toHaveValue("Half a thought")
+  },
+}
+
+/** A filter that leaves the previewed Request out of the view closes the preview; the list keeps the filter. */
+export const ViewChangeClosesThePreview: Story = {
+  play: async ({ canvasElement }) => {
+    if (!previewAvailable()) return expectPhoneFallback(canvasElement)
+    await previewRow(canvasElement, 0)
+    await userEvent.click(within(canvasElement).getByRole("button", { name: /^Done/ }))
+    await waitFor(() => expect(preview(canvasElement)).toBeNull())
+    await expect(requestRow(canvasElement, idOf(5))).toBeInTheDocument()
+    await expect(requestRow(canvasElement, idOf(0))).toBeNull()
   },
 }
 

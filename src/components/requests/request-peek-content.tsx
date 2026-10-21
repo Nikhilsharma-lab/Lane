@@ -46,7 +46,8 @@ function PreviewSkeleton({ onClose }: { onClose: () => void }) {
 }
 
 type Detail = { request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[] }
-type Entry = { status: "ready"; detail: Detail } | { status: "unavailable" } | { status: "error"; message: string }
+/** `session`: a 401 or 403. The copy shown can no longer be trusted, so it is replaced, not kept. */
+type Entry = { status: "ready"; detail: Detail } | { status: "unavailable" } | { status: "error"; message: string; session?: boolean }
 
 // Plan item 2.12: what the preview last read for each Request, for this page's life and this viewer
 // and workspace only, so J back to a Request shows it at once while a fresh copy loads.
@@ -75,7 +76,7 @@ async function fetchDetail(orgId: string, id: string, signal: AbortSignal): Prom
   const response = await fetch(`/api/requests/${encodeURIComponent(id)}?${new URLSearchParams({ org: orgId })}`, { headers: { Accept: "application/json" }, signal })
   const body = await response.json().catch(() => null) as (Wire & { error?: string }) | null
   if (response.status === 404) return { status: "unavailable" }
-  if (!response.ok || !body?.request) return { status: "error", message: body?.error ?? "This Request could not be loaded. Try again." }
+  if (!response.ok || !body?.request) return { status: "error", message: body?.error ?? "This Request could not be loaded. Try again.", session: response.status === 401 || response.status === 403 }
   return { status: "ready", detail: {
     request: { ...body.request, createdAt: new Date(body.request.createdAt) },
     comments: body.comments.map(comment => ({ ...comment, createdAt: new Date(comment.createdAt) })),
@@ -84,7 +85,7 @@ async function fetchDetail(orgId: string, id: string, signal: AbortSignal): Prom
 }
 
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
-function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: () => void }) {
+function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
   const { request, code, formsOpen } = useDetailRequest()
   return <PageStrip title={code ?? "Request"} leading={<PreviewClose onClose={onClose} />}
     tools={<><span className={detailStyles.desktopTools}>
@@ -104,9 +105,9 @@ function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: R
  * the Request on open and after each change: when the list's server row for it
  * is replaced (an action revalidated the list, or Edit Request refreshed it),
  * and when a comment the person posted is saved but not yet read back (comments
- * revalidate only the Request page). Until a fresh read lands, the moves and
- * priority come from the list's server row, so the preview never shows an older
- * status than the row beside it.
+ * revalidate only the Request page). Until a fresh read lands, the moves,
+ * priority, title, Project and labels come from the list's server row, so the
+ * preview never shows an older state than the row beside it.
  */
 export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewer, onClose, onOpenFullPage }: RequestPeekProps) {
   const key = `${orgId}:${viewer.id}:${requestId}`
@@ -122,8 +123,10 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     // A held J passes many rows: only the one the person stops on is read.
     const timer = window.setTimeout(() => {
       fetchDetail(orgId, requestId, controller.signal).then(next => {
-        // A failed refresh keeps the copy already shown.
-        if (next.status === "error" && entries.get(key)?.status === "ready") return
+        // An abort while the body was read is not a failure: a newer read is on its way.
+        if (controller.signal.aborted) return
+        // A failed refresh keeps the copy already shown, unless the session itself changed.
+        if (next.status === "error" && !next.session && entries.get(key)?.status === "ready") return
         write(key, next)
       }, (error: unknown) => {
         if (controller.signal.aborted) return
@@ -136,7 +139,11 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
   const request = useMemo(() => {
     if (!detail) return null
     if (!serverRow) return detail.request
-    const merged: RequestDetail = { ...detail.request, status: serverRow.status, assigneeName: serverRow.assigneeName }
+    // The row's saved fields too, so Edit Request's refresh shows its new title, Project and labels at once.
+    const merged: RequestDetail = { ...detail.request, status: serverRow.status, assigneeName: serverRow.assigneeName, title: serverRow.title, reframedProblem: serverRow.reframedProblem }
+    if (serverRow.projectId !== undefined) { merged.projectId = serverRow.projectId; merged.projectName = serverRow.projectName ?? null }
+    if (serverRow.labelKeys !== undefined) merged.labelKeys = serverRow.labelKeys
+    if (serverRow.requestType !== undefined) merged.requestType = serverRow.requestType
     if (serverRow.priority !== undefined) merged.priority = serverRow.priority
     if (serverRow.assignedTo !== undefined) merged.assignedTo = serverRow.assignedTo
     if (serverRow.assigneeAvatarUrl !== undefined) merged.assigneeAvatarUrl = serverRow.assigneeAvatarUrl

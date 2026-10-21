@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react"
+import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useSyncExternalStore, type MouseEvent } from "react"
 import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
@@ -40,15 +40,23 @@ export type RequestPeekProps = {
   /** Esc and Close preview. The list puts focus back on the row. */
   onClose: () => void
   /** Open full page: the list records its order, as Enter on the row does. */
-  onOpenFullPage: () => void
+  onOpenFullPage: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
-const RequestPeekContent = lazy(() => import("./request-peek-content").then(module => ({ default: module.RequestPeekContent })))
+// A chunk that fails to load (an old tab after a deploy, or offline) says so in the panel, never in place of the list.
+const RequestPeekContent = lazy(() => import("./request-peek-content").then(module => ({ default: module.RequestPeekContent }), () => ({ default: PreviewFailed })))
 
 /** Until the content's chunk arrives (it is fetched once a row takes focus, so rarely): the panel's
  * place and its way out. The content renders the full skeleton while it reads the Request. */
 function PreviewLoading({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} aria-busy="true" aria-label="Loading Request preview" role="status">
+    <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
+  </div>
+}
+
+function PreviewFailed({ onClose }: { onClose: () => void }) {
+  return <div className={styles.state} role="alert">
+    <p>The preview could not load. Reload the page to try again.</p>
     <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
   </div>
 }

@@ -219,6 +219,8 @@ describe("GET /api/requests/[id]", () => {
     const hidden = await detail(memberRequest);
     expect(hidden.status).toBe(404);
     expect(await hidden.json()).toEqual(body);
-    expect((await detail(guestRequest)).status).toBe(200);
+    const own = await detail(guestRequest);
+    expect(own.status).toBe(200);
+    expect((await own.json()).request).toMatchObject({ id: guestRequest, title: `${MARK} guest` });
   });
 });

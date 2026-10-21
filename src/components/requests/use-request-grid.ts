@@ -113,6 +113,8 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     const row = target.closest<HTMLElement>("[data-grid-row]")
     const key = row?.dataset.gridRow
     if (!row || !key || !grid.contains(row)) return
+    // A held Space repeats nothing, and must not scroll the list under the preview either.
+    if (event.key === " " && event.repeat && target === row && onPeek) { event.preventDefault(); return }
     const command = gridCommand(event, isTypingTarget(target))
     if (!command || overlayOpen()) return
     const group = isGroupKey(key) ? key.slice(2) : null

@@ -104,12 +104,16 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const peekAvailable = usePeekAvailable() && Boolean(presentation && context && viewer)
   const [peekId, setPeekId] = useState<string | null>(null)
   const shownPeek = peekAvailable ? peekId : null
+  const peekIdRef = useRef(peekId)
+  useLayoutEffect(() => { peekIdRef.current = peekId })
   const openPeek = useCallback((id: string) => {
+    // Said once on opening; following J and K reads the row's own name instead.
+    if (!peekIdRef.current) announce("Preview open. Esc closes it.", { key: "preview" })
     setPeekId(id)
     // One panel at the list's edge: the preview and the summary replace each other.
     setSummaryOpen(false)
     preloadRequestPeek()
-  }, [])
+  }, [announce])
   // Plan item 2.4 (decision 8.24): the list is a treegrid when grouped and a
   // grid when not, with the row as its one tab stop (use-request-grid.ts).
   const grouped = grouping !== "none"
@@ -139,19 +143,34 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // not the tab stop: a Request that leaves the view after a change made in the preview stays in it.
   const activeRequestId = grid.activeKey ? requestIdOf(grid.activeKey) : null
   const [followedId, setFollowedId] = useState(activeRequestId)
+  let nextPeekId = peekId
   if (followedId !== activeRequestId) {
     setFollowedId(activeRequestId)
-    if (peekId && activeRequestId) setPeekId(activeRequestId)
+    if (peekId && activeRequestId) nextPeekId = activeRequestId
   }
+  // A filter, view or page change that leaves the previewed Request off the page closes the
+  // preview (a J or K across a page has already moved it to the new row above). A change made in
+  // the preview that moves its Request out of the view does not: that is no view change.
+  const viewSignature = JSON.stringify([filter, projectFilter, localFilters, ordering, grouping, pagination])
+  const [peekView, setPeekView] = useState(viewSignature)
+  if (peekView !== viewSignature) {
+    setPeekView(viewSignature)
+    if (nextPeekId && !gridKeys.includes(`r:${nextPeekId}`)) nextPeekId = null
+  }
+  // Phones keep full-page navigation: a window narrowed past the breakpoint closes the preview, and
+  // widening it again does not bring one back unasked.
+  if (!peekAvailable && nextPeekId) nextPeekId = null
+  if (nextPeekId !== peekId) setPeekId(nextPeekId)
   const peekFromMenu = useMemo(() => peekAvailable ? (id: string) => { setGridActive(`r:${id}`); openPeek(id) } : null, [peekAvailable, setGridActive, openPeek])
   const closePeek = useCallback(() => {
     const id = peekId
     setPeekId(null)
     if (!id) return
+    announce("Preview closed.", { key: "preview" })
     // Back to the previewed Request's row, else the row that took its place.
     if (gridKeys.includes(`r:${id}`)) focusGridKey(`r:${id}`)
     else restoreRequestFocus(id, { force: true })
-  }, [peekId, gridKeys, focusGridKey])
+  }, [peekId, gridKeys, focusGridKey, announce])
   const peekRow = useMemo(() => shownPeek ? serverRows.find(row => row.id === shownPeek) ?? null : null, [serverRows, shownPeek])
   // Plan item 2.5: opening a Request from the list records the order it shows,
   // across every page, so detail can offer previous and next. The row menu's
@@ -185,8 +204,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const closeSummary = useCallback(() => { setSummaryOpen(false); summaryTrigger.current?.focus() }, [])
   const changeSummary = useCallback((open: boolean) => { setSummaryOpen(open); if (open) setPeekId(null) }, [])
   // Open full page from the preview records the list's order, as Enter on the row does (captureOpen).
-  const openPeekFullPage = useCallback(() => {
-    if (!peekId) return
+  const openPeekFullPage = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
+    // A new tab or window leaves this tab's detail session alone, as on the row (captureOpen).
+    if (!peekId || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     setDetailSession({ sequence: captureSequence(matching.map(row => row.id), peekId), focusTitleOnArrival: true })
   }, [matching, peekId, setDetailSession])
   const restoreRequest = useCallback((id: string) => {
