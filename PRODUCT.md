@@ -22,7 +22,7 @@ Lane has two product foundations, confirmed 2026-10-06:
    measure after launch in the agreed timeframe, compare and learn, then show quarterly/yearly product
    results from the same records.
 
-The named PM, Designer and Developer must align before work advances. The person who submitted the
+Optional reviewers can look at a Request before work starts; nothing waits on their sign-off. The person who submitted the
 Request owns reporting its actual results and closing it. An explicit exception may close with a reason
 and is excluded from measured-impact totals. Finishing work and closing its outcome are different.
 Lane supports understanding the team's product results without time tracking, utilization or individual
@@ -40,7 +40,7 @@ label in Profile without changing access or permissions.
 
 Expected impact is implemented locally as Metric or Verified result, preserved through signed review and
 shown read-only on saved Request detail; local checks passed. An unknown current value remains valid.
-Named trio agreement, launch, actual-result closure and quarterly/yearly totals remain target only.
+Launch, actual-result closure and quarterly/yearly totals remain target only.
 
 This describes the source-level MVP, not a fresh production verification. Its existing pickup/completion
 behaviour remains until an explicitly scoped increment changes it. Deployment and cutover evidence live in
@@ -54,29 +54,29 @@ free-plan production is Admin/Member only. Public or anonymous Intake is a diffe
 
 ## Approved Product Direction — confirmed 2026-09-28; clarified 2026-10-06, not fully implemented
 
-**The pipeline:** Request → Alignment → Prioritization → Discovery and design → Development → Release
+**The pipeline:** Request → Review (optional) → Prioritization → Discovery and design → Development → Release
 → Measurement → Closure. These are journey moments, not eight mandatory board columns. Discovery and
-delivery can overlap within agreed boundaries; specialist work remains in existing tools.
+delivery can overlap within the planned scope; specialist work remains in existing tools.
 
-> **2026-10-21:** Optional reviewers replace the named PM/Designer/Developer agreement gate
-> (`REQUIREMENTS.md` §4.4). Where the bullets below still speak of the trio, agreement or alignment,
-> `REQUIREMENTS.md` is authoritative.
+> **2026-10-21:** Optional reviewers replace the named PM/Designer/Developer agreement gate and every
+> later trio plan: readiness sign-off, realignment after changes, and Designer assignment
+> (`REQUIREMENTS.md` §4.4 and the 2026-10-21 ledger entries).
 
 - A Request may have optional **reviewers**, added while creating it or by any member before pickup. Each
   answers **Looks good** or **Raise a concern** with a reason. Reviews never block pickup: open concerns or
   unanswered reviews only ask the person picking up to confirm. Editing the Request resets every answer.
-- The trio can commit to bounded discovery or to delivery. Assignment by the creator or an administrator,
-  or self-pickup of unassigned work by a Designer, does not start work or supply alignment. Request-specific
-  responsibilities are not global permissions derived from `profiles.role`.
-- One compact agreement covers the problem, scope, timing, success, guardrails, complexity, dependencies,
-  and unknowns. Delivery needs one primary measurable or otherwise verifiable success criterion, evidence,
-  and a review window. Expected impact starts at Request creation and is preserved through agreement and
-  measurement. Build readiness and release readiness must be complete for the agreed release.
+- Any member picks up an Open Request; picking up assigns it to them and starts work. There is no separate
+  assignment, start window or acknowledgement step. Request-specific responsibilities are not global
+  permissions derived from `profiles.role`.
+- Delivery needs one primary measurable or otherwise verifiable success criterion, evidence, and a review
+  window. Expected impact starts at Request creation and is preserved through measurement. Build readiness
+  and release readiness are checklists for the person doing the work: they guide and never block, and
+  nobody else signs off.
 - Active work stays **Open → In Progress → Done**. Outcome resolution is separate. The creator closes with
   an actual result or a truthful exception; `Done` does not mean impact was measured or expectations met.
 - Outcome-closed Requests cannot reopen. Further work becomes a linked **follow-up Request**, with its own
-  agreement and outcome. Material pre-release changes amend the existing agreement and require realignment;
-  ordinary exploration does not. Post-release work uses follow-ups even while measurement is underway.
+  reviewers and outcome. Before pickup, a change is an edit, which resets every review. After pickup, a
+  material change before release becomes a linked replacement Request; ordinary exploration does not. Post-release work uses follow-ups even while measurement is underway.
   Factual corrections to closed records are append-only, not silent rewrites.
 - Decisions, concerns, transfers, and changes remain attributable. Follow-up counts are not individual
   quality scores. PM calibration, rankings, and performance profiles remain permanently refused.
@@ -130,8 +130,8 @@ should feel like a sharp, helpful colleague, not a wizard.
   When a feature could read as monitoring, cut it. The omission is the value.
 - **Same shared view.** PM/Designer/Developer is a label, not a permission or UI tier. Clerk membership
   and Admin/Member/conditional Guest permissions define access. Named Request responsibilities define
-  specific alignment and closure actions, not per-role dashboards or separate applications.
-- **Make decisions legible.** Problem framing, alignment, readiness, and outcome closure should be clear
+  specific review and closure actions, not per-role dashboards or separate applications.
+- **Make decisions legible.** Problem framing, reviews, readiness, and outcome closure should be clear
   without turning exploration into a stage machine or documentation exercise.
 - **Pace to comprehension.** Restraint over output. One deliberate, legible thing beats five
   half-built ones. If it can't be explained in plain English, it shipped too fast.

@@ -8,8 +8,8 @@ Each item: what · why deferred · source review.
 
 **Authority update — 2026-09-28:** the confirmed Request pipeline and alignment-first planning decision live
 in `REQUIREMENTS.md` §§4–5/15 and `lane-roadmap.md` §3. This ledger preserves historical evidence and conditional
-work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item grants an
-alignment bypass, reopens a Closed outcome, or proves the current production cutover. Pipeline approval does
+work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item reopens a
+Closed outcome, or proves the current production cutover. Pipeline approval does
 not authorize implementing these unrelated deferrals.
 
 ---
@@ -163,8 +163,7 @@ not authorize implementing these unrelated deferrals.
 - **Demoting an assigned member to guest leaves in-progress assignments dangling.** The guest cannot pick up
   or mark Done, but an assignment may remain. The older claim of a shipped Owner reassignment action was not
   verified and must not be used as a recovery guarantee. The confirmed target allows attributable admin
-  reassignment, replacement alignment and preserved concerns; this is not implemented yet. Specify recovery
-  in the relevant alignment/assignment plan; automatic unassignment remains a separately scoped choice.
+  reassignment; this is not implemented yet. Specify recovery in an assignment plan; automatic unassignment remains a separately scoped choice.
   — Guest role-change increment.
 
 ## GUEST INTAKE — invited shipped; public / anonymous deferred
