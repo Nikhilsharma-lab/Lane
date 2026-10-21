@@ -2,18 +2,20 @@
 
 import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react"
 import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
-import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
-import { Skeleton } from "@/components/arc/skeleton/skeleton"
-import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
-import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import type { OverviewRequest } from "@/lib/request-overview"
-import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
 
-/** Plan item 2.12: phones keep full-page navigation; the preview needs a fine pointer and room beside the list. */
+/** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
+export type PeekViewer = { id: string; name: string; isAdmin: boolean }
+
+/** Plan item 2.12: the content, the Request detail pane and its islands, is its own chunk, fetched
+ * once a row takes focus so the first Space rarely waits. The panel itself loads with the list. */
+export const preloadRequestPeek = () => { void import("./request-peek-content").catch(() => undefined) }
+
+/** Phones keep full-page navigation; the preview needs a fine pointer and room beside the list. */
 const AVAILABLE = "(min-width: 768px) and (pointer: fine)"
 function subscribeAvailable(listener: () => void) {
   const query = window.matchMedia(AVAILABLE)
@@ -28,9 +30,6 @@ export function usePeekAvailable() {
 export const RequestPeekOpener = createContext<((id: string) => void) | null>(null)
 export const useRequestPeekOpener = () => useContext(RequestPeekOpener)
 
-/** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
-export type PeekViewer = { id: string; name: string; isAdmin: boolean }
-
 export type RequestPeekProps = {
   requestId: string
   /** The list's server row for this Request (before the overlay): its moves and priority keep the preview level with the row. */
@@ -44,36 +43,14 @@ export type RequestPeekProps = {
   onOpenFullPage: () => void
 }
 
-/** Plan item 2.12: the preview's on-demand part, the Request detail pane and its islands. The
- * list's first load carries only this shell. */
-const loadContent = () => import("./request-peek-content")
-/** Fetches the preview's code ahead of the first Space, so the panel opens on content, not a skeleton. */
-export const preloadRequestPeek = () => { void loadContent().catch(() => undefined) }
-const RequestPeekContent = lazy(() => loadContent().then(module => ({ default: module.RequestPeekContent })))
+const RequestPeekContent = lazy(() => import("./request-peek-content").then(module => ({ default: module.RequestPeekContent })))
 
-/** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
-const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
-export function PreviewFrame({ children }: { children: React.ReactNode }) {
-  return <PageStripProvider value={PREVIEW_FRAME}>{children}</PageStripProvider>
-}
-
-export function PreviewClose({ onClose }: { onClose: () => void }) {
-  return <Tooltip morph="plain" side="bottom" content={<>Close preview<kbd className={styles.kbd}>Esc</kbd></>}>
-    <Button type="button" variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Close preview" onClick={onClose} data-request-peek-close="">
-      <X strokeWidth={1.75} aria-hidden="true" />
-    </Button>
-  </Tooltip>
-}
-
-/** The loaded preview's boxes while its code or its Request loads. Close is there from the first frame. */
-export function PreviewSkeleton({ onClose }: { onClose: () => void }) {
-  return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
-    <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
-    <div className={styles.skeleton}>
-      <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
-      <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
-    </div>
-  </section>
+/** Until the content's chunk arrives (it is fetched once a row takes focus, so rarely): the panel's
+ * place and its way out. The content renders the full skeleton while it reads the Request. */
+function PreviewLoading({ onClose }: { onClose: () => void }) {
+  return <div className={styles.state} aria-busy="true" aria-label="Loading Request preview" role="status">
+    <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
+  </div>
 }
 
 // Plan §2.3: the panel moves on transform only, entering in 240 ms on the enter curve and leaving in
@@ -114,7 +91,7 @@ export function RequestPeek(props: RequestPeekProps) {
       initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
       transition={reduced ? { duration: motionTokens.duration.instant } : enter}>
       {/* Until the chunk arrives the panel shows the skeleton, never an empty frame. */}
-      <Suspense fallback={<PreviewSkeleton onClose={onClose} />}><RequestPeekContent key={requestId} {...props} /></Suspense>
+      <Suspense fallback={<PreviewLoading onClose={onClose} />}><RequestPeekContent key={requestId} {...props} /></Suspense>
     </motion.section>
   </motion.div>
 }

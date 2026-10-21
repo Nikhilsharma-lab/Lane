@@ -2,22 +2,48 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Hash, Inbox, Link2, Maximize2 } from "lucide-react"
+import { Hash, Inbox, Link2, Maximize2, X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
+import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import buttonStyles from "@/components/arc/button/button.module.css"
-import { PageStrip } from "@/components/shell/page-strip"
+import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { CopyButton } from "./copy-button"
 import { useDetailRequest } from "./detail-context"
 import type { RequestAttachment, RequestComment, RequestDetail } from "./detail-view"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { RequestDetailPane } from "./request-detail-pane"
-import { PreviewClose, PreviewFrame, PreviewSkeleton, type RequestPeekProps } from "./request-peek"
+import type { RequestPeekProps } from "./request-peek"
 import { PREFETCH_INTENT_MS } from "./use-intent-prefetch"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
+
+/** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
+const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
+function PreviewFrame({ children }: { children: React.ReactNode }) {
+  return <PageStripProvider value={PREVIEW_FRAME}>{children}</PageStripProvider>
+}
+
+function PreviewClose({ onClose }: { onClose: () => void }) {
+  return <Tooltip morph="plain" side="bottom" content={<>Close preview<kbd className={styles.kbd}>Esc</kbd></>}>
+    <Button type="button" variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Close preview" onClick={onClose} data-request-peek-close="">
+      <X strokeWidth={1.75} aria-hidden="true" />
+    </Button>
+  </Tooltip>
+}
+
+/** The loaded preview's boxes while its code or its Request loads. Close is there from the first frame. */
+function PreviewSkeleton({ onClose }: { onClose: () => void }) {
+  return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
+    <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
+    <div className={styles.skeleton}>
+      <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
+      <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
+    </div>
+  </section>
+}
 
 type Detail = { request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[] }
 type Entry = { status: "ready"; detail: Detail } | { status: "unavailable" } | { status: "error"; message: string }
