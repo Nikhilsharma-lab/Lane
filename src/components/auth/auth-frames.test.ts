@@ -20,6 +20,9 @@ vi.mock("@clerk/nextjs", () => {
     TaskResetPassword: withFallback,
     useSession: () => clerk.session,
     useClerk: () => ({ status: clerk.status }),
+    // As Clerk's own: children only while loading, or only once loading failed.
+    ClerkLoading: ({ children }: { children: ReactNode }) => clerk.status === "loading" ? children : null,
+    ClerkFailed: ({ children }: { children: ReactNode }) => clerk.status === "error" ? children : null,
   };
 });
 
@@ -65,7 +68,18 @@ describe("Plan item 2.11: the reset link during a Clerk session task", () => {
 });
 
 describe("Plan item 2.11: the card's space is reserved while Clerk loads", () => {
-  beforeEach(() => { clerk.session = { isLoaded: false }; });
+  beforeEach(() => { clerk.session = { isLoaded: false }; clerk.status = "loading"; });
+
+  it("replaces the skeleton with a way out once Clerk fails to load (decision 2026-10-21)", () => {
+    clerk.status = "error";
+    for (const [element, title, href] of [[createElement(ClerkHashSignIn), "Sign in is unavailable right now", "/login"], [createElement(SignupPage), "Sign up is unavailable right now", "/signup"]] as const) {
+      const html = render(element);
+      expect(html).not.toContain('data-skeleton="auth-card"');
+      expect(html).toContain(`<h1`);
+      expect(html).toContain(title);
+      expect(html).toMatch(new RegExp(`<a href="${href}"[^>]*>.*Reload</a>`));
+    }
+  });
 
   it("gives Clerk's sign-in the card skeleton as its fallback", () => {
     const html = render(createElement(ClerkHashSignIn));

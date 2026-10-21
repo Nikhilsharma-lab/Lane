@@ -58,17 +58,16 @@ export const ResetTaskLoading: Story = { render: () => <RecoveryFrame><AuthCardS
 export const MembersLoadingState: Story = { render: () => <main><MembersLoading /></main> };
 
 // Decision 2026-10-21 (critique 2.11): Clerk reported it could not load, so the skeleton gives way to a way out.
-const reload = fn();
 export const ClerkUnavailableOnLogin: Story = {
-  render: () => <LoginFrame headerAction={resetLink(false)}><ClerkUnavailable title="Sign in is unavailable right now" onReload={reload} /></LoginFrame>,
+  render: () => <LoginFrame headerAction={resetLink(false)}><ClerkUnavailable title="Sign in is unavailable right now" href="/login" /></LoginFrame>,
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     const alert = c.getByRole("alert");
     await expect(within(alert).getByRole("heading", { level: 1, name: "Sign in is unavailable right now" })).toBeVisible();
     await expect(alert).toHaveTextContent("Check your connection, or turn off blockers for this site, then reload.");
     await expect(c.queryByRole("status", { name: /^Loading/ })).not.toBeInTheDocument();
-    await userEvent.click(within(alert).getByRole("button", { name: "Reload" }));
-    await expect(reload).toHaveBeenCalledOnce();
+    // A document link to the same page: a full load, with no client code of its own.
+    await expect(within(alert).getByRole("link", { name: "Reload" })).toHaveAttribute("href", "/login");
   },
 };
-export const ClerkUnavailableOnSignup: Story = { render: () => <SignupFrame><ClerkUnavailable title="Sign up is unavailable right now" onReload={reload} /></SignupFrame> };
+export const ClerkUnavailableOnSignup: Story = { render: () => <SignupFrame><ClerkUnavailable title="Sign up is unavailable right now" href="/signup" /></SignupFrame> };
