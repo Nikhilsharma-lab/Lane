@@ -94,13 +94,14 @@ export const ExactDatesAndValidation: Story = {
     const trigger = canvas.getByRole("button", { name: "Measurement window" })
     const start = dateInCurrentMonth(19)
     const end = dateInCurrentMonth(25)
-    await expect(trigger).toHaveTextContent("Measurement dates")
+    // The default window names itself (critique 2.3), not the "Measurement dates" placeholder.
+    await expect(trigger).toHaveTextContent("30 days after release")
     let modal = await openCustomDates(canvasElement)
     await expect(modal.getByRole("button", { name: "Apply" })).toBeDisabled()
     await userEvent.click(await rangeDay(modal, end))
     await userEvent.click(await rangeDay(modal, start))
     await expect((await rangeDay(modal, dateInCurrentMonth(22))).closest('[role="gridcell"]')).toHaveAttribute("aria-selected", "true")
-    await expect(trigger).toHaveTextContent("Measurement dates")
+    await expect(trigger).toHaveTextContent("30 days after release")
     await userEvent.click(modal.getByRole("button", { name: "Apply" }))
     await waitFor(() => expect(trigger).toHaveFocus())
     await expect(trigger).toHaveAccessibleDescription(rangeLabel(start, end))
@@ -156,6 +157,26 @@ export const SameMetricGuardrailKeepsFieldIdentity: Story = {
     const remaining = canvas.getByRole("region", { name: "Guardrail 1" })
     await expect(within(remaining).getByRole("spinbutton", { name: "Value" })).toBe(secondCurrent)
     await expect(canvas.getByRole("button", { name: "Add another guardrail" })).toHaveFocus()
+  },
+}
+
+// Critique 2.3: search matches anywhere in a metric's name, so Enter picks the existing metric instead of creating a duplicate.
+export const MetricSearchMatchesAnywhere: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const page = within(canvasElement.ownerDocument.body)
+    await userEvent.click(canvas.getByRole("combobox", { name: "Metric" }))
+    const search = await page.findByRole("textbox", { name: "Search metrics" })
+    await userEvent.type(search, "csat")
+    const listbox = page.getByRole("listbox", { name: "Metrics" })
+    await expect(within(listbox).getAllByRole("option").map(option => option.textContent)).toEqual(["Customer satisfaction (CSAT)"])
+    await userEvent.clear(search)
+    await userEvent.type(search, "rate")
+    await expect(within(listbox).getAllByRole("option").map(option => option.textContent)).toEqual(["Conversion rate", "Feature adoption rate", "User error rate", "Support contact rate"])
+    await expect(within(listbox).queryByRole("option", { name: /^Create metric/ })).not.toBeInTheDocument()
+    await userEvent.clear(search)
+    await userEvent.type(search, "CSAT{Enter}")
+    await waitFor(() => expect(canvas.getByRole("combobox", { name: "Metric" })).toHaveTextContent("Customer satisfaction (CSAT)"))
   },
 }
 

@@ -6,6 +6,7 @@ import buttonStyles from "@/components/arc/button/button.module.css";
 import { PageStrip } from "@/components/shell/page-strip";
 import { reportClientError } from "@/lib/report-client-error";
 import frame from "./app-frame.module.css";
+import { SupportContact } from "./support-contact";
 import "@/components/arc/foundation.css";
 import "./globals.css";
 import "@/styles/supabase-tokens.css";
@@ -39,7 +40,7 @@ export default function GlobalError({
           {/* The alert names the failure itself; EmptyState would add motion to this bundle. */}
           <div className={frame.body} role="alert">
             <h2 className={frame.heading}>Lane can’t load right now</h2>
-            <p className={frame.message}>Your data is safe. Reload the page, and if this keeps happening let us know.</p>
+            <p className={frame.message}>Your data is safe. Reload the page.</p>
             <div className={frame.actions}>
               <button
                 type="button"
@@ -49,6 +50,7 @@ export default function GlobalError({
                 Reload
               </button>
             </div>
+            <SupportContact />
           </div>
         </main>
       </body>

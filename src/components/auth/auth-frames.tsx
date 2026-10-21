@@ -1,7 +1,7 @@
 import { LockKeyholeIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { AuthHeaderLink, AuthShell, AuthTrust } from "./auth-shell";
+import { AuthShell, AuthTrust } from "./auth-shell";
 
 // Plan item 2.11: each auth page, its loading state and Clerk's own fallback
 // render inside one frame, so only the card changes while Clerk loads.
@@ -19,9 +19,9 @@ export function SignupFrame({ children }: { children: ReactNode }) {
   }>{children}</AuthShell>;
 }
 
-/** Forgot and reset share one frame. */
-export function RecoveryFrame({ children }: { children: ReactNode }) {
-  return <AuthShell headerAction={<AuthHeaderLink prompt="Remembered it?" href="/login" label="Sign in" />} footer={
+/** Forgot and reset share one frame. Both pass RecoveryLoginLink; /reset-password gates it with `HiddenDuringSessionTask`. */
+export function RecoveryFrame({ headerAction, children }: { headerAction: ReactNode; children: ReactNode }) {
+  return <AuthShell headerAction={headerAction} footer={
     <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">Reset the password for your Lane account.</AuthTrust>
   }>{children}</AuthShell>;
 }

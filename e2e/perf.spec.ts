@@ -894,13 +894,13 @@ test("mark read shows on the row and the badge in the next frame and never rever
       tick()
       setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, labels }) }, 1500)
     }), id)
-    await row.getByRole("button", { name: "Mark notification as read" }).click()
+    await row.getByRole("button", { name: /^Mark .+ read$/ }).click()
     const { onScreen, sequence, labels } = await watch
     timings.push(onScreen)
     expect(sequence.filter(state => state !== "gone"), "The row must go to read once and stay there").toEqual(["unread", "read"])
     expect(labels.slice(1), "The badge must never return to the higher count").not.toContain(before)
     // Leave the data as found.
-    await row.getByRole("button", { name: "Mark notification as unread" }).click()
+    await row.getByRole("button", { name: /^Mark .+ unread$/ }).click()
     await expect(row).toHaveAttribute("data-unread", "true", { timeout: 10_000 })
     await page.waitForTimeout(500) // the reconciling count read
   }

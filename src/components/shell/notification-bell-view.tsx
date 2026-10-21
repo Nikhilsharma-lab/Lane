@@ -2,10 +2,11 @@
 
 // Arc notification-center presentation with Lane's controlled server state and recovery actions.
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
-import { Bell, CheckCheck, Mail, MailOpen, X } from "lucide-react";
+import { Bell, CheckCheck, Mail, MailOpen, RotateCw, X } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import shellStyles from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css";
 import { LocalTime, localLabel } from "@/components/requests/local-time";
@@ -44,12 +45,18 @@ export type NotificationBellViewProps = {
   /** A mark all read is unconfirmed; only its button is disabled. */
   allReadPending?: boolean;
   error?: string | null;
+  /** The error is an expired or changed session: a retry cannot work, so the line offers Refresh instead of Try again. */
+  sessionExpired?: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (item: NotificationItem) => void;
   onMarkAllRead: () => void;
   onToggleRead: (item: NotificationItem) => void;
   onRetry: () => void;
+  /** Reloads the page for a new session; defaults to a full reload. */
+  onRefresh?: () => void;
 };
+
+const reloadPage = () => window.location.reload();
 
 const NARROW = "(max-width: 880px)";
 const subscribeNarrow = (change: () => void) => {
@@ -82,16 +89,19 @@ function NotificationRow({ item, active, pending, onSelect, onToggleRead }: {
       <span className={styles.primary}>{copy.primary}</span>
       <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} /></span>
     </button>
-    {/* aria-disabled, not disabled, while the row's own action is pending: a disabled button would drop the keyboard focus that just pressed it. */}
-    <button type="button" className={notificationStyles.close} tabIndex={active ? 0 : -1} aria-label={unread ? "Mark notification as read" : "Mark notification as unread"} aria-disabled={pending || undefined} onClick={() => { if (!pending) onToggleRead(item); }}>
-      {unread ? <MailOpen aria-hidden="true" /> : <Mail aria-hidden="true" />}
-    </button>
+    {/* aria-disabled, not disabled, while the row's own action is pending: a disabled button would drop the keyboard focus that just pressed it.
+        The name says which Request; the tooltip says what the glyph does. */}
+    <Tooltip morph="plain" content={unread ? "Mark read" : "Mark unread"}>
+      <button type="button" className={notificationStyles.close} tabIndex={active ? 0 : -1} aria-label={copy.toggle} aria-disabled={pending || undefined} onClick={() => { if (!pending) onToggleRead(item); }}>
+        {unread ? <MailOpen aria-hidden="true" /> : <Mail aria-hidden="true" />}
+      </button>
+    </Tooltip>
   </li>;
 }
 
 export function NotificationBellView({
-  compact = false, open, unread, items, loaded, reading = false, pendingIds = noPending, allReadPending = false, error,
-  onOpenChange, onSelect, onMarkAllRead, onToggleRead, onRetry,
+  compact = false, open, unread, items, loaded, reading = false, pendingIds = noPending, allReadPending = false, error, sessionExpired = false,
+  onOpenChange, onSelect, onMarkAllRead, onToggleRead, onRetry, onRefresh = reloadPage,
 }: NotificationBellViewProps) {
   const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
   const count = unread > 99 ? "99+" : unread;
@@ -167,9 +177,11 @@ export function NotificationBellView({
         </button>
       </div>}
       <div className={notificationStyles.list} aria-busy={items.length === 0 && reading ? true : undefined}>
-        {error && <div className={styles.error}><p role="alert">{error}</p><Button variant="secondary" size="sm" disabled={reading}
-          // The status line goes while the retry reads, so focus moves to the tab stop (or the panel) first, as Mark all read does.
-          onClick={() => { focusTarget(contentRef.current)?.focus({ preventScroll: true }); onRetry(); }}>Try again</Button></div>}
+        {error && <div className={styles.error}><p role="alert">{error}</p>{sessionExpired
+          ? <Button variant="secondary" size="sm" onClick={onRefresh}><RotateCw aria-hidden="true" />Refresh</Button>
+          : <Button variant="secondary" size="sm" disabled={reading}
+            // The status line goes while the retry reads, so focus moves to the tab stop (or the panel) first, as Mark all read does.
+            onClick={() => { focusTarget(contentRef.current)?.focus({ preventScroll: true }); onRetry(); }}>Try again</Button>}</div>}
         {!loaded && items.length === 0
           ? <>
             {/* Skeleton rows the height of real rows, so the swap does not shift; one hidden status speaks for them. */}

@@ -91,6 +91,8 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
     preloadComposer().then((form) => setIntakeForm(() => form), () => undefined);
   }, []);
   const busy = useRef(false);
+  // Decision 2026-10-21 (critique 2.3): while the problem check runs, X and Esc cancel it and keep the draft.
+  const cancelCheck = useRef<(() => void) | null>(null);
   const completed = useRef(false);
   const trigger = useRef<HTMLElement | typeof LAUNCHER | null>(null);
   const createdId = useRef<string | null>(null);
@@ -141,6 +143,12 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
   }, [openComposer]);
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
+  const onCancelCheckChange = useCallback((cancel: (() => void) | null) => { cancelCheck.current = cancel; }, []);
+  /** X, Esc: the first cancels a running check and stays open; a busy save or upload still holds the dialog. */
+  const holdOpen = useCallback(() => {
+    if (cancelCheck.current) { cancelCheck.current(); return true; }
+    return busy.current;
+  }, []);
   // saveRequest revalidates the list and the new detail path, so its response
   // already carries the created Request; the composer has already put the row
   // in the Open group through the pending overlay (plan item 2.3). A router
@@ -216,8 +224,8 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} />, formHost)}
-        <Dialog open={open} onOpenChange={(next) => { if (!next && busy.current) return; setOpen(next); }}>
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+        <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {
               // The title in the compose step, the step's heading otherwise. Until
@@ -250,7 +258,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
                 break;
               }
             }}
-            onEscapeKeyDown={event => { if (busy.current) event.preventDefault(); }}
+            onEscapeKeyDown={event => { if (holdOpen()) event.preventDefault(); }}
             onInteractOutside={event => {
               const target = event.target;
               if (busy.current || isRequestPopoverEvent(event.detail.originalEvent) || (target instanceof Element && target.closest("[data-lane-request-property-popover]"))) {

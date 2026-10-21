@@ -14,6 +14,11 @@
 .headerSlot[data-concealed] { visibility: hidden; }
 .link { color: var(--foreground); font-weight: var(--sb-font-weight-medium); text-decoration: none; border-radius: var(--radius-control); }
 .link:hover, .link:focus-visible { text-decoration: underline; background: var(--surface-muted); }
+/* A button that reads as the header's text links (onboarding's Sign out). */
+.textButton { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--sb-font-weight-medium); cursor: pointer; }
+.textButton[aria-disabled] { cursor: default; }
+/* Decision 2026-10-21: the message that replaces Clerk's card when Clerk cannot load; Clerk's form rhythm. */
+.unavailable { display: grid; gap: var(--space-8); }
 .trust { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); }
 .field { display: grid; gap: var(--space-2); }
 /* Plan item 2.11: the forgot and reset form keeps Clerk's form rhythm through clerkEmbeddedAppearance:
@@ -22,6 +27,8 @@
 .recoveryFields, .recoveryActionGroup { display: grid; gap: var(--space-6); }
 .recoveryActions { display: grid; gap: var(--space-2); }
 @media (min-width: 640px) { .recoveryActions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Resend stays focusable while unavailable (aria-disabled), so it borrows Arc's disabled look. */
+.recoveryActions button[aria-disabled="true"]:not([aria-busy="true"]) { opacity: var(--button-disabled-opacity); cursor: not-allowed; }
 /* Plan item 2.11: AuthCardSkeleton draws Clerk's card at clerkEmbeddedAppearance's tokens: the centred header,
  * --space-8 to the form and to its button, --space-6 between rows, controls at --control-height-md. Tokens only, in the Arc
  * Skeleton's fill and still, so there is nothing for reduced motion to stop. */

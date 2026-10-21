@@ -1,5 +1,4 @@
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
-import { page as browserPage } from "vitest/browser";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { getRouter, usePathname } from "@storybook/nextjs-vite/navigation.mock";
@@ -636,8 +635,14 @@ export const CreateWithoutLeaving: Story = {
   },
 };
 
-export const CheckingCannotDismiss: Story = {
-  beforeEach: () => { mocked(runTriage).mockImplementation(() => new Promise(() => {})); },
+// Decision 2026-10-21 (critique 2.3): X and Esc cancel a running check. The form comes back with the draft,
+// the dialog stays open, and the cancelled check's late answer is ignored.
+const heldChecks: Array<(result: Awaited<ReturnType<typeof runTriage>>) => void> = [];
+export const CheckingCanBeCancelled: Story = {
+  beforeEach: () => {
+    heldChecks.length = 0;
+    mocked(runTriage).mockImplementation(() => new Promise(resolve => { heldChecks.push(resolve); }));
+  },
   play: async ({ canvasElement }) => {
     const { composer, dialog } = await openComposer(canvasElement);
     await fillComposer(composer);
@@ -649,10 +654,30 @@ export const CheckingCannotDismiss: Story = {
     await waitFor(() => expect(composer.getByRole("heading", { name: "Review Request", level: 2 })).toHaveFocus());
     await expect(composer.queryByRole("textbox", { name: "Request title" })).not.toBeInTheDocument();
     await expect(composer.getByRole("button", { name: "Review Request" })).toHaveAttribute("aria-busy", "true");
+    // Esc cancels the check; the dialog stays, the draft is back, Review Request takes focus to try again.
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(dialog).toBeVisible();
+    await expectDraftKept(composer);
+    const review = composer.getByRole("button", { name: "Review Request" });
+    await waitFor(() => expect(review).toHaveFocus());
+    await expect(review).not.toHaveAttribute("aria-busy");
+    // The cancelled check answering late changes nothing.
+    heldChecks[0]({ success: false, error: { code: "timeout", message: "Review unavailable right now. Your draft is kept." } });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await expect(composer.queryByText("Review unavailable right now")).not.toBeInTheDocument();
+    await expectDraftKept(composer);
+    // The close button cancels a second check the same way.
+    await userEvent.click(review);
+    await composer.findByText("Checking whether this describes a problem…");
+    await userEvent.click(composer.getByRole("button", { name: "Close dialog" }));
+    await expect(dialog).toBeVisible();
+    await expectDraftKept(composer);
+    // With nothing running, Esc closes as usual.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
     await expect(getRouter().push).not.toHaveBeenCalled();
     await expect(saveRequest).not.toHaveBeenCalled();
+    await expect(runTriage).toHaveBeenCalledTimes(2);
   },
 };
 
@@ -911,7 +936,9 @@ export const NewProjectFromPicker: Story = {
     await fillComposer(composer);
     await userEvent.click(composer.getByRole("button", { name: "Project" }));
     const project = await projectSurface(page);
-    // A native click exercises Radix's deferred outside-pointer handler.
+    // A native click exercises Radix's deferred outside-pointer handler. vitest/browser loads only in the
+    // Vitest run: imported at the top, it stopped every story in this file rendering in plain Storybook.
+    const { page: browserPage } = await import("vitest/browser");
     await browserPage.getByRole("dialog", { name: "Choose a Project" }).getByRole("button", { name: "New Project", exact: true }).click();
     const name = project.getByRole("textbox", { name: "Project name" });
     await waitFor(() => expect(name).toHaveFocus());
@@ -1226,6 +1253,14 @@ export const GateSlow5s: Story = {
   },
 };
 
+/** Critique 2026-10-20: at the 844px phone height the gate notice must be scrolled into view above the footer. */
+async function expectClearOfFooter(element: HTMLElement) {
+  const footer = element.closest('[role="dialog"]')!.querySelector("footer")!;
+  const region = footer.previousElementSibling!;
+  await waitFor(() => expect(element.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.getBoundingClientRect().top));
+  await expect(element.getBoundingClientRect().top).toBeGreaterThanOrEqual(region.getBoundingClientRect().top);
+}
+
 export const GateTimeout: Story = {
   beforeEach: () => {
     mocked(runTriage).mockResolvedValue({ success: false, error: { code: "timeout", message: "Review unavailable right now. Your draft is kept." } });
@@ -1265,12 +1300,29 @@ export const SessionExpiredKeepsDraft: Story = {
   play: async ({ canvasElement }) => {
     const { composer } = await reachReview(canvasElement);
     await expect(await composer.findByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login#/?redirect_url=%2Fintake");
+    await expectClearOfFooter(composer.getByRole("link", { name: "Sign in again" }));
     await expect(composer.getByText("Your session ended")).toBeVisible();
     await expect(composer.getByText(/Your draft is kept\./)).toBeVisible();
     // One silent retry with a fresh token came first.
     await expect(runTriage).toHaveBeenCalledTimes(2);
     await expectDraftKept(composer);
     await expect(readIntakeDraft(window.sessionStorage, scope)?.source.title).toBe(source.title);
+  },
+};
+
+// The 844px phone height is where the notice sits below the fold, so it must be scrolled into view; the
+// 1000px test height fits it anyway. An instant mock would batch the checking step away and skip the scroll,
+// which is how a capture of SessionExpiredKeepsDraft showed the notice hidden (critique 2026-10-20).
+export const SessionExpiredOnPhone: Story = {
+  ...SessionExpiredKeepsDraft,
+  globals: { theme: "dark", viewport: { value: "mobile", isRotated: false } },
+  play: async (context) => {
+    // At the 1000px test height the notice fits anyway, so the story first proves the phone viewport applied.
+    await expect([window.innerWidth, window.innerHeight]).toEqual([390, 844]);
+    await SessionExpiredKeepsDraft.play!(context);
+  },
+  beforeEach: () => {
+    mocked(runTriage).mockImplementation(() => new Promise(resolve => { window.setTimeout(() => resolve({ success: false, error: { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." } }), 50); }));
   },
 };
 

@@ -45,6 +45,7 @@ Product CSS outside `src/components/arc/` uses Arc hooks or `--sb-*` tokens only
 | Checkbox and radio | `foreground` fill with `background` glyph; unchecked `control/25` |
 | Status badges | Badge variants: `warning-600`/`warning/10`/`warning-500`, `brand-600`/`brand/10`/`brand-500`, `destructive`/`destructive/10`/`border-destructive` |
 | Focus | `ring`, 2px with 2px offset |
+| Skeleton fill | `border` (the base of Studio's ShimmeringLoader; 2026-10-20) |
 | Project markers, type dots | Palette step 900; picker avatars step 300 |
 | Controls sm/md/lg | Button tiny/small/medium: 26/34/38px |
 | Request rows, group headers | Request row 44px (inner-xlarge), table head 40px; both use rounded-md (8px), density and rounding approved 2026-10-16 |

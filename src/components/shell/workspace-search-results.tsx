@@ -22,7 +22,7 @@ import { SearchField } from "@/components/arc/search-field/search-field";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { CopyButton } from "@/components/requests/copy-button";
-import { LocalTime } from "@/components/requests/local-time";
+import { LocalTime, calendarDayLabel } from "@/components/requests/local-time";
 import { RequestLabels, LabelDot } from "@/components/requests/request-labels";
 import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { ProjectMarker } from "@/components/projects/project-marker";
@@ -45,8 +45,7 @@ const codeOf = (result: Match) => result.kind === "request" && result.item.reque
 /** Plan item 2.8: one concise name per result, the title and its code (or "Project"). The row's other text stays visible only. */
 const nameOf = (result: Match) => result.kind === "project" ? `${result.item.name}, Project` : [result.item.title, codeOf(result)].filter(Boolean).join(", ");
 const countLabel = (count: number) => `${count} ${count === 1 ? "result" : "results"}`;
-// Filter chips name calendar days (YYYY-MM-DD), which have no zone of their own.
-const dayLabel = (day: string) => new Date(`${day}T00:00:00.000Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+// Filter chips name calendar days (YYYY-MM-DD) through calendarDayLabel, in the viewer's locale (critique 2.8).
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const isApple = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
@@ -133,7 +132,7 @@ const Facets = memo(function Facets({ data, filters, category, onCategory, onCha
     <fieldset className={styles.facetGroup}><legend>Labels</legend>
       {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><LabelDot colour={type.colour}/><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
-    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{dayLabel(filters.createdFrom)} to {dayLabel(filters.createdTo!)}</span> : null}</div>
+    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{calendarDayLabel(filters.createdFrom)} to {calendarDayLabel(filters.createdTo!)}</span> : null}</div>
   </div>;
 });
 
@@ -209,7 +208,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
     ...(category === "all" ? [] : [{ id: "category", label: "Search in", value: category === "requests" ? "Requests" : "Projects" }]),
     ...(filters.statuses ?? []).map(value => ({ id: `status:${value}`, label: "Status", value: statuses.find(status => status.value === value)!.label })),
     ...(filters.types ?? []).map(value => ({ id: `type:${value}`, label: "Labels", value: TYPES.find(type => type.value === value)?.label ?? "Saved label" })),
-    ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${dayLabel(filters.createdFrom)} to ${dayLabel(filters.createdTo!)}` }] : []),
+    ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${calendarDayLabel(filters.createdFrom)} to ${calendarDayLabel(filters.createdTo!)}` }] : []),
   ];
   const filterCount = chips.length;
   // Plan item 2.8: the results fade in when filters or sort change, never per keystroke.
@@ -252,7 +251,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   function inputKey(event: KeyboardEvent<HTMLInputElement>) {
     // Safari ends a composition before the Enter that commits it (isComposing is false, keyCode 229): that Enter never searches or opens a code.
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-    if (event.key === "ArrowDown") { event.preventDefault(); if (showMenu) setMenuIndex(index => (index + 1) % suggestions.length); else if (matches.length) listRef.current?.focus(); }
+    if (event.key === "ArrowDown") { event.preventDefault(); if (showMenu) setMenuIndex(index => (index + 1) % suggestions.length); else if (matches.length) { listRef.current?.focus({ preventScroll: true }); if (selected) document.getElementById(`${uid}-${selected.item.id}`)?.scrollIntoView({ block: "nearest" }); } }
     else if (event.key === "ArrowUp" && showMenu) { event.preventDefault(); setMenuIndex(index => index <= 0 ? suggestions.length - 1 : index - 1); }
     else if (event.key === "Enter") { event.preventDefault(); submit(showMenu && menuIndex >= 0 ? suggestions[menuIndex] : draft.trim()); }
     else if (event.key === "Escape" && showMenu) { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); }

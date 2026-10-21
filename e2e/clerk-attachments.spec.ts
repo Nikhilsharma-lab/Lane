@@ -132,7 +132,7 @@ test("private attachments survive Clerk upload and download but reject anonymous
     // The attachment list only includes rows finalized after Storage metadata
     // verification. A byte-for-byte download also catches broken upload payloads.
     const downloadPromise = pageA.waitForEvent("download");
-    await pageA.getByRole("button", { name: "Download file", exact: true }).click();
+    await pageA.getByRole("button", { name: `Download ${filename}`, exact: true }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe(filename);
     const destination = testInfo.outputPath(filename);

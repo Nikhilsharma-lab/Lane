@@ -205,7 +205,8 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
     ? measurement.startDate && measurement.endDate
       ? `${formatDate(measurement.startDate)} to ${formatDate(measurement.endDate)}`
       : "Custom date range"
-    : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : measurement.windowDays === 30 ? "Measurement dates" : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
+    // The default 30-day window names itself like any other (critique 2.3); only a missing window reads as the placeholder.
+    : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
   const metricPicker = (metric: Metric, path: string, update: (key: Metric["key"], name?: string) => void, guardrail = false) => <MeasurementMetricPicker
     id={`${prefix}-${path}-key`} metric={metric} guardrail={guardrail} disabled={disabled}
     error={error(`${path}.key`) || error(`${path}.name`)} onSelect={update} />

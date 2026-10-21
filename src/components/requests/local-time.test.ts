@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { fullLocal, localDayLabel, localLabel, utcDayLabel } from "./local-time"
+import { afterEach, describe, expect, it } from "vitest"
+import { calendarDayLabel, fullLocal, localDayLabel, localLabel, utcDayLabel } from "./local-time"
 
 // Plan item 2.6: the pre-mount label is zone-free; the local label carries the year only outside the current one.
 describe("local time labels", () => {
@@ -37,5 +37,25 @@ describe("local time labels", () => {
     // 00:30 on 1 January 2026 in India: this year there, so no year; 22:30 on 31 December 2025 carries one.
     expect(localDayLabel("2025-12-31T19:00:00.000Z", now, "Asia/Kolkata")).not.toMatch(/202\d/)
     expect(localDayLabel("2025-12-31T17:00:00.000Z", now, "Asia/Kolkata")).toContain("2025")
+  })
+
+  // Critique 2.4: the compact row's Submitted cell is too narrow for a year.
+  it("drops the year on request", () => {
+    const now = new Date("2026-10-20T12:00:00.000Z")
+    expect(localDayLabel("2025-12-31T17:00:00.000Z", now, "Asia/Kolkata", { year: false })).not.toMatch(/202\d/)
+    expect(localDayLabel("2025-12-31T17:00:00.000Z", now, "Asia/Kolkata", { year: false })).toBe(localDayLabel("2025-12-31T17:00:00.000Z", new Date("2025-06-01T00:00:00.000Z"), "Asia/Kolkata"))
+  })
+})
+
+// Critique 2.8: the search pane's date chips were pinned to en-US. A viewer whose browser defaults to en-GB is
+// simulated by giving toLocaleDateString that default; a label that names its own locale ignores it.
+describe("calendar day labels", () => {
+  const original = Date.prototype.toLocaleDateString
+  afterEach(() => { Date.prototype.toLocaleDateString = original })
+
+  it("writes the day in the viewer's locale and never moves it to the day before", () => {
+    Date.prototype.toLocaleDateString = function (locales?: Intl.LocalesArgument, options?: Intl.DateTimeFormatOptions) { return original.call(this, locales ?? "en-GB", options) }
+    expect(calendarDayLabel("2026-10-09")).toBe("9 Oct 2026")
+    expect(calendarDayLabel("2026-01-01")).toBe("1 Jan 2026")
   })
 })

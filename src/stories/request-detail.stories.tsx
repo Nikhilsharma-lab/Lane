@@ -42,6 +42,13 @@ type Story = StoryObj<typeof meta>
 const toasts = (canvasElement: HTMLElement) => within(canvasElement).getByRole("region", { name: /^Messages/ })
 const regionIds = (canvasElement: HTMLElement) => [...main(canvasElement).querySelectorAll<HTMLElement>("[data-detail-main] > section[id]")].map(section => section.id)
 const noHorizontalScroll = () => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+/** The strip's code is drawn whole: a fraction of a pixel short already paints "LAN-1…", so the text's own width is compared. */
+async function expectCodeWhole(strip: Element) {
+  const current = strip.querySelector<HTMLElement>("[aria-current] span")!
+  const text = document.createRange()
+  text.selectNodeContents(current)
+  await expect(text.getBoundingClientRect().width).toBeLessThanOrEqual(current.getBoundingClientRect().width + 0.01)
+}
 
 /** Resolve the approved header token in the browser, then check its exact rendered height. */
 async function expectStripHeight(strip: Element) {
@@ -196,15 +203,24 @@ export const PropertyControlConsistency: Story = {
     const priority = controls[1];
     await expect(within(group).queryByRole("combobox", { name: /^Priority:/ })).not.toBeInTheDocument();
     const properties = within(group).getByRole("button", { name: /^Properties:/ });
-    await expect(status.tagName).toBe("SPAN");
-    await expect(status.querySelector("button")).toBeNull();
+    await expect(properties).toBeVisible();
+    // Decision 2026-10-21 (critique 2.5), replacing 2026-10-18's matching chips: a value this viewer cannot
+    // change reads as plain glyph and text, like Assignee and Project. Only a control that opens something is a chip.
     for (const control of [status, priority]) {
-      for (const property of ["borderRadius", "backgroundColor", "boxShadow", "paddingInlineStart", "paddingInlineEnd", "fontSize"] as const) {
-        await expect(getComputedStyle(control)[property], property).toBe(getComputedStyle(properties)[property]);
-      }
-      await expect(control.getBoundingClientRect().height).toBe(properties.getBoundingClientRect().height);
+      await expect(control.tagName).toBe("SPAN");
+      await expect(control.querySelector("button")).toBeNull();
+      await expect(getComputedStyle(control).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      await expect(getComputedStyle(control).borderTopWidth).toBe("0px");
+      await expect(getComputedStyle(control).boxShadow).toBe("none");
     }
     group.style.removeProperty("display");
+    // The panel's rows keep one height whether a value is a control or plain, so nothing moves.
+    const panel = main(canvasElement).querySelector<HTMLElement>("[data-detail-panel]")!;
+    if (panel.getClientRects().length) {
+      const heights = ["[data-detail-status]", "[data-detail-priority]"].map(selector => Math.round(panel.querySelector<HTMLElement>(selector)!.getBoundingClientRect().height));
+      const assignee = [...panel.querySelectorAll("dt")].find(term => term.textContent === "Assignee")!.nextElementSibling!;
+      await expect(heights).toEqual([Math.round(assignee.getBoundingClientRect().height), Math.round(assignee.getBoundingClientRect().height)]);
+    }
   },
 }
 
@@ -590,6 +606,24 @@ export const CopyFails: Story = {
   },
 }
 
+/** Each file's download button carries that file's name, so a screen reader can tell them apart. */
+export const FileDownloadsNamed: Story = {
+  args: {
+    attachments: [
+      { id: "fixture-file", fileName: "Delivery context.png", mimeType: "image/png", sizeBytes: 182400, uploadedAt: new Date("2026-10-01T09:00:00Z") },
+      { id: "fixture-file-2", fileName: "Interview notes.txt", mimeType: "text/plain", sizeBytes: 2048, uploadedAt: new Date("2026-10-01T09:30:00Z") },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const files = within(within(main(canvasElement)).getByRole("list", { name: "Request files" }))
+    const names = files.getAllByRole("button").map(button => button.getAttribute("aria-label"))
+    await expect(names).toEqual(["Download Delivery context.png", "Download Interview notes.txt"])
+    await userEvent.click(files.getByRole("button", { name: "Download Interview notes.txt" }))
+    await waitFor(() => expect(getAttachmentDownloadUrl).toHaveBeenCalledWith("fixture-file-2", { orgId: "fixture-workspace" }))
+    await expect(await files.findByText("Couldn’t prepare the download. Try again.")).toBeVisible()
+  },
+}
+
 /** At 390 the state line opens Properties; priority changes there and the line follows in the same frame. */
 export const PhoneProperties: Story = {
   globals: phoneDark,
@@ -619,10 +653,36 @@ export const PhoneStrip: Story = {
     const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
     await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Pick up", "More actions"])
     await expectStripHeight(bar)
+    await expectCodeWhole(bar)
     const end = bar.lastElementChild!
     const boxes = [...end.querySelectorAll("*")].map(element => element.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     await expect(Math.abs(end.getBoundingClientRect().right - Math.max(...boxes.map(box => box.right)))).toBeLessThanOrEqual(0.5)
     noHorizontalScroll()
+  },
+}
+
+// Critique 2026-10-20 (P1): Edit Request shared the strip's tools box, which phones hid whole, so a creator
+// on a phone could not edit, nor add the current value that unblocks Pick up.
+export const PhoneStripCreatorCanEdit: Story = {
+  globals: phoneDark,
+  args: { editable: true },
+  play: async context => {
+    await expectPinnedViewport(context)
+    const { canvasElement } = context
+    const bar = strip(canvasElement)
+    const painted = [...bar.querySelectorAll<HTMLElement>("a, button, [aria-current] span")].filter(element => element.getClientRects().length > 0)
+    const names = painted.map(element => element.getAttribute("aria-label") ?? element.textContent?.trim())
+    await expect(names).toEqual(["Expand sidebar", "Back to Requests", "LAN-12", "Edit Request", "Pick up", "More actions"])
+    await expectStripHeight(bar)
+    await expectCodeWhole(bar)
+    // It folds to its icon, square like More actions, so the code keeps its room.
+    const edit = within(bar).getByRole("button", { name: "Edit Request" })
+    await expect(Math.round(edit.getBoundingClientRect().width)).toBe(Math.round(within(bar).getByRole("button", { name: "More actions" }).getBoundingClientRect().width))
+    noHorizontalScroll()
+    await userEvent.click(within(bar).getByRole("button", { name: "Edit Request" }))
+    const editor = await within(document.body).findByRole("dialog", { name: "Edit Request" })
+    // The dialog fades in; it is visible once its entrance has started.
+    await waitFor(() => expect(editor).toBeVisible())
   },
 }
 
