@@ -63,12 +63,16 @@ export function LifecycleButtons({
 
   async function runMove(kind: LifecycleMove) {
     if (kind === "pick-up" && pickupBlockedReason) return;
-    setPressedFrom(shownStatus);
+    // #77: "Pick up anyway?" first when a concern is open or a review is unanswered, before the button shows pending.
+    // Focus is read before the confirmation takes it; the dialog hands it back to the button on close.
     const hadFocus = Boolean(slot.current?.contains(document.activeElement));
+    const name = detail?.name ?? "This Request";
+    if (kind === "pick-up" && !(await moves.confirmPickup([{ name, reviewState: detail?.request.reviewState }]))) return;
+    setPressedFrom(shownStatus);
     // On a refusal or a lost response useOptimisticAction rolls the patch back
     // and calls router.refresh() so the detail re-syncs with the server; a
     // success already carries the revalidated tree, so nothing refreshes then.
-    const outcome = await run(() => moves.move({ id: requestId, name: detail?.name ?? "This Request" }, kind, {
+    const outcome = await run(() => moves.move({ id: requestId, name }, kind, {
       networkError: NETWORK_ERRORS[kind],
       assignee: kind === "pick-up" && detail ? detail.viewer : undefined,
     }));

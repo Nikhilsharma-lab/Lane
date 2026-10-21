@@ -20,6 +20,13 @@ describe("requestRowLabel", () => {
     expect(requestRowLabel({ ...request, reframedProblem: "People cannot finish signup" }, { code: "LAN-12", priority: "urgent" }))
       .toBe("LAN-12, People cannot finish signup. In Progress, Urgent priority, Website, Bug, Assignee Sam Lee")
   })
+  it("reads the concern marker only when a concern is open (#77)", () => {
+    const concern = { name: "Priya", reason: "No API yet." }
+    expect(requestRowLabel({ ...request, reviewState: { concerns: [concern, concern], unanswered: 1 } }, { code: "LAN-12", priority: "high" }))
+      .toBe("LAN-12, Signup drops at the phone step. In Progress, High priority, Website, Bug, Assignee Sam Lee, 2 concerns")
+    expect(requestRowLabel({ ...request, reviewState: { concerns: [], unanswered: 3 } }, { code: "LAN-12", priority: "high" }))
+      .toBe("LAN-12, Signup drops at the phone step. In Progress, High priority, Website, Bug, Assignee Sam Lee")
+  })
 })
 
 describe("matchCountText", () => {

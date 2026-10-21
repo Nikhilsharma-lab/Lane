@@ -29,6 +29,7 @@ export default defineConfig({
       "src/components/shell/sidebar-view-frame.test.ts",
       "src/app/**/app-frame.test.ts",
       "src/lib/request-lifecycle.test.ts",
+      "src/lib/request-agreement.test.ts",
       "src/lib/keyboard-shortcuts.test.ts",
       "src/components/requests/request-grid-keys.test.ts",
       "src/components/requests/request-row-label.test.ts",

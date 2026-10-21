@@ -66,6 +66,46 @@ export const answerReviewSchema = z
     reason: z.string().trim().max(REVIEW_REASON_MAX),
   })
   .strict();
+/** What pickup confirms first, from saved reviews: open concerns (who and why) and the unanswered count. */
+export type ReviewState = {
+  concerns: { name: string; reason: string }[];
+  unanswered: number;
+};
+const plural = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+/** The list's marker: "2 concerns", or null when no concern is open. */
+export function concernMarker(state: ReviewState | null | undefined) {
+  const count = state?.concerns.length ?? 0;
+  return count ? plural(count, "concern", "concerns") : null;
+}
+export type PickupConfirmation = {
+  title: string;
+  requests: {
+    name: string;
+    /** "2 concerns open, 1 review unanswered". */
+    summary: string;
+    concerns: ReviewState["concerns"];
+  }[];
+};
+/**
+ * What picking these Requests up confirms first, or null to pick up straight
+ * away. Every pickup entry point asks this; bulk pickup passes every selected
+ * Request and gets one combined confirmation. Reviews never block pickup.
+ */
+export function pickupConfirmation(
+  targets: { name: string; reviewState?: ReviewState | null }[],
+): PickupConfirmation | null {
+  const requests = targets.flatMap(({ name, reviewState }) => {
+    if (!reviewState || (!reviewState.concerns.length && !reviewState.unanswered)) return [];
+    const { concerns, unanswered } = reviewState;
+    const summary = [
+      concerns.length ? `${plural(concerns.length, "concern", "concerns")} open` : null,
+      unanswered ? `${plural(unanswered, "review", "reviews")} unanswered` : null,
+    ].filter(Boolean).join(", ");
+    return [{ name, summary, concerns }];
+  });
+  return requests.length ? { title: "Pick up anyway?", requests } : null;
+}
 /** Profile roles are grey information on a reviewer row; they never grant or block anything. */
 export const PROFILE_ROLE_LABELS = {
   pm: "PM",

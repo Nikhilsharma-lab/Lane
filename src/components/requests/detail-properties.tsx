@@ -37,7 +37,7 @@ function useDetailMoves() {
   const announce = useListAnnouncer()
   const moves = useRequestMoves({ orgId, announce })
   return {
-    move: (kind: "pick-up" | "done") => moves.move({ id: request.id, name }, kind, {
+    move: (kind: "pick-up" | "done") => moves.move({ id: request.id, name, reviewState: request.reviewState }, kind, {
       // Pick up names the viewer as Assignee in the same frame; the status decides when the patch clears.
       assignee: kind === "pick-up" ? { id: viewer.id, name: viewer.name } : undefined,
     }),

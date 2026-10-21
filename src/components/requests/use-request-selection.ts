@@ -5,6 +5,9 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDoneMany, pickUpRequests, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { pickupConfirmation } from "@/lib/request-agreement"
+import { formatRequestCode } from "@/lib/request-code"
+import { usePickupConfirmation } from "./pickup-confirmation"
 import { useOptimisticAction, useOptimisticBatch, useServerRefresh } from "./use-optimistic-action"
 import { useListAnnouncer } from "./list-announcer"
 import { requestCount } from "./request-row-label"
@@ -26,6 +29,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   const refresh = useServerRefresh()
   const optimistic = useOptimisticAction()
   const optimisticBatch = useOptimisticBatch()
+  const confirmPickup = usePickupConfirmation()
   const { toast, update: updateToast } = useToastStack()
   // Plan item 2.4: selection changes speak in the list's one region; the bar shows "n selected".
   const announce = useListAnnouncer()
@@ -122,6 +126,14 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (!availableAction || !context || running.current) return
     const operation = Symbol()
     running.current = operation
+    // #77: one "Pick up anyway?" for every selected Request with an open concern or an unanswered review.
+    const targets = selected.map(row => ({ name: row.requestNumber ? formatRequestCode(row.requestNumber) : row.reframedProblem ?? row.title, reviewState: row.reviewState }))
+    if (availableAction === "pick-up" && pickupConfirmation(targets)) {
+      const confirmed = await confirmPickup(targets)
+      // A view change while the confirmation was open already let go of this operation.
+      if (running.current !== operation) return
+      if (!confirmed) { running.current = null; return }
+    }
     const ids = selected.map(row => row.id)
     setState(previous => ({ ...previous, pending: { kind: availableAction, count: ids.length }, error: "", failedCount: 0, message: "" }))
     announce(`Working on ${ids.length} selected ${ids.length === 1 ? "Request" : "Requests"}.`, { key: "selection" })

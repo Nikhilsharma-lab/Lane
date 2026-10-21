@@ -5,6 +5,8 @@ import { requestLabelKeys } from "@/lib/request-labels"
 import { memo, useEffect, useId, useRef, useState } from "react"
 import { Check, Copy, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
+import { concernMarker } from "@/lib/request-agreement"
+import { Badge } from "@/components/arc/badge/badge"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
 import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
@@ -127,6 +129,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     ...(peek ? [{ id: "peek", label: "Preview", shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
   ] : []
   const status = statuses.find(item => item.value === request.status)!
+  // #77: open concerns from saved reviews. The row's name already reads it, so the marker is not read twice.
+  const concerns = concernMarker(request.reviewState)
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
   // An open row menu keeps the row lit while the pointer is on the menu.
   const [menuOpen, setMenuOpen] = useState(false)
@@ -156,6 +160,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     {columns[0].render(request, filter, projectFilter)}
     {/* Sketch reservation (2026-10-11): a later "waiting" token joins these as data-row-property="waiting"; see request-rows.module.css. */}
     <div className={styles.properties}>
+      {concerns && <span data-row-property="concerns" aria-hidden="true"><Badge size="sm" tone="warning">{concerns}</Badge></span>}
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}
     </div>
 

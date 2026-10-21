@@ -110,6 +110,18 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("Back to Requests")
   })
 
+  it("marks a row with open concerns, and only those rows (#77)", async () => {
+    state.role = "member"
+    const base = { reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }
+    state.rows = [
+      { ...base, id: "request-concern", title: "Has a concern", reviewState: { concerns: [{ name: "Priya", reason: "No API yet." }], unanswered: 0 } },
+      { ...base, id: "request-unanswered", title: "Only unanswered", reviewState: { concerns: [], unanswered: 2 } },
+    ]
+    const html = await render()
+    expect(html.match(/data-row-property="concerns"/g)).toHaveLength(1)
+    expect(html).toMatch(/data-request-id="request-concern"[\s\S]*data-row-property="concerns"[^>]*>[\s\S]*?1 concern</)
+  })
+
   it("keeps existing work visible in the shared list", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]

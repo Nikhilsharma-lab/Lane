@@ -141,3 +141,20 @@ $$;
 REVOKE ALL ON FUNCTION public.valid_agreement_exception(jsonb), public.protect_request_closure(), public.valid_request_reviewers(jsonb),
  public.protect_agreement_events(), public.request_agreement_blocked(uuid) FROM PUBLIC;
 COMMIT;
+
+-- #77: what pickup confirms and what the list's concern marker counts: open concerns (who and why) and
+-- how many reviews are unanswered. Saved data only, so a departed reviewer's concern may still count
+-- (accepted). Null when nothing is outstanding, so unchanged list rows stay equal between responses.
+BEGIN;
+CREATE FUNCTION public.request_review_state(request_uuid uuid) RETURNS jsonb LANGUAGE sql STABLE AS $$
+ SELECT CASE WHEN s.unanswered>0 OR s.concerns<>'[]'::jsonb
+  THEN jsonb_build_object('concerns',s.concerns,'unanswered',s.unanswered) END
+ FROM (SELECT
+  COALESCE((SELECT jsonb_agg(jsonb_build_object('name',x.value->>'displayNameAtSelection','reason',x.value->'decision'->>'reason') ORDER BY x.ordinality)
+    FROM public.request_agreements a, jsonb_array_elements(a.reviewers) WITH ORDINALITY x
+    WHERE a.request_id=request_uuid AND x.value->'decision'->>'kind'='concern'),'[]'::jsonb) AS concerns,
+  (SELECT count(*) FROM public.request_agreements a, jsonb_array_elements(a.reviewers) x
+    WHERE a.request_id=request_uuid AND x->'decision'='null'::jsonb) AS unanswered) s
+$$;
+REVOKE ALL ON FUNCTION public.request_review_state(uuid) FROM PUBLIC;
+COMMIT;

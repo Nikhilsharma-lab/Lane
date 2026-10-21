@@ -24,6 +24,8 @@ export type RequestStatus = "open" | "in_progress" | "done"
 export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
+  /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
+  reviewState?: import("@/lib/request-agreement").ReviewState | null
   exceptionClosure?: import("@/lib/request-agreement").ExceptionClosure | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
   designReviews?: DesignReview[]

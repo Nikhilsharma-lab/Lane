@@ -64,7 +64,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   const { copy, setPriority: setRequestPriority } = moves
   const startMove = moves.move
   const move = useCallback((request: OverviewRequest, kind: Move) => {
-    void startMove({ id: request.id, name: identities[request.id]?.code || (request.reframedProblem ?? request.title) }, kind)
+    void startMove({ id: request.id, name: identities[request.id]?.code || (request.reframedProblem ?? request.title), reviewState: request.reviewState }, kind)
   }, [identities, startMove])
   const setPriority = useCallback((request: OverviewRequest, priority: RequestPriority) => { void setRequestPriority(request.id, priority) }, [setRequestPriority])
 

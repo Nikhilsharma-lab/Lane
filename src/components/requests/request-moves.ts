@@ -5,12 +5,15 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
+import { pickupConfirmation, type ReviewState } from "@/lib/request-agreement"
+import { usePickupConfirmation } from "./pickup-confirmation"
 import type { Announce } from "./list-announcer"
 import { useCopy } from "./use-copy"
 import { FAILURE_TITLE, useOptimisticAction, type OptimisticOutcome } from "./use-optimistic-action"
 
-/** The Request a move acts on: its id and the name its toasts use (the saved code, else the title). */
-export type MoveTarget = { id: string; name: string }
+/** The Request a move acts on: its id, the name its toasts use (the saved code, else the title)
+ * and, for a pick up, its saved reviews (#77). */
+export type MoveTarget = { id: string; name: string; reviewState?: ReviewState | null }
 
 export type MoveOptions = {
   /** Replaces the failure description when the action threw (a lost response), so the copy can say what to check. */
@@ -19,7 +22,7 @@ export type MoveOptions = {
   assignee?: { id: string; name: string }
 }
 
-type MoveOutcome = OptimisticOutcome<unknown> | { status: "busy" }
+type MoveOutcome = OptimisticOutcome<unknown> | { status: "busy" } | { status: "cancelled" }
 
 /**
  * Plan item 2.5: the list's Request moves, extracted from request-row-actions.tsx
@@ -38,6 +41,7 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   const { toast, update } = useToastStack()
   const optimistic = useOptimisticAction()
   const busy = useRef(new Set<string>())
+  const confirmPickup = usePickupConfirmation()
 
   // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
   // Undo is sent only after the Done move it reverses has succeeded.
@@ -56,7 +60,7 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   }, [afterMove, optimistic, orgId, toast, update])
 
   /** One toast per move: Done confirms at once with Undo, and a failure replaces that same toast. */
-  const move = useCallback((request: MoveTarget, kind: LifecycleMove, { networkError, assignee }: MoveOptions = {}): Promise<MoveOutcome> => {
+  const start = useCallback((request: MoveTarget, kind: LifecycleMove, { networkError, assignee }: MoveOptions = {}): Promise<MoveOutcome> => {
     const key = `${request.id}:${kind}`
     if (busy.current.has(key)) return Promise.resolve({ status: "busy" })
     busy.current.add(key)
@@ -87,6 +91,13 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
     return outcome
   }, [afterMove, announce, optimistic, orgId, toast, undo])
 
+  // #77: a pick up with an open concern or an unanswered review asks "Pick up anyway?" first.
+  // With nothing outstanding it starts in the same frame, as before.
+  const move = useCallback((request: MoveTarget, kind: LifecycleMove, options?: MoveOptions): Promise<MoveOutcome> => {
+    if (kind !== "pick-up" || !pickupConfirmation([request])) return start(request, kind, options)
+    return confirmPickup([request]).then(confirmed => confirmed ? start(request, kind, options) : { status: "cancelled" as const })
+  }, [confirmPickup, start])
+
   const setPriority = useCallback((requestId: string, priority: RequestPriority) => {
     announce(`Priority set to ${REQUEST_PRIORITY_LABELS[priority].toLowerCase()}.`, { key: "row-change" })
     return optimistic({
@@ -102,5 +113,5 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   const copyText = useCopy()
   const copy = useCallback((value: string, label: string) => copyText(value, `${label} copied.`), [copyText])
 
-  return { move, undo, setPriority, copy }
+  return { move, undo, setPriority, copy, confirmPickup }
 }
