@@ -4,68 +4,68 @@
   "toleranceBytes": 2048,
   "routes": {
     "/": {
-      "gzipBytes": 505600,
-      "uncompressedBytes": 1707458,
+      "gzipBytes": 505756,
+      "uncompressedBytes": 1707950,
       "chunks": 34
     },
     "/_not-found": {
-      "gzipBytes": 284620,
-      "uncompressedBytes": 936567,
+      "gzipBytes": 284780,
+      "uncompressedBytes": 937055,
       "chunks": 19
     },
     "/forgot-password": {
-      "gzipBytes": 313720,
-      "uncompressedBytes": 1027989,
+      "gzipBytes": 313880,
+      "uncompressedBytes": 1028477,
       "chunks": 23
     },
     "/intake": {
-      "gzipBytes": 438315,
-      "uncompressedBytes": 1495388,
+      "gzipBytes": 438472,
+      "uncompressedBytes": 1495876,
       "chunks": 28
     },
     "/login": {
-      "gzipBytes": 311129,
-      "uncompressedBytes": 1015720,
+      "gzipBytes": 311289,
+      "uncompressedBytes": 1016208,
       "chunks": 23
     },
     "/onboarding": {
-      "gzipBytes": 316478,
-      "uncompressedBytes": 1031748,
+      "gzipBytes": 316637,
+      "uncompressedBytes": 1032236,
       "chunks": 23
     },
     "/privacy": {
-      "gzipBytes": 288249,
-      "uncompressedBytes": 945460,
+      "gzipBytes": 288409,
+      "uncompressedBytes": 945948,
       "chunks": 20
     },
     "/requests/[id]": {
-      "gzipBytes": 486678,
-      "uncompressedBytes": 1642544,
+      "gzipBytes": 486839,
+      "uncompressedBytes": 1643036,
       "chunks": 33
     },
     "/reset-password": {
-      "gzipBytes": 315850,
-      "uncompressedBytes": 1035534,
+      "gzipBytes": 316010,
+      "uncompressedBytes": 1036022,
       "chunks": 23
     },
     "/settings/members": {
-      "gzipBytes": 468280,
-      "uncompressedBytes": 1588093,
+      "gzipBytes": 468439,
+      "uncompressedBytes": 1588581,
       "chunks": 30
     },
     "/settings/profile": {
-      "gzipBytes": 468280,
-      "uncompressedBytes": 1588093,
+      "gzipBytes": 468439,
+      "uncompressedBytes": 1588581,
       "chunks": 30
     },
     "/signup": {
-      "gzipBytes": 304866,
-      "uncompressedBytes": 996769,
+      "gzipBytes": 305026,
+      "uncompressedBytes": 997257,
       "chunks": 22
     },
     "/terms": {
-      "gzipBytes": 288249,
-      "uncompressedBytes": 945460,
+      "gzipBytes": 288409,
+      "uncompressedBytes": 945948,
       "chunks": 20
     }
   }
