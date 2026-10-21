@@ -874,6 +874,13 @@ increment at a time.
   (title, metadata, snippet, date). Enter on an exact saved code (case-insensitive) opens that Request and
   an exact code ranks first; Enter on other results previews them and Cmd or Ctrl+Enter opens them. Dates
   and the created-date filter use the viewer's local days. No new routes, tables or AI calls.
+- **2026-10-21:** Phase 2 critique decisions (Nikhil; `docs/design-system/page-quality.md`). The error frames'
+  "let us know" links to the support address the privacy policy names (`uselaneapp@gmail.com`). Onboarding
+  offers "Wrong account? Sign out". While the problem check runs, the composer's X and Esc cancel it and keep
+  the draft; saving and uploading still hold the dialog. Group by Assignee keeps its per-person counts.
+  Request detail shows a Status or Priority the viewer cannot change as plain glyph and text, not a chip
+  (replacing the 2026-10-18 matching-chip rule for read-only values). When Clerk cannot load, sign-in and
+  sign-up say so with a Reload button instead of a skeleton that never resolves.
 - **2026-10-10 launch decisions** (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` §8, defaults
   accepted by Nikhil): a free, invite-only pilot for design leads at small product teams; server and
   database co-located in Tokyo (`hnd1` + `ap-northeast-1`); optimistic UI un-deferred as a launch
