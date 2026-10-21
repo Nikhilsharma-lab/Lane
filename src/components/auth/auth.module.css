@@ -12,6 +12,8 @@
 .headerLink { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); }
 /* Plan item 2.11: hidden while a Clerk session task is open, without moving the header. */
 .headerSlot[data-concealed] { visibility: hidden; }
+/* Plan item L1: the Privacy and Terms links, side by side under the form. */
+.legal { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
 .link { color: var(--foreground); font-weight: var(--sb-font-weight-medium); text-decoration: none; border-radius: var(--radius-control); }
 .link:hover, .link:focus-visible { text-decoration: underline; background: var(--surface-muted); }
 /* A button that reads as the header's text links (onboarding's Sign out). */
