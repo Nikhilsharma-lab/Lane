@@ -14,6 +14,8 @@ const RECOVERY_HOOK = source(
   "src/hooks/use-recoverable-action.ts"
 );
 const WORKSPACE = source("src/app/(app)/requests-workspace.tsx");
+// Plan item 2.12: the page and the list's preview render the same detail pane.
+const DETAIL_PANE = source("src/components/requests/request-detail-pane.tsx");
 
 describe("Reliable Request lifecycle action contract", () => {
   it("uses the shared immediate lock and guaranteed release path", () => {
@@ -89,7 +91,8 @@ describe("Reliable Request lifecycle action contract", () => {
   });
 
   it("keeps lifecycle actions in detail and removes the dead list action", () => {
-    expect(WORKSPACE).toContain("<LifecycleButtons");
+    expect(WORKSPACE).toContain("<RequestDetailPane");
+    expect(DETAIL_PANE).toContain("<LifecycleButtons");
     expect(WORKSPACE).not.toContain("PickUpButton");
     expect(
       existsSync(
