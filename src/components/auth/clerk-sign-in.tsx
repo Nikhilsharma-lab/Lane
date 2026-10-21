@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 
 import { clerkEmbeddedAppearance } from "./clerk-appearance";
 import { AuthCardSkeleton } from "./auth-card-skeleton";
+import { ClerkLoadFallback } from "./clerk-load-fallback";
 export { clerkEmbeddedAppearance } from "./clerk-appearance";
 
 export function ClerkHashSignIn() {
@@ -19,7 +20,7 @@ export function ClerkHashSignIn() {
       signUpUrl="/signup"
       fallbackRedirectUrl="/"
       appearance={clerkEmbeddedAppearance}
-      fallback={<AuthCardSkeleton label="Loading sign in" />}
+      fallback={<ClerkLoadFallback skeleton={<AuthCardSkeleton label="Loading sign in" />} unavailableTitle="Sign in is unavailable right now" />}
     />
   );
 }

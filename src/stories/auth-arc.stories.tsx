@@ -5,6 +5,7 @@ import { LoginFrame, RecoveryFrame, SignupFrame } from "@/components/auth/auth-f
 import { AuthHeaderLink } from "@/components/auth/auth-shell";
 import { AuthHeaderSlot } from "@/components/auth/auth-header-slot";
 import { AuthCardSkeleton } from "@/components/auth/auth-card-skeleton";
+import { ClerkUnavailable } from "@/components/auth/clerk-unavailable";
 import { PasswordRecoveryView, type PasswordRecoveryViewProps } from "@/components/auth/password-recovery-view";
 import MembersLoading from "@/app/(app)/settings/members/loading";
 
@@ -55,3 +56,19 @@ export const LoginDuringSessionTask: Story = { render: () => <LoginFrame headerA
 export const SignupLoading: Story = { render: () => <SignupFrame><AuthCardSkeleton label="Loading account creation" fields={2} /></SignupFrame> };
 export const ResetTaskLoading: Story = { render: () => <RecoveryFrame><AuthCardSkeleton label="Loading password reset" fields={2} social={false} /></RecoveryFrame> };
 export const MembersLoadingState: Story = { render: () => <main><MembersLoading /></main> };
+
+// Decision 2026-10-21 (critique 2.11): Clerk reported it could not load, so the skeleton gives way to a way out.
+const reload = fn();
+export const ClerkUnavailableOnLogin: Story = {
+  render: () => <LoginFrame headerAction={resetLink(false)}><ClerkUnavailable title="Sign in is unavailable right now" onReload={reload} /></LoginFrame>,
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    const alert = c.getByRole("alert");
+    await expect(within(alert).getByRole("heading", { level: 1, name: "Sign in is unavailable right now" })).toBeVisible();
+    await expect(alert).toHaveTextContent("Check your connection, or turn off blockers for this site, then reload.");
+    await expect(c.queryByRole("status", { name: /^Loading/ })).not.toBeInTheDocument();
+    await userEvent.click(within(alert).getByRole("button", { name: "Reload" }));
+    await expect(reload).toHaveBeenCalledOnce();
+  },
+};
+export const ClerkUnavailableOnSignup: Story = { render: () => <SignupFrame><ClerkUnavailable title="Sign up is unavailable right now" onReload={reload} /></SignupFrame> };
