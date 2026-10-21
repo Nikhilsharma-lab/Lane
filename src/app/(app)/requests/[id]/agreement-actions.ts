@@ -1,14 +1,12 @@
 "use server";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
-import { db, notifications, profiles, requests, requestAgreements } from "@/db";
+import { db, profiles, requests, requestAgreements } from "@/db";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
   answerReviewSchema,
-  MAX_REVIEWERS,
   PROFILE_ROLE_LABELS,
   type AgreementContext,
   type Reviewer,
@@ -19,8 +17,8 @@ import {
   nomineeKey,
   resolveInvitedMember,
   invitationState,
-  distinctAgreementPeople,
 } from "@/lib/request-agreement-members";
+import { appendReviewers, notifyReviewers } from "@/lib/request-reviewers";
 import {
   mutateAgreement,
   insist,
@@ -52,42 +50,6 @@ async function saveReviewers(
       .values({ orgId: request.orgId, requestId: request.id, reviewers });
 }
 
-type ReviewNotification = {
-  userId: string;
-  type: "review_requested" | "review_looks_good" | "review_concern";
-  detail: string;
-};
-
-/** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
-async function notifyReviewers(
-  tx: AgreementTx,
-  request: AgreementRequest,
-  actorId: string,
-  items: ReviewNotification[],
-) {
-  const recipients = items.filter((item) => item.userId !== actorId);
-  if (!recipients.length) return;
-  const known = new Set(
-    (
-      await tx
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(inArray(profiles.id, recipients.map((item) => item.userId)))
-    ).map((p) => p.id),
-  );
-  const values = recipients
-    .filter((item) => known.has(item.userId))
-    .map((item) => ({
-      userId: item.userId,
-      orgId: request.orgId,
-      type: item.type,
-      requestId: request.id,
-      actorId,
-      detail: item.detail || null,
-    }));
-  if (values.length) await tx.insert(notifications).values(values);
-}
-
 /** Any non-guest member asks people to look at an Open Request. Only admins invite by email. */
 export async function addReviewers(context: AgreementContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
@@ -97,72 +59,16 @@ export async function addReviewers(context: AgreementContext, input: unknown) {
     parsed.data,
     "reviewers_added",
     async (tx, request, agreement, auth, roster) => {
-      const inviting = parsed.data.nominees.some((n) => n.kind === "invitation");
-      insist(
-        !inviting || auth.role === "admin",
-        "Only an admin can invite someone by email.",
-      );
-      const people = inviting
-        ? [...roster, ...(await agreementInvitations(auth.orgId))]
-        : roster;
-      const reviewers = [...(agreement?.reviewers ?? [])];
-      const added = [];
-      for (const nominee of parsed.data.nominees) {
-        const person = people.find(
-          (p) => nomineeKey(p.nominee) === nomineeKey(nominee),
-        );
-        insist(person, "A selected person is no longer available.");
-        if (nominee.kind === "member") {
-          insist(
-            nominee.userId !== auth.userId,
-            "You can’t add yourself as a reviewer.",
-          );
-          insist(
-            nominee.userId !== request.createdBy,
-            "The requester can’t review their own Request.",
-          );
-        }
-        insist(
-          !reviewers.some((r) => nomineeKey(r.nominee) === nomineeKey(nominee)),
-          `${person.name} is already a reviewer.`,
-        );
-        reviewers.push({
-          id: randomUUID(),
-          nominee: person.nominee,
-          displayNameAtSelection: person.name,
-          addedBy: auth.userId,
-          note: parsed.data.note,
-          decision: null,
-        });
-        added.push(person);
-      }
-      insist(
-        reviewers.length <= MAX_REVIEWERS,
-        `A Request can have at most ${MAX_REVIEWERS} reviewers.`,
-      );
-      // An invitation may target the verified email of someone already reviewing.
-      if (reviewers.some((r) => r.nominee.kind === "invitation"))
-        insist(
-          await distinctAgreementPeople(
-            reviewers.map((r) => ({
-              nominee: r.nominee,
-              name: r.displayNameAtSelection,
-              email: r.nominee.kind === "invitation" ? r.nominee.email : "",
-            })),
-          ),
-          "That invitation is for someone who is already a reviewer.",
-        );
+      const { reviewers, asked } = await appendReviewers({
+        existing: agreement?.reviewers ?? [],
+        nominees: parsed.data.nominees,
+        note: parsed.data.note,
+        auth,
+        requesterId: request.createdBy,
+        roster,
+      });
       await saveReviewers(tx, request, agreement, reviewers);
-      await notifyReviewers(
-        tx,
-        request,
-        auth.userId,
-        added.flatMap((person) =>
-          person.nominee.kind === "member"
-            ? [{ userId: person.nominee.userId, type: "review_requested" as const, detail: parsed.data.note }]
-            : [],
-        ),
-      );
+      await notifyReviewers(tx, request, auth.userId, asked);
     },
   );
 }

@@ -78,9 +78,15 @@ export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
 }
 export type AgreementTeam = Awaited<ReturnType<typeof createAgreementTeam>>;
 
+/**
+ * Creates a Request as the PM. With `reviewers`, the PM goes back from the
+ * restored review to the compose step, picks them in the Reviewers property,
+ * and reviews again through the real gate, so the save carries the picks.
+ */
 export async function createRequestThroughIntake(
   team: AgreementTeam,
   title: string,
+  { reviewers = [] }: { reviewers?: string[] } = {},
 ) {
   const page = team.pages[0];
   const source = {
@@ -133,10 +139,22 @@ export async function createRequestThroughIntake(
     },
   );
   await page.reload();
-  await page
-    .getByRole("button", { name: "Create Request", exact: true })
-    .click();
-  await page.waitForURL("**/requests/**");
+  const create = page.getByRole("button", { name: "Create Request", exact: true });
+  if (reviewers.length) {
+    await page.getByRole("button", { name: "Edit Request", exact: true }).click();
+    await page.getByRole("button", { name: "Reviewers", exact: true }).click();
+    const picker = page.getByRole("dialog", { name: "Reviewers", exact: true });
+    await expect(picker).toContainText("Add people who should look at this before work starts. Optional.");
+    for (const name of reviewers)
+      await picker.getByRole("option", { name, exact: true }).click();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#intake-reviewers")).toHaveAccessibleName(`Reviewers: ${reviewers.join(", ")}`);
+    await page.getByRole("button", { name: "Review Request", exact: true }).click();
+    await expect(create).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByLabel(`Reviewers: ${reviewers.join(", ")}`)).toBeVisible();
+  }
+  await create.click();
+  await page.waitForURL("**/requests/**", { timeout: 45_000 });
   return {
     id: new URL(page.url()).pathname.split("/").at(-1)!,
     orgId: team.orgId,

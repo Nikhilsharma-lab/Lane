@@ -63,6 +63,7 @@ import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUn
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
+import { RequestReviewersPicker, reviewerSummary, type ReviewerChoice } from "@/components/requests/request-reviewers-picker";
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
 import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
@@ -261,6 +262,7 @@ export default function RequestEditor({
   onCancelCheckChange,
   initialProjectId = null,
   editing,
+  canAddReviewers = false,
 }: {
   context: { orgId: string };
   draftOwnerId: string;
@@ -272,6 +274,8 @@ export default function RequestEditor({
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
   initialProjectId?: string | null;
   editing?: { request: RequestDetail; onSaved: () => void };
+  /** #78: non-guests can ask people to review while creating. Not offered when editing. */
+  canAddReviewers?: boolean;
 }) {
   const router = useRouter();
   const optimistic = useOptimisticAction();
@@ -298,6 +302,9 @@ export default function RequestEditor({
   const [draftReady, setDraftReady] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
+  const [reviewers, setReviewers] = useState<ReviewerChoice[]>([]);
+  const [reviewersError, setReviewersError] = useState<string | null>(null);
+  const offerReviewers = canAddReviewers && !editing;
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   // The saved row, handed to the composer so the list shows it at once.
   const createdRow = useRef<OverviewRequest | null>(null);
@@ -724,7 +731,7 @@ export default function RequestEditor({
       }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
-          if (result.error.field === "editedProblemText") {
+          if (result.error.field === "editedProblemText" || result.error.field === "reviewers") {
             setFailure(result.error);
           } else {
             setError(result.error.field, {
@@ -1037,11 +1044,14 @@ export default function RequestEditor({
           return outcome.status === "success" ? { success: true, requestId: editing.request.id }
             : { success: false, error: { code: "save_failed", message: outcome.status === "error" ? outcome.error : "This Request has a pending change. Try again." } };
         })()
-        : await saveRequest(payload, context).then(async (first) => {
-        if (first.success || first.error.code !== "session_expired") return first;
-        await refreshClerkToken().catch(() => undefined);
-        return saveRequest(payload, context);
-      });
+        : await (async () => {
+          // #78: the picks travel beside the signed review and are checked on their own.
+          const nominees = offerReviewers ? reviewers.map((person) => person.nominee) : [];
+          const first = await saveRequest(payload, context, nominees);
+          if (first.success || first.error.code !== "session_expired") return first;
+          await refreshClerkToken().catch(() => undefined);
+          return saveRequest(payload, context, nominees);
+        })();
 
       if (!result.success) {
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
@@ -1050,6 +1060,14 @@ export default function RequestEditor({
           focusAfterCompose.current = "none";
           setStage("compose");
           const focusTimeout = window.setTimeout(() => focusRequestField(field), 0);
+          return () => window.clearTimeout(focusTimeout);
+        }
+        if (result.error.field === "reviewers") {
+          // Nothing was created: back to the compose step, where the picker shows why.
+          setReviewersError(result.error.message);
+          focusAfterCompose.current = "none";
+          setStage("compose");
+          const focusTimeout = window.setTimeout(() => document.getElementById("intake-reviewers")?.focus(), 0);
           return () => window.clearTimeout(focusTimeout);
         }
         if (
@@ -1402,6 +1420,8 @@ export default function RequestEditor({
                 setValue("requestType", value, { shouldDirty: true, shouldValidate: true });
               }} disabled={checking || projectBusy} />
               <RequestPriorityPicker value={currentValues.priority ?? "none"} onChange={value => { draftEdited.current = true; setValue("priority", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking || projectBusy} />
+              {offerReviewers && <RequestReviewersPicker orgId={context.orgId} value={reviewers} excludeUserId={draftOwnerId} disabled={checking}
+                error={reviewersError ?? undefined} onChange={(next) => { draftEdited.current = true; setReviewers(next); setReviewersError(null); }} />}
               <Popover open={linkOpen && !checking} onOpenChange={setLinkOpen}>
                 <PopoverTrigger asChild>
                   <Button type="button" variant="secondary" size="sm" disabled={checking} aria-invalid={Boolean(errors.usefulLink) || undefined}>
@@ -1436,6 +1456,7 @@ export default function RequestEditor({
             </div>
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
+            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive-foreground">{reviewersError}</p>}
             {currentValues.expectedImpact && <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
@@ -1530,6 +1551,11 @@ export default function RequestEditor({
                   null,
                   source.priority && source.priority !== "none" ? REQUEST_PRIORITY_LABELS[source.priority] : null,
                 ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
+              </p>
+            )}
+            {offerReviewers && reviewers.length > 0 && (
+              <p className="text-sm text-muted-foreground" aria-label={`Reviewers: ${reviewers.map((person) => person.name).join(", ")}`}>
+                Reviewers: <span title={reviewers.map((person) => person.name).join(", ")}>{reviewers.length > 3 ? reviewerSummary(reviewers) : reviewers.map((person) => person.name).join(", ")}</span>
               </p>
             )}
           </div>

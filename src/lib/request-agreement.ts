@@ -50,6 +50,8 @@ export const agreementContextSchema = z
   .strict();
 export type AgreementContext = z.infer<typeof agreementContextSchema>;
 export const reviewerNomineesSchema = z.array(nomineeSchema).max(MAX_REVIEWERS);
+/** Reviewers picked while creating a Request. The cap of twenty is enforced with its own message by the shared add rules; this bound only refuses an absurd payload. */
+export const createReviewersSchema = z.array(nomineeSchema).max(100).optional();
 export const addReviewersSchema = z
   .object({
     nominees: reviewerNomineesSchema.min(1),

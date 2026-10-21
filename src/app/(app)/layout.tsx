@@ -42,7 +42,7 @@ export default async function AppLayout({
       <PickupConfirmationProvider>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId}>
-        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId}>
+        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
           <Sidebar
             workspaceName={result.workspaceName}
             fullName={result.fullName}

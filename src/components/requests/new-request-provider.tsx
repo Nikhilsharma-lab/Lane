@@ -59,10 +59,12 @@ const intakeLauncher = () => document.querySelector<HTMLElement>("[data-intake-l
 const LAUNCHER = "intake-launcher";
 
 /** Lives with the authenticated workspace, so closing a composer does not discard File objects. */
-export function NewRequestProvider({ children, context, draftOwnerId }: {
+export function NewRequestProvider({ children, context, draftOwnerId, canAddReviewers = false }: {
   children: ReactNode;
   context: { orgId: string };
   draftOwnerId: string;
+  /** #78: guests create Requests but can't ask for reviews. */
+  canAddReviewers?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToastStack();
@@ -224,7 +226,7 @@ export function NewRequestProvider({ children, context, draftOwnerId }: {
       {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {

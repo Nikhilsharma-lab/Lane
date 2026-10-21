@@ -1,24 +1,40 @@
 # Shared Claude / Codex handoff
 
-## October 21 — #75 reviewers replace the PM/Designer/Developer agreement (branch `lifecycle-simplify`)
+## October 21 — #74 optional reviewers built: #75–#78 (branch `lifecycle-simplify`)
 
-Implemented [#75](https://github.com/Nikhilsharma-lab/Lane/issues/75) (parent #74). `0031` (still unapplied
-anywhere) stores an ordered reviewer list; filled seats convert (agree → Looks good, request changes → concern,
-withdraw → unanswered), the requester's own seat and empty seats are dropped. Reviewer actions in
-`agreement-actions.ts`: `addReviewers` (any non-guest member; not guests, self or the requester; invitations
-admin-only; hidden cap 20), `removeReviewer` (requester or admin), `answerReview` (named reviewer only; concern needs
-a reason; an invitee once accepted and verified), `readReviews` (profile role, departed reviewers greyed out),
-`loadReviewerPeople`. Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement
-(earliest exposure = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator. The
-Reviewers panel replaces the three-seat picker, "N of 3 agreed" and "Waiting for agreement". The agreement stories
-were deleted (no Storybook stories). Seat-to-reviewer conversion is checked from `src/test/agreement-seat-fixtures.sql`.
+Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `lifecycle-simplify`. Migration
+`0031_simple_request_agreement.sql` holds all of it and is still unapplied anywhere (staging stops at 0030);
+applying it is a separate approved step with a backup and dry run.
 
-Verified locally: typecheck; full unit suite; lint on changed files (repo-wide lint only fails inside the ignored
-`.claude/worktrees`); CI-env build; bundle check (`/requests/[id]` −5.7 KB); design check. E2E specs updated,
-not run (hosted only). Left for #76–#78: notifications, review question UI, pickup confirmation, list marker,
-reviewers at creation, full e2e. The earlier start had put #76/#77 pieces into 0031 (edit-reset trigger, review
-notification types, `notifications.detail`, `request_review_state`); they were removed, so an edit does not yet
-reset answers. Each issue adds its own part to 0031 while it is still unapplied.
+- **#75 reviewers replace the PM/Designer/Developer agreement.** `0031` stores an ordered reviewer list; filled
+  seats convert (agree → Looks good, request changes → concern, withdraw → unanswered), the requester's own seat
+  and empty seats are dropped; the database validates the list. Actions in `agreement-actions.ts`: `addReviewers`
+  (any non-guest member; not guests, self or the requester; invitations admin-only; hidden cap 20),
+  `removeReviewer` (requester or admin), `answerReview` (named reviewer only; concern needs a reason; an invitee
+  once accepted and verified), `readReviews` (profile role, departed reviewers greyed out), `loadReviewerPeople`.
+  Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement (earliest exposure
+  = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator. The Reviewers panel
+  replaces the three-seat picker. Seat conversion is checked from `src/test/agreement-seat-fixtures.sql`.
+- **#76 edits reset reviews; notifications; optional question.** A `0031` trigger resets every answer when the
+  content of an Open Request changes (not priority), bumps the revision and notifies reviewers who had answered
+  (`review_reset`); edit actions set `lane.actor_id` so the editor is named. Adding notifies each reviewer
+  (`review_requested`, with the optional question in `notifications.detail`); answers notify whoever added the
+  reviewer (`review_looks_good` / `review_concern` with the reason). No self-notifications; bell only.
+- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gives list and detail loaders
+  the open concerns and unanswered count. One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
+  the detail button, status control, row menu and bulk bar (one combined dialog). "N concern(s)" marker in the list.
+- **#78 reviewers while creating.** A Reviewers property sits beside Project / Labels / Priority on the compose
+  step (`request-reviewers-picker.tsx`, subtext "Add people who should look at this before work starts.
+  Optional."), hidden for guests and when editing; the picks are read back on Review Request. `saveRequest` takes
+  them as a third argument, outside the signed triage token, and checks them with the same rules as adding from
+  detail (shared `appendReviewers` / `notifyReviewers` in `src/lib/request-reviewers.ts`). Reviewers and their
+  notifications are written in the same transaction as the Request; an invalid reviewer creates nothing and
+  sends the composer back to the picker. Picks are not kept in the intake draft, so a reload drops them.
+
+Verified locally: typecheck, lint and the vitest suite. Server-action tests: `agreement-actions.test.ts` and
+`src/app/(app)/intake/create-reviewers-actions.test.ts`. The hosted Playwright spec `e2e/request-agreement.spec.ts`
+now covers create with a reviewer → concern → pickup confirmation → pick up anyway → read-only list; it has not
+been run (needs hosted credentials). No Storybook stories.
 
 ## October 21 — agreement simplified (branch `lifecycle-simplify`, migration 0031)
 
