@@ -416,7 +416,7 @@ psql -X -c "SELECT pg_size_pretty(pg_database_size(current_database())) AS db_si
 psql -X -c "SELECT count(*) AS attachments, pg_size_pretty(coalesce(sum(size_bytes),0)) AS bytes FROM public.request_attachments;" "$LANE_PROD_SESSION_URL"
 ```
 
-Retention default (Nikhil to confirm, it also sets the backup line on the Privacy page; see `docs/operations/account-deletion.md`): keep the last four weekly dumps and delete older ones; delete each pre-migration dump 30 days after that migration is verified. The pre-cutover dumps hold test data only.
+Retention approved by Nikhil on 2026-10-20: expire ordinary and pre-migration backups containing personal data within 28 days; do not retain a copy beyond 28 days after live-data deletion. Nikhil owns the manual archive inventory and deletion of local and off-machine copies, with completion recorded. Reapply completed deletion requests before reopening a restored database. See `docs/operations/account-deletion.md`. The pre-cutover dumps hold test data only.
 
 ---
 
