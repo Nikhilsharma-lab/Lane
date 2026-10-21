@@ -97,9 +97,15 @@ type Story = StoryObj<typeof meta>
 /** The preview is for a fine pointer with room beside the list; at phone widths the list keeps full-page navigation. */
 const previewAvailable = () => window.matchMedia(PREVIEW_QUERY).matches
 const preview = (canvasElement: HTMLElement) => within(canvasElement).queryByRole("region", { name: "Request preview" })
+/** The open preview once its entrance has settled: under reduced motion it fades in, and a fading panel is not yet visible. */
+async function settledPreview(canvasElement: HTMLElement) {
+  const panel = await within(canvasElement).findByRole("region", { name: "Request preview" })
+  await waitFor(() => expect(getComputedStyle(panel).opacity).toBe("1"))
+  return panel
+}
 /** The previewed Request's title: the panel's h2 (the page keeps its h1). */
 async function previewTitle(canvasElement: HTMLElement) {
-  const panel = await within(canvasElement).findByRole("region", { name: "Request preview" })
+  const panel = await settledPreview(canvasElement)
   return waitFor(() => {
     const title = panel.querySelector<HTMLElement>("h2#request-title")
     if (!title) throw new Error("The preview has not loaded its Request yet")
@@ -329,7 +335,7 @@ export const Unavailable: Story = {
     if (!previewAvailable()) return expectPhoneFallback(canvasElement)
     requestRow(canvasElement, idOf(0)).focus()
     await userEvent.keyboard(" ")
-    const panel = await within(canvasElement).findByRole("region", { name: "Request preview" })
+    const panel = await settledPreview(canvasElement)
     await expect(await within(panel).findByText("This Request can’t be opened")).toBeVisible()
     await expect(within(panel).queryByRole("button", { name: "Pick up" })).not.toBeInTheDocument()
   },
