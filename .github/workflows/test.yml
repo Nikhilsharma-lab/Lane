@@ -37,6 +37,46 @@ jobs:
 
       - run: pnpm design:check
 
+  # Plan §2.4 item 6 and the Phase 1b exit: no route's first-load client JS
+  # grows more than 2 KB gzip over docs/design-system/bundle-baseline.json.
+  # A PR that has to grow past it updates the baseline in the same PR, with a
+  # written waiver (scripts/bundle-baseline.mjs --update).
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Placeholders only: the build needs the names to exist, never real values.
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+      CLERK_SECRET_KEY: placeholder
+      CLERK_JWT_KEY: placeholder
+      KV_REST_API_URL: http://127.0.0.1:1
+      KV_REST_API_TOKEN: placeholder
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:1
+      SUPABASE_SECRET_KEY: placeholder
+      DATABASE_URL: postgresql://x:y@127.0.0.1:1/none
+      DATABASE_SSL_CA: placeholder
+      ANTHROPIC_API_KEY: placeholder
+      TRIAGE_TOKEN_SECRET: placeholder
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm bundle:check
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
