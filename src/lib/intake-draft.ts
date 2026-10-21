@@ -2,6 +2,7 @@ import { labelKeysSchema } from "./request-labels";
 import { z } from "zod";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
+import { MAX_REVIEWERS, nomineeSchema, REVIEW_NOTE_MAX } from "./request-agreement";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -79,6 +80,18 @@ const triageDraftSchema = z
     }
   });
 
+/** Reviewers picked on the compose step and the question they are sent. The server checks every rule again on create. */
+const reviewersDraftSchema = z.object({
+  people: z.array(z.object({
+    nominee: nomineeSchema,
+    name: z.string().max(320),
+    email: z.string().max(320),
+    role: z.string().max(100).optional(),
+  })).max(MAX_REVIEWERS),
+  question: z.string().max(REVIEW_NOTE_MAX),
+});
+export type ReviewersDraft = z.infer<typeof reviewersDraftSchema>;
+
 const intakeDraftSchema = z.object({
   version: z.literal(INTAKE_DRAFT_VERSION),
   savedAt: z.number().int().nonnegative(),
@@ -95,6 +108,8 @@ const intakeDraftSchema = z.object({
       editedProblem: z.string().max(DESCRIPTION_MAX),
     })
     .nullable(),
+  // Older drafts have none; unreadable picks are dropped without losing the text.
+  reviewers: reviewersDraftSchema.optional().catch(undefined),
 });
 
 export type IntakeDraft = {
@@ -108,6 +123,7 @@ export type IntakeDraft = {
     token: string;
     editedProblem: string;
   } | null;
+  reviewers?: ReviewersDraft;
 };
 
 export function readIntakeDraft(
@@ -165,7 +181,9 @@ export function writeIntakeDraft(
     draft.source.desiredChange.trim().length > 0 ||
     draft.source.observedEvidence.trim().length > 0 ||
     draft.source.uncertainty.trim().length > 0 ||
-    draft.source.usefulLink.trim().length > 0;
+    draft.source.usefulLink.trim().length > 0 ||
+    (draft.reviewers?.people.length ?? 0) > 0 ||
+    Boolean(draft.reviewers?.question.trim());
 
   try {
     if (!hasSource && draft.review === null) {

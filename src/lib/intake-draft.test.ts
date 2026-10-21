@@ -199,10 +199,38 @@ describe("Intake draft recovery", () => {
     expect(readIntakeDraft(storage, SCOPE, NOW)?.source).toMatchObject(properties);
   });
 
+  it("keeps reviewer picks and their question like the other properties, even as the only change", () => {
+    const storage = memoryStorage();
+    const reviewers = {
+      people: [
+        { nominee: { kind: "member" as const, userId: "user_sam" }, name: "Sam Lee", email: "sam@example.test", role: "org:member" },
+        { nominee: { kind: "invitation" as const, invitationId: "inv_1", email: "new@example.test" }, name: "new@example.test", email: "new@example.test" },
+      ],
+      question: "Can we build this with the current API?",
+    };
+    writeIntakeDraft(storage, SCOPE, { source: source("", ""), review: null, reviewers }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.reviewers).toEqual(reviewers);
+    // A question alone is work too.
+    writeIntakeDraft(storage, SCOPE, { source: source("", ""), review: null, reviewers: { people: [], question: "Ready?" } }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.reviewers).toEqual({ people: [], question: "Ready?" });
+    // No picks and no question is not.
+    writeIntakeDraft(storage, SCOPE, { source: source("", ""), review: null, reviewers: { people: [], question: " " } }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)).toBeNull();
+  });
+
+  it("drops unreadable reviewer picks but keeps the rest of the draft", () => {
+    const storage = memoryStorage();
+    storage.setItem(intakeDraftStorageKey(SCOPE), JSON.stringify({ version: 2, savedAt: NOW, source: source("Kept", "Still here"), review: null, reviewers: { people: [{ nominee: { kind: "member" } }], question: "" } }));
+    const draft = readIntakeDraft(storage, SCOPE, NOW);
+    expect(draft?.source).toMatchObject({ title: "Kept" });
+    expect(draft?.reviewers).toBeUndefined();
+  });
+
   it("restores old drafts with unset properties", () => {
     const storage = memoryStorage();
     storage.setItem(intakeDraftStorageKey(SCOPE), JSON.stringify({ version: 2, savedAt: NOW, source: source("Old request", "Existing draft"), review: null }));
     expect(readIntakeDraft(storage, SCOPE, NOW)).toMatchObject({ source: { projectId: null, requestType: null, expectedImpact: null }, previousProblem: "" });
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.reviewers).toBeUndefined();
   });
 
   it("restores a confirmed review with its signed token and edited framing", () => {

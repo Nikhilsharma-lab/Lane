@@ -458,6 +458,8 @@ export default function RequestEditor({
       } else if (draft) {
         reset(draft.source);
         setSource(draft.source);
+        setReviewers(draft.reviewers?.people ?? []);
+        setReviewQuestion(draft.reviewers?.question ?? "");
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
@@ -501,6 +503,8 @@ export default function RequestEditor({
     setValue("projectId", initialProjectId);
   }, [active, attachments.length, currentValues.projectId, draftReady, initialProjectId, projects.projects, restoredDraft, setValue, stage]);
 
+  // #78: reviewer picks and their question are restored with the draft, like Project, Labels and Priority.
+  const reviewersDraft = offerReviewers ? { people: reviewers, question: reviewQuestion } : undefined;
   const persistDraft = useEffectEvent(() => {
     if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
     const review =
@@ -513,6 +517,7 @@ export default function RequestEditor({
         review,
         previousProblem: editedProblem || previousProblem,
         previousProblemSource,
+        reviewers: reviewersDraft,
       });
     } catch { return false; }
   });
@@ -529,6 +534,8 @@ export default function RequestEditor({
     triage,
     previousProblem,
     previousProblemSource,
+    reviewers,
+    reviewQuestion,
   ]);
   // Every value change, keystrokes included, without a render of the form.
   useEffect(() => subscribe({ formState: { values: true }, callback: () => { persistDraft(); } }), [subscribe]);
@@ -1256,6 +1263,7 @@ export default function RequestEditor({
       review,
       previousProblem: editedProblem || previousProblem,
       previousProblemSource,
+      reviewers: reviewersDraft,
     });
   }
 
