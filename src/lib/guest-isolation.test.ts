@@ -1,3 +1,4 @@
+import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
 /**
  * Guest isolation forge proof.
  *
@@ -18,6 +19,7 @@ vi.mock("next/cache", () => ({
 let mockSession = { userId: "", orgId: "", orgRole: "" };
 
 vi.mock("@clerk/nextjs/server", () => ({
+  clerkClient: async () => fixtureClerkClient(WORKSPACE_A, [USER_A_OWNER]),
   auth: vi.fn(async () => mockSession),
 }));
 
@@ -68,9 +70,11 @@ beforeAll(async () => {
     status: "open",
     createdBy: USER_A_OWNER,
   }).onConflictDoNothing();
+  await seedAgreedRequests(WORKSPACE_A);
 });
 
 afterAll(async () => {
+  await removeAgreementFixtures(WORKSPACE_A);
   await db.delete(requests).where(eq(requests.id, GUEST_OWN_REQ));
   await db.delete(requests).where(eq(requests.id, CONTROL_REQ));
   await db.delete(profiles).where(eq(profiles.id, GUEST_USER));

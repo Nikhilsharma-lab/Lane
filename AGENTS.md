@@ -37,6 +37,10 @@ design stages are DEFERRED, not built now.
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Arc UI (shadcn CLI is registry transport only) · Clerk (users, sessions, organizations, memberships, roles, invitations) · Supabase (Postgres + private attachment storage only; production + free Lane Staging project; migrations run on staging first) · Drizzle ORM · Vercel (Hobby; separate production + staging projects) · Anthropic via Vercel AI SDK (intake gate uses `claude-haiku-4-5`, see `src/lib/ai/triage.ts`).
 
+## Agent skills
+
+For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. For domain exploration, read `docs/agents/domain.md`.
+
 ## Working rules (the part that actually matters)
 
 - **Pace to comprehension, not output.** v1 was 873 commits in two months — ~13/day. That pace is how the mess happened. If Nikhil can't explain in plain English what shipped, it shipped too fast.

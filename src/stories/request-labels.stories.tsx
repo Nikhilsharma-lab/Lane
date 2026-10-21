@@ -69,14 +69,15 @@ export const PrefixMatchingAndStableCount:Story={play:async({canvasElement})=>{
  const input=page.getByRole("textbox",{name:"Search labels"});
  await userEvent.type(input,"i");
  await expect(page.getAllByRole("checkbox")).toHaveLength(1);
- await expect(page.getByRole("checkbox",{name:"Improvement"})).toBeVisible();
+ // The popover fades in from opacity 0 (@starting-style), so visibility is awaited, not read on the first frame.
+ await waitFor(()=>expect(page.getByRole("checkbox",{name:"Improvement"})).toBeVisible());
  await userEvent.type(input,"m");
  await expect(page.getAllByRole("checkbox")).toHaveLength(1);
  await expect(page.queryByRole("button",{name:/Create.*label/})).not.toBeInTheDocument();
  await userEvent.clear(input);
  await userEvent.type(input,"provement");
  await expect(page.queryByRole("checkbox")).not.toBeInTheDocument();
- await expect(page.getByRole("button",{name:/Create new label:/})).toBeVisible();
+ await waitFor(()=>expect(page.getByRole("button",{name:/Create new label:/})).toBeVisible());
  await userEvent.clear(input);
  await userEvent.click(page.getByRole("checkbox",{name:"Improvement"}));
  const trigger=canvas.getByRole("button",{name:"Labels: Bug, Improvement"});

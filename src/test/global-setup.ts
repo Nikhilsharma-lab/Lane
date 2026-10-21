@@ -104,6 +104,11 @@ export async function setup() {
   sql(["-f", path.resolve(__dirname, "../db/migrations/0026_guardrail_thresholds.sql")]);
   sql(["-f", path.resolve(__dirname, "../db/migrations/0027_measurement_value_units.sql")]);
   sql(["-f", FIXTURES_PATH]);
+  sql(["-f", path.resolve(__dirname, "agreement-migration-fixtures.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0028_request_agreements.sql")]);
+
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0029_request_release.sql")]);
+  sql(["-f", path.resolve(__dirname, "../db/migrations/0030_request_outcome_closure.sql")]);
 
   console.log(
     `[test-setup] ${DB_NAME} reset from canonical local prerequisites + Clerk cutover/safeguards + Projects/expected impact/Request codes/design reviews/priority migrations + test fixtures (not a hosted restore)`
