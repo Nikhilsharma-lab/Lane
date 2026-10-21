@@ -254,3 +254,7 @@ product approval and sequencing rules above:
   remain hypotheses; a competitor reference never supplies build authority.
 - **The refusals hold.** When a customer asks for sprints or a velocity chart, the answer is a considered no,
   and the reason is the entire reason Lane exists. The roadmap's refusals are load-bearing.
+
+### October 21 — #59 release and measurement increment
+
+Approved for local implementation after #58: creator/current-owner release, UTC measurement deadlines, attributed correction/void history and explicit admin responsibility transfer. Done priority is hidden, never erased. Migration 0029 follows 0028 through verified backups and staging acceptance before any hosted promotion. Actual-impact closure remains #60. Contract: `docs/superpowers/plans/2026-10-21-release-measurement.md`.

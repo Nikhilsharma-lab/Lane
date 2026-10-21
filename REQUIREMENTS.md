@@ -19,6 +19,7 @@
 > **2026-10-21 #58 approval:** Named agreement and its persistence contract are approved for local
 > implementation/testing. Migration `0028` is prepared; hosted backup, staging acceptance and promotion
 > are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
+> **2026-10-21 #59 approval:** Release/measurement implementation is authorized locally, with UTC date boundaries, owner-only attributed correction/void recovery, and admin transfer when the current owner loses eligible access. Relative deadlines use actual exposure; fixed dates stay fixed. See `docs/superpowers/plans/2026-10-21-release-measurement.md`. Hosted migration/acceptance and #60 closure remain separate.
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.

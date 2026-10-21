@@ -1,7 +1,7 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { Nominee } from "./request-agreement";
-export type AgreementPerson = { nominee: Nominee; name: string; email: string };
+export type AgreementPerson = { nominee: Nominee; name: string; email: string; role?: string };
 /** Fresh provider data, never a Lane membership registry. */
 export async function agreementRoster(
   orgId: string,
@@ -23,6 +23,7 @@ export async function agreementRoster(
       )
         people.push({
           nominee: { kind: "member", userId: u.userId },
+          role: m.role,
           email: (u.identifier ?? "").toLowerCase(),
           name:
             [u.firstName, u.lastName].filter(Boolean).join(" ") ||

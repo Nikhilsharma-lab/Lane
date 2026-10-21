@@ -1,5 +1,30 @@
 # Shared Claude / Codex handoff
 
+## October 21 — #59 release and measurement implemented locally
+
+Implemented [#59](https://github.com/Nikhilsharma-lab/Lane/issues/59) per the approved
+[contract](superpowers/plans/2026-10-21-release-measurement.md), resuming Codex work that stopped before
+verification. The creator/current owner records a past or present UTC exposure date, the agreed audience and
+evidence after Done with a valid agreement. Relative deadlines start from exposure; fixed dates stay fixed.
+Due today on the due date, then N days overdue. Nothing auto-closes, no cron. Owner-only reasoned corrections and
+voids append to immutable history; corrections reuse the frozen agreement snapshot, so a departed participant
+cannot block them. A Clerk admin may transfer ownership only when the owner has lost access; authorship is kept.
+History and owner names come from saved profiles, so departed owners and guests see names, not IDs.
+Release freezes agreement, superseding and Done undo. Done priority is hidden in rows, row menus and detail, never erased.
+
+Migration `0029_request_release.sql` adds nullable `requests.release_state` (no new table). Local lane_test only.
+
+Local verification: 1,214 application tests passed (1 existing skip); release actions 14 passed; typecheck,
+lint on changed files, design checks and production build passed. Full Storybook: 596+ passed; the 3 remaining
+failures (detail Default/In Progress 33px row, Copy And Search In Workspace) are the persistent ones recorded for #58
+on baseline. Four Mark Done story failures caused by the Done state line dropping priority were fixed.
+
+**Not done:** `e2e/request-release.spec.ts` (hosted three-member acceptance, light/dark, 1440/390, transfer)
+is authored but not run. Before hosted 0029: verified backup, staging 0028 then 0029, run the e2e there.
+**Open for Nikhil:** a fixed window is due at 00:00 UTC on its end date, i.e. before that last day finishes;
+confirm or move to end date + 1. Exposure dates have no lower bound (legacy work may predate agreement).
+No push, hosted migration or deployment.
+
 ## October 21 — #58 agreement implemented locally
 
 Implemented the approved persistence contract for [#58](https://github.com/Nikhilsharma-lab/Lane/issues/58):

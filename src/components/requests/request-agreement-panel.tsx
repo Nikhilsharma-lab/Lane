@@ -91,12 +91,14 @@ export function RequestAgreementPanel({
   userId,
   isAdmin,
   isGuest,
+  revision,
 }: {
   requestId: string;
   orgId: string;
   userId: string;
   isAdmin: boolean;
   isGuest: boolean;
+  revision?: number;
 }) {
   const router = useRouter();
   const runAction = useOptimisticAction();
@@ -211,7 +213,7 @@ export function RequestAgreementPanel({
     return () => {
       active = false;
     };
-  }, [applyView, requestId, orgId, isGuest]);
+  }, [applyView, requestId, orgId, isGuest, revision]);
   useEffect(() => {
     if (restored.current && !view?.agreement?.snapshot)
       try {
@@ -330,7 +332,7 @@ export function RequestAgreementPanel({
   const agreement = view.agreement;
   const submitted = Boolean(agreement?.snapshot);
   const creator = view.creatorId === userId && !isGuest;
-  const mutable = !view.closure;
+  const mutable = !view.closure && !view.released;
   const unsavedPreparation =
     !agreement ||
     fields.some(([f]) => prepared[f] !== agreement.prepared[f]) ||

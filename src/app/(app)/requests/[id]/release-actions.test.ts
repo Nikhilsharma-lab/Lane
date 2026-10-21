@@ -1,0 +1,257 @@
+import { randomUUID } from 'node:crypto';
+import postgres from 'postgres';
+import { afterAll, beforeAll, afterEach, expect, it, vi } from 'vitest';
+const session = vi.hoisted(() => ({ userId: 'release_owner', orgId: 'org_release', orgRole: 'org:member' }));
+const roster = vi.hoisted(() => ({ ids: ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next'] }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+vi.mock('@clerk/nextjs/server', () => ({
+    auth: async () => ({ ...session }),
+    clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: roster.ids.length, data: roster.ids.map(userId => ({ organization: { id: 'org_release' }, role: userId === 'release_admin' ? 'org:admin' : 'org:member', publicUserData: { userId, identifier: userId + '@example.test' } })) }) } }),
+}));
+const connection = postgres(process.env.DATABASE_URL!, { max: 6, prepare: false });
+const orgId = 'org_release';
+beforeAll(async () => {
+    await connection `insert into organizations(id,name,slug) values (${orgId},'Release tests','release-tests')`;
+    for (const id of roster.ids)
+        await connection `insert into profiles(id,full_name,email) values (${id},${id},${id + '@example.test'})`;
+});
+afterAll(() => connection.end());
+afterEach(() => { vi.useRealTimers(); session.userId = 'release_owner'; session.orgId = orgId; session.orgRole = 'org:member'; roster.ids = ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next']; });
+const context = (requestId: string, expectedRevision = 0) => ({ orgId, requestId, expectedRevision, operationId: randomUUID() });
+const release = { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full audience rollout confirmed in release log', audienceConfirmed: true };
+async function fixture(fixed = false) {
+    const [row] = await connection `insert into requests(org_id,title,description,created_by,status,priority) values (${orgId},'Checkout problem','Unable to pay','release_owner','done','high') returning *`;
+    const prepared = { version: 1, scopeIncluded: 'Checkout', scopeExcluded: 'Pricing', audience: 'All shoppers', timing: 'October', constraints: 'Existing API', feasibility: 'Verified', commitmentKind: 'delivery' };
+    const impact = { kind: 'measurement', version: 2, primary: { key: 'conversion', name: '', unit: 'percent', current: 50, target: 80, noBaseline: false, check: '' }, measurement: { audience: 'all', platform: 'all', windowDays: 7, exactDates: fixed, startDate: fixed ? '2026-10-01' : '', endDate: fixed ? '2026-10-15' : '' }, guardrails: [] };
+    const seats = Object.fromEntries(['pm', 'designer', 'developer'].map(seat => [seat, { generation: 1, nominee: { kind: 'member', userId: 'release_' + seat }, displayNameAtSelection: seat, decision: { kind: 'agree', actorId: 'release_' + seat, at: '2026-10-20T00:00:00.000Z', reason: '' } }]));
+    await connection `insert into request_agreements(request_id,org_id,prepared,snapshot,seats,submitted_by,submitted_at) values (${row.id},${orgId},${connection.json(prepared)},${connection.json({ version: 1, request: { expectedImpact: impact }, prepared, attachmentIds: [] })},${connection.json(seats)},'release_owner',now())`;
+    return row.id as string;
+}
+it('records past exposure once and derives UTC measurement deadline from exposure rather than recording time', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const ctx = context(id);
+    const saved = await api.changeRequestRelease(ctx, release);
+    expect(saved).toEqual({ success: true, revision: 1 });
+    expect(await api.changeRequestRelease(ctx, release)).toEqual(saved);
+    const view = await api.readRequestRelease(id, { orgId });
+    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All shoppers', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: '3 days remaining', due: false }, ownerId: 'release_owner' });
+    const [row] = await connection `select status,priority,release_state from requests where id=${id}`;
+    expect(row.status).toBe('done');
+    expect(row.priority).toBe('high');
+    expect(row.release_state.history).toHaveLength(1);
+});
+it('uses the exact UTC deadline boundary and never auto-closes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T23:59:59.999Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    await api.changeRequestRelease(context(id), release);
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: false, label: '1 day remaining' } });
+    vi.setSystemTime(new Date('2026-10-28T00:00:00Z'));
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: true, label: 'Due today' } });
+    vi.setSystemTime(new Date('2026-10-29T00:00:00Z'));
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: true, label: '1 day overdue' } });
+    const [row] = await connection `select status,exception_closure from requests where id=${id}`;
+    expect(row).toMatchObject({ status: 'done', exception_closure: null });
+});
+it('keeps fixed dates unchanged after late release and reasoned correction; void retains every fact', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-30T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture(true);
+    expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('success', true);
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-22', reason: 'Release log had the wrong date' })).toHaveProperty('success', true);
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { startDate: '2026-10-01', dueDate: '2026-10-15', windowKind: 'fixed' } });
+    expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
+    const view = await api.readRequestRelease(id, { orgId });
+    expect(view).toMatchObject({ release: null, measurement: null });
+    if ('error' in view)
+        throw Error(view.error);
+    expect(view.history).toHaveLength(3);
+    expect(view.history[0].release?.exposureDate).toBe('2026-10-21');
+    await expect(connection `update requests set release_state=null where id=${id}`).rejects.toThrow(/immutable/);
+});
+it('corrects relative exposure, requires reasons and explicit agreed-audience confirmation, and rejects future/invalid dates', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    for (const invalid of [{ ...release, audienceConfirmed: false }, { ...release, exposureDate: '2026-02-30' }, { ...release, exposureDate: '2026-10-26' }, { ...release, evidence: '' }, { ...release, actorId: 'release_admin' }])
+        expect(await api.changeRequestRelease(context(id), invalid)).toHaveProperty('error');
+    await api.changeRequestRelease(context(id), release);
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', reason: '' })).toHaveProperty('error');
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { dueDate: '2026-10-27' } });
+});
+it('blocks legacy records without agreement, wrong lifecycle, guests, unrelated admins and foreign workspace reads/writes', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    session.userId = 'release_admin';
+    session.orgRole = 'org:admin';
+    expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('error');
+    session.userId = 'release_owner';
+    session.orgRole = 'org:guest';
+    expect(await api.readRequestRelease(id, { orgId })).toHaveProperty('release', null);
+    expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('error');
+    session.userId = 'release_next';
+    expect(await api.readRequestRelease(id, { orgId })).toHaveProperty('error');
+    session.orgRole = 'org:member';
+    session.orgId = 'org_foreign';
+    expect(await api.readRequestRelease(id, { orgId: session.orgId })).toHaveProperty('error');
+    expect(await api.changeRequestRelease({ ...context(id), orgId: session.orgId }, release)).toHaveProperty('error');
+    session.orgId = orgId;
+    session.userId = 'release_owner';
+    await connection `update requests set status='in_progress' where id=${id}`;
+    expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('error');
+    const [legacy] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Legacy','No agreement','release_owner','done') returning id`;
+    expect(await api.changeRequestRelease(context(legacy.id), release)).toHaveProperty('error');
+});
+it('transfers only a departed owner to an active member, retains authorship and permits repeat transfers and lost-response retry', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    session.userId = 'release_admin';
+    session.orgRole = 'org:admin';
+    const transfer = { kind: 'transfer', recipientId: 'release_next', reason: 'Original owner left the workspace' };
+    expect(await api.changeRequestRelease(context(id), transfer)).toHaveProperty('error');
+    roster.ids = roster.ids.filter(id => id !== 'release_owner');
+    expect(await api.changeRequestRelease(context(id), { ...transfer, recipientId: 'unknown' })).toHaveProperty('error');
+    const ctx = context(id);
+    const result = await api.changeRequestRelease(ctx, transfer);
+    expect(result).toEqual({ success: true, revision: 1 });
+    expect(await api.changeRequestRelease(ctx, transfer)).toEqual(result);
+    session.userId = 'release_next';
+    session.orgRole = 'org:member';
+    expect(await api.changeRequestRelease(context(id, 1), release)).toHaveProperty('success', true);
+    const [row] = await connection `select created_by,release_state from requests where id=${id}`;
+    expect(row.created_by).toBe('release_owner');
+    expect(row.release_state.ownerId).toBe('release_next');
+    expect(row.release_state.history[0]).toMatchObject({ actorId: 'release_admin', previousOwnerId: 'release_owner', ownerId: 'release_next' });
+    session.userId = 'release_owner';
+    expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Stale owner', neverExposed: true })).toHaveProperty('error');
+    roster.ids = roster.ids.filter(id => id !== 'release_next');
+    session.userId = 'release_admin';
+    session.orgRole = 'org:admin';
+    expect(await api.changeRequestRelease(context(id, 2), { ...transfer, recipientId: 'release_admin' })).toHaveProperty('success', true);
+});
+it('names a departed owner and every history actor from saved profiles, for guests too', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    await connection `update profiles set full_name='Maya Chen' where id='release_owner'`;
+    await connection `update profiles set full_name='Ana Admin' where id='release_admin'`;
+    try {
+        await api.changeRequestRelease(context(id), release);
+        roster.ids = roster.ids.filter(id => id !== 'release_owner');
+        session.userId = 'release_admin';
+        session.orgRole = 'org:admin';
+        const departed = await api.readRequestRelease(id, { orgId });
+        expect(departed).toMatchObject({ ownerName: 'Maya Chen', names: { release_owner: 'Maya Chen' } });
+        await api.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'release_next', reason: 'Owner left' });
+        session.userId = 'release_owner';
+        session.orgRole = 'org:guest';
+        const guest = await api.readRequestRelease(id, { orgId });
+        expect(guest).toMatchObject({ ownerName: 'release_next', names: { release_owner: 'Maya Chen', release_admin: 'Ana Admin', release_next: 'release_next' } });
+    }
+    finally {
+        await connection `update profiles set full_name=id where id in ('release_owner','release_admin')`;
+    }
+});
+it('lets the owner correct and void a frozen release after an agreement participant departs', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    await api.changeRequestRelease(context(id), release);
+    roster.ids = roster.ids.filter(id => id !== 'release_designer');
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ canCorrect: true });
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All shoppers' } });
+    expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
+});
+it('serializes concurrent duplicate release and rejects reuse of its operation key for different facts', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const ctx = context(id);
+    const results = await Promise.all([api.changeRequestRelease(ctx, release), api.changeRequestRelease(ctx, release)]);
+    expect(results).toEqual([{ success: true, revision: 1 }, { success: true, revision: 1 }]);
+    expect(await api.changeRequestRelease(ctx, { ...release, evidence: 'Different evidence' })).toHaveProperty('error');
+    expect(await api.changeRequestRelease(context(id, 1), release)).toHaveProperty('error');
+});
+it('release locks out withdrawal, participant changes, superseding and Done undo', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    await api.changeRequestRelease(context(id), release);
+    const agreements = await import('./agreement-actions');
+    session.userId = 'release_developer';
+    expect(await agreements.decideAgreement(context(id, 1), { seat: 'developer', generation: 1, kind: 'withdraw', reason: 'Too late' })).toHaveProperty('error');
+    session.userId = 'release_owner';
+    expect(await agreements.createAgreementReplacement(context(id, 1), { reason: 'Cannot erase measurement' })).toHaveProperty('error');
+    expect(await (await import('./actions')).undoMarkDone(id, { orgId })).toHaveProperty('error');
+});
+it('serializes withdrawal against release with exactly one valid result', async () => {
+    const api = await import('./release-actions');
+    const agreements = await import('./agreement-actions');
+    const id = await fixture();
+    // The creator also occupies the developer seat for this race, using the same session for both concurrent calls.
+    await connection `update request_agreements set seats=jsonb_set(jsonb_set(seats,'{developer,nominee,userId}','"release_owner"'),'{developer,decision,actorId}','"release_owner"') where request_id=${id}`;
+    const results = await Promise.all([api.changeRequestRelease(context(id), release), agreements.decideAgreement(context(id), { seat: 'developer', generation: 1, kind: 'withdraw', reason: 'New blocker' })]);
+    expect(results.filter(r => 'success' in r)).toHaveLength(1);
+    const view = await api.readRequestRelease(id, { orgId });
+    if ('error' in view)
+        throw Error(view.error);
+    expect(Boolean(view.release)).toBe('success' in results[0]);
+});
+it('preserves fixed-date additions on legacy metric and verification commitments', async () => {
+    const api = await import('./release-actions');
+    for (const kind of ['metric', 'verification']) {
+        const id = await fixture();
+        const impact = kind === 'metric' ? { kind, metric: 'Checkout', baseline: 50, target: 80, unit: '%', source: 'Analytics', reviewAfterDays: 7 } : { kind, result: 'Keyboard checkout works', source: 'Checklist', reviewAfterDays: 14 };
+        const measurement = { audience: 'all', platform: 'web', exactDates: true, startDate: '2026-10-01', endDate: '2026-10-15' };
+        // Build a legacy snapshot fixture before the action, without weakening runtime snapshot protection.
+        await connection `alter table request_agreements disable trigger protect_agreement_snapshot`;
+        try {
+            await connection `update request_agreements set snapshot=jsonb_set(snapshot,'{request,expectedImpact}',${connection.json({ ...impact, measurement })}) where request_id=${id}`;
+        }
+        finally {
+            await connection `alter table request_agreements enable trigger protect_agreement_snapshot`;
+        }
+        expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('success', true);
+        expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { windowKind: 'fixed', dueDate: '2026-10-15' } });
+    }
+});
+it('a departed owner cannot win a transfer/release race or replay an old release after transfer', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const first = context(id);
+    await api.changeRequestRelease(first, release);
+    roster.ids = roster.ids.filter(id => id !== 'release_owner');
+    // auth() captures the session synchronously, so each call below runs as the user set before it.
+    const staleRelease = api.changeRequestRelease(first, release);
+    const staleCorrection = api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-01', reason: 'Stale tab' });
+    session.userId = 'release_admin';
+    session.orgRole = 'org:admin';
+    const transfer = api.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'release_next', reason: 'Original owner departed' });
+    const results = await Promise.all([staleRelease, staleCorrection, transfer]);
+    expect(results[0]).toHaveProperty('error');
+    expect(results[1]).toHaveProperty('error');
+    expect(results[2]).toEqual({ success: true, revision: 2 });
+    // Even with access restored, the former owner's stale tab has lost authority.
+    roster.ids = [...roster.ids, 'release_owner'];
+    session.userId = 'release_owner';
+    session.orgRole = 'org:member';
+    expect(await api.changeRequestRelease(context(id, 2), { ...release, kind: 'correct', exposureDate: '2026-10-01', reason: 'Stale tab' })).toHaveProperty('error', 'Only the current release and outcome owner can do this.');
+    const view = await api.readRequestRelease(id, { orgId });
+    expect(view).toMatchObject({ ownerId: 'release_next', canCorrect: false, release: { exposureDate: '2026-10-21', dueDate: '2026-10-28' } });
+});
+it('does not restart the Done undo clock and refuses edits to any earlier audit event', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const [before] = await connection `select updated_at from requests where id=${id}`;
+    await api.changeRequestRelease(context(id), release);
+    const [after] = await connection `select updated_at from requests where id=${id}`;
+    expect(after.updated_at).toEqual(before.updated_at);
+    await expect(connection `update requests set release_state=jsonb_set(release_state,'{history,0,input,evidence}','"rewritten"') where id=${id}`).rejects.toThrow(/immutable/);
+    await expect(connection `delete from requests where id=${id}`).rejects.toThrow(/immutable/);
+});

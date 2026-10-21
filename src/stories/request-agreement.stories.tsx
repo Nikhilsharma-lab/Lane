@@ -81,6 +81,7 @@ const request: AgreementSnapshot["request"] = {
   },
 };
 const view = {
+  released: false,
   eligibleSeats: ["pm"] as ("pm" | "designer" | "developer")[],
   invitationStates: { developer: "pending" },
   requestId,

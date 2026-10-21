@@ -256,6 +256,7 @@ export async function readAgreement(
           }
       }
     return {
+      released: Boolean(request.releaseState?.release),
       eligibleSeats,
       invitationStates,
       attachments: [...attachments],

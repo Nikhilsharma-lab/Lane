@@ -326,6 +326,7 @@ export async function undoMarkDone(
       where ${requests.id} = ${requestId}
         and ${requests.orgId} = ${auth.orgId}
         and ${requests.exceptionClosure} is null
+        and (${requests.releaseState} is null or ${requests.releaseState}->'release'='null'::jsonb)
         and ${requests.status} = ${"done"}::request_status
         and ${requests.updatedAt} > ${windowStart.toISOString()}::timestamptz
       returning ${requests.id}, ${requests.status}

@@ -15,6 +15,7 @@ import { sql } from "drizzle-orm";
 import { organizations, profiles } from "./users";
 import { projects } from "./projects";
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
+import type { ReleaseState } from "@/lib/request-release";
 import type { ExceptionClosure } from "@/lib/request-agreement";
 import type { DesignReview } from "@/lib/request-review";
 
@@ -37,6 +38,7 @@ export const requestStatusEnum = pgEnum("request_status", [
 export const requests = pgTable(
   "requests",
   {
+    releaseState: jsonb("release_state").$type<ReleaseState>(),
     agreementRevision: integer("agreement_revision").notNull().default(0),
     exceptionClosure: jsonb("exception_closure").$type<ExceptionClosure>(),
     id: uuid("id").primaryKey().defaultRandom(),
