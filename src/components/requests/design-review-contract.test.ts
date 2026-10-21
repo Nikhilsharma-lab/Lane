@@ -54,8 +54,7 @@ describe("Ask for review contract", () => {
     expect(PANEL).not.toContain("Approved")
   })
 
-  // The retired adapter is covered behaviorally by LegacyEntryIsLinkOnly in
-  // design-review.stories.tsx and the no-storage review-actions tests.
+  // The retired adapter is covered behaviorally by the no-storage review-actions tests.
 
   it("offers a named reviewer a secondary submit and keeps the opened form primary (decision D4)", () => {
     expect(PANEL).toContain('variant={opened ? "primary" : "secondary"}')

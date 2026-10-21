@@ -1,8 +1,7 @@
 /* Supabase tokens through Arc's public hooks. Every Arc foundation token and every Lane hook
  * resolves to a --sb-* value from src/styles/supabase-tokens.css, so no Arc or earlier Lane value
  * paints the product. Each role names the Supabase component it copies. Production applies it
- * through data-visual-system="lane" on <html> in src/app/layout.tsx; Storybook loads the same file
- * from .storybook/preview.tsx. */
+ * through data-visual-system="lane" on <html> in src/app/layout.tsx. */
 :root[data-visual-system="lane"] {
   /* Arc's neutral ramp follows Supabase's scale (slate in light, gray in dark). */
   --neutral-0: var(--sb-color-scale-100);
