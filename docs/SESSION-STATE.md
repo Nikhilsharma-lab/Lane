@@ -1,5 +1,23 @@
 # Shared Claude / Codex handoff
 
+## October 21 — #58 agreement implemented locally
+
+Implemented the approved persistence contract for [#58](https://github.com/Nikhilsharma-lab/Lane/issues/58):
+three explicit named decisions, immutable commitment/history, locked pickup/Done guards, durable concerns,
+participant replacement, corrections and linked creator-confirmed Superseded exceptions. Existing work
+statuses remain unchanged. REQUIREMENTS.md and lane-roadmap.md are reconciled.
+
+Local verification: 1,197 application tests passed (1 existing skip), 7 agreement Storybook tests passed,
+typecheck/lint/design checks and production build passed. Full Storybook: 588 passed, 5 failures;
+2 Intake recovery failures passed on recheck, and the 3 persistent search/detail failures reproduced on
+baseline e3f8360. Both review axes cleared implementation findings. See
+[rollout evidence and gates](operations/request-agreement-rollout.md).
+
+Migration 0028 has run only in disposable local lane_test. The real three-member browser suite is authored
+and typechecked, not executed on hosted providers. Verified backup, staging migration and multi-user
+acceptance are still required before deployment. No push, hosted migration or production deployment.
+Pre-existing tracker/spec/AGENTS edits remain outside this commit.
+
 ## Production promotion preparation — October 20
 
 ### Current status — production promoted, final authenticated checks pending

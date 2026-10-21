@@ -46,6 +46,9 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
   return db
     .select({
       id: requests.id,
+      agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
+      agreementSubmitted: sql<boolean>`exists(select 1 from public.request_agreements a where a.request_id=${requests.id} and a.org_id=${requests.orgId} and a.snapshot is not null)`,
+      exceptionClosure: requests.exceptionClosure,
       requestNumber: requests.requestNumber,
       title: requests.title,
       reframedProblem: requests.reframedProblem,
@@ -139,6 +142,9 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
     db
       .select({
         id: requests.id,
+      agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
+      agreementSubmitted: sql<boolean>`exists(select 1 from public.request_agreements a where a.request_id=${requests.id} and a.org_id=${requests.orgId} and a.snapshot is not null)`,
+      exceptionClosure: requests.exceptionClosure,
         // Plan item 2.5: the strip's LAN-n, the panel's priority and the
         // Assignee avatar. Same statement and joins, so no extra round trip.
         // The overlay needs priority to see a confirmed priority patch land.

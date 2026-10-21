@@ -74,7 +74,7 @@ function usePropertyControls(inSheet = false) {
   const { move: runMove, setPriority } = useDetailMoves()
   const status = request.status
   const priority = request.priority
-  const move = allowedMove({ status }, { isGuest })
+  const move = allowedMove({ status, agreementBlocked: request.agreementBlocked }, { isGuest })
   const priorityText = REQUEST_PRIORITY_LABELS[priority]
   const priorityGlyph = <span className={styles.priorityGlyph} data-priority={priority}><PriorityGlyph priority={priority} /></span>
   const selectMove = (kind: LifecycleMove) => {

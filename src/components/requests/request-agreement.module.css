@@ -1,0 +1,63 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  border-top: var(--border-width) solid var(--border);
+  padding-block: var(--space-5);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.panel h2 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.panel h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.panel p {
+  margin-block: var(--space-2);
+  white-space: pre-wrap;
+}
+.muted {
+  color: var(--text-secondary);
+}
+.stack,
+.fields,
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.fields {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--sb-popover-width)), 1fr)
+  );
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.seats {
+  display: grid;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.seats > li {
+  border-bottom: var(--border-width) solid var(--border);
+  padding-block: var(--space-3);
+}
+.facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+.panel summary {
+  cursor: pointer;
+  padding-block: var(--space-2);
+}

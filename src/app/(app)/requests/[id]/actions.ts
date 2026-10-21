@@ -1,5 +1,7 @@
 "use server";
 
+import { withAgreementProgress } from "@/lib/request-agreement-progress";
+import { requestAgreements } from "@/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
@@ -60,7 +62,7 @@ async function transitionRequest(
   transition: LifecycleTransition,
   requestId: string,
   auth: { userId: string; orgId: string }
-): Promise<{ id: string } | undefined> {
+): Promise<{ id: string } | { error: string } | undefined> {
   const assignment =
     transition.to === "in_progress"
       ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
@@ -68,7 +70,9 @@ async function transitionRequest(
   const readiness = transition.to === "in_progress"
     ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
     : sql`true`;
-  const rows = await db.execute<{ id: string; notification_id: string | null }>(sql`
+  return withAgreementProgress(auth.orgId, auth.userId, [requestId], transition.from, async (tx, eligible, blocked) => {
+  if (!eligible.length) return { error: blocked[0].error };
+  const rows = await tx.execute<{ id: string; notification_id: string | null }>(sql`
     with u as (
       update ${requests}
       set ${assignment}
@@ -88,6 +92,7 @@ async function transitionRequest(
     from u left join n on true
   `);
   return rows[0];
+  });
 }
 
 /** Diagnoses a missed transition only within the authorized workspace.
@@ -117,12 +122,13 @@ async function explainFailedTransition(
 export async function pickUpRequest(
   requestId: string,
   context: { orgId: string }
-) {
+): Promise<{success?: boolean; error?: string}> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const auth = await requireMemberOrAbove(context.orgId);
   if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
 
   const updated = await transitionRequest(PICK_UP, requestId, auth);
+  if (updated && "error" in updated) return updated;
   if (!updated) {
     // "changed before Lane could pick it up" when the guard matched after all.
     return { error: await explainFailedTransition(PICK_UP, requestId, auth.orgId) };
@@ -136,12 +142,13 @@ export async function pickUpRequest(
 export async function markDone(
   requestId: string,
   context: { orgId: string }
-) {
+): Promise<{success?: boolean; error?: string}> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const auth = await requireMemberOrAbove(context.orgId);
   if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
 
   const updated = await transitionRequest(MARK_DONE, requestId, auth);
+  if (updated && "error" in updated) return updated;
   if (!updated) {
     // "changed before Lane could mark it Done" when the guard matched after all.
     return { error: await explainFailedTransition(MARK_DONE, requestId, auth.orgId) };
@@ -196,7 +203,9 @@ async function transitionRequests(
   if (!valid.length) return { moved: [], failed: invalid };
 
   // Validated UUIDs only, so the array literal is one bound parameter.
-  const ids = `{${valid.join(",")}}`;
+  const outcome = await withAgreementProgress(auth.orgId, auth.userId, valid, transition.from, async (tx, eligible, blocked) => {
+  if (!eligible.length) return { moved: [], failed: [...invalid, ...blocked] };
+  const ids = `{${eligible.join(",")}}`;
   const assignment =
     transition.to === "in_progress"
       ? sql`"status" = ${transition.to}::request_status, "assigned_to" = ${auth.userId}`
@@ -204,7 +213,7 @@ async function transitionRequests(
   const readiness = transition.to === "in_progress"
     ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
     : sql`true`;
-  const rows = await db.execute<{ id: string }>(sql`
+  const rows = await tx.execute<{ id: string }>(sql`
     with u as (
       update ${requests}
       set ${assignment}
@@ -223,11 +232,11 @@ async function transitionRequests(
     select u.id as id from u
   `);
   const moved = rows.map((row) => row.id);
-  const missed = valid.filter((id) => !moved.includes(id));
+  const missed = eligible.filter((id) => !moved.includes(id));
 
-  let failed = invalid;
+  let failed = [...invalid, ...blocked];
   if (missed.length) {
-    const found = await db
+    const found = await tx
       .select({ id: requests.id, status: requests.status, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
       .from(requests)
       .where(and(
@@ -235,7 +244,7 @@ async function transitionRequests(
         sql`${requests.id} = any(${`{${missed.join(",")}}`}::uuid[])`,
       ));
     failed = [
-      ...invalid,
+      ...invalid, ...blocked,
       ...missed.map((id) => {
         const req = found.find((row) => row.id === id);
         if (!req) return { id, error: "Not found" };
@@ -251,6 +260,9 @@ async function transitionRequests(
     ];
   }
 
+  return { moved, failed };
+  });
+  const { moved, failed } = outcome;
   if (moved.length) {
     revalidatePath("/");
     for (const id of moved) revalidatePath(`/requests/${id}`);
@@ -313,6 +325,7 @@ export async function undoMarkDone(
       set "status" = ${"in_progress"}::request_status
       where ${requests.id} = ${requestId}
         and ${requests.orgId} = ${auth.orgId}
+        and ${requests.exceptionClosure} is null
         and ${requests.status} = ${"done"}::request_status
         and ${requests.updatedAt} > ${windowStart.toISOString()}::timestamptz
       returning ${requests.id}, ${requests.status}
@@ -480,7 +493,7 @@ export async function setRequestPriority(
   const [updated] = await db
     .update(requests)
     .set({ priority: parsed.data })
-    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), eq(requests.status, "open"), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId)))
+    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), eq(requests.status, "open"), sql`${requests.exceptionClosure} is null`, auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId)))
     .returning({ priority: requests.priority });
 
   if (!updated) return { error: "Request not found" };
@@ -509,18 +522,22 @@ export async function saveRequestCurrentValues(
   const parsed = currentValuesSchema.safeParse(input);
   if (!parsed.success) return { error: "Enter valid current values for the saved metrics." };
 
+  const result = await db.transaction(async tx => {
   // This also permits a guest to supply numbers for their own Request. It
   // grants neither pickup permission nor access to another person's Request.
-  const [request] = await db.select({
+  const [request] = await tx.select({
     status: requests.status,
+    exceptionClosure: requests.exceptionClosure,
     expectedImpact: requests.expectedImpact,
     requestType: requests.requestType,
   }).from(requests).where(and(
     eq(requests.id, requestId),
     eq(requests.orgId, auth.orgId),
     eq(requests.createdBy, auth.userId),
-  ));
+  )).for("update");
   if (!request) return { error: "Not found" };
+  const [agreement] = await tx.select({ snapshot: requestAgreements.snapshot }).from(requestAgreements).where(and(eq(requestAgreements.orgId, auth.orgId), eq(requestAgreements.requestId, requestId)));
+  if (request.exceptionClosure || agreement?.snapshot) return { error: "This commitment is frozen. Create a linked replacement to change Expected impact." };
   if (request.status !== "open") return { error: "Current values can only change before this Request is picked up." };
   const stored = measurementPlanSchema.safeParse(request.expectedImpact);
   if (!stored.success) return { error: "This Request does not have an editable measurement plan." };
@@ -539,7 +556,7 @@ export async function saveRequestCurrentValues(
   const typeIssue = measurementRequestTypeIssue(next.data, request.requestType);
   if (typeIssue) return { error: typeIssue };
 
-  const [updated] = await db.update(requests).set({ expectedImpact: next.data }).where(and(
+  const [updated] = await tx.update(requests).set({ expectedImpact: next.data }).where(and(
     eq(requests.id, requestId),
     eq(requests.orgId, auth.orgId),
     eq(requests.createdBy, auth.userId),
@@ -548,7 +565,10 @@ export async function saveRequestCurrentValues(
     sql`${requests.requestType} is not distinct from ${request.requestType}::request_type`,
   )).returning({ id: requests.id });
   if (!updated) return { error: "This Request changed before the values were saved. Refresh and try again." };
+  return { success: true as const, impact: next.data };
+  });
+  if ("error" in result) return result;
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
-  return { success: true, impact: next.data };
+  return result;
 }

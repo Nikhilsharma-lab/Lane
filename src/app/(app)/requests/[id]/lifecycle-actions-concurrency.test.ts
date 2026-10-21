@@ -1,3 +1,4 @@
+import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   db,
@@ -17,6 +18,7 @@ type Session = { userId: string; orgId: string; orgRole: "org:member" | "org:gue
 let sessionQueue: Session[] = [];
 
 vi.mock("@clerk/nextjs/server", () => ({
+  clerkClient: async () => fixtureClerkClient(WORKSPACE_ID, [REQUESTER_ID,FIRST_MEMBER_ID,SECOND_MEMBER_ID]),
   auth: vi.fn(async () =>
     sessionQueue.shift() ?? { userId: null, orgId: null, orgRole: null }
   ),
@@ -81,9 +83,11 @@ beforeAll(async () => {
     ].map(row => ({ ...row, orgId: OTHER_WORKSPACE_ID, title: "Hidden Request", description: "Visibility regression fixture", createdBy: REQUESTER_ID })),
     { id: GUEST_REQUEST_ID, orgId: WORKSPACE_ID, title: "Guest-owned Request", description: "Visibility regression fixture", createdBy: SECOND_MEMBER_ID },
   ]);
+  await seedAgreedRequests(WORKSPACE_ID);
 });
 
 afterAll(async () => {
+  await removeAgreementFixtures(WORKSPACE_ID);
   await db
     .delete(notifications)
     .where(inArray(notifications.orgId, [WORKSPACE_ID, OTHER_WORKSPACE_ID]));

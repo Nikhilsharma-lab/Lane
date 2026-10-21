@@ -16,6 +16,9 @@
 > **2026-10-06 implementation status:** Expected impact creation (Metric or Verified result), signed review
 > and read-only saved detail are implemented and locally verified. Named trio agreement, launch,
 > actual-result closure and quarterly/yearly totals remain target only.
+> **2026-10-21 #58 approval:** Named agreement and its persistence contract are approved for local
+> implementation/testing. Migration `0028` is prepared; hosted backup, staging acceptance and promotion
+> are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
@@ -283,10 +286,12 @@ Saving does not authorize execution under the confirmed target. A Request may re
 for alignment or, once aligned, while waiting for capacity. Naming participants before agreement is allowed;
 commitment to roadmap work, formal discovery and delivery execution are blocked until alignment.
 
-### 4.4 Name the trio and align — Approved target
+### 4.4 Name the trio and align — Approved for #58 local implementation
 
-Every team Request has a named PM, Designer and Developer. A creator representing one discipline names the
-other two people for this Request. The three participate upstream, not as reviewers of finished design.
+Every team Request names three distinct people in its PM, Designer and Developer seats. A lead can
+represent a discipline. The creator may occupy one seat but is not automatically a participant. The three
+agree upstream on intended work and known feasibility, not an unseen final design. Pending Clerk
+invitations may be nominated and submitted; only verified, active members may decide.
 Workspace membership remains the access boundary; Request participation is not inferred from profile labels.
 The exact guest-created Request sponsorship path must be resolved before that path enters implementation.
 
@@ -311,8 +316,8 @@ Two valid commitments:
 - **Delivery:** align on a sufficiently understood direction, scope, success criteria and timing. Existing
   evidence may make a separate discovery period unnecessary. Build readiness still applies (§4.8).
 
-The creator's confirmed submission records their agreement to that version; the other two must explicitly
-align. All three must agree to material subsequent versions. Final control labels are a UX decision.
+Submission freezes the commitment and never grants approval. Each of the three named participants must
+explicitly agree, including the creator when named. Profile labels grant no seat or action authority.
 
 **Disagreement is a hard guard:**
 
@@ -320,7 +325,8 @@ align. All three must agree to material subsequent versions. Final control label
 - Discussion, clarification and amendments remain possible; progression to the next commitment does not.
 - Silence, elapsed time, assignment, creator status and administrator status cannot supply agreement.
 - No administrator override, automatic timeout approval or creator bypass is permitted. Enforce on the server.
-- The team revises the agreement and obtains fresh alignment; preserve the original concern and resolution.
+- Resolve concerns with attribution. Material commitment changes require a linked fresh Request with fresh
+  agreement; preserve the original concern and resolution. An approval alone never clears a concern.
 - Departure or unavailability may require attributable participant replacement. The replacement must align;
   replacement never erases an unresolved concern or acts as a way to evade it. Recovery details remain scoped
   implementation decisions.
@@ -359,15 +365,22 @@ Existing evidence can be linked; no mandatory report or particular research/test
 An unknown baseline is explicit, not a fabricated zero or permission to omit the intended result. The
 discovery/bug handling and creation validation need to preserve this distinction in the focused design.
 
-Alignment records the agreed version. Before release, material changes to problem, scope, timing, success or
-guardrails preserve the previous version and require renewed alignment. Routine exploration within that
-agreement does not. After release, targets cannot be rewritten to match observed results. AI must not invent
+Alignment freezes the submitted commitment. Before release, material changes to problem, scope, audience,
+timing, success or guardrails use a linked replacement Request with fresh agreement. The original creator
+explicitly confirms the original as Superseded, a permanent exception excluded from measured-impact totals.
+Its Open/In Progress/Done column is retained; it cannot advance or reopen. Minor prose corrections append
+original wording, correction and reason beside the immutable snapshot. Routine exploration within the
+agreement does not need a replacement. After release, targets cannot be rewritten to match observed results. AI must not invent
 targets, baselines or evidence; additional AI capability beyond Intake still requires separate authorization.
 
 ### 4.6 Assign and schedule — Current behaviour versus approved target
 
 **Current implementation:** an eligible member picks up an Open Request; this assigns it to that person and
-moves it to In Progress. No trio alignment currently guards this action.
+moves it to In Progress. The #58 local implementation gates single and bulk pickup on three explicit
+agreements, resolved concerns and current eligible Clerk membership. Submission also gates Done. Legacy
+In Progress Requests may finish only while unsubmitted, or after full agreement; their old status/history
+remain intact. Withdrawal blocks further advancement without moving the Request backward. Hosted
+migration and real multi-user staging acceptance remain release gates.
 
 **Confirmed target:** the Request creator may assign the Designer; an eligible Designer may volunteer through
 Pick up when unassigned; an administrator may assign. One accountable Designer is assigned at a time, while
@@ -526,7 +539,7 @@ counts. Correction authority and presentation must be specified before implement
 | Situation | Treatment |
 |---|---|
 | Routine exploration within agreed scope | Continue the same Request; no branch or change form. |
-| Material change before release | Preserve the previous agreement, record the amendment and realign. |
+| Material change before release | Create a linked fresh Request with fresh agreement; creator explicitly confirms the original as permanent Superseded exception. |
 | New work after release or closure | Create a linked follow-up Request; the predecessor is not reopened. |
 
 The user-facing action is **Create follow-up Request**, not a Git-style branch/merge workflow. A follow-up
@@ -831,7 +844,7 @@ Dates and enthusiasm do not advance gates. Evidence does.
 
 The confirmed pipeline is not one implementation plan. Operational release gates remain prerequisites to
 production. Expected impact creation/review/detail is implemented and locally verified.
-**Trio alignment inside existing Requests** remains the next agreement scope to plan:
+**Trio alignment inside existing Requests** is approved as the bounded #58 local implementation:
 participants, compact agreement, recorded concerns and a server-enforced no-bypass progression guard.
 Assignment/start separation and agreement versioning must be included wherever required to make that guard
 truthful. Its plan must define exact schema, actions, states, Storybook coverage and regression tests before coding.

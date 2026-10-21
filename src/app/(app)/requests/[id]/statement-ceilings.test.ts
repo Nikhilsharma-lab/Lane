@@ -1,18 +1,17 @@
+import { seedAgreedRequests, removeAgreementFixtures, fixtureClerkClient } from "@/test/agreement-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryCounter } from "@/db";
 
-// Plan §2.2 server budget: statement count per action at or below a ceiling,
-// measured with the shared client's query counter against lane_test. Plan
-// item 1.4 makes pick up and Done one data-modifying CTE each (UPDATE +
-// notification INSERT), Undo one CTE (UPDATE + DELETE), and a failed move
-// at most the CTE plus one diagnostic read. Plan item 1.6 batches the bulk
-// moves: ten rows are one CTE, plus one diagnostic read when some did not move.
+// Agreement checks add one ordered Request lock and two batched reads before
+// the existing transition/notification CTE. The ceiling includes BEGIN/COMMIT;
+// bulk operations still use a bounded number of statements independent of size.
+// Comment, priority and Undo budgets retain their existing narrow boundaries.
 
 const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
 
 const ORG = "org_statement_ceilings";
 const MEMBER = "user_ceilings_member", REQUESTER = "user_ceilings_requester";
@@ -39,29 +38,33 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (!connection) return;
+  await removeAgreementFixtures(ORG);
   await connection`delete from organizations where id = ${ORG}`;
   await connection`delete from profiles where id in (${MEMBER},${REQUESTER})`;
   await connection.end();
 });
 
 describe("statement ceilings per Request mutation", () => {
-  it("pickUpRequest succeeds in one statement", async () => {
+  it("pickUpRequest stays within the agreement transaction budget", async () => {
     const { pickUpRequest } = await api();
+    await seedAgreedRequests(ORG);
     const { result, statements } = await measure(() => pickUpRequest(requestId, { orgId: ORG }));
     expect(result).toEqual({ success: true });
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(7);
   });
 
-  it("markDone succeeds in one statement", async () => {
+  it("markDone stays within the agreement transaction budget", async () => {
     const { markDone, pickUpRequest } = await api();
+    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));
     expect(result).toEqual({ success: true });
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(7);
   });
 
-  it("undoMarkDone succeeds in at most two statements", async () => {
+  it("undoMarkDone succeeds within the transaction budget", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
+    await seedAgreedRequests(ORG);
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
     const { result, statements } = await measure(() => undoMarkDone(requestId, { orgId: ORG }));
@@ -116,11 +119,11 @@ describe("statement ceilings per Request mutation", () => {
     expect(await connection`select id from notifications where request_id = ${requestId}`).toEqual([]);
   });
 
-  it("a markDone on an Open Request fails in at most two statements", async () => {
+  it("a markDone on an Open Request fails within the transaction budget", async () => {
     const { markDone } = await api();
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));
     expect(result).toEqual({ error: "This Request is no longer In Progress. Refresh to see its current state." });
-    expect(statements).toBeLessThanOrEqual(2);
+    expect(statements).toBeLessThanOrEqual(7);
   });
 });
 
@@ -131,33 +134,36 @@ describe("statement ceilings per bulk Request mutation", () => {
     return ids;
   }
 
-  it("pickUpRequests moves ten Requests in at most two statements", async () => {
+  it("pickUpRequests moves ten Requests within the transaction budget", async () => {
     const { pickUpRequests } = await api();
     const ids = await insertRequests(10);
+    await seedAgreedRequests(ORG);
     const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
     expect(result.error).toBeUndefined();
     expect([...result.moved].sort()).toEqual([...ids].sort());
     expect(result.failed).toEqual([]);
-    expect(statements).toBeLessThanOrEqual(2);
+    expect(statements).toBeLessThanOrEqual(7);
     const notified = await connection`select request_id from notifications where org_id = ${ORG} and type = 'request_picked_up' and request_id = any(${ids})`;
     expect(notified).toHaveLength(10);
   });
 
-  it("markDoneMany moves ten Requests in at most two statements", async () => {
+  it("markDoneMany moves ten Requests within the transaction budget", async () => {
     const { markDoneMany, pickUpRequests } = await api();
     const ids = await insertRequests(10);
+    await seedAgreedRequests(ORG);
     await pickUpRequests(ids, { orgId: ORG });
     const { result, statements } = await measure(() => markDoneMany(ids, { orgId: ORG }));
     expect([...result.moved].sort()).toEqual([...ids].sort());
     expect(result.failed).toEqual([]);
-    expect(statements).toBeLessThanOrEqual(2);
+    expect(statements).toBeLessThanOrEqual(7);
     const done = await connection`select id from requests where status = 'done' and id = any(${ids})`;
     expect(done).toHaveLength(10);
   });
 
-  it("reports the rows a bulk move skipped, within two statements", async () => {
+  it("reports the rows a bulk move skipped, within the transaction budget", async () => {
     const { markDoneMany, pickUpRequests } = await api();
     const ids = await insertRequests(3);
+    await seedAgreedRequests(ORG);
     await pickUpRequests(ids.slice(0, 2), { orgId: ORG });
     const { result, statements } = await measure(() => markDoneMany([...ids, "not-a-uuid"], { orgId: ORG }));
     expect([...result.moved].sort()).toEqual(ids.slice(0, 2).sort());
@@ -165,7 +171,7 @@ describe("statement ceilings per bulk Request mutation", () => {
       { id: "not-a-uuid", error: "Not found" },
       { id: ids[2], error: "This Request is no longer In Progress. Refresh to see its current state." },
     ]);
-    expect(statements).toBeLessThanOrEqual(2);
+    expect(statements).toBeLessThanOrEqual(7);
   });
 
   it("refuses a guest bulk move without touching the database", async () => {
@@ -173,7 +179,8 @@ describe("statement ceilings per bulk Request mutation", () => {
     const ids = await insertRequests(2);
     session.orgRole = "org:guest";
     try {
-      const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
+      await seedAgreedRequests(ORG);
+    const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
       expect(result.error).toBe("You can't change Requests in this workspace.");
       expect(result.moved).toEqual([]);
       expect(statements).toBe(0);

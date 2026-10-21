@@ -16,6 +16,7 @@ sb.mock(import("../src/app/(app)/intake/label-actions.ts"))
 sb.mock(import("../src/app/(app)/intake/attachment-actions.ts"))
 sb.mock(import("../src/app/(app)/requests/[id]/actions.ts"))
 sb.mock(import("../src/app/(app)/requests/[id]/edit-actions.ts"))
+sb.mock(import("../src/app/(app)/requests/[id]/agreement-actions.ts"))
 sb.mock(import("../src/app/(app)/notifications/actions.ts"))
 sb.mock(import("../src/app/(auth)/onboarding/actions.ts"))
 // The real measurement editor, with its renders counted: the composer must not render it on

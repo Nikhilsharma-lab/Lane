@@ -103,15 +103,17 @@ codes, copy and existing workspace-search retrieval as one local slice; saved pr
 See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Staging now has `0017`–`0019` (applied 2026-10-09 after a verified export and a local rehearsal); production migration and release gates remain open.
 This selection changes the immediate sequence without removing the alignment and outcome contract below.
 
-**Next foundational increment — Trio alignment inside Requests (planning selected 2026-09-28).** Define named
-participants, the compact versioned agreement, recorded concerns and a server-enforced no-bypass guard.
-The agreement must reuse the predicted impact recorded during creation and its measurement window, so the
-first alignment increment does not approve work without an expectation to compare later. First design the
-creation → human review → awaiting trio agreement chain; AI framing is not stakeholder agreement.
-Assignment must not implicitly start work or grant alignment. Discovery versus delivery commitments and
-material-edit invalidation must be addressed wherever necessary to make the guard truthful. Resolve the
-guest sponsorship/replacement/concurrency details, inspect Arc source and local behavior, specify Storybook states and
-approve the focused schema/action/test plan before code. No separate Roadmap route or prioritization score.
+**Current foundational increment — Agreement before work starts (#58, approved 2026-10-21).**
+The local implementation uses three distinct named PM/Designer/Developer seats, an immutable submitted
+commitment, explicit decisions, recorded concerns and server guards for single/bulk pickup and Done.
+Submission does not approve on the creator's behalf. Pending Clerk invitations can be nominated but cannot
+approve. Participant replacement retains unchanged seats and concerns. Material changes use linked fresh
+Requests with fresh agreement; the original creator explicitly confirms Superseded as a permanent exception.
+The Open / In Progress / Done lifecycle remains unchanged. Legacy In Progress can finish unsubmitted;
+once submitted it must satisfy the complete agreement gate. No new assignment or release stage is added.
+See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md` and
+`docs/operations/request-agreement-rollout.md` for exact persistence, local evidence and outstanding
+hosted backup/staging acceptance. Local checks do not establish a production release or real pilot use.
 
 **Acceptance for the alignment increment:** creator/admin/direct-action/stale-version attempts cannot advance
 without the current trio's agreement; dissent has a specific reason; replacements cannot erase it; a team

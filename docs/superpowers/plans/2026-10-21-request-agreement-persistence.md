@@ -1,8 +1,8 @@
-# Agreement before work starts — persistence proposal
+# Agreement before work starts — approved persistence contract
 
 Issue: [#58](https://github.com/Nikhilsharma-lab/Lane/issues/58), “Agreement before work starts”.
 
-Status: proposed for approval, not implemented. Product behavior and test boundaries are approved; the database contract below is an engineering proposal. No migration is authorized by this document alone.
+Status: approved by Nikhil on 2026-10-21 for local implementation and tests, then commit. Implemented locally; hosted backup, migration and acceptance are separate gates. See `docs/operations/request-agreement-rollout.md` for evidence and remaining release work.
 
 **Goal:** enforce three explicit named decisions before pickup, with durable withdrawal, replacement and superseding history on existing Request surfaces.
 
@@ -10,9 +10,9 @@ Status: proposed for approval, not implemented. Product behavior and test bounda
 
 **Tech stack:** existing Next.js 16 / React 19 / Arc UI / Clerk / Postgres / Drizzle. No new route, AI call, cron, workflow engine or dependency.
 
-## Approval requested
+## Approval recorded
 
-Approve the three tables and Request columns below, including these behavior choices: corrections are append-only annotations; replacements cannot advance until the original is confirmed Superseded; unresolved concerns survive participant replacement. This approval permits local implementation and tests. Hosted migrations still require a verified backup and staging-first acceptance before production promotion.
+Nikhil approved the three tables and Request columns below, including these behavior choices: corrections are append-only annotations; replacements cannot advance until the original is confirmed Superseded; unresolved concerns survive participant replacement. This approval permits local implementation and tests. Hosted migrations still require a verified backup and staging-first acceptance before production promotion.
 
 ## Canonical requirements reconciliation
 
@@ -28,7 +28,7 @@ The approved October 21 ticket supersedes these older passages. Apply these exac
 
 Preserve the existing rule that participant replacement cannot erase dissent. Preserve current guest visibility and comment access; guests cannot approve or advance work. Guest-created Request sponsorship remains unresolved in REQUIREMENTS.md and is not silently introduced here. Such Requests can remain visible to their creator and blocked from pickup until an approved sponsorship path exists.
 
-## Proposed persistence contract
+## Persistence contract
 
 All timestamps are `timestamptz`, server-generated. IDs for new domain rows are UUIDs. Organization and user references use Clerk text IDs. Existing Request status enum remains unchanged.
 
@@ -36,6 +36,7 @@ All timestamps are `timestamptz`, server-generated. IDs for new domain rows are 
 
 - Add `agreement_revision integer NOT NULL DEFAULT 0 CHECK (agreement_revision >= 0)`. Every commitment/seat/concern/decision/correction/replacement authority mutation increments this while holding the Request lock. All new actions receive the expected revision; stale writes fail recoverably.
 - Add `exception_closure jsonb NULL`. For #58 its only accepted value is `{version:1, kind:"exception", reasonCode:"superseded", reason:string, actorId:string, closedAt:ISODate, replacementId:UUID}`. The reason is nonempty. Absence is NULL, never an invented outcome. This is an immutable terminal exception fact, not a new board status. Ticket 3 must consume this fact rather than create a second competing closure authority.
+- Agreement-only revision updates preserve the existing Request updated_at timestamp so they do not restart the existing Done undo window. Agreement events carry their own timestamps.
 - Add `UNIQUE (org_id,id)` to support composite tenant foreign keys below.
 - Do not backfill approvals, snapshots, exceptions or dates. Existing records begin at revision zero with no agreement.
 
@@ -74,7 +75,7 @@ Composite tenant FKs for both endpoints; `CHECK(original_id <> replacement_id)`;
 
 The creator prepares the successor, reviews inherited context and edits affected values through existing Intake validation and AI confirmation. Do not duplicate comment authorship or approvals. Preserve private attachments as authorized references to the original attachment records with explicit source attribution; never share storage paths or create public files. Attachment reads must check current access to the source Request as well as the successor. Draft uploads stay owned by their original draft until normal save finalization.
 
-Before confirmation the successor can be prepared and collect agreement but cannot advance. Confirmation locks both Requests in UUID order, verifies creator authority and neither endpoint is terminal, writes the original's exception_closure and link confirmation and event atomically. Original status is unchanged. Successor advancement becomes eligible only after that commit and its own complete agreement. Repeated confirmation returns the original result. Original discussion/history remain readable; no status, commitment or undo action may mutate its terminal record.
+Before confirmation the successor can be prepared and collect agreement but cannot advance. Confirmation locks both Requests in UUID order, verifies creator authority and neither endpoint is terminal, writes the original's exception_closure and link confirmation and event atomically. Changed fields are derived for review while preparing the successor and persisted against its final frozen submission; confirmation before submission does not freeze an outdated list. Original status is unchanged. Successor advancement becomes eligible only after that commit and its own complete agreement. Repeated confirmation returns the original result. Original discussion/history remain readable; no status, commitment or undo action may mutate its terminal record.
 
 ### Isolation and immutability
 
@@ -87,7 +88,7 @@ New actions live alongside existing Request actions, not new routes. Every mutat
 - `prepareAgreement`: Request creator who is a current non-guest workspace member saves preparation, explicit known feasibility concerns and nominations while unsubmitted. Known blockers become durable concern records on submission; each must be explicitly resolved with attribution before pickup. Feasibility prose alone is never a machine-verified absence of blockers. Existing title/description/impact edits remain available under current authority until submission.
 - `submitAgreement`: Request creator who is a current non-guest workspace member freezes the exact current commitment and three nominees. Pending invitations are allowed; incomplete measurement or missing commitment fields produce field errors. Snapshot mismatch rejects stale submission.
 - `decideAgreement`: current named member decides against snapshot and seat generation. Request changes or withdrawal opens a durable concern. Agree alone cannot erase open concerns.
-- `resolveAgreementConcern`: concern author records a nonempty resolution; if unavailable and replaced, the current holder of that same discipline seat records the resolution with explicit attribution. Creator/admin status alone cannot resolve it. Resolving a concern does not itself approve the seat.
+- `resolveAgreementConcern`: concern author records a nonempty resolution; if unavailable and replaced, the current holder of that same discipline seat records the resolution with explicit attribution. Unavailability is an explicit recorded attestation on participant replacement, matched to the concern author and seat generation; changing a seat alone does not grant resolution authority. Creator/admin status alone cannot resolve it. Resolving a concern does not itself approve the seat.
 - `replaceAgreementParticipant`: Request creator who is a current non-guest workspace member records old/new nominee and required reason, increments seat generation and resets only that seat's decision. Other approvals remain; concerns remain.
 - `addAgreementCorrection`: creator appends field reference, original wording, corrected wording and reason. Show both beside the immutable snapshot. Structured impact values, audience, scope and timing cannot change through this action. Lane cannot mechanically prove a prose clarification is immaterial; participants can request changes or withdraw. Material edits use the successor flow.
 - `createAgreementReplacement` / `confirmRequestSuperseded`: use the existing Request creation contract, signed AI gate and atomic link/exception writes above.
@@ -117,4 +118,11 @@ Release/measurement countdown, outcome forms, ownership transfer, post-release f
 
 ## Current evidence
 
-Read issue #58, the local approved spec, AGENTS.md, SESSION-STATE, canonical alignment passages, Request schema, Clerk guards/roster helper, lifecycle and editing actions, migration 0014 and existing concurrency-test patterns. Working branch is `main`; baseline is `799b1aa5affe6e1432d07f82c9f7da4af03e3b37`. Pre-existing AGENTS.md/SESSION-STATE changes, docs/agents, docs/specs and debug-storybook.log are outside this proposal commit. No application code or database has changed; no implementation tests or hosted acceptance are claimed.
+Local implementation covers the approved tables/actions/Request detail controls, real-Postgres migration
+fixtures and action regressions, and production-panel Storybook interactions. REQUIREMENTS.md and the
+roadmap are reconciled. Standards and Spec review findings were fixed and re-reviewed. The full staging
+browser suite is authored but not executed against hosted providers. Exact check results and the migration
+release procedure are in `docs/operations/request-agreement-rollout.md`.
+
+Implementation baseline: `e3f8360` (approved proposal commit). Pre-existing AGENTS.md/SESSION-STATE
+changes, docs/agents, docs/specs and debug-storybook.log remain outside this implementation commit.

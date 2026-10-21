@@ -10,6 +10,7 @@ import { LifecycleButtons } from "./requests/[id]/lifecycle-buttons"
 import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
 import { RequestsOverview } from "./requests-overview"
 import { EditRequest } from "./requests/[id]/edit-request"
+import { RequestAgreementPanel } from "@/components/requests/request-agreement-panel"
 import { measurementReadiness } from "@/lib/request-measurement"
 
 function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props }: {
@@ -21,8 +22,9 @@ function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, ...props
   const pickupBlockedReason = measurementReadiness(impact, request.requestType)
   const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }}
-    lifecycleActions={<LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
-    editRequest={request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /> : undefined}
+    agreement={<RequestAgreementPanel requestId={request.id} orgId={orgId} userId={currentUserId} isAdmin={isAdmin} isGuest={isGuest} />}
+    lifecycleActions={request.agreementBlocked ? <a href="#agreement">{request.exceptionClosure ? "Superseded" : "Agreement blocked"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
+    editRequest={!request.agreementSubmitted && !request.exceptionClosure && request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /> : undefined}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}
     attachmentAction={attachment => <AttachmentDownload attachmentId={attachment.id} context={{ orgId }} />}
   />

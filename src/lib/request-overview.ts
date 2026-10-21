@@ -3,6 +3,7 @@ import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
 
 export type OverviewRequest = {
+  agreementBlocked?: boolean
   id: string
   /** Saved workspace-local number. Optional only for older illustrative fixtures. */
   requestNumber?: number
