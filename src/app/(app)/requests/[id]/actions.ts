@@ -574,7 +574,7 @@ export async function saveRequestCurrentValues(
 }
 
 /** The requester (or an admin) deletes a Request nobody has picked up yet. It
- * goes for good: its comments, files, notifications and agreement go with it.
+ * goes for good: its comments, files, notifications and reviews go with it.
  * Once work starts, a Request can only end with a result or a reason. */
 export async function deleteRequest(
   requestId: string,

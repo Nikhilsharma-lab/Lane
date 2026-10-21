@@ -39,7 +39,7 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
         <Trash2 className={styles.editIcon} strokeWidth={1.75} aria-hidden="true" /><span className={styles.editLabel}>Delete</span>
       </Button>
     </DialogTrigger>
-    <DialogContent title="Delete this Request?" description={`“${title}” will be deleted for good, with its comments, files and agreement. This can’t be undone.`}>
+    <DialogContent title="Delete this Request?" description={`“${title}” will be deleted for good, with its comments, files and reviews. This can’t be undone.`}>
       {error && <p role="alert">{error}</p>}
       <div className={styles.dialogActions}>
         <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
