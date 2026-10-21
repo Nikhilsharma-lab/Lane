@@ -1,5 +1,5 @@
 import { fn } from "storybook/test";
-import type * as API from "../agreement-actions";
+import type * as API from "../reviewer-actions";
 export const readReviews = fn<typeof API.readReviews>();
 export const loadReviewerPeople = fn<typeof API.loadReviewerPeople>();
 export const addReviewers = fn<typeof API.addReviewers>();

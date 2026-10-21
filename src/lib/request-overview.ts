@@ -5,7 +5,7 @@ import type { RequestProjectFilter, RequestStatusFilter } from "./request-worksp
 export type OverviewRequest = {
   agreementBlocked?: boolean
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
-  reviewState?: import("@/lib/request-agreement").ReviewState | null
+  reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   id: string
   /** Saved workspace-local number. Optional only for older illustrative fixtures. */
   requestNumber?: number

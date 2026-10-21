@@ -9,40 +9,40 @@ import {
   requestAgreementEvents,
 } from "@/db";
 import {
-  agreementRoster,
-  type AgreementPerson,
-} from "./request-agreement-members";
+  workspaceRoster,
+  type WorkspacePerson,
+} from "./workspace-roster";
 import { requireMemberOrAbove, type MemberAuth } from "./auth-guard";
 import {
-  agreementContextSchema,
-  type AgreementContext,
-} from "./request-agreement";
-export type AgreementTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-export class AgreementError extends Error {}
+  requestChangeContextSchema,
+  type RequestChangeContext,
+} from "./request-reviewer-rules";
+export type RequestTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export class RequestChangeError extends Error {}
 export function insist(value: unknown, message: string): asserts value {
-  if (!value) throw new AgreementError(message);
+  if (!value) throw new RequestChangeError(message);
 }
-export type AgreementRow = typeof requestAgreements.$inferSelect;
-export type AgreementRequest = typeof requests.$inferSelect;
-export async function mutateAgreement(
-  context: AgreementContext,
+export type ReviewersRow = typeof requestAgreements.$inferSelect;
+export type StoredRequest = typeof requests.$inferSelect;
+export async function mutateReviewers(
+  context: RequestChangeContext,
   input: unknown,
   kind: string,
   change: (
-    tx: AgreementTx,
-    request: AgreementRequest,
-    agreement: AgreementRow | undefined,
+    tx: RequestTx,
+    request: StoredRequest,
+    reviewersRow: ReviewersRow | undefined,
     auth: MemberAuth,
-    roster: AgreementPerson[],
+    roster: WorkspacePerson[],
   ) => Promise<void>,
 ) {
   try {
-    const parsed = agreementContextSchema.safeParse(context);
+    const parsed = requestChangeContextSchema.safeParse(context);
     insist(parsed.success, "Invalid review action.");
     const auth = await requireMemberOrAbove(context.orgId);
     insist(auth, "You cannot change reviews in this workspace.");
     // Fetched before locking; Clerk and Postgres cannot share a transaction.
-    const roster = await agreementRoster(auth.orgId);
+    const roster = await workspaceRoster(auth.orgId);
     insist(
       roster.some(
         (p) => p.nominee.kind === "member" && p.nominee.userId === auth.userId,
@@ -89,7 +89,7 @@ export async function mutateAgreement(
         request.agreementRevision === context.expectedRevision,
         "Reviews changed. Reload before trying again.",
       );
-      const [agreement] = await tx
+      const [reviewersRow] = await tx
         .select()
         .from(requestAgreements)
         .where(
@@ -98,8 +98,8 @@ export async function mutateAgreement(
             eq(requestAgreements.orgId, auth.orgId),
           ),
         );
-      const before = agreement ? structuredClone(agreement) : null;
-      await change(tx, request, agreement, auth, roster);
+      const before = reviewersRow ? structuredClone(reviewersRow) : null;
+      await change(tx, request, reviewersRow, auth, roster);
       const revision = request.agreementRevision + 1;
       await tx
         .update(requests)
@@ -136,7 +136,7 @@ export async function mutateAgreement(
   } catch (error) {
     return {
       error:
-        error instanceof AgreementError
+        error instanceof RequestChangeError
           ? error.message
           : "Couldn’t save the review. Your input is preserved; try again.",
     };

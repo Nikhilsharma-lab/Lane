@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const nomineeSchema = z.discriminatedUnion("kind", [
+export const reviewerIdentitySchema = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("member"), userId: z.string().min(1).max(200) })
     .strict(),
@@ -11,13 +11,13 @@ export const nomineeSchema = z.discriminatedUnion("kind", [
     })
     .strict(),
 ]);
-export type Nominee = z.infer<typeof nomineeSchema>;
+export type ReviewerIdentity = z.infer<typeof reviewerIdentitySchema>;
 /** A hidden ceiling against runaway lists; the screen says nothing unless someone reaches it. */
 export const MAX_REVIEWERS = 20;
 export const REVIEW_NOTE_MAX = 500;
 export const REVIEW_REASON_MAX = 4000;
 /** One identity per reviewer: a member, or an invitation until the invitee answers. */
-export function nomineeKey(n: Nominee) {
+export function reviewerKey(n: ReviewerIdentity) {
   return n.kind === "member"
     ? `member:${n.userId}`
     : `invitation:${n.invitationId}`;
@@ -32,14 +32,14 @@ export type ReviewDecision = {
 /** Someone asked to look at the Request before work starts. Optional, and never a gate on pickup. */
 export type Reviewer = {
   id: string;
-  nominee: Nominee;
+  nominee: ReviewerIdentity;
   displayNameAtSelection: string;
   addedBy: string;
   /** The optional question from whoever asked for the review. */
   note: string;
   decision: ReviewDecision | null;
 };
-export const agreementContextSchema = z
+export const requestChangeContextSchema = z
   .object({
     orgId: z.string().min(1),
     requestId: z.uuid(),
@@ -47,8 +47,8 @@ export const agreementContextSchema = z
     operationId: z.uuid(),
   })
   .strict();
-export type AgreementContext = z.infer<typeof agreementContextSchema>;
-export const reviewerNomineesSchema = z.array(nomineeSchema).max(MAX_REVIEWERS);
+export type RequestChangeContext = z.infer<typeof requestChangeContextSchema>;
+export const reviewerIdentitiesSchema = z.array(reviewerIdentitySchema).max(MAX_REVIEWERS);
 /**
  * The most picks a create payload may carry. MAX_REVIEWERS is enforced with
  * its own message by the shared add rules; this bound only refuses an absurd
@@ -58,14 +58,14 @@ const CREATE_PICKS_LIMIT = MAX_REVIEWERS * 5;
 /** Reviewers picked while creating a Request, with the optional question each of them is sent. */
 export const createReviewersSchema = z
   .object({
-    nominees: z.array(nomineeSchema).max(CREATE_PICKS_LIMIT),
+    nominees: z.array(reviewerIdentitySchema).max(CREATE_PICKS_LIMIT),
     note: z.string().trim().max(REVIEW_NOTE_MAX, `Keep the question to ${REVIEW_NOTE_MAX} characters.`),
   })
   .strict()
   .optional();
 export const addReviewersSchema = z
   .object({
-    nominees: reviewerNomineesSchema.min(1),
+    nominees: reviewerIdentitiesSchema.min(1),
     note: z.string().trim().max(REVIEW_NOTE_MAX),
   })
   .strict();

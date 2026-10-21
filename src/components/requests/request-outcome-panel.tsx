@@ -11,7 +11,7 @@ import * as actions from '@/app/(app)/requests/[id]/outcome-actions';
 import { formatRequestCode } from '@/lib/request-code';
 import { guardrailComparisonPhrase } from '@/lib/guardrail-comparison';
 import { correctableFields, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, type OutcomeChange } from '@/lib/request-outcome';
-import styles from './request-agreement.module.css';
+import styles from './request-reviewers-panel.module.css';
 type View = Exclude<Awaited<ReturnType<typeof actions.readRequestOutcome>>, {
     error: string;
 }>;
@@ -196,7 +196,7 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
        <div className={styles.controls}><Button type="submit" disabled={busy || !field}>{busy ? 'Saving…' : 'Save correction'}</Button>{cancel}</div>
      </form>}
      {mode === 'follow' && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ reason }, true); }}>
-       <p>The follow-up copies this context, needs fresh agreement and has its own outcome. This Request keeps its measurement obligation.</p>
+       <p>The follow-up copies this context, is reviewed afresh and has its own outcome. This Request keeps its measurement obligation.</p>
        <Textarea label="What changed and why" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy}/>
        <div className={styles.controls}><Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create follow-up Request'}</Button>{cancel}</div>
      </form>}

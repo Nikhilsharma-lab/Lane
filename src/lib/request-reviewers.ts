@@ -3,16 +3,16 @@ import { randomUUID } from "node:crypto";
 import { inArray, sql } from "drizzle-orm";
 import { db, notifications, profiles } from "@/db";
 import type { MemberAuth } from "./auth-guard";
-import { MAX_REVIEWERS, nomineeKey, PROFILE_ROLE_LABELS, type Nominee, type Reviewer } from "./request-agreement";
+import { MAX_REVIEWERS, reviewerKey, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
 import {
-  agreementInvitations,
-  agreementRoster,
-  distinctAgreementPeople,
+  pendingInvitations,
+  workspaceRoster,
+  distinctPeople,
   invitationState,
   resolveInvitedMember,
-  type AgreementPerson,
-} from "./request-agreement-members";
-import { insist, type AgreementTx } from "./request-agreement-store";
+  type WorkspacePerson,
+} from "./workspace-roster";
+import { insist, type RequestTx } from "./request-change-store";
 
 export type ReviewNotification = {
   userId: string;
@@ -24,7 +24,7 @@ export type ReviewNotification = {
  * The rules for asking people to review, shared by adding from Request detail
  * and adding while creating a Request: no guests (they are not on the roster),
  * not yourself, not the requester, no repeats, at most twenty, and only admins
- * invite by email. Throws an AgreementError with the reason; returns the new
+ * invite by email. Throws an RequestChangeError with the reason; returns the new
  * list and the "asked you to review" notification for each member added.
  */
 export async function appendReviewers({
@@ -36,11 +36,11 @@ export async function appendReviewers({
   roster,
 }: {
   existing: Reviewer[];
-  nominees: Nominee[];
+  nominees: ReviewerIdentity[];
   note: string;
   auth: MemberAuth;
   requesterId: string;
-  roster: AgreementPerson[];
+  roster: WorkspacePerson[];
 }): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] }> {
   const inviting = nominees.some((n) => n.kind === "invitation");
   insist(
@@ -48,13 +48,13 @@ export async function appendReviewers({
     "Only an admin can invite someone by email.",
   );
   const people = inviting
-    ? [...roster, ...(await agreementInvitations(auth.orgId))]
+    ? [...roster, ...(await pendingInvitations(auth.orgId))]
     : roster;
   const reviewers = [...existing];
   const asked: ReviewNotification[] = [];
   for (const nominee of nominees) {
     const person = people.find(
-      (p) => nomineeKey(p.nominee) === nomineeKey(nominee),
+      (p) => reviewerKey(p.nominee) === reviewerKey(nominee),
     );
     insist(person, "A selected person is no longer available.");
     if (nominee.kind === "member") {
@@ -68,7 +68,7 @@ export async function appendReviewers({
       );
     }
     insist(
-      !reviewers.some((r) => nomineeKey(r.nominee) === nomineeKey(nominee)),
+      !reviewers.some((r) => reviewerKey(r.nominee) === reviewerKey(nominee)),
       `${person.name} is already a reviewer.`,
     );
     reviewers.push({
@@ -89,7 +89,7 @@ export async function appendReviewers({
   // An invitation may target the verified email of someone already reviewing.
   if (reviewers.some((r) => r.nominee.kind === "invitation"))
     insist(
-      await distinctAgreementPeople(
+      await distinctPeople(
         reviewers.map((r) => ({
           nominee: r.nominee,
           name: r.displayNameAtSelection,
@@ -106,13 +106,13 @@ export async function appendReviewers({
  * migration 0031). Call inside the editing transaction, before the update, so
  * the reset notification names this editor rather than the requester.
  */
-export async function nameReviewResetActor(tx: AgreementTx, userId: string) {
+export async function nameReviewResetActor(tx: RequestTx, userId: string) {
   await tx.execute(sql`select set_config('lane.actor_id', ${userId}, true)`);
 }
 
 /** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
 export async function notifyReviewers(
-  tx: AgreementTx,
+  tx: RequestTx,
   request: { id: string; orgId: string },
   actorId: string,
   items: ReviewNotification[],
@@ -151,7 +151,7 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
   let active: Set<string> | null = null;
   try {
     active = new Set(
-      (await agreementRoster(auth.orgId)).flatMap((p) =>
+      (await workspaceRoster(auth.orgId)).flatMap((p) =>
         p.nominee.kind === "member" ? [p.nominee.userId] : [],
       ),
     );

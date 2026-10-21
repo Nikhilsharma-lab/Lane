@@ -10,7 +10,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { requests } from "./requests";
-import type { Reviewer } from "@/lib/request-agreement";
+import type { Reviewer } from "@/lib/request-reviewer-rules";
 export const requestAgreements = pgTable(
   "request_agreements",
   {

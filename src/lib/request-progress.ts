@@ -1,19 +1,19 @@
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, requests } from "@/db";
-import { agreementRoster } from "./request-agreement-members";
-import type { AgreementTx } from "./request-agreement-store";
+import { workspaceRoster } from "./workspace-roster";
+import type { RequestTx } from "./request-change-store";
 /**
  * Locks the Requests so a concurrent reviewer change cannot land after pickup.
  * Reviews never block: only a closure stops a Request advancing.
  */
-export async function withAgreementProgress<T>(
+export async function withRequestProgress<T>(
   orgId: string,
   userId: string,
   ids: string[],
   from: "open" | "in_progress",
   operation: (
-    tx: AgreementTx,
+    tx: RequestTx,
     eligible: string[],
     blocked: { id: string; error: string }[],
   ) => Promise<T>,
@@ -21,7 +21,7 @@ export async function withAgreementProgress<T>(
   let members: Set<string> | null = null;
   try {
     members = new Set(
-      (await agreementRoster(orgId)).flatMap((p) =>
+      (await workspaceRoster(orgId)).flatMap((p) =>
         p.nominee.kind === "member" ? [p.nominee.userId] : [],
       ),
     );

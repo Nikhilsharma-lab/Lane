@@ -7,32 +7,32 @@ import {
   addReviewersSchema,
   removeReviewerSchema,
   answerReviewSchema,
-  nomineeKey,
-  type AgreementContext,
+  reviewerKey,
+  type RequestChangeContext,
   type Reviewer,
-} from "@/lib/request-agreement";
+} from "@/lib/request-reviewer-rules";
 import {
-  agreementRoster,
-  agreementInvitations,
+  workspaceRoster,
+  pendingInvitations,
   resolveInvitedMember,
-} from "@/lib/request-agreement-members";
+} from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
-  mutateAgreement,
+  mutateReviewers,
   insist,
-  AgreementError,
-  type AgreementTx,
-  type AgreementRequest,
-  type AgreementRow,
-} from "@/lib/request-agreement-store";
+  RequestChangeError,
+  type RequestTx,
+  type StoredRequest,
+  type ReviewersRow,
+} from "@/lib/request-change-store";
 
 async function saveReviewers(
-  tx: AgreementTx,
-  request: AgreementRequest,
-  agreement: AgreementRow | undefined,
+  tx: RequestTx,
+  request: StoredRequest,
+  reviewersRow: ReviewersRow | undefined,
   reviewers: Reviewer[],
 ) {
-  if (agreement)
+  if (reviewersRow)
     await tx
       .update(requestAgreements)
       .set({ reviewers })
@@ -49,42 +49,42 @@ async function saveReviewers(
 }
 
 /** Any non-guest member asks people to look at an Open Request. Only admins invite by email. */
-export async function addReviewers(context: AgreementContext, input: unknown) {
+export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose people to review." };
-  return mutateAgreement(
+  return mutateReviewers(
     context,
     parsed.data,
     "reviewers_added",
-    async (tx, request, agreement, auth, roster) => {
+    async (tx, request, reviewersRow, auth, roster) => {
       const { reviewers, asked } = await appendReviewers({
-        existing: agreement?.reviewers ?? [],
+        existing: reviewersRow?.reviewers ?? [],
         nominees: parsed.data.nominees,
         note: parsed.data.note,
         auth,
         requesterId: request.createdBy,
         roster,
       });
-      await saveReviewers(tx, request, agreement, reviewers);
+      await saveReviewers(tx, request, reviewersRow, reviewers);
       await notifyReviewers(tx, request, auth.userId, asked);
     },
   );
 }
 
 /** The requester or an admin takes someone off an Open Request. */
-export async function removeReviewer(context: AgreementContext, input: unknown) {
+export async function removeReviewer(context: RequestChangeContext, input: unknown) {
   const parsed = removeReviewerSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose a reviewer to remove." };
-  return mutateAgreement(
+  return mutateReviewers(
     context,
     parsed.data,
     "reviewer_removed",
-    async (tx, request, agreement, auth) => {
+    async (tx, request, reviewersRow, auth) => {
       insist(
         request.createdBy === auth.userId || auth.role === "admin",
         "Only the requester or an admin can remove a reviewer.",
       );
-      const reviewers = agreement?.reviewers ?? [];
+      const reviewers = reviewersRow?.reviewers ?? [];
       insist(
         reviewers.some((r) => r.id === parsed.data.reviewerId),
         "This reviewer was already removed. Reload to see the latest.",
@@ -92,7 +92,7 @@ export async function removeReviewer(context: AgreementContext, input: unknown) 
       await saveReviewers(
         tx,
         request,
-        agreement,
+        reviewersRow,
         reviewers.filter((r) => r.id !== parsed.data.reviewerId),
       );
     },
@@ -100,17 +100,17 @@ export async function removeReviewer(context: AgreementContext, input: unknown) 
 }
 
 /** Only the named reviewer answers: Looks good, or a concern with its reason. They can change it later. */
-export async function answerReview(context: AgreementContext, input: unknown) {
+export async function answerReview(context: RequestChangeContext, input: unknown) {
   const parsed = answerReviewSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid review answer." };
   if (parsed.data.kind === "concern" && !parsed.data.reason)
     return { error: "Say what concerns you." };
-  return mutateAgreement(
+  return mutateReviewers(
     context,
     parsed.data,
     "reviewed",
-    async (tx, request, agreement, auth) => {
-      const reviewers = structuredClone(agreement?.reviewers ?? []);
+    async (tx, request, reviewersRow, auth) => {
+      const reviewers = structuredClone(reviewersRow?.reviewers ?? []);
       const reviewer = reviewers.find((r) => r.id === parsed.data.reviewerId);
       insist(reviewer, "This review was removed. Reload to see the latest.");
       if (reviewer.nominee.kind === "invitation") {
@@ -136,7 +136,7 @@ export async function answerReview(context: AgreementContext, input: unknown) {
         at: new Date().toISOString(),
         reason: parsed.data.kind === "concern" ? parsed.data.reason : "",
       };
-      await saveReviewers(tx, request, agreement, reviewers);
+      await saveReviewers(tx, request, reviewersRow, reviewers);
       await notifyReviewers(tx, request, auth.userId, [
         {
           userId: reviewer.addedBy,
@@ -165,7 +165,7 @@ export async function readReviews(
       request && (auth.role !== "guest" || request.createdBy === auth.userId),
       "Request unavailable.",
     );
-    const [agreement] = await db
+    const [reviewersRow] = await db
       .select()
       .from(requestAgreements)
       .where(
@@ -174,7 +174,7 @@ export async function readReviews(
           eq(requestAgreements.orgId, auth.orgId),
         ),
       );
-    const saved = agreement?.reviewers ?? [];
+    const saved = reviewersRow?.reviewers ?? [];
     const open = request.status === "open";
     const reviewers = await reviewerViews(saved, auth, open);
     return {
@@ -187,16 +187,16 @@ export async function readReviews(
         open && (request.createdBy === auth.userId || auth.role === "admin"),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
       unavailable: [
-        nomineeKey({ kind: "member", userId: auth.userId }),
-        nomineeKey({ kind: "member", userId: request.createdBy }),
-        ...saved.map((r) => nomineeKey(r.nominee)),
+        reviewerKey({ kind: "member", userId: auth.userId }),
+        reviewerKey({ kind: "member", userId: request.createdBy }),
+        ...saved.map((r) => reviewerKey(r.nominee)),
       ],
       reviewers,
     };
   } catch (e) {
     return {
       error:
-        e instanceof AgreementError
+        e instanceof RequestChangeError
           ? e.message
           : "Could not load reviews. Try again.",
     };
@@ -210,8 +210,8 @@ export async function loadReviewerPeople(context: { orgId: string }) {
   try {
     return {
       people: [
-        ...(await agreementRoster(auth.orgId)),
-        ...(auth.role === "admin" ? await agreementInvitations(auth.orgId) : []),
+        ...(await workspaceRoster(auth.orgId)),
+        ...(auth.role === "admin" ? await pendingInvitations(auth.orgId) : []),
       ],
     };
   } catch {

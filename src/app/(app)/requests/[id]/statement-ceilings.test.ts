@@ -1,10 +1,10 @@
-import { fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/member-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryCounter } from "@/db";
 
-// Agreement checks add one ordered Request lock and two batched reads before
+// Reviewer-era progress checks add one ordered Request lock and two batched reads before
 // the existing transition/notification CTE. The ceiling includes BEGIN/COMMIT;
 // bulk operations still use a bounded number of statements independent of size.
 // Comment, priority and Undo budgets retain their existing narrow boundaries.
@@ -44,14 +44,14 @@ afterAll(async () => {
 });
 
 describe("statement ceilings per Request mutation", () => {
-  it("pickUpRequest stays within the agreement transaction budget", async () => {
+  it("pickUpRequest stays within the progress transaction budget", async () => {
     const { pickUpRequest } = await api();
     const { result, statements } = await measure(() => pickUpRequest(requestId, { orgId: ORG }));
     expect(result).toEqual({ success: true });
     expect(statements).toBeLessThanOrEqual(7);
   });
 
-  it("markDone stays within the agreement transaction budget", async () => {
+  it("markDone stays within the progress transaction budget", async () => {
     const { markDone, pickUpRequest } = await api();
     await pickUpRequest(requestId, { orgId: ORG });
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));

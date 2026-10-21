@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/member-fixtures";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";

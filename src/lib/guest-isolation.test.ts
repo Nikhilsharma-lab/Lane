@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/member-fixtures";
 /**
  * Guest isolation forge proof.
  *

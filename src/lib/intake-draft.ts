@@ -2,7 +2,7 @@ import { labelKeysSchema } from "./request-labels";
 import { z } from "zod";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
-import { MAX_REVIEWERS, nomineeSchema, REVIEW_NOTE_MAX } from "./request-agreement";
+import { MAX_REVIEWERS, reviewerIdentitySchema, REVIEW_NOTE_MAX } from "./request-reviewer-rules";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -83,7 +83,7 @@ const triageDraftSchema = z
 /** Reviewers picked on the compose step and the question they are sent. The server checks every rule again on create. */
 const reviewersDraftSchema = z.object({
   people: z.array(z.object({
-    nominee: nomineeSchema,
+    nominee: reviewerIdentitySchema,
     name: z.string().max(320),
     email: z.string().max(320),
     role: z.string().max(100).optional(),

@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
-import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-agreement"
+import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-reviewer-rules"
 import detailStyles from "./detail.module.css"
 import styles from "./pickup-confirmation.module.css"
 

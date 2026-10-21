@@ -1,13 +1,13 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
-import { nomineeKey, type Nominee } from "./request-agreement";
-export type AgreementPerson = { nominee: Nominee; name: string; email: string; role?: string };
+import { reviewerKey, type ReviewerIdentity } from "./request-reviewer-rules";
+export type WorkspacePerson = { nominee: ReviewerIdentity; name: string; email: string; role?: string };
 /** Fresh provider data, never a Lane membership registry. */
-export async function agreementRoster(
+export async function workspaceRoster(
   orgId: string,
-): Promise<AgreementPerson[]> {
+): Promise<WorkspacePerson[]> {
   const client = await clerkClient();
-  const people: AgreementPerson[] = [];
+  const people: WorkspacePerson[] = [];
   for (let offset = 0; ; offset += 100) {
     const page = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
@@ -37,11 +37,11 @@ export async function agreementRoster(
   }
   return people;
 }
-export async function agreementInvitations(
+export async function pendingInvitations(
   orgId: string,
-): Promise<AgreementPerson[]> {
+): Promise<WorkspacePerson[]> {
   const client = await clerkClient();
-  const people: AgreementPerson[] = [];
+  const people: WorkspacePerson[] = [];
   for (let offset = 0; ; offset += 100) {
     const page = await client.organizations.getOrganizationInvitationList({
       organizationId: orgId,
@@ -72,7 +72,7 @@ export async function agreementInvitations(
 }
 export async function resolveInvitedMember(
   orgId: string,
-  nominee: Nominee,
+  nominee: ReviewerIdentity,
   userId: string,
 ) {
   if (nominee.kind !== "invitation") return false;
@@ -97,7 +97,7 @@ export async function resolveInvitedMember(
 }
 export async function invitationState(
   orgId: string,
-  nominee: Extract<Nominee, { kind: "invitation" }>,
+  nominee: Extract<ReviewerIdentity, { kind: "invitation" }>,
 ) {
   const client = await clerkClient();
   const invitation = await client.organizations.getOrganizationInvitation({
@@ -112,8 +112,8 @@ export async function invitationState(
   return invitation.status;
 }
 /** An invitation may target a member's secondary verified email. */
-export async function distinctAgreementPeople(people: AgreementPerson[]) {
-  if (new Set(people.map((p) => nomineeKey(p.nominee))).size !== people.length)
+export async function distinctPeople(people: WorkspacePerson[]) {
+  if (new Set(people.map((p) => reviewerKey(p.nominee))).size !== people.length)
     return false;
   const invitations = people
     .filter((p) => p.nominee.kind === "invitation")

@@ -5,8 +5,8 @@ import { Button } from "@/components/arc/button/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import { Textarea } from "@/components/arc/textarea/textarea";
-import { MAX_REVIEWERS, nomineeKey, REVIEW_NOTE_MAX } from "@/lib/request-agreement";
-import { loadReviewerPeople } from "@/app/(app)/requests/[id]/agreement-actions";
+import { MAX_REVIEWERS, reviewerKey, REVIEW_NOTE_MAX } from "@/lib/request-reviewer-rules";
+import { loadReviewerPeople } from "@/app/(app)/requests/[id]/reviewer-actions";
 import { PickerOptions, focusOnOpen, pickerPopoverProps, searchListKeyDown } from "./request-property-pickers";
 import labelStyles from "./request-labels.module.css";
 import pickerStyles from "./request-property-pickers.module.css";
@@ -86,17 +86,17 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const chosenKeys = new Set(value.map((person) => nomineeKey(person.nominee)));
-  const isSelected = (person: ReviewerChoice) => chosenKeys.has(nomineeKey(person.nominee));
+  const chosenKeys = new Set(value.map((person) => reviewerKey(person.nominee)));
+  const isSelected = (person: ReviewerChoice) => chosenKeys.has(reviewerKey(person.nominee));
   const needle = query.trim().toLowerCase();
   const matches = (people ?? [])
     .filter((person) => !(person.nominee.kind === "member" && person.nominee.userId === excludeUserId))
     .filter((person) => !needle || person.name.toLowerCase().includes(needle) || person.email.includes(needle));
   // Chosen people stay first, so the list reads as the selection plus everyone else.
-  const options = [...value.filter((person) => !needle || matches.some((m) => nomineeKey(m.nominee) === nomineeKey(person.nominee))), ...matches.filter((person) => !isSelected(person))];
+  const options = [...value.filter((person) => !needle || matches.some((m) => reviewerKey(m.nominee) === reviewerKey(person.nominee))), ...matches.filter((person) => !isSelected(person))];
   const full = value.length >= MAX_REVIEWERS;
   function toggle(person: ReviewerChoice) {
-    if (isSelected(person)) onChange(value.filter((chosen) => nomineeKey(chosen.nominee) !== nomineeKey(person.nominee)));
+    if (isSelected(person)) onChange(value.filter((chosen) => reviewerKey(chosen.nominee) !== reviewerKey(person.nominee)));
     else if (!full) onChange([...value, person]);
   }
 
@@ -118,7 +118,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
           onKeyDown={(event) => searchListKeyDown(event, options, optionRefs, toggle)} />
       </div>
       <p className={labelStyles.caption}>{REVIEWERS_SUBTEXT}</p>
-      {people && <PickerOptions items={options} label="People" optionRefs={optionRefs} searchRef={searchRef} keyOf={(person) => nomineeKey(person.nominee)}
+      {people && <PickerOptions items={options} label="People" optionRefs={optionRefs} searchRef={searchRef} keyOf={(person) => reviewerKey(person.nominee)}
         isSelected={isSelected} isInert={(person) => full && !isSelected(person)} onChoose={toggle} multiselectable morph="plain"
         render={(person) => <span>{person.name}{person.nominee.kind === "invitation" && <span className={labelStyles.scopeHint}>{INVITATION_PENDING}</span>}</span>}
         emptyText={needle ? "No matching people" : "Nobody else to ask yet"} />}

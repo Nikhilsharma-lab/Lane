@@ -5,9 +5,9 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { db, profiles, requests, requestAgreements, requestAgreementEvents } from '@/db';
 import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
-import { agreementRoster } from '@/lib/request-agreement-members';
-import { agreementContextSchema, type AgreementContext } from '@/lib/request-agreement';
-import { insist, AgreementError, fingerprintOf } from '@/lib/request-agreement-store';
+import { workspaceRoster } from '@/lib/workspace-roster';
+import { requestChangeContextSchema, type RequestChangeContext } from '@/lib/request-reviewer-rules';
+import { insist, RequestChangeError, fingerprintOf } from '@/lib/request-change-store';
 import { notifyReviewers } from '@/lib/request-reviewers';
 import { releaseOwner, releaseMeasurement } from '@/lib/request-release';
 import { agreedResult, correctableFields, guardrailHeld, isClosed, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
@@ -15,16 +15,16 @@ import { expectedImpactSchema } from '@/lib/request-impact';
 /** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
 const requestContent = (r: typeof requests.$inferSelect) => ({ title: r.title, description: r.description, classification: r.classification, reframedProblem: r.reframedProblem, extractedSolution: r.extractedSolution, affectedPeople: r.affectedPeople, desiredChange: r.desiredChange, observedEvidence: r.observedEvidence, uncertainty: r.uncertainty, usefulLink: r.usefulLink, requestType: r.requestType, projectId: r.projectId, labelKeys: r.labelKeys, expectedImpact: r.expectedImpact });
 const utcToday = () => new Date().toISOString().slice(0, 10);
-export async function changeRequestOutcome(context: AgreementContext, input: unknown) {
+export async function changeRequestOutcome(context: RequestChangeContext, input: unknown) {
     try {
-        insist(agreementContextSchema.safeParse(context).success, 'Invalid closure action.');
+        insist(requestChangeContextSchema.safeParse(context).success, 'Invalid closure action.');
         const parsed = outcomeChangeSchema.safeParse(input);
         insist(parsed.success, 'Check the result, evidence, dates and reason.');
         const change = parsed.data;
         const auth = await requireMemberOrAbove(context.orgId);
         insist(auth, 'You cannot close Requests in this workspace.');
         // Fetch once immediately before locking; Clerk and Postgres cannot share a transaction.
-        const people = await agreementRoster(auth.orgId);
+        const people = await workspaceRoster(auth.orgId);
         insist(people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId), 'Your workspace membership is no longer active.');
         const fingerprint = fingerprintOf({ requestId: context.requestId, change });
         const result = await db.transaction(async (tx) => {
@@ -77,25 +77,25 @@ export async function changeRequestOutcome(context: AgreementContext, input: unk
                 await tx.update(requests).set({ exceptionClosure: closure, agreementRevision: revision }).where(and(eq(requests.id, request.id), eq(requests.orgId, auth.orgId)));
                 return { success: true as const, revision };
             }
-            throw new AgreementError('Unsupported closure change.');
+            throw new RequestChangeError('Unsupported closure change.');
         });
         revalidatePath('/');
         revalidatePath(`/requests/${context.requestId}`);
         return result;
     }
     catch (error) {
-        return { error: error instanceof AgreementError ? error.message : 'Could not save the outcome. Your input is preserved; try again.' };
+        return { error: error instanceof RequestChangeError ? error.message : 'Could not save the outcome. Your input is preserved; try again.' };
     }
 }
 /** New work after release links back without touching the original's measurement obligation. */
-export async function createFollowUpRequest(context: AgreementContext, input: unknown) {
+export async function createFollowUpRequest(context: RequestChangeContext, input: unknown) {
     try {
-        insist(agreementContextSchema.safeParse(context).success, 'Invalid follow-up action.');
+        insist(requestChangeContextSchema.safeParse(context).success, 'Invalid follow-up action.');
         const parsed = z.object({ reason: z.string().trim().min(1).max(4000) }).strict().safeParse(input);
         insist(parsed.success, 'Explain what changed and why this needs a follow-up.');
         const auth = await requireMemberOrAbove(context.orgId);
         insist(auth, 'You cannot create Requests in this workspace.');
-        insist((await agreementRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId), 'Your workspace membership is no longer active.');
+        insist((await workspaceRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId), 'Your workspace membership is no longer active.');
         const fingerprint = fingerprintOf({ requestId: context.requestId, kind: 'follow_up_created', input: parsed.data });
         const result = await db.transaction(async (tx) => {
             // Locked only to serialise duplicate submissions; the original row is never written.
@@ -109,9 +109,9 @@ export async function createFollowUpRequest(context: AgreementContext, input: un
             const closure = original.outcomeClosure ?? original.exceptionClosure;
             insist(original.releaseState?.release || (closure && 'release' in closure && closure.release), 'Follow-ups start after release.');
             const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
-            const [agreement] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
+            const [reviewersRow] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
             // Reviewers carry over unanswered, leaving out the creator: approval never carries forward.
-            const reviewers = (agreement?.reviewers ?? [])
+            const reviewers = (reviewersRow?.reviewers ?? [])
                 .filter(r => !(r.nominee.kind === 'member' && r.nominee.userId === auth.userId))
                 .map(r => ({ ...r, id: randomUUID(), addedBy: auth.userId, note: '', decision: null }));
             const [after] = await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: follow.id, reviewers }).returning();
@@ -127,7 +127,7 @@ export async function createFollowUpRequest(context: AgreementContext, input: un
         return result;
     }
     catch (error) {
-        return { error: error instanceof AgreementError ? error.message : 'Could not create the follow-up. Your input is preserved; try again.' };
+        return { error: error instanceof RequestChangeError ? error.message : 'Could not create the follow-up. Your input is preserved; try again.' };
     }
 }
 export async function readRequestOutcome(requestId: string, context: {
@@ -152,7 +152,7 @@ export async function readRequestOutcome(requestId: string, context: {
         let active = false;
         if (auth.role !== 'guest')
             try {
-                active = (await agreementRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId);
+                active = (await workspaceRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId);
             }
             catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
         const owner = active && ownerId === auth.userId;

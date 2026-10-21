@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/arc/checkbox/checkbox';
 import { Button } from '@/components/arc/button/button';
 import * as actions from '@/app/(app)/requests/[id]/release-actions';
 import type { ReleaseChange } from '@/lib/request-release';
-import styles from './request-agreement.module.css';
+import styles from './request-reviewers-panel.module.css';
 type View = Exclude<Awaited<ReturnType<typeof actions.readRequestRelease>>, {
     error: string;
 }>;
@@ -153,7 +153,7 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
        <div className={styles.controls}><Button type="submit" disabled={busy || !confirmed}>Confirm void</Button><Button variant="ghost" disabled={busy} onClick={() => setMode(null)}>Cancel void</Button></div>
      </form>}
      {view.canTransfer && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ kind: 'transfer', recipientId: recipient, reason: transferReason }); }}>
-       <p>The current owner no longer has eligible workspace access. Transfer responsibility without changing original authorship or agreement.</p>
+       <p>The current owner no longer has eligible workspace access. Transfer responsibility without changing original authorship or reviews.</p>
        <Select label="New release and outcome owner" options={view.people.map(p => ({ value: p.id, label: p.name }))} value={recipient} onValueChange={setRecipient} disabled={busy}/>
        <Textarea label="Transfer reason" required maxLength={4000} value={transferReason} onChange={e => setTransferReason(e.target.value)} disabled={busy}/>
        <Button type="submit" disabled={busy || !recipient}>Transfer responsibility</Button>

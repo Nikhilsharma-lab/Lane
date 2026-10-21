@@ -23,9 +23,9 @@ import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
-import { createReviewersSchema, type Reviewer } from "@/lib/request-agreement";
-import { agreementRoster } from "@/lib/request-agreement-members";
-import { AgreementError, insist, type AgreementTx } from "@/lib/request-agreement-store";
+import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
+import { workspaceRoster } from "@/lib/workspace-roster";
+import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
 
 export type IntakeFailureCode =
@@ -258,10 +258,10 @@ async function reviewersForNewRequest(
       note,
       auth,
       requesterId: auth.userId,
-      roster: await agreementRoster(auth.orgId),
+      roster: await workspaceRoster(auth.orgId),
     });
   } catch (error) {
-    if (error instanceof AgreementError) return failure(error.message);
+    if (error instanceof RequestChangeError) return failure(error.message);
     console.error("[intake] reviewer check failed:", error);
     return { code: "network", field: "reviewers", message: "Lane could not check the reviewers. Try again." };
   }
@@ -328,7 +328,7 @@ export async function saveRequest(
     if (!(await canUseProject(payload.projectId, auth))) {
       return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Return to your Request and choose another Project or clear the selection." } };
     }
-    const insertRequest = (exec: typeof db | AgreementTx) => exec
+    const insertRequest = (exec: typeof db | RequestTx) => exec
       .insert(requests)
       .values({
         id: payload.requestId,

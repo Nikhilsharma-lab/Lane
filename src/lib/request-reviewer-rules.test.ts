@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { concernMarker, pickupConfirmation, reviewStateOf } from "./request-agreement";
+import { concernMarker, pickupConfirmation, reviewStateOf } from "./request-reviewer-rules";
 
 // #77: pickup stays one click unless something is outstanding. Every entry
 // point (detail button, detail status menu, row menu, bulk bar) asks this.

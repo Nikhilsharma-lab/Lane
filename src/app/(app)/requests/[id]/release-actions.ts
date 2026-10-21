@@ -4,24 +4,24 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, profiles, requests } from '@/db';
 import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
-import { agreementRoster } from '@/lib/request-agreement-members';
-import { agreementContextSchema, type AgreementContext } from '@/lib/request-agreement';
-import { insist, AgreementError, fingerprintOf } from '@/lib/request-agreement-store';
+import { workspaceRoster } from '@/lib/workspace-roster';
+import { requestChangeContextSchema, type RequestChangeContext } from '@/lib/request-reviewer-rules';
+import { insist, RequestChangeError, fingerprintOf } from '@/lib/request-change-store';
 import { isClosed } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 /** The Request is what was agreed, so its "Users" are the agreed audience. */
 const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
-export async function changeRequestRelease(context: AgreementContext, input: unknown) {
+export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
     try {
-        insist(agreementContextSchema.safeParse(context).success, 'Invalid release action.');
+        insist(requestChangeContextSchema.safeParse(context).success, 'Invalid release action.');
         const parsed = releaseChangeSchema.safeParse(input);
         insist(parsed.success, 'Check the exposure date, evidence, confirmation and reason.');
         const change = parsed.data;
         const auth = await requireMemberOrAbove(context.orgId);
         insist(auth, 'You cannot change release in this workspace.');
         // Fetch once immediately before locking; Clerk and Postgres cannot share a transaction.
-        const people = await agreementRoster(auth.orgId);
+        const people = await workspaceRoster(auth.orgId);
         const member = (id: string) => people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id);
         insist(member(auth.userId), 'Your workspace membership is no longer active.');
         const fingerprint = fingerprintOf({ requestId: context.requestId, change });
@@ -71,7 +71,7 @@ export async function changeRequestRelease(context: AgreementContext, input: unk
         return result;
     }
     catch (error) {
-        return { error: error instanceof AgreementError ? error.message : 'Could not save release. Your input is preserved; try again.' };
+        return { error: error instanceof RequestChangeError ? error.message : 'Could not save release. Your input is preserved; try again.' };
     }
 }
 export async function readRequestRelease(requestId: string, context: {
@@ -84,11 +84,11 @@ export async function readRequestRelease(requestId: string, context: {
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined));
         insist(request, 'Request unavailable.');
         const ownerId = releaseOwner(request);
-        let people: Awaited<ReturnType<typeof agreementRoster>> = [];
+        let people: Awaited<ReturnType<typeof workspaceRoster>> = [];
         let membershipAvailable = false;
         if (auth.role !== 'guest') {
             try {
-                people = await agreementRoster(auth.orgId);
+                people = await workspaceRoster(auth.orgId);
                 membershipAvailable = true;
             }
             catch { /* Saved facts remain readable during provider outages. */ }

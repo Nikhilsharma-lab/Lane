@@ -1,13 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createAgreementTeam, createRequestThroughIntake, type AgreementTeam } from './helpers/agreement';
+import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028/0029/0030.
-// Fixtures are retained with receipts by createAgreementTeam, never silently erased.
+// Fixtures are retained with receipts by createReviewTeam, never silently erased.
 // A hosted run cannot reach a real measurement deadline (exposure cannot predate today's agreement), so measured
 // closure, the due-date gate and guardrail results are proven with a controlled clock in outcome-actions.test.ts
 // and Requests/Outcome closure stories. This journey covers exception, correction, follow-up and transfer.
-async function releasedRequest(team: AgreementTeam, page: Page, title: string) {
+async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   const request = await createRequestThroughIntake(team, title);
   const path = `/requests/${request.id}`;
   await page.goto(path);
@@ -23,7 +23,7 @@ async function releasedRequest(team: AgreementTeam, page: Page, title: string) {
 }
 test('exception closure, correction, follow-up and transferred ownership survive reloads', async ({ browser, page }, testInfo) => {
   test.setTimeout(900_000);
-  const team = await createAgreementTeam(browser, page);
+  const team = await createReviewTeam(browser, page);
   try {
     for (const width of [1440, 390]) for (const colorScheme of ['light', 'dark'] as const) {
       await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
@@ -71,7 +71,7 @@ test('exception closure, correction, follow-up and transferred ownership survive
     await expect(admin.getByRole('region', { name: 'Outcome', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Release and measurement', exact: true });
     await release.getByRole('combobox', { name: 'New release and outcome owner' }).click();
-    await admin.getByRole('option', { name: 'Agreement Developer' }).click();
+    await admin.getByRole('option', { name: 'Review Developer' }).click();
     await release.getByLabel('Transfer reason').fill('Original owner left the acceptance workspace');
     await release.getByRole('button', { name: 'Transfer responsibility' }).click();
     const developer = team.pages[2]; await developer.goto(path);

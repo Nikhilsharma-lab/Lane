@@ -6,7 +6,7 @@ import { EditRequest } from "@/app/(app)/requests/[id]/edit-request"
 import { DeleteRequest } from "@/app/(app)/requests/[id]/delete-request"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { closureLabel } from "@/lib/request-outcome"
-import { RequestAgreementPanel } from "./request-agreement-panel"
+import { RequestReviewersPanel } from "./request-reviewers-panel"
 import { RequestReleasePanel } from "./request-release-panel"
 import { RequestOutcomePanel } from "./request-outcome-panel"
 import { RequestDetailView, type RequestAttachment, type RequestComment, type RequestDetail } from "./detail-view"
@@ -31,7 +31,7 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, p
   const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }} peekStrip={peekStrip}
-    agreement={<><RequestAgreementPanel revision={request.agreementRevision} requestId={request.id} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} /><RequestReleasePanel key={request.id} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /><RequestOutcomePanel key={`outcome-${request.id}`} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /></>}
+    requestPanels={<><RequestReviewersPanel revision={request.agreementRevision} requestId={request.id} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} /><RequestReleasePanel key={request.id} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /><RequestOutcomePanel key={`outcome-${request.id}`} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /></>}
     lifecycleActions={request.agreementBlocked ? <a href="#outcome">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
     editRequest={request.status === "open" && (request.createdBy === currentUserId || isAdmin) ? <><EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /><DeleteRequest requestId={request.id} title={request.title} orgId={orgId} /></> : undefined}
     commentForm={<CommentForm requestId={request.id} context={{ orgId }} />}

@@ -5,7 +5,7 @@ import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import type { ReviewState } from "@/lib/request-agreement"
+import type { ReviewState } from "@/lib/request-reviewer-rules"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from

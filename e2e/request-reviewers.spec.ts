@@ -1,16 +1,16 @@
 import { expect, test } from "@playwright/test";
 import {
-  createAgreementTeam,
+  createReviewTeam,
   createRequestThroughIntake,
   addReviewerThroughUI,
-} from "./helpers/agreement";
+} from "./helpers/reviewers";
 
 test("a reviewer added while creating raises a concern; pickup confirms, then goes ahead; the list is read-only after; an unwanted Request is deleted before pickup", async ({
   browser,
   page,
 }, testInfo) => {
   test.setTimeout(600_000);
-  const team = await createAgreementTeam(browser, page);
+  const team = await createReviewTeam(browser, page);
   try {
     for (const width of [1440, 390])
       for (const colorScheme of ["light", "dark"] as const) {
@@ -22,12 +22,12 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         const request = await createRequestThroughIntake(
           team,
           `${width} ${colorScheme}: checkout recovery`,
-          { reviewers: ["Agreement Developer"] },
+          { reviewers: ["Review Developer"] },
         );
         const path = `/requests/${request.id}`;
         const created = page.getByRole("region", { name: "Reviewers", exact: true });
-        await expect(created.getByRole("listitem").filter({ hasText: "Agreement Developer" })).toContainText("Waiting");
-        await addReviewerThroughUI(team, "Agreement Designer");
+        await expect(created.getByRole("listitem").filter({ hasText: "Review Developer" })).toContainText("Waiting");
+        await addReviewerThroughUI(team, "Review Designer");
 
         // A concern needs a reason; the designer says it looks good.
         const developer = team.pages[2];
@@ -41,13 +41,13 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         await designer.goto(path);
         const designerPanel = designer.getByRole("region", { name: "Reviewers", exact: true });
         await designerPanel.getByRole("button", { name: "Looks good", exact: true }).click();
-        await expect(designerPanel.getByRole("listitem").filter({ hasText: "Agreement Designer" })).toContainText("Looks good");
+        await expect(designerPanel.getByRole("listitem").filter({ hasText: "Review Designer" })).toContainText("Looks good");
 
         // Reviews never block pickup: the picker sees the open concern first, then picks up anyway.
         await page.goto(path);
         await page.getByRole("button", { name: "Pick up", exact: true }).click();
         const confirmation = page.getByRole("dialog", { name: "Pick up anyway?" });
-        await expect(confirmation).toContainText("Agreement Developer raised a concern");
+        await expect(confirmation).toContainText("Review Developer raised a concern");
         await expect(confirmation).toContainText("Recovery API is unavailable");
         await confirmation.getByRole("button", { name: "Pick up anyway", exact: true }).click();
         await expect(confirmation).toHaveCount(0);

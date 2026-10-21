@@ -1,6 +1,6 @@
 "use server";
 
-import { withAgreementProgress } from "@/lib/request-agreement-progress";
+import { withRequestProgress } from "@/lib/request-progress";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
@@ -70,7 +70,7 @@ async function transitionRequest(
   const readiness = transition.to === "in_progress"
     ? sql`public.request_measurement_ready(${requests.expectedImpact}, ${requests.requestType}::text)`
     : sql`true`;
-  return withAgreementProgress(auth.orgId, auth.userId, [requestId], transition.from, async (tx, eligible, blocked) => {
+  return withRequestProgress(auth.orgId, auth.userId, [requestId], transition.from, async (tx, eligible, blocked) => {
   if (!eligible.length) return { error: blocked[0].error };
   const rows = await tx.execute<{ id: string; notification_id: string | null }>(sql`
     with u as (
@@ -203,7 +203,7 @@ async function transitionRequests(
   if (!valid.length) return { moved: [], failed: invalid };
 
   // Validated UUIDs only, so the array literal is one bound parameter.
-  const outcome = await withAgreementProgress(auth.orgId, auth.userId, valid, transition.from, async (tx, eligible, blocked) => {
+  const outcome = await withRequestProgress(auth.orgId, auth.userId, valid, transition.from, async (tx, eligible, blocked) => {
   if (!eligible.length) return { moved: [], failed: [...invalid, ...blocked] };
   const ids = `{${eligible.join(",")}}`;
   const assignment =

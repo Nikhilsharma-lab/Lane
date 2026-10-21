@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/agreement-fixtures";
+import { fixtureClerkClient } from "@/test/member-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   db,

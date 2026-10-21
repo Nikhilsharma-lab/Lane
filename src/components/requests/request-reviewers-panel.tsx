@@ -6,11 +6,11 @@ import { Button } from "@/components/arc/button/button";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import { nomineeKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-agreement";
-import * as actions from "@/app/(app)/requests/[id]/agreement-actions";
+import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-reviewer-rules";
+import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
 import { INVITATION_PENDING, REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
-import styles from "./request-agreement.module.css";
+import styles from "./request-reviewers-panel.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -35,7 +35,7 @@ function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
  * Looks good or raises a concern with a reason. Reviews never block pickup;
  * once work starts the list is a read-only record.
  */
-export function RequestAgreementPanel({
+export function RequestReviewersPanel({
   requestId,
   orgId,
   isAdmin,
@@ -130,7 +130,7 @@ export function RequestAgreementPanel({
 
   if (!view)
     return (
-      <section id="agreement" aria-label="Reviewers" className={styles.panel}>
+      <section id="reviewers" aria-label="Reviewers" className={styles.panel}>
         <h2>Reviewers</h2>
         {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button></> : <p role="status">Loading reviewers…</p>}
       </section>
@@ -144,9 +144,9 @@ export function RequestAgreementPanel({
     }));
 
   return (
-    <section id="agreement" aria-labelledby="agreement-heading" className={styles.panel} aria-busy={busy}>
+    <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.panel} aria-busy={busy}>
       <div className={styles.header}>
-        <h2 id="agreement-heading">Reviewers</h2>
+        <h2 id="reviewers-heading">Reviewers</h2>
         {view.canAdd && !adding && (
           <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
@@ -198,11 +198,11 @@ export function RequestAgreementPanel({
       )}
 
       {view.reviewers.length ? (
-        <ul className={styles.seats}>
+        <ul className={styles.reviewerList}>
           {view.reviewers.map((reviewer) => {
             const decision = reviewer.decision;
             return (
-              <li key={reviewer.id} className={reviewer.active ? styles.seat : `${styles.seat} ${styles.inactive}`}>
+              <li key={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
                 <span>{reviewer.name}</span>
                 <span className={styles.role}>{reviewer.active ? reviewer.role : "No longer in the workspace"}</span>
                 <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>

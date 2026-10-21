@@ -1,6 +1,6 @@
 import { REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { concernMarker } from "@/lib/request-agreement"
+import { concernMarker } from "@/lib/request-reviewer-rules"
 
 const STATUS_LABELS = { open: "Open", in_progress: "In Progress", done: "Done" } as const
 

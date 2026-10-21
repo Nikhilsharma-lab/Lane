@@ -111,14 +111,14 @@ async function reviewersOf(id: string) {
   return (row?.reviewers ?? []) as { id: string; nominee: { kind: string; userId?: string }; decision: null | { kind: string; reason: string } }[];
 }
 async function add(id: string, nominees: unknown[], userId = owner, orgRole = "org:member") {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   as(userId, orgRole);
   const result = await api.addReviewers(contextFor(id, await revisionOf(id)), { nominees, note: "" });
   as(owner);
   return result;
 }
 async function answer(id: string, userId: string, kind: "looks_good" | "concern", reason = "") {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const reviewer = (await reviewersOf(id)).find((r) => r.nominee.userId === userId || (r.nominee.kind === "invitation" && userId === other));
   as(userId);
   const result = await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: reviewer?.id ?? randomUUID(), kind, reason });
@@ -143,7 +143,7 @@ afterEach(() => {
 afterAll(() => connection.end());
 
 it("a member adds reviewers; everyone sees them with their profile role and no answers yet", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   expect(await add(id, [member(designer), member(developer)])).toMatchObject({ success: true, revision: 1 });
   as(other);
@@ -184,7 +184,7 @@ it("a Request holds at most twenty reviewers", async () => {
 });
 
 it("only the named reviewer answers; a concern needs a reason; they can change their answer", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   await add(id, [member(designer), member(developer)]);
   const [first] = await reviewersOf(id);
@@ -217,7 +217,7 @@ it("an invited person answers once they have accepted and verified their email",
 });
 
 it("the requester or an admin removes a reviewer; nobody else can", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   await add(id, [member(designer), member(developer)]);
   const [first, second] = await reviewersOf(id);
@@ -231,7 +231,7 @@ it("the requester or an admin removes a reviewer; nobody else can", async () => 
 });
 
 it("a reviewer who left stays listed, greyed out, and a retried answer replays", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   await add(id, [member(designer)]);
   const [reviewer] = await reviewersOf(id);
@@ -248,7 +248,7 @@ it("a reviewer who left stays listed, greyed out, and a retried answer replays",
 });
 
 it("pickup succeeds with an open concern and an unanswered review; afterwards nothing about reviews changes", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const lifecycle = await import("./actions");
   const id = await freshRequest();
   await add(id, [member(designer), member(developer)]);
@@ -296,7 +296,7 @@ async function notificationsFor(id: string) {
 }
 
 it("adding reviewers asks each of them, with the optional question on their row and in the notification", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   as(designer);
   const question = "Can we build this with the current API?";
@@ -338,7 +338,7 @@ async function edit(id: string, change: Record<string, unknown>, before: Record<
 }
 
 it("editing what an Open Request says resets every answer and tells reviewers who had answered, naming the editor", async () => {
-  const api = await import("./agreement-actions");
+  const api = await import("./reviewer-actions");
   const id = await freshRequest();
   await add(id, [member(designer), member(developer), member(other)]);
   await answer(id, designer, "looks_good");

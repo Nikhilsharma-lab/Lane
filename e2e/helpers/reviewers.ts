@@ -18,22 +18,22 @@ import { createTriageToken } from "../../src/lib/triage-token";
 
 // These fixtures have review history. Retain exact creation receipts
 // for staging inspection; do not disable history triggers for teardown.
-export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
+export async function createReviewTeam(browser: Browser, ownerPage: Page) {
   const users = await Promise.all(
     ["PM", "Designer", "Developer"].map((createLabel) =>
-      createTestUser(`agreement-${createLabel}`),
+      createTestUser(`review-${createLabel}`),
     ),
   );
   for (const [i, user] of users.entries()) {
     const client = await assertOwnedUser(user.id);
     await client.users.updateUser(user.id, {
-      firstName: `Agreement ${["PM", "Designer", "Developer"][i]}`,
+      firstName: `Review ${["PM", "Designer", "Developer"][i]}`,
       lastName: "",
     });
   }
   const orgId = await provisionAndSignIn(ownerPage, users[0], {
-    name: "Agreement PM",
-    workspaceName: "Agreement acceptance",
+    name: "Review PM",
+    workspaceName: "Review acceptance",
     role: "pm",
   });
   const client = await assertOwnedOrganization(orgId);
@@ -48,7 +48,7 @@ export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
         userId: user.id,
         role: "org:member",
       });
-      await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Agreement ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})`;
+      await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Review ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})`;
     }
   } finally {
     await sql.end();
@@ -68,7 +68,7 @@ export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
     orgId,
     pages,
     async close(testInfo: TestInfo) {
-      await testInfo.attach("retained-agreement-fixtures", {
+      await testInfo.attach("retained-review-fixtures", {
         body: JSON.stringify({ orgId, userIds: users.map((user) => user.id) }),
         contentType: "application/json",
       });
@@ -76,7 +76,7 @@ export async function createAgreementTeam(browser: Browser, ownerPage: Page) {
     },
   };
 }
-export type AgreementTeam = Awaited<ReturnType<typeof createAgreementTeam>>;
+export type ReviewTeam = Awaited<ReturnType<typeof createReviewTeam>>;
 
 /**
  * Creates a Request as the PM. With `reviewers`, the PM goes back from the
@@ -84,7 +84,7 @@ export type AgreementTeam = Awaited<ReturnType<typeof createAgreementTeam>>;
  * and reviews again through the real gate, so the save carries the picks.
  */
 export async function createRequestThroughIntake(
-  team: AgreementTeam,
+  team: ReviewTeam,
   title: string,
   { reviewers = [] }: { reviewers?: string[] } = {},
 ) {
@@ -162,7 +162,7 @@ export async function createRequestThroughIntake(
 }
 
 /** The requester asks a teammate to review the Request before work starts. */
-export async function addReviewerThroughUI(team: AgreementTeam, name: string) {
+export async function addReviewerThroughUI(team: ReviewTeam, name: string) {
   const panel = team.pages[0].getByRole("region", {
     name: "Reviewers",
     exact: true,
