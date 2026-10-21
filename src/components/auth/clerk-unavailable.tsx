@@ -1,4 +1,4 @@
-import { WifiOffIcon } from "lucide-react";
+import { RotateCwIcon } from "lucide-react";
 import { AuthAction } from "./auth-action";
 import { AuthHeading } from "./auth-shell";
 import styles from "./auth.module.css";
@@ -10,6 +10,6 @@ import styles from "./auth.module.css";
 export function ClerkUnavailable({ title, onReload }: { title: string; onReload: () => void }) {
   return <div role="alert" className={styles.unavailable}>
     <AuthHeading title={title} description="Check your connection, or turn off blockers for this site, then reload." />
-    <AuthAction type="button" icon={WifiOffIcon} onClick={onReload}>Reload</AuthAction>
+    <AuthAction type="button" icon={RotateCwIcon} onClick={onReload}>Reload</AuthAction>
   </div>;
 }
