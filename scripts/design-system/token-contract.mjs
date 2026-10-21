@@ -1,15 +1,22 @@
 import postcss from 'postcss'
 import ts from 'typescript'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve, relative, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 // Source definitions are audited separately by provenance. Consumers have no blanket vendor exemption.
-const sources = new Set(['src/styles/supabase-tokens.css', 'src/components/arc/foundation.css'])
+// A policy names where values may be written and which file owns shared control tokens.
+// The Supabase-era policy is today's repo check; the theme policy is turned on by the theme switch.
+const legacyPolicy = {
+  sources: new Set(['src/styles/supabase-tokens.css', 'src/components/arc/foundation.css']),
+  controlOwner: 'src/styles/lane-arc-theme.css',
+  ownerMayMix: true,
+}
 const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt)\b/gi
 const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
 
-export function auditCss(css, file = 'component.css') {
+export function auditCss(css, file = 'component.css', policy = legacyPolicy) {
+  const { sources, controlOwner, ownerMayMix } = policy
   const errors = []
   postcss.parse(css, { from: file }).walkDecls(d => {
     if (sources.has(file)) return
@@ -22,11 +29,11 @@ export function auditCss(css, file = 'component.css') {
     // Component geometry/materials belong to their shared implementation. Semantic
     // Badge tone and row-density composition remain legitimate context decisions.
     const sharedControlToken = /^--(?:sb-|button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
-    const ownsControlTokens = file === 'src/styles/lane-arc-theme.css' || file.startsWith('src/components/arc/')
-    if (sharedControlToken && (!ownsControlTokens || d.prop.startsWith('--sb-') && file !== 'src/styles/lane-arc-theme.css')) {
+    const ownsControlTokens = file === controlOwner || file.startsWith('src/components/arc/')
+    if (sharedControlToken && (!ownsControlTokens || d.prop.startsWith('--sb-') && file !== controlOwner)) {
       errors.push(`${file}:${d.source.start.line} shared control override ${d.prop}: update the shared component or theme mapping`)
     }
-    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value) && !(file === "src/styles/lane-arc-theme.css" && d.prop.startsWith("--") && d.value.startsWith("color-mix(") && !/#[\da-f]|\b(?:rgb|oklch)\(/i.test(d.value))) || fixedType) {
+    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value) && !(ownerMayMix && file === controlOwner && d.prop.startsWith("--") && d.value.startsWith("color-mix(") && !/#[\da-f]|\b(?:rgb|oklch)\(/i.test(d.value))) || fixedType) {
       errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value}`)
     }
   })
@@ -172,13 +179,13 @@ export function auditIcons(source, file = 'component.tsx') {
   return errors
 }
 
-export function auditTree(root) {
+export function auditTree(root, policy = legacyPolicy) {
   const errors = []
   function walk(dir) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name)
       if (entry.isDirectory()) walk(path)
-      else if (entry.name.endsWith('.css')) errors.push(...auditCss(readFileSync(path, 'utf8'), relative(root, path).replaceAll('\\', '/')))
+      else if (entry.name.endsWith('.css')) errors.push(...auditCss(readFileSync(path, 'utf8'), relative(root, path).replaceAll('\\', '/'), policy))
       else if (entry.name.endsWith('.tsx') && !/\.(?:test|spec|stories)\./.test(entry.name)) {
         const source = readFileSync(path, 'utf8')
         const file = relative(root, path).replaceAll('\\', '/')
@@ -189,6 +196,126 @@ export function auditTree(root) {
   for (const folder of ['src/app', 'src/components', 'src/styles']) walk(join(root, folder))
   return errors
 }
+
+// The one-theme-file contract (#87, #90). Paths are parameters so the theme switch can
+// point the same rules at the real files; nothing here runs in today's repo check.
+export const themeFiles = {
+  theme: 'src/styles/theme.css',
+  bridge: 'src/styles/theme-bridge.css',
+  foundation: 'src/components/arc/foundation.css',
+}
+
+// Known places the one-theme-file rule does not reach, recorded so the check is honest.
+export const themeExemptions = [
+  { arcSlot: '--icon-size', reason: "Arc's per-slot icon variable: each slot points it at a theme icon size; it has no value of its own" },
+]
+
+// Everything after this comment is Lane's half; everything before it is the tweakcn paste.
+export const laneAdditionsMarker = 'Lane additions'
+
+// Splits the theme file at the marker. Returns null when the marker is gone, so a careless
+// re-paste that wipes Lane's half is caught.
+function splitTheme(css, file) {
+  const tree = postcss.parse(css, { from: file })
+  const marker = tree.nodes.findIndex(node => node.type === 'comment' && node.text.startsWith(laneAdditionsMarker))
+  if (marker === -1) return null
+  return { tree, tweakcn: tree.nodes.slice(0, marker), additions: tree.nodes.slice(marker + 1) }
+}
+
+const darkScope = /\.dark\b|\[data-theme=["']?dark/
+const colourLiteral = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|(?<![\w-])(?:black|white)\b(?!-)/i
+
+// A literal colour in Lane additions is assumed to change between light and dark, so it
+// needs both values even when they match; otherwise dark mode silently falls back to light.
+// Expressions over tweakcn slots (var(), color-mix of a slot) inherit their mode from the slot.
+export function auditThemeFile(css, file = themeFiles.theme) {
+  const theme = splitTheme(css, file)
+  if (!theme) return [`${file} has no /* ${laneAdditionsMarker} */ marker: restore Lane's half below the tweakcn paste`]
+  const light = new Map()
+  const dark = new Map()
+  for (const node of theme.additions) node.walkDecls?.(d => {
+    if (!d.prop.startsWith('--') || insideTheme(d)) return
+    const scope = d.parent.type === 'rule' && darkScope.test(d.parent.selector) ? dark : light
+    if (!scope.has(d.prop)) scope.set(d.prop, d)
+  })
+  const errors = []
+  for (const [name, d] of light) if (!dark.has(name) && colourLiteral.test(d.value)) {
+    errors.push(`${file}:${d.source.start.line} ${name} has a light colour but no dark value: add it to the Lane additions .dark block`)
+  }
+  for (const [name, d] of dark) if (!light.has(name)) {
+    errors.push(`${file}:${d.source.start.line} ${name} has a dark value but no light value: add it to the Lane additions :root block`)
+  }
+  return errors
+}
+
+// Custom properties that reach the page. Tailwind's `@theme inline` keys only shape utility
+// classes and emit no property, so they do not count as defined.
+const insideTheme = node => { for (let p = node.parent; p; p = p.parent) if (p.type === 'atrule' && p.name === 'theme') return true; return false }
+const declaredNames = tree => {
+  const names = new Set()
+  tree.walkDecls(d => { if (d.prop.startsWith('--') && !insideTheme(d)) names.add(d.prop) })
+  return names
+}
+const modeScope = /\.dark\b|data-theme|prefers-color-scheme/
+
+// The bridge is plumbing: `--hook: var(--name);` and nothing else, so values live in one
+// file and the path from theme to screen is one hop. Anything that changes between light
+// and dark belongs in Lane additions, never in a bridge selector.
+export function auditBridge(css, themeCss, file = themeFiles.bridge) {
+  const errors = []
+  const defined = themeCss === null ? null : declaredNames(postcss.parse(themeCss))
+  const modeRules = new Set()
+  const tree = postcss.parse(css, { from: file })
+  tree.walkRules(rule => {
+    const atRule = rule.parent?.type === 'atrule' ? `${rule.parent.name} ${rule.parent.params}` : ''
+    if (modeScope.test(rule.selector) || modeScope.test(atRule)) {
+      modeRules.add(rule)
+      errors.push(`${file}:${rule.source.start.line} ${rule.selector} is a mode-specific selector: put light and dark values in Lane additions`)
+    }
+  })
+  tree.walkDecls(d => {
+    if (modeRules.has(d.parent)) return
+    const rename = d.value.trim().match(/^var\((--[a-z0-9-]+)\)$/i)
+    if (!rename) errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value} is a value, not a rename: move it to the theme file`)
+    else if (defined && !defined.has(rename[1])) errors.push(`${file}:${d.source.start.line} ${d.prop} reads ${rename[1]}, which the theme file does not define`)
+  })
+  return errors
+}
+
+// Arc's own values sit in a lower cascade layer; they can only paint where Lane leaves an
+// Arc name undefined. Every name Arc declares must therefore be defined by the theme or bridge.
+export function auditArcCoverage(foundationCss, themeCss, bridgeCss, file = themeFiles.foundation) {
+  const defined = new Set([...declaredNames(postcss.parse(themeCss ?? '')), ...declaredNames(postcss.parse(bridgeCss ?? ''))])
+  const slots = new Set(themeExemptions.filter(exemption => exemption.arcSlot).map(exemption => exemption.arcSlot))
+  const reported = new Set()
+  const errors = []
+  postcss.parse(foundationCss, { from: file }).walkDecls(d => {
+    if (!d.prop.startsWith('--') || defined.has(d.prop) || slots.has(d.prop) || reported.has(d.prop)) return
+    reported.add(d.prop)
+    errors.push(`${file}:${d.source.start.line} ${d.prop} is not defined by the theme file or bridge, so Arc's default can paint`)
+  })
+  return errors
+}
+
+export function auditThemeContract(root, files = themeFiles) {
+  // Arc's foundation stays byte-identical and is locked by arc-source-check; it loads in a
+  // lower cascade layer, and the coverage rule proves none of its values can paint.
+  // The bridge is policed by auditBridge instead, so a value there is reported once.
+  const policy = { sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge, ownerMayMix: false }
+  const errors = auditTree(root, policy)
+  const read = file => existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null
+  const theme = read(files.theme)
+  if (theme === null) errors.push(`${files.theme} is missing: it is the only place visual values may be written`)
+  else errors.push(...auditThemeFile(theme, files.theme))
+  const bridge = read(files.bridge)
+  if (bridge === null) errors.push(`${files.bridge} is missing: Arc and Lane names need their renames onto the theme file`)
+  else errors.push(...auditBridge(bridge, theme, files.bridge))
+  const foundation = read(files.foundation)
+  if (foundation === null) errors.push(`${files.foundation} is missing: the Arc coverage rule needs Arc's foundation`)
+  else if (theme !== null) errors.push(...auditArcCoverage(foundation, theme, bridge, files.foundation))
+  return { errors, warnings: [] }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const errors = auditTree(resolve(import.meta.dirname, '../..'))
   if (errors.length) { console.error(`Fixed visual values (${errors.length}):\n${errors.join('\n')}`); process.exitCode = 1 }

@@ -123,3 +123,110 @@ test('the application audit combines CSS, inline style and icon violations', () 
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+// The one-theme-file contract (#90). Fixtures are whole mini repos so each rule is
+// observed through the same entry point the theme switch turns on.
+const cleanTheme = `@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+:root { --background: oklch(1 0 0); --foreground: oklch(0.1 0 0); --primary: oklch(0.525 0.12 157.5); --primary-foreground: oklch(0.98 0 0); --radius: 0.5rem; }
+.dark { --background: oklch(0.19 0 0); --foreground: oklch(0.95 0 0); --primary: oklch(0.436 0.11 157.5); --primary-foreground: oklch(0.95 0 0); }
+@theme inline { --color-background: var(--background); --radius-sm: calc(var(--radius) - 4px); }
+
+/* Lane additions */
+:root { --accent-ink: var(--primary); --hairline: oklch(0 0 0 / .081); --radius-lg: calc(var(--radius) * 4 / 3); --duration-standard: 200ms; }
+.dark { --accent-ink: oklch(0.76 0.15 157.5); --hairline: oklch(1 0 0 / .075); }
+`
+const cleanBridge = `:root { --accent: var(--accent-ink); --border: var(--hairline); --radius-surface: var(--radius-lg); }
+[data-ui-surface="floating"] { --border: var(--hairline); }
+@theme inline { --radius-lg: var(--radius-lg); }
+`
+const cleanFoundation = ':root { --accent: #0562ef; --border: rgb(0 0 0 / .1); --background: #fff; --radius-surface: 12px; }\n:root[data-theme="dark"] { --accent: #6ba3ff; }\n'
+
+function themeFixture(overrides = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'lane-theme-contract-'))
+  const files = {
+    'src/styles/theme.css': cleanTheme,
+    'src/styles/theme-bridge.css': cleanBridge,
+    'src/components/arc/foundation.css': cleanFoundation,
+    'src/components/arc/motion-tokens.ts': 'export const motionTokens = { duration: { standard: 0.24 } }\n',
+    'src/components/row.module.css': '.row { color: var(--accent); padding: var(--space-2); border-radius: var(--radius-surface); }\n',
+    'src/app/page.tsx': 'export default function Page() { return <div style={{ padding: "var(--space-3)" }} /> }\n',
+    ...overrides,
+  }
+  for (const [file, contents] of Object.entries(files)) {
+    if (contents === undefined) continue
+    mkdirSync(join(root, file, '..'), { recursive: true })
+    writeFileSync(join(root, file), contents)
+  }
+  return root
+}
+function auditFixture(overrides) {
+  const root = themeFixture(overrides)
+  try { return tokenContract.auditThemeContract(root) } finally { rmSync(root, { recursive: true, force: true }) }
+}
+
+test('a clean one-theme-file repo passes', () => {
+  const result = auditFixture()
+  assert.deepEqual(result.errors, [])
+  assert.deepEqual(result.warnings, [])
+})
+
+test('visual literals outside the theme file fail, including the retired token files', () => {
+  for (const [file, css] of [
+    ['src/components/row.module.css', '.row { color: #fff; }'],
+    ['src/styles/supabase-tokens.css', ':root { --sb-foreground: oklch(0.1 0 0); }'],
+    ['src/styles/lane-arc-theme.css', ':root { --overlay: color-mix(in oklab, var(--background) 80%, transparent); }'],
+  ]) {
+    const { errors } = auditFixture({ [file]: css })
+    assert.ok(errors.length, file)
+    assert.ok(errors.every(error => error.startsWith(file)), errors.join('\n'))
+    assert.ok(errors.some(error => error.includes(css.match(/: (.+?);/)[1])), errors.join('\n'))
+  }
+})
+
+test('the theme file must keep its Lane additions marker', () => {
+  const { errors } = auditFixture({ 'src/styles/theme.css': cleanTheme.replace('/* Lane additions */', '') })
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /^src\/styles\/theme\.css .*Lane additions/)
+})
+
+test('the bridge holds only renames of names the theme file defines', () => {
+  for (const line of ['--accent: #0562ef;', '--radius-surface: calc(var(--radius) * 2);', '--border: color-mix(in oklab, var(--foreground) 8%, transparent);', '--border: transparent;', '--radius-surface: 0;', '--accent: var(--accent-ink, #0562ef);', '--accent: var(--brand-ink);']) {
+    const { errors } = auditFixture({ 'src/styles/theme-bridge.css': cleanBridge.replace('--accent: var(--accent-ink);', `--accent: var(--accent-ink); ${line}`) })
+    assert.equal(errors.length, 1, `${line}\n${errors.join('\n')}`)
+    assert.match(errors[0], /^src\/styles\/theme-bridge\.css:1 /)
+  }
+  for (const selector of ['.dark', ':root[data-theme="dark"]', '@media (prefers-color-scheme: dark) { :root']) {
+    const { errors } = auditFixture({ 'src/styles/theme-bridge.css': `${cleanBridge}${selector} { --accent: var(--accent-ink); }${selector.startsWith('@') ? ' }' : ''}\n` })
+    assert.equal(errors.length, 1, `${selector}\n${errors.join('\n')}`)
+    assert.match(errors[0], /mode/)
+  }
+})
+
+test('every Arc foundation name is defined by the theme file or the bridge', () => {
+  const foundation = `${cleanFoundation}:root[data-theme="dark"][data-accent="blue"] { --control-on: #3b82f6; }\n`
+  const { errors } = auditFixture({ 'src/components/arc/foundation.css': foundation })
+  assert.equal(errors.length, 1, errors.join('\n'))
+  assert.match(errors[0], /^src\/components\/arc\/foundation\.css:3 --control-on /)
+  // Arc's per-slot icon variable carries no value of its own.
+  assert.deepEqual(auditFixture({ 'src/components/arc/foundation.css': `${cleanFoundation}:where([data-icon-size="xs"]) { --icon-size: var(--accent); }\n` }).errors, [])
+})
+
+test('Lane additions colours need both a light and a dark value', () => {
+  const lightOnly = cleanTheme.replace('--duration-standard: 200ms;', '--duration-standard: 200ms; --success: oklch(0.6 0.15 150);')
+  const lightErrors = auditFixture({ 'src/styles/theme.css': lightOnly }).errors
+  assert.equal(lightErrors.length, 1, lightErrors.join('\n'))
+  assert.match(lightErrors[0], /^src\/styles\/theme\.css:8 --success .*dark/)
+  const darkOnly = cleanTheme.replace('--hairline: oklch(1 0 0 / .075);', '--hairline: oklch(1 0 0 / .075); --project-slate: #64748b;')
+  const darkErrors = auditFixture({ 'src/styles/theme.css': darkOnly }).errors
+  assert.equal(darkErrors.length, 1, darkErrors.join('\n'))
+  assert.match(darkErrors[0], /^src\/styles\/theme\.css:9 --project-slate .*light/)
+  // The tweakcn half is never policed for modes: tweakcn shares fonts, radius and shadows.
+  assert.deepEqual(auditFixture({ 'src/styles/theme.css': cleanTheme.replace('--radius: 0.5rem;', '--radius: 0.5rem; --sidebar: #fcfcfc;') }).errors, [])
+})
+
+test('a missing theme file is reported, not thrown', () => {
+  const { errors } = auditFixture({ 'src/styles/theme.css': undefined })
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /src\/styles\/theme\.css.*missing/)
+})
