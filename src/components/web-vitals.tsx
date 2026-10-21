@@ -27,9 +27,10 @@ const DevelopmentWebVitals = process.env.NODE_ENV === "development"
 /**
  * Plan item 1.15b: Web Vitals from the root layout through useReportWebVitals.
  * In development each metric is logged so a slow interaction can be read off
- * the console next to the perf spec's numbers. In production nothing is
- * posted yet: Speed Insights is decision 8.13 and adds a dependency. When it
- * lands, report from here.
+ * the console next to the perf spec's numbers. In production this posts
+ * nothing: field metrics come from Speed Insights (decision 8.13), which
+ * measures on its own and is mounted beside this in the root layout
+ * (src/components/speed-insights.tsx).
  */
 export function WebVitals() {
   return DevelopmentWebVitals ? <Suspense fallback={null}><DevelopmentWebVitals /></Suspense> : null;

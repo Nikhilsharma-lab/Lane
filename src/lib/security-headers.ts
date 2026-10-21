@@ -47,9 +47,12 @@ const CLERK_IMAGES = "https://img.clerk.com";
 // Private attachment storage. Signed download URLs point here.
 const SUPABASE_HOSTS = ["https://*.supabase.co"];
 const SUPABASE_SOCKETS = ["wss://*.supabase.co"];
-// Vercel toolbar on previews, and Speed Insights once decision 8.13 wires it.
+// Vercel toolbar on previews, and the host of Vercel's debug scripts. Speed
+// Insights v2 (decision 8.13, src/components/speed-insights.tsx) needs neither
+// in production: it loads its script from, and posts to, a same-origin
+// /_vercel/... path, which 'self' in script-src and connect-src covers. The
+// legacy vitals intake (vitals.vercel-insights.com) is no longer allowed.
 const VERCEL_HOSTS = ["https://vercel.live", "https://va.vercel-scripts.com"];
-const VERCEL_VITALS = "https://vitals.vercel-insights.com";
 // next/font self-hosts Geist and Inter at build time, so these are only hit
 // if something loads a Google font at runtime. Allowed per plan K2.
 const GOOGLE_FONT_STYLES = "https://fonts.googleapis.com";
@@ -109,7 +112,6 @@ export function contentSecurityPolicyDirectives(
         ...supabase,
         ...supabaseSockets,
         ...VERCEL_HOSTS,
-        VERCEL_VITALS,
         ...(errorReportingOrigin ? [errorReportingOrigin] : []),
       ],
     ],
