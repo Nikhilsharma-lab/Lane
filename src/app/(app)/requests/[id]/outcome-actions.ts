@@ -8,6 +8,7 @@ import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
 import { agreementRoster } from '@/lib/request-agreement-members';
 import { agreementContextSchema, type AgreementContext } from '@/lib/request-agreement';
 import { insist, AgreementError, fingerprintOf } from '@/lib/request-agreement-store';
+import { notifyReviewers } from '@/lib/request-reviewers';
 import { releaseOwner, releaseMeasurement } from '@/lib/request-release';
 import { agreedResult, correctableFields, guardrailHeld, isClosed, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
@@ -109,11 +110,13 @@ export async function createFollowUpRequest(context: AgreementContext, input: un
             insist(original.releaseState?.release || (closure && 'release' in closure && closure.release), 'Follow-ups start after release.');
             const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
             const [agreement] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
-            // Reviewers carry over as suggestions only: every answer starts empty, so approval never carries forward.
+            // Reviewers carry over unanswered, leaving out the creator: approval never carries forward.
             const reviewers = (agreement?.reviewers ?? [])
                 .filter(r => !(r.nominee.kind === 'member' && r.nominee.userId === auth.userId))
                 .map(r => ({ ...r, id: randomUUID(), addedBy: auth.userId, note: '', decision: null }));
             const [after] = await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: follow.id, reviewers }).returning();
+            // Each carried-over member is asked to review the follow-up, in the same transaction.
+            await notifyReviewers(tx, { id: follow.id, orgId: auth.orgId }, auth.userId, reviewers.flatMap(r => r.nominee.kind === 'member' ? [{ userId: r.nominee.userId, type: 'review_requested' as const, detail: '' }] : []));
             const saved = { success: true as const, revision: 1, followUpId: follow.id };
             await tx.insert(requestAgreementEvents).values({ orgId: auth.orgId, requestId: follow.id, revision: 1, operationId: context.operationId, actorId: auth.userId, kind: 'follow_up_created', payload: { version: 1, fingerprint, input: { ...parsed.data, originalId: original.id }, before: null, after, result: saved } });
             return saved;

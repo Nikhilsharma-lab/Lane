@@ -231,6 +231,8 @@ it('creates linked follow-ups after release with copied context and unanswered r
     expect(follow).toMatchObject({ title: 'Checkout problem', created_by: 'outcome_designer', status: 'open', follow_up_of: id, expected_impact: { primary: { target: 80 } } });
     // The follow-up's creator is left out; everyone else is asked again, with no answer carried over.
     expect(follow.reviewers).toEqual([{ id: expect.any(String), nominee: { kind: 'member', userId: 'outcome_developer' }, displayNameAtSelection: 'outcome_developer', addedBy: 'outcome_designer', note: '', decision: null }]);
+    // Each carried-over reviewer is asked to review the follow-up, once despite the duplicate submit; the creator is not told about their own action.
+    expect(await connection `select user_id,type::text,actor_id,detail from notifications where request_id=${followUpId}`).toEqual([{ user_id: 'outcome_developer', type: 'review_requested', actor_id: 'outcome_designer', detail: null }]);
     expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ state: 'measuring', followUps: [{ reason: 'Mobile checkout needs the same fix', createdBy: 'outcome_designer' }, { reason: 'Refund flow found in measurement' }] });
     expect(await api.readRequestOutcome(followUpId, { orgId })).toMatchObject({ followUpOf: { id, title: 'Checkout problem' }, state: 'not_started' });
     // Closed originals take follow-ups too, without reopening.
