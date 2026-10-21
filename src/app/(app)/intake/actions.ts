@@ -9,7 +9,7 @@ import { requestEditSourceSchema } from "@/lib/request-edit";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { db, requests } from "@/db";
+import { db, requests, requestAgreements } from "@/db";
 import {
   classifyTriageFailure,
   triageFailureStatus,
@@ -19,10 +19,14 @@ import {
 } from "@/lib/ai/triage";
 import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
+import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
+import { workspaceRoster } from "@/lib/workspace-roster";
+import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
+import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
 
 export type IntakeFailureCode =
   | "validation"
@@ -50,7 +54,8 @@ export type IntakeFailure = {
     | "observedEvidence"
     | "uncertainty"
     | "usefulLink"
-    | "editedProblemText";
+    | "editedProblemText"
+    | "reviewers";
   retryAfterSeconds?: number;
 };
 
@@ -230,9 +235,42 @@ export async function runTriage(
   }
 }
 
+/**
+ * Reviewers picked while creating a Request, checked with the same rules as
+ * adding them from Request detail. They travel outside the signed review
+ * token, so they are validated here on their own. Nothing is written yet.
+ */
+async function reviewersForNewRequest(
+  input: unknown,
+  auth: MemberAuth,
+): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] } | IntakeFailure> {
+  const failure = (message: string): IntakeFailure => ({ code: "validation", field: "reviewers", message });
+  const parsed = createReviewersSchema.safeParse(input);
+  if (!parsed.success)
+    return failure(parsed.error.issues.find((issue) => issue.path[0] === "note")?.message ?? "Choose people to review.");
+  const { nominees, note } = parsed.data ?? { nominees: [], note: "" };
+  if (!nominees.length) return { reviewers: [], asked: [] };
+  try {
+    insist(auth.role !== "guest", "Guests can’t add reviewers.");
+    return await appendReviewers({
+      existing: [],
+      nominees,
+      note,
+      auth,
+      requesterId: auth.userId,
+      roster: await workspaceRoster(auth.orgId),
+    });
+  } catch (error) {
+    if (error instanceof RequestChangeError) return failure(error.message);
+    console.error("[intake] reviewer check failed:", error);
+    return { code: "network", field: "reviewers", message: "Lane could not check the reviewers. Try again." };
+  }
+}
+
 export async function saveRequest(
   data: { token: string; editedProblemText: string | null },
-  context: { orgId: string }
+  context: { orgId: string },
+  reviewerInput?: unknown
 ): Promise<SaveResponse> {
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { success: false, error: sessionFailure() };
@@ -282,12 +320,15 @@ export async function saveRequest(
   const reframedProblem =
     payload.classification === "problem" ? null : parsedEdit.data;
 
+  const review = await reviewersForNewRequest(reviewerInput, auth);
+  if ("code" in review) return { success: false, error: review };
+
   try {
     if (!await canUseLabels(payload.labelKeys, auth.orgId, payload.projectId ?? null)) return {success:false,error:{code:"validation",field:"requestType",message:"A selected label belongs to a different Project or is unavailable. Remove it or restore its Project."}};
     if (!(await canUseProject(payload.projectId, auth))) {
       return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Return to your Request and choose another Project or clear the selection." } };
     }
-    const [created] = await db
+    const insertRequest = (exec: typeof db | RequestTx) => exec
       .insert(requests)
       .values({
         id: payload.requestId,
@@ -313,6 +354,19 @@ export async function saveRequest(
       })
       .onConflictDoNothing({ target: requests.id })
       .returning({ id: requests.id, requestNumber: requests.requestNumber, createdAt: requests.createdAt });
+    // Reviewers and their notifications are written with the Request or not at all.
+    // A retried save finds the Request already there and adds nobody twice.
+    const [created] = review.reviewers.length
+      ? await db.transaction(async (tx) => {
+        const rows = await insertRequest(tx);
+        if (rows[0]) {
+          const request = { id: rows[0].id, orgId: auth.orgId };
+          await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: request.id, reviewers: review.reviewers });
+          await notifyReviewers(tx, request, auth.userId, review.asked);
+        }
+        return rows;
+      })
+      : await insertRequest(db);
 
     if (created) {
       revalidateSavedRequest(created.id);

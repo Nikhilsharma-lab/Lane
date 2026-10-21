@@ -28,12 +28,9 @@ async function at(iso: string) {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(iso));
 }
-/** A Done Request with complete agreement, optionally released on 21 October (due 28 October). */
+/** A Done Request, optionally released on 21 October (due 28 October). */
 async function fixture({ impact = conversion as postgres.JSONValue, released = true } = {}) {
-    const [row] = await connection `insert into requests(org_id,title,description,created_by,status,priority,expected_impact) values (${orgId},'Checkout problem','Unable to pay','outcome_owner','done','high',${connection.json(impact)}) returning *`;
-    const prepared = { version: 1, scopeIncluded: 'Checkout', scopeExcluded: 'Pricing', audience: 'All shoppers', timing: 'October', constraints: 'Existing API', feasibility: 'Verified', commitmentKind: 'delivery' };
-    const seats = Object.fromEntries(['pm', 'designer', 'developer'].map(seat => [seat, { generation: 1, nominee: { kind: 'member', userId: 'outcome_' + seat }, displayNameAtSelection: seat, decision: { kind: 'agree', actorId: 'outcome_' + seat, at: '2026-10-20T00:00:00.000Z', reason: '' } }]));
-    await connection `insert into request_agreements(request_id,org_id,prepared,snapshot,seats,submitted_by,submitted_at) values (${row.id},${orgId},${connection.json(prepared)},${connection.json({ version: 1, request: { title: 'Checkout problem', description: 'Unable to pay', expectedImpact: impact }, prepared, attachmentIds: [] })},${connection.json(seats)},'outcome_owner',now())`;
+    const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,expected_impact,created_at) values (${orgId},'Checkout problem','Unable to pay','All shoppers','outcome_owner','done','high',${connection.json(impact)},'2026-10-01T00:00:00Z') returning *`;
     if (released) {
         const releaseApi = await import('./release-actions');
         const result = await releaseApi.changeRequestRelease(context(row.id, 0), { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full rollout in release log', audienceConfirmed: true });
@@ -45,7 +42,7 @@ it('closes a measured outcome only from the due date, keeping baseline and targe
     const api = await import('./outcome-actions');
     await at('2026-10-25T12:00:00Z');
     const id = await fixture();
-    expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Measured closure opens on 2026-10-28 (UTC). Use Close with exception if measurement cannot happen.' });
+    expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Measured closure opens on 2026-10-28 (UTC). If it can’t be measured, close it without a result.' });
     await at('2026-10-28T00:00:00Z');
     const ctx = context(id, 1);
     const closed = await api.changeRequestOutcome(ctx, measured);
@@ -86,34 +83,28 @@ it('closes pass/fail and legacy commitments with negative or neutral results, bu
     const unreleased = await fixture({ released: false });
     expect(await api.changeRequestOutcome(context(unreleased, 0), measured)).toEqual({ error: 'Record release before closing with a measured result.' });
 });
-it('closes with a reasoned exception before the deadline, never inventing a result, and blocks further advancement', async () => {
+it('closes without a result after pickup, never inventing one; before pickup the Request is deleted instead', async () => {
     const api = await import('./outcome-actions');
     const lifecycle = await import('./actions');
     await at('2026-10-22T00:00:00Z');
-    const [open] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Legacy open','No agreement','outcome_owner','open') returning id`;
-    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'cancelled', reason: '' })).toHaveProperty('error');
-    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'superseded', reason: 'Use the replacement path' })).toHaveProperty('error');
-    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'rolled_back', reason: 'Nothing shipped' })).toEqual({ error: 'Record release before closing as rolled back or inconclusive.' });
-    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'cancelled', reason: 'Strategy changed before work began' })).toEqual({ success: true, revision: 1 });
-    expect(await lifecycle.pickUpRequest(open.id, { orgId })).toEqual({ error: 'This Request is closed with an exception and cannot advance.' });
-    const [row] = await connection `select status,outcome_closure,exception_closure from requests where id=${open.id}`;
-    expect(row).toMatchObject({ status: 'open', outcome_closure: null, exception_closure: { version: 2, reasonCode: 'cancelled', release: null, actorId: 'outcome_owner' } });
-    expect(await api.readRequestOutcome(open.id, { orgId })).toMatchObject({ state: 'closed', agreed: null, closure: { kind: 'exception', reasonCode: 'cancelled', reason: 'Strategy changed before work began' } });
+    const [open] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Not started','No agreement','outcome_owner','open') returning id`;
+    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'cannot_measure', reason: '' })).toEqual({ error: 'Nobody has picked this up yet. Delete the Request instead.' });
+    expect(await api.changeRequestOutcome(context(open.id, 0), { kind: 'exception', reasonCode: 'superseded', reason: 'Old reason' })).toHaveProperty('error');
+    const unreleased = await fixture({ released: false });
+    await connection `update requests set status='in_progress' where id=${unreleased}`;
+    expect(await api.changeRequestOutcome(context(unreleased, 0), { kind: 'exception', reasonCode: 'other', reason: '' })).toEqual({ error: 'Say why this is closing without a result.' });
+    expect(await api.changeRequestOutcome(context(unreleased, 0), { kind: 'exception', reasonCode: 'other', reason: 'Strategy changed mid-build' })).toEqual({ success: true, revision: 1 });
+    expect(await lifecycle.markDone(unreleased, { orgId })).toEqual({ error: 'This Request is closed without a result and cannot advance.' });
+    const [row] = await connection `select status,outcome_closure,exception_closure from requests where id=${unreleased}`;
+    expect(row).toMatchObject({ status: 'in_progress', outcome_closure: null, exception_closure: { version: 1, reasonCode: 'other', release: null, actorId: 'outcome_owner' } });
+    expect(await api.readRequestOutcome(unreleased, { orgId })).toMatchObject({ state: 'closed', closure: { kind: 'exception', reasonCode: 'other', reason: 'Strategy changed mid-build' } });
     const released = await fixture();
-    expect(await api.changeRequestOutcome(context(released, 1), { kind: 'exception', reasonCode: 'cancelled', reason: 'Too late' })).toEqual({ error: 'Released work cannot close as not launched. Choose rolled back, unavailable or inconclusive.' });
-    expect(await api.changeRequestOutcome(context(released, 1), { kind: 'exception', reasonCode: 'rolled_back', reason: 'Payment errors spiked; reverted on 22 October' })).toHaveProperty('success', true);
+    expect(await api.changeRequestOutcome(context(released, 1), { kind: 'exception', reasonCode: 'rolled_back', reason: '' })).toHaveProperty('success', true);
     expect(await api.readRequestOutcome(released, { orgId })).toMatchObject({ closure: { reasonCode: 'rolled_back', release: { exposureDate: '2026-10-21' } } });
     const releaseApi = await import('./release-actions');
     expect(await releaseApi.changeRequestRelease(context(released, 2), { kind: 'void', reason: 'Undo closure', neverExposed: true })).toEqual({ error: 'This Request is permanently closed.' });
     const unavailable = await fixture();
-    expect(await api.changeRequestOutcome(context(unavailable, 1), { kind: 'exception', reasonCode: 'measurement_unavailable', reason: 'Analytics outage lost October data' })).toHaveProperty('success', true);
-});
-it('a pending linked replacement must be confirmed as Superseded rather than closed another way', async () => {
-    const api = await import('./outcome-actions');
-    const [original] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Original','Context','outcome_owner','open') returning id`;
-    const [successor] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Successor','Context','outcome_owner','open') returning id`;
-    await connection `insert into request_replacements(original_id,replacement_id,org_id,created_by,reason,changed_fields) values (${original.id},${successor.id},${orgId},'outcome_owner','Scope changed','[]')`;
-    expect(await api.changeRequestOutcome(context(original.id, 0), { kind: 'exception', reasonCode: 'cancelled', reason: 'Abandon' })).toEqual({ error: 'A linked replacement is pending. Confirm the original as Superseded instead.' });
+    expect(await api.changeRequestOutcome(context(unavailable, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Analytics outage lost October data' })).toHaveProperty('success', true);
 });
 it('only the current owner closes; transfer moves authority, and admins, guests, former owners and foreign workspaces cannot', async () => {
     const api = await import('./outcome-actions');
@@ -125,7 +116,7 @@ it('only the current owner closes; transfer moves authority, and admins, guests,
     expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Only the current release and outcome owner can do this.' });
     session.userId = 'outcome_pm';
     session.orgRole = 'org:member';
-    expect(await api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'inconclusive', reason: 'PM disagrees' })).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'PM disagrees' })).toHaveProperty('error');
     session.userId = 'outcome_owner';
     session.orgRole = 'org:guest';
     expect(await api.changeRequestOutcome(context(id, 1), measured)).toHaveProperty('error');
@@ -207,18 +198,19 @@ it('appends attributable corrections beside the immutable closure, with lost-res
     const view = await api.readRequestOutcome(id, { orgId });
     expect(view).toMatchObject({ closure: { evidence: measured.evidence, primary: { actual: 62 } }, corrections: [{ field: 'evidence', actorId: 'outcome_owner', reason: fix.reason }, { field: 'actual', correction: 'Actual was 61%' }] });
     const exceptional = await fixture();
-    await api.changeRequestOutcome(context(exceptional, 1), { kind: 'exception', reasonCode: 'inconclusive', reason: 'Too few sessions' });
+    await api.changeRequestOutcome(context(exceptional, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Too few sessions' });
     expect(await api.changeRequestOutcome(context(exceptional, 2), { ...fix, field: 'actual', correction: 'Invented 61%' })).toEqual({ error: 'Choose a part of this closure to correct.' });
     expect(await api.changeRequestOutcome(context(exceptional, 2), { ...fix, field: 'reason', correction: 'Holiday traffic, not too few sessions' })).toHaveProperty('success', true);
     expect(await api.readRequestOutcome(exceptional, { orgId })).toMatchObject({ closure: { reason: 'Too few sessions' }, corrections: [{ field: 'reason' }] });
 });
-it('creates linked follow-ups after release with copied context and fresh agreement, leaving the original obligation intact', async () => {
+it('creates linked follow-ups after release with copied context and unanswered reviewers, leaving the original obligation intact', async () => {
     const api = await import('./outcome-actions');
-    const lifecycle = await import('./actions');
     await at('2026-10-24T00:00:00Z');
     const unreleased = await fixture({ released: false });
-    expect(await api.createFollowUpRequest(context(unreleased, 0), { reason: 'Too early' })).toEqual({ error: 'Follow-ups start after release. Before release, create a linked replacement.' });
+    expect(await api.createFollowUpRequest(context(unreleased, 0), { reason: 'Too early' })).toEqual({ error: 'Follow-ups start after release.' });
     const id = await fixture();
+    const review = (userId: string, decision: object) => ({ id: randomUUID(), nominee: { kind: 'member', userId }, displayNameAtSelection: userId, addedBy: 'outcome_owner', note: 'Can we build this?', decision: { actorId: userId, at: '2026-10-20T00:00:00.000Z', ...decision } });
+    await connection `insert into request_agreements(request_id,org_id,reviewers) values (${id},${orgId},${connection.json([review('outcome_designer', { kind: 'looks_good', reason: '' }), review('outcome_developer', { kind: 'concern', reason: 'API not ready' })])})`;
     const [before] = await connection `select release_state,agreement_revision,outcome_closure,exception_closure,updated_at from requests where id=${id}`;
     session.orgRole = 'org:guest';
     expect(await api.createFollowUpRequest(context(id, 1), { reason: 'Guest' })).toHaveProperty('error');
@@ -235,10 +227,12 @@ it('creates linked follow-ups after release with copied context and fresh agreem
     expect(await api.createFollowUpRequest(context(id, 1), { reason: 'Refund flow found in measurement' })).toHaveProperty('success', true);
     const [after] = await connection `select release_state,agreement_revision,outcome_closure,exception_closure,updated_at from requests where id=${id}`;
     expect(after).toEqual(before);
-    const [follow] = await connection `select r.title,r.created_by,r.status,r.follow_up_of,r.expected_impact,a.snapshot,a.seats from requests r join request_agreements a on a.request_id=r.id where r.id=${followUpId}`;
-    expect(follow).toMatchObject({ title: 'Checkout problem', created_by: 'outcome_designer', status: 'open', follow_up_of: id, snapshot: null, expected_impact: { primary: { target: 80 } } });
-    expect(Object.values(follow.seats as Record<string, { decision: unknown }>).every(seat => seat.decision === null)).toBe(true);
-    expect(await lifecycle.pickUpRequest(followUpId, { orgId })).toHaveProperty('error');
+    const [follow] = await connection `select r.title,r.created_by,r.status,r.follow_up_of,r.expected_impact,a.reviewers from requests r join request_agreements a on a.request_id=r.id where r.id=${followUpId}`;
+    expect(follow).toMatchObject({ title: 'Checkout problem', created_by: 'outcome_designer', status: 'open', follow_up_of: id, expected_impact: { primary: { target: 80 } } });
+    // The follow-up's creator is left out; everyone else is asked again, with no answer carried over.
+    expect(follow.reviewers).toEqual([{ id: expect.any(String), nominee: { kind: 'member', userId: 'outcome_developer' }, displayNameAtSelection: 'outcome_developer', addedBy: 'outcome_designer', note: '', decision: null }]);
+    // Each carried-over reviewer is asked to review the follow-up, once despite the duplicate submit; the creator is not told about their own action.
+    expect(await connection `select user_id,type::text,actor_id,detail from notifications where request_id=${followUpId}`).toEqual([{ user_id: 'outcome_developer', type: 'review_requested', actor_id: 'outcome_designer', detail: null }]);
     expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ state: 'measuring', followUps: [{ reason: 'Mobile checkout needs the same fix', createdBy: 'outcome_designer' }, { reason: 'Refund flow found in measurement' }] });
     expect(await api.readRequestOutcome(followUpId, { orgId })).toMatchObject({ followUpOf: { id, title: 'Checkout problem' }, state: 'not_started' });
     // Closed originals take follow-ups too, without reopening.
@@ -256,7 +250,7 @@ it('duplicate closure submissions from one tab or two produce exactly one durabl
     const ctx = context(id, 1);
     expect(await Promise.all([api.changeRequestOutcome(ctx, measured), api.changeRequestOutcome(ctx, measured)])).toEqual([{ success: true, revision: 2 }, { success: true, revision: 2 }]);
     const other = await fixture();
-    const raced = await Promise.all([api.changeRequestOutcome(context(other, 1), measured), api.changeRequestOutcome(context(other, 1), { kind: 'exception', reasonCode: 'inconclusive', reason: 'Second tab' })]);
+    const raced = await Promise.all([api.changeRequestOutcome(context(other, 1), measured), api.changeRequestOutcome(context(other, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Second tab' })]);
     expect(raced.filter(r => 'success' in r)).toHaveLength(1);
     const [row] = await connection `select (outcome_closure is null)::int + (exception_closure is null)::int as open_slots from requests where id=${other}`;
     expect(row.open_slots).toBe(1);
@@ -268,7 +262,7 @@ it('an owner whose closure locks first keeps it; the concurrent admin transfer i
     await at('2026-10-28T00:00:00Z');
     const id = await fixture();
     // The owner's Clerk check passes just before access is revoked; Clerk and Postgres cannot share a transaction.
-    const close = api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'measurement_unavailable', reason: 'Owner closing' });
+    const close = api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Owner closing' });
     roster.ids = everyone.filter(u => u !== 'outcome_owner');
     session.userId = 'outcome_admin';
     session.orgRole = 'org:admin';

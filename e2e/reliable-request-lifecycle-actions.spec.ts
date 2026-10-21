@@ -1,11 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
-  createAgreementTeam,
+  createReviewTeam,
   createRequestThroughIntake,
-  prepareAgreementThroughUI,
-  agreeThroughUI,
-} from "./helpers/agreement";
+} from "./helpers/reviewers";
 
 const SURFACES = [
   {
@@ -76,7 +74,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
   browser,
 }, testInfo) => {
   test.setTimeout(600_000);
-  const team = await createAgreementTeam(browser, page);
+  const team = await createReviewTeam(browser, page);
 
   try {
     for (const surface of SURFACES) {
@@ -85,8 +83,6 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
 
       const title = `${surface.name}: lifecycle action`;
       const request = await createRequestThroughIntake(team, title);
-      await prepareAgreementThroughUI(team);
-      await agreeThroughUI(team, `/requests/${request.id}`);
       const detailPath = `/requests/${request.id}`;
       const actionPath = `**/requests/${request.id}**`;
       await page.goto(detailPath);

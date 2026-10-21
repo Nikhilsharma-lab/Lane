@@ -5,6 +5,7 @@ import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
+import type { ReviewState } from "@/lib/request-reviewer-rules"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -47,7 +48,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
     .select({
       id: requests.id,
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
-      agreementSubmitted: sql<boolean>`exists(select 1 from public.request_agreements a where a.request_id=${requests.id} and a.org_id=${requests.orgId} and a.snapshot is not null)`,
+      reviewState: sql<ReviewState | null>`public.request_review_state(${requests.id})`,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       agreementRevision: requests.agreementRevision,
@@ -145,7 +146,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       .select({
         id: requests.id,
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
-      agreementSubmitted: sql<boolean>`exists(select 1 from public.request_agreements a where a.request_id=${requests.id} and a.org_id=${requests.orgId} and a.snapshot is not null)`,
+      reviewState: sql<ReviewState | null>`public.request_review_state(${requests.id})`,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       agreementRevision: requests.agreementRevision,

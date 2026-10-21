@@ -35,6 +35,7 @@
   }
 }
 .search { composes: header from "./request-picker-layout.module.css"; }
+.question { padding: var(--space-2); border-top: var(--border-width) solid var(--border-subtle); }
 .caption { margin: 0; padding: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
 .colourOption { composes: row from "./request-picker-layout.module.css"; justify-content: flex-start; width: 100%; }
 .dotStack { display: inline-flex; align-items: center; }

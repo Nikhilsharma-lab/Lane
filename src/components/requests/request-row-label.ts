@@ -1,5 +1,6 @@
 import { REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { concernMarker } from "@/lib/request-reviewer-rules"
 
 const STATUS_LABELS = { open: "Open", in_progress: "In Progress", done: "Done" } as const
 
@@ -20,6 +21,8 @@ export function requestRowLabel(request: OverviewRequest, identity?: { code: str
     request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"),
     ...(labelNames ?? (request.requestType ? [REQUEST_TYPE_LABELS[request.requestType]] : [])),
     request.assignedTo ? `Assignee ${request.assigneeName?.trim() || "Unknown member"}` : "No assignee",
+    // #77: "2 concerns" on an Open row with a reviewer's concern open, as the row's marker shows.
+    ...[concernMarker(request)].filter((marker): marker is string => marker !== null),
   ]
   return `${code ? `${code}, ` : ""}${title}. ${facts.join(", ")}`
 }

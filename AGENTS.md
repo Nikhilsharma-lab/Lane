@@ -5,13 +5,13 @@
 
 ## What Lane is
 
-Lane's foundations are **one source of truth for the product/journeys** and **predicted versus actual impact**, per Request and quarter/year. Named PM/Designer/Developer agreement gates progress; the submitter owns results/closure. Documented exceptions stay outside measured-impact totals. Target authority: `REQUIREMENTS.md` (2026-10-06); this is not all implemented. **Support, not surveillance:** no time tracking, last active, utilization or individual rankings.
+Lane's foundations are **one source of truth for the product/journeys** and **predicted versus actual impact**, per Request and quarter/year. Optional reviewers advise before pickup and never gate it; the submitter owns results/closure. Documented exceptions stay outside measured-impact totals. Target authority: `REQUIREMENTS.md` (2026-10-06); this is not all implemented. **Support, not surveillance:** no time tracking, last active, utilization or individual rankings.
 
 ## Current implementation — target contract is in REQUIREMENTS.md
 
 1. On first login a person creates or joins a Clerk workspace, then picks a role — **PM, Designer, or Developer** (a label, editable later in Settings; it does NOT change what they can see or do). Anyone can submit a design request with a title, freeform description and Expected impact (Metric or Verified result), optional Project, Request type, related link and private file attachments; before a request can be saved, an AI gate classifies it as a **problem**, a **solution**, or a **hybrid**, reframing solution-shaped requests into a problem the submitter confirms.
 2. The current app has a shared **Open → In Progress → Done** board with pickup/completion, comments and private attachments; eligible non-guests share the same view. Expected impact creation → signed review → saved detail is implemented and locally verified. This is implementation scope, not proof that every production release gate passed.
-3. **Confirmed 2026-09-28 target:** named PM/Designer/Developer alignment (recorded dissent blocks; no override), assignment separate from start, discovery/delivery commitments, complete readiness, success/evidence, creator-owned outcome closure and linked follow-ups; Closed never reopens. See `REQUIREMENTS.md` §§4–5. Alignment, launch, actual-result closure and quarter/year totals remain target only; the local Expected impact increment does not implement the whole pipeline.
+3. **Confirmed 2026-09-28 target:** optional reviewers on a Request (Looks good / Raise a concern; never block pickup; an edit resets answers; delete before pickup), assignment separate from start, complete readiness, success/evidence, creator-owned outcome closure and linked follow-ups; Closed never reopens. See `REQUIREMENTS.md` §§4–5. Alignment, launch, actual-result closure and quarter/year totals remain target only; the local Expected impact increment does not implement the whole pipeline.
 
 ## The only screens that exist in the MVP
 

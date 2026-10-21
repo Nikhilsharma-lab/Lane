@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { createAgreementTeam, createRequestThroughIntake, prepareAgreementThroughUI, agreeThroughUI } from './helpers/agreement';
+import { createReviewTeam, createRequestThroughIntake } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028/0029.
-// These fixtures are retained with receipts by createAgreementTeam, never silently erased.
+// These fixtures are retained with receipts by createReviewTeam, never silently erased.
 test('release, correction, countdown and explicit owner transfer survive reloads', async ({ browser, page }, testInfo) => {
   test.setTimeout(600_000);
-  const team = await createAgreementTeam(browser, page);
+  const team = await createReviewTeam(browser, page);
   const today = () => new Date().toISOString().slice(0, 10);
   let lastPath = '';
   try {
@@ -14,7 +14,6 @@ test('release, correction, countdown and explicit owner transfer survive reloads
       await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
       const request = await createRequestThroughIntake(team, `${width} ${colorScheme}: release acceptance`);
       lastPath = `/requests/${request.id}`;
-      await prepareAgreementThroughUI(team); await agreeThroughUI(team, lastPath);
       await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
       await page.getByRole('button', { name: 'Mark Done', exact: true }).click(); await page.reload();
       const release = page.getByRole('region', { name: 'Release and measurement', exact: true });
@@ -44,10 +43,10 @@ test('release, correction, countdown and explicit owner transfer survive reloads
     const admin = team.pages[1]; await admin.goto(lastPath); await admin.reload();
     const panel = admin.getByRole('region', { name: 'Release and measurement', exact: true });
     await panel.getByRole('combobox', { name: 'New release and outcome owner' }).click();
-    await admin.getByRole('option', { name: 'Agreement Developer' }).click();
+    await admin.getByRole('option', { name: 'Review Developer' }).click();
     await panel.getByLabel('Transfer reason').fill('Original owner left the acceptance workspace');
     await panel.getByRole('button', { name: 'Transfer responsibility' }).click();
-    await admin.reload(); await expect(panel).toContainText('Release and outcome owner: Agreement Developer');
+    await admin.reload(); await expect(panel).toContainText('Release and outcome owner: Review Developer');
     await expect(panel.getByText('14 days remaining', { exact: true })).toBeVisible();
   } finally { await team.close(testInfo); }
 });

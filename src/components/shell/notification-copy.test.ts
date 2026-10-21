@@ -4,7 +4,7 @@ import { notificationEvent, notificationRow, type NotificationCopyInput } from "
 // Plan item 2.7: rows read the Request, "Done" is a status, and only unread rows say so.
 const base: NotificationCopyInput = {
   type: "comment_added", actorName: "Aditi Rao", requestTitle: "Delivery date on checkout",
-  requestNumber: 12, reframedProblem: "Customers cannot find the delivery date before checkout", readAt: null,
+  requestNumber: 12, reframedProblem: "Customers cannot find the delivery date before checkout", readAt: null, detail: null,
 }
 
 describe("notificationRow", () => {
@@ -26,10 +26,21 @@ describe("notificationRow", () => {
     expect(notificationEvent("request_done", "Aditi Rao")).toBe("Aditi Rao marked it Done")
     expect(notificationEvent("comment_added", "Aditi Rao")).toBe("Aditi Rao commented")
     expect(notificationEvent("request_picked_up", "Aditi Rao")).toBe("Aditi Rao picked it up")
-    expect(notificationEvent("review_requested", "Aditi Rao")).toBe("Aditi Rao asked for your feedback")
+    expect(notificationEvent("review_requested", "Aditi Rao")).toBe("Aditi Rao asked you to review")
+    expect(notificationEvent("review_looks_good", "Aditi Rao")).toBe("Aditi Rao said it looks good")
+    expect(notificationEvent("review_concern", "Aditi Rao")).toBe("Aditi Rao raised a concern")
+    expect(notificationEvent("review_reset", "Aditi Rao")).toBe("Aditi Rao changed it. Please review again")
     expect(notificationEvent("review_responded", "Aditi Rao")).toBe("Aditi Rao responded to your review")
     expect(notificationEvent("invite_accepted", "Aditi Rao")).toBeNull()
     expect(notificationEvent("something_else", "Aditi Rao")).toBe("Aditi Rao updated it")
+  })
+
+  it("carries the review question or concern reason as its own line and in the accessible name", () => {
+    const asked = notificationRow({ ...base, type: "review_requested", detail: "Can we build this with the current API?" }, "Jan 1, 8:00 AM")
+    expect(asked.detail).toBe("Can we build this with the current API?")
+    expect(asked.name).toBe("LAN-12 · Customers cannot find the delivery date before checkout, Aditi Rao asked you to review, Can we build this with the current API?, Jan 1, 8:00 AM, unread")
+    expect(notificationRow({ ...base, type: "review_concern", detail: "  " }).detail).toBeNull()
+    expect(notificationRow(base).detail).toBeNull()
   })
 
   it("renders an invite as one line with Someone as the fallback actor", () => {

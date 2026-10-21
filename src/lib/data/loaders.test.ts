@@ -19,7 +19,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
 
-import { db, queryCounter, comments, notifications, profiles, projects, requestAttachments, requests } from "@/db";
+import { db, queryCounter, comments, notifications, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { REQUEST_PRIORITIES } from "@/lib/request-constants";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
@@ -39,6 +39,12 @@ const guest: MemberAuth = { userId: GUEST, orgId: ORG, role: "guest" };
 
 const memberProject = randomUUID(), guestProject = randomUUID(), foreignProject = randomUUID();
 const memberRequest = randomUUID(), guestRequest = randomUUID(), foreignRequest = randomUUID();
+// #77: an Open Request with one concern, one Looks good and one unanswered review.
+const reviewedRequest = randomUUID();
+const reviewer = (userId: string, name: string, decision: { kind: "looks_good" | "concern"; reason: string } | null) => ({
+  id: randomUUID(), nominee: { kind: "member" as const, userId }, displayNameAtSelection: name, addedBy: MEMBER, note: "",
+  decision: decision && { ...decision, actorId: userId, at: "2026-10-21T10:00:00.000Z" },
+});
 // Enough Done Requests for one full page plus two older ones, oldest first.
 const doneRequests = Array.from({ length: DONE_PAGE_SIZE + 2 }, () => randomUUID());
 const foreignDone = randomUUID();
@@ -56,12 +62,18 @@ beforeAll(async () => {
   await db.insert(requests).values([
     { id: memberRequest, orgId: ORG, title: "Loader member Request", description: "Seeded by loaders.test.ts", createdBy: MEMBER, projectId: memberProject, status: "in_progress", assignedTo: ADMIN },
     { id: guestRequest, orgId: ORG, title: "Loader guest Request", description: "Seeded by loaders.test.ts", createdBy: GUEST, projectId: guestProject },
+    { id: reviewedRequest, orgId: ORG, title: "Loader reviewed Request", description: "Seeded by loaders.test.ts", createdBy: MEMBER },
     { id: foreignRequest, orgId: OTHER_ORG, title: "Loader foreign Request", description: "Seeded by loaders.test.ts", createdBy: OTHER_ADMIN },
     // Done Requests sit far in the future so they are the newest in org_test_a.
     ...doneRequests.map((id, index) => ({ id, orgId: ORG, title: `Loader Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: MEMBER, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1, 0, 0, index)) })),
     { id: foreignDone, orgId: OTHER_ORG, title: "Loader foreign Done", description: "Seeded by loaders.test.ts", createdBy: OTHER_ADMIN, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1)) },
     ...guestDone.map((id, index) => ({ id, orgId: ORG, title: `Loader guest Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: GUEST, status: "done" as const, createdAt: new Date(Date.UTC(2080, 0, index + 1)) })),
   ]);
+  await db.insert(requestAgreements).values({ requestId: reviewedRequest, orgId: ORG, reviewers: [
+    reviewer(ADMIN, "Test Admin", { kind: "concern", reason: "The API cannot page this yet." }),
+    reviewer(GUEST, "Loader Guest", { kind: "looks_good", reason: "" }),
+    reviewer(OTHER_ADMIN, "Other Admin", null),
+  ] });
   await db.insert(comments).values([
     { requestId: memberRequest, authorId: MEMBER, body: "First comment", createdAt: new Date("2026-01-01T08:00:00Z") },
     { requestId: memberRequest, authorId: ADMIN, body: "Second comment", createdAt: new Date("2026-01-01T09:00:00Z") },
@@ -85,7 +97,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.delete(notifications).where(inArray(notifications.id, notificationIds));
-  await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, foreignRequest, foreignDone, ...doneRequests, ...guestDone]));
+  await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, reviewedRequest, foreignRequest, foreignDone, ...doneRequests, ...guestDone]));
   await db.delete(projects).where(inArray(projects.id, [memberProject, guestProject, foreignProject]));
   await db.delete(profiles).where(inArray(profiles.id, [GUEST]));
 });
@@ -204,6 +216,22 @@ describe("loadRequestList", () => {
     expect(statements).toBeLessThanOrEqual(1);
     expect(result.rows.map(row => row.id)).toEqual([guestDone[0]]);
     expect(result.hasOlderDone).toBe(false);
+  });
+});
+
+describe("review state (#77)", () => {
+  const expected = { concerns: [{ name: "Test Admin", reason: "The API cannot page this yet." }], unanswered: 1 };
+
+  it("gives each list row its open concerns and unanswered count, still in one statement", async () => {
+    const { result, statements } = await queryCounter.measure(() => loadRequestList(member));
+    expect(statements).toBeLessThanOrEqual(1);
+    expect(result.rows.find(row => row.id === reviewedRequest)?.reviewState).toEqual(expected);
+    expect(result.rows.find(row => row.id === memberRequest)?.reviewState).toBeNull();
+  });
+
+  it("gives Request detail the same review state", async () => {
+    expect((await loadRequestDetail(member, reviewedRequest))?.request.reviewState).toEqual(expected);
+    expect((await loadRequestDetail(member, memberRequest))?.request.reviewState).toBeNull();
   });
 });
 

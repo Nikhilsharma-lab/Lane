@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
+import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -37,9 +38,11 @@ export default async function AppLayout({
       {/* Pending Request changes live here, above every page, so a navigation
           while an action is pending never shows the row revert (plan item 1.5). */}
       <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
+      {/* #77: one "Pick up anyway?" confirmation for every pickup entry point. */}
+      <PickupConfirmationProvider>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId}>
-        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId}>
+        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
           <Sidebar
             workspaceName={result.workspaceName}
             fullName={result.fullName}
@@ -53,6 +56,7 @@ export default async function AppLayout({
         </NewRequestProvider>
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
+      </PickupConfirmationProvider>
       </PendingMutationsProvider>
     </RequestListViewProvider>
   );

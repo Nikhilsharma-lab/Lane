@@ -3,12 +3,13 @@ import { canUseLabels } from "@/lib/label-access";
 import { labelRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, requests, requestAgreements } from "@/db";
+import { db, requests } from "@/db";
 import { requireActiveMember } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, incompleteMeasurementSchema } from "@/lib/request-impact";
 import { verifyTriageToken } from "@/lib/triage-token";
+import { nameReviewResetActor } from "@/lib/request-reviewers";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
     orgId: string;
@@ -34,8 +35,6 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId))).for("update");
             if (!stored)
                 return { error: "Request unavailable." };
-            const [agreement] = await tx.select({ snapshot: requestAgreements.snapshot }).from(requestAgreements).where(and(eq(requestAgreements.requestId, requestId), eq(requestAgreements.orgId, auth.orgId)));
-            if (stored.exceptionClosure || agreement?.snapshot) return { error: "This commitment is frozen. Add a correction or create a linked replacement." };
             if (stored.status !== "open")
                 return { error: "Only Open Requests can be edited. This Request has already been picked up." };
             if (requestEditSnapshot(stored) !== snapshot)
@@ -65,6 +64,8 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
                     .filter(key => stored[key] === null && changes[key] === "")
                     .map(key => [key, null])
             );
+            // Content edits reset reviews; the notification names this editor.
+            await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
             return { success: true as const };
         });

@@ -191,6 +191,8 @@ function recoveryHarness(files: Attachment[]) {
     },
     clearUnfinishedUploads: () => { state.recordCleared++; state.record = null; },
     setRestoredDraft: () => {}, setProblemError: () => {},
+    // #78: no reviewers picked; the picker and its error are component state.
+    offerReviewers: false, reviewers: [], setReviewersError: () => {},
     setFailure: (failure: unknown) => { state.failure = failure; },
     setStage: (stage: string) => { state.stage = stage; },
     setCreatedRequestId: (id: string) => { state.createdRequestId = id; },

@@ -16,6 +16,8 @@ export type NotificationCopyInput = {
   requestNumber: number | null
   reframedProblem: string | null
   readAt: string | null
+  /** A reviewer's question, or the reason for a concern. */
+  detail?: string | null
 }
 
 export type NotificationRowCopy = {
@@ -23,6 +25,8 @@ export type NotificationRowCopy = {
   primary: string
   /** Line 2 without the time; null for an invite. */
   secondary: string | null
+  /** The review question or concern reason; null when there is none. */
+  detail: string | null
   /** The row button's accessible name. */
   name: string
   /** The read toggle's accessible name, naming the row's Request ("Mark LAN-12 read"). */
@@ -42,8 +46,11 @@ export function notificationEvent(type: string, actor: string): string | null {
     case "comment_added": return `${actor} commented`
     case "request_picked_up": return `${actor} picked it up`
     case "request_done": return `${actor} marked it Done`
+    case "review_requested": return `${actor} asked you to review`
+    case "review_looks_good": return `${actor} said it looks good`
+    case "review_concern": return `${actor} raised a concern`
+    case "review_reset": return `${actor} changed it. Please review again`
     // Design reviews retired on 2026-10-18; existing rows keep a neutral past tense.
-    case "review_requested": return `${actor} asked for your feedback`
     case "review_responded": return `${actor} responded to your review`
     case "invite_accepted": return null
     default: return `${actor} updated it`
@@ -56,8 +63,9 @@ export function notificationRow(item: NotificationCopyInput, time?: string): Not
   const subject = item.reframedProblem?.trim() || item.requestTitle?.trim() || null
   const primary = item.type === "invite_accepted" ? `${actor} accepted your invite` : subject ? `${code} · ${subject}` : code
   const secondary = notificationEvent(item.type, actor)
-  const name = [primary, secondary, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
+  const detail = item.detail?.trim() || null
+  const name = [primary, secondary, detail, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
   const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "notification"
   const toggle = `Mark ${target} ${item.readAt ? "unread" : "read"}`
-  return { primary, secondary, name, toggle }
+  return { primary, secondary, detail, name, toggle }
 }

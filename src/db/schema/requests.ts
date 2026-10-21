@@ -16,8 +16,7 @@ import { organizations, profiles } from "./users";
 import { projects } from "./projects";
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
 import type { ReleaseState } from "@/lib/request-release";
-import type { ExceptionClosure } from "@/lib/request-agreement";
-import type { ClosureCorrection, OutcomeClosure } from "@/lib/request-outcome";
+import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome";
 import type { DesignReview } from "@/lib/request-review";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
@@ -41,7 +40,7 @@ export const requests = pgTable(
   {
     releaseState: jsonb("release_state").$type<ReleaseState>(),
     agreementRevision: integer("agreement_revision").notNull().default(0),
-    exceptionClosure: jsonb("exception_closure").$type<ExceptionClosure>(),
+    exceptionClosure: jsonb("exception_closure").$type<OutcomeException>(),
     outcomeClosure: jsonb("outcome_closure").$type<OutcomeClosure>(),
     closureCorrections: jsonb("closure_corrections").$type<ClosureCorrection[]>().notNull().default([]),
     followUpOf: uuid("follow_up_of"),

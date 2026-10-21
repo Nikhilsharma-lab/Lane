@@ -11,14 +11,14 @@ import * as actions from '@/app/(app)/requests/[id]/outcome-actions';
 import { formatRequestCode } from '@/lib/request-code';
 import { guardrailComparisonPhrase } from '@/lib/guardrail-comparison';
 import { correctableFields, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, type OutcomeChange } from '@/lib/request-outcome';
-import styles from './request-agreement.module.css';
+import styles from './request-reviewers-panel.module.css';
 type View = Exclude<Awaited<ReturnType<typeof actions.readRequestOutcome>>, {
     error: string;
 }>;
 type Mode = 'close' | 'exception' | 'correct' | 'follow' | null;
 const value = (n: number | null, unit: string) => n === null ? 'No baseline' : unit === '%' ? `${n}%` : `${n} ${unit}`.trim();
-const reasonLabel = (code: string) => code === 'superseded' ? 'Superseded by another Request' : EXCEPTION_REASON_OPTIONS.find(o => o.value === code)?.label ?? code;
-/** Outcome closure on Request detail: measured result or exception, corrections and follow-ups. */
+const reasonLabel = (code: string) => EXCEPTION_REASON_OPTIONS.find(o => o.value === code)?.label ?? code;
+/** Outcome on Request detail once work has started: the measured result, or closing without one, plus corrections and follow-ups. */
 export function RequestOutcomePanel({ requestId, orgId, revision }: {
     requestId: string;
     orgId: string;
@@ -128,11 +128,15 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
     const agreed = view?.agreed;
     const closure = view?.closure;
     const status = !view ? '' : closure
-        ? closure.kind === 'measured' ? 'Closed · Measured result' : `Closed · Exception: ${reasonLabel(closure.reasonCode)}. Excluded from measured impact.`
-        : view.state === 'measuring' ? `Measuring · ${view.measurement?.label ?? ''}` : 'Not started';
+        ? closure.kind === 'measured' ? 'Closed · Measured result' : `Closed without a result · ${reasonLabel(closure.reasonCode)}`
+        : view.state === 'measuring' ? `Measuring · ${view.measurement?.label ?? ''}` : 'Measuring starts once this is released.';
+    // Before pickup there is no outcome to show; the requester deletes an unwanted Request instead.
+    if (!error && (!view || (!closure && view.state === 'not_started' && !view.canCloseException && !view.followUpOf && !view.followUps.length)))
+        return null;
     const cancel = <Button variant="ghost" disabled={busy} onClick={() => setMode(null)}>Cancel</Button>;
     return <section id="outcome" className={styles.panel} aria-labelledby="outcome-heading" aria-busy={busy}>
-   <div className={styles.controls}><h2 id="outcome-heading" tabIndex={-1} ref={heading}>Outcome</h2><Button variant="ghost" size="sm" disabled={busy} onClick={() => void load()}>Refresh outcome</Button></div>
+   <div className={styles.header}><h2 id="outcome-heading" tabIndex={-1} ref={heading}>Outcome</h2>
+     {mode === null && view?.canCloseException && <Button variant="ghost" className={`${styles.end} ${styles.muted}`} disabled={busy} onClick={() => open('exception')}>Close without a result…</Button>}</div>
    {error && <p role="alert">{error}</p>}
    {!view ? <p role="status">{error ? 'Outcome details unavailable.' : 'Loading outcome…'}</p> : <>
      <p role="status">{status}</p>
@@ -150,7 +154,7 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
        <p>Evidence: {closure.evidence}</p>
        <p>Observed <time dateTime={closure.observedFrom}>{closure.observedFrom}</time> to <time dateTime={closure.observedTo}>{closure.observedTo}</time> (UTC).</p>
      </div>}
-     {closure?.kind === 'exception' && <p>{closure.reason}</p>}
+     {closure?.kind === 'exception' && closure.reason && <p>{closure.reason}</p>}
      {closure && <p className={styles.muted}>Closed by {view.names[closure.actorId]} on <time dateTime={closure.closedAt}>{closure.closedAt}</time>. Closed Requests never reopen.</p>}
      {!!view.corrections.length && <div><h3>Corrections</h3><ol>{view.corrections.map(c => <li key={c.operationId}>
        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.correction}</p>
@@ -159,7 +163,6 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
      {!closure && view.state === 'measuring' && !view.canClose && <p className={styles.muted}>Close Request opens on the measurement due date. Overdue outcomes stay outstanding until closed.</p>}
      {mode === null && <div className={styles.controls}>
        {view.canClose && <Button disabled={busy} onClick={() => open('close')}>Close Request</Button>}
-       {view.canCloseException && <Button variant="secondary" disabled={busy} onClick={() => open('exception')}>Close with exception</Button>}
        {view.canCorrect && <Button variant="secondary" disabled={busy} onClick={() => open('correct')}>Add correction</Button>}
        {view.canFollowUp && <Button variant="ghost" disabled={busy} onClick={() => open('follow')}>Create follow-up Request</Button>}
      </div>}
@@ -180,10 +183,10 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
        <div className={styles.controls}><Button type="submit" disabled={busy || (agreed.form === 'pass_fail' && !passed)}>{busy ? 'Closing…' : 'Close with measured result'}</Button>{cancel}</div>
      </form>}
      {mode === 'exception' && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ kind: 'exception', reasonCode: reasonCode as typeof EXCEPTION_REASON_OPTIONS[number]['value'], reason }); }}>
-       <p>Exceptions close without inventing a result and stay outside measured-impact totals.</p>
-       <Select label="Exception" options={EXCEPTION_REASON_OPTIONS.filter(o => view.release ? o.value !== 'cancelled' : o.value === 'cancelled' || o.value === 'measurement_unavailable')} value={reasonCode} onValueChange={setReasonCode} disabled={busy}/>
-       <Textarea label="Exception reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy}/>
-       <div className={styles.controls}><Button type="submit" disabled={busy || !reasonCode}>{busy ? 'Closing…' : 'Close with exception'}</Button>{cancel}</div>
+       <p className={styles.muted}>Ends this Request without a measured result. It stays on record and never counts as measured impact.</p>
+       <Select label="Why" options={EXCEPTION_REASON_OPTIONS} value={reasonCode} onValueChange={setReasonCode} disabled={busy}/>
+       <Textarea label={reasonCode === 'other' ? 'Reason' : 'Details (optional)'} required={reasonCode === 'other'} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy}/>
+       <div className={styles.controls}><Button type="submit" disabled={busy || !reasonCode || (reasonCode === 'other' && !reason.trim())}>{busy ? 'Closing…' : 'Close without a result'}</Button>{cancel}</div>
      </form>}
      {mode === 'correct' && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ kind: 'correction', field: field as typeof CORRECTION_FIELD_OPTIONS[number]['value'], correction: text, reason }); }}>
        <p>Corrections appear beside the original closure. They never change its result, evidence or target.</p>
@@ -193,7 +196,7 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
        <div className={styles.controls}><Button type="submit" disabled={busy || !field}>{busy ? 'Saving…' : 'Save correction'}</Button>{cancel}</div>
      </form>}
      {mode === 'follow' && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ reason }, true); }}>
-       <p>The follow-up copies this context, needs fresh agreement and has its own outcome. This Request keeps its measurement obligation.</p>
+       <p>The follow-up copies this context, is reviewed afresh and has its own outcome. This Request keeps its measurement obligation.</p>
        <Textarea label="What changed and why" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy}/>
        <div className={styles.controls}><Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create follow-up Request'}</Button>{cancel}</div>
      </form>}

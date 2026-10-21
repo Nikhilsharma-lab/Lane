@@ -20,6 +20,16 @@ describe("requestRowLabel", () => {
     expect(requestRowLabel({ ...request, reframedProblem: "People cannot finish signup" }, { code: "LAN-12", priority: "urgent" }))
       .toBe("LAN-12, People cannot finish signup. In Progress, Urgent priority, Website, Bug, Assignee Sam Lee")
   })
+  it("reads the concern marker only on an Open Request with a concern open (#77)", () => {
+    const concern = { name: "Priya", reason: "No API yet." }
+    const open = { ...request, status: "open" as const, assignedTo: null, assigneeName: null }
+    expect(requestRowLabel({ ...open, reviewState: { concerns: [concern, concern], unanswered: 1 } }, { code: "LAN-12", priority: "high" }))
+      .toBe("LAN-12, Signup drops at the phone step. Open, High priority, Website, Bug, No assignee, 2 concerns")
+    expect(requestRowLabel({ ...open, reviewState: { concerns: [], unanswered: 3 } }, { code: "LAN-12", priority: "high" }))
+      .toBe("LAN-12, Signup drops at the phone step. Open, High priority, Website, Bug, No assignee")
+    expect(requestRowLabel({ ...request, reviewState: { concerns: [concern], unanswered: 0 } }, { code: "LAN-12", priority: "high" }))
+      .toBe("LAN-12, Signup drops at the phone step. In Progress, High priority, Website, Bug, Assignee Sam Lee")
+  })
 })
 
 describe("matchCountText", () => {
