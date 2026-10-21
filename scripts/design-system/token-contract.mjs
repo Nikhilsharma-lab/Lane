@@ -207,6 +207,7 @@ export const themeFiles = {
 
 // Known places the one-theme-file rule does not reach, recorded so the check is honest.
 export const themeExemptions = [
+  { file: 'src/components/arc/motion-tokens.ts', reason: "Arc's JavaScript motion values (durations, eases, springs) drive Motion and stay pristine Arc; lining them up with the theme's CSS motion is Stage B" },
   { arcSlot: '--icon-size', reason: "Arc's per-slot icon variable: each slot points it at a theme icon size; it has no value of its own" },
 ]
 
@@ -297,6 +298,84 @@ export function auditArcCoverage(foundationCss, themeCss, bridgeCss, file = them
   return errors
 }
 
+// Text-on-surface pairs tweakcn exports. Nikhil may keep a pair below AA on purpose, so
+// these are warnings for him, never failures.
+export const contrastPairs = [
+  ['foreground', 'background'], ['card-foreground', 'card'], ['popover-foreground', 'popover'],
+  ['primary-foreground', 'primary'], ['secondary-foreground', 'secondary'],
+  ['muted-foreground', 'background'], ['muted-foreground', 'muted'], ['accent-foreground', 'accent'],
+  ['destructive-foreground', 'destructive'], ['sidebar-foreground', 'sidebar'],
+  ['sidebar-primary-foreground', 'sidebar-primary'], ['sidebar-accent-foreground', 'sidebar-accent'],
+]
+export const minimumContrast = 4.5
+
+const channel = value => value.trim() === 'none' ? 0 : value.trim().endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
+const toLinear = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+const oklabToLinear = (l, a, b) => {
+  const [l_, m_, s_] = [l + 0.3963377774 * a + 0.2158037573 * b, l - 0.1055613458 * a - 0.0638541728 * b, l - 0.0894841775 * a - 1.291485548 * b].map(v => v ** 3)
+  return [4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_, -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_, -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_]
+}
+const hslToSrgb = (h, s, l) => [0, 8, 4].map(n => { const k = (n + h / 30) % 12; return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)) })
+
+// Linear-light sRGB of an opaque colour literal, or null for anything else (see-through,
+// color-mix, unknown syntax): those pairs are skipped rather than guessed.
+function linearRgb(value) {
+  const text = value.trim().toLowerCase()
+  const hex = text.match(/^#([\da-f]{3,8})$/)
+  if (hex) {
+    let digits = hex[1]
+    if (digits.length <= 4) digits = [...digits].map(d => d + d).join('')
+    if (digits.length === 8 && digits.slice(6) !== 'ff') return null
+    return [0, 2, 4].map(i => toLinear(Number.parseInt(digits.slice(i, i + 2), 16) / 255))
+  }
+  if (text === 'white') return [1, 1, 1]
+  if (text === 'black') return [0, 0, 0]
+  const fn = text.match(/^(rgba?|hsla?|oklch|oklab)\((.*)\)$/)
+  if (!fn) return null
+  const [colour, alpha] = fn[2].split('/')
+  if (alpha !== undefined && channel(alpha) < 1) return null
+  const parts = colour.trim().split(/[\s,]+/)
+  if (parts.length !== 3) return null
+  if (fn[1].startsWith('rgb')) return parts.map(part => toLinear(part.endsWith('%') ? channel(part) : Number.parseFloat(part) / 255))
+  if (fn[1].startsWith('hsl')) return hslToSrgb(Number.parseFloat(parts[0]), channel(parts[1]), channel(parts[2])).map(toLinear)
+  const lightness = channel(parts[0])
+  if (fn[1] === 'oklab') return oklabToLinear(lightness, channel(parts[1]), channel(parts[2]))
+  const chroma = channel(parts[1])
+  const hue = channel(parts[2]) * Math.PI / 180
+  return oklabToLinear(lightness, chroma * Math.cos(hue), chroma * Math.sin(hue))
+}
+const luminance = rgb => { const [r, g, b] = rgb.map(c => Math.min(1, Math.max(0, c))); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+
+// Reads tweakcn's light and dark slots the way the browser would: dark falls back to light,
+// and var() references are followed within the same mode.
+export function contrastReport(themeCss, file = themeFiles.theme) {
+  const light = new Map()
+  const dark = new Map()
+  postcss.parse(themeCss, { from: file }).walkDecls(d => {
+    if (!d.prop.startsWith('--') || insideTheme(d) || d.parent.type !== 'rule') return
+    if (darkScope.test(d.parent.selector)) dark.set(d.prop, d.value)
+    else if (d.parent.selector === ':root') light.set(d.prop, d.value)
+  })
+  const resolve = (mode, name, seen = new Set()) => {
+    if (seen.has(name)) return null
+    seen.add(name)
+    const value = (mode === 'dark' ? dark.get(name) : undefined) ?? light.get(name)
+    if (value === undefined) return null
+    const ref = value.trim().match(/^var\((--[\w-]+)\)$/)
+    return ref ? resolve(mode, ref[1], seen) : linearRgb(value)
+  }
+  const warnings = []
+  for (const mode of ['light', 'dark']) for (const [text, surface] of contrastPairs) {
+    const ink = resolve(mode, `--${text}`)
+    const paper = resolve(mode, `--${surface}`)
+    if (!ink || !paper) continue
+    const [high, low] = [luminance(ink), luminance(paper)].sort((x, y) => y - x)
+    const ratio = (high + 0.05) / (low + 0.05)
+    if (ratio < minimumContrast) warnings.push(`${file} ${mode}: --${text} on --${surface} is ${ratio.toFixed(2)}:1, below ${minimumContrast}:1`)
+  }
+  return warnings
+}
+
 export function auditThemeContract(root, files = themeFiles) {
   // Arc's foundation stays byte-identical and is locked by arc-source-check; it loads in a
   // lower cascade layer, and the coverage rule proves none of its values can paint.
@@ -313,10 +392,27 @@ export function auditThemeContract(root, files = themeFiles) {
   const foundation = read(files.foundation)
   if (foundation === null) errors.push(`${files.foundation} is missing: the Arc coverage rule needs Arc's foundation`)
   else if (theme !== null) errors.push(...auditArcCoverage(foundation, theme, bridge, files.foundation))
-  return { errors, warnings: [] }
+  for (const exemption of themeExemptions) if (exemption.file && !existsSync(join(root, exemption.file))) {
+    errors.push(`${exemption.file} no longer exists: remove its recorded exemption from token-contract.mjs`)
+  }
+  const warnings = theme === null ? [] : contrastReport(theme, files.theme)
+  return { errors, warnings, exemptions: themeExemptions }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// `--theme` runs the one-theme-file contract (optionally against `--root <dir>`); without it
+// the script runs today's Supabase-era check, unchanged.
+function runThemeCheck(argv) {
+  const rootFlag = argv.indexOf('--root')
+  const root = rootFlag === -1 ? resolve(import.meta.dirname, '../..') : resolve(argv[rootFlag + 1])
+  const { errors, warnings, exemptions } = auditThemeContract(root)
+  if (warnings.length) console.warn(`Contrast warnings (${warnings.length}, not failures):\n${warnings.join('\n')}`)
+  console.log(`Recorded exemptions:\n${exemptions.map(exemption => `${exemption.file ?? exemption.arcSlot}: ${exemption.reason}`).join('\n')}`)
+  if (errors.length) { console.error(`Theme contract failed (${errors.length}):\n${errors.join('\n')}`); process.exitCode = 1 }
+  else console.log('Theme contract passed: visual values live only in the theme file.')
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href && process.argv.includes('--theme')) runThemeCheck(process.argv)
+else if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const errors = auditTree(resolve(import.meta.dirname, '../..'))
   if (errors.length) { console.error(`Fixed visual values (${errors.length}):\n${errors.join('\n')}`); process.exitCode = 1 }
   else console.log('Token contract passed: application CSS, inline styles, icons and search controls use shared sources.')

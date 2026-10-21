@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { auditCss } from './token-contract.mjs'
 import * as tokenContract from './token-contract.mjs'
 
@@ -223,6 +224,48 @@ test('Lane additions colours need both a light and a dark value', () => {
   assert.match(darkErrors[0], /^src\/styles\/theme\.css:9 --project-slate .*light/)
   // The tweakcn half is never policed for modes: tweakcn shares fonts, radius and shadows.
   assert.deepEqual(auditFixture({ 'src/styles/theme.css': cleanTheme.replace('--radius: 0.5rem;', '--radius: 0.5rem; --sidebar: #fcfcfc;') }).errors, [])
+})
+
+test('hard-to-read text pairs warn in light and dark but never fail', () => {
+  // tweakcn's stock Supabase preset: dark label on pale mint, and a dim dark-mode body text.
+  const theme = cleanTheme
+    .replace('--primary: oklch(0.525 0.12 157.5); --primary-foreground: oklch(0.98 0 0);', '--primary: #72e3ad; --primary-foreground: #ffffff;')
+    .replace('--foreground: oklch(0.95 0 0);', '--foreground: hsl(0 0% 25%);')
+  const { errors, warnings } = auditFixture({ 'src/styles/theme.css': theme })
+  assert.deepEqual(errors, [])
+  assert.equal(warnings.length, 2, warnings.join('\n'))
+  assert.match(warnings[0], /light: --primary-foreground on --primary is \d\.\d+:1/)
+  assert.match(warnings[1], /dark: --foreground on --background is \d\.\d+:1/)
+})
+
+test('the theme CLI exits cleanly with contrast warnings and fails on rule breaks', () => {
+  const script = join(import.meta.dirname, 'token-contract.mjs')
+  const run = overrides => {
+    const root = themeFixture(overrides)
+    try { return spawnSync(process.execPath, [script, '--theme', '--root', root], { encoding: 'utf8' }) } finally { rmSync(root, { recursive: true, force: true }) }
+  }
+  const warned = run({ 'src/styles/theme.css': cleanTheme.replace('--primary-foreground: oklch(0.98 0 0);', '--primary-foreground: oklch(0.6 0.1 157.5);') })
+  assert.equal(warned.status, 0, warned.stderr)
+  assert.match(warned.stdout + warned.stderr, /--primary-foreground on --primary/)
+  const broken = run({ 'src/components/row.module.css': '.row { gap: 8px; }' })
+  assert.equal(broken.status, 1)
+  assert.match(broken.stderr, /gap: 8px/)
+})
+
+test("Arc's JavaScript motion values are a recorded exemption", () => {
+  const motion = 'src/components/arc/motion-tokens.ts'
+  const { errors, exemptions } = auditFixture()
+  assert.deepEqual(errors, [])
+  assert.ok(exemptions.some(exemption => exemption.file === motion && /motion/i.test(exemption.reason)))
+  // An exemption for a file that no longer exists is stale and must be removed.
+  const stale = auditFixture({ [motion]: undefined }).errors
+  assert.equal(stale.length, 1)
+  assert.match(stale[0], /motion-tokens\.ts.*exemption/)
+})
+
+test("today's repo check keeps the Supabase-era sources until the theme switch", () => {
+  assert.deepEqual(auditCss(':root { --sb-foreground: oklch(0.1 0 0); }', 'src/styles/supabase-tokens.css'), [])
+  assert.deepEqual(auditCss(':root { --overlay: color-mix(in oklab, var(--background) 80%, transparent); }', 'src/styles/lane-arc-theme.css'), [])
 })
 
 test('a missing theme file is reported, not thrown', () => {
