@@ -18,6 +18,7 @@ import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
+import { useShellOpener } from "./shell-openers";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -141,6 +142,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     openSearch();
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
+  // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
+  useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
   const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);

@@ -41,6 +41,7 @@ export default defineConfig({
       "src/components/shell/notification-read-state.test.ts",
       "src/components/shell/notification-keys.test.ts",
       "src/components/shell/notification-copy.test.ts",
+      "src/components/shell/shell-openers.test.ts",
     ],
   },
   resolve: {

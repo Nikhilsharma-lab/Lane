@@ -4,6 +4,7 @@ import { Fragment, useEffect, useEffectEvent, useRef, useState } from "react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
+import { useShellOpener } from "./shell-openers"
 import styles from "./keyboard-shortcuts.module.css"
 
 /**
@@ -30,6 +31,12 @@ export function KeyboardShortcuts() {
     window.addEventListener("keydown", listener)
     return () => window.removeEventListener("keydown", listener)
   }, [])
+  // Issue #102: the palette opens it too, naming where focus goes back to.
+  useShellOpener("shortcuts", request => {
+    if (open) return
+    returnFocus.current = request.returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    setOpen(true)
+  })
 
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog}
