@@ -12,8 +12,6 @@ import { revalidatePath } from "next/cache";
 
 import { db, requests, requestAgreements } from "@/db";
 import {
-  classifyTriageFailure,
-  triageFailureStatus,
   triageRequest,
   type TriageFailureKind,
   type TriageResult,
@@ -192,21 +190,24 @@ export async function runTriage(
     };
   }
 
+  const outcome = await triageRequest({
+    title: parsed.data.title,
+    description: parsed.data.description,
+  });
+  if (!outcome.ok) {
+    console.error("[intake] triage failed:", { kind: outcome.kind, statusCode: outcome.status, error: outcome.error });
+    return { success: false, error: TRIAGE_FAILURES[outcome.kind] };
+  }
   try {
-    const triage = await triageRequest({
-      title: parsed.data.title,
-      description: parsed.data.description,
-    });
-    const token = createTriageToken(parsed.data, triage, {
+    const token = createTriageToken(parsed.data, outcome.triage, {
       orgId: auth.orgId,
       userId: auth.userId,
     }, existingRequestId);
-
-    return { success: true, triage, token };
+    return { success: true, triage: outcome.triage, token };
   } catch (error) {
-    const kind = classifyTriageFailure(error);
-    console.error("[intake] triage failed:", { kind, statusCode: triageFailureStatus(error), error });
-    return { success: false, error: TRIAGE_FAILURES[kind] };
+    // Signing failed (a missing secret): the review can't finish, as for a provider failure.
+    console.error("[intake] triage token failed:", error);
+    return { success: false, error: TRIAGE_FAILURES.provider };
   }
 }
 
