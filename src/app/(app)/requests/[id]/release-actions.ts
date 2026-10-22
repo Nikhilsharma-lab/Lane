@@ -1,44 +1,36 @@
 'use server';
 import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
 import { db, profiles, requests } from '@/db';
-import { requireActiveMember, requireMemberOrAbove } from '@/lib/auth-guard';
+import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
-import { requestChangeContextSchema, type RequestChangeContext } from '@/lib/request-reviewer-rules';
-import { insist, RequestChangeError, fingerprintOf } from '@/lib/request-change-store';
+import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
+import { changeRequest, insist } from '@/lib/request-change-store';
 import { isClosed } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 /** The Request is what was agreed, so its "Users" are the agreed audience. */
 const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
-    try {
-        insist(requestChangeContextSchema.safeParse(context).success, 'Invalid release action.');
-        const parsed = releaseChangeSchema.safeParse(input);
-        insist(parsed.success, 'Check the exposure date, evidence, confirmation and reason.');
-        const change = parsed.data;
-        const auth = await requireMemberOrAbove(context.orgId);
-        insist(auth, 'You cannot change release in this workspace.');
-        // Fetch once immediately before locking; Clerk and Postgres cannot share a transaction.
-        const people = await workspaceRoster(auth.orgId);
-        const member = (id: string) => people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id);
-        insist(member(auth.userId), 'Your workspace membership is no longer active.');
-        const fingerprint = fingerprintOf({ requestId: context.requestId, change });
-        const result = await db.transaction(async (tx) => {
-            const [request] = await tx.select().from(requests).where(and(eq(requests.id, context.requestId), eq(requests.orgId, auth.orgId))).for('update');
-            insist(request, 'Request unavailable.');
+    const parsed = releaseChangeSchema.safeParse(input);
+    if (!parsed.success) return { error: 'Check the exposure date, evidence, confirmation and reason.' };
+    const change = parsed.data;
+    const fingerprint = { requestId: context.requestId, change };
+    return changeRequest(context, {
+        fingerprint,
+        messages: { invalid: 'Invalid release action.', forbidden: 'You cannot change release in this workspace.', failed: 'Could not save release. Your input is preserved; try again.' },
+        // Release records each change in its own history, which is also how a retry replays.
+        replayOf: (_tx, request) => {
+            const previous = request.releaseState?.history.find(e => e.operationId === context.operationId);
+            return previous && { actorId: previous.actorId, fingerprint: previous.fingerprint, result: { success: true as const, revision: previous.revision } };
+        },
+        apply: async (_tx, { request, auth, roster, revision, fingerprint }) => {
+            const member = (id: string) => roster.find(p => p.nominee.kind === 'member' && p.nominee.userId === id);
             const ownerId = releaseOwner(request);
             const isTransfer = change.kind === 'transfer';
             insist(isTransfer ? auth.role === 'admin' && member(auth.userId)?.role === 'org:admin' : ownerId === auth.userId, isTransfer ? 'Only a workspace admin can transfer responsibility.' : 'Only the current release and outcome owner can do this.');
+            insist(!isClosed(request) || isTransfer, 'This Request is permanently closed.');
             const state: ReleaseState = request.releaseState ?? { version: 1, ownerId, release: null, history: [] };
-            const previous = state.history.find(e => e.operationId === context.operationId);
-            if (previous) {
-                insist(previous.actorId === auth.userId && previous.fingerprint === fingerprint, 'This retry key was used for another change.');
-                return { success: true as const, revision: previous.revision };
-            }
-            insist(!isClosed(request) || change.kind === 'transfer', 'This Request is permanently closed.');
-            insist(request.agreementRevision === context.expectedRevision, 'Request changed. Reload before trying again.');
             const before = state.release;
             let nextOwner = ownerId;
             let nextRelease = before;
@@ -61,18 +53,10 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
                     nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null, change.exposureDate) };
                 }
             }
-            const revision = request.agreementRevision + 1;
             const next: ReleaseState = { version: 1, ownerId: nextOwner, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: ownerId, ownerId: nextOwner, revision }] };
-            await tx.update(requests).set({ releaseState: next, agreementRevision: revision }).where(and(eq(requests.id, request.id), eq(requests.orgId, auth.orgId)));
-            return { success: true as const, revision };
-        });
-        revalidatePath('/');
-        revalidatePath(`/requests/${context.requestId}`);
-        return result;
-    }
-    catch (error) {
-        return { error: error instanceof RequestChangeError ? error.message : 'Could not save release. Your input is preserved; try again.' };
-    }
+            return { set: { releaseState: next } };
+        },
+    });
 }
 export async function readRequestRelease(requestId: string, context: {
     orgId: string;

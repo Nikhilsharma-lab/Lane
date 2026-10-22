@@ -1,4 +1,5 @@
 'use client';
+import { changeAttempt, type ChangeAttempt } from './change-attempt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOptimisticAction } from './use-optimistic-action';
 import { Input } from '@/components/arc/input/input';
@@ -28,11 +29,7 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
     const [recipient, setRecipient] = useState('');
     const [transferReason, setTransferReason] = useState('');
     const [mode, setMode] = useState<'correct' | 'void' | null>(null);
-    const retry = useRef<{
-        fingerprint: string;
-        operationId: string;
-        expectedRevision: number;
-    } | null>(null);
+    const retry = useRef<ChangeAttempt | null>(null);
     const running = useRef(false);
     const heading = useRef<HTMLHeadingElement>(null);
     const generation = useRef(0);
@@ -80,27 +77,15 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
         running.current = true;
         setBusy(true);
         setError('');
-        const fingerprint = JSON.stringify(input);
-        if (retry.current?.fingerprint !== fingerprint)
-            retry.current = { fingerprint, operationId: crypto.randomUUID(), expectedRevision: view.revision };
+        const retryContext = retry.current = changeAttempt(retry.current, input, view.revision);
         try {
-            const retryContext = retry.current;
             const outcome = await runAction({
                 id: requestId, refreshOnError: false,
                 run: () => actions.changeRequestRelease({ orgId, requestId, operationId: retryContext.operationId, expectedRevision: retryContext.expectedRevision }, input),
                 onError: message => setError(message),
             });
-            if (outcome.status !== 'success') {
-                if (outcome.status === 'error' && outcome.error.includes('Reload')) retry.current = null;
+            if (outcome.status !== 'success')
                 return;
-            }
-            const result = outcome.value;
-            if ('error' in result) {
-                setError(result.error);
-                if (result.error.includes('Reload'))
-                    retry.current = null;
-                return;
-            }
             retry.current = null;
             setMode(null);
             setConfirmed(false);
