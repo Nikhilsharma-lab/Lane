@@ -1,9 +1,11 @@
 "use client"
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
-import { formatRequestCode } from "@/lib/request-code"
+import { requestCodeOrNull } from "@/lib/request-code"
+import { measurementReadiness } from "@/lib/request-measurement"
+import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
-import { useDetailSession, useSetDetailSession } from "./list-view-state"
+import { useDetailSession, usePublishOpenRequest, useSetDetailSession } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { settleSequence } from "./request-sequence"
 
@@ -28,11 +30,6 @@ export type DetailRequestValue = {
 
 const DetailRequestContext = createContext<DetailRequestValue | null>(null)
 DetailRequestContext.displayName = "DetailRequest"
-
-/** The saved code, or null where formatRequestCode would throw (an unnumbered Request, column default 0). */
-export function requestCodeOrNull(requestNumber: number | undefined) {
-  try { return requestNumber ? formatRequestCode(requestNumber) : null } catch { return null }
-}
 
 /**
  * On arrival (this page mounts once; it is keyed by Request id): when the
@@ -97,6 +94,17 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
     const target = button ? document.querySelector<HTMLElement>(`[data-detail-sequence="${button}"]:not(:disabled)`) : null
     ;(target ?? document.getElementById("request-title"))?.focus({ preventScroll: true })
   }, arrival)
+
+  // #103: the shell's current Request, with the same edit and pickup rules as the panel and the strip's button.
+  const { id, status, priority, createdBy, agreementBlocked, reviewState, expectedImpact, requestType } = request
+  const source = arrival ? "page" : "peek"
+  const current = useMemo<CurrentRequest>(() => ({
+    id, code, name, status, priority, source,
+    canEdit: status === "open" && (Boolean(viewer.isAdmin) || createdBy === viewer.id),
+    agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
+    pickupBlockedReason: measurementReadiness(expectedImpact, requestType),
+  }), [id, code, name, status, priority, source, viewer.isAdmin, viewer.id, createdBy, agreementBlocked, reviewState, expectedImpact, requestType])
+  usePublishOpenRequest(current)
 
   const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),
     [request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm])

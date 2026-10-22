@@ -186,6 +186,13 @@ export function useToastStack(): ToastStackApi & { count: number } {
   return { toast: store.toast, update: store.update, dismiss: store.dismiss, count };
 }
 
+/** Lane adaptation (#103): the action a queued toast still offers. Undefined once the toast closes (dismissed, swiped, timed out, dropped from the queue) or an update removes its action. */
+export function useToastAction(id: string | null): ToastAction | undefined {
+  const store = useStore();
+  const read = () => id === null ? undefined : store.getSnapshot().find(item => item.id === id)?.action;
+  return useSyncExternalStore(store.subscribe, read, read);
+}
+
 /** Outgoing copies are hidden from assistive tech while they fade, so the live region reads only the current text. */
 function Swap(props: HTMLMotionProps<"span">) {
   const present = useIsPresent();

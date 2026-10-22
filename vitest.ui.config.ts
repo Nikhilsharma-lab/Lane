@@ -41,6 +41,8 @@ export default defineConfig({
       "src/components/shell/notification-read-state.test.ts",
       "src/components/shell/notification-keys.test.ts",
       "src/components/shell/notification-copy.test.ts",
+      "src/components/requests/current-request.test.ts",
+      "src/components/requests/mark-done-undo.test.ts",
     ],
   },
   resolve: {
