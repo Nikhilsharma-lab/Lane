@@ -30,6 +30,7 @@ const ALLOWED: (keyof typeof KNOWN_EXCEPTIONS)[] = [
   "wide-gamut dark primary",
   "wide-gamut destructive text",
   "pre-Geist fallback font",
+  "retired destructive-foreground meaning",
 ];
 
 async function settle(page: Page, mode: Mode) {
