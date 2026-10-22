@@ -60,13 +60,13 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
-import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { RequestReviewersPicker, reviewerSummary, type ReviewerChoice } from "@/components/requests/request-reviewers-picker";
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
-import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema, type ExpectedImpactDraft } from "@/lib/request-impact";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -91,6 +91,7 @@ import {
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
+import { composerDraft, restoredComposer, settleLostUploads as settleInterruptedUploads } from "./intake-session";
 import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
 import { callAction } from "@/lib/action-call";
@@ -402,19 +403,8 @@ export default function RequestEditor({
   // lost and the flow ends as a creation does.
   const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
     const check = ++lostCheck.current;
-    const settled = await Promise.all(lost.files.map(async (file): Promise<UnfinishedUpload | null> => {
-      const attachmentId = file.attachmentId;
-      if (!attachmentId) return file;
-      try {
-        const result = await callAction(() => discardAttachmentUpload({ requestId: lost.requestId, attachmentId }, context));
-        if (result.success && result.alreadyUploaded) return null;
-        return result.success ? { ...file, attachmentId: null } : file;
-      } catch {
-        return file;
-      }
-    }));
+    const kept = await settleInterruptedUploads(lost, (input) => callAction(() => discardAttachmentUpload(input, context)));
     if (check !== lostCheck.current) return;
-    const kept = settled.filter((file): file is UnfinishedUpload => file !== null);
     if (!kept.length) {
       finishCreatedRequest(lost.requestId);
       return;
@@ -445,30 +435,25 @@ export default function RequestEditor({
         setStage("uploads_checking");
         void settleLostUploads(lost);
       } else if (draft) {
-        reset(draft.source);
-        setSource(draft.source);
-        setReviewers(draft.reviewers?.people ?? []);
-        setReviewQuestion(draft.reviewers?.question ?? "");
+        // intake-session.ts decides what a draft restores.
+        const restored = restoredComposer(draft);
+        reset(restored.source);
+        setSource(restored.source);
+        setReviewers(restored.reviewers);
+        setReviewQuestion(restored.reviewQuestion);
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
-        setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
-        // A stored review knows which text produced its framing. Older compose
-        // drafts may retain wording without an origin; show it, but never
-        // silently attach it to a different Request.
-        setPreviousProblemSource(draft.review?.triage.classification !== "problem" && draft.review
-          ? { title: draft.source.title, description: draft.source.description }
-          : draft.previousProblemSource ?? null);
-
-        if (draft.review && requiredExpectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
-          setTriage(draft.review.triage);
-          setToken(draft.review.token);
-          setEditedProblem(draft.review.editedProblem);
+        setPreviousProblem(restored.previousProblem);
+        setPreviousProblemSource(restored.previousProblemSource);
+        if (restored.review) {
+          setTriage(restored.review.triage);
+          setToken(restored.review.token);
+          setEditedProblem(restored.review.editedProblem);
           setStage("framing");
         } else {
           setStage("compose");
         }
-
       }
 
       setDraftReady(true);
@@ -494,20 +479,12 @@ export default function RequestEditor({
 
   // #78: reviewer picks and their question are restored with the draft, like Project, Labels and Priority.
   const reviewersDraft = offerReviewers ? { people: reviewers, question: reviewQuestion } : undefined;
+  /** The draft for the composer as it stands (intake-session.ts). */
+  const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft });
   const persistDraft = useEffectEvent(() => {
     if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
-    const review =
-      (stage === "framing" || stage === "creating") && triage && token
-        ? { triage, token, editedProblem }
-        : null;
     try {
-      return writeIntakeDraft(window.sessionStorage, draftScope, {
-        source: review && source ? source : getValues(),
-        review,
-        previousProblem: editedProblem || previousProblem,
-        previousProblemSource,
-        reviewers: reviewersDraft,
-      });
+      return writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
     } catch { return false; }
   });
 
@@ -947,18 +924,7 @@ export default function RequestEditor({
 
 
   function preserveDraftForSignIn() {
-    const review =
-      (stage === "framing" || stage === "creating") && triage && token
-        ? { triage, token, editedProblem }
-        : null;
-
-    writeIntakeDraft(window.sessionStorage, draftScope, {
-      source: review && source ? source : getValues(),
-      review,
-      previousProblem: editedProblem || previousProblem,
-      previousProblemSource,
-      reviewers: reviewersDraft,
-    });
+    writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
   }
 
   // One handler for both steps: Cmd/Ctrl+Enter is the primary action wherever
