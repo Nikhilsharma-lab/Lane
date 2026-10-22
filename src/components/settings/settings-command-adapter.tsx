@@ -10,10 +10,9 @@ import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Res
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsNavigation, searchSettings, settingsEntries } from "./settings-catalog";
+import { settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
-import { SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection } from "./settings-section";
 import styles from "./settings.module.css";
 
 function subscribe(listener: () => void) {

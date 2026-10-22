@@ -5,7 +5,7 @@ import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
 import type { Announce } from "./list-announcer"
 import { clearMarkedDone, showMarkedDone, type MarkDoneUndoStore } from "./mark-done-undo"
-import type { ConfirmPickup } from "./pickup-confirmation-store"
+import type { ConfirmPickup } from "./pickup-confirmation"
 import { FAILURE_TITLE, type ActionResult, type OptimisticOptions, type OptimisticOutcome } from "./use-optimistic-action"
 
 /** The Request a move acts on: its id, the name its toasts use (the saved code, else the title)

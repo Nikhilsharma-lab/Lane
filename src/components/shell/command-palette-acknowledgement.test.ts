@@ -3,7 +3,7 @@ import type { ToastOptions, ToastStackApi } from "@/components/arc/toast-stack/t
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { createMarkDoneUndoStore } from "@/components/requests/mark-done-undo"
 import { createPendingMutationsStore } from "@/components/requests/pending-mutations-provider"
-import { createPickupConfirmation } from "@/components/requests/pickup-confirmation-store"
+import { createPickupConfirmation } from "@/components/requests/pickup-confirmation"
 import { createRequestMoves, type RequestMoveActions } from "@/components/requests/request-moves-controller"
 import { copyAndSay } from "@/components/requests/use-copy"
 import { runOptimistic, type ActionResult } from "@/components/requests/use-optimistic-action"
