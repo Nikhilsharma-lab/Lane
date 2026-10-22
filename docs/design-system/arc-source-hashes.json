@@ -329,7 +329,7 @@
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.tsx",
     "upstreamSha256": "8dd2b0aa283f62b952deb6fd909e8c227251b6f04cb92b8aa0e37243672d6313",
-    "localSha256": "7f2fd5d8ae058fb615f3104b5af61c68dab15c01f30fba503c58f18312342963"
+    "localSha256": "9980a3dae7c07d5ddbfaa5bdcfdf8111541ab20cebec458a7cdbb986b020fd41"
   },
   {
     "id": "tooltip",

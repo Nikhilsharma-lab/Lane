@@ -7,7 +7,7 @@ import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-con
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
 import { requestCodeOrNull } from "@/lib/request-code"
-import { showMarkedDone } from "./mark-done-undo"
+import { clearMarkedDone, showMarkedDone } from "./mark-done-undo"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import type { Announce } from "./list-announcer"
 import { useCopy } from "./use-copy"
@@ -86,7 +86,7 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
       run: () => (kind === "done" ? markDone : pickUpRequest)(request.id, { orgId }),
       waitForPending: true,
       onError: toastId
-        ? (message, { thrown }) => { toast({ id: toastId, type: "error", title: FAILURE_TITLE, description: describe(message, thrown), action: undefined }) }
+        ? (message, { thrown }) => { clearMarkedDone(toastId); toast({ id: toastId, type: "error", title: FAILURE_TITLE, description: describe(message, thrown), action: undefined }) }
         : networkError ? (message, { thrown }) => { toast({ type: "error", title: FAILURE_TITLE, description: describe(message, thrown) }) } : undefined,
     }).then(result => {
       // The failure toast speaks for itself; the region drops the claim it made.
