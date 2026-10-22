@@ -1,41 +1,41 @@
-.plan { container: measurement / inline-size; min-width: 0; border-top: var(--sb-border-width) solid var(--border-subtle); padding-top: var(--space-5); }
+.plan { container: measurement / inline-size; min-width: 0; border-top: var(--border-width) solid var(--border-subtle); padding-top: var(--space-5); }
 .hint { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .body { display: grid; min-width: 0; gap: var(--space-3); margin: 0; border: 0; padding: 0; }
-.section { display: grid; min-width: 0; gap: var(--space-3); padding: var(--space-4); border: var(--sb-border-width) solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface); }
+.section { display: grid; min-width: 0; gap: var(--space-3); padding: var(--space-4); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface); }
 .sectionHeader { display: flex; gap: var(--space-3); align-items: center; min-width: 0; }
-.sectionHeader h2 { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); line-height: var(--leading-body); }
-.optional { color: var(--text-muted); font-weight: var(--sb-font-weight-normal); font-size: var(--text-xs); }
+.sectionHeader h2 { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); }
+.optional { color: var(--text-muted); font-weight: var(--weight-normal); font-size: var(--text-xs); }
 .measurementPills { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-2); min-width: 0; }
 .menuCheck { width: var(--icon-size, var(--icon-size-md)); height: var(--icon-size, var(--icon-size-md)); color: var(--foreground); visibility: hidden; }
 .menuCheck[data-selected="true"] { visibility: visible; }
 .twoColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
 .twoColumns > *, .body > *, .metricRow > * { min-width: 0; }
 .field { display: grid; gap: var(--space-2); min-width: 0; align-content: start; }
-.label { color: var(--foreground); font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); line-height: var(--leading-body); }
+.label { color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); }
 .labelRow { display: flex; align-items: center; gap: var(--space-1); min-height: var(--space-5); }
 .triggerContent { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 100%; }
 .compactButton { width: fit-content; max-width: 100%; justify-self: start; justify-content: flex-start; }
-.triggerText { min-width: 0; max-width: calc(var(--sb-spacing) * 60); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.triggerText { min-width: 0; max-width: calc(var(--spacing) * 60); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .icon { display: block; color: var(--accent); width: var(--icon-size, var(--icon-size-md)); height: var(--icon-size, var(--icon-size-md)); flex: none; }
 .metricRow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .valueControl { position: relative; min-width: 0; }
 .valueControl > * { min-width: 0; }
-.numericInput { min-height: calc(var(--control-height-sm) + var(--space-2)); padding-inline-end: calc(var(--sb-spacing) * 25); font-variant-numeric: tabular-nums; }
+.numericInput { min-height: calc(var(--control-height-sm) + var(--space-2)); padding-inline-end: calc(var(--spacing) * 25); font-variant-numeric: tabular-nums; }
 .unitControl { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); }
 .error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }
 .checkDefinition { display: grid; gap: var(--space-3); }
-.checkDefinition h3 { margin: 0; font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); }
+.checkDefinition h3 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .checkDefinition p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .addGuardrail { justify-self: start; }
 @container measurement (max-width: 540px) {
   .twoColumns { grid-template-columns: minmax(0, 1fr); }
   .sectionHeader { flex-wrap: wrap; }
   .sectionHeader > button { margin-left: auto; }
-  .triggerText { max-width: calc(var(--sb-spacing) * 48); }
+  .triggerText { max-width: calc(var(--spacing) * 48); }
 }
 @media (pointer: coarse) {
-  .compactButton, .addGuardrail { min-height: var(--sb-size-inner-xlarge); }
-  .numericInput { min-height: calc(var(--sb-size-inner-xlarge) + var(--space-2)); }
+  .compactButton, .addGuardrail { min-height: var(--size-inner-xlarge); }
+  .numericInput { min-height: calc(var(--size-inner-xlarge) + var(--space-2)); }
 }
 
 :global([role="option"]):has(.customMetricIcon) { color: var(--accent); }
@@ -43,9 +43,9 @@
 
 .guardrailControls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
 .guardrailControls > .field { max-width: 100%; }
-.thresholdRow { display: grid; width: calc(var(--sb-spacing) * 88); max-width: 100%; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
-.metricPanel { width: calc(var(--sb-spacing) * 80); max-width: calc(100vw - var(--space-8)); }
-.metricOptions { display: grid; max-height: calc(var(--sb-spacing) * 60); overflow-y: auto; }
+.thresholdRow { display: grid; width: calc(var(--spacing) * 88); max-width: 100%; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+.metricPanel { width: calc(var(--spacing) * 80); max-width: calc(100vw - var(--space-8)); }
+.metricOptions { display: grid; max-height: calc(var(--spacing) * 60); overflow-y: auto; }
 .metricOption { width: 100%; justify-content: flex-start; gap: var(--space-2); }
 .metricCheck { width: var(--icon-size-md); height: var(--icon-size-md); flex: none; visibility: hidden; }
 .metricCheck[data-selected="true"] { visibility: visible; }

@@ -21,7 +21,7 @@
 
 .formPanel {
   --popover-padding: var(--space-4);
-  width: calc(var(--sb-spacing) * 80);
+  width: calc(var(--spacing) * 80);
   display: grid;
   gap: var(--space-3);
 }

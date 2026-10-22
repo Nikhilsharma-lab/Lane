@@ -11,7 +11,7 @@
 /* Keyboard hints show on fine pointers only; on touch the links' aria-keyshortcuts still name C. */
 .shortcutHint { display: none; flex-basis: 100%; color: var(--text-secondary); font-size: var(--text-xs); }
 @media (pointer: fine) { .shortcutHint { display: block; } }
-.key { font: inherit; font-weight: var(--sb-font-weight-medium); color: var(--foreground); }
+.key { font: inherit; font-weight: var(--weight-medium); color: var(--foreground); }
 @media (max-width: 640px) {
   .limitNote { padding-inline: var(--space-4); }
 }

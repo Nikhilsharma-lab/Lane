@@ -20,7 +20,7 @@
 
 
 .chipLabel {
-  max-width: calc(var(--sb-spacing) * 40);
+  max-width: calc(var(--spacing) * 40);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -29,7 +29,7 @@
 .optionList {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  max-height: min(calc(var(--sb-spacing) * 64), 40vh);
+  max-height: min(calc(var(--spacing) * 64), 40vh);
   gap: 0;
   overflow-y: auto;
 }
@@ -54,7 +54,7 @@
 }
 
 .newProject {
-  border-top: var(--sb-border-width) solid var(--border-subtle);
+  border-top: var(--border-width) solid var(--border-subtle);
   padding-top: var(--space-2);
 }
 
@@ -86,7 +86,7 @@
 .optionList .option[aria-disabled="true"] {
   color: var(--text-muted);
   cursor: not-allowed;
-  opacity: var(--sb-opacity-disabled);
+  opacity: var(--opacity-disabled);
 }
 .optionList .option[aria-disabled="true"]:is(:hover, :active) {
   color: var(--text-muted);
