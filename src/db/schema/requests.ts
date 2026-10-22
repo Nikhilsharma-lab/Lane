@@ -79,9 +79,12 @@ export const requests = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** When the work was marked Done; set and cleared by the stamp_done_at trigger (0033). Who marked it is not kept. */
+    doneAt: timestamp("done_at", { withTimezone: true }),
   },
   (table) => ({
     requestNumberCheck: check("requests_request_number_check", sql`${table.requestNumber} > 0`),
+    doneAtCheck: check("requests_done_at_check", sql`(${table.status} = 'done') = (${table.doneAt} IS NOT NULL)`),
     designReviewsCheck: check("requests_design_reviews_check", sql`jsonb_typeof(${table.designReviews}) = 'array'`),
     designReviewVersionCheck: check("requests_design_review_version_check", sql`${table.designReviewVersion} >= 0`),
     orgIdUnique: unique("requests_org_id_id_unique").on(table.orgId, table.id),
