@@ -94,3 +94,14 @@ describe("Clerk-backed workspace guards", () => {
     await expect(requireMemberOrAbove("org_lane")).resolves.toBeNull();
   });
 });
+
+describe("refusal copy", () => {
+  beforeEach(() => vi.resetModules());
+  it("says the session ended when nobody is signed in, and keeps the action's copy otherwise", async () => {
+    session = { userId: null, orgId: null, orgRole: null };
+    const { refusal, SESSION_ENDED } = await import("./auth-guard");
+    await expect(refusal("Not found")).resolves.toBe(SESSION_ENDED);
+    session = { userId: "user_real", orgId: "org_real", orgRole: "org:guest" };
+    await expect(refusal("Not found")).resolves.toBe("Not found");
+  });
+});

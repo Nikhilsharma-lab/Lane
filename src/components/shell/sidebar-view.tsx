@@ -36,8 +36,6 @@ export interface SidebarViewProps {
   onRetryProjects?: () => void | Promise<void>;
   onCreateProject?: (name: string) => Promise<ProjectOption>;
   notifications: ReactNode;
-  /** No longer read: one bell instance serves both the panel and the rail (plan item 1.8, 2026-10-10). Kept so existing fixtures type-check. */
-  compactNotifications?: ReactNode;
   onSignOut?: () => void | Promise<unknown>;
   /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
   onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;

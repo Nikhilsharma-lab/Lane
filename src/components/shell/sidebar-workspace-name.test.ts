@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,13 +35,14 @@ beforeEach(() => {
 });
 
 function renderSidebar(role = "member") {
-  return renderToStaticMarkup(createElement(Sidebar, {
+  // The (app) layout always provides the workspace's Projects.
+  return renderToStaticMarkup(createElement(WorkspaceProjectsProvider, { orgId: "org_active", initialProjects: [] }, createElement(Sidebar, {
     workspaceName: "Saved workspace name",
     fullName: "Test Member",
     email: "member@example.test",
     role,
     orgId: "org_active",
-  }));
+  })));
 }
 
 // Locate the labelled group without depending on library classes or slots.

@@ -134,6 +134,18 @@ describe("changing a Request", () => {
   });
 });
 
+describe("a signed-out caller", () => {
+  it("is told the session ended instead of a missing Request, so the browser renews it and retries", async () => {
+    const api = await actions();
+    const { SESSION_ENDED } = await import("./auth-guard");
+    Object.assign(session, { userId: "", orgId: "", orgRole: "" });
+    const form = new FormData(); form.set("body", "A comment");
+    expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+  });
+});
+
 describe("the rules on a loaded row", () => {
   it("match the query rules", () => {
     const own = { createdBy: GUEST }, other = { createdBy: MEMBER };

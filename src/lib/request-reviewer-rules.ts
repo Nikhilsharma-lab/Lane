@@ -85,17 +85,20 @@ export type ReviewState = {
   unanswered: number;
 };
 /**
- * The review state of a reviewers list, as `request_review_state` summarises
- * the saved one: each concern in order (who and why) and the unanswered
- * count, or null when nothing is outstanding.
+ * The review state of a reviewers list: each counted concern in order (who
+ * and why) and the counted unanswered reviews, or null when nothing is
+ * outstanding. The server reads `counts` from `reviewerStanding`; the panel
+ * from each reviewer's `active`.
  */
 export function reviewStateOf(
-  reviewers: { name: string; decision: { kind: ReviewDecision["kind"]; reason: string } | null }[],
+  reviewers: { name: string; decision: { kind: ReviewDecision["kind"]; reason: string } | null; counts: boolean }[],
 ): ReviewState | null {
-  const concerns = reviewers.flatMap(({ name, decision }) =>
+  // A reviewer who left the workspace, or whose invitation lapsed, no longer counts (§4.4).
+  const counted = reviewers.filter(({ counts }) => counts);
+  const concerns = counted.flatMap(({ name, decision }) =>
     decision?.kind === "concern" ? [{ name, reason: decision.reason }] : [],
   );
-  const unanswered = reviewers.filter(({ decision }) => decision === null).length;
+  const unanswered = counted.filter(({ decision }) => decision === null).length;
   return concerns.length || unanswered ? { concerns, unanswered } : null;
 }
 const plural = (count: number, one: string, many: string) =>

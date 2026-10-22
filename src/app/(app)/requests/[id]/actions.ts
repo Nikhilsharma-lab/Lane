@@ -6,10 +6,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
-import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
-import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
+import { requireActiveMember, requireMemberOrAbove, refusal } from "@/lib/auth-guard";
 import { requestPrioritySchema } from "@/lib/request-properties";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { removeObjects, signDownload } from "@/lib/attachment-storage";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -72,7 +71,7 @@ export async function undoMarkDone(
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
+  if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
 
   // One CTE: the conditional UPDATE and the DELETE of the Done notification
   // commit or fail together, and the DELETE only runs when the UPDATE matched.
@@ -143,7 +142,7 @@ export async function addComment(
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
+  if (!auth) return { error: await refusal("Not found") };
 
   const parsed = commentSchema.safeParse({ body: formData.get("body") });
   if (!parsed.success) {
@@ -190,7 +189,7 @@ export async function getAttachmentDownloadUrl(
 ) {
   if (!UUID_RE.test(attachmentId)) return { error: "File not found" };
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "File not found" };
+  if (!auth) return { error: await refusal("File not found") };
 
   const [attachment] = await db
     .select({
@@ -211,20 +210,12 @@ export async function getAttachmentDownloadUrl(
 
   if (!attachment) return { error: "File not found" };
 
-  const { data, error } = await createServiceClient()
-    .storage.from(REQUEST_ATTACHMENTS_BUCKET)
-    .createSignedUrl(attachment.storagePath, 60, {
-      download: attachment.fileName,
-    });
-
-  if (error || !data) {
+  try {
+    return { success: true, url: await signDownload(attachment.storagePath, attachment.fileName) };
+  } catch (error) {
     console.error("[request/attachments] download signing failed:", error);
-    return {
-      error: "Lane could not prepare this download. Try again.",
-    };
+    return { error: "Lane could not prepare this download. Try again." };
   }
-
-  return { success: true, url: data.signedUrl };
 }
 
 /** Priority is a triage signal on the row. It never changes status,
@@ -239,7 +230,7 @@ export async function setRequestPriority(
   const parsed = requestPrioritySchema.safeParse(priority);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
+  if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
 
   const [updated] = await db
     .update(requests)
@@ -263,7 +254,7 @@ export async function deleteRequest(
 ): Promise<{ success: true } | { error: string }> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
+  if (!auth) return { error: await refusal("Not found") };
 
   const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
     const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })
@@ -283,7 +274,7 @@ export async function deleteRequest(
 
   // The rows are gone; a stored file left behind is unreachable, so log rather than fail.
   if (result.files.length) {
-    const { error } = await createServiceClient().storage.from(REQUEST_ATTACHMENTS_BUCKET).remove(result.files);
+    const { error } = await removeObjects(result.files);
     if (error) console.error("[request/delete] file cleanup failed", { count: result.files.length, kind: error.name });
   }
 

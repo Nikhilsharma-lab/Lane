@@ -7,7 +7,7 @@ import {
   workspaceRoster,
   type WorkspacePerson,
 } from "./workspace-roster";
-import { requireMemberOrAbove, type MemberAuth } from "./auth-guard";
+import { requireMemberOrAbove, type MemberAuth, refusal } from "./auth-guard";
 import {
   requestChangeContextSchema,
   type RequestChangeContext,
@@ -72,7 +72,7 @@ export async function changeRequest<Extra extends object = object>(
   try {
     insist(requestChangeContextSchema.safeParse(context).success, change.messages.invalid);
     const auth = await requireMemberOrAbove(context.orgId);
-    insist(auth, change.messages.forbidden);
+    insist(auth, await refusal(change.messages.forbidden));
     // Fetched before locking; Clerk and Postgres cannot share a transaction.
     const roster = await workspaceRoster(auth.orgId);
     insist(

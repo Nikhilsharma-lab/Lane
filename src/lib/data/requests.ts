@@ -4,9 +4,10 @@ import { changeableColumn, seeable } from "@/lib/request-access"
 import { and, asc, desc, eq, isNotNull, ne, sql, type SQL } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 
-import { db, comments, profiles, projects, requestAttachments, requests } from "@/db"
+import { db, comments, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import type { ReviewState } from "@/lib/request-reviewer-rules"
+import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
+import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
@@ -28,16 +29,29 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 /** One row of the list query, as the select below infers it. */
 type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
-/** A list row carries why it can't be picked up yet, never its measurement plan. */
-export type RequestListRow = Omit<ListRowRecord, "expectedImpact"> & { pickupBlockedReason: string | null }
+/** A list row carries why it can't be picked up yet and what its reviews leave
+ * outstanding, never its measurement plan or its reviewers. */
+export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
+
+/** An Open Request's saved reviewers; after pickup nothing is outstanding. */
+const openReviewers = sql<Reviewer[] | null>`case when ${requests.status} = 'open' then (select ${requestAgreements.reviewers} from ${requestAgreements} where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}) end`
 
 /** The pickup readiness every surface shows and the server enforces (request-lifecycle.ts). */
 function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null }) {
   return request.status === "open" ? measurementReadiness(request.expectedImpact, request.requestType) : null
 }
 
-function toListRows(rows: ListRowRecord[]): RequestListRow[] {
-  return rows.map(({ expectedImpact, ...row }) => ({ ...row, pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact }) }))
+/** The saved reviewers stay on the server; screens get the review state. */
+function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest }: T): Omit<T, "reviewers"> {
+  void reviewers
+  return rest
+}
+
+/** Rows as the list shows them. Review state counts only reviewers still in
+ * the workspace (reviewStatesOf), the same rule as the reviewers panel. */
+async function toListRows(auth: MemberAuth, rows: ListRowRecord[]): Promise<RequestListRow[]> {
+  const states = await reviewStatesOf(auth.orgId, rows)
+  return rows.map(({ expectedImpact, ...row }) => ({ ...withoutReviewers(row), pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact }), reviewState: states.get(row.id) ?? null }))
 }
 
 export type RequestList = {
@@ -61,7 +75,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
     .select({
       id: requests.id,
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
-      reviewState: sql<ReviewState | null>`public.request_review_state(${requests.id})`,
+      reviewers: openReviewers,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       agreementRevision: requests.agreementRevision,
@@ -99,7 +113,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
  * note or "Show older Done" applies without a count query.
  */
 export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
-  const rows = toListRows(await listRows(auth, ne(requests.status, "done"), MAX_REQUESTS_QUERY + 1)
+  const rows = await toListRows(auth, await listRows(auth, ne(requests.status, "done"), MAX_REQUESTS_QUERY + 1)
     .unionAll(listRows(auth, eq(requests.status, "done"), DONE_PAGE_SIZE + 1)))
   const active = rows.filter(row => row.status !== "done")
   const done = rows.filter(row => row.status === "done")
@@ -119,7 +133,7 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
 export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string): Promise<{ rows: RequestListRow[]; hasOlderDone: boolean }> {
   if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderDone: false }
   const cursor = alias(requests, "older_done_cursor")
-  const rows = toListRows(await listRows(
+  const rows = await toListRows(auth, await listRows(
     auth,
     and(
       eq(requests.status, "done"),
@@ -151,7 +165,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       .select({
         id: requests.id,
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
-      reviewState: sql<ReviewState | null>`public.request_review_state(${requests.id})`,
+      reviewers: openReviewers,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       agreementRevision: requests.agreementRevision,
@@ -227,5 +241,6 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   ])
 
   if (!request) return null
-  return { request: { ...request, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
+  const reviewState = (await reviewStatesOf(auth.orgId, [request])).get(request.id) ?? null
+  return { request: { ...withoutReviewers(request), reviewState, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
 }

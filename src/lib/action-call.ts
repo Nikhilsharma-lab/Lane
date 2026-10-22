@@ -8,9 +8,11 @@
  * included, or rejects with what the action threw.
  */
 
-/** Matches CANNOT_CHANGE_REQUESTS (src/lib/request-transition.ts), the guard's
- * refusal for Request moves; "use server" files can export only functions. */
-const AUTH_REFUSAL = /can't change Requests in this workspace/i
+/** Matches SESSION_ENDED (src/lib/auth-guard.ts), what any guarded action says
+ * when nobody is signed in, and CANNOT_CHANGE_REQUESTS (request-transition.ts),
+ * the Request moves' refusal. Server modules can't share the constants with the
+ * browser bundle, so the copy is matched here. */
+const AUTH_REFUSAL = /your session ended|can't change Requests in this workspace/i
 const AUTH_THROW = /\b(401|403)\b|unauthori[sz]ed|unauthenticated|forbidden|signed out|sign in/i
 
 /** Clerk's session token, as the browser holds it. */
