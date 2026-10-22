@@ -8,6 +8,7 @@ import { useListAnnouncer } from "@/components/requests/list-announcer"
 import { useCurrentRequest, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { useUndoableMarkDone } from "@/components/requests/mark-done-undo"
 import { useRequestMoves } from "@/components/requests/request-moves"
+import { showSettingsSection } from "@/components/settings/settings-section"
 import { isShown } from "@/lib/keyboard-guards"
 import { requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
@@ -34,7 +35,6 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
   returnFocusRef: RefObject<HTMLElement | null>
 }
 
-const SETTINGS_EVENT = "lane-settings-navigation"
 const roleOf = (role: string): PaletteRole => role === "admin" || role === "guest" ? role : "member"
 
 /**
@@ -138,12 +138,8 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
       project: projectId => goToList({ project: projectId }),
       settings: (section, href) => {
         if (!window.location.pathname.startsWith("/settings/")) { router.push(href); return }
-        // Already on Settings: the frame follows its own section event, as its sidebar does.
-        const url = new URL(window.location.href)
-        url.searchParams.set("section", section)
-        url.hash = ""
-        window.history.pushState(null, "", url)
-        window.dispatchEvent(new Event(SETTINGS_EVENT))
+        // Already on Settings: the section changes in place, as from the frame's own sidebar.
+        showSettingsSection(section)
         requestAnimationFrame(() => document.getElementById(`settings-${section}`)?.focus({ preventScroll: true }))
       },
       link: id => new URL(`/requests/${id}`, window.location.origin).href,
