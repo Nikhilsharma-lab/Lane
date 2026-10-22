@@ -81,8 +81,8 @@ function requestEntries(request: PaletteRequest | null, undo: PaletteUndo | null
   const entries: PaletteEntry[] = []
   if (move) entries.push({ id: move.move === "done" ? "mark-done" : "pick-up", label: move.label, group, keys: [], action: { kind: "move", move: move.move, requestId: request.id } })
   entries.push(...undoEntry)
-  // The row menu's rule: priority changes only on an Open Request the viewer may edit.
-  if (!isGuest && request.canEdit && request.status === "open") entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
+  // The row menu's rule: priority changes only on a Request the viewer may edit now (Open, and theirs or an admin's).
+  if (!isGuest && request.canEdit) entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
   entries.push({ id: "copy-link", label: "Copy link", group, keys: [], action: { kind: "copy", copy: "link", requestId: request.id } })
   if (request.code) entries.push({ id: "copy-code", label: "Copy code", group, keys: [], action: { kind: "copy", copy: "code", requestId: request.id, code: request.code } })
   return entries

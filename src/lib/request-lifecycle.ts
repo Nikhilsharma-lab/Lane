@@ -4,6 +4,15 @@ export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; lab
 /** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does today. */
 export type MoveViewer = { isGuest: boolean }
 
+/**
+ * The edit rule (priority and the Request's own fields): Open, and the viewer is an admin or created it.
+ * The row menu, the detail panel and the ⌘K palette share it; lib/data/requests.ts computes the same for
+ * list rows as `canEdit`. The viewer's role is the caller's to apply, as allowedMove's is.
+ */
+export function canEditRequest(request: { status: RequestStatus; createdBy: string | null }, viewer: { id: string; isAdmin?: boolean }): boolean {
+  return request.status === "open" && (Boolean(viewer.isAdmin) || request.createdBy === viewer.id)
+}
+
 const PICK_UP: AllowedMove = { move: "pick-up", to: "in_progress", label: "Pick up" }
 const MARK_DONE: AllowedMove = { move: "done", to: "done", label: "Mark Done" }
 

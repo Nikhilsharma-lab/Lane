@@ -11,7 +11,7 @@ import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { allowedMove, canEditRequest, type LifecycleMove } from "@/lib/request-lifecycle"
 import { statusLabel } from "@/lib/request-status"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
@@ -95,7 +95,7 @@ function usePropertyControls(inSheet = false) {
   const statusControl = move ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
     : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
 
-  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Value icon={priorityGlyph}>{priorityText}</Value>
+  const priorityControl = isGuest || !canEditRequest(request, viewer) ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
 import { requestCodeOrNull } from "@/lib/request-code"
+import { canEditRequest } from "@/lib/request-lifecycle"
 import { measurementReadiness } from "@/lib/request-measurement"
 import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
@@ -100,10 +101,10 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   const source = arrival ? "page" : "peek"
   const current = useMemo<CurrentRequest>(() => ({
     id, code, name, status, priority, source,
-    canEdit: status === "open" && (Boolean(viewer.isAdmin) || createdBy === viewer.id),
+    canEdit: canEditRequest({ status, createdBy }, viewer),
     agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
     pickupBlockedReason: measurementReadiness(expectedImpact, requestType),
-  }), [id, code, name, status, priority, source, viewer.isAdmin, viewer.id, createdBy, agreementBlocked, reviewState, expectedImpact, requestType])
+  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, expectedImpact, requestType])
   usePublishOpenRequest(current)
 
   const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),

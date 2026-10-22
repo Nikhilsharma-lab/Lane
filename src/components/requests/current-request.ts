@@ -21,7 +21,7 @@ export type CurrentRequest = {
   priority: RequestPriority
   /** Where it is: Request detail's page, the list's preview, or the list's highlighted row. */
   source: "page" | "peek" | "list"
-  /** The row menu's and detail panel's edit rule before the viewer's role: Open, and the viewer is an admin or created it. */
+  /** Whether the viewer may edit it now, before their role: canEditRequest (Open, and an admin or its creator) with pending changes applied. */
   canEdit: boolean
   /** Closed by an outcome: no lifecycle move. */
   agreementBlocked: boolean
@@ -59,7 +59,8 @@ export function rowCurrentRequest(row: OverviewRequest): CurrentRequest {
   const code = requestCodeOrNull(row.requestNumber)
   return {
     id: row.id, code, name: code ?? row.reframedProblem ?? row.title, status: row.status, priority: row.priority ?? "none", source: "list",
-    canEdit: row.canEdit ?? false, agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: null,
+    // The server's canEdit is the same rule on the saved status; a pending Pick up or Done ends it at once.
+    canEdit: (row.canEdit ?? false) && row.status === "open", agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: null,
   }
 }
 
