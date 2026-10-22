@@ -55,6 +55,7 @@ If you change the font in tweakcn, an engineer also needs to load the new font i
 ## Rules for code (enforced by `pnpm design:check`)
 
 - Product CSS and JSX write no visual literals: no colour, px/rem, ms or font values. They read theme or bridge names. Mechanical exceptions only: the 1px screen-reader pattern, zero values, media/container query thresholds, SVG geometry, measured layout, and Arc's JavaScript motion springs (`src/components/arc/motion-tokens.ts`, a recorded exemption).
+- Only the theme file (and Arc's layered foundation) has dark-mode selectors (`.dark`, `[data-theme="dark"]`, `prefers-color-scheme: dark`). When a screen looks different in dark, give it a Lane additions token with a light and a dark value.
 - The bridge holds only renames: no literals, calculations, colour mixing, keywords or dark-mode selectors. Every name it reads must be defined in `theme.css`.
 - Every Arc foundation name must be defined by the theme or the bridge, so no Arc default can paint.
 - Icons read `--icon-size` (roles xs to 2xl via `data-icon-size`); numeric icon sizes are rejected. Search inputs use Arc `SearchField`. Page CSS must not override shared control padding, corners or materials.

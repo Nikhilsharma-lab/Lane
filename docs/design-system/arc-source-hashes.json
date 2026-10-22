@@ -350,7 +350,7 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.module.css",
     "upstreamSha256": "182f0d9d3083efa61c40594e5227c3364f11445873524c368769eb13772aeac0",
-    "localSha256": "98b7c2c2b8785a24965b42b4f01e9bf61e1cccc6cdafa7ddbc943937c320e1a6"
+    "localSha256": "a919ae7ac4d718193429727fc86245192e886cb790cafd9ea3fe3a033b3f7e63"
   },
   {
     "id": "user-menu",

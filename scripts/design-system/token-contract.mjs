@@ -20,7 +20,15 @@ const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(
 export function auditCss(css, file = 'component.css', policy = themePolicy()) {
   const { sources, controlOwner, ownerMayMix } = policy
   const errors = []
-  postcss.parse(css, { from: file }).walkDecls(d => {
+  const tree = postcss.parse(css, { from: file })
+  // Light and dark differences live in the theme file as tokens with both values; a dark
+  // selector anywhere else is a second, hidden place a mode's look is decided.
+  if (!sources.has(file)) tree.walk(node => {
+    const darkRule = node.type === 'rule' && /\.dark(?![\w-])|data-theme=["']?dark/.test(node.selector)
+    const darkMedia = node.type === 'atrule' && node.name === 'media' && /prefers-color-scheme:\s*dark/.test(node.params)
+    if (darkRule || darkMedia) errors.push(`${file}:${node.source.start.line} ${darkRule ? node.selector : `@media ${node.params}`} is a dark-mode selector: put the light and dark values in a Lane additions token`)
+  })
+  tree.walkDecls(d => {
     if (sources.has(file)) return
     const selector = d.parent.selector ?? ''
     const accessibility = /(?:srOnly|sr-only|visually-hidden)/i.test(selector)

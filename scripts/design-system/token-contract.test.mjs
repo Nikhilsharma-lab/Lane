@@ -37,6 +37,15 @@ test('search inputs have one shared component owner', () => {
   assert.deepEqual(tokenContract.auditSharedControls('const view = <SearchField label="Search" value="" onValueChange={change} />'), [])
   assert.deepEqual(tokenContract.auditSharedControls('const view = <input type="file" />'), [])
 })
+test('only the theme file has dark-mode selectors; light/dark differences are theme tokens', () => {
+  for (const css of [':global([data-theme="dark"]) .thumb { box-shadow: none; }', ':global(.dark) .row { background: var(--surface); }', '.dark .row { color: var(--foreground); }', '@media (prefers-color-scheme: dark) { .row { color: var(--foreground); } }']) {
+    const errors = auditCss(css, 'src/components/shell/page.module.css')
+    assert.equal(errors.length, 1, `${css}\n${errors.join('\n')}`)
+    assert.match(errors[0], /^src\/components\/shell\/page\.module\.css:1 .*dark/)
+    assert.deepEqual(auditCss(css, 'src/styles/theme.css'), [])
+  }
+  assert.deepEqual(auditCss('.darkMode .row, .dark-panel { color: var(--foreground); } @media (prefers-color-scheme: light) { .x { color: var(--foreground); } }', 'src/components/shell/page.module.css'), [])
+})
 test('responsive thresholds and comments are not declarations', () => {
   assert.deepEqual(auditCss('/* old padding: 8px */ @media (max-width: 640px) { .x { padding: var(--space-2); } }'), [])
 })
