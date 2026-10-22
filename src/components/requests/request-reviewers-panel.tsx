@@ -1,4 +1,5 @@
 "use client";
+import { changeAttempt, type ChangeAttempt } from "./change-attempt";
 import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -61,7 +62,7 @@ export function RequestReviewersPanel({
   const [note, setNote] = useState("");
   const [concernFor, setConcernFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const retry = useRef<{ fingerprint: string; id: string } | null>(null);
+  const retry = useRef<ChangeAttempt | null>(null);
   const running = useRef(false);
   const reportReviewState = useReportReviewState();
   // #77: pickup confirms from what this panel last read, which is newer than the
@@ -104,10 +105,8 @@ export function RequestReviewersPanel({
     running.current = true;
     setBusy(true);
     setError("");
-    const fingerprint = JSON.stringify({ kind, input, revision: view.revision });
-    if (retry.current?.fingerprint !== fingerprint) retry.current = { fingerprint, id: crypto.randomUUID() };
+    const { operationId } = retry.current = changeAttempt(retry.current, { kind, input }, view.revision);
     try {
-      const operationId = retry.current.id;
       const outcome = await runAction({
         id: requestId,
         waitForPending: true,

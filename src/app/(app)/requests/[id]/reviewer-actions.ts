@@ -1,8 +1,8 @@
 "use server";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
-import { db, requests, requestAgreements } from "@/db";
-import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
+import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
+import { requireActiveMember, requireMemberOrAbove, type MemberAuth } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
@@ -15,16 +15,69 @@ import {
   workspaceRoster,
   pendingInvitations,
   resolveInvitedMember,
+  type WorkspacePerson,
 } from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
-  mutateReviewers,
+  changeRequest,
   insist,
   RequestChangeError,
   type RequestTx,
   type StoredRequest,
-  type ReviewersRow,
 } from "@/lib/request-change-store";
+
+type ReviewersRow = typeof requestAgreements.$inferSelect;
+
+/**
+ * A reviewer change through changeRequest. Reviewers change only while the
+ * Request is Open; every change is logged with the reviewers before and after,
+ * and that log is how a retried operation replays.
+ */
+function changeReviewers(
+  context: RequestChangeContext,
+  input: unknown,
+  kind: "reviewers_added" | "reviewer_removed" | "reviewed",
+  rule: (tx: RequestTx, request: StoredRequest, reviewersRow: ReviewersRow | undefined, auth: MemberAuth, roster: WorkspacePerson[]) => Promise<void>,
+) {
+  return changeRequest(context, {
+    fingerprint: { requestId: context.requestId, kind, input },
+    messages: {
+      invalid: "Invalid review action.",
+      forbidden: "You cannot change reviews in this workspace.",
+      failed: "Couldn’t save the review. Your input is preserved; try again.",
+    },
+    replayOf: async (tx, _request, auth) => {
+      const [previous] = await tx
+        .select()
+        .from(requestAgreementEvents)
+        .where(and(
+          eq(requestAgreementEvents.orgId, auth.orgId),
+          eq(requestAgreementEvents.actorId, auth.userId),
+          eq(requestAgreementEvents.operationId, context.operationId),
+        ));
+      return previous && { actorId: previous.actorId, fingerprint: previous.payload.fingerprint, result: previous.payload.result };
+    },
+    apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
+      insist(request.status === "open", "Work has started. Reviews can no longer change.");
+      const reviewersRowOf = async () => (await tx
+        .select()
+        .from(requestAgreements)
+        .where(and(eq(requestAgreements.requestId, request.id), eq(requestAgreements.orgId, auth.orgId))))[0];
+      const reviewersRow = await reviewersRowOf();
+      const before = reviewersRow ? structuredClone(reviewersRow) : null;
+      await rule(tx, request, reviewersRow, auth, roster);
+      await tx.insert(requestAgreementEvents).values({
+        orgId: auth.orgId,
+        requestId: request.id,
+        revision,
+        operationId: context.operationId,
+        actorId: auth.userId,
+        kind,
+        payload: { version: 1, fingerprint, input, before, after: await reviewersRowOf(), result: { success: true, revision } },
+      });
+    },
+  });
+}
 
 async function saveReviewers(
   tx: RequestTx,
@@ -52,7 +105,7 @@ async function saveReviewers(
 export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose people to review." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewers_added",
@@ -75,7 +128,7 @@ export async function addReviewers(context: RequestChangeContext, input: unknown
 export async function removeReviewer(context: RequestChangeContext, input: unknown) {
   const parsed = removeReviewerSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose a reviewer to remove." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewer_removed",
@@ -105,7 +158,7 @@ export async function answerReview(context: RequestChangeContext, input: unknown
   if (!parsed.success) return { error: "Invalid review answer." };
   if (parsed.data.kind === "concern" && !parsed.data.reason)
     return { error: "Say what concerns you." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewed",
