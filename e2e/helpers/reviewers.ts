@@ -82,11 +82,16 @@ export type ReviewTeam = Awaited<ReturnType<typeof createReviewTeam>>;
  * Creates a Request as the PM. With `reviewers`, the PM goes back from the
  * restored review to the compose step, picks them in the Reviewers property,
  * and reviews again through the real gate, so the save carries the picks.
+ * `reviewAfterDays` is the agreed measurement window: 3 or fewer puts a release
+ * recorded today inside the due-soon range, so the row shows its due tag.
  */
 export async function createRequestThroughIntake(
   team: ReviewTeam,
   title: string,
-  { reviewers = [] }: { reviewers?: string[] } = {},
+  {
+    reviewers = [],
+    reviewAfterDays = 14,
+  }: { reviewers?: string[]; reviewAfterDays?: number } = {},
 ) {
   const page = team.pages[0];
   const source = {
@@ -105,7 +110,7 @@ export async function createRequestThroughIntake(
       result:
         "Customers can recover checkout without reentering payment details.",
       source: "Pilot walkthrough",
-      reviewAfterDays: 14,
+      reviewAfterDays,
     },
   };
   const triage = {

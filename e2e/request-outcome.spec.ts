@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
+import { answerIsItLive, journey, journeyStep } from './helpers/journey';
 
-// Hosted acceptance gate: requires verified backup and staging migrations 0028/0029/0030.
+// Hosted acceptance gate: requires verified backup and staging migrations 0028–0033 (#127 adds 0031–0033).
 // Fixtures are retained with receipts by createReviewTeam, never silently erased.
 // A hosted run cannot reach a real measurement deadline (exposure cannot predate today's agreement), so measured
 // closure, the due-date gate and guardrail results are proven with a controlled clock in outcome-actions.test.ts
@@ -12,9 +13,17 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   const path = `/requests/${request.id}`;
   await page.goto(path);
   await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
-  await page.getByRole('button', { name: 'Mark Done', exact: true }).click(); await page.reload();
-  const release = page.getByRole('region', { name: 'Journey', exact: true });
-  await release.getByRole('button', { name: 'Record release', exact: true }).click();
+  await page.getByRole('button', { name: 'Mark Done', exact: true }).click();
+  // "Is it live?" → Not yet: the Request stays Done, its Undo comes back, and the timeline's Done step
+  // offers the release instead.
+  await answerIsItLive(page, 'not yet');
+  await expect(page.getByRole('region', { name: /^Messages/ }).getByRole('button', { name: 'Undo', exact: true })).toBeVisible();
+  await page.reload();
+  const release = journey(page);
+  const done = journeyStep(page, 'Done', 'current step');
+  await expect(done).toContainText('Anyone working on this Request can record it.');
+  await expect(journeyStep(page, 'Measuring', 'not reached yet')).toBeVisible();
+  await done.getByRole('button', { name: 'Record release', exact: true }).click();
   await release.getByLabel('Actual exposure date (UTC)').fill(new Date().toISOString().slice(0, 10));
   await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
   await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
@@ -22,7 +31,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await expect(release.getByText(/· 14 days remaining$/)).toBeVisible();
   return path;
 }
-test('exception closure, correction, follow-up and transferred ownership survive reloads', async ({ browser, page }, testInfo) => {
+test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up and handover survive reloads', async ({ browser, page }, testInfo) => {
   test.setTimeout(900_000);
   const team = await createReviewTeam(browser, page);
   try {
@@ -51,6 +60,8 @@ test('exception closure, correction, follow-up and transferred ownership survive
       await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
       await page.reload();
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
+      await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests never reopen.');
+      await expect(journeyStep(page, 'Measuring', 'finished')).toContainText('Released to ');
       await expect(outcome.getByRole('button', { name: 'Correct release' })).toHaveCount(0);
       await outcome.getByRole('button', { name: 'Add correction' }).click();
       await outcome.getByRole('combobox', { name: 'What needs correcting' }).click();
