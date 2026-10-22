@@ -1,21 +1,30 @@
 import styles from "./clerk-profile.module.css";
 
-// Clerk's documented appearance variables resolve directly to Lane's Supabase-backed tokens.
+// Clerk's documented appearance variables resolve directly to the theme file (src/styles/theme.css):
+// all 17 colour keys read a tweakcn slot or a Lane addition, so no Clerk default colour paints.
+// colorSuccess, colorWarning, colorShimmer and colorModalBackdrop hold Clerk's own defaults as
+// --clerk-* additions until the Part 2 dark-mode fixes (#93) move them onto Lane's tokens.
 // https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/variables
 export const clerkNeutralVariables = {
-  colorPrimary: "var(--primary-background)",
-  colorPrimaryForeground: "var(--primary-label)",
+  colorPrimary: "var(--primary)",
+  colorPrimaryForeground: "var(--primary-foreground)",
   colorForeground: "var(--foreground)",
-  colorMutedForeground: "var(--text-secondary)",
-  colorBackground: "var(--surface)",
+  colorMutedForeground: "var(--muted-foreground)",
+  colorBackground: "var(--card)",
   colorInput: "var(--input-background)",
   colorInputForeground: "var(--foreground)",
   colorBorder: "var(--border)",
   colorMuted: "var(--surface-muted)",
   colorRing: "var(--focus-outline)",
-  colorDanger: "var(--danger)",
+  colorDanger: "var(--destructive)",
   colorNeutral: "var(--foreground)",
-  fontFamily: "var(--font-body)",
+  colorSuccess: "var(--clerk-success)",
+  colorWarning: "var(--clerk-warning)",
+  colorShimmer: "var(--clerk-shimmer)",
+  colorModalBackdrop: "var(--clerk-backdrop)",
+  colorShadow: "var(--shadow-color)",
+  fontFamily: "var(--font-sans)",
+  fontFamilyButtons: "var(--font-sans)",
   borderRadius: "var(--radius-control)",
 };
 
@@ -36,7 +45,7 @@ const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fo
 export const clerkEmbeddedAppearance = {
   variables: {
     ...clerkNeutralVariables,
-    spacing: "calc(var(--sb-spacing) * 4)",
+    spacing: "var(--space-4)",
     fontSize: { xs: "var(--text-xs)", sm: "var(--text-xs)", md: "var(--text-sm)", lg: "var(--text-base)", xl: "var(--text-base)" },
     fontWeight: { normal: "var(--weight-normal)", medium: "var(--weight-medium)", semibold: "var(--weight-medium)", bold: "var(--weight-medium)" },
   },
@@ -47,7 +56,7 @@ export const clerkEmbeddedAppearance = {
     rootBox: { width: "100%" },
     cardBox: { width: "100%", maxWidth: "100%" },
     card: { width: "100%" },
-    headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--sb-font-weight-semibold)" },
+    headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--weight-semibold)" },
     headerSubtitle: { marginTop: "calc(var(--space-3) - var(--space-1))", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
     // Arc's Input answers focus with its border colour alone; Clerk's 4px halo would also show on pointer focus.
     formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)", "&:focus, &:focus-visible": { boxShadow: "none" } },

@@ -20,7 +20,7 @@ test('pages cannot redefine shared control tokens even with token-valued overrid
   for (const token of ['--sb-spacing', '--button-padding-sm', '--input-background', '--badge-gap', '--segment-radius']) {
     const css = `.page { ${token}: var(--space-1) }`
     assert.equal(auditCss(css, 'src/components/shell/page.module.css').length, 1, token)
-    assert.deepEqual(auditCss(css, 'src/styles/lane-arc-theme.css'), [])
+    assert.deepEqual(auditCss(css, 'src/styles/theme-bridge.css'), [])
     assert.equal(auditCss(css, 'src/components/arc/button/button.module.css').length, token.startsWith('--sb-') ? 1 : 0)
   }
   assert.deepEqual(auditCss('.page { padding: var(--button-padding-sm); --content-width: calc(var(--space-1) * 80) }'), [])
@@ -49,7 +49,14 @@ test('mask paint is geometry; visual paint is not', () => {
   assert.ok(auditCss('.x { background: black; }').length)
 })
 test('palette token names are not literal colours', () => {
-  assert.deepEqual(auditCss('.x { color: var(--sb-color-red-900); background: var(--project-blue); }'), [])
+  assert.deepEqual(auditCss('.x { color: var(--label-purple); background: var(--project-blue); }'), [])
+})
+test('nothing reads the retired Supabase token names', () => {
+  for (const value of ['var(--sb-spacing)', 'calc(var(--sb-spacing) * 2)', 'var(--sidebar-width, var(--sb-sidebar-width))']) {
+    const errors = auditCss(`.x { padding: ${value}; }`, 'src/components/shell/page.module.css')
+    assert.equal(errors.length, 1, value)
+    assert.match(errors[0], /retired --sb-\* token/)
+  }
 })
 test('inline styles cannot bypass the CSS contract', async () => {
   const { auditInlineStyles } = await import('./token-contract.mjs')
@@ -263,9 +270,10 @@ test("Arc's JavaScript motion values are a recorded exemption", () => {
   assert.match(stale[0], /motion-tokens\.ts.*exemption/)
 })
 
-test("today's repo check keeps the Supabase-era sources until the theme switch", () => {
-  assert.deepEqual(auditCss(':root { --sb-foreground: oklch(0.1 0 0); }', 'src/styles/supabase-tokens.css'), [])
-  assert.deepEqual(auditCss(':root { --overlay: color-mix(in oklab, var(--background) 80%, transparent); }', 'src/styles/lane-arc-theme.css'), [])
+test('the repo check no longer exempts the retired Supabase-era token files', () => {
+  assert.ok(auditCss(':root { --sb-foreground: oklch(0.1 0 0); }', 'src/styles/supabase-tokens.css').length)
+  assert.ok(auditCss(':root { --overlay: color-mix(in oklab, var(--background) 80%, transparent); }', 'src/styles/lane-arc-theme.css').length)
+  assert.deepEqual(auditCss(':root { --hairline: oklch(0 0 0 / .081); }', 'src/styles/theme.css'), [])
 })
 
 test('a missing theme file is reported, not thrown', () => {

@@ -33,5 +33,5 @@
 }
 /* Reserve the expand control where the shell auto-collapses, so it never pushes the strip after hydration. */
 @media (max-width: 880px) {
-  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { display: flex; width: var(--sb-size-inner-medium); height: var(--sb-size-inner-medium); }
+  :global([data-linear-preview-auto-collapse]) .expandSlot:empty { display: flex; width: var(--size-inner-medium); height: var(--size-inner-medium); }
 }

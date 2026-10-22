@@ -5,17 +5,19 @@ import { resolve, relative, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 // Source definitions are audited separately by provenance. Consumers have no blanket vendor exemption.
-// A policy names where values may be written and which file owns shared control tokens.
-// The Supabase-era policy is today's repo check; the theme policy is turned on by the theme switch.
-const legacyPolicy = {
-  sources: new Set(['src/styles/supabase-tokens.css', 'src/components/arc/foundation.css']),
-  controlOwner: 'src/styles/lane-arc-theme.css',
-  ownerMayMix: true,
+// A policy names where values may be written and which file owns shared control tokens. The one theme
+// file (#87) is the only place values live; Arc's foundation is locked by arc-source-check and loads in
+// a lower cascade layer; the bridge is policed by auditBridge instead, so a value there is reported once.
+export const themeFiles = {
+  theme: 'src/styles/theme.css',
+  bridge: 'src/styles/theme-bridge.css',
+  foundation: 'src/components/arc/foundation.css',
 }
+const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge, ownerMayMix: false })
 const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt)\b/gi
 const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
 
-export function auditCss(css, file = 'component.css', policy = legacyPolicy) {
+export function auditCss(css, file = 'component.css', policy = themePolicy()) {
   const { sources, controlOwner, ownerMayMix } = policy
   const errors = []
   postcss.parse(css, { from: file }).walkDecls(d => {
@@ -33,6 +35,8 @@ export function auditCss(css, file = 'component.css', policy = legacyPolicy) {
     if (sharedControlToken && (!ownsControlTokens || d.prop.startsWith('--sb-') && file !== controlOwner)) {
       errors.push(`${file}:${d.source.start.line} shared control override ${d.prop}: update the shared component or theme mapping`)
     }
+    // The Supabase-era token files are retired: nothing may read their names again.
+    if (/var\(\s*--sb-/.test(d.value)) errors.push(`${file}:${d.source.start.line} ${d.prop} reads a retired --sb-* token: use the theme file's name`)
     if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value) && !(ownerMayMix && file === controlOwner && d.prop.startsWith("--") && d.value.startsWith("color-mix(") && !/#[\da-f]|\b(?:rgb|oklch)\(/i.test(d.value))) || fixedType) {
       errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value}`)
     }
@@ -179,7 +183,7 @@ export function auditIcons(source, file = 'component.tsx') {
   return errors
 }
 
-export function auditTree(root, policy = legacyPolicy) {
+export function auditTree(root, policy = themePolicy()) {
   const errors = []
   function walk(dir) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -197,13 +201,8 @@ export function auditTree(root, policy = legacyPolicy) {
   return errors
 }
 
-// The one-theme-file contract (#87, #90). Paths are parameters so the theme switch can
-// point the same rules at the real files; nothing here runs in today's repo check.
-export const themeFiles = {
-  theme: 'src/styles/theme.css',
-  bridge: 'src/styles/theme-bridge.css',
-  foundation: 'src/components/arc/foundation.css',
-}
+// The one-theme-file contract (#87, #90). Paths are parameters so fixtures can point the
+// same rules at their own files.
 
 // Known places the one-theme-file rule does not reach, recorded so the check is honest.
 export const themeExemptions = [
@@ -379,9 +378,7 @@ export function contrastReport(themeCss, file = themeFiles.theme) {
 export function auditThemeContract(root, files = themeFiles) {
   // Arc's foundation stays byte-identical and is locked by arc-source-check; it loads in a
   // lower cascade layer, and the coverage rule proves none of its values can paint.
-  // The bridge is policed by auditBridge instead, so a value there is reported once.
-  const policy = { sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge, ownerMayMix: false }
-  const errors = auditTree(root, policy)
+  const errors = auditTree(root, themePolicy(files))
   const read = file => existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null
   const theme = read(files.theme)
   if (theme === null) errors.push(`${files.theme} is missing: it is the only place visual values may be written`)
@@ -399,8 +396,8 @@ export function auditThemeContract(root, files = themeFiles) {
   return { errors, warnings, exemptions: themeExemptions }
 }
 
-// `--theme` runs the one-theme-file contract (optionally against `--root <dir>`); without it
-// the script runs today's Supabase-era check, unchanged.
+// Runs the one-theme-file contract on the repo (or `--root <dir>`). `--theme` is accepted for
+// compatibility with the #90 entry point; it is the only check now.
 function runThemeCheck(argv) {
   const rootFlag = argv.indexOf('--root')
   const root = rootFlag === -1 ? resolve(import.meta.dirname, '../..') : resolve(argv[rootFlag + 1])
@@ -408,12 +405,7 @@ function runThemeCheck(argv) {
   if (warnings.length) console.warn(`Contrast warnings (${warnings.length}, not failures):\n${warnings.join('\n')}`)
   console.log(`Recorded exemptions:\n${exemptions.map(exemption => `${exemption.file ?? exemption.arcSlot}: ${exemption.reason}`).join('\n')}`)
   if (errors.length) { console.error(`Theme contract failed (${errors.length}):\n${errors.join('\n')}`); process.exitCode = 1 }
-  else console.log('Theme contract passed: visual values live only in the theme file.')
+  else console.log('Theme contract passed: visual values live only in the theme file; CSS, inline styles, icons and search controls use shared sources.')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href && process.argv.includes('--theme')) runThemeCheck(process.argv)
-else if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const errors = auditTree(resolve(import.meta.dirname, '../..'))
-  if (errors.length) { console.error(`Fixed visual values (${errors.length}):\n${errors.join('\n')}`); process.exitCode = 1 }
-  else console.log('Token contract passed: application CSS, inline styles, icons and search controls use shared sources.')
-}
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) runThemeCheck(process.argv)

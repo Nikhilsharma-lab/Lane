@@ -41,6 +41,15 @@ export const KNOWN_EXCEPTIONS: Record<string, (d: Difference) => boolean> = {
     d.mode === "dark" && onlyMovedAround(d, oklch(0.43627, 0.11, 157.5)),
   // The old destructive text colour sits outside sRGB too, in both modes.
   "wide-gamut destructive text": (d) => onlyMovedAround(d, oklch(0.99, 0.0112, 25)),
+  // Spec #87 "Name clashes": Lane's red-text meaning of --destructive-foreground is retired and
+  // the name now means tweakcn's label on a red button. Nothing paints the old meaning any more
+  // (its text classes moved to the plain destructive colour, the same red), so only the root
+  // name itself may change, and only to that label colour.
+  "retired destructive-foreground meaning": (d) => {
+    if (d.key !== "root --destructive-foreground") return false;
+    const actual = split(d.actual);
+    return actual.shape === "<colour>" && distance(actual.colours[0], oklch(0.99, 0.0112, 25)) <= 0.003;
+  },
   // Before Geist loads, the stack falls back to plain sans-serif instead of
   // next/font's size-matched "Geist Fallback". Geist itself must still lead.
   "pre-Geist fallback font": (d) => {

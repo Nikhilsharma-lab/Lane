@@ -7,7 +7,7 @@
  * - Arc foundation names: every custom property declared in
  *   `src/components/arc/foundation.css` (115).
  * - Lane hooks: every custom property declared only in
- *   `src/styles/lane-arc-theme.css` (166).
+ *   `src/styles/lane-arc-theme.css` (166), a file the theme switch (#91) retired.
  */
 const list = (names: string) => names.trim().split(/\s+/);
 

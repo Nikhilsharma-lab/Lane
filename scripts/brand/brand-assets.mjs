@@ -2,9 +2,10 @@
 //
 // Every asset is derived from two sources, so none of them carries a hand-picked value:
 //   - the Lane mark: the <path d> data of LaneMark in src/components/auth/auth-shell.tsx;
-//   - colours and proportions: src/styles/supabase-tokens.css (light and dark --sb-background /
-//     --sb-foreground), resolved from oklch to sRGB hex because icon files and the manifest are
-//     read by browsers and platforms that do not evaluate CSS custom properties.
+//   - colours and proportions: the theme file src/styles/theme.css (tweakcn's light and dark
+//     --background / --foreground, and Lane additions sizes), resolved from oklch to sRGB hex
+//     because icon files and the manifest are read by browsers and platforms that do not
+//     evaluate CSS custom properties.
 //
 //   node scripts/brand/brand-assets.mjs           write the assets
 //   node scripts/brand/brand-assets.mjs --check   fail if a committed asset differs from the sources
@@ -32,17 +33,18 @@ const markViewBox = markSource[0].match(/viewBox="([^"]+)"/)[1]
 const markPaths = [...markSource[0].matchAll(/<path d="([^"]+)"/g)].map(match => match[1])
 if (markPaths.length === 0) throw new Error('LaneMark has no paths')
 
-const tokens = read('src/styles/supabase-tokens.css')
+const tokens = read('src/styles/theme.css')
+// The first :root and .dark blocks are tweakcn's export; Lane additions follow later in the file.
 function themeBlock(selector) {
-  const start = tokens.indexOf(`${selector} {`)
-  if (start === -1) throw new Error(`Token block not found: ${selector}`)
+  const start = tokens.search(new RegExp(`^${selector.replace('.', '\\.')} \\{`, 'm'))
+  if (start === -1) throw new Error(`Theme block not found: ${selector}`)
   return tokens.slice(start, tokens.indexOf('\n}', start))
 }
-const lightBlock = themeBlock(':root[data-visual-system="lane"]')
-const darkBlock = themeBlock(':root[data-visual-system="lane"][data-theme="dark"]')
+const lightBlock = themeBlock(':root')
+const darkBlock = themeBlock('.dark')
 function token(block, name) {
-  const match = block.match(new RegExp(`--sb-${name}:\\s*([^;]+);`))
-  if (!match) throw new Error(`Token not found: --sb-${name}`)
+  const match = block.match(new RegExp(`--${name}:\\s*([^;]+);`))
+  if (!match) throw new Error(`Theme token not found: --${name}`)
   return match[1].trim()
 }
 const sizeToken = name => {
@@ -50,7 +52,7 @@ const sizeToken = name => {
   if (value.endsWith('rem')) return parseFloat(value) * 16
   if (value.endsWith('px')) return parseFloat(value)
   if (value.endsWith('em')) return parseFloat(value)
-  throw new Error(`Unsupported size for --sb-${name}: ${value}`)
+  throw new Error(`Unsupported size for --${name}: ${value}`)
 }
 
 // oklch(L C h) → sRGB hex (Björn Ottosson's OKLab matrices, CSS Color 4 transfer function).
@@ -83,13 +85,13 @@ const colour = {
   darkForeground: oklchToHex(token(darkBlock, 'foreground')),
 }
 
-// The sign-in header draws the mark at --sb-icon-md beside "Lane" at --sb-text-base, 2 spacing
-// units apart, tracked --sb-tracking-tight (auth.module.css .mark). The OG image scales that lockup.
+// The sign-in header draws the mark at --icon-size-lg beside "Lane" at --text-base, 2 spacing
+// units apart, tracked --tracking-display (auth.module.css .mark). The OG image scales that lockup.
 const lockup = {
-  mark: sizeToken('icon-md'),
+  mark: sizeToken('icon-size-lg'),
   text: sizeToken('text-base'),
   gap: sizeToken('spacing') * 2,
-  tracking: sizeToken('tracking-tight'),
+  tracking: sizeToken('tracking-display'),
 }
 
 const name = 'Lane'
@@ -189,7 +191,7 @@ if (process.argv.includes('--check')) {
     try { return !readFileSync(join(root, path)).equals(bytes) } catch { return true }
   })
   if (stale.length > 0) {
-    console.error(`Brand assets differ from the Lane mark or Supabase tokens: ${stale.map(([path]) => path).join(', ')}\nRun \`pnpm brand:assets\` and commit the result.`)
+    console.error(`Brand assets differ from the Lane mark or the theme file: ${stale.map(([path]) => path).join(', ')}\nRun \`pnpm brand:assets\` and commit the result.`)
     process.exit(1)
   }
   console.log(`Brand assets match their sources (${Object.keys(assets).length} files).`)

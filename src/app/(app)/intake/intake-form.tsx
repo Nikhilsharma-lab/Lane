@@ -190,7 +190,7 @@ function EarlierDraftDetails({
           </div>
         ))}
       </dl>
-      {error && <p role="alert" className="text-destructive-foreground">{error}</p>}
+      {error && <p role="alert" className="text-destructive">{error}</p>}
     </section>
   );
 }
@@ -1464,9 +1464,9 @@ export default function RequestEditor({
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
             </div>
-            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive-foreground">{errors.projectId.message}</p>}
-            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive-foreground">{errors.requestType.message}</p>}
-            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive-foreground">{reviewersError}</p>}
+            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
+            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
+            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
             {currentValues.expectedImpact && <>
               {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
                 <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
@@ -1579,7 +1579,7 @@ export default function RequestEditor({
                 className="min-w-0"
               >
                 <div
-                  className="data-[invalid=true]:text-destructive-foreground"
+                  className="data-[invalid=true]:text-destructive"
                   data-invalid={Boolean(problemError)}
                 >
                   <Textarea
@@ -1604,7 +1604,7 @@ export default function RequestEditor({
                   />
                   {problemError ? (
                     <p
-                      className="text-destructive-foreground"
+                      className="text-destructive"
                       id="problem-framing-error"
                     >
                       {problemError}
