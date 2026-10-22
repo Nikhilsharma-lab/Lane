@@ -18,11 +18,9 @@ const REVIEW_DETAILS = source("src/components/requests/request-review-supporting
 describe("Private Request attachment contract", () => {
   it("creates the Request before uploading directly to private storage", () => {
     expect(FORM).toContain("callAction(() => saveRequest(payload, context, picks))");
-    expect(FORM.indexOf("callAction(() => saveRequest(payload, context, picks))")).toBeLessThan(FORM.indexOf("uploadAttachment(attachment, result.requestId)"));
+    // The upload session (intake-uploads.ts) uploads the saved Request's files.
+    expect(FORM.indexOf("callAction(() => saveRequest(payload, context, picks))")).toBeLessThan(FORM.indexOf("uploads().uploadSaved(result.requestId"));
     expect(FORM).toContain("setCreatedRequestId(result.requestId)");
-    expect(FORM).toContain(
-      "uploadAttachment(attachment, result.requestId)"
-    );
     expect(FORM).toContain("prepareAttachmentUpload");
     expect(FORM).toContain("uploadToSignedUrl");
     expect(FORM).toContain("finalizeAttachmentUpload");
