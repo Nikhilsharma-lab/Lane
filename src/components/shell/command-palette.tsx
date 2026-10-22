@@ -2,9 +2,8 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import { useRouter } from "next/navigation"
-import { Root as DialogRoot } from "@radix-ui/react-dialog"
 import { Check } from "lucide-react"
-import { DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { useListAnnouncer } from "@/components/requests/list-announcer"
 import { useCurrentRequest, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
@@ -43,9 +42,8 @@ const roleOf = (role: string): PaletteRole => role === "admin" || role === "gues
  * an APG combobox: the field keeps focus, aria-activedescendant names the
  * active option, options are grouped, and the result count is polite.
  *
- * It sits under a bare Radix root, so Arc's DialogContent animates with its
- * CSS keyframes rather than Motion; globals.css stops those under reduced
- * motion, so the palette opens and closes with no animation there.
+ * Under reduced motion Arc's Dialog still fades its layers; the palette's CSS
+ * holds both at full opacity there, so it opens and closes with no animation.
  */
 export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspace }: CommandPaletteProps) {
   const [step, setStep] = useState<PaletteStep>("entries")
@@ -59,8 +57,8 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
     setWasOpen(open)
     if (open) { setStep("entries"); setQuery(""); setActive(0) }
   }
-  return <DialogRoot open={open} onOpenChange={onOpenChange}>
-    <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog}
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog} overlayClassName={styles.overlay}
       onOpenAutoFocus={event => { handled.current = false; event.preventDefault(); input.current?.focus() }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
       onCloseAutoFocus={event => {
@@ -82,7 +80,7 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
           return target
         }} />
     </DialogContent>
-  </DialogRoot>
+  </Dialog>
 }
 
 type BodyProps = CommandPaletteWorkspace & {

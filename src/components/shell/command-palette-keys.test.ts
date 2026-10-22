@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { paletteListKey, paletteShortcut } from "./command-palette-keys"
+import { paletteListKey } from "./command-palette-keys"
+import { paletteShortcut } from "./command-palette-shortcut"
 
 const key = (overrides: Partial<Parameters<typeof paletteShortcut>[0]> = {}) => ({
   key: "k", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, defaultPrevented: false, ...overrides,

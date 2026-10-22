@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, type ComponentType } from 
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import type { CommandPaletteProps, CommandPaletteWorkspace } from "./command-palette"
-import { paletteShortcut } from "./command-palette-keys"
+import { paletteShortcut } from "./command-palette-shortcut"
 
 type Palette = ComponentType<CommandPaletteProps>
 

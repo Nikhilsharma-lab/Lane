@@ -1,25 +1,9 @@
 /**
- * Issue #106 (spec #101): the ⌘K palette's keys, as pure commands so the
- * guards and the list's keyboard use are unit-tested without a DOM, as
- * request-grid-keys.ts does for the list.
+ * Issue #106 (spec #101): the palette's list keys, as pure commands so its
+ * keyboard use is unit-tested without a DOM, as request-grid-keys.ts does
+ * for the list. ⌘K itself is in command-palette-shortcut.ts, which every
+ * route loads; this file loads with the palette.
  */
-export type ShortcutKey = {
-  key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean
-  repeat: boolean; isComposing: boolean; defaultPrevented: boolean
-}
-
-/**
- * ⌘K or Ctrl+K. Closed, it respects the shared guards (isTypingTarget,
- * overlayOpen). Open, the palette's own field is a combobox and its own
- * dialog an overlay, so the guards are skipped and the key closes it.
- */
-export function paletteShortcut(event: ShortcutKey, state: { open: boolean; typing: boolean; overlay: boolean }): "open" | "close" | null {
-  if (event.key.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return null
-  if (event.repeat || event.isComposing || event.defaultPrevented) return null
-  if (state.open) return "close"
-  return state.typing || state.overlay ? null : "open"
-}
-
 export type ListKey = { key: string; shiftKey: boolean; altKey: boolean; metaKey: boolean; ctrlKey: boolean; isComposing: boolean }
 export type PaletteStep = "entries" | "priority"
 export type ListCommand = { type: "active"; index: number } | { type: "run" } | { type: "back" }
