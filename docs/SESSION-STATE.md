@@ -1,10 +1,31 @@
 # Shared Claude / Codex handoff
 
+## October 22 — architecture review work merged; staging has 0031 and 0032
+
+The architecture-review candidates are merged to `main` (#80–#125; W4 keyboard shortcuts waits for #109, the
+command palette). Database: **Lane Staging (`jznepeqghjixcrpuddym`) has 0031 and 0032.** 0031 was found already
+applied and complete on 2026-10-22 (no record of who applied it); another session applied 0032 that day from
+`backups/staging-0032-2026-10-22/`. Both were checked against the verified backup in
+`backups/reviewers-0031-0032-2026-10-22/` taken just before 0032: 14 Requests, every Request row unchanged, no
+comment or file lost, `notify` and the reset trigger match `0032`. Migration `0033` (drop the unused
+`request_review_state`) is written and passes locally; not applied anywhere.
+
+**Production (`tcfwabpoiydvfqxhtkur`) has 0028 → 0032, applied 2026-10-22 under the owner's explicit approval.**
+Verified backup and row snapshots in `backups/production-0028-0032-2026-10-22/` (3 Requests, 1 file, 1 Project);
+the backup was restored into a local database and 0028–0032 rehearsed there first; afterwards every check passed
+(all five migrations present, no Request, comment, file, notification or Project lost, Request content, status
+and priority unchanged). The pulled credentials were deleted. The production database password was reset by the
+owner the same day, so Vercel's production `DATABASE_URL` must hold the new password before the site connects.
+Production deploys are manual (GitHub shows only Preview deployments); `main` can be deployed once 0033 has run
+on staging and then production, or before 0033, which only drops an unused function.
+
+Other notes: each worktree's test suite now resets its own `lane_test_<copy>` (#122); `pnpm bundle:check`
+baseline reset with a written waiver (#128).
+
 ## October 21 — #74 optional reviewers built: #75–#78 (branch `lifecycle-simplify`)
 
 Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `lifecycle-simplify`. Migration
-`0031_simple_request_agreement.sql` holds all of it and is still unapplied anywhere (staging stops at 0030);
-applying it is a separate approved step with a backup and dry run.
+`0031_simple_request_agreement.sql` holds all of it. _Applied to staging by 2026-10-22; see the entry above._
 
 - **#75 reviewers replace the PM/Designer/Developer agreement.** `0031` stores an ordered reviewer list; filled
   seats convert (agree → Looks good, request changes → concern, withdraw → unanswered), the requester's own seat
@@ -21,8 +42,8 @@ applying it is a separate approved step with a backup and dry run.
   (`review_reset`); edit actions call `nameReviewResetActor` (sets `lane.actor_id`) so the editor is named. Adding notifies each reviewer
   (`review_requested`, with the optional question in `notifications.detail`); answers notify whoever added the
   reviewer (`review_looks_good` / `review_concern` with the reason). No self-notifications; bell only.
-- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gives list and detail loaders
-  the open concerns and unanswered count. One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
+- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gave list and detail loaders
+  the open concerns and unanswered count (_replaced 2026-10-22 by `reviewStatesOf` in the app, #111; 0033 drops it_). One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
   the detail button, status control, row menu and bulk bar (one combined dialog). The reviewers panel reports
   what it last read to the dialog, which prefers it over the loaded copy, so a reviewer just added, removed or
   answered (page or preview) is never skipped. "N concern(s)" marker on Open rows only.
