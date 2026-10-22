@@ -12,7 +12,7 @@ import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf
 import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
 import { INVITATION_PENDING, REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
-import styles from "./request-reviewers-panel.module.css";
+import styles from "./request-timeline.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -33,11 +33,12 @@ function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
 }
 
 /**
+ * The timeline's Open step: reviews (#134).
  * Optional reviewers look at an Open Request before work starts. Each answers
  * Looks good or raises a concern with a reason. Reviews never block pickup;
  * once work starts the list is a read-only record.
  */
-export function RequestReviewersPanel({
+export function RequestReviews({
   requestId,
   orgId,
   isAdmin,
@@ -130,8 +131,8 @@ export function RequestReviewersPanel({
 
   if (!view)
     return (
-      <section id="reviewers" aria-label="Reviewers" className={styles.panel}>
-        <h2>Reviewers</h2>
+      <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
+        <h4>Reviewers</h4>
         {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button></> : <p role="status">Loading reviewers…</p>}
       </section>
     );
@@ -144,9 +145,9 @@ export function RequestReviewersPanel({
     }));
 
   return (
-    <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.panel} aria-busy={busy}>
+    <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.reviews} aria-busy={busy}>
       <div className={styles.header}>
-        <h2 id="reviewers-heading">Reviewers</h2>
+        <h4 id="reviewers-heading">Reviewers</h4>
         {view.canAdd && !adding && (
           <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}

@@ -14,7 +14,7 @@ applying it is a separate approved step with a backup and dry run.
   once accepted and verified), `readReviews` (profile role, departed reviewers greyed out), `loadReviewerPeople`.
   Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement (earliest exposure
   = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator, and ask each of them
-  (`review_requested`) in the same transaction. The Reviewers panel (`request-reviewers-panel.tsx`)
+  (`review_requested`) in the same transaction. The Reviewers list (`request-reviews.tsx`, in the journey timeline's Open step since #134)
   replaces the three-seat picker. Seat conversion is checked from `src/test/agreement-seat-fixtures.sql`.
 - **#76 edits reset reviews; notifications; optional question.** A `0031` trigger resets every answer when the
   content of an Open Request changes (not priority), bumps the revision and notifies reviewers who had answered
@@ -40,7 +40,7 @@ applying it is a separate approved step with a backup and dry run.
 Review fixes (2026-10-21): agreement-era code names were renamed to reviewer names (code only; DB tables,
 columns, migration 0031 and the stored `nominee` JSON key are unchanged): `reviewer-actions.ts`,
 `request-reviewer-rules.ts` (was `request-agreement.ts`), `workspace-roster.ts`, `request-change-store.ts`
-(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviewersPanel`, `ReviewerIdentity`.
+(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviews`, `ReviewerIdentity`.
 
 Verified locally: typecheck, lint and the vitest suite. Server-action tests: `reviewer-actions.test.ts` and
 `src/app/(app)/intake/create-reviewers-actions.test.ts`. The hosted Playwright spec `e2e/request-reviewers.spec.ts`

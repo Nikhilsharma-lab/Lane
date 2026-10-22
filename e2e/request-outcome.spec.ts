@@ -6,19 +6,20 @@ import { assertOwnedOrganization } from './helpers/fixtures';
 // Fixtures are retained with receipts by createReviewTeam, never silently erased.
 // A hosted run cannot reach a real measurement deadline (exposure cannot predate today's agreement), so measured
 // closure, the due-date gate and guardrail results are proven with a controlled clock in outcome-actions.test.ts
-// and Requests/Outcome closure stories. This journey covers exception, correction, follow-up and transfer.
+// (Storybook was removed). This journey covers exception, correction, follow-up and transfer.
 async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   const request = await createRequestThroughIntake(team, title);
   const path = `/requests/${request.id}`;
   await page.goto(path);
   await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
   await page.getByRole('button', { name: 'Mark Done', exact: true }).click(); await page.reload();
-  const release = page.getByRole('region', { name: 'Release and measurement', exact: true });
+  const release = page.getByRole('region', { name: 'Journey', exact: true });
+  await release.getByRole('button', { name: 'Record release', exact: true }).click();
   await release.getByLabel('Actual exposure date (UTC)').fill(new Date().toISOString().slice(0, 10));
   await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
   await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
   await release.getByRole('button', { name: 'Mark as released' }).click();
-  await expect(release.getByText('14 days remaining', { exact: true })).toBeVisible();
+  await expect(release.getByText(/· 14 days remaining$/)).toBeVisible();
   return path;
 }
 test('exception closure, correction, follow-up and transferred ownership survive reloads', async ({ browser, page }, testInfo) => {
@@ -28,18 +29,19 @@ test('exception closure, correction, follow-up and transferred ownership survive
     for (const width of [1440, 390]) for (const colorScheme of ['light', 'dark'] as const) {
       await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
       const path = await releasedRequest(team, page, `${width} ${colorScheme}: outcome acceptance`);
-      const outcome = page.getByRole('region', { name: 'Outcome', exact: true });
-      await expect(outcome.getByText('Measuring · 14 days remaining', { exact: true })).toBeVisible();
-      await expect(outcome.getByRole('button', { name: 'Close Request', exact: true })).toHaveCount(0);
+      const outcome = page.getByRole('region', { name: 'Journey', exact: true });
+      await expect(outcome.getByText(/· 14 days remaining$/)).toBeVisible();
+      await expect(outcome.getByRole('button', { name: 'Close Request', exact: true })).toBeDisabled();
+      await expect(outcome.getByText(/^Opens on /)).toBeVisible();
       // Follow-up first: the original keeps its obligation and the follow-up is reviewed afresh.
       await outcome.getByRole('button', { name: 'Create follow-up Request' }).click();
       await outcome.getByLabel('What changed and why').fill('Acceptance: mobile checkout needs the same fix');
       await outcome.getByRole('button', { name: 'Create follow-up Request' }).dblclick();
       await page.waitForURL(url => !url.pathname.endsWith(path));
-      await expect(page.getByRole('region', { name: 'Outcome', exact: true })).toContainText('Follow-up of');
+      await expect(page.getByRole('region', { name: 'Journey', exact: true })).toContainText('Follow-up of');
       await expect(page.getByRole('button', { name: 'Pick up', exact: true })).toBeVisible();
       await page.goto(path);
-      await expect(outcome.getByText('Measuring · 14 days remaining', { exact: true })).toBeVisible();
+      await expect(outcome.getByText(/· 14 days remaining$/)).toBeVisible();
       await expect(outcome.getByRole('link', { name: /outcome acceptance/ })).toHaveCount(1);
       // Closing without a result by keyboard, early, with a reason and no invented numbers.
       await outcome.getByRole('button', { name: 'Close without a result…' }).focus(); await page.keyboard.press('Enter');
@@ -48,8 +50,8 @@ test('exception closure, correction, follow-up and transferred ownership survive
       await outcome.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
       await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
       await page.reload();
-      await expect(outcome.getByText('Closed without a result · Rolled back')).toBeVisible();
-      await expect(page.getByRole('region', { name: 'Release and measurement', exact: true }).getByRole('button', { name: 'Correct release' })).toHaveCount(0);
+      await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
+      await expect(outcome.getByRole('button', { name: 'Correct release' })).toHaveCount(0);
       await outcome.getByRole('button', { name: 'Add correction' }).click();
       await outcome.getByRole('combobox', { name: 'What needs correcting' }).click();
       await page.getByRole('option', { name: 'Reason', exact: true }).click();
@@ -68,19 +70,20 @@ test('exception closure, correction, follow-up and transferred ownership survive
     await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
     const admin = team.pages[1]; await admin.goto(path); await admin.reload();
-    await expect(admin.getByRole('region', { name: 'Outcome', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
-    const release = admin.getByRole('region', { name: 'Release and measurement', exact: true });
+    await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
+    const release = admin.getByRole('region', { name: 'Journey', exact: true });
+    await release.getByRole('button', { name: 'Hand over to a new Requester' }).click();
     await release.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
     await release.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
     await release.getByRole('button', { name: 'Hand over' }).click();
     const developer = team.pages[2]; await developer.goto(path);
-    const outcome = developer.getByRole('region', { name: 'Outcome', exact: true });
+    const outcome = developer.getByRole('region', { name: 'Journey', exact: true });
     await outcome.getByRole('button', { name: 'Close without a result…' }).click();
     await outcome.getByRole('combobox', { name: 'Why' }).click();
     await developer.getByRole('option', { name: 'Can’t be measured' }).click();
     await outcome.getByLabel('Details (optional)').fill('Acceptance: analytics unavailable after transfer');
     await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
-    await developer.reload(); await expect(outcome).toContainText('Closed without a result · Can’t be measured');
+    await developer.reload(); await expect(outcome).toContainText('Closed without a result at Measuring: Can’t be measured.');
   } finally { await team.close(testInfo); }
 });

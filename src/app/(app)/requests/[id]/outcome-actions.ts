@@ -140,10 +140,6 @@ export async function readRequestOutcome(requestId: string, context: {
             state: closure ? 'closed' as const : release ? 'measuring' as const : 'not_started' as const,
             agreed: expected ? agreedResult(expected) : null,
             release, measurement, closure: closure ?? null, corrections: request.closureCorrections,
-            canClose: actions.close.allowed && !!expected,
-            canCloseException: actions.closeWithoutResult.allowed,
-            canCorrect: actions.correctClosure.allowed,
-            canFollowUp: actions.followUp.allowed,
             followUpOf: parent ?? null,
             followUps: followRows.map(f => ({ ...f, createdAt: f.createdAt.toISOString(), reason: String((reasons.find(r => r.requestId === f.id)?.payload.input as { reason?: string } | undefined)?.reason ?? '') })),
         };
