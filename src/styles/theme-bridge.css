@@ -8,7 +8,7 @@
   --surface: var(--card);
   --surface-raised: var(--popover);
   --workspace-canvas: var(--background);
-  --dialog-background: var(--background);
+  --dialog-background: var(--dialog-surface);
   --navigation-background: var(--sidebar);
   --text-secondary: var(--muted-foreground);
   --floating-foreground: var(--muted-foreground);

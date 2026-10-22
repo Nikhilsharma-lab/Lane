@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.9950 0 0);
+  --background: oklch(0.9700 0 0);
   --foreground: oklch(0.1000 0 0);
   --card: oklch(1.0000 0 0);
   --card-foreground: oklch(0.1000 0 0);
@@ -27,7 +27,7 @@
   --chart-3: oklch(0.5940 0.2163 347.0429);
   --chart-4: oklch(0.5420 0.1795 288.0961);
   --chart-5: oklch(0.5982 0.1936 33.1317);
-  --sidebar: oklch(0.9950 0 0);
+  --sidebar: oklch(0.9700 0 0);
   --sidebar-foreground: oklch(0.3945 0 0);
   --sidebar-primary: oklch(0.5250 0.1200 157.5000);
   --sidebar-primary-foreground: oklch(0.9900 0.0028 157.5000);
@@ -196,6 +196,8 @@
   --input-background: oklch(0 0 0 / 0.015);
   --button-secondary-background: var(--card);
   --button-secondary-hover: var(--surface-muted);
+  /* Dialogs sit above the grey frame in light, and use the darkest surface in dark. */
+  --dialog-surface: var(--card);
 
   /* Brand ink is separate from the button plate (tweakcn's --accent is a grey hover and is read
      only by tweakcn's preview). Light ink is the plate colour; dark ink is the ring colour. */
@@ -415,6 +417,7 @@
 
 .dark {
   --text-muted: oklch(0.684 0.00275 157.5);
+  --dialog-surface: var(--background);
   --surface-muted: oklch(0.95 0.00275 157.5 / 0.0328947);
   --hairline: oklch(0.95 0.001485 157.5 / 0.075125);
   --border-strong: oklch(0.95 0.001375 157.5 / 0.134738);

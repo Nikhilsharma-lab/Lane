@@ -34,15 +34,29 @@ Additions never reuse a name tweakcn exports (its `@theme inline` keys included)
 
 ## Before the first real re-paste
 
-The tweakcn half in the file today was **hand-written in tweakcn's export format** with Lane's current values (decision #84: start from Lane's current look). It has never been entered or saved in tweakcn itself. Before you re-paste anything, open tweakcn, enter these same values (copy them from the top half of `theme.css`; fonts Geist and Geist Mono, letter-spacing 0em), check the Code panel matches the file, and **save the theme in your tweakcn account**. From then on, design in that saved theme.
+The tweakcn half in the file today was **hand-written in tweakcn's export format** with Lane's current values (decision #84). It isn't saved in tweakcn yet. Do this once:
 
-## How to re-paste a new look from tweakcn
+1. Run `pnpm theme:copy`. It copies Lane's current tweakcn half to your clipboard.
+2. In tweakcn, open the editor, choose **Import**, paste, and import.
+3. tweakcn's import loses shadow offsets and letter spacing, so check those two: shadow `0px 1px 2px 0px` at opacity 0.1, letter spacing `0em`. Fonts are Geist and Geist Mono.
+4. **Save the theme in your tweakcn account** as "Lane". From then on, design in that saved theme.
 
-1. In tweakcn, open your saved Lane theme and make your changes.
-2. Open **Code**, choose **Tailwind v4** and **oklch**, and copy everything.
-3. In `src/styles/theme.css`, select from the very first line down to the line just above `/* Lane additions`. Replace that selection with what you copied. Do not touch anything from `/* Lane additions` downwards.
-4. Run `pnpm design:check`. It fails if the Lane additions section went missing, if a value leaked anywhere else, or if a name the app needs is no longer defined. It also lists hard-to-read text colour pairs as a warning; that never blocks you.
-5. Run `pnpm brand:assets` so the app icon, tab icon and manifest pick up the new colours, and look at the app in light and dark before shipping.
+## Trying a new look (one command)
+
+Keep `pnpm dev` running and Lane open in the browser.
+
+1. In tweakcn, change anything: colours, corners, shadows, or pick a whole preset.
+2. Open **Code**, choose **Tailwind v4** and **oklch**, and click **Copy**.
+3. Run `pnpm theme:paste`.
+
+The browser updates on its own within a second, in light and dark (switch in Profile). The command replaces only the top half of `theme.css` and keeps the Lane additions, refreshes the tab colour and app icon, and runs the design check. Hard-to-read text colours are listed as warnings; they never block you.
+
+- **Try another option:** copy a different theme in tweakcn and run `pnpm theme:paste` again. Repeat as often as you like.
+- **Keep several options side by side:** save each one in tweakcn under its own name (for example "Lane – grey frame", "Lane – warm"). To switch, open it, Copy, `pnpm theme:paste`. You can also keep exports as files and paste one with `pnpm theme:paste -- path/to/option.css`.
+- **Go back:** `pnpm theme:reset` returns the theme to the last committed version.
+- **Keep one:** ask an engineer (or Claude) to commit it. Visible changes still go through the parity check: re-record with `LANE_E2E_ALLOW_REMOTE=1 pnpm theme-parity:record` and review the listed differences.
+
+What tweakcn controls: page, sidebar, card and pop-up colours, text colours, the brand green, borders' opaque fallback, fonts, the corner slider and the resting shadow. What it doesn't control (kept in Lane additions): success/warning/Project/avatar colours, see-through hover and line colours, menu shadows, sizes and motion. Those change only by editing the bottom half.
 
 If you change the font in tweakcn, an engineer also needs to load the new font in `src/lib/fonts.ts`; otherwise the browser falls back to a plain font.
 
@@ -66,6 +80,8 @@ If you change the font in tweakcn, an engineer also needs to load the new font i
 ## Known differences from before the switch
 
 Two dark colours (dark `--primary` and the old red text) sat outside the normal colour range and differ only on wide-gamut screens. Before Geist loads, text uses plain sans-serif instead of a size-matched fallback.
+
+Deliberate change after the switch (2026-10-22, Nikhil): in light mode the page frame and sidebar are a soft grey (`oklch(0.97 0 0)`) so the white main panel, cards and dialogs stand out. Dialogs read the `--dialog-surface` addition: white in light, the darkest surface in dark (unchanged).
 
 ## Accessibility exception (still in force)
 
