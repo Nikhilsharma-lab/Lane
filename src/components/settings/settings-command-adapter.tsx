@@ -10,12 +10,11 @@ import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Res
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsNavigation, searchSettings, settingsEntries } from "./settings-catalog";
+import { settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
 import styles from "./settings.module.css";
 
-const sectionEvent = "lane-settings-navigation";
 function subscribe(listener: () => void) {
   window.addEventListener("popstate", listener);
   window.addEventListener(sectionEvent, listener);
@@ -57,11 +56,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const suggestions = useMemo(() => searchSettings(entries, ""), [entries]);
 
   function select(id: string) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("section", id);
-    url.hash = "";
-    window.history.pushState(null, "", url);
-    window.dispatchEvent(new Event(sectionEvent));
+    showSettingsSection(id);
     content.current?.scrollTo({ top: 0 });
   }
   function focusDestination() {

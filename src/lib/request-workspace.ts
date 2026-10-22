@@ -75,3 +75,8 @@ export function requestListContextFromHref(href: string): RequestListContext | n
   if (url.pathname !== "/" || url.hash) return null
   return parseRequestListContext(url.searchParams)
 }
+
+/** Already on "/", a Requests list link (a view, a Project, No Project) changes the list in place with no request; elsewhere it navigates. */
+export function changesListInPlace(pathname: string, href: string) {
+  return pathname === "/" && requestListContextFromHref(href) !== null
+}

@@ -1,26 +1,28 @@
 "use client"
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import { useRouter } from "next/navigation"
-import { Check } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { useListAnnouncer } from "@/components/requests/list-announcer"
 import { useCurrentRequest, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { useUndoableMarkDone } from "@/components/requests/mark-done-undo"
 import { useRequestMoves } from "@/components/requests/request-moves"
+import { showSettingsSection } from "@/components/settings/settings-catalog"
 import { isShown } from "@/lib/keyboard-guards"
-import { requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { changesListInPlace, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
-import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { PaletteOption } from "./command-palette-option"
 import { paletteListKey, type PaletteStep } from "./command-palette-keys"
+import { createPaletteFocus } from "./command-palette-focus"
 import { canOpenShellSurface, openShellSurface } from "./shell-openers"
 import styles from "./command-palette.module.css"
 
 export type CommandPaletteWorkspace = {
   orgId: string
-  /** The Clerk workspace role: admin, member or guest. */
-  role: string
+  /** The Clerk workspace role. */
+  role: PaletteRole
   /** Who a Pick up from Request detail names as Assignee. */
   viewer: { id: string; name: string }
   projects: readonly { id: string; name: string }[]
@@ -33,8 +35,6 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
   returnFocusRef: RefObject<HTMLElement | null>
 }
 
-const SETTINGS_EVENT = "lane-settings-navigation"
-const roleOf = (role: string): PaletteRole => role === "admin" || role === "guest" ? role : "member"
 
 /**
  * Issue #106 (spec #101): the ⌘K command palette, loaded on demand by
@@ -43,15 +43,15 @@ const roleOf = (role: string): PaletteRole => role === "admin" || role === "gues
  * active option, options are grouped, and the result count is polite.
  *
  * Under reduced motion Arc's Dialog still fades its layers; the palette's CSS
- * holds both at full opacity there, so it opens and closes with no animation.
+ * holds both at full opacity there and hides them once closed, so it opens
+ * and closes with no animation.
  */
 export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspace }: CommandPaletteProps) {
   const [step, setStep] = useState<PaletteStep>("entries")
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const input = useRef<HTMLInputElement>(null)
-  // Set when an entry runs: focus has already gone back, or to the surface the entry opened.
-  const handled = useRef(false)
+  const [focus] = useState(() => createPaletteFocus(returnFocusRef, isShown))
   const [wasOpen, setWasOpen] = useState(open)
   if (wasOpen !== open) {
     setWasOpen(open)
@@ -59,26 +59,12 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
   }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog} overlayClassName={styles.overlay}
-      onOpenAutoFocus={event => { handled.current = false; event.preventDefault(); input.current?.focus() }}
+      onOpenAutoFocus={event => { event.preventDefault(); focus.opened(input.current) }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
-      onCloseAutoFocus={event => {
-        const target = returnFocusRef.current
-        returnFocusRef.current = null
-        if (handled.current) { handled.current = false; event.preventDefault(); return }
-        if (!isShown(target)) return
-        event.preventDefault()
-        target.focus({ preventScroll: true })
-      }}>
+      onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
+      {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
       <PaletteBody {...workspace} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
-        onRun={() => {
-          // Close, put focus back where ⌘K was pressed, then act in the same tick: a "Pick up anyway?" or the
-          // composer then hands focus back there too, and the move's own acknowledgement shows on the next frame.
-          const target = returnFocusRef.current
-          handled.current = true
-          onOpenChange(false)
-          if (isShown(target)) target.focus({ preventScroll: true })
-          return target
-        }} />
+        onRun={() => focus.run(() => onOpenChange(false))} />
     </DialogContent>
   </Dialog>
 }
@@ -102,13 +88,11 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   const moves = useRequestMoves({ orgId, announce })
   const listContext = useRequestListContext()
   const setListView = useSetRequestListView()
-  const paletteRole = roleOf(role)
-  const request = paletteRequest(current)
-
-  const entries = useMemo(() => openableEntries(paletteEntries({ role: paletteRole, request, undo: undo && { requestId: undo.requestId }, projects }), canOpenShellSurface),
-    // `request` is rebuilt each render; its fields decide the entries.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [paletteRole, request?.id, request?.status, request?.priority, request?.canEdit, request?.code, request?.agreementBlocked, request?.pickupBlockedReason, undo?.requestId, projects])
+  // useCurrentRequest keeps one object until the Request or its pending changes change.
+  const request = current
+  const undoId = undo?.requestId
+  const entries = useMemo(() => openableEntries(paletteEntries({ role, request, undo: undoId ? { requestId: undoId } : null, projects }), canOpenShellSurface),
+    [role, request, undoId, projects])
   // The priority step needs the Request it opened for; if that goes away, the palette is back on its first step.
   const priority = step === "priority" && request ? priorityEntries(request) : null
   const { entries: shown, empty } = filterPaletteEntries<PaletteEntry | PriorityEntry>(priority ?? entries, query)
@@ -125,9 +109,10 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   }, [activeIndex])
 
   function goToList(next: Partial<RequestListContext>) {
-    // On "/" the list changes in place, as the sidebar's links do; elsewhere it navigates there.
+    // The sidebar's rule: on "/" the list changes in place; elsewhere it navigates there.
+    const href = requestListHref(next.status ?? listContext?.status ?? "all", next.project ?? listContext?.project ?? "all")
     setListView(view => withListContext(view, next))
-    if (window.location.pathname !== "/") router.push(requestListHref(next.status ?? listContext?.status ?? "all", next.project ?? listContext?.project ?? "all"))
+    if (!changesListInPlace(window.location.pathname, href)) router.push(href)
   }
 
   function back() {
@@ -151,12 +136,8 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
       project: projectId => goToList({ project: projectId }),
       settings: (section, href) => {
         if (!window.location.pathname.startsWith("/settings/")) { router.push(href); return }
-        // Already on Settings: the frame follows its own section event, as its sidebar does.
-        const url = new URL(window.location.href)
-        url.searchParams.set("section", section)
-        url.hash = ""
-        window.history.pushState(null, "", url)
-        window.dispatchEvent(new Event(SETTINGS_EVENT))
+        // Already on Settings: the section changes in place, as from the frame's own sidebar.
+        showSettingsSection(section)
         requestAnimationFrame(() => document.getElementById(`settings-${section}`)?.focus({ preventScroll: true }))
       },
       link: id => new URL(`/requests/${id}`, window.location.origin).href,
@@ -191,18 +172,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     <div ref={list} id={listId} role="listbox" aria-label={priority ? "Priorities" : "Actions and places"} className={styles.list} hidden={empty}>
       {groups.map(group => <div key={group.name} role="group" aria-labelledby={`${uid}-group-${group.name}`} className={styles.group}>
         <div role="presentation" id={`${uid}-group-${group.name}`} className={styles.heading}>{group.name}</div>
-        {group.items.map(({ entry, index }) => {
-          const selected = index === activeIndex
-          const isCurrent = "current" in entry && entry.current
-          return <div key={entry.id} id={optionId(entry)} role="option" aria-selected={selected} data-index={index} className={styles.option} aria-keyshortcuts={entry.keys.join(" ") || undefined}
-            onPointerMove={() => { if (!selected) onActive(index) }} onPointerDown={event => event.preventDefault()} onClick={() => choose(entry)}>
-            <span className={styles.label}>{entry.label}{entry.detail ? <span className={styles.detail}>{entry.detail}</span> : null}{isCurrent ? <span className={styles.srOnly}>, current</span> : null}</span>
-            {isCurrent ? <Check data-icon-size="sm" aria-hidden="true" className={styles.check} /> : null}
-            {entry.keys.length ? <span className={styles.keys} aria-hidden="true">{entry.keys.slice(0, 1).map(keys => <Fragment key={keys}>
-              {keys.split(" ").map(part => <kbd key={part} className={styles.key}>{part}</kbd>)}
-            </Fragment>)}</span> : null}
-          </div>
-        })}
+        {group.items.map(({ entry, index }) => <PaletteOption key={entry.id} entry={entry} id={optionId(entry)} index={index} selected={index === activeIndex} onActive={onActive} onChoose={choose} />)}
       </div>)}
     </div>
     {/* Mounted empty, so the first count is heard. The empty state is this same message, shown. */}

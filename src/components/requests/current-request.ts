@@ -1,3 +1,4 @@
+import { createExternalStore } from "@/lib/external-store"
 import { requestCodeOrNull } from "@/lib/request-code"
 import type { RequestPriority } from "@/lib/request-constants"
 import type { RequestStatus } from "@/lib/request-lifecycle"
@@ -20,7 +21,7 @@ export type CurrentRequest = {
   priority: RequestPriority
   /** Where it is: Request detail's page, the list's preview, or the list's highlighted row. */
   source: "page" | "peek" | "list"
-  /** The row menu's and detail panel's edit rule before the viewer's role: Open, and the viewer is an admin or created it. */
+  /** Whether the viewer may edit it now, before their role: canEditRequest (Open, and an admin or its creator) with pending changes applied. */
   canEdit: boolean
   /** Closed by an outcome: no lifecycle move. */
   agreementBlocked: boolean
@@ -41,17 +42,15 @@ export type CurrentRequestStore = {
 }
 
 export function createCurrentRequestStore(): CurrentRequestStore {
-  let state: CurrentRequestState = { open: null, highlightedId: null }
-  const listeners = new Set<() => void>()
-  const commit = (next: CurrentRequestState) => { state = next; listeners.forEach(listener => listener()) }
+  const store = createExternalStore<CurrentRequestState>({ open: null, highlightedId: null })
   return {
-    get: () => state,
-    subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    get: store.get,
+    subscribe: store.subscribe,
     setOpen: request => {
-      commit({ ...state, open: request })
-      return () => { if (state.open === request) commit({ ...state, open: null }) }
+      store.set({ ...store.get(), open: request })
+      return () => { if (store.get().open === request) store.set({ ...store.get(), open: null }) }
     },
-    setHighlighted: id => { if (state.highlightedId !== id) commit({ ...state, highlightedId: id }) },
+    setHighlighted: id => { if (store.get().highlightedId !== id) store.set({ ...store.get(), highlightedId: id }) },
   }
 }
 
@@ -60,7 +59,8 @@ export function rowCurrentRequest(row: OverviewRequest): CurrentRequest {
   const code = requestCodeOrNull(row.requestNumber)
   return {
     id: row.id, code, name: code ?? row.reframedProblem ?? row.title, status: row.status, priority: row.priority ?? "none", source: "list",
-    canEdit: row.canEdit ?? false, agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: null,
+    // The server's canEdit is the same rule on the saved status; a pending Pick up or Done ends it at once.
+    canEdit: (row.canEdit ?? false) && row.status === "open", agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: null,
   }
 }
 

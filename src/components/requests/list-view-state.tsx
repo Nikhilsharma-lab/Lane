@@ -148,9 +148,10 @@ export function usePublishHighlightedRequest(id: string | null) {
 export function useCurrentRequest(): CurrentRequest | null {
   const store = useContext(CurrentRequestContext)
   const state = useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? (() => noCurrentRequest), store?.get ?? (() => noCurrentRequest))
-  const loaded = useLoadedRequests()
+  const rows = useLoadedRequests()()
   const overlay = usePendingMutations()
-  return resolveCurrentRequest(state, loaded(), overlay?.applyOne)
+  // One object until the Request or its pending changes change, so readers can memoize on it.
+  return useMemo(() => resolveCurrentRequest(state, rows, overlay?.applyOne), [state, rows, overlay])
 }
 
 /** The whole view and its setter. Outside the provider (older fixtures) it falls back to local state. */

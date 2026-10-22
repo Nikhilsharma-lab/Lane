@@ -2,38 +2,48 @@
 
 import { useLayoutEffect, useSyncExternalStore } from "react"
 import { useToastStack, type ToastStackApi } from "@/components/arc/toast-stack/toast-stack"
+import { createExternalStore } from "@/lib/external-store"
 
 /** #103: the latest Mark Done, while its toast still offers Undo. `undo` is that toast's own Undo. */
 export type UndoableMarkDone = { toastId: string; requestId: string; name: string; undo: () => void }
 
 /**
- * The pointer to the latest Mark Done. Arc's toast stack exposes no dismiss or
- * timeout callback and no per-toast state, only how many toasts are queued, so
- * the pointer clears when Undo runs (from the toast or the palette), when the
- * Done fails, and when the queue shrinks at all while it is set: its own toast
- * closing (dismissed, swiped, timed out) always shrinks it. Another toast
- * closing in the same 10 seconds also clears it, so the palette can stop
- * offering Undo early but never offers it after the toast's Undo is gone.
+ * The pointer to the latest Mark Done. It clears when Undo runs (from the
+ * toast or the palette), when the Done fails, and when its own toast closes
+ * (dismissed, swiped, timed out). Arc's toast stack exposes no dismiss or
+ * timeout callback and no per-toast state, only how many toasts are queued,
+ * so a smaller queue asks for a check (`observe` returns true) and the
+ * watcher reports the stack's text once the closed toast has left (`settle`):
+ * another toast closing leaves the pointer. In that moment the palette may
+ * still offer Undo; it runs the same callback, and its result toast replaces
+ * the closed one.
  */
 export function createMarkDoneUndoStore() {
-  let latest: UndoableMarkDone | null = null
+  const store = createExternalStore<UndoableMarkDone | null>(null)
   let queued: number | null = null
-  const listeners = new Set<() => void>()
-  const commit = (next: UndoableMarkDone | null) => { latest = next; queued = null; listeners.forEach(listener => listener()) }
+  const commit = (next: UndoableMarkDone | null) => { queued = null; store.set(next) }
   return {
-    get: () => latest,
-    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    get: store.get,
+    subscribe: store.subscribe,
     set: (pointer: UndoableMarkDone) => commit(pointer),
     /** Clears the pointer if it is still this toast's. */
-    clear: (toastId: string) => { if (latest?.toastId === toastId) commit(null) },
-    /** Reports the toast stack's queue length; a smaller queue than last seen clears the pointer. */
+    clear: (toastId: string) => { if (store.get()?.toastId === toastId) commit(null) },
+    /** Reports the toast stack's queue length. True when it shrank while a Mark Done is undoable: the watcher then calls `settle`. */
     observe: (count: number) => {
-      if (!latest) return
-      if (queued !== null && count < queued) commit(null)
-      else queued = count
+      const shrank = store.get() !== null && queued !== null && count < queued
+      if (store.get()) queued = count
+      return shrank
+    },
+    /** The stack's text once it has settled (null with no stack): the pointer stays only while its Marked Done toast is in it. */
+    settle: (stackText: string | null | undefined) => {
+      const latest = store.get()
+      if (latest && !stackText?.includes(markedDoneDescription(latest.name))) commit(null)
     },
   }
 }
+
+// Only a Marked Done toast reads this; Undoing and a failure replace it.
+const markedDoneDescription = (name: string) => `${name} is now Done.`
 
 export type MarkDoneUndoStore = ReturnType<typeof createMarkDoneUndoStore>
 
@@ -48,7 +58,7 @@ export function showMarkedDone(toast: ToastStackApi["toast"], request: { id: str
   undo: (toastId: string, requestId: string, name: string) => void | Promise<void>, store: MarkDoneUndoStore = markDoneUndo): string {
   const { id: requestId, name } = request
   const runUndo = (id: string) => { store.clear(id); void undo(id, requestId, name) }
-  const toastId = toast({ type: "success", title: "Marked Done", description: `${name} is now Done.`, duration: 10_000, action: { label: "Undo", onClick: runUndo } })
+  const toastId = toast({ type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: 10_000, action: { label: "Undo", onClick: runUndo } })
   store.set({ toastId, requestId, name, undo: () => runUndo(toastId) })
   return toastId
 }
@@ -63,9 +73,16 @@ export function useUndoableMarkDone(store: MarkDoneUndoStore = markDoneUndo): Un
   return useSyncExternalStore(store.subscribe, store.get, store.get)
 }
 
-/** Mounted once in the authenticated layout: tells the pointer when the toast queue shrinks. Renders nothing. */
+// The root layout's one stack ("Messages (Alt+T)", src/app/layout.tsx). Arc's longest exit (a swipe) is 220 ms.
+const TOAST_LIST = 'section[aria-label^="Messages"] > ol'
+const EXIT_MS = 400
+
+/** Mounted once in the authenticated layout: tells the pointer when the toast queue shrinks, and whether its toast is still there. Renders nothing. */
 export function MarkDoneUndoWatcher({ store = markDoneUndo }: { store?: MarkDoneUndoStore }) {
   const { count } = useToastStack()
-  useLayoutEffect(() => { store.observe(count) }, [store, count])
+  useLayoutEffect(() => {
+    // Not cancelled by a later count: a new toast must not stop the check of one that closed.
+    if (store.observe(count)) window.setTimeout(() => store.settle(document.querySelector(TOAST_LIST)?.textContent), EXIT_MS)
+  }, [store, count])
   return null
 }

@@ -46,6 +46,13 @@ describe("the current Request (#103)", () => {
       .toMatchObject({ code: null, name: "Clearer checkout", canEdit: false, priority: "none" })
   })
 
+  it("may no longer be edited once a pending Pick up or Done moves it on", () => {
+    const store = createCurrentRequestStore()
+    store.setHighlighted("r1")
+    const pickedUp = <T extends { id: string }>(item: T): T => ({ ...item, status: "in_progress" })
+    expect(resolveCurrentRequest(store.get(), [row()], pickedUp)).toMatchObject({ status: "in_progress", canEdit: false })
+  })
+
   it("keeps a newer open Request when an older one unmounts after it (page to preview, preview to preview)", () => {
     const store = createCurrentRequestStore()
     const first = store.setOpen(open)

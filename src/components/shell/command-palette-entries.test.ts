@@ -40,10 +40,10 @@ describe("paletteEntries", () => {
       expect(actions({ request })).toEqual(["pick-up", "change-priority", "copy-link", "copy-code"])
     })
     it("offers Mark Done on an In Progress Request, without priority", () => {
-      expect(actions({ request: { ...request, status: "in_progress" } })).toEqual(["mark-done", "copy-link", "copy-code"])
+      expect(actions({ request: { ...request, status: "in_progress", canEdit: false } })).toEqual(["mark-done", "copy-link", "copy-code"])
     })
     it("offers only copying on a Done Request", () => {
-      expect(actions({ request: { ...request, status: "done" } })).toEqual(["copy-link", "copy-code"])
+      expect(actions({ request: { ...request, status: "done", canEdit: false } })).toEqual(["copy-link", "copy-code"])
     })
     it("hides the move on a Request whose reviews block it", () => {
       expect(actions({ request: { ...request, agreementBlocked: true } })).toEqual(["change-priority", "copy-link", "copy-code"])
@@ -74,7 +74,7 @@ describe("paletteEntries", () => {
 
   describe("Undo Mark Done", () => {
     const undo = { requestId: "r1" }
-    const done: PaletteRequest = { id: "r1", code: "LAN-12", status: "done", priority: "none", canEdit: true }
+    const done: PaletteRequest = { id: "r1", code: "LAN-12", status: "done", priority: "none", canEdit: false }
 
     it("appears only while the Undo is available", () => {
       expect(ids({ ...base, request: done, undo }).slice(0, 3)).toEqual(["undo-mark-done", "copy-link", "copy-code"])
@@ -88,7 +88,7 @@ describe("paletteEntries", () => {
       expect(ids({ ...base, role: "guest", request: done, undo })).not.toContain("undo-mark-done")
     })
     it("comes after the move and before priority", () => {
-      expect(ids({ ...base, request: { ...done, status: "open" }, undo: { requestId: "r2" } }).slice(0, 3)).toEqual(["pick-up", "undo-mark-done", "change-priority"])
+      expect(ids({ ...base, request: { ...done, status: "open", canEdit: true }, undo: { requestId: "r2" } }).slice(0, 3)).toEqual(["pick-up", "undo-mark-done", "change-priority"])
     })
   })
 

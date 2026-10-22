@@ -1,8 +1,10 @@
+import type { CurrentRequest } from "@/components/requests/current-request"
 import { settingsNavigation } from "@/components/settings/settings-catalog"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle"
+import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-workspace"
+import type { ShellSurface } from "./shell-openers"
 
 /**
  * Spec #101 ("One entry list"): the ⌘K palette's entries, built from data only
@@ -11,18 +13,8 @@ import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-
  */
 export type PaletteRole = "admin" | "member" | "guest"
 
-/** The open Request (its page or preview), else the list's highlighted row, with pending changes applied. */
-export type PaletteRequest = {
-  id: string
-  code: string | null
-  status: RequestStatus
-  agreementBlocked?: boolean
-  priority: RequestPriority
-  /** Whether this viewer may edit the Request (the row's canEdit; on detail, admin or creator). */
-  canEdit: boolean
-  /** Set while a pickup can't go ahead (the detail strip's rule); Pick up is hidden then. */
-  pickupBlockedReason?: string | null
-}
+/** What the entry list reads of the current Request (current-request.ts): the open one, else the list's highlighted row, with pending changes applied. */
+export type PaletteRequest = Pick<CurrentRequest, "id" | "code" | "status" | "priority" | "canEdit"> & Partial<Pick<CurrentRequest, "agreementBlocked" | "pickupBlockedReason">>
 
 export type PaletteUndo = { requestId: string }
 
@@ -43,13 +35,11 @@ export type PaletteAction =
   | { kind: "set-priority"; requestId: string; priority: RequestPriority }
   | { kind: "copy"; copy: "link"; requestId: string }
   | { kind: "copy"; copy: "code"; requestId: string; code: string }
-  | { kind: "new-request" }
-  | { kind: "search" }
+  /** A shell surface, opened through its shared opener (shell-openers.ts). */
+  | { kind: "open"; surface: ShellSurface }
   | { kind: "view"; filter: RequestStatusFilter }
   | { kind: "project"; projectId: string }
   | { kind: "settings"; section: string; href: string }
-  | { kind: "notifications" }
-  | { kind: "shortcuts" }
 
 export type PaletteEntry = {
   id: string
@@ -81,8 +71,8 @@ function requestEntries(request: PaletteRequest | null, undo: PaletteUndo | null
   const entries: PaletteEntry[] = []
   if (move) entries.push({ id: move.move === "done" ? "mark-done" : "pick-up", label: move.label, group, keys: [], action: { kind: "move", move: move.move, requestId: request.id } })
   entries.push(...undoEntry)
-  // The row menu's rule: priority changes only on an Open Request the viewer may edit.
-  if (!isGuest && request.canEdit && request.status === "open") entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
+  // The row menu's rule: priority changes only on a Request the viewer may edit now (Open, and theirs or an admin's).
+  if (!isGuest && request.canEdit) entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
   entries.push({ id: "copy-link", label: "Copy link", group, keys: [], action: { kind: "copy", copy: "link", requestId: request.id } })
   if (request.code) entries.push({ id: "copy-code", label: "Copy code", group, keys: [], action: { kind: "copy", copy: "code", requestId: request.id, code: request.code } })
   return entries
@@ -100,11 +90,11 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
   }))
   return [
     ...requestEntries(request, undo, role),
-    { id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "new-request" } },
-    { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "search" } },
+    { id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "open", surface: "composer" } },
+    { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "open", surface: "search" } },
     ...views, ...places, ...settings,
-    { id: "notifications", label: "Notifications", group: "Go to", keys: [], action: { kind: "notifications" } },
-    { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "shortcuts" } },
+    { id: "notifications", label: "Notifications", group: "Go to", keys: [], action: { kind: "open", surface: "notifications" } },
+    { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "open", surface: "shortcuts" } },
   ]
 }
 
