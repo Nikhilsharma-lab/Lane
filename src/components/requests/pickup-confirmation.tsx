@@ -1,18 +1,14 @@
 "use client"
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
-import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-reviewer-rules"
+import type { PickupConfirmation } from "@/lib/request-reviewer-rules"
 import detailStyles from "./detail.module.css"
+import { createPickupConfirmation, type ConfirmPickup, type ReportReviewState } from "./pickup-confirmation-store"
 import styles from "./pickup-confirmation.module.css"
 
-export type PickupTarget = { id: string; name: string; reviewState?: ReviewState | null }
-/** Resolves true to pick up: at once when nothing is outstanding, else once the person confirms. */
-export type ConfirmPickup = (targets: PickupTarget[]) => Promise<boolean>
-
-/** A reviewers panel tells the confirmation what it last read for its Request; undefined when it goes away. */
-export type ReportReviewState = (requestId: string, state: ReviewState | null | undefined) => void
+export type { ConfirmPickup, PickupTarget, ReportReviewState } from "./pickup-confirmation-store"
 
 const PickupConfirmationContext = createContext<{ confirm: ConfirmPickup; report: ReportReviewState } | null>(null)
 PickupConfirmationContext.displayName = "PickupConfirmation"
@@ -35,32 +31,9 @@ const reportNowhere: ReportReviewState = () => {}
  */
 export function PickupConfirmationProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<PickupConfirmation | null>(null)
-  const resolver = useRef<((confirmed: boolean) => void) | null>(null)
-  const latest = useRef(new Map<string, ReviewState | null>())
-
-  const report = useCallback<ReportReviewState>((requestId, state) => {
-    if (state === undefined) latest.current.delete(requestId)
-    else latest.current.set(requestId, state)
-  }, [])
-
-  const settle = useCallback((confirmed: boolean) => {
-    resolver.current?.(confirmed)
-    resolver.current = null
-    setShown(null)
-  }, [])
-
-  const confirm = useCallback<ConfirmPickup>(targets => {
-    const confirmation = pickupConfirmation(targets, latest.current)
-    if (!confirmation) return Promise.resolve(true)
-    // A second request while one is open cancels the first.
-    resolver.current?.(false)
-    return new Promise<boolean>(resolve => {
-      resolver.current = resolve
-      setShown(confirmation)
-    })
-  }, [])
-
-  const value = useMemo(() => ({ confirm, report }), [confirm, report])
+  // The logic lives in pickup-confirmation-store.ts; this is its dialog. Its functions keep their identity.
+  const [value] = useState(() => createPickupConfirmation(setShown))
+  const { settle } = value
   const single = shown?.requests.length === 1
   return <PickupConfirmationContext.Provider value={value}>
     {children}

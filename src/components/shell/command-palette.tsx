@@ -14,6 +14,7 @@ import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntr
 import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
 import { paletteListKey, type PaletteStep } from "./command-palette-keys"
+import { createPaletteFocus } from "./command-palette-focus"
 import { canOpenShellSurface, openShellSurface } from "./shell-openers"
 import styles from "./command-palette.module.css"
 
@@ -51,8 +52,7 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const input = useRef<HTMLInputElement>(null)
-  // Set when an entry runs: focus has already gone back, or to the surface the entry opened.
-  const handled = useRef(false)
+  const [focus] = useState(() => createPaletteFocus(returnFocusRef, isShown))
   const [wasOpen, setWasOpen] = useState(open)
   if (wasOpen !== open) {
     setWasOpen(open)
@@ -60,26 +60,12 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
   }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog} overlayClassName={styles.overlay}
-      onOpenAutoFocus={event => { handled.current = false; event.preventDefault(); input.current?.focus() }}
+      onOpenAutoFocus={event => { event.preventDefault(); focus.opened(input.current) }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
-      onCloseAutoFocus={event => {
-        const target = returnFocusRef.current
-        returnFocusRef.current = null
-        if (handled.current) { handled.current = false; event.preventDefault(); return }
-        if (!isShown(target)) return
-        event.preventDefault()
-        target.focus({ preventScroll: true })
-      }}>
+      onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
+      {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
       <PaletteBody {...workspace} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
-        onRun={() => {
-          // Close, put focus back where ⌘K was pressed, then act in the same tick: a "Pick up anyway?" or the
-          // composer then hands focus back there too, and the move's own acknowledgement shows on the next frame.
-          const target = returnFocusRef.current
-          handled.current = true
-          onOpenChange(false)
-          if (isShown(target)) target.focus({ preventScroll: true })
-          return target
-        }} />
+        onRun={() => focus.run(() => onOpenChange(false))} />
     </DialogContent>
   </Dialog>
 }

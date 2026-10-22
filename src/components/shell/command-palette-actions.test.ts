@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import type { CurrentRequest } from "@/components/requests/current-request"
-import { createPendingMutationsStore } from "@/components/requests/pending-mutations-provider"
-import { runOptimistic } from "@/components/requests/use-optimistic-action"
-import type { OverviewRequest } from "@/lib/request-overview"
-import { paletteEntries, type PaletteAction } from "./command-palette-entries"
+import { paletteEntries } from "./command-palette-entries"
 import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 
 const current = (overrides: Partial<CurrentRequest> = {}): CurrentRequest => ({
@@ -99,45 +96,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
   })
 })
 
-describe("each mutation is acknowledged in the same tick and reverts on failure (#106)", () => {
-  const row = { id: "r1", title: "Fix login", reframedProblem: null, status: "open", createdAt: "2026-10-01T00:00:00.000Z", creatorName: null, assigneeName: null, priority: "none" } satisfies OverviewRequest
-
-  function wired(saved: OverviewRequest = row) {
-    const store = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
-    const overlay = () => store.view(store.getSnapshot())
-    let fail!: (error: unknown) => void
-    const optimistic = (patch: Parameters<ReturnType<typeof overlay>["begin"]>[1]) => runOptimistic(
-      { overlay: overlay(), refresh: () => {}, refreshToken: async () => {}, notifyError: () => {} },
-      { id: "r1", patch, run: () => new Promise((_, reject) => { fail = reject }) })
-    const d = deps({}, {
-      move: vi.fn<Moves["move"]>(async (_target, kind) => optimistic(kind === "done" ? { kind: "done", status: "done" } : { kind: "pick-up", status: "in_progress" })),
-      setPriority: vi.fn<Moves["setPriority"]>(async (_id, priority) => optimistic({ kind: "priority", priority })),
-      copy: vi.fn<Moves["copy"]>(async () => true),
-    })
-    return { d, shown: () => overlay().applyOne(saved), fail: () => fail(new Error("offline")) }
-  }
-
-  it.each<[Exclude<PaletteAction, { kind: "priority" }>, Partial<OverviewRequest>]>([
-    [{ kind: "move", move: "pick-up", requestId: "r1" }, { status: "in_progress" }],
-    [{ kind: "set-priority", requestId: "r1", priority: "urgent" }, { priority: "urgent" }],
-  ])("%o shows at once and reverts when the action fails", async (action, after) => {
-    const { d, shown, fail } = wired()
-    runPaletteAction(action, d)
-    expect(shown()).toMatchObject(after)
-    fail()
-    await vi.waitFor(() => expect(shown()).toMatchObject({ status: "open", priority: "none" }))
-  })
-
-  it("Mark Done shows at once and reverts when the action fails", async () => {
-    // Done is offered on an In Progress Request, so that is what it goes back to.
-    const { d, shown, fail } = wired({ ...row, status: "in_progress" })
-    d.request = current({ status: "in_progress" })
-    runPaletteAction({ kind: "move", move: "done", requestId: "r1" }, d)
-    expect(shown()).toMatchObject({ status: "done" })
-    fail()
-    await vi.waitFor(() => expect(shown()).toMatchObject({ status: "in_progress" }))
-  })
-})
+// The acknowledgement of each mutation, through the real moves, is command-palette-acknowledgement.test.ts.
 
 describe("what the palette offers where it is (#106)", () => {
   it("maps the current Request to the entry list's", () => {

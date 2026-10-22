@@ -49,6 +49,8 @@ export default defineConfig({
       "src/components/shell/command-palette-actions.test.ts",
       "src/components/shell/shortcut-keys.test.ts",
       "src/components/shell/command-palette-motion.test.ts",
+      "src/components/shell/command-palette-focus.test.ts",
+      "src/components/shell/command-palette-acknowledgement.test.ts",
     ],
   },
   resolve: {
