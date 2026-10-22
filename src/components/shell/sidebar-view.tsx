@@ -9,7 +9,7 @@ import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/bloc
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
-import { parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
+import { changesListInPlace, parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
@@ -83,7 +83,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     if (href === "/intake") return <NewRequestLink {...props} onClick={onClick} />;
     return <Link href={href} {...props} onClick={event => {
       onClick?.(event);
-      if (event.defaultPrevented || pathname !== "/" || !isPlainClick(event) || typeof href !== "string" || !requestListContextFromHref(href)) return;
+      if (event.defaultPrevented || !isPlainClick(event) || typeof href !== "string" || !changesListInPlace(pathname, href)) return;
       event.preventDefault();
     }} />;
   }, [pathname]);
@@ -124,7 +124,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     if (href === pathname) { closeSearch(); return; }
     navigateFromSearch(href);
     // On "/", a Project or No Project view changes in place with no request, as in the sidebar.
-    if (pathname === "/" && requestListContextFromHref(href)) return;
+    if (changesListInPlace(pathname, href)) return;
     router.push(href);
   }
   // Plan item 2.8: the loaded Requests and the sidebar's Projects, read on each keystroke for instant matches.

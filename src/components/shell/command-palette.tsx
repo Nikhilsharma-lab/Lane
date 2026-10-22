@@ -10,7 +10,7 @@ import { useUndoableMarkDone } from "@/components/requests/mark-done-undo"
 import { useRequestMoves } from "@/components/requests/request-moves"
 import { showSettingsSection } from "@/components/settings/settings-section"
 import { isShown } from "@/lib/keyboard-guards"
-import { requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { changesListInPlace, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
 import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
@@ -112,9 +112,10 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   }, [activeIndex])
 
   function goToList(next: Partial<RequestListContext>) {
-    // On "/" the list changes in place, as the sidebar's links do; elsewhere it navigates there.
+    // The sidebar's rule: on "/" the list changes in place; elsewhere it navigates there.
+    const href = requestListHref(next.status ?? listContext?.status ?? "all", next.project ?? listContext?.project ?? "all")
     setListView(view => withListContext(view, next))
-    if (window.location.pathname !== "/") router.push(requestListHref(next.status ?? listContext?.status ?? "all", next.project ?? listContext?.project ?? "all"))
+    if (!changesListInPlace(window.location.pathname, href)) router.push(href)
   }
 
   function back() {
