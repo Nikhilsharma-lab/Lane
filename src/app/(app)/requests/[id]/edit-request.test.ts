@@ -18,11 +18,11 @@ beforeAll(async () => {
         throw Error("Local test DB only");
     sql = postgres(u.toString(), { max: 2 });
     await sql `insert into organizations(id,name,slug) values ('org-edit','Edit','edit-test')`;
-    await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test')`;
+    await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test'), ('edit-admin','Admin','edit-admin@example.test')`;
     vi.stubEnv("TRIAGE_TOKEN_SECRET", "edit-test-secret".repeat(4));
 });
 beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; session.orgRole = "org:member"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
-afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id='edit-owner'`; await sql.end(); vi.unstubAllEnvs(); });
+afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id in ('edit-owner','edit-admin')`; await sql.end(); vi.unstubAllEnvs(); });
 it("saves guardrail definitions, target and supporting context without AI review", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 8; x.expectedImpact.primary.target = 80; x.usefulLink = "https://example.com/research"; expect(await save(x)).toMatchObject({ success: true }); const [row] = await sql `select expected_impact,useful_link,status::text from requests where id=${id}`; expect(row).toMatchObject({ expected_impact: x.expectedImpact, useful_link: x.usefulLink, status: "open" }); });
 it.each(["other-user", "other-workspace", "in_progress", "done"])("rejects %s edits", async (kind) => { if (kind === "other-user")
     session.userId = "someone-else";
