@@ -247,6 +247,9 @@ test('Lane additions colours need both a light and a dark value', () => {
   const darkErrors = auditFixture({ 'src/styles/theme.css': darkOnly }).errors
   assert.equal(darkErrors.length, 1, darkErrors.join('\n'))
   assert.match(darkErrors[0], /^src\/styles\/theme\.css:9 --project-slate .*light/)
+  // A colour function whose channels are all references follows them; only literal channels need a dark value.
+  const referenced = cleanTheme.replace('--duration-standard: 200ms;', '--duration-standard: 200ms; --edge-colour: 0 0% 0%; --edge: 0 1px 0 hsl(var(--edge-colour) / calc(.04 * var(--edge-strength)));').replace('--hairline: oklch(1 0 0 / .075);', '--hairline: oklch(1 0 0 / .075); --edge-colour: 0 0% 100%;')
+  assert.deepEqual(auditFixture({ 'src/styles/theme.css': referenced }).errors, [])
   // The tweakcn half is never policed for modes: tweakcn shares fonts, radius and shadows.
   assert.deepEqual(auditFixture({ 'src/styles/theme.css': cleanTheme.replace('--radius: 0.5rem;', '--radius: 0.5rem; --sidebar: #fcfcfc;') }).errors, [])
 })

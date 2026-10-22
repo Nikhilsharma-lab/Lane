@@ -475,15 +475,12 @@
   --arc-gradient-from: hsl(162deg 100% 2%);
   --arc-gradient-to: hsl(155.5deg 100% 9.6%);
 
-  --link-ink: var(--accent-ink);
-
   --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
   --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
   --dialog-shadow: var(--shadow-xs);
   --button-shadow-drop: 0 1px 3px 0 hsl(0deg 0% 0% / 0.2);
   --button-edge-strength: 1;
   --button-edge-colour: 0 0% 100%;
-  --button-raised-shadow: var(--button-shadow-drop), inset 0 1px 0 0 hsl(var(--button-edge-colour) / calc(.04 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.06 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.1 * var(--button-edge-strength)));
   --button-default-shadow: var(--button-shadow-drop), inset 0 1px 0 0 hsl(var(--button-edge-colour) / calc(.04 * var(--button-edge-strength))), inset 0 0 0 1px hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 -1px 0 0 hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.1 * var(--button-edge-strength)));
   --button-solid-sheen: linear-gradient(to bottom, hsl(0 0% 100% / .015), hsl(0 0% 0% / .01));
   --button-secondary-sheen: var(--button-solid-sheen);

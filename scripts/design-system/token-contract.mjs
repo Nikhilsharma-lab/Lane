@@ -233,6 +233,10 @@ function splitTheme(css, file) {
 
 const darkScope = /\.dark\b|\[data-theme=["']?dark/
 const colourLiteral = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|(?<![\w-])(?:black|white)\b(?!-)/i
+// A colour function whose colour channels are only var() references (hsl(var(--edge) / .1))
+// follows those references, so it is not a literal; its alpha may still be a number.
+const referencedColour = /\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(\s*(?:var\(--[\w-]+\)\s*)+(?=[/)])/gi
+const hasColourLiteral = value => colourLiteral.test(value.replace(referencedColour, 'var-colour('))
 
 // A literal colour in Lane additions is assumed to change between light and dark, so it
 // needs both values even when they match; otherwise dark mode silently falls back to light.
@@ -255,7 +259,7 @@ export function auditThemeFile(css, file = themeFiles.theme) {
     const scope = d.parent.type === 'rule' && darkScope.test(d.parent.selector) ? dark : light
     if (!scope.has(d.prop)) scope.set(d.prop, d)
   })
-  for (const [name, d] of light) if (!dark.has(name) && colourLiteral.test(d.value)) {
+  for (const [name, d] of light) if (!dark.has(name) && hasColourLiteral(d.value)) {
     errors.push(`${file}:${d.source.start.line} ${name} has a light colour but no dark value: add it to the Lane additions .dark block`)
   }
   for (const [name, d] of dark) if (!light.has(name)) {
