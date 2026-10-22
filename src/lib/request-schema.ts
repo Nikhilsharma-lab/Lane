@@ -1,6 +1,6 @@
 import { labelKeysSchema, sourceRequestType } from "./request-labels";
 import { z } from "zod";
-import { requiredExpectedImpactSchema } from "./request-impact";
+import { newRequestImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { measurementRequestTypeIssue } from "./request-measurement";
 
@@ -62,7 +62,7 @@ export const requestSchema = z.object({
   observedEvidence: optionalContextSchema,
   uncertainty: optionalContextSchema,
   usefulLink: usefulLinkSchema,
-  expectedImpact: requiredExpectedImpactSchema,
+  expectedImpact: newRequestImpactSchema,
 }).superRefine((value, context) => {
   const issue = measurementRequestTypeIssue(value.expectedImpact, sourceRequestType(value));
   if (issue) context.addIssue({ code: "custom", path: ["expectedImpact", "primary", "noBaseline"], message: issue });

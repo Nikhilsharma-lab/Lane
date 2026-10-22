@@ -1,4 +1,5 @@
 import { readdirSync } from "node:fs"
+import { AppProviders } from "@/test/app-providers";
 import { join, relative } from "node:path"
 import { createElement, type ComponentType, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -35,10 +36,10 @@ const page = (html: string) => /<main\b[\s\S]*<\/main>/.exec(html)?.[0] ?? ""
 const exposedStatuses = (html: string) => statusLabels(withoutHidden(page(html)))
 const strips = (html: string) => html.match(/data-slot="page-strip"/g)?.length ?? 0
 
-const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
+const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
   workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member",
-  pathname, statusFilter: "all", notifications: null,
-}, children))
+  pathname, notifications: null,
+}, children)))
 
 const skeletons: [string, string, ComponentType, string, string][] = [
   ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],
@@ -107,7 +108,7 @@ describe("error frames", () => {
     ["not-found.tsx", () => createElement(NotFound), "Page not found"],
     ["global-error.tsx", () => createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }), "Lane unavailable"],
   ])("root %s renders the strip with its h1 and no expand control", (_file, element, title) => {
-    const html = renderToStaticMarkup(element())
+    const html = renderToStaticMarkup(createElement(AppProviders, null, element()))
     expect(strips(html)).toBe(1)
     expect(/<header\b[^>]*data-slot="page-strip"[^>]*>[\s\S]*?<\/header>/.exec(html)?.[0]).toMatch(new RegExp(`<h1\\b[^>]*>${title}</h1>`))
     expect(html).not.toContain("Expand sidebar")
@@ -115,7 +116,7 @@ describe("error frames", () => {
   })
 
   it("names the global error's failure inside its alert, as a heading below the strip's h1", () => {
-    const html = renderToStaticMarkup(createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }))
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} })))
     const alert = /<div\b[^>]*role="alert"[^>]*>[\s\S]*<\/div>/.exec(html)?.[0] ?? ""
     expect(alert).toMatch(/<h2\b[^>]*>Lane can’t load right now<\/h2>/)
     expect(alert).toContain("Your data is safe.")
@@ -139,7 +140,7 @@ describe("error frames", () => {
   })
 
   it("leaves the global error's focus ring to the shared keyboard outline", () => {
-    const html = renderToStaticMarkup(createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }))
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} })))
     expect(html).not.toContain("focus-visible:outline")
     expect(html).toContain(">Reload</button>")
   })
