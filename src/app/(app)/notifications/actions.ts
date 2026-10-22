@@ -2,7 +2,7 @@
 
 import { db, notifications } from "@/db";
 import { eq, and, isNull } from "drizzle-orm";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, refusal } from "@/lib/auth-guard";
 import { notificationVisibility } from "@/lib/data/notifications";
 
 export async function markNotificationRead(
@@ -10,7 +10,7 @@ export async function markNotificationRead(
   context: { orgId: string }
 ) {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
+  if (!auth) return { error: await refusal("Not found") };
 
   await db
     .update(notifications)
@@ -27,7 +27,7 @@ export async function markNotificationRead(
 
 export async function markAllNotificationsRead(context: { orgId: string }) {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
+  if (!auth) return { error: await refusal("Not found") };
 
   await db
     .update(notifications)
@@ -47,7 +47,7 @@ export async function markNotificationUnread(
   context: { orgId: string }
 ) {
   const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
+  if (!auth) return { error: await refusal("Not found") };
 
   await db
     .update(notifications)

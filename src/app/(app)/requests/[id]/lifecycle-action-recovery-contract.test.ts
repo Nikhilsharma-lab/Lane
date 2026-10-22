@@ -82,8 +82,9 @@ describe("Reliable Request lifecycle action contract", () => {
     expect(TRANSITION).toContain(
       'export const CANNOT_CHANGE_REQUESTS = "You can\'t change Requests in this workspace."'
     );
-    expect(TRANSITION).toContain("if (!auth) return { error: CANNOT_CHANGE_REQUESTS");
-    expect(ACTIONS.match(/return \{ error: CANNOT_CHANGE_REQUESTS \}/g)).toHaveLength(
+    // Signed out reads as an ended session instead (auth-guard.ts refusal).
+    expect(TRANSITION).toContain("const error = await refusal(CANNOT_CHANGE_REQUESTS);");
+    expect(ACTIONS.match(/return \{ error: await refusal\(CANNOT_CHANGE_REQUESTS\) \}/g)).toHaveLength(
       2
     );
   });

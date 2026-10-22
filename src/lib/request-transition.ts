@@ -2,7 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, notifications, requests } from "@/db";
-import { requireMemberOrAbove } from "@/lib/auth-guard";
+import { requireMemberOrAbove, refusal } from "@/lib/auth-guard";
 import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle";
 import { measurementReadiness } from "@/lib/request-measurement";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -45,7 +45,10 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
   const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
   const invalid = unique.filter((id) => !valid.includes(id)).map((id) => ({ id, error: "Not found" }));
   const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: CANNOT_CHANGE_REQUESTS, moved: [], failed: unique.map((id) => ({ id, error: CANNOT_CHANGE_REQUESTS })) };
+  if (!auth) {
+    const error = await refusal(CANNOT_CHANGE_REQUESTS);
+    return { error, moved: [], failed: unique.map((id) => ({ id, error })) };
+  }
   if (!valid.length) return { moved: [], failed: invalid };
 
   // The live roster, so a member removed since their session began cannot move work.
