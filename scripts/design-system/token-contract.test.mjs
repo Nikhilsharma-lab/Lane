@@ -141,12 +141,12 @@ const cleanTheme = `@import "tailwindcss";
 @theme inline { --color-background: var(--background); --radius-sm: calc(var(--radius) - 4px); }
 
 /* Lane additions */
-:root { --accent-ink: var(--primary); --hairline: oklch(0 0 0 / .081); --radius-lg: calc(var(--radius) * 4 / 3); --duration-standard: 200ms; }
+:root { --accent-ink: var(--primary); --hairline: oklch(0 0 0 / .081); --corner-lg: calc(var(--radius) * 4 / 3); --duration-standard: 200ms; }
 .dark { --accent-ink: oklch(0.76 0.15 157.5); --hairline: oklch(1 0 0 / .075); }
 `
-const cleanBridge = `:root { --accent: var(--accent-ink); --border: var(--hairline); --radius-surface: var(--radius-lg); }
+const cleanBridge = `:root { --accent: var(--accent-ink); --border: var(--hairline); --radius-surface: var(--corner-lg); }
 [data-ui-surface="floating"] { --border: var(--hairline); }
-@theme inline { --radius-lg: var(--radius-lg); }
+@theme inline { --radius-lg: var(--corner-lg); }
 `
 const cleanFoundation = ':root { --accent: #0562ef; --border: rgb(0 0 0 / .1); --background: #fff; --radius-surface: 12px; }\n:root[data-theme="dark"] { --accent: #6ba3ff; }\n'
 
@@ -196,6 +196,15 @@ test('the theme file must keep its Lane additions marker', () => {
   const { errors } = auditFixture({ 'src/styles/theme.css': cleanTheme.replace('/* Lane additions */', '') })
   assert.equal(errors.length, 1)
   assert.match(errors[0], /^src\/styles\/theme\.css .*Lane additions/)
+})
+
+test('Lane additions never reuse a name the tweakcn half defines, including its @theme inline keys', () => {
+  for (const [line, name] of [['--radius-sm: calc(var(--radius) * 2 / 3);', '--radius-sm'], ['--background: oklch(0.99 0 0);', '--background'], ['--color-background: var(--hairline);', '--color-background']]) {
+    const theme = cleanTheme.replace('--duration-standard: 200ms;', `--duration-standard: 200ms; ${line}`).replace('--hairline: oklch(1 0 0 / .075);', `--hairline: oklch(1 0 0 / .075); ${line}`)
+    const { errors } = auditFixture({ 'src/styles/theme.css': theme })
+    assert.ok(errors.length >= 1, `${name}\n${errors.join('\n')}`)
+    assert.ok(errors.every(error => error.startsWith('src/styles/theme.css:') && error.includes(name) && /tweakcn/.test(error)), errors.join('\n'))
+  }
 })
 
 test('the bridge holds only renames of names the theme file defines', () => {

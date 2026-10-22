@@ -28,7 +28,7 @@ Decided 2026-10-22 (spec [#87](https://github.com/Nikhilsharma-lab/Lane/issues/8
 - Exact corner steps, written as ratios of tweakcn's `--radius`, so tweakcn's corner slider still moves every corner in proportion.
 - Type sizes and weights, spacing steps, component sizes (buttons, rows, header, icons, badges) and motion.
 
-Additions never reuse a name tweakcn exports, so a re-paste can't clash with them. Anything that differs between light and dark has a value in both `:root` and `.dark`.
+Additions never reuse a name tweakcn exports (its `@theme inline` keys included), so a re-paste can't clash with them; `pnpm design:check` fails if one does. Anything that differs between light and dark has a value in both `:root` and `.dark`.
 
 ## Before the first real re-paste
 
@@ -48,7 +48,7 @@ If you change the font in tweakcn, an engineer also needs to load the new font i
 
 - **Keep the theme saved in tweakcn.** Importing an exported file back into tweakcn loses the shadow offsets and the letter-spacing. The saved theme in tweakcn is the real source; the CSS is a copy.
 - **Transparency is dropped** in every export format except rgb. That is why Lane's see-through lines and washes live in Lane additions.
-- **One radius, four corners.** tweakcn only exports small to extra-large corners from one `--radius`. Lane's exact corner steps are in additions, as ratios of `--radius`.
+- **One radius, four corners.** tweakcn only exports small to extra-large corners (`--radius-sm` to `--radius-xl`) from one `--radius`. Lane's exact corner steps are in additions as `--corner-*`, ratios of `--radius`; the bridge points the `--radius-*` names Arc, Lane and Tailwind read at them.
 - **tweakcn's preview won't match Lane exactly** for corner steps, menu shadows and slots Lane doesn't use (tweakcn's grey `--accent`, the charts it previews).
 - Lane sets dark mode with the `.dark` class tweakcn expects; your light/dark/system choice in Profile keeps working.
 

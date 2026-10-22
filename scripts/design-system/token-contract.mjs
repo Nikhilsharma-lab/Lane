@@ -231,6 +231,14 @@ const colourLiteral = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)
 export function auditThemeFile(css, file = themeFiles.theme) {
   const theme = splitTheme(css, file)
   if (!theme) return [`${file} has no /* ${laneAdditionsMarker} */ marker: restore Lane's half below the tweakcn paste`]
+  const errors = []
+  // A re-paste replaces the tweakcn half wholesale; an addition sharing one of its names
+  // (its @theme inline keys included) would silently fight it.
+  const tweakcnNames = new Set()
+  for (const node of theme.tweakcn) node.walkDecls?.(d => { if (d.prop.startsWith('--')) tweakcnNames.add(d.prop) })
+  for (const node of theme.additions) node.walkDecls?.(d => {
+    if (tweakcnNames.has(d.prop)) errors.push(`${file}:${d.source.start.line} ${d.prop} is a name tweakcn exports: give the Lane addition its own name and point consumers at it in the bridge`)
+  })
   const light = new Map()
   const dark = new Map()
   for (const node of theme.additions) node.walkDecls?.(d => {
@@ -238,7 +246,6 @@ export function auditThemeFile(css, file = themeFiles.theme) {
     const scope = d.parent.type === 'rule' && darkScope.test(d.parent.selector) ? dark : light
     if (!scope.has(d.prop)) scope.set(d.prop, d)
   })
-  const errors = []
   for (const [name, d] of light) if (!dark.has(name) && colourLiteral.test(d.value)) {
     errors.push(`${file}:${d.source.start.line} ${name} has a light colour but no dark value: add it to the Lane additions .dark block`)
   }

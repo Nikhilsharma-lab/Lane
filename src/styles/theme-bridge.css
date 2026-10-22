@@ -101,19 +101,29 @@
   --series-3: var(--chart-3);
   --series-4: var(--chart-4);
 
-  /* Corners. */
-  --radius-control: var(--radius-md);
-  --radius-panel: var(--radius-md);
-  --radius-surface: var(--radius-lg);
-  --lane-panel-radius: var(--radius-lg);
-  --workspace-pane-radius: var(--radius-xl);
-  --request-row-radius: var(--radius-md);
-  --sidebar-row-radius: var(--radius-md);
-  --segment-radius: var(--radius-md);
-  --select-panel-radius: var(--radius-md);
-  --checkbox-radius: var(--radius-sm);
-  --segment-item-radius: var(--radius-sm);
-  --menu-item-radius: var(--radius-item);
+  /* Corners: the theme's --corner-* steps under the names Arc and Lane's screens read. */
+  --radius-xs: var(--corner-xs);
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--corner-lg);
+  --radius-xl: var(--corner-xl);
+  --radius-2xl: var(--corner-2xl);
+  --radius-3xl: var(--corner-3xl);
+  --radius-4xl: var(--corner-4xl);
+  --radius-pill: var(--corner-pill);
+  --radius-item: var(--corner-item);
+  --radius-control: var(--corner-md);
+  --radius-panel: var(--corner-md);
+  --radius-surface: var(--corner-lg);
+  --lane-panel-radius: var(--corner-lg);
+  --workspace-pane-radius: var(--corner-xl);
+  --request-row-radius: var(--corner-md);
+  --sidebar-row-radius: var(--corner-md);
+  --segment-radius: var(--corner-md);
+  --select-panel-radius: var(--corner-md);
+  --checkbox-radius: var(--corner-sm);
+  --segment-item-radius: var(--corner-sm);
+  --menu-item-radius: var(--corner-item);
 
   /* Type. */
   --font-display: var(--font-sans);
@@ -181,12 +191,12 @@
   --font-weight-normal: var(--weight-normal);
   --font-weight-medium: var(--weight-medium);
   --font-weight-semibold: var(--weight-semibold);
-  --radius-xs: var(--radius-xs);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
-  --radius-3xl: var(--radius-3xl);
-  --radius-4xl: var(--radius-4xl);
+  --radius-xs: var(--corner-xs);
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--corner-lg);
+  --radius-xl: var(--corner-xl);
+  --radius-2xl: var(--corner-2xl);
+  --radius-3xl: var(--corner-3xl);
+  --radius-4xl: var(--corner-4xl);
 }

@@ -300,17 +300,18 @@
 
 :root {
   /* Exact corner steps, as ratios of tweakcn's --radius so its corner slider drives them all
-     (pixel-exact at 0.5rem). tweakcn's own four Tailwind steps are only used by its preview. */
-  --radius-xs: calc(var(--radius) / 3);
-  --radius-sm: calc(var(--radius) * 2 / 3);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) * 4 / 3);
-  --radius-xl: calc(var(--radius) * 2);
-  --radius-2xl: calc(var(--radius) * 8 / 3);
-  --radius-3xl: calc(var(--radius) * 4);
-  --radius-4xl: calc(var(--radius) * 16 / 3);
-  --radius-pill: calc(infinity * 1px);
-  --radius-item: calc(var(--radius) - 2px);
+     (pixel-exact at 0.5rem). Named --corner-* because tweakcn exports its own --radius-sm to
+     --radius-xl (used only by its preview); the bridge points Arc, Lane and Tailwind at these. */
+  --corner-xs: calc(var(--radius) / 3);
+  --corner-sm: calc(var(--radius) * 2 / 3);
+  --corner-md: var(--radius);
+  --corner-lg: calc(var(--radius) * 4 / 3);
+  --corner-xl: calc(var(--radius) * 2);
+  --corner-2xl: calc(var(--radius) * 8 / 3);
+  --corner-3xl: calc(var(--radius) * 4);
+  --corner-4xl: calc(var(--radius) * 16 / 3);
+  --corner-pill: calc(infinity * 1px);
+  --corner-item: calc(var(--radius) - 2px);
   --button-radius-sm: var(--radius);
   --button-radius-md: calc(var(--radius) * (1 + (34 / 26 - 1) * .35));
   --button-radius-lg: calc(var(--radius) * (1 + (38 / 26 - 1) * .35));
