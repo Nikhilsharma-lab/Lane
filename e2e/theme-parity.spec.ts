@@ -93,20 +93,20 @@ test("Lane paints the same theme on every page in light and dark", async ({
       await page.goto("/");
       await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
       await expect(
-        page.locator('[data-slot="row"]').filter({
-          hasText: "Help customers understand why their Requests changed",
+        page.getByRole("row", {
+          name: /Help customers understand why their Requests changed/,
         })
       ).toBeVisible();
     });
     await record(captured, page, "request-detail", async () => {
       await page.goto(`/requests/${requestId}`);
       await expect(
-        page.locator('[data-slot="row-group"][aria-label="Request comments"]')
+        page.getByRole("list", { name: "Request comments" })
       ).toBeVisible();
     });
     await record(captured, page, "intake", async () => {
       await page.goto("/intake");
-      await expect(page.getByPlaceholder("Request title")).toBeVisible();
+      await expect(page.getByRole("region", { name: "Start a Request" })).toBeVisible();
     });
     await record(captured, page, "settings", async () => {
       await page.goto("/settings/profile");
