@@ -91,6 +91,7 @@ import {
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
+import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
@@ -109,14 +110,6 @@ type Stage =
 /** Files a reload interrupted after the Request was created (plan item 2.3, S3). */
 type LostUploads = { requestId: string; files: { key: string; name: string }[] };
 
-type QueuedAttachment = {
-  key: string;
-  file: File;
-  status: "queued" | "uploading" | "uploaded" | "failed";
-  progress: number;
-  attachmentId: string | null;
-  error: string | null;
-};
 
 const reveal =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out";
@@ -205,33 +198,6 @@ const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, 
     "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
 };
 
-function uploadToSignedUrl(
-  signedUrl: string,
-  file: File,
-  onProgress: (progress: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const body = new FormData();
-    body.append("cacheControl", "0");
-    body.append("", file);
-
-    xhr.open("PUT", signedUrl);
-    xhr.setRequestHeader("x-upsert", "false");
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed with status ${xhr.status}`));
-    });
-    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
-    xhr.send(body);
-  });
-}
 
 function IntakeNotice({
   error = false,
@@ -294,7 +260,7 @@ export default function RequestEditor({
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
-  const projects = useWorkspaceProjects(context.orgId, active);
+  const projects = useWorkspaceProjects();
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [source, setSource] = useState<RequestInput | null>(null);
@@ -353,6 +319,24 @@ export default function RequestEditor({
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId) + (editing ? `:edit:${editing.request.id}` : "");
+  // The created Request's files: reserve, store, finalise, recover (intake-uploads.ts).
+  // All of its state lives in the refs above, so each handler builds it afresh
+  // with the current render's values, as the handlers themselves did before.
+  const uploads = () => createUploadSession({
+    refs: { operationInFlight, leftUploadScreen, unmounted, uploadsRequest, reservations },
+    prepare: (input) => callAction(() => prepareAttachmentUpload(input, context)),
+    finalize: (input) => callAction(() => finalizeAttachmentUpload(input, context)),
+    discard: (input) => callAction(() => discardAttachmentUpload(input, context)),
+    put: uploadToSignedUrl,
+    record: {
+      read: () => readUnfinishedUploads(window.sessionStorage, draftScope),
+      write: (record) => { writeUnfinishedUploads(window.sessionStorage, draftScope, record); },
+      clear: () => clearUnfinishedUploads(window.sessionStorage, draftScope),
+    },
+    setAttachments,
+    setBusy: (busy) => { setMutationBusy(busy); onBusyChange?.(busy); },
+    finish: (requestId) => finishCreatedRequest(requestId),
+  });
 
   const {
     control,
@@ -631,31 +615,7 @@ export default function RequestEditor({
             ? "Uploading Request files."
             : "";
 
-  function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
-    // After unmount nothing renders. The record follows the uploads instead,
-    // so a reload before they end names only the files that weren't added.
-    if (unmounted.current) {
-      followUnmountedUpload(key, update);
-      return;
-    }
-    setAttachments((current) =>
-      current.map((attachment) =>
-        attachment.key === key ? { ...attachment, ...update } : attachment,
-      ),
-    );
-  }
 
-  function followUnmountedUpload(key: string, update: Partial<QueuedAttachment>) {
-    if (update.status !== "uploaded" && update.attachmentId === undefined) return;
-    const record = readUnfinishedUploads(window.sessionStorage, draftScope);
-    if (!record || record.requestId !== uploadsRequest.current) return;
-    writeUnfinishedUploads(window.sessionStorage, draftScope, {
-      ...record,
-      files: update.status === "uploaded"
-        ? record.files.filter((file) => file.key !== key)
-        : record.files.map((file) => file.key === key ? { ...file, attachmentId: update.attachmentId ?? null } : file),
-    });
-  }
 
   function addFiles(files: File[]) {
     setFileFailure(null);
@@ -793,130 +753,7 @@ export default function RequestEditor({
     }
   }
 
-  async function discardFailedAttachment(
-    attachment: QueuedAttachment,
-    requestId: string,
-  ): Promise<"discarded" | "uploaded" | "failed"> {
-    const attachmentId = attachment.attachmentId;
-    if (!attachmentId) return "discarded";
 
-    try {
-      const result = await callAction(() => discardAttachmentUpload(
-        { requestId, attachmentId },
-        context,
-      ));
-      if (!result.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: result.error.message,
-        });
-        return "failed";
-      }
-      reservations.current.delete(attachment.key);
-      if (result.alreadyUploaded) {
-        updateAttachment(attachment.key, {
-          status: "uploaded",
-          progress: 100,
-          error: null,
-        });
-        return "uploaded";
-      }
-      updateAttachment(attachment.key, { attachmentId: null, error: null });
-      return "discarded";
-    } catch {
-      // Keep the reservation ID until the server confirms cleanup. Retrying
-      // must not reserve another slot or hide a file that still needs attention.
-      updateAttachment(attachment.key, {
-        status: "failed",
-        error:
-          "Lane could not clear this upload. Your Request is saved. Try again.",
-      });
-      return "failed";
-    }
-  }
-
-  async function uploadAttachment(
-    attachment: QueuedAttachment,
-    requestId: string,
-  ): Promise<boolean> {
-    updateAttachment(attachment.key, {
-      status: "uploading",
-      progress: 0,
-      error: null,
-    });
-
-    let attachmentId: string | null = null;
-    try {
-      const prepared = await callAction(() => prepareAttachmentUpload(
-        {
-          requestId,
-          fileName: attachment.file.name,
-          mimeType: attachment.file.type,
-          sizeBytes: attachment.file.size,
-        },
-        context,
-      ));
-      if (!prepared.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: prepared.error.message,
-        });
-        return false;
-      }
-
-      attachmentId = prepared.attachmentId;
-      reservations.current.set(attachment.key, attachmentId);
-      updateAttachment(attachment.key, { attachmentId });
-      const uploadFile =
-        attachment.file.type === prepared.mimeType
-          ? attachment.file
-          : new File([attachment.file], attachment.file.name, {
-              type: prepared.mimeType,
-              lastModified: attachment.file.lastModified,
-            });
-
-      await uploadToSignedUrl(prepared.signedUrl, uploadFile, (progress) =>
-        updateAttachment(attachment.key, { progress }),
-      );
-
-      const reserved = prepared.attachmentId;
-      const finalized = await callAction(() => finalizeAttachmentUpload(
-        { requestId, attachmentId: reserved },
-        context,
-      ));
-      if (!finalized.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: finalized.error.message,
-        });
-        return false;
-      }
-
-      reservations.current.delete(attachment.key);
-      updateAttachment(attachment.key, {
-        status: "uploaded",
-        progress: 100,
-        error: null,
-      });
-      return true;
-    } catch {
-      if (attachmentId) {
-        const cleanup = await discardFailedAttachment(
-          { ...attachment, attachmentId },
-          requestId,
-        );
-        if (cleanup === "uploaded") return true;
-        if (cleanup === "failed") return false;
-      }
-      updateAttachment(attachment.key, {
-        status: "failed",
-        attachmentId: null,
-        error:
-          "The file did not finish uploading. Your Request was created. Retry the upload.",
-      });
-      return false;
-    }
-  }
 
   /** The saved row joins the list's Open group through the overlay at once,
    * before any upload (plan item 2.3). No router refresh: the
@@ -948,43 +785,9 @@ export default function RequestEditor({
     router.push(`/requests/${requestId}`);
   }
 
-  /** Nobody sees the upload screen any more: Leave page was chosen, or the composer unmounted. */
-  function uploadsUnattended() {
-    return leftUploadScreen.current || unmounted.current;
-  }
-
-  /** Plan item 2.3 (S3): a created Request's files that nobody attends end in
-   * this document. Once no upload loop runs, open reservations are cleared and
-   * so is the record: no reload happened, so no later reload may report them. */
-  function settleLeftUploads() {
-    const requestId = uploadsRequest.current;
-    if (!uploadsUnattended() || operationInFlight.current || !requestId) return;
-    uploadsRequest.current = null;
-    const open = [...reservations.current.values()];
-    reservations.current.clear();
-    void Promise.allSettled(open.map((attachmentId) => callAction(() => discardAttachmentUpload({ requestId, attachmentId }, context)))).then(() => {
-      if (readUnfinishedUploads(window.sessionStorage, draftScope)?.requestId === requestId) clearUnfinishedUploads(window.sessionStorage, draftScope);
-    });
-  }
-
-  /** Leave page in the navigation guard, whose copy says files not yet uploaded
-   * won't be added. A running loop finishes its file in flight and starts no other. */
-  function leaveUploadScreen() {
-    leftUploadScreen.current = true;
-    settleLeftUploads();
-  }
-
-  /** The composer's host unmounting (the layout leaves, or a workspace switch
-   * re-keys it) cancels nothing: the upload loops go on in the background,
-   * render nothing, and settle when they end. */
-  function leaveOnUnmount() {
-    unmounted.current = true;
-    settleLeftUploads();
-  }
-
   const onUnmount = useEffectEvent(() => {
     lostCheck.current += 1;
-    leaveOnUnmount();
+    uploads().unmount();
   });
   useEffect(() => {
     unmounted.current = false;
@@ -1099,37 +902,16 @@ export default function RequestEditor({
       // nothing. The row is in the list; no toast or navigation pulls the
       // person from where they went.
       if (attachments.length === 0) {
-        if (!uploadsUnattended()) finishCreatedRequest(result.requestId);
+        if (!uploads().unattended()) finishCreatedRequest(result.requestId);
         return;
       }
 
       setStage("uploading");
-      uploadsRequest.current = result.requestId;
-      // The upload screen's effect keeps this record, but a composer unmounted
-      // during the save never renders it. Start the record before any upload,
-      // so a reload mid-upload still names the files.
-      if (!leftUploadScreen.current) {
-        writeUnfinishedUploads(window.sessionStorage, draftScope, {
-          requestId: result.requestId,
-          title: savingSource.title,
-          files: attachments
-            .filter((attachment) => attachment.status !== "uploaded")
-            .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
-        });
-      }
-      const results: boolean[] = [];
-      for (const attachment of attachments) {
-        // Only Leave page stops the uploads; an unmounted composer's go on.
-        if (leftUploadScreen.current) break;
-        results.push(await uploadAttachment(attachment, result.requestId));
-      }
-
-      if (uploadsUnattended()) return;
-      if (results.every(Boolean)) {
-        finishCreatedRequest(result.requestId);
-      } else {
-        setStage("attachment_recovery");
-      }
+      // The upload screen's effect keeps the record too, but a composer
+      // unmounted during the save never renders it, so uploadSaved starts it.
+      const uploaded = await uploads().uploadSaved(result.requestId, savingSource.title, attachments);
+      if (uploaded === "uploaded") finishCreatedRequest(result.requestId);
+      else if (uploaded === "recovery") setStage("attachment_recovery");
     } catch {
       setFailure({
         code: "save_failed",
@@ -1141,114 +923,28 @@ export default function RequestEditor({
       operationInFlight.current = false;
       // A composer mounted since then owns the busy flag.
       if (!unmounted.current) onBusyChange?.(false);
-      settleLeftUploads();
+      uploads().settleLeft();
     }
   }
 
+
   async function retryAttachments(failed: QueuedAttachment[]) {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-    const uploadedKeys = new Set<string>();
-
-    try {
-      for (const attachment of failed) {
-        // Only Leave page stops the retries; an unmounted composer's go on.
-        if (leftUploadScreen.current) break;
-        const cleanup = await discardFailedAttachment(
-          attachment,
-          createdRequestId,
-        );
-        if (cleanup === "failed") continue;
-        if (cleanup === "uploaded") {
-          uploadedKeys.add(attachment.key);
-          continue;
-        }
-        if (await uploadAttachment(attachment, createdRequestId)) {
-          uploadedKeys.add(attachment.key);
-        }
-      }
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
-
-    if (uploadsUnattended()) return;
-    // A per-file retry must not abandon another failed file. Use the retry
-    // outcomes as well as the render snapshot; React state updates may lag.
-    if (
-      attachments.every(
-        (attachment) =>
-          attachment.status === "uploaded" || uploadedKeys.has(attachment.key),
-      )
-    ) {
-      finishCreatedRequest(createdRequestId);
-    }
+    if (createdRequestId) await uploads().retry(failed, attachments, createdRequestId);
   }
 
   async function retryFailedFiles() {
-    await retryAttachments(
-      attachments.filter((attachment) => attachment.status === "failed"),
-    );
+    await retryAttachments(attachments.filter((attachment) => attachment.status === "failed"));
   }
 
   async function removeFailedFile(attachment: QueuedAttachment) {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-    try {
-      if (
-        (await discardFailedAttachment(attachment, createdRequestId)) !==
-          "discarded" ||
-        unmounted.current
-      )
-        return;
-      setAttachments((current) =>
-        current.filter((item) => item.key !== attachment.key),
-      );
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
+    if (createdRequestId) await uploads().remove(attachment, createdRequestId);
   }
 
   async function continueWithoutFailedFiles() {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-
-    try {
-      const unfinished = attachments.filter(
-        (attachment) =>
-          attachment.status !== "uploaded" && attachment.attachmentId,
-      );
-      const discarded = await Promise.all(
-        unfinished.map((attachment) =>
-          discardFailedAttachment(attachment, createdRequestId),
-        ),
-      );
-      if (!uploadsUnattended() && discarded.every((result) => result !== "failed"))
-        finishCreatedRequest(createdRequestId);
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
+    if (createdRequestId) await uploads().continueWithout(attachments, createdRequestId);
   }
+
+
 
   function preserveDraftForSignIn() {
     const review =
@@ -1352,7 +1048,7 @@ export default function RequestEditor({
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard creating={creating} onLeave={leaveUploadScreen} />
+        <IntakeNavigationGuard creating={creating} onLeave={() => uploads().leave()} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}

@@ -1,16 +1,16 @@
 "use server";
-import { and, asc, eq, exists, isNull, or, sql } from "drizzle-orm";
-import { db, workspaceLabels, projects } from "@/db";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { db, workspaceLabels } from "@/db";
 import { requireActiveMember, requireMemberOrAbove, refusal } from "@/lib/auth-guard";
 import { DEFAULT_LABELS, labelInputSchema, type RequestLabel } from "@/lib/request-labels";
-import { accessibleProjectsWhere, canUseProject } from "@/lib/project-access";
+import { canUseProject } from "@/lib/project-access";
+import { loadLabels } from "@/lib/data/labels";
 const selection = { id: workspaceLabels.id, name: workspaceLabels.name, colour: workspaceLabels.colour, projectId: workspaceLabels.projectId };
 export async function listLabels(context: {orgId:string}): Promise<{success:true; labels:RequestLabel[]; canCreate:boolean} | {success:false; error:string}> {
  const auth=await requireActiveMember(context.orgId);
  if (!auth) return {success:false,error:await refusal("You do not have access to this workspace.")};
  try {
-  const labels=await db.select(selection).from(workspaceLabels).where(and(eq(workspaceLabels.orgId,auth.orgId),auth.role === "guest" ? or(isNull(workspaceLabels.projectId),exists(db.select({id:projects.id}).from(projects).where(and(accessibleProjectsWhere(auth),eq(projects.id,workspaceLabels.projectId))))) : undefined)).orderBy(asc(workspaceLabels.name));
-  return {success:true,labels:[...DEFAULT_LABELS,...labels],canCreate:auth.role!=="guest"};
+  return {success:true,...await loadLabels(auth)};
  } catch {return {success:false,error:"Labels could not be loaded. Try again."};}
 }
 export async function createLabel(input:unknown,context:{orgId:string}): Promise<{success:true;label:RequestLabel} | {success:false;error:string}> {

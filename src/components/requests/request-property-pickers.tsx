@@ -2,51 +2,20 @@
 
 import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
-import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
+import { createProject } from "@/app/(app)/intake/project-actions";
 import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Alert } from "@/components/arc/alert/alert";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
-import {
-  type ProjectOption,
-} from "@/lib/request-constants";
 import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./request-property-pickers.module.css";
 import { rememberRequestPopoverEvent } from "./request-popover-events";
 
-export function useWorkspaceProjects(orgId: string, active: boolean) {
-  const workspaceProjects = useSharedWorkspaceProjects();
-  const shared = workspaceProjects?.orgId === orgId ? workspaceProjects : null;
-  const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const loaded = useRef(false);
-  const inFlight = useRef(false);
-  const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const reload = useCallback(async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await callAction(() => listProjects({ orgId }));
-      if (!mounted.current) return;
-      if (result.success) { setProjects(result.projects); loaded.current = true; }
-      else setError(result.error.message);
-    } catch {
-      if (mounted.current) setError("Projects could not load. Your Request can still be reviewed.");
-    } finally {
-      inFlight.current = false;
-      if (mounted.current) setLoading(false);
-    }
-  }, [orgId]);
-  useEffect(() => { if (!shared && active && !loaded.current) void reload(); }, [active, reload, shared]);
-  const addProject = (project: ProjectOption) => setProjects((current) =>
-    [...current.filter((item) => item.id !== project.id), project].sort((a, b) => a.name.localeCompare(b.name)));
-  return shared ?? { projects, loading, error, reload, addProject };
+/** The workspace's Projects, from the (app) layout's provider (seeded with the page). */
+export function useWorkspaceProjects() {
+  return useSharedWorkspaceProjects();
 }
 
 /* Plan item 2.6: the popover shell the Project picker and the reviewer picker
