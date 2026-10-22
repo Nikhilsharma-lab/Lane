@@ -16,6 +16,7 @@ export default defineConfig({
       "src/components/shell/project-tone.test.ts",
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",
+      "src/app/**/intake/intake-session.test.ts",
       "src/app/**/intake/intake-gate-contract.test.ts",
       "src/lib/intake-draft.test.ts",
       "src/lib/request-workspace.test.ts",
