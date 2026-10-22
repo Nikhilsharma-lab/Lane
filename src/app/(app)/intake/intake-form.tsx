@@ -1,7 +1,8 @@
 "use client";
 
 import pickerLayout from "@/components/requests/request-picker-layout.module.css";
-import { RequestLabelsPicker, RequestLabels } from "@/components/requests/request-labels";
+import { RequestLabels } from "@/components/requests/request-labels";
+import { RequestLabelsPicker } from "@/components/requests/request-labels-picker";
 import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
