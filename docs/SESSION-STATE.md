@@ -10,9 +10,14 @@ applied and complete on 2026-10-22 (no record of who applied it); another sessio
 comment or file lost, `notify` and the reset trigger match `0032`. Migration `0033` (drop the unused
 `request_review_state`) is written and passes locally; not applied anywhere.
 
-**Production is untouched and recorded at 0027.** `main` now needs 0028–0033, so the next production deploy
-must follow a verified production backup and 0028 → 0033 applied and checked there. Production deploys are
-manual (GitHub shows only Preview deployments), so merging to `main` alone does not change production.
+**Production (`tcfwabpoiydvfqxhtkur`) has 0028 → 0032, applied 2026-10-22 under the owner's explicit approval.**
+Verified backup and row snapshots in `backups/production-0028-0032-2026-10-22/` (3 Requests, 1 file, 1 Project);
+the backup was restored into a local database and 0028–0032 rehearsed there first; afterwards every check passed
+(all five migrations present, no Request, comment, file, notification or Project lost, Request content, status
+and priority unchanged). The pulled credentials were deleted. The production database password was reset by the
+owner the same day, so Vercel's production `DATABASE_URL` must hold the new password before the site connects.
+Production deploys are manual (GitHub shows only Preview deployments); `main` can be deployed once 0033 has run
+on staging and then production, or before 0033, which only drops an unused function.
 
 Other notes: each worktree's test suite now resets its own `lane_test_<copy>` (#122); `pnpm bundle:check`
 baseline reset with a written waiver (#128).
