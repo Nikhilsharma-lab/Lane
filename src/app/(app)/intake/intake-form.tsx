@@ -33,6 +33,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
+import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
@@ -287,6 +288,9 @@ export default function RequestEditor({
     : emptyRequest);
   const [savedProblem, setSavedProblem] = useState(original?.reframedProblem ?? null);
   const [savedSolution, setSavedSolution] = useState(original?.extractedSolution ?? null);
+  const [framingError, setFramingError] = useState<{ field: "reframedProblem" | "extractedSolution"; message: string } | null>(null);
+  const problemFieldRef = useRef<HTMLTextAreaElement>(null);
+  const solutionFieldRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
@@ -1326,7 +1330,15 @@ export default function RequestEditor({
     }
     onBusyChange?.(true);
     void handleSubmit(data => {
-      if (original && data.title.trim() === original.title && data.description.trim() === original.description) {
+      if (original && editing && data.title.trim() === original.title && data.description.trim() === original.description) {
+        // Unchanged wording keeps its judgement, so its framing can be reworded but not emptied.
+        const framing = savedFraming(storedShape({ classification: editing.request.classification, reframedProblem: original.reframedProblem, extractedSolution: original.extractedSolution }), { reframedProblem: savedProblem, extractedSolution: savedSolution });
+        if (!framing.ok) {
+          onBusyChange?.(false);
+          setFramingError(framing);
+          (framing.field === "reframedProblem" ? problemFieldRef : solutionFieldRef).current?.focus();
+          return;
+        }
         void onConfirm(data);
       } else void checkFraming(data);
     }, (fieldErrors) => {
@@ -1481,8 +1493,8 @@ export default function RequestEditor({
               disabled={checking}
               submitted={isSubmitted}
             /></>}
-            {editing && savedProblem !== null && <Textarea label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedProblem(event.target.value)} />}
-            {editing && savedSolution !== null && <Textarea label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedSolution(event.target.value)} />}
+            {editing && savedProblem !== null && <Textarea ref={problemFieldRef} label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "reframedProblem" ? framingError.message : undefined} onChange={event => { setSavedProblem(event.target.value); setFramingError(null); }} />}
+            {editing && savedSolution !== null && <Textarea ref={solutionFieldRef} label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "extractedSolution" ? framingError.message : undefined} onChange={event => { setSavedSolution(event.target.value); setFramingError(null); }} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
             {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
               <h2 className="text-sm font-medium">Problem from your earlier review</h2>

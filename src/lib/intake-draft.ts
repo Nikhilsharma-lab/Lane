@@ -1,5 +1,6 @@
 import { labelKeysSchema } from "./request-labels";
 import { z } from "zod";
+import { refineFraming } from "./request-framing";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { MAX_REVIEWERS, reviewerIdentitySchema, REVIEW_NOTE_MAX } from "./request-reviewer-rules";
@@ -48,37 +49,7 @@ const triageDraftSchema = z
     reframedProblem: z.string().max(DESCRIPTION_MAX).nullable(),
     extractedSolution: z.string().max(DESCRIPTION_MAX).nullable(),
   })
-  .superRefine((value, context) => {
-    if (
-      value.classification === "problem" &&
-      (value.reframedProblem !== null || value.extractedSolution !== null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Problem drafts cannot include generated framing.",
-      });
-    }
-
-    if (
-      value.classification === "solution" &&
-      (value.reframedProblem === null || value.extractedSolution !== null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Solution drafts require only a reframed problem.",
-      });
-    }
-
-    if (
-      value.classification === "hybrid" &&
-      (value.reframedProblem === null || value.extractedSolution === null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Hybrid drafts require a problem and preserved solution.",
-      });
-    }
-  });
+  .superRefine(refineFraming);
 
 /** Reviewers picked on the compose step and the question they are sent. The server checks every rule again on create. */
 const reviewersDraftSchema = z.object({

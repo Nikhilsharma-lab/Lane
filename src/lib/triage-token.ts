@@ -150,8 +150,11 @@ export function verifyTriageToken(
       return { valid: false, reason: "context_mismatch" };
     }
 
+    // A review redeems only for what it was issued for: an edit review for
+    // its own Request, a new-Request review only for creating one.
+    if ((parsed.data.purpose === "edit") !== (existingRequestId !== undefined)) return { valid: false, reason: "context_mismatch" };
     if (parsed.data.purpose === "edit") {
-      if (!existingRequestId || parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
+      if (parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
       return { valid: true, payload: parsed.data };
     }
     if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };

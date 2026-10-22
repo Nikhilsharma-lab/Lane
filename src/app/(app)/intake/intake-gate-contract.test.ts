@@ -21,6 +21,13 @@ describe("Intake Gate contract", () => {
     expect(FORM).not.toContain("SparklesIcon");
   });
 
+  it("checks reworded framing with the rule the save uses, beside its field", () => {
+    expect(FORM).toContain("savedFraming(storedShape(");
+    expect(FORM).toContain('error={framingError?.field === "reframedProblem"');
+    expect(FORM).toContain('error={framingError?.field === "extractedSolution"');
+    expect(ACTIONS).toContain("savedFraming(framingShape(payload.classification)");
+  });
+
   it("preserves source content and never resets the review with Escape", () => {
     expect(FORM).toContain("Your original Request");
     expect(FORM).toContain("Suggested change");
