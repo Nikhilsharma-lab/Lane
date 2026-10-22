@@ -90,7 +90,7 @@ describe("Requests workspace contract", () => {
     ]) {
       const file = source(path)
       expect(file, path).toContain('from "@/lib/request-lifecycle"')
-      expect(file, path).toContain("allowedMove(")
+      expect(file, path).toContain("availableMove(")
       // No caller keeps its own status-to-move decision.
       expect(file, path).not.toMatch(/status === "(open|in_progress)"/)
     }

@@ -3,14 +3,13 @@
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu";
-import { statusLabel } from "@/lib/request-status";
-import type { allowedMove, LifecycleMove } from "@/lib/request-lifecycle";
+import { statusLabel, type AllowedMove, type LifecycleMove } from "@/lib/request-lifecycle";
 import { StatusGlyph } from "./status-glyph";
 
 /** Same control in detail and its Properties sheet; caller supplies the allowed lifecycle move. */
 export function RequestStatusControl({ status, move, onMove, className }: {
   status: "open" | "in_progress" | "done";
-  move: ReturnType<typeof allowedMove>;
+  move: AllowedMove | null;
   onMove: (move: LifecycleMove) => void;
   className?: string;
 }) {

@@ -4,7 +4,6 @@ import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-downloa
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
 import { EditRequest } from "@/app/(app)/requests/[id]/edit-request"
 import { DeleteRequest } from "@/app/(app)/requests/[id]/delete-request"
-import { measurementReadiness } from "@/lib/request-measurement"
 import { closureLabel } from "@/lib/request-outcome"
 import { RequestReviewersPanel } from "./request-reviewers-panel"
 import { RequestReleasePanel } from "./request-release-panel"
@@ -26,9 +25,9 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, p
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
   const { request, isGuest } = props
-  const impact = request.expectedImpact
-  const pickupBlockedReason = measurementReadiness(impact, request.requestType)
-  const pickupRequester = request.createdBy === currentUserId ? null : request.creatorName || "the requester"
+  const pickupBlockedReason = request.pickupBlockedReason ?? null
+  // Whoever can edit the plan is told what to fix; anyone else is told who can (as in the list).
+  const pickupRequester = request.createdBy === currentUserId || isAdmin ? null : request.creatorName || "the requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }} peekStrip={peekStrip}
     requestPanels={<><RequestReviewersPanel revision={request.agreementRevision} requestId={request.id} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} /><RequestReleasePanel key={request.id} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /><RequestOutcomePanel key={`outcome-${request.id}`} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /></>}

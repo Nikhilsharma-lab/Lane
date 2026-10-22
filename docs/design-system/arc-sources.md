@@ -419,3 +419,7 @@ The same audit maps `src/components/arc/user-menu/user-menu.module.css` panel in
 ### October 21 — unused components removed
 
 Nothing in Lane imported these installed Arc sources, so they were deleted with their ledger entries: `calendar` (`calendar.tsx`, `calendar.module.css`; the measurement dialogs use the Arc Date Range Picker), `sortable-data-table` (`sortable-data-table.tsx`, `sortable-data-table.module.css`) and the `notification-center` component (`notification-center.tsx`). `notification-center.module.css` stays: the notifications popover uses its styles. The install notes above are kept as history.
+
+### 2026-10-21 — unavailable menu items say why
+
+`src/components/arc/context-menu/context-menu.tsx` adds an optional item `description`. A disabled item with a description shows it under its label and stays focusable with `aria-disabled` and `aria-describedby`, so arrow keys and screen readers reach the reason; selecting it does nothing. Items without a description keep upstream's native `disabled`. `src/components/arc/context-menu/context-menu.module.css` dims only that item's icon and label, keeps the reason in secondary text, and wraps it at a fixed measure. The Request row menu uses it for a Pick up that isn't ready yet.

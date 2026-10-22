@@ -6,6 +6,7 @@ import { alias } from "drizzle-orm/pg-core"
 import { db, comments, profiles, projects, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
+import { measurementReadiness } from "@/lib/request-measurement"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -25,7 +26,18 @@ export const DONE_PAGE_SIZE = 50
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** One row of the list query, as the select below infers it. */
-export type RequestListRow = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
+type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
+/** A list row carries why it can't be picked up yet, never its measurement plan. */
+export type RequestListRow = Omit<ListRowRecord, "expectedImpact"> & { pickupBlockedReason: string | null }
+
+/** The pickup readiness every surface shows and the server enforces (request-lifecycle.ts). */
+function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null }) {
+  return request.status === "open" ? measurementReadiness(request.expectedImpact, request.requestType) : null
+}
+
+function toListRows(rows: ListRowRecord[]): RequestListRow[] {
+  return rows.map(({ expectedImpact, ...row }) => ({ ...row, pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact }) }))
+}
 
 export type RequestList = {
   rows: RequestListRow[]
@@ -67,6 +79,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       requestType: requests.requestType,
       labelKeys: requests.labelKeys,
       priority: requests.priority,
+      expectedImpact: requests.expectedImpact,
     })
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))
@@ -89,8 +102,8 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
  * note or "Show older Done" applies without a count query.
  */
 export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
-  const rows = await listRows(auth, ne(requests.status, "done"), MAX_REQUESTS_QUERY + 1)
-    .unionAll(listRows(auth, eq(requests.status, "done"), DONE_PAGE_SIZE + 1))
+  const rows = toListRows(await listRows(auth, ne(requests.status, "done"), MAX_REQUESTS_QUERY + 1)
+    .unionAll(listRows(auth, eq(requests.status, "done"), DONE_PAGE_SIZE + 1)))
   const active = rows.filter(row => row.status !== "done")
   const done = rows.filter(row => row.status === "done")
   return {
@@ -109,7 +122,7 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
 export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string): Promise<{ rows: RequestListRow[]; hasOlderDone: boolean }> {
   if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderDone: false }
   const cursor = alias(requests, "older_done_cursor")
-  const rows = await listRows(
+  const rows = toListRows(await listRows(
     auth,
     and(
       eq(requests.status, "done"),
@@ -120,7 +133,7 @@ export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string):
       ))})`,
     )!,
     DONE_PAGE_SIZE + 1,
-  )
+  ))
   return { rows: rows.slice(0, DONE_PAGE_SIZE), hasOlderDone: rows.length > DONE_PAGE_SIZE }
 }
 
@@ -222,5 +235,5 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   ])
 
   if (!request) return null
-  return { request, comments: requestComments, attachments }
+  return { request: { ...request, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
 }
