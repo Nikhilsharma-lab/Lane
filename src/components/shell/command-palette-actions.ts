@@ -32,8 +32,6 @@ export type PaletteActionDeps = {
   link: (requestId: string) => string
 }
 
-const SURFACES = { "new-request": "composer", search: "search", notifications: "notifications", shortcuts: "shortcuts" } as const
-
 /** Runs an entry. "Change priority…" is a step inside the palette, not an action, so it is the palette's. */
 export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priority" }>, deps: PaletteActionDeps): void {
   const request = "requestId" in action && deps.request?.id === action.requestId ? deps.request : null
@@ -55,11 +53,11 @@ export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priorit
     case "view": deps.view(action.filter); return
     case "project": deps.project(action.projectId); return
     case "settings": deps.settings(action.section, action.href); return
-    default: deps.open(SURFACES[action.kind])
+    case "open": deps.open(action.surface); return
   }
 }
 
 /** Search, the bell and the ? overlay are not mounted on Settings, so their entries are left out there. */
 export function openableEntries<T extends PaletteEntry>(entries: T[], canOpen: (surface: ShellSurface) => boolean): T[] {
-  return entries.filter(entry => !(entry.action.kind in SURFACES) || canOpen(SURFACES[entry.action.kind as keyof typeof SURFACES]))
+  return entries.filter(entry => entry.action.kind !== "open" || canOpen(entry.action.surface))
 }

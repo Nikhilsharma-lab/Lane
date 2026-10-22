@@ -78,7 +78,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
   })
 
   it.each([
-    [{ kind: "new-request" }, "composer"], [{ kind: "search" }, "search"], [{ kind: "notifications" }, "notifications"], [{ kind: "shortcuts" }, "shortcuts"],
+    [{ kind: "open", surface: "composer" }, "composer"], [{ kind: "open", surface: "search" }, "search"], [{ kind: "open", surface: "notifications" }, "notifications"], [{ kind: "open", surface: "shortcuts" }, "shortcuts"],
   ] as const)("opens %o through the shared opener", (action, surface) => {
     const d = deps()
     runPaletteAction(action, d)

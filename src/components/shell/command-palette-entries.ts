@@ -4,6 +4,7 @@ import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-workspace"
+import type { ShellSurface } from "./shell-openers"
 
 /**
  * Spec #101 ("One entry list"): the ⌘K palette's entries, built from data only
@@ -34,13 +35,11 @@ export type PaletteAction =
   | { kind: "set-priority"; requestId: string; priority: RequestPriority }
   | { kind: "copy"; copy: "link"; requestId: string }
   | { kind: "copy"; copy: "code"; requestId: string; code: string }
-  | { kind: "new-request" }
-  | { kind: "search" }
+  /** A shell surface, opened through its shared opener (shell-openers.ts). */
+  | { kind: "open"; surface: ShellSurface }
   | { kind: "view"; filter: RequestStatusFilter }
   | { kind: "project"; projectId: string }
   | { kind: "settings"; section: string; href: string }
-  | { kind: "notifications" }
-  | { kind: "shortcuts" }
 
 export type PaletteEntry = {
   id: string
@@ -91,11 +90,11 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
   }))
   return [
     ...requestEntries(request, undo, role),
-    { id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "new-request" } },
-    { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "search" } },
+    { id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "open", surface: "composer" } },
+    { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "open", surface: "search" } },
     ...views, ...places, ...settings,
-    { id: "notifications", label: "Notifications", group: "Go to", keys: [], action: { kind: "notifications" } },
-    { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "shortcuts" } },
+    { id: "notifications", label: "Notifications", group: "Go to", keys: [], action: { kind: "open", surface: "notifications" } },
+    { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "open", surface: "shortcuts" } },
   ]
 }
 

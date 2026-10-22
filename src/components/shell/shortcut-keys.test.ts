@@ -15,7 +15,7 @@ describe("key caps shared by the ? overlay and the palette (#101)", () => {
   })
 
   it("shows a palette entry's full key hint, not only its first alternative", () => {
-    const entry: PaletteEntry = { id: "search", label: "Search workspace", group: "Actions", keys: ["/", "⌘ F"], action: { kind: "search" } }
+    const entry: PaletteEntry = { id: "search", label: "Search workspace", group: "Actions", keys: ["/", "⌘ F"], action: { kind: "open", surface: "search" } }
     const html = renderToStaticMarkup(createElement(PaletteOption, { entry, id: "o1", index: 0, selected: false, onActive: () => {}, onChoose: () => {} }))
     expect(caps(html)).toEqual(["/", "⌘", "F"])
     expect(html).toContain('aria-keyshortcuts="/ ⌘ F"')
