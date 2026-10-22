@@ -54,7 +54,8 @@ export type NotificationRow = {
   id: string;
   type: string;
   requestId: string | null;
-  actorId: string;
+  /** Null for a reminder, which Lane writes itself. */
+  actorId: string | null;
   readAt: Date | null;
   createdAt: Date;
   actorName: string | null;
