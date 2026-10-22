@@ -2,26 +2,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "path";
 import { buildLocalBaseline } from "./local-baseline";
+import { migrationPlan } from "./migration-plan";
 
 const DB_NAME = "lane_test";
 const BASELINE_PATH = path.resolve(__dirname, "../db/baseline.sql");
-const CLERK_CUTOVER_PATH = path.resolve(
-  __dirname,
-  "../db/migrations/0013_clerk_clean_cutover.sql"
-);
-const CLERK_SAFEGUARDS_PATH = path.resolve(
-  __dirname,
-  "../db/migrations/0014_restore_clerk_table_safeguards.sql"
-);
-const PROJECTS_PATH = path.resolve(__dirname, "../db/migrations/0015_request_projects_and_types.sql");
-const EXPECTED_IMPACT_PATH = path.resolve(__dirname, "../db/migrations/0016_request_expected_impact.sql");
-const REQUEST_CODES_PATH = path.resolve(__dirname, "../db/migrations/0017_request_codes.sql");
-const DESIGN_REVIEWS_PATH = path.resolve(__dirname, "../db/migrations/0018_request_design_reviews.sql");
-const REQUEST_PRIORITY_PATH = path.resolve(__dirname, "../db/migrations/0019_request_priority.sql");
-const ATTACHMENT_CAPABILITIES_PATH = path.resolve(__dirname, "../db/migrations/0020_attachment_capability_accounting.sql");
-const OPTIONAL_IMPACT_SOURCE_PATH = path.resolve(__dirname, "../db/migrations/0021_request_impact_optional_source.sql");
-const MEASUREMENT_PLAN_PATH = path.resolve(__dirname, "../db/migrations/0022_request_measurement_plan.sql");
-const FIXTURES_PATH = path.resolve(__dirname, "../db/test-fixtures.sql");
 
 function getPgBinDir(): string {
   const candidates = [
@@ -68,6 +52,7 @@ export async function setup() {
   const password = decodeURIComponent(url.password);
   // Validate the canonical prerequisites before any destructive subprocess.
   const baseline = buildLocalBaseline(readFileSync(BASELINE_PATH, "utf8"));
+  const plan = migrationPlan();
   const env: NodeJS.ProcessEnv = { ...Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("PG"))
   ), NODE_ENV: process.env.NODE_ENV };
@@ -84,35 +69,22 @@ export async function setup() {
 
   run("dropdb", ["--if-exists", DB_NAME]);
   run("createdb", [DB_NAME]);
+  // Supabase creates the anon and authenticated roles in every project, and
+  // 0028_request_agreements.sql revokes from them directly. A bare PostgreSQL
+  // (CI's postgres:17 service) has neither, so create them, only when missing
+  // and never with a login. Roles are cluster-wide; this runs over the same
+  // validated lane_test connection as every other statement. Earlier
+  // migrations guard their grants with IF EXISTS and are unaffected.
+  sql(["-c", "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$"]);
   sql([], baseline);
   // Do not let a hosted-project convenience trigger hide missing RLS in the
   // canonical migrations. Fresh databases must be protected by the SQL itself.
   sql(["-c", "DROP EVENT TRIGGER IF EXISTS ensure_rls"]);
-  sql(["-f", CLERK_CUTOVER_PATH]);
-  sql(["-f", CLERK_SAFEGUARDS_PATH]);
-  sql(["-f", PROJECTS_PATH]);
-  sql(["-f", EXPECTED_IMPACT_PATH]);
-  sql(["-f", REQUEST_CODES_PATH]);
-  sql(["-f", DESIGN_REVIEWS_PATH]);
-  sql(["-f", REQUEST_PRIORITY_PATH]);
-  sql(["-f", ATTACHMENT_CAPABILITIES_PATH]);
-  sql(["-f", OPTIONAL_IMPACT_SOURCE_PATH]);
-  sql(["-f", MEASUREMENT_PLAN_PATH]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0023_request_measurement_draft.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0024_workspace_labels.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0025_project_labels.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0026_guardrail_thresholds.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0027_measurement_value_units.sql")]);
-  sql(["-f", FIXTURES_PATH]);
-  sql(["-f", path.resolve(__dirname, "agreement-migration-fixtures.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0028_request_agreements.sql")]);
+  // Every migration from 0013, each after the fixtures it must find (migration-plan.ts).
+  for (const file of plan) sql(["-f", file]);
 
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0029_request_release.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0030_request_outcome_closure.sql")]);
-  sql(["-f", path.resolve(__dirname, "agreement-seat-fixtures.sql")]);
-  sql(["-f", path.resolve(__dirname, "../db/migrations/0031_simple_request_agreement.sql")]);
-
+  const migrations = plan.filter((file) => file.includes("/db/migrations/")).map((file) => path.basename(file, ".sql").slice(0, 4));
   console.log(
-    `[test-setup] ${DB_NAME} reset from canonical local prerequisites + Clerk cutover/safeguards + Projects/expected impact/Request codes/design reviews/priority migrations + test fixtures (not a hosted restore)`
+    `[test-setup] ${DB_NAME} reset from canonical local prerequisites + migrations ${migrations[0]}–${migrations.at(-1)} + test fixtures (not a hosted restore)`
   );
 }

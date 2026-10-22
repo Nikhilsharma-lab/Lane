@@ -9,7 +9,7 @@ import { WebVitals } from "@/components/web-vitals";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
 import "@/components/arc/foundation.css";
 import "./globals.css";
-// Supabase Studio visual values through Arc token hooks, shared with Storybook.
+// Supabase Studio visual values through Arc token hooks.
 // See docs/design-system/supabase-tokens.md for source and approved differences.
 import "@/styles/supabase-tokens.css";
 import "@/styles/lane-arc-theme.css";

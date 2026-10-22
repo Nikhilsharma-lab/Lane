@@ -9,6 +9,7 @@ import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, incompleteMeasurementSchema } from "@/lib/request-impact";
 import { verifyTriageToken } from "@/lib/triage-token";
+import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
@@ -48,15 +49,25 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const impactStorage = complete.success
                 ? { expectedImpact: complete.data, measurementDraft: null }
                 : { expectedImpact: null, measurementDraft: partial?.success ? partial.data : null };
+            // Changed wording needs a fresh review of this Request, which sets the
+            // classification and the suggested change. Unchanged wording keeps the
+            // stored judgement; its framing is the person's to reword, never to drop.
             let classification = stored.classification;
+            let shape = storedShape(stored);
+            let extractedSolution = changes.extractedSolution;
+            let missingProblem: string | undefined;
             if (stored.title !== changes.title || stored.description !== changes.description) {
                 const review = token ? verifyTriageToken(token, auth, requestId) : null;
                 if (!review?.valid || review.payload.title !== changes.title || review.payload.description !== changes.description)
                     return { error: "Review the changed title and description before saving." };
                 classification = review.payload.classification;
+                shape = framingShape(classification);
+                extractedSolution = review.payload.extractedSolution;
+                missingProblem = "Describe the problem before saving this Request.";
             }
-            if ((classification === "solution" || classification === "hybrid") && !changes.reframedProblem)
-                return { error: "Keep a confirmed problem framing for this Request." };
+            const saved = savedFraming(shape, { reframedProblem: changes.reframedProblem, extractedSolution }, missingProblem);
+            if (!saved.ok)
+                return { error: saved.message };
             // Empty controls represent existing nulls; an unrelated edit must
             // not rewrite historical context merely because the form uses strings.
             const preservedContext = Object.fromEntries(
@@ -66,7 +77,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             );
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
-            await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
+            await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
             return { success: true as const };
         });
         // The shared editor closes and announces success before refreshing.

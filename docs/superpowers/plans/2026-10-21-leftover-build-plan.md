@@ -59,6 +59,7 @@
 - Each item is its own PR to `main`, following the working rules of the earlier items: work in a worktree, never in the main checkout; no `.env.local` for builds; no new routes beyond `/terms`, no schema; Arc edits recorded; bundle measured against a same-version build of `origin/main`; an independent review; a `page-quality.md` row with sign-offs pending.
 
 ## Not in this plan
+- **Removed by Nikhil (2026-10-21):** Storybook itself, its stories, configs, mocks and CI workflow. The Storybook matrix item below no longer exists.
 - **Excluded by Nikhil:** the marketing landing page; the full Storybook matrix with visual compare and Linux baselines.
 - **Verification, not building:** production workspace isolation (J8a), invite auto-return, a real reset and email deliverability on production, D8 Supabase cleanup, the S1 boxes, weekly backups, launch QA (§7.1), pilot zero.
 - **Nikhil's sign-offs** for 2.0 to 2.11, the uptime monitor, and the Speed Insights dashboard toggle.

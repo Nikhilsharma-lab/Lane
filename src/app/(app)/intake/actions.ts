@@ -21,7 +21,8 @@ import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
 import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
+import { requestSchema, type RequestInput } from "@/lib/request-schema";
+import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -294,31 +295,19 @@ export async function saveRequest(
   }
 
   const payload = verification.payload;
-  const parsedEdit = editedProblemSchema.safeParse(data.editedProblemText);
-  if (!parsedEdit.success) {
+  // The classification and suggested change come from the signed review; only
+  // the problem to solve is the person's own words.
+  const saved = savedFraming(framingShape(payload.classification), {
+    reframedProblem: data.editedProblemText,
+    extractedSolution: payload.extractedSolution,
+  }, "Describe the problem before creating this Request.");
+  if (!saved.ok) {
     return {
       success: false,
-      error: {
-        code: "validation",
-        message: parsedEdit.error.issues[0].message,
-        field: "editedProblemText",
-      },
+      error: { code: "validation", message: saved.message, field: "editedProblemText" },
     };
   }
-
-  if (payload.classification !== "problem" && parsedEdit.data === null) {
-    return {
-      success: false,
-      error: {
-        code: "validation",
-        message: "Describe the problem before creating this Request.",
-        field: "editedProblemText",
-      },
-    };
-  }
-
-  const reframedProblem =
-    payload.classification === "problem" ? null : parsedEdit.data;
+  const { reframedProblem, extractedSolution } = saved.framing;
 
   const review = await reviewersForNewRequest(reviewerInput, auth);
   if ("code" in review) return { success: false, error: review };
@@ -347,7 +336,7 @@ export async function saveRequest(
         usefulLink: payload.usefulLink || null,
         classification: payload.classification,
         reframedProblem,
-        extractedSolution: payload.extractedSolution,
+        extractedSolution,
         status: "open",
         assignedTo: null,
         createdBy: auth.userId,

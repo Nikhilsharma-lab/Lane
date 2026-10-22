@@ -14,7 +14,6 @@ Open → In Progress → Done workflow without surveillance or role-specific das
 - `REQUIREMENTS.md` — behavioural requirements and decision status.
 - `lane-roadmap.md` — validated sequence and phase gates.
 - `DESIGN.md` — canonical product design authority: Arc UI only.
-- `DESIGN-NOTES.md` — current migration status and review boundaries.
 - `phase-0-ux-skeleton.md` — current journeys, screens, and states.
 - `conventions-plan.md` — Lane information architecture and interaction conventions.
 - `DEFERRED.md` — deliberate deferrals and their revisit triggers.
