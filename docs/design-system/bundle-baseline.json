@@ -4,8 +4,8 @@
   "toleranceBytes": 2048,
   "routes": {
     "/": {
-      "gzipBytes": 505836,
-      "uncompressedBytes": 1708025,
+      "gzipBytes": 510478,
+      "uncompressedBytes": 1717349,
       "chunks": 34
     },
     "/_not-found": {
@@ -19,9 +19,9 @@
       "chunks": 23
     },
     "/intake": {
-      "gzipBytes": 438521,
-      "uncompressedBytes": 1495897,
-      "chunks": 28
+      "gzipBytes": 447533,
+      "uncompressedBytes": 1520566,
+      "chunks": 29
     },
     "/login": {
       "gzipBytes": 311290,
@@ -29,8 +29,8 @@
       "chunks": 23
     },
     "/onboarding": {
-      "gzipBytes": 316639,
-      "uncompressedBytes": 1032236,
+      "gzipBytes": 317021,
+      "uncompressedBytes": 1033103,
       "chunks": 23
     },
     "/privacy": {
@@ -39,8 +39,8 @@
       "chunks": 20
     },
     "/requests/[id]": {
-      "gzipBytes": 503421,
-      "uncompressedBytes": 1702354,
+      "gzipBytes": 507808,
+      "uncompressedBytes": 1708115,
       "chunks": 34
     },
     "/reset-password": {
@@ -49,14 +49,14 @@
       "chunks": 23
     },
     "/settings/members": {
-      "gzipBytes": 468488,
-      "uncompressedBytes": 1588602,
-      "chunks": 30
+      "gzipBytes": 477700,
+      "uncompressedBytes": 1613610,
+      "chunks": 31
     },
     "/settings/profile": {
-      "gzipBytes": 468488,
-      "uncompressedBytes": 1588602,
-      "chunks": 30
+      "gzipBytes": 477700,
+      "uncompressedBytes": 1613610,
+      "chunks": 31
     },
     "/signup": {
       "gzipBytes": 305027,
