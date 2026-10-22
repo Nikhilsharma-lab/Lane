@@ -330,7 +330,7 @@ Updated 2026-10-18. This is the shared engineering handoff, not a new product sp
 
 | Work | Source / current record |
 | --- | --- |
-| Supabase tokens, shared icon/control enforcement and Arc adaptations | `docs/design-system/supabase-tokens.md`; plans dated October 16 and October 18 for global tokens, shared icons and control consistency |
+| The theme file (replaced the Supabase tokens 2026-10-22), shared icon/control enforcement and Arc adaptations | `docs/design-system/theme-file.md`; plans dated October 16 and October 18 for global tokens, shared icons and control consistency |
 | Shared app/Storybook sidebar configuration and Request presentation | Current shell/components and Storybook fixtures |
 | Request detail, measurement summaries, priorities and status controls | `docs/superpowers/plans/2026-10-16-request-detail-polish.md` and current components |
 | Creator editing of Open Requests | `docs/superpowers/plans/2026-10-18-edit-open-request.md` |
