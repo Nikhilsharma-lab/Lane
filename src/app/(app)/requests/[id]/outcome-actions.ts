@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { db, profiles, requests, requestAgreements, requestAgreementEvents } from '@/db';
+import { db, requests, requestAgreements, requestAgreementEvents } from '@/db';
 import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
@@ -12,13 +12,14 @@ import { seeable } from '@/lib/request-access';
 import { notifyReviewers } from '@/lib/request-reviewers';
 import { releaseMeasurement } from '@/lib/request-release';
 import { journeyStatus, requesterOf } from '@/lib/request-journey';
-import { allow, journeyActionsFor, personName } from '@/lib/request-journey-access';
-const JOURNEY_ACTION = { measured: 'close', exception: 'closeWithoutResult', correction: 'correctClosure' } as const;
+import { allow, journeyActionsFor, peopleNames, personName } from '@/lib/request-journey-access';
 import { agreedResult, correctableFields, guardrailHeld, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
+import { utcDay } from '@/lib/utc-day';
+/** Each closure change and the journey action that allows it. */
+const JOURNEY_ACTION = { measured: 'close', exception: 'closeWithoutResult', correction: 'correctClosure' } as const;
 /** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
 const requestContent = (r: typeof requests.$inferSelect) => ({ title: r.title, description: r.description, classification: r.classification, reframedProblem: r.reframedProblem, extractedSolution: r.extractedSolution, affectedPeople: r.affectedPeople, desiredChange: r.desiredChange, observedEvidence: r.observedEvidence, uncertainty: r.uncertainty, usefulLink: r.usefulLink, requestType: r.requestType, projectId: r.projectId, labelKeys: r.labelKeys, expectedImpact: r.expectedImpact });
-const utcToday = () => new Date().toISOString().slice(0, 10);
 export async function changeRequestOutcome(context: RequestChangeContext, input: unknown) {
     const parsed = outcomeChangeSchema.safeParse(input);
     if (!parsed.success) return { error: 'Check the result, evidence, dates and reason.' };
@@ -32,10 +33,10 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
             return previous ? { actorId: previous.actorId, fingerprint: previous.fingerprint, result: { success: true as const, revision: previous.revision } } : undefined;
         },
         apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
-            const ownerId = requesterOf(request);
+            const requesterId = requesterOf(request);
             // Closing, closing without a result and corrections stay with the Requester.
             const now = new Date();
-            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, ownerId), now);
+            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, requesterId), now);
             allow(actions[JOURNEY_ACTION[change.kind]]);
             const closedAt = now.toISOString();
             if (change.kind === 'correction') {
@@ -51,9 +52,9 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 const agreed = agreedResult(expected);
                 insist(change.primary.kind === agreed.form, agreed.form === 'numeric' ? 'Record the actual value.' : 'Record whether the check passed.');
                 insist(change.guardrails.length === agreed.guardrails.length, 'Record an actual value for every agreed guardrail.');
-                insist(change.observedFrom <= change.observedTo && change.observedTo <= utcToday(), 'Observation period must end today or earlier and start before it ends.');
+                insist(change.observedFrom <= change.observedTo && change.observedTo <= utcDay(), 'Observation period must end today or earlier and start before it ends.');
                 const closure: OutcomeClosure = {
-                    version: 1, kind: 'measured', actorId: auth.userId, ownerId, closedAt, operationId: context.operationId, fingerprint,
+                    version: 1, kind: 'measured', actorId: auth.userId, ownerId: requesterId, closedAt, operationId: context.operationId, fingerprint,
                     expected, release,
                     primary: change.primary.kind === 'numeric' ? { kind: 'numeric', actual: change.primary.actual, unit: agreed.unit } : change.primary,
                     guardrails: agreed.guardrails.map((g, i) => ({ ...g, actual: change.guardrails[i] })),
@@ -62,7 +63,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 return { set: { outcomeClosure: closure } };
             }
             insist(change.reasonCode !== 'other' || change.reason, 'Say why this is closing without a result.');
-            const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId, closedAt, operationId: context.operationId, fingerprint, release, revision };
+            const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId: requesterId, closedAt, operationId: context.operationId, fingerprint, release, revision };
             return { set: { exceptionClosure: closure } };
         },
     });
@@ -123,9 +124,7 @@ export async function readRequestOutcome(requestId: string, context: {
             }
             catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
         // Live names first, as the actions' reasons use; saved profile names cover departed people and guests.
-        const ids = [...new Set([requesterId, ...(closure ? [closure.actorId] : []), ...request.closureCorrections.map(c => c.actorId)])];
-        const saved = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
-        const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, roster?.find(p => p.nominee.kind === 'member' && p.nominee.userId === id)?.name ?? saved.find(p => p.id === id)?.name ?? 'Former member']));
+        const names = await peopleNames(db, roster, [requesterId, ...(closure ? [closure.actorId] : []), ...request.closureCorrections.map(c => c.actorId)]);
         const now = new Date();
         const measurement = releaseMeasurement(release, now);
         // Every journey action with its reason, from the same rules the actions refuse with.

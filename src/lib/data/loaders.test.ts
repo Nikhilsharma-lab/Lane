@@ -26,7 +26,7 @@ import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
 import { loadProjects } from "./projects";
 import { loadUnreadCount } from "./notifications";
-import { DONE_PAGE_SIZE, loadOlderDoneRequests, loadRequestDetail, loadRequestList } from "./requests";
+import { DONE_PAGE_SIZE, loadOlderFinishedRequests, loadRequestDetail, loadRequestList } from "./requests";
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview";
 
 const ORG = "org_test_a", OTHER_ORG = "org_test_b";
@@ -206,42 +206,42 @@ describe("loadRequestList", () => {
   });
 
   it("loads every active status but only the latest page of Done, leaving status and Project to the browser (plan item 1.7)", async () => {
-    const { rows, activeCapped, hasOlderDone } = await loadRequestList(member);
+    const { rows, activeCapped, hasOlderFinished } = await loadRequestList(member);
     const done = rows.filter(row => row.status === "done").map(row => row.id);
     expect(done).toHaveLength(DONE_PAGE_SIZE);
     expect(done).toEqual(expect.arrayContaining(doneRequests.slice(2)));
     expect(done).not.toContain(doneRequests[0]);
     expect(done).not.toContain(foreignDone);
-    expect(hasOlderDone).toBe(true);
+    expect(hasOlderFinished).toBe(true);
     expect(activeCapped).toBe(false);
     expect(rows.map(row => row.status)).toEqual(expect.arrayContaining(["open", "in_progress", "done"]));
     expect(rows.map(row => row.projectId)).toEqual(expect.arrayContaining([memberProject, null]));
   });
 
   it("pages older Done Requests from the oldest one shown, in one statement and inside the workspace", async () => {
-    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(member, doneRequests[2]));
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(member, doneRequests[2]));
     expect(statements).toBeLessThanOrEqual(1);
     expect(result.rows.map(row => row.id).slice(0, 2)).toEqual([doneRequests[1], doneRequests[0]]);
     expect(result.rows.every(row => row.status === "done")).toBe(true);
-    expect(result.hasOlderDone).toBe(false);
+    expect(result.hasOlderFinished).toBe(false);
     // Another workspace's cursor, a guest's view and a malformed id read nothing.
-    expect((await loadOlderDoneRequests(admin, foreignDone)).rows).toEqual([]);
-    expect((await loadOlderDoneRequests(guest, doneRequests[2])).rows).toEqual([]);
-    const malformed = await queryCounter.measure(() => loadOlderDoneRequests(member, "not-a-uuid"));
+    expect((await loadOlderFinishedRequests(admin, foreignDone)).rows).toEqual([]);
+    expect((await loadOlderFinishedRequests(guest, doneRequests[2])).rows).toEqual([]);
+    const malformed = await queryCounter.measure(() => loadOlderFinishedRequests(member, "not-a-uuid"));
     expect(malformed.statements).toBe(0);
-    expect(malformed.result).toEqual({ rows: [], hasOlderDone: false });
+    expect(malformed.result).toEqual({ rows: [], hasOlderFinished: false });
   });
 
   it("does not use a hidden Request as a guest pagination cursor", async () => {
     // Both guest rows predate the hidden member cursor. Without cursor visibility,
     // the hidden UUID reveals itself by returning these otherwise authorized rows.
     for (const cursorId of [doneRequests[2], foreignDone, randomUUID()]) {
-      expect(await loadOlderDoneRequests(guest, cursorId)).toEqual({ rows: [], hasOlderDone: false });
+      expect(await loadOlderFinishedRequests(guest, cursorId)).toEqual({ rows: [], hasOlderFinished: false });
     }
-    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(guest, guestDone[1]));
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(guest, guestDone[1]));
     expect(statements).toBeLessThanOrEqual(1);
     expect(result.rows.map(row => row.id)).toEqual([guestDone[0]]);
-    expect(result.hasOlderDone).toBe(false);
+    expect(result.hasOlderFinished).toBe(false);
   });
 });
 
@@ -249,8 +249,8 @@ describe("status views in the database (#133)", () => {
   const journeyOf = (rows: OverviewRequest[]) => rows.map(row => rowJourney(row).label);
   const ids = (rows: { id: string }[]) => rows.map(row => row.id);
 
-  const page = async (view: Parameters<typeof loadOlderDoneRequests>[2]) => {
-    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(journeyMember, journeyRequests.newestDone, view, journeyNow));
+  const page = async (view: Parameters<typeof loadOlderFinishedRequests>[2]) => {
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(journeyMember, journeyRequests.newestDone, view, journeyNow));
     expect(statements).toBeLessThanOrEqual(1);
     return result.rows.map(row => ({ ...row, createdAt: row.createdAt.toISOString() }));
   };
@@ -278,7 +278,7 @@ describe("status views in the database (#133)", () => {
 
   it("keeps the guest guard on every status view", async () => {
     for (const view of ["done", "measuring", "closed", "due"] as const) {
-      const { rows } = await loadOlderDoneRequests(guest, guestDone[1], view, journeyNow);
+      const { rows } = await loadOlderFinishedRequests(guest, guestDone[1], view, journeyNow);
       expect(ids(rows).every(id => id === guestDone[0])).toBe(true);
     }
   });

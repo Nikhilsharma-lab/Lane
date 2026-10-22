@@ -1,5 +1,5 @@
 import { requestLabelKeys } from "./request-labels"
-import { JOURNEY_STATUSES, dueSignal, journeyStatus, type DueSignal, type Journey, type JourneyFacts } from "./request-journey"
+import { JOURNEY_STATUSES, dueSignal, journeyFactsOf, journeyStatus, type DueSignal, type Journey, type SavedClosure } from "./request-journey"
 import type { ReleaseState } from "./request-release"
 import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
@@ -30,20 +30,18 @@ export type OverviewRequest = {
   priority?: RequestPriority
   /** The journey facts (#133): the release record and the closures. Absent means none saved. */
   releaseState?: ReleaseState | null
-  outcomeClosure?: unknown
-  exceptionClosure?: unknown
+  outcomeClosure?: SavedClosure | null
+  exceptionClosure?: SavedClosure | null
 }
-
-const journeyFacts = (row: OverviewRequest): JourneyFacts => ({ status: row.status, releaseState: row.releaseState ?? null, outcomeClosure: row.outcomeClosure ?? null, exceptionClosure: row.exceptionClosure ?? null })
 
 /** A row's one status, read through the journey module: Open, In progress, Done, Measuring or Closed. */
 export function rowJourney(row: OverviewRequest): Journey {
-  return journeyStatus(journeyFacts(row))
+  return journeyStatus(journeyFactsOf(row))
 }
 
 /** A row's due tag on `now`'s UTC date: "Due in N days", "Due today", "Overdue N days" or none. */
 export function rowDue(row: OverviewRequest, now: Date): DueSignal {
-  return dueSignal(journeyFacts(row), now)
+  return dueSignal(journeyFactsOf(row), now)
 }
 
 export type RequestSort = "newest" | "oldest" | "title"
@@ -67,23 +65,26 @@ export function sortRequestRows(rows: OverviewRequest[], order: RequestOrdering)
 }
 
 /** Group identity comes from IDs, never a person's or Project's display name.
- * Grouped by status, the list is the board: one column per journey status (#133). */
+ * Grouped by status, the list is the board: one column per journey status, in journey order,
+ * empty ones included (#127 story 6). */
 export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGrouping): RequestRowGroup[] {
   if (grouping === "none") return [{ key: "all", label: "Requests", rows }]
+  if (grouping === "status") {
+    const columns = JOURNEY_STATUSES.map(({ status, label }) => ({ key: `status:${status}`, label, rows: [] as OverviewRequest[] }))
+    for (const row of rows) columns[journeyOrder(row)].rows.push(row)
+    return columns
+  }
   const groups = new Map<string, RequestRowGroup>()
   for (const row of rows) {
-    const step = grouping === "status" ? JOURNEY_STATUSES[journeyOrder(row)] : null
-    const identity = step ? step.status : grouping === "project" ? row.projectId ?? "none" : row.assignedTo ?? "none"
+    const identity = grouping === "project" ? row.projectId ?? "none" : row.assignedTo ?? "none"
     const key = `${grouping}:${identity}`
-    const label = step ? step.label
-      : grouping === "project" ? row.projectId ? row.projectName ?? "Unavailable Project" : "No Project"
+    const label = grouping === "project" ? row.projectId ? row.projectName ?? "Unavailable Project" : "No Project"
       : row.assignedTo ? row.assigneeName ?? "Unknown member" : "Unassigned"
     const group = groups.get(key) ?? { key, label, rows: [] }
     group.rows.push(row)
     groups.set(key, group)
   }
   return [...groups.values()].sort((a, b) => {
-    if (grouping === "status") return journeyOrder(a.rows[0]) - journeyOrder(b.rows[0])
     if (a.key === `${grouping}:none`) return 1
     if (b.key === `${grouping}:none`) return -1
     return compareText(a.label, b.label) || compareText(a.key, b.key)

@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { db, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { seeable } from "@/lib/request-access";
 import { remindersDue } from "@/lib/request-journey";
+import { journeyStatusCondition, requesterColumn } from "@/lib/request-journey-sql";
 
 /**
  * #127 / #136: bell reminders are written when a member's bell count loads, not by a scheduled job.
@@ -20,9 +21,8 @@ import { remindersDue } from "@/lib/request-journey";
 export async function writeDueReminders(auth: MemberAuth, now: Date = new Date()): Promise<void> {
   if (auth.role === "guest") return;
 
-  // Only Done work can owe a reminder (Measuring is Done with a release). Closure is excluded here too;
-  // remindersDue decides the rest.
-  const requester = sql`coalesce(${requests.releaseState}->>'ownerId', ${requests.createdBy})`;
+  // Only Done and Measuring Requests can owe a reminder, and only to their assignee or Requester; the
+  // journey module's own conditions say which those are, and remindersDue decides the rest.
   const candidates = await db
     .select({
       id: requests.id,
@@ -38,10 +38,8 @@ export async function writeDueReminders(auth: MemberAuth, now: Date = new Date()
     .where(
       and(
         seeable(auth),
-        eq(requests.status, "done"),
-        isNull(requests.outcomeClosure),
-        isNull(requests.exceptionClosure),
-        or(eq(requests.assignedTo, auth.userId), sql`${requester} = ${auth.userId}`)
+        or(journeyStatusCondition("done"), journeyStatusCondition("measuring")),
+        or(eq(requests.assignedTo, auth.userId), eq(requesterColumn, auth.userId))
       )
     );
 

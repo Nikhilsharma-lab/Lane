@@ -9,7 +9,7 @@ import type { DueSignal } from "@/lib/request-journey"
  * The due tag (#133): "Due in N days", "Due today" or "Overdue N days" for a Measuring Request whose
  * result is due soon, today or overdue (`dueSignal` in request-journey.ts), and nothing otherwise.
  * Always words, and always the warning tone: overdue is neutral, never an error or danger tone.
- * Used by the list row, the board, the peek and the Request page.
+ * Used by the list row, the board and the peek. The full Request page has none: its timeline counts down (#127).
  */
 export function DueTag({ signal, ...props }: { signal: DueSignal } & HTMLAttributes<HTMLSpanElement>) {
   if (signal.kind === "none") return null

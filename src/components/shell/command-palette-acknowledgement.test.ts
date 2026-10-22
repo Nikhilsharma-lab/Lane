@@ -103,7 +103,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     await Promise.resolve()
     expect(a.asked()).toBeNull()
     expect(a.shown()).toMatchObject({ status: "in_progress" })
-    expect(a.said).toEqual(["Picked up. The Request is now In Progress."])
+    expect(a.said).toEqual(["Picked up. The Request is now In progress."])
     const call = await a.sent(0)
     expect(call.name).toBe("pickUpRequest")
     call.reject(new Error("offline"))
@@ -145,7 +145,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     expect(a.said).toEqual([])
   })
 
-  it("Mark Done shows Done and its Marked Done toast in the same tick, and reverts to In Progress if it fails", async () => {
+  it("Mark Done shows Done and its Marked Done toast in the same tick, and reverts to In progress if it fails", async () => {
     const a = app({ status: "in_progress" })
     a.run("mark-done")
     expect(a.shown()).toMatchObject({ status: "done" })
@@ -157,7 +157,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     expect(a.undoStore.get()).toBeNull()
   })
 
-  it("Undo Mark Done runs the toast's own Undo: Undoing in place, then Back In Progress", async () => {
+  it("Undo Mark Done runs the toast's own Undo: Undoing in place, then Back to In progress", async () => {
     const a = app({ status: "in_progress" })
     a.run("mark-done")
     ;(await a.sent(0)).resolve({ success: true })
@@ -169,7 +169,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     const undo = await a.sent(1)
     expect(undo.name).toBe("undoMarkDone")
     undo.resolve({ success: true })
-    await vi.waitFor(() => expect(a.toasts[0]).toMatchObject({ type: "success", title: "Back In Progress" }))
+    await vi.waitFor(() => expect(a.toasts[0]).toMatchObject({ type: "success", title: "Back to In progress" }))
     expect(a.toasts).toHaveLength(1)
   })
 

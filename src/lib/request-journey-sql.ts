@@ -1,6 +1,6 @@
 /**
  * The journey module's database half: the SQL condition for each journey status and for "Due soon or overdue",
- * so list filters run in the database. These are the only status conditions in Lane; never write another.
+ * plus the Requester and "Closed without a result" reads, so list filters, search and bell reminders run in the database. These are the only status conditions in Lane; never write another.
  * `request-journey-sql.test.ts` proves each one selects exactly the Requests `journeyStatus` / `dueSignal`
  * put there. Server-only (it pulls in the Drizzle schema); the pure mapping is `request-journey.ts`.
  *
@@ -9,6 +9,7 @@
 import { and, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm"
 import { requests } from "@/db/schema/requests"
 import { DUE_SOON_DAYS, type JourneyStatus } from "./request-journey"
+import { utcDay } from "./utc-day"
 
 // A voided release is stored as JSON null, so "released" means the release is an object.
 const released = sql`jsonb_typeof(${requests.releaseState}->'release') = 'object'`
@@ -36,8 +37,14 @@ export const journeyStatusColumn = sql<JourneyStatus>`case
   when ${journeyStatusCondition("in_progress")} then 'in_progress'
   else 'open' end`
 
+/** Closed without a result, as `journeyStatus` reads it: a no-result closure and no measured one. */
+export const closedWithoutResultCondition: SQL = and(isNull(requests.outcomeClosure), isNotNull(requests.exceptionClosure))!
+
+/** Each Request's current Requester as a column: the database twin of `requesterOf` (the release record's, else the creator). */
+export const requesterColumn = sql<string>`coalesce(${requests.releaseState}->>'ownerId', ${requests.createdBy})`
+
 /** Measuring Requests due within `DUE_SOON_DAYS`, due today or overdue, on `now`'s UTC date (the row tag's rule). */
 export function dueSoonOrOverdueCondition(now: Date): SQL {
-  const today = now.toISOString().slice(0, 10)
+  const today = utcDay(now)
   return and(measuring, sql`(${requests.releaseState}->'release'->>'dueDate')::date <= ${today}::date + ${DUE_SOON_DAYS}::integer`)!
 }

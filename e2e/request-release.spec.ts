@@ -31,8 +31,9 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       await expect(journeyStep(page, 'Done', 'finished')).toContainText('Marked Done on ');
       const measuring = journeyStep(page, 'Measuring', 'current step');
       await expect(measuring).toContainText(`Released to `);
-      await expect(measuring.getByRole('status')).toHaveText(/^Result due .+ · 3 days remaining$/);
-      await expect(page.locator('[data-due="due_soon"]:visible').first()).toHaveText('Due in 3 days');
+      await expect(measuring.getByRole('status')).toHaveText(/^Result due .+ · Due in 3 days$/);
+      // The countdown is in one place on the Request page: the Measuring step, not a due tag by the status.
+      await expect(page.locator('[data-detail-status] [data-due]')).toHaveCount(0);
       // The list row carries the same due tag, in words, and is found under Due soon or overdue.
       await page.goto('/?status=due');
       const row = page.locator(`[role=row][data-request-id="${request.id}"]`);
@@ -46,7 +47,7 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       await release.getByRole('button', { name: 'Save correction' }).click();
       await page.reload();
       await expect(release.getByText('Evidence: Staging acceptance: corrected exposure log link', { exact: true })).toBeVisible();
-      await expect(release.getByText(/· 3 days remaining$/)).toBeVisible();
+      await expect(release.getByText(/· Due in 3 days$/)).toBeVisible();
       expect(await page.locator('[data-detail-priority]').count()).toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await testInfo.attach(`release-${width}-${colorScheme}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
@@ -62,6 +63,6 @@ test('Is it live? records the release; the timeline, due tag, correction and han
     await panel.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
     await panel.getByRole('button', { name: 'Hand over' }).click();
     await admin.reload(); await expect(panel).toContainText('Requester: Review Developer');
-    await expect(panel.getByText(/· 3 days remaining$/)).toBeVisible();
+    await expect(panel.getByText(/· Due in 3 days$/)).toBeVisible();
   } finally { await team.close(testInfo); }
 });

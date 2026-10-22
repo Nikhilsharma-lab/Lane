@@ -21,7 +21,7 @@ import { Button } from "@/components/arc/button/button"
 import { ContextMenu, type ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
-import { statusOf } from "./tasks/statuses"
+import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestPeekOpener } from "./request-peek"
@@ -131,7 +131,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   ] : []
   // #133: the one journey status and, while Measuring, the due tag (the row's name reads both).
   const journey = rowJourney(request)
-  const status = { ...statusOf(journey.status), label: journey.label }
+  const status = statusOfJourney(journey)
   const now = useDueNow()
   const due = rowDue(request, now)
   // #77: open concerns from saved reviews, on Open rows only. The row's name already reads it, so the marker is not read twice.

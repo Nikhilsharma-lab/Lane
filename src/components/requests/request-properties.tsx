@@ -7,7 +7,7 @@ import { Avatar } from "@/components/arc/avatar/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { RequestLabels, useRequestLabels } from "./request-labels"
-import { statusOf } from "./tasks/statuses"
+import { statusOfJourney } from "./tasks/statuses"
 import { projectToneForId } from "@/lib/project-tone"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import styles from "./request-rows.module.css"
@@ -29,7 +29,7 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
   // The setter only: a filter keystroke, a page or a collapse must not re-render every row's pills (plan item 1.14).
   const setListView = useSetRequestListView()
   const journey = rowJourney(request)
-  const status = { ...statusOf(journey.status), label: journey.label }
+  const status = statusOfJourney(journey)
   // The viewer's day once in the browser; the server and the hydrating render share the zone-free label (critique 2.4).
   const submitted = useInBrowser() ? localDayLabel(request.createdAt) : utcDayLabel(request.createdAt)
   const pickerName = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : "Unassigned"

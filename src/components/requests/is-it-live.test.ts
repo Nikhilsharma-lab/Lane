@@ -111,7 +111,7 @@ describe("Is it live? after Mark Done (#135)", () => {
     a.toasts[0].action!.onClick(a.toasts[0].id)
     await a.flush()
     expect(a.calls).toEqual(["markDone", "undoMarkDone"])
-    expect(a.toasts[0]).toMatchObject({ title: "Back In Progress", description: "LAN-12 is In Progress again." })
+    expect(a.toasts[0]).toMatchObject({ title: "Back to In progress", description: "LAN-12 is In progress again." })
   })
 
   it("going back from the release form is Not yet: Undo Done still works", async () => {

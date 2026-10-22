@@ -11,6 +11,7 @@ import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { journeyStatus } from "@/lib/request-journey"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
+import type { FinishedView } from "@/lib/request-workspace"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -24,16 +25,14 @@ import type { RequestAttachment, RequestComment, RequestDetail } from "@/compone
  * (decision 8.18 default; #133). Project, group, sort and the in-list filter then
  * run in the browser with no network request. A finished status view (Done,
  * Measuring, Closed, Due soon or overdue) pages further back through
- * loadOlderDoneRequests with the journey module's database condition, so it is
+ * loadOlderFinishedRequests with the journey module's database condition, so it is
  * never limited to the newest page.
  */
 export const MAX_REQUESTS_QUERY = 200
 export const DONE_PAGE_SIZE = 50
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** The status views that page from the database: every finished Request, or one finished view (#133). */
-export const FINISHED_VIEWS = ["all", "done", "measuring", "closed", "due"] as const
-export type FinishedView = (typeof FINISHED_VIEWS)[number]
+export { FINISHED_VIEWS, type FinishedView } from "@/lib/request-workspace"
 
 const active = or(journeyStatusCondition("open"), journeyStatusCondition("in_progress"))!
 const finished = or(journeyStatusCondition("done"), journeyStatusCondition("measuring"), journeyStatusCondition("closed"))!
@@ -74,7 +73,7 @@ export type RequestList = {
   /** More Open and In progress Requests exist than MAX_REQUESTS_QUERY. */
   activeCapped: boolean
   /** Finished Requests (Done, Measuring, Closed) older than the loaded ones exist. */
-  hasOlderDone: boolean
+  hasOlderFinished: boolean
 }
 
 export type RequestDetailData = {
@@ -136,7 +135,7 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
   return {
     rows: [...working.slice(0, MAX_REQUESTS_QUERY), ...done.slice(0, DONE_PAGE_SIZE)],
     activeCapped: working.length > MAX_REQUESTS_QUERY,
-    hasOlderDone: done.length > DONE_PAGE_SIZE,
+    hasOlderFinished: done.length > DONE_PAGE_SIZE,
   }
 }
 
@@ -147,9 +146,9 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
  * under the same workspace and guest visibility rules, so its database
  * timestamp is compared at full precision and an invisible id yields no rows.
  */
-export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string, view: FinishedView = "all", now: Date = new Date()): Promise<{ rows: RequestListRow[]; hasOlderDone: boolean }> {
-  if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderDone: false }
-  const cursor = alias(requests, "older_done_cursor")
+export async function loadOlderFinishedRequests(auth: MemberAuth, beforeId: string, view: FinishedView = "all", now: Date = new Date()): Promise<{ rows: RequestListRow[]; hasOlderFinished: boolean }> {
+  if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderFinished: false }
+  const cursor = alias(requests, "older_finished_cursor")
   const rows = await toListRows(auth, await listRows(
     auth,
     and(
@@ -161,7 +160,7 @@ export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string, 
     )!,
     DONE_PAGE_SIZE + 1,
   ))
-  return { rows: rows.slice(0, DONE_PAGE_SIZE), hasOlderDone: rows.length > DONE_PAGE_SIZE }
+  return { rows: rows.slice(0, DONE_PAGE_SIZE), hasOlderFinished: rows.length > DONE_PAGE_SIZE }
 }
 
 /**

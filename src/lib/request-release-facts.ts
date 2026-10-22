@@ -4,18 +4,25 @@
  * beside the change schemas the server validates with.
  */
 import type { ReleaseFact, ReleaseState } from './request-release';
+import { daysUntil } from './utc-day';
 
-/** Shared owner contract for release and ticket #60 closure. Authorship never changes. */
-export function releaseOwner(request: {
+/** The current Requester: the release record's, after any handover, else whoever created the Request. Authorship never changes. */
+export function requesterOf(request: {
     createdBy: string;
     releaseState?: ReleaseState | null;
-}) {
+}): string {
     return request.releaseState?.ownerId ?? request.createdBy;
 }
+
+const plural = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+/** The words for whole UTC days to (or past) a due date: "Due in N days", "Due today" or "Overdue N days". */
+export function dueWords(days: number): string {
+    return days === 0 ? 'Due today' : days > 0 ? `Due in ${plural(days)}` : `Overdue ${plural(-days)}`;
+}
+
 export function releaseMeasurement(release: ReleaseFact | null, now: Date) {
     if (!release)
         return null;
-    const today = now.toISOString().slice(0, 10);
-    const days = Math.round((Date.parse(release.dueDate + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
-    return { due: days <= 0, days, label: days === 0 ? 'Due today' : days > 0 ? `${days} day${days === 1 ? '' : 's'} remaining` : `${-days} day${days === -1 ? '' : 's'} overdue` };
+    const days = daysUntil(release.dueDate, now);
+    return { due: days <= 0, days, label: dueWords(days) };
 }

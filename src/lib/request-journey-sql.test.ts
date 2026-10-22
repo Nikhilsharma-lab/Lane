@@ -3,8 +3,8 @@ import postgres from "postgres"
 import { and, eq } from "drizzle-orm"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { db, requests } from "@/db"
-import { JOURNEY_STATUSES, dueSignal, journeyStatus } from "./request-journey"
-import { dueSoonOrOverdueCondition, journeyStatusColumn, journeyStatusCondition } from "./request-journey-sql"
+import { JOURNEY_STATUSES, dueSignal, journeyStatus, requesterOf } from "./request-journey"
+import { closedWithoutResultCondition, dueSoonOrOverdueCondition, journeyStatusColumn, journeyStatusCondition, requesterColumn } from "./request-journey-sql"
 import type { ReleaseFact } from "./request-release"
 
 const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false })
@@ -70,4 +70,17 @@ it("the Due soon or overdue condition selects exactly the Requests with a due ta
   const expected = all.filter(r => dueSignal(r, today).kind !== "none")
   expect(titles(expected)).toEqual(["Measuring, due in 3 days", "Measuring, due today", "Measuring, overdue 8 days"])
   expect(titles(await db.select({ title: requests.title }).from(requests).where(and(inOrg, dueSoonOrOverdueCondition(today))))).toEqual(titles(expected))
+})
+
+it("the Requester column names each Request's Requester as requesterOf does (bell reminders)", async () => {
+  const rows = await db.select({ title: requests.title, column: requesterColumn, createdBy: requests.createdBy, releaseState: requests.releaseState }).from(requests).where(inOrg)
+  expect(rows.find(row => row.title === "In progress, handed over")!.column).toBe("journey_next")
+  for (const row of rows) expect([row.title, row.column]).toEqual([row.title, requesterOf(row)])
+})
+
+it("the closed-without-a-result condition selects exactly the Requests the mapping reads that way (search)", async () => {
+  const all = await db.select().from(requests).where(inOrg)
+  const expected = all.filter(r => journeyStatus(r).withoutResult)
+  expect(expected.length).toBeGreaterThan(0)
+  expect(titles(await db.select({ title: requests.title }).from(requests).where(and(inOrg, closedWithoutResultCondition)))).toEqual(titles(expected))
 })

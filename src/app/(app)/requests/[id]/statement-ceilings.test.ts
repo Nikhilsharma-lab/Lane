@@ -119,7 +119,7 @@ describe("statement ceilings per Request mutation", () => {
   it("a markDone on an Open Request fails within the transaction budget", async () => {
     const { markDone } = await api();
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));
-    expect(result).toEqual({ error: "This Request is no longer In Progress. Refresh to see its current state." });
+    expect(result).toEqual({ error: "This Request is no longer In progress. Refresh to see its current state." });
     expect(statements).toBeLessThanOrEqual(7);
   });
 });
@@ -163,7 +163,7 @@ describe("statement ceilings per bulk Request mutation", () => {
     expect([...result.moved].sort()).toEqual(ids.slice(0, 2).sort());
     expect(result.failed).toEqual([
       { id: "not-a-uuid", error: "Not found" },
-      { id: ids[2], error: "This Request is no longer In Progress. Refresh to see its current state." },
+      { id: ids[2], error: "This Request is no longer In progress. Refresh to see its current state." },
     ]);
     expect(statements).toBeLessThanOrEqual(7);
   });

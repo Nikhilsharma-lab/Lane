@@ -71,7 +71,7 @@ describe("the undoable Mark Done (#103)", () => {
 
   it("does not take a toast that has moved on (Undoing, a failure) or another Request's for it", () => {
     const { store } = markDone()
-    store.settle("Loading: Undoing LAN-12 is moving back to In Progress.")
+    store.settle("Loading: Undoing LAN-12 is moving back to In progress.")
     expect(store.get()).toBeNull()
     markDone(store)
     store.settle("Success: Marked Done LAN-13 is now Done. Undo")

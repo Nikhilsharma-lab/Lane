@@ -36,6 +36,14 @@ describe("The journey in the list (#133)", () => {
     expect(groups.find(group => group.label === "Closed")!.rows.map(row => row.id).sort()).toEqual(["closed", "gave-up"])
     expect(sortRequestRows([...journey].reverse(), "status").map(row => row.id).slice(0, 4)).toEqual(["open", "building", "done", "late"])
   })
+
+  it("keeps a column for every journey status, empty ones included", () => {
+    const groups = groupRequestRows([journey[0]], "status")
+    expect(groups.map(group => [group.key, group.label, group.rows.length])).toEqual([
+      ["status:open", "Open", 1], ["status:in_progress", "In progress", 0], ["status:done", "Done", 0], ["status:measuring", "Measuring", 0], ["status:closed", "Closed", 0],
+    ])
+    expect(groupRequestRows([], "status")).toHaveLength(5)
+  })
 })
 
 const requests: OverviewRequest[] = [
@@ -91,7 +99,7 @@ describe("Request row grouping and order", () => {
     const tied = [{ ...requests[0], id: "z" }, { ...requests[0], id: "a" }]
     expect(sortRequestRows(tied, "newest").map(row => row.id)).toEqual(["a", "z"])
     expect(sortRequestRows(tied, "title_desc").map(row => row.id)).toEqual(["a", "z"])
-    expect(groupRequestRows([requests[2], requests[0], requests[1]], "status").map(group => group.label)).toEqual(["Open", "In progress", "Done"])
+    expect(groupRequestRows([requests[2], requests[0], requests[1]], "status").map(group => group.label)).toEqual(["Open", "In progress", "Done", "Measuring", "Closed"])
   })
   it("keeps every grouped Request across page boundaries and preserves the input", () => {
     const rows = [requests[2], requests[0], requests[1], { ...requests[0], id: "d" }]

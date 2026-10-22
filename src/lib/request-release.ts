@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ExpectedImpact } from './request-impact';
+import { utcDay } from './utc-day';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
 const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true) };
@@ -37,7 +38,7 @@ export type ReleaseState = {
     history: ReleaseEvent[];
 };
 // The zod-free reads live apart so the list, the shell and the journey module load without zod (#133).
-export { releaseMeasurement, releaseOwner } from './request-release-facts';
+export { dueWords, releaseMeasurement, requesterOf } from './request-release-facts';
 export function releaseWindow(impact: ExpectedImpact | null, exposureDate: string): Pick<ReleaseFact, 'dueDate' | 'startDate' | 'windowKind'> {
     if (!impact)
         throw new Error('A complete agreed measurement window is required.');
@@ -49,9 +50,9 @@ export function releaseWindow(impact: ExpectedImpact | null, exposureDate: strin
         throw new Error('A complete agreed measurement window is required.');
     const date = new Date(exposureDate + 'T00:00:00.000Z');
     date.setUTCDate(date.getUTCDate() + days);
-    return { startDate: exposureDate, dueDate: date.toISOString().slice(0, 10), windowKind: 'relative' };
+    return { startDate: exposureDate, dueDate: utcDay(date), windowKind: 'relative' };
 }
 /** Exposure cannot predate the Request itself (UTC date). */
 export function earliestExposure(request: { createdAt: Date }) {
-    return request.createdAt.toISOString().slice(0, 10);
+    return utcDay(request.createdAt);
 }

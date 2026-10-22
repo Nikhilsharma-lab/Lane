@@ -74,7 +74,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
   // Undo is sent only after the Done move it reverses has succeeded.
   const undo = async (toastId: string, requestId: string, name: string) => {
     undone.add(toastId)
-    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In Progress.`, action: undefined })
+    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In progress.`, action: undefined })
     const outcome = await optimistic({
       id: requestId,
       patch: { kind: "undo", status: "in_progress" },
@@ -83,7 +83,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       onError: description => { toast({ id: toastId, type: "error", title: "Could not undo", description }) },
     })
     if (outcome.status !== "success") return
-    toast({ id: toastId, type: "success", title: "Back In Progress", description: `${name} is In Progress again.` })
+    toast({ id: toastId, type: "success", title: "Back to In progress", description: `${name} is In progress again.` })
     afterMove?.(requestId, name)
   }
 
@@ -96,7 +96,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     // Done leaves the working views, so its confirmation carries the way back; the palette's Undo runs the same one (#103).
     const toastId = kind === "done" ? showMarkedDone(toast, request, undo, undoStore) : null
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
-    if (kind === "pick-up") announce("Picked up. The Request is now In Progress.", { key: "row-change" })
+    if (kind === "pick-up") announce("Picked up. The Request is now In progress.", { key: "row-change" })
     const describe = (message: string, thrown: boolean) => thrown && networkError ? networkError : message
     const outcome = optimistic({
       id: request.id,

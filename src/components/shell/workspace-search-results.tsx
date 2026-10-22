@@ -26,18 +26,17 @@ import { LocalTime, calendarDayLabel } from "@/components/requests/local-time";
 import { RequestLabels, LabelDot } from "@/components/requests/request-labels";
 import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { ProjectMarker } from "@/components/projects/project-marker";
-import { statuses, statusOf } from "@/components/requests/tasks/statuses";
+import { statuses, statusOf, statusOfJourney } from "@/components/requests/tasks/statuses";
+import { journeyOf } from "@/lib/request-journey";
 
-/** A result's journey status (#133), with "Closed without a result" for a no-result closure. */
-const resultStatus = (item: WorkspaceSearchRequest) => {
-  const status = statusOf(item.status);
-  return item.withoutResult && item.status === "closed" ? { ...status, label: "Closed without a result" as const } : status;
-};
 import { formatRequestCode } from "@/lib/request-code";
 import { requestDetailHref, requestListHref } from "@/lib/request-workspace";
 import type { SearchSort, WorkspaceSearchFilters, WorkspaceSearchProject, WorkspaceSearchRequest, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { SidebarExpandButton } from "./sidebar-controls";
 import styles from "./workspace-search-pane.module.css";
+
+/** A result's journey status (#133), read through the journey module ("Closed without a result" included). */
+const resultStatus = (item: WorkspaceSearchRequest) => statusOfJourney(journeyOf(item.status, Boolean(item.withoutResult)));
 
 type Data = Extract<WorkspaceSearchResponse, { success: true }>;
 type Category = "all" | "requests" | "projects";

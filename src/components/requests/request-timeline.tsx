@@ -7,7 +7,8 @@ import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
-import { journeyDate, type JourneyAction } from "@/lib/request-journey"
+import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
+import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
@@ -23,13 +24,17 @@ type Views = { release: ReleaseView; outcome: OutcomeView }
 
 const LOAD_FAILED = "Could not load the journey. Try again."
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
-const day = (iso: string) => journeyDate(iso.slice(0, 10))
 
+/** Both journey reads, or the error to show; never throws. */
 async function readViews(requestId: string, orgId: string): Promise<Views | { error: string }> {
-  const [release, outcome] = await Promise.all([readRequestRelease(requestId, { orgId }), readRequestOutcome(requestId, { orgId })])
-  if ("error" in release) return { error: release.error || LOAD_FAILED }
-  if ("error" in outcome) return { error: outcome.error || LOAD_FAILED }
-  return { release, outcome }
+  try {
+    const [release, outcome] = await Promise.all([readRequestRelease(requestId, { orgId }), readRequestOutcome(requestId, { orgId })])
+    if ("error" in release) return { error: release.error || LOAD_FAILED }
+    if ("error" in outcome) return { error: outcome.error || LOAD_FAILED }
+    return { release, outcome }
+  } catch {
+    return { error: LOAD_FAILED }
+  }
 }
 
 function historyLine(event: Pick<ReleaseEvent, "input">) {
@@ -57,32 +62,27 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
   const heading = useRef<HTMLHeadingElement>(null)
   const generation = useRef(0)
 
+  const show = useCallback((next: Views | { error: string }) => {
+    if ("error" in next) setError(next.error)
+    else { setViews(next); setError("") }
+  }, [])
+  // Only the latest read counts: a later load (or leaving the page) makes an earlier answer stale.
   const load = useCallback(async () => {
     const current = ++generation.current
-    try {
-      const next = await readViews(requestId, orgId)
-      if (current !== generation.current) return
-      if ("error" in next) setError(next.error)
-      else { setViews(next); setError("") }
-    } catch {
-      if (current === generation.current) setError(LOAD_FAILED)
-    }
-  }, [requestId, orgId])
+    const next = await readViews(requestId, orgId)
+    if (current === generation.current) show(next)
+  }, [requestId, orgId, show])
   // Reload when the Request's revision moves (a lifecycle move, or a change saved elsewhere).
   useEffect(() => {
     let active = true
-    readViews(requestId, orgId).then(next => {
-      if (!active) return
-      if ("error" in next) setError(next.error)
-      else { setViews(next); setError("") }
-    }).catch(() => { if (active) setError(LOAD_FAILED) })
+    readViews(requestId, orgId).then(next => { if (active) show(next) })
     return () => { active = false }
-  }, [requestId, orgId, revision])
+  }, [requestId, orgId, revision, show])
   // The countdown and Close Request follow the UTC date: refresh on return and at the next UTC midnight, without polling.
   useEffect(() => {
     if (!views) return
     const refresh = () => { if (!mode) void load() }
-    const midnight = Date.parse(views.release.today + "T00:00:00Z") + 86_400_000
+    const midnight = (dayNumber(views.release.today) + 1) * DAY_MS
     const timer = window.setTimeout(refresh, Math.max(1000, midnight - Date.now()))
     window.addEventListener("focus", refresh)
     return () => { clearTimeout(timer); window.removeEventListener("focus", refresh) }
@@ -100,15 +100,15 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
   </section>
 
   const { release, outcome } = views
+  const names = { ...release.names, ...outcome.names }
+  const name = (id: string) => names[id] ?? FORMER_MEMBER
   const steps = timelineSteps({
     journey: release.journey, workStatus: release.workStatus, isGuest, audience: release.audience,
-    requesterName: release.requesterName, requestedBy: request.creatorName || "Former member", requestedAt: new Date(request.createdAt).toISOString(),
-    assigneeName: request.assigneeName, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
-    closure: outcome.closure, names: { ...release.names, ...outcome.names }, hasAgreedResult: Boolean(outcome.agreed),
+    requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
+    assigneeName: request.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
+    closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),
     actions: release.actions, now: new Date(),
   })
-  const names = { ...release.names, ...outcome.names }
-  const name = (id: string) => names[id] ?? "Former member"
   const form = { requestId, orgId, revision: release.revision, onSaved: () => { void saved() }, onCancel: () => setMode(null) }
   const closure = outcome.closure
   const agreed = outcome.agreed
