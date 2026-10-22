@@ -102,7 +102,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
 describe("each mutation is acknowledged in the same tick and reverts on failure (#106)", () => {
   const row = { id: "r1", title: "Fix login", reframedProblem: null, status: "open", createdAt: "2026-10-01T00:00:00.000Z", creatorName: null, assigneeName: null, priority: "none" } satisfies OverviewRequest
 
-  function wired() {
+  function wired(saved: OverviewRequest = row) {
     const store = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
     const overlay = () => store.view(store.getSnapshot())
     let fail!: (error: unknown) => void
@@ -114,7 +114,7 @@ describe("each mutation is acknowledged in the same tick and reverts on failure 
       setPriority: vi.fn<Moves["setPriority"]>(async (_id, priority) => optimistic({ kind: "priority", priority })),
       copy: vi.fn<Moves["copy"]>(async () => true),
     })
-    return { d, shown: () => overlay().applyOne(row), fail: () => fail(new Error("offline")) }
+    return { d, shown: () => overlay().applyOne(saved), fail: () => fail(new Error("offline")) }
   }
 
   it.each<[Exclude<PaletteAction, { kind: "priority" }>, Partial<OverviewRequest>]>([
@@ -129,12 +129,13 @@ describe("each mutation is acknowledged in the same tick and reverts on failure 
   })
 
   it("Mark Done shows at once and reverts when the action fails", async () => {
-    const { d, shown, fail } = wired()
+    // Done is offered on an In Progress Request, so that is what it goes back to.
+    const { d, shown, fail } = wired({ ...row, status: "in_progress" })
     d.request = current({ status: "in_progress" })
     runPaletteAction({ kind: "move", move: "done", requestId: "r1" }, d)
     expect(shown()).toMatchObject({ status: "done" })
     fail()
-    await vi.waitFor(() => expect(shown()).toMatchObject({ status: "open" }))
+    await vi.waitFor(() => expect(shown()).toMatchObject({ status: "in_progress" }))
   })
 })
 
