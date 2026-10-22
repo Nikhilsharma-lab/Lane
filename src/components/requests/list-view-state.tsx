@@ -1,11 +1,13 @@
 "use client"
 
 import { listFiltersOf } from "./list-view-model"
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
+import { usePendingMutations } from "./pending-mutations-provider"
 import type { DetailSequence } from "./request-sequence"
 
 export type ListViewState = RequestListContext & {
@@ -72,6 +74,9 @@ function createLoadedRequestsStore(): LoadedRequestsStore {
 const noLoadedRequests = () => []
 LoadedRequestsContext.displayName = "LoadedRequests"
 const DetailSessionSetterContext = createContext<SetDetailSession | null>(null)
+// #103: the Request open on its page or in the preview, and the list's highlighted row, for the app shell.
+const CurrentRequestContext = createContext<ReturnType<typeof createCurrentRequestStore> | null>(null)
+CurrentRequestContext.displayName = "CurrentRequest"
 DetailSessionContext.displayName = "RequestDetailSession"
 DetailSessionSetterContext.displayName = "RequestDetailSessionSetter"
 
@@ -97,7 +102,8 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
   const detailSession = useMemo<DetailSession>(() => ({ ...session, commentDrafts: drafts }), [session, drafts])
   const setDetailSession = useCallback<SetDetailSession>(patch => setSession(current => ({ ...current, ...patch })), [])
   const [loadedRequests] = useState(createLoadedRequestsStore)
-  return <LoadedRequestsContext.Provider value={loadedRequests}><ListViewSetterContext.Provider value={setState}>
+  const [currentRequest] = useState(createCurrentRequestStore)
+  return <CurrentRequestContext.Provider value={currentRequest}><LoadedRequestsContext.Provider value={loadedRequests}><ListViewSetterContext.Provider value={setState}>
     <ListViewSnapshotContext.Provider value={snapshot}>
       <ListContextContext.Provider value={listContext}>
         <DetailSessionSetterContext.Provider value={setDetailSession}>
@@ -107,7 +113,7 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
         </DetailSessionSetterContext.Provider>
       </ListContextContext.Provider>
     </ListViewSnapshotContext.Provider>
-  </ListViewSetterContext.Provider></LoadedRequestsContext.Provider>
+  </ListViewSetterContext.Provider></LoadedRequestsContext.Provider></CurrentRequestContext.Provider>
 }
 
 /** Plan item 2.8: the Requests list records the rows it loaded; nothing re-renders. They stay after leaving the list, until the layout's key changes. */
@@ -120,6 +126,31 @@ export function usePublishLoadedRequests(rows: readonly OverviewRequest[]) {
 export function useLoadedRequests(): () => readonly OverviewRequest[] {
   const store = useContext(LoadedRequestsContext)
   return store?.get ?? noLoadedRequests
+}
+
+/** #103: Request detail (page or preview) publishes its Request while mounted. Keep `request` memoized: each new object republishes. */
+export function usePublishOpenRequest(request: CurrentRequest) {
+  const store = required(useContext(CurrentRequestContext), "usePublishOpenRequest")
+  useLayoutEffect(() => store.setOpen(request), [store, request])
+}
+
+/** #103: the list publishes its highlighted row (the active row, not the ticked ones), or null on a group header. */
+export function usePublishHighlightedRequest(id: string | null) {
+  const store = required(useContext(CurrentRequestContext), "usePublishHighlightedRequest")
+  useLayoutEffect(() => {
+    store.setHighlighted(id)
+    return () => store.setHighlighted(null)
+  }, [store, id])
+}
+
+/** #103: the Request the shell acts on: the open one, else the list's highlighted row, else null. */
+export function useCurrentRequest(): CurrentRequest | null {
+  const store = required(useContext(CurrentRequestContext), "useCurrentRequest")
+  const state = useSyncExternalStore(store.subscribe, store.get, store.get)
+  const rows = useLoadedRequests()()
+  const overlay = usePendingMutations()
+  // One object until the Request or its pending changes change, so readers can memoize on it.
+  return useMemo(() => resolveCurrentRequest(state, rows, overlay?.applyOne), [state, rows, overlay])
 }
 
 /** The (app) layout always provides the list's view and detail session. */

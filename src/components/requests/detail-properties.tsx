@@ -1,6 +1,5 @@
 "use client"
 
-import { canChange } from "@/lib/request-access-rules"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
@@ -12,7 +11,7 @@ import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { availableMove, statusLabel, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, canEditRequest, statusLabel, type LifecycleMove } from "@/lib/request-lifecycle"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestMoves } from "./request-moves"
@@ -97,7 +96,7 @@ function usePropertyControls(inSheet = false) {
     : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
 
   // Whoever can change the Request sets its priority, a guest on their own Request included.
-  const priorityControl = request.status !== "open" || !canChange({ userId: viewer.id, role: viewer.isAdmin ? "admin" : "member" }, request) ? <Value icon={priorityGlyph}>{priorityText}</Value>
+  const priorityControl = !canEditRequest(request, viewer) ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }

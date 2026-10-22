@@ -301,6 +301,15 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (`issue_intake__status__in=[0, 2, -2]` in notification views). Trigger: decision to accept
   non-invited submissions.
 
+## COMMAND PALETTE BUTTON — when phone or mouse users need the palette
+
+- **A visible "Jump to… ⌘K" button.** What: a button in the shell (the sidebar header or the page strip)
+  that opens the ⌘K command palette, with its key hint, so people on a phone or using only a mouse can reach
+  it. Why deferred: spec #101 (Q14) adds no new button. Everything the palette offers stays reachable through
+  the sidebar, the Request buttons and the row menus, and phones have no ⌘K. Trigger: usability rounds or
+  support show people looking for one place to type what they want on a phone or with a mouse, or the shell
+  is redesigned. — spec #101 (Q14), recorded by #107, 2026-10-22.
+
 ## LOW PRIORITY / maybe never
 
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen

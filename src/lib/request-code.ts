@@ -17,3 +17,8 @@ export function parseRequestCode(query: string): number | null {
   const number = Number(match[1]);
   return isRequestNumber(number) ? number : null;
 }
+
+/** The saved code, or null where formatRequestCode would throw (an unnumbered Request, column default 0). */
+export function requestCodeOrNull(requestNumber: number | undefined): string | null {
+  try { return requestNumber ? formatRequestCode(requestNumber) : null } catch { return null }
+}

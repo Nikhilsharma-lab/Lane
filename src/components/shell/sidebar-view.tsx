@@ -9,7 +9,7 @@ import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/bloc
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
-import { requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
+import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
@@ -18,6 +18,7 @@ import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
+import { useShellOpener } from "./shell-openers";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -33,6 +34,8 @@ export interface SidebarViewProps {
   onRetryProjects?: () => void | Promise<void>;
   onCreateProject?: (name: string) => Promise<ProjectOption>;
   notifications: ReactNode;
+  /** Issue #106: the ⌘K command palette. Mounted on every page, Settings included, so one ⌘K works everywhere. */
+  palette?: ReactNode;
   onSignOut?: () => void | Promise<unknown>;
   /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
   onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
@@ -46,7 +49,7 @@ const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey
 const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -74,7 +77,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     if (href === "/intake") return <NewRequestLink {...props} onClick={onClick} />;
     return <Link href={href} {...props} onClick={event => {
       onClick?.(event);
-      if (event.defaultPrevented || pathname !== "/" || !isPlainClick(event) || typeof href !== "string" || !requestListContextFromHref(href)) return;
+      if (event.defaultPrevented || !isPlainClick(event) || typeof href !== "string" || !changesListInPlace(pathname, href)) return;
       event.preventDefault();
     }} />;
   }, [pathname]);
@@ -115,7 +118,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     if (href === pathname) { closeSearch(); return; }
     navigateFromSearch(href);
     // On "/", a Project or No Project view changes in place with no request, as in the sidebar.
-    if (pathname === "/" && requestListContextFromHref(href)) return;
+    if (changesListInPlace(pathname, href)) return;
     router.push(href);
   }
   // Plan item 2.8: the loaded Requests and the sidebar's Projects, read on each keystroke for instant matches.
@@ -135,6 +138,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     openSearch();
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
+  // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
+  useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
   const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
@@ -157,7 +162,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   ];
   // Settings has its own Arc navigation and search. Preserve all workspace state
   // above this boundary so returning to Requests restores the same view.
-  if (pathname.startsWith("/settings/")) return <PageStripProvider value={frame}><main id="lane-main" tabIndex={-1}>{children}</main></PageStripProvider>;
+  if (pathname.startsWith("/settings/")) return <PageStripProvider value={frame}><main id="lane-main" tabIndex={-1}>{children}</main>{palette}</PageStripProvider>;
   // Plan item 2.4: the content's width (--sidebar-width) changes once per toggle while the panel slides;
   // the strips keep their expand control until an expand ends, so it leaves with the width change.
   // Pinning a visible peek keeps the panel where it already is, with no slide.
@@ -193,5 +198,6 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     </main>
     {/* Plan item 2.4: `?` lists the shortcuts on every authenticated page. */}
     <KeyboardShortcuts />
+    {palette}
   </ListAnnouncerProvider></div></SidebarControlsProvider>;
 }

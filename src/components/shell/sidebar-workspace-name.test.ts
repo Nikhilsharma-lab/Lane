@@ -24,6 +24,8 @@ vi.mock("next/navigation", () => ({
 }));
 // Notifications have their own database boundary and are unrelated to the label.
 vi.mock("./notification-bell", () => ({ NotificationBell: () => null }));
+// The palette is its own chunk with its own tests.
+vi.mock("./command-palette-lazy", () => ({ CommandPaletteHost: () => null }));
 vi.mock("./use-workspace-switcher", () => ({ useWorkspaceSwitcher: () => undefined }));
 
 import { Sidebar } from "./sidebar";
@@ -36,7 +38,7 @@ beforeEach(() => {
   clerk.resource = { isLoaded: true, organization: { id: "org_active", name: "Renamed workspace" } };
 });
 
-function renderSidebar(role = "member") {
+function renderSidebar(role: "admin" | "member" | "guest" = "member") {
   // The (app) layout always provides the workspace's Projects.
   return renderToStaticMarkup(createElement(AppProviders, { orgId: "org_active" }, createElement(Sidebar, {
     workspaceName: "Saved workspace name",
@@ -44,6 +46,7 @@ function renderSidebar(role = "member") {
     email: "member@example.test",
     role,
     orgId: "org_active",
+    userId: "user_1",
   })));
 }
 
@@ -135,7 +138,7 @@ describe("approved Requests navigation", () => {
     ["guest", "My Requests", "All Requests"],
     ["member", "All Requests", "My Requests"],
     ["admin", "All Requests", "My Requests"],
-  ])("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
+  ] as const)("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
     const html = renderSidebar(role);
     expect(html).toContain(label);
     expect(html).not.toContain(otherLabel);

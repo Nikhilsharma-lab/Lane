@@ -53,4 +53,13 @@ describe("SidebarView frame", () => {
     expect(crumbs(html)).toBeNull();
     expect(html).toMatch(/<h1\b[^>]*>Requests<\/h1>/);
   });
+
+  // #106: Settings renders only the page, so the palette's ⌘K is mounted in both branches.
+  it.each(["/", "/requests/x", "/settings/profile", "/settings/members"])("mounts the command palette once at %s", (pathname) => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+      workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member", pathname, notifications: null,
+      palette: createElement("span", { "data-test-palette": "" }),
+    })));
+    expect(html.match(/data-test-palette/g)).toHaveLength(1);
+  });
 });
