@@ -9,10 +9,12 @@ import { answerIsItLive, journey, journeyStep } from './helpers/journey';
 // closure, the due-date gate and guardrail results are proven with a controlled clock in outcome-actions.test.ts
 // (Storybook was removed). This journey covers exception, correction, follow-up and transfer.
 async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
-  const request = await createRequestThroughIntake(team, title);
+  const request = await createRequestThroughIntake(team, title, { windowDays: 14 });
   const path = `/requests/${request.id}`;
   await page.goto(path);
-  await page.getByRole('button', { name: 'Pick up', exact: true }).click(); await page.reload();
+  await page.getByRole('button', { name: 'Pick up', exact: true }).click();
+  // Wait for the saved pickup before reloading, or the reload can cancel it.
+  await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeVisible({ timeout: 20_000 }); await page.reload();
   await page.getByRole('button', { name: 'Mark Done', exact: true }).click();
   // "Is it live?" → Not yet: the Request stays Done, its Undo comes back, and the timeline's Done step
   // offers the release instead.
@@ -58,6 +60,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await page.getByRole('option', { name: 'Rolled back' }).click();
       await outcome.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
       await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
+      // Wait for the saved closure before reloading; reloading earlier can cancel the save.
+      await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible({ timeout: 20_000 });
       await page.reload();
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
       await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests never reopen.');
@@ -69,6 +73,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await outcome.getByLabel('Correction', { exact: true }).fill('Rolled back after checkout timeouts');
       await outcome.getByLabel('Correction reason').fill('Acceptance: wrong cause recorded');
       await outcome.getByRole('button', { name: 'Save correction' }).click();
+      await expect(outcome.getByText('Reason: Rolled back after checkout timeouts')).toBeVisible({ timeout: 20_000 });
       await page.reload();
       await expect(outcome.getByText('Acceptance: rolled back after payment errors', { exact: true })).toBeVisible();
       await expect(outcome.getByText('Reason: Rolled back after checkout timeouts')).toBeVisible();
@@ -95,6 +100,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await developer.getByRole('option', { name: 'Can’t be measured' }).click();
     await outcome.getByLabel('Details (optional)').fill('Acceptance: analytics unavailable after transfer');
     await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
+    await expect(outcome).toContainText('Closed without a result at Measuring: Can’t be measured.', { timeout: 20_000 });
     await developer.reload(); await expect(outcome).toContainText('Closed without a result at Measuring: Can’t be measured.');
   } finally { await team.close(testInfo); }
 });
