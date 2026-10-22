@@ -13,7 +13,7 @@ import { availableMove, pickupBlockedMessage, type LifecycleMove, type RequestSt
 
 const NETWORK_ERRORS: Record<LifecycleMove, string> = {
   "pick-up": "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open.",
-  done: "Couldn’t confirm completion. Refreshing now. Try again if this Request is still In Progress.",
+  done: "Couldn’t confirm completion. Refreshing now. Try again if this Request is still In progress.",
 };
 
 /**

@@ -30,7 +30,7 @@ export async function RequestsWorkspace() {
   return <RequestsOverview
     requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
     activeCapped={list.activeCapped}
-    hasOlderDone={list.hasOlderDone}
+    hasOlderFinished={list.hasOlderFinished}
     isGuest={member.role === "guest"}
     // The welcome is about the workspace, never about the current filter.
     canInvite={member.role === "admin"}

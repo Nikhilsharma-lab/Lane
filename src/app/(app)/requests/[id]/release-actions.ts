@@ -1,17 +1,21 @@
 'use server';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, profiles, requests } from '@/db';
+import { db, requests } from '@/db';
 import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
-import { isClosed } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
+import { releaseChangeSchema, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
+import { journeyStatus, requesterOf } from '@/lib/request-journey';
+import { allow, journeyActionsFor, peopleNames, personName, rosterMember } from '@/lib/request-journey-access';
+import { utcDay } from '@/lib/utc-day';
 /** The Request is what was agreed, so its "Users" are the agreed audience. */
 const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
-import { releaseChangeSchema, releaseOwner, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
+/** Each release change and the journey action that allows it. */
+const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
     const parsed = releaseChangeSchema.safeParse(input);
     if (!parsed.success) return { error: 'Check the exposure date, evidence, confirmation and reason.' };
@@ -25,36 +29,32 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
             const previous = request.releaseState?.history.find(e => e.operationId === context.operationId);
             return previous && { actorId: previous.actorId, fingerprint: previous.fingerprint, result: { success: true as const, revision: previous.revision } };
         },
-        apply: async (_tx, { request, auth, roster, revision, fingerprint }) => {
-            const member = (id: string) => roster.find(p => p.nominee.kind === 'member' && p.nominee.userId === id);
-            const ownerId = releaseOwner(request);
-            const isTransfer = change.kind === 'transfer';
-            insist(isTransfer ? auth.role === 'admin' && member(auth.userId)?.role === 'org:admin' : ownerId === auth.userId, isTransfer ? 'Only a workspace admin can transfer responsibility.' : 'Only the current release and outcome owner can do this.');
-            insist(!isClosed(request) || isTransfer, 'This Request is permanently closed.');
-            const state: ReleaseState = request.releaseState ?? { version: 1, ownerId, release: null, history: [] };
+        apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
+            const requesterId = requesterOf(request);
+            // Release, correct and void: any active member while Done or Measuring. Handover: an admin, from pickup, once the Requester has lost access.
+            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, requesterId), new Date());
+            allow(actions[JOURNEY_ACTION[change.kind]]);
+            // Before any release, a handover starts the release record with no release.
+            const state: ReleaseState = request.releaseState ?? { version: 1, ownerId: requesterId, release: null, history: [] };
             const before = state.release;
-            let nextOwner = ownerId;
+            let nextRequester = requesterId;
             let nextRelease = before;
             if (change.kind === 'transfer') {
-                insist(!member(ownerId), 'The current owner still has active workspace access.');
-                insist(member(change.recipientId), 'Choose an active non-guest workspace member.');
-                nextOwner = change.recipientId;
+                insist(rosterMember(roster, change.recipientId), 'Choose an active non-guest workspace member.');
+                nextRequester = change.recipientId;
             }
             else {
-                insist(request.status === 'done', 'Work must be Done before recording release.');
                 if (change.kind === 'void') {
-                    insist(before, 'There is no release to void.');
                     nextRelease = null;
                 }
                 else {
-                    insist(change.kind === 'correct' ? before : !before, change.kind === 'correct' ? 'There is no release to correct.' : 'Release is already recorded. Reload to view it.');
-                    insist(change.exposureDate <= new Date().toISOString().slice(0, 10), 'Exposure cannot be in the future.');
+                    insist(change.exposureDate <= utcDay(), 'Exposure cannot be in the future.');
                     const earliest = earliestExposure(request);
                     insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${earliest} (UTC).`);
                     nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null, change.exposureDate) };
                 }
             }
-            const next: ReleaseState = { version: 1, ownerId: nextOwner, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: ownerId, ownerId: nextOwner, revision }] };
+            const next: ReleaseState = { version: 1, ownerId: nextRequester, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: requesterId, ownerId: nextRequester, revision }] };
             return { set: { releaseState: next } };
         },
     });
@@ -68,36 +68,30 @@ export async function readRequestRelease(requestId: string, context: {
         insist(auth, 'Request unavailable.');
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
         insist(request, 'Request unavailable.');
-        const ownerId = releaseOwner(request);
-        let people: Awaited<ReturnType<typeof workspaceRoster>> = [];
-        let membershipAvailable = false;
+        const requesterId = requesterOf(request);
+        // Null when it can't be read (or for guests, who get no roster): saved facts stay readable, actions don't.
+        let roster: Awaited<ReturnType<typeof workspaceRoster>> | null = null;
         if (auth.role !== 'guest') {
             try {
-                people = await workspaceRoster(auth.orgId);
-                membershipAvailable = true;
+                roster = await workspaceRoster(auth.orgId);
             }
             catch { /* Saved facts remain readable during provider outages. */ }
         }
-        const active = (id: string) => people.some(p => p.nominee.kind === 'member' && p.nominee.userId === id);
-        const canEdit = auth.role !== 'guest' && active(auth.userId) && ownerId === auth.userId && !isClosed(request);
+        const people = roster ?? [];
         const release = request.releaseState?.release ?? null;
         const history = request.releaseState?.history ?? [];
-        // Saved profile names cover departed owners and guests, who receive no fresh roster.
-        const ids = [...new Set([ownerId, ...history.flatMap(e => [e.actorId, e.previousOwnerId, e.ownerId])])];
-        const saved = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
-        const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id)?.name ?? saved.find(p => p.id === id)?.name ?? 'Former member']));
+        // Saved profile names cover departed Requesters and guests, who receive no fresh roster.
+        const names = await peopleNames(db, roster, [requesterId, ...history.flatMap(e => [e.actorId, e.previousOwnerId, e.ownerId])]);
         const now = new Date();
+        // Every journey action with its reason, from the same rules the actions refuse with.
+        const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
         return {
-            requestId, revision: request.agreementRevision, ownerId, done: request.status === 'done',
-            ownerName: names[ownerId], names,
-            release, measurement: releaseMeasurement(release, now), today: now.toISOString().slice(0, 10),
+            requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
+            journey: journeyStatus(request), actions, workStatus: request.status, pickedUpAt: request.pickedUpAt?.toISOString() ?? null, doneAt: request.doneAt?.toISOString() ?? null,
+            release, measurement: releaseMeasurement(release, now), today: utcDay(now),
             audience: agreedAudience(request),
             earliestExposure: earliestExposure(request),
-            canRelease: canEdit && request.status === 'done' && !release,
-            canCorrect: canEdit && request.status === 'done' && !!release,
-            canTransfer: auth.role === 'admin' && people.some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId && p.role === 'org:admin') && membershipAvailable && !active(ownerId),
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
-            blocked: request.status !== 'done' ? 'Complete work before recording release.' : null,
             history: history.map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),
         };
     }

@@ -1,5 +1,33 @@
 # Shared Claude / Codex handoff
 
+## October 22 — staging 0033 + 0034 applied; journey e2e passes (user-approved)
+
+With the user's explicit approval: verified backup and a local-restore rehearsal in ignored
+`backups/journey-0033-0034-2026-10-22/` (22 Requests), then 0033 (drop `request_review_state`) and 0034
+(reminders, `done_at`, `picked_up_at`) applied to **Lane Staging**. Verify: all checks true; every Request row
+unchanged (incl. `updated_at`), nothing lost, `done_at` on exactly the 8 Done Requests. **Production is still on
+0032: run 0033 + 0034 there (verified backup, rehearsal) before deploying `main` with #127.** The journey e2e
+(`request-release`, `request-outcome`, `request-reviewers`, `reliable-request-lifecycle-actions`) then passed on
+staging, one worker (parallel runs hit Clerk's "Too Many Requests"). `command-palette.spec.ts` fails in its guest
+fixture (Clerk Not Found creating an `org:guest` membership): pre-existing, unrelated to #127.
+
+## October 22 — #137 journey e2e authored, awaiting a hosted run (branch `journey-127`)
+
+The e2e for the #127 journey is updated but **not run**: Lane Staging has 0031 and 0032, and these specs also need
+main's 0033 and #127's `0034_reminders_and_done_time.sql` (renamed from 0033 when `main` was merged in; applying
+them is a separate approved step with a verified backup and dry run). Run them on staging after that.
+Typecheck and lint pass.
+
+- `e2e/request-release.spec.ts`: Mark Done → "Is it live?" → "Yes, record release" records today's release in
+  the prompt (Undo Done ends); with a 7-day agreed window (the plan's shortest) the Measuring step shows
+  "Due in 7 days" and the list row carries no due tag and is not under `/?status=due`; then correction and handover. 1440/390,
+  light/dark.
+- `e2e/request-outcome.spec.ts`: Mark Done → "Not yet" brings Undo back; release from the timeline's Done step;
+  closing without a result shows the Closed step. 1440/390, light/dark.
+- `e2e/reliable-request-lifecycle-actions.spec.ts` answers "Not yet" after Mark Done (and reads the phone state
+  line's name); `e2e/perf.spec.ts` (LANE_PERF_MUTATE=1) answers "Not yet" before Undo.
+- Shared helpers: `e2e/helpers/journey.ts`; `createRequestThroughIntake` takes `windowDays` (7/14/30/90).
+
 ## October 22 — architecture review work merged; staging has 0031 and 0032
 
 The architecture-review candidates are merged to `main` (#80–#125; W4 keyboard shortcuts waits for #109, the
@@ -35,7 +63,7 @@ Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `life
   once accepted and verified), `readReviews` (profile role, departed reviewers greyed out), `loadReviewerPeople`.
   Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement (earliest exposure
   = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator, and ask each of them
-  (`review_requested`) in the same transaction. The Reviewers panel (`request-reviewers-panel.tsx`)
+  (`review_requested`) in the same transaction. The Reviewers list (`request-reviews.tsx`, in the journey timeline's Open step since #134)
   replaces the three-seat picker. Seat conversion is checked from `src/test/agreement-seat-fixtures.sql`.
 - **#76 edits reset reviews; notifications; optional question.** A `0031` trigger resets every answer when the
   content of an Open Request changes (not priority), bumps the revision and notifies reviewers who had answered
@@ -61,7 +89,7 @@ Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `life
 Review fixes (2026-10-21): agreement-era code names were renamed to reviewer names (code only; DB tables,
 columns, migration 0031 and the stored `nominee` JSON key are unchanged): `reviewer-actions.ts`,
 `request-reviewer-rules.ts` (was `request-agreement.ts`), `workspace-roster.ts`, `request-change-store.ts`
-(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviewersPanel`, `ReviewerIdentity`.
+(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviews`, `ReviewerIdentity`.
 
 Verified locally: typecheck, lint and the vitest suite. Server-action tests: `reviewer-actions.test.ts` and
 `src/app/(app)/intake/create-reviewers-actions.test.ts`. The hosted Playwright spec `e2e/request-reviewers.spec.ts`

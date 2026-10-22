@@ -1,14 +1,16 @@
 # #60 Actual impact and permanent closure
 
-Approved by Nikhil on October 21: columns only (no new table); corrections by the current owner only, with admin
-transfer still available after closure when the owner loses access; every agreed guardrail requires an actual
+> **Amended 2026-10-22 (#127, Nikhil):** any active non-guest member records, corrects or voids a release while the Request is Done or Measuring and not closed, each change attributed in history. Closing (measured or without a result) and closure corrections stay with the Requester only. An admin may hand a Request to a new Requester at any point after pickup once the Requester has lost access. "Requester" replaces owner, creator and release and outcome owner. See `REQUIREMENTS.md` §5 "Who closes — the Requester".
+
+Approved by Nikhil on October 21: columns only (no new table); corrections by the Requester only, with admin
+handover still available after closure when the Requester loses access; every agreed guardrail requires an actual
 value; any active non-guest member may create a follow-up. User authorized implementation, tests, review and
 commit on current main. Baseline fd1d432. Builds on #58 (`exception_closure`, agreement
 lock/revision) and #59 (`release_state`, `releaseOwner`, UTC deadlines).
 
 ## Rules (from REQUIREMENTS.md §§ Outcome lifecycle, Closure ownership, Closed is permanent, Follow-ups)
 
-- **Measured closure** — current release/outcome owner (`releaseOwner`) who is an active non-guest member; work
+- **Measured closure** — the Requester (`requesterOf`, read through the release record) who is an active non-guest member; work
   Done, release recorded, agreement snapshot present, UTC today ≥ due date (Due today counts). Overdue stays
   outstanding; nothing auto-closes.
 - **Form** — beside the agreed baseline/target (read from the frozen agreement snapshot), record: primary
@@ -18,12 +20,12 @@ lock/revision) and #59 (`release_state`, `releaseOwner`, UTC deadlines).
   stored; the comparison is derived for display. Legacy `metric`/`verification` and measurement v2–v4 are all
   supported; nothing is fabricated for legacy Requests (they can only reach measured closure after agreement
   and release).
-- **Exception closure** — same owner, any time before closure, reason required. Codes: `cancelled`
+- **Exception closure** — the Requester, any time before closure, reason required. Codes: `cancelled`
   (not launched; only while no active release), `rolled_back` (release recorded), `measurement_unavailable`
   (any time), `inconclusive` (release recorded). `superseded` stays exclusively on the #58 replacement path,
   unchanged. Status column is unchanged; an exception-closed Request is blocked from further advancement.
 - **Permanent** — once closed, the Request row is immutable in SQL except appended corrections (and an appended
-  admin ownership transfer when the owner has lost access). Release correction/void, Done undo, edits, agreement mutations all fail.
+  admin handover when the Requester has lost access). Release correction/void, Done undo, edits, agreement mutations all fail.
 - **Corrections** — attributable append-only `{field, correction, reason}` shown beside the immutable record;
   never edits result, evidence or target. `field` ∈ actual, guardrails, evidence, observation, reason.
 - **Follow-up** — "Create follow-up Request" after release (Measuring or Closed). Copies confirmed context and

@@ -1,5 +1,50 @@
 import { describe, expect, it } from "vitest"
 import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, paginateRequests, type ListFilters, type OverviewRequest } from "./request-overview"
+import type { ReleaseState } from "./request-release"
+
+describe("The journey in the list (#133)", () => {
+  const now = new Date("2026-10-28T12:00:00Z")
+  const release = (dueDate: string): ReleaseState => ({ version: 1, ownerId: "maya", history: [], release: { exposureDate: "2026-10-01", audience: "All shoppers", evidence: "Rollout log", dueDate, startDate: "2026-10-01", windowKind: "relative" } })
+  const base = { reframedProblem: null, createdAt: "2026-09-28T10:00:00Z", creatorName: null, assigneeName: null }
+  const journey: OverviewRequest[] = [
+    { ...base, id: "open", title: "Open", status: "open" },
+    { ...base, id: "building", title: "In progress", status: "in_progress" },
+    { ...base, id: "gave-up", title: "Closed at In progress", status: "in_progress", exceptionClosure: { kind: "exception" } },
+    { ...base, id: "done", title: "Done", status: "done" },
+    { ...base, id: "later", title: "Due in 10 days", status: "done", releaseState: release("2026-11-07") },
+    { ...base, id: "soon", title: "Due in 3 days", status: "done", releaseState: release("2026-10-31") },
+    { ...base, id: "today", title: "Due today", status: "done", releaseState: release("2026-10-28") },
+    { ...base, id: "late", title: "Overdue", status: "done", releaseState: release("2026-10-20") },
+    { ...base, id: "closed", title: "Closed", status: "done", releaseState: release("2026-10-20"), outcomeClosure: { kind: "measured" } },
+  ]
+  const all: ListFilters = { status: "all", project: "all", title: "", requestType: "" }
+  const shown = (status: ListFilters["status"]) => journey.filter(row => matchesListFilters(row, { ...all, status }, now)).map(row => row.id)
+
+  it("filters by each of the five statuses and by due soon or overdue", () => {
+    expect(shown("open")).toEqual(["open"])
+    expect(shown("in_progress")).toEqual(["building"])
+    expect(shown("done")).toEqual(["done"])
+    expect(shown("measuring")).toEqual(["later", "soon", "today", "late"])
+    expect(shown("closed")).toEqual(["gave-up", "closed"])
+    expect(shown("due")).toEqual(["soon", "today", "late"])
+    expect(shown("all")).toHaveLength(journey.length)
+  })
+
+  it("groups the board into a column per journey status, in journey order", () => {
+    const groups = groupRequestRows([...journey].reverse(), "status")
+    expect(groups.map(group => group.label)).toEqual(["Open", "In progress", "Done", "Measuring", "Closed"])
+    expect(groups.find(group => group.label === "Closed")!.rows.map(row => row.id).sort()).toEqual(["closed", "gave-up"])
+    expect(sortRequestRows([...journey].reverse(), "status").map(row => row.id).slice(0, 4)).toEqual(["open", "building", "done", "late"])
+  })
+
+  it("keeps a column for every journey status, empty ones included", () => {
+    const groups = groupRequestRows([journey[0]], "status")
+    expect(groups.map(group => [group.key, group.label, group.rows.length])).toEqual([
+      ["status:open", "Open", 1], ["status:in_progress", "In progress", 0], ["status:done", "Done", 0], ["status:measuring", "Measuring", 0], ["status:closed", "Closed", 0],
+    ])
+    expect(groupRequestRows([], "status")).toHaveLength(5)
+  })
+})
 
 const requests: OverviewRequest[] = [
   { id: "a", title: "Progress bar", reframedProblem: "Signup is confusing", status: "open", createdAt: "2026-09-28T10:00:00Z", creatorName: "Maya", assigneeName: null },
@@ -54,7 +99,7 @@ describe("Request row grouping and order", () => {
     const tied = [{ ...requests[0], id: "z" }, { ...requests[0], id: "a" }]
     expect(sortRequestRows(tied, "newest").map(row => row.id)).toEqual(["a", "z"])
     expect(sortRequestRows(tied, "title_desc").map(row => row.id)).toEqual(["a", "z"])
-    expect(groupRequestRows([requests[2], requests[0], requests[1]], "status").map(group => group.label)).toEqual(["Open", "In Progress", "Done"])
+    expect(groupRequestRows([requests[2], requests[0], requests[1]], "status").map(group => group.label)).toEqual(["Open", "In progress", "Done", "Measuring", "Closed"])
   })
   it("keeps every grouped Request across page boundaries and preserves the input", () => {
     const rows = [requests[2], requests[0], requests[1], { ...requests[0], id: "d" }]

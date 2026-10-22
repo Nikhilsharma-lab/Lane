@@ -96,14 +96,14 @@ describe("Requests workspace contract", () => {
     }
   })
 
-  it("preserves native deep links and the three-state MVP lifecycle", () => {
+  it("preserves native deep links and the five journey status views plus Due soon or overdue (#133)", () => {
     const titleLink = columns.find(column => column.key === "title")!.render({
       id: "request-1", title: "Example Request", reframedProblem: null,
       status: "open", createdAt: "2026-10-07T00:00:00.000Z", creatorName: null, assigneeName: null,
     }, "in_progress", "project-1") as ReactElement<{ href: string }>
     // Canonical /requests/[id]: the list context lives in the layout's list view state.
     expect(titleLink.props.href).toBe("/requests/request-1")
-    expect(REQUEST_STATUS_FILTERS).toEqual(["all", "open", "in_progress", "done"])
+    expect(REQUEST_STATUS_FILTERS).toEqual(["all", "open", "in_progress", "done", "measuring", "closed", "due"])
     expect(requestDetailHref("request-1", "all")).toBe("/requests/request-1")
     expect(requestDetailHref("request-1", "in_progress")).toBe("/requests/request-1?status=in_progress")
   })

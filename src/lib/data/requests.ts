@@ -1,7 +1,7 @@
 import "server-only"
 
 import { changeableColumn, seeable } from "@/lib/request-access"
-import { and, asc, desc, eq, isNotNull, ne, sql, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, isNotNull, or, sql, type SQL } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db"
@@ -9,6 +9,9 @@ import type { MemberAuth } from "@/lib/auth-guard"
 import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
+import { journeyStatus } from "@/lib/request-journey"
+import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
+import type { FinishedView } from "@/lib/request-workspace"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -17,15 +20,26 @@ import type { RequestAttachment, RequestComment, RequestDetail } from "@/compone
 // guest (org:guest) only ever reads Requests they created.
 
 /**
- * Plan item 1.7: the list loads every Open and In Progress Request under a hard
- * cap, plus the latest DONE_PAGE_SIZE Done Requests (decision 8.18 default).
- * Status, Project, group, sort and the in-list filter then run in the browser
- * with no network request. "Show older Done" pages further back through
- * loadOlderDoneRequests.
+ * Plan item 1.7: the list loads every Open and In progress Request under a hard
+ * cap, plus the latest DONE_PAGE_SIZE finished ones: Done, Measuring and Closed
+ * (decision 8.18 default; #133). Project, group, sort and the in-list filter then
+ * run in the browser with no network request. A finished status view (Done,
+ * Measuring, Closed, Due soon or overdue) pages further back through
+ * loadOlderFinishedRequests with the journey module's database condition, so it is
+ * never limited to the newest page.
  */
 export const MAX_REQUESTS_QUERY = 200
 export const DONE_PAGE_SIZE = 50
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export { FINISHED_VIEWS, type FinishedView } from "@/lib/request-workspace"
+
+const active = or(journeyStatusCondition("open"), journeyStatusCondition("in_progress"))!
+const finished = or(journeyStatusCondition("done"), journeyStatusCondition("measuring"), journeyStatusCondition("closed"))!
+function finishedView(view: FinishedView, now: Date): SQL {
+  return view === "all" ? finished : view === "due" ? dueSoonOrOverdueCondition(now) : journeyStatusCondition(view)
+}
+const isActive = (row: Parameters<typeof journeyStatus>[0]) => ["open", "in_progress"].includes(journeyStatus(row).status)
 
 /** One row of the list query, as the select below infers it. */
 type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
@@ -56,10 +70,10 @@ async function toListRows(auth: MemberAuth, rows: ListRowRecord[]): Promise<Requ
 
 export type RequestList = {
   rows: RequestListRow[]
-  /** More Open and In Progress Requests exist than MAX_REQUESTS_QUERY. */
+  /** More Open and In progress Requests exist than MAX_REQUESTS_QUERY. */
   activeCapped: boolean
-  /** Done Requests older than the loaded ones exist. */
-  hasOlderDone: boolean
+  /** Finished Requests (Done, Measuring, Closed) older than the loaded ones exist. */
+  hasOlderFinished: boolean
 }
 
 export type RequestDetailData = {
@@ -78,6 +92,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       reviewers: openReviewers,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
+      releaseState: requests.releaseState,
       agreementRevision: requests.agreementRevision,
       requestNumber: requests.requestNumber,
       title: requests.title,
@@ -113,30 +128,31 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
  * note or "Show older Done" applies without a count query.
  */
 export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
-  const rows = await toListRows(auth, await listRows(auth, ne(requests.status, "done"), MAX_REQUESTS_QUERY + 1)
-    .unionAll(listRows(auth, eq(requests.status, "done"), DONE_PAGE_SIZE + 1)))
-  const active = rows.filter(row => row.status !== "done")
-  const done = rows.filter(row => row.status === "done")
+  const rows = await toListRows(auth, await listRows(auth, active, MAX_REQUESTS_QUERY + 1)
+    .unionAll(listRows(auth, finished, DONE_PAGE_SIZE + 1)))
+  const working = rows.filter(isActive)
+  const done = rows.filter(row => !isActive(row))
   return {
-    rows: [...active.slice(0, MAX_REQUESTS_QUERY), ...done.slice(0, DONE_PAGE_SIZE)],
-    activeCapped: active.length > MAX_REQUESTS_QUERY,
-    hasOlderDone: done.length > DONE_PAGE_SIZE,
+    rows: [...working.slice(0, MAX_REQUESTS_QUERY), ...done.slice(0, DONE_PAGE_SIZE)],
+    activeCapped: working.length > MAX_REQUESTS_QUERY,
+    hasOlderFinished: done.length > DONE_PAGE_SIZE,
   }
 }
 
 /**
- * The next page of Done Requests older than `beforeId` (the oldest Done row the
- * client shows), newest first, in one statement. The cursor row is read back
+ * The next page of finished Requests in `view` older than `beforeId`, newest
+ * first, in one statement. The view's condition is the journey module's own
+ * (request-journey-sql.ts); "due" is read on `now`'s UTC date. The cursor row is read back
  * under the same workspace and guest visibility rules, so its database
  * timestamp is compared at full precision and an invisible id yields no rows.
  */
-export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string): Promise<{ rows: RequestListRow[]; hasOlderDone: boolean }> {
-  if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderDone: false }
-  const cursor = alias(requests, "older_done_cursor")
+export async function loadOlderFinishedRequests(auth: MemberAuth, beforeId: string, view: FinishedView = "all", now: Date = new Date()): Promise<{ rows: RequestListRow[]; hasOlderFinished: boolean }> {
+  if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderFinished: false }
+  const cursor = alias(requests, "older_finished_cursor")
   const rows = await toListRows(auth, await listRows(
     auth,
     and(
-      eq(requests.status, "done"),
+      finishedView(view, now),
       sql`(${requests.createdAt}, ${requests.id}) < (${db.select({ createdAt: cursor.createdAt, id: cursor.id }).from(cursor).where(and(
         eq(cursor.id, beforeId),
         seeable(auth, cursor),
@@ -144,7 +160,7 @@ export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string):
     )!,
     DONE_PAGE_SIZE + 1,
   ))
-  return { rows: rows.slice(0, DONE_PAGE_SIZE), hasOlderDone: rows.length > DONE_PAGE_SIZE }
+  return { rows: rows.slice(0, DONE_PAGE_SIZE), hasOlderFinished: rows.length > DONE_PAGE_SIZE }
 }
 
 /**
@@ -168,6 +184,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       reviewers: openReviewers,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
+      releaseState: requests.releaseState,
       agreementRevision: requests.agreementRevision,
         // Plan item 2.5: the strip's LAN-n, the panel's priority and the
         // Assignee avatar. Same statement and joins, so no extra round trip.

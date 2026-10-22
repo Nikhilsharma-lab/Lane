@@ -1,0 +1,185 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.end {
+  margin-inline-start: auto;
+}
+.muted {
+  color: var(--text-secondary);
+}
+.warning {
+  color: var(--danger);
+}
+.stack,
+.fields {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.fields {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--popover-width)), 1fr)
+  );
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.reviewerList {
+  display: grid;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.reviewer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--border);
+  padding-block: var(--space-2);
+}
+.role {
+  color: var(--text-secondary);
+}
+/* A reviewer who left the workspace stays listed; their answer no longer counts. */
+.inactive,
+.inactive .warning {
+  color: var(--text-secondary);
+}
+.reason {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+@media (max-width: 640px) {
+  .reviewer {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+.facts {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+/* The Request page's journey (#134): one timeline of five steps. */
+.timeline {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  border-top: var(--border-width) solid var(--border);
+  padding-block: var(--space-5);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.timeline p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.heading {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.steps,
+.actions,
+.list {
+  display: grid;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.list {
+  gap: var(--space-2);
+}
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--space-4) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-block-end: var(--space-5);
+}
+/* The line joining each step to the next. */
+.step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--space-4) 0;
+  inset-inline-start: calc(var(--space-4) / 2);
+  border-inline-start: var(--border-width) solid var(--border);
+}
+.marker {
+  justify-self: center;
+  margin-block-start: var(--space-1);
+  inline-size: var(--space-3);
+  block-size: var(--space-3);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+.step[data-state="finished"] .marker {
+  border-color: var(--foreground);
+  background: var(--foreground);
+}
+.step[data-state="current"] .marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 var(--space-1) var(--accent-subtle);
+}
+.step[data-state="upcoming"],
+.step[data-state="skipped"] {
+  color: var(--text-secondary);
+}
+.stepBody {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.stepHeading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.countdown {
+  font-weight: var(--weight-medium);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-block-start: var(--space-1);
+}
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.reviews {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.reviews h4,
+.facts h4 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.history summary {
+  cursor: pointer;
+}
+.history[open] summary {
+  margin-block-end: var(--space-2);
+}

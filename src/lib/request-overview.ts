@@ -1,4 +1,6 @@
 import { requestLabelKeys } from "./request-labels"
+import { JOURNEY_STATUSES, dueSignal, journeyFactsOf, journeyStatus, type DueSignal, type Journey, type SavedClosure } from "./request-journey"
+import type { ReleaseState } from "./request-release"
 import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
 
@@ -26,6 +28,20 @@ export type OverviewRequest = {
   requestType?: RequestType | null
   /** Saved triage signal. Optional only for older illustrative fixtures. */
   priority?: RequestPriority
+  /** The journey facts (#133): the release record and the closures. Absent means none saved. */
+  releaseState?: ReleaseState | null
+  outcomeClosure?: SavedClosure | null
+  exceptionClosure?: SavedClosure | null
+}
+
+/** A row's one status, read through the journey module: Open, In progress, Done, Measuring or Closed. */
+export function rowJourney(row: OverviewRequest): Journey {
+  return journeyStatus(journeyFactsOf(row))
+}
+
+/** A row's due tag on `now`'s UTC date: "Due in N days", "Due today", "Overdue N days" or none. */
+export function rowDue(row: OverviewRequest, now: Date): DueSignal {
+  return dueSignal(journeyFactsOf(row), now)
 }
 
 export type RequestSort = "newest" | "oldest" | "title"
@@ -33,37 +49,42 @@ export type RequestOrdering = RequestSort | "title_desc" | "status"
 export type RequestGrouping = "none" | "status" | "project" | "assignee"
 export type RequestRowGroup = { key: string; label: string; rows: OverviewRequest[] }
 
-const statusOrder = { open: 0, in_progress: 1, done: 2 }
-const statusLabels = { open: "Open", in_progress: "In Progress", done: "Done" }
+/** Journey order: a row's place along Open → In progress → Done → Measuring → Closed. */
+const journeyOrder = (row: OverviewRequest) => JOURNEY_STATUSES.findIndex(step => step.status === rowJourney(row).status)
 const compareText = (a: string, b: string) => a.localeCompare(b, "en", { numeric: true })
 
 /** Stable order keeps page boundaries predictable when names or dates match. */
 export function sortRequestRows(rows: OverviewRequest[], order: RequestOrdering) {
   return [...rows].sort((a, b) => {
     let difference: number
-    if (order === "status") difference = statusOrder[a.status] - statusOrder[b.status]
+    if (order === "status") difference = journeyOrder(a) - journeyOrder(b)
     else if (order === "title" || order === "title_desc") difference = compareText(a.reframedProblem ?? a.title, b.reframedProblem ?? b.title) * (order === "title_desc" ? -1 : 1)
     else difference = (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * (order === "oldest" ? -1 : 1)
     return difference || compareText(a.id, b.id)
   })
 }
 
-/** Group identity comes from IDs, never a person's or Project's display name. */
+/** Group identity comes from IDs, never a person's or Project's display name.
+ * Grouped by status, the list is the board: one column per journey status, in journey order,
+ * empty ones included (#127 story 6). */
 export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGrouping): RequestRowGroup[] {
   if (grouping === "none") return [{ key: "all", label: "Requests", rows }]
+  if (grouping === "status") {
+    const columns = JOURNEY_STATUSES.map(({ status, label }) => ({ key: `status:${status}`, label, rows: [] as OverviewRequest[] }))
+    for (const row of rows) columns[journeyOrder(row)].rows.push(row)
+    return columns
+  }
   const groups = new Map<string, RequestRowGroup>()
   for (const row of rows) {
-    const identity = grouping === "status" ? row.status : grouping === "project" ? row.projectId ?? "none" : row.assignedTo ?? "none"
+    const identity = grouping === "project" ? row.projectId ?? "none" : row.assignedTo ?? "none"
     const key = `${grouping}:${identity}`
-    const label = grouping === "status" ? statusLabels[row.status]
-      : grouping === "project" ? row.projectId ? row.projectName ?? "Unavailable Project" : "No Project"
+    const label = grouping === "project" ? row.projectId ? row.projectName ?? "Unavailable Project" : "No Project"
       : row.assignedTo ? row.assigneeName ?? "Unknown member" : "Unassigned"
     const group = groups.get(key) ?? { key, label, rows: [] }
     group.rows.push(row)
     groups.set(key, group)
   }
   return [...groups.values()].sort((a, b) => {
-    if (grouping === "status") return statusOrder[a.rows[0].status] - statusOrder[b.rows[0].status]
     if (a.key === `${grouping}:none`) return 1
     if (b.key === `${grouping}:none`) return -1
     return compareText(a.label, b.label) || compareText(a.key, b.key)
@@ -77,10 +98,12 @@ export type ListFilterKey = keyof ListFilters
 
 /** Which of the list's filters leave this row out. Collapsed groups and later
  * pages are not filters. One function for the list and the composer's
- * hidden-by-filters toast (plan item 2.3), so they cannot disagree. */
-export function filtersHiding(row: OverviewRequest, filters: ListFilters): ListFilterKey[] {
+ * hidden-by-filters toast (plan item 2.3), so they cannot disagree.
+ * The status view reads the journey module, as its database twin
+ * (request-journey-sql.ts) does for the rows the list pages in (#133). */
+export function filtersHiding(row: OverviewRequest, filters: ListFilters, now: Date = new Date()): ListFilterKey[] {
   const hiding: ListFilterKey[] = []
-  if (filters.status !== "all" && row.status !== filters.status) hiding.push("status")
+  if (!matchesStatusView(row, filters.status, now)) hiding.push("status")
   if (filters.project && filters.project !== "all" && (row.projectId ?? "none") !== filters.project) hiding.push("project")
   const query = filters.title.trim().toLocaleLowerCase()
   if (query && !(row.reframedProblem ?? row.title).toLocaleLowerCase().includes(query)) hiding.push("title")
@@ -88,8 +111,15 @@ export function filtersHiding(row: OverviewRequest, filters: ListFilters): ListF
   return hiding
 }
 
-export function matchesListFilters(row: OverviewRequest, filters: ListFilters) {
-  return filtersHiding(row, filters).length === 0
+export function matchesListFilters(row: OverviewRequest, filters: ListFilters, now: Date = new Date()) {
+  return filtersHiding(row, filters, now).length === 0
+}
+
+/** Whether a row belongs in a status view: its journey status, or "due" for a row with a due tag. */
+export function matchesStatusView(row: OverviewRequest, view: RequestStatusFilter, now: Date): boolean {
+  if (view === "all") return true
+  if (view === "due") return rowDue(row, now).kind !== "none"
+  return rowJourney(row).status === view
 }
 
 export function paginateRequests<T>(items: T[], requestedPage: number, pageSize: number) {

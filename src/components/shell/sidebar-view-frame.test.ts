@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
-  // The list view the layout reads from the URL: In Progress in the Website Project.
+  // The list view the layout reads from the URL: In progress in the Website Project.
   useSearchParams: () => new URLSearchParams({ status: "in_progress", project: "11111111-1111-4111-8111-111111111111" }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));

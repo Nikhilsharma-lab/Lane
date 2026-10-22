@@ -3,6 +3,7 @@ import { requestCodeOrNull } from "@/lib/request-code"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
+import type { AskIsItLive } from "./is-it-live"
 import type { Announce } from "./list-announcer"
 import { clearMarkedDone, showMarkedDone, type MarkDoneUndoStore } from "./mark-done-undo"
 import type { ConfirmPickup } from "./pickup-confirmation"
@@ -52,6 +53,8 @@ export type RequestMovesDeps = {
   busy?: Set<string>
   /** Where the latest Mark Done's Undo is kept for the palette; the app's one pointer by default. */
   undoStore?: MarkDoneUndoStore
+  /** #135: asked after a successful Mark Done, with that Done's Undo. */
+  isItLive?: AskIsItLive
 }
 
 /**
@@ -64,11 +67,14 @@ export type RequestMovesDeps = {
  * focus on the moved row) and after an Undo succeeds. useRequestMoves is the
  * React binding; this takes every boundary as a dependency.
  */
-export function createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy = new Set(), undoStore }: RequestMovesDeps) {
+export function createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy = new Set(), undoStore, isItLive }: RequestMovesDeps) {
+  // Marked Done toasts whose Undo has run: their Done no longer asks "Is it live?".
+  const undone = new Set<string>()
   // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
   // Undo is sent only after the Done move it reverses has succeeded.
   const undo = async (toastId: string, requestId: string, name: string) => {
-    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In Progress.`, action: undefined })
+    undone.add(toastId)
+    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In progress.`, action: undefined })
     const outcome = await optimistic({
       id: requestId,
       patch: { kind: "undo", status: "in_progress" },
@@ -77,7 +83,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       onError: description => { toast({ id: toastId, type: "error", title: "Could not undo", description }) },
     })
     if (outcome.status !== "success") return
-    toast({ id: toastId, type: "success", title: "Back In Progress", description: `${name} is In Progress again.` })
+    toast({ id: toastId, type: "success", title: "Back to In progress", description: `${name} is In progress again.` })
     afterMove?.(requestId, name)
   }
 
@@ -90,7 +96,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     // Done leaves the working views, so its confirmation carries the way back; the palette's Undo runs the same one (#103).
     const toastId = kind === "done" ? showMarkedDone(toast, request, undo, undoStore) : null
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
-    if (kind === "pick-up") announce("Picked up. The Request is now In Progress.", { key: "row-change" })
+    if (kind === "pick-up") announce("Picked up. The Request is now In progress.", { key: "row-change" })
     const describe = (message: string, thrown: boolean) => thrown && networkError ? networkError : message
     const outcome = optimistic({
       id: request.id,
@@ -104,6 +110,14 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     }).then(result => {
       // The failure toast speaks for itself; the region drops the claim it made.
       if (result.status === "error" && kind === "pick-up") announce("", { key: "row-change" })
+      // #135: once the Done is saved, ask whether the work is live. "Not yet" brings this toast's Undo back.
+      if (result.status === "success" && toastId && !undone.has(toastId)) isItLive?.({ id: request.id, name }, {
+        reshow: () => { showMarkedDone(toast, request, undo, undoStore, toastId) },
+        end: () => {
+          clearMarkedDone(toastId, undoStore)
+          toast({ id: toastId, type: "success", title: "Release recorded", description: `${name} is now Measuring.`, action: undefined })
+        },
+      })
       return result
     }).finally(() => { busy.delete(key) })
     afterMove?.(request.id, name)

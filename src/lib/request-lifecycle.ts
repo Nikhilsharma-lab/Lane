@@ -28,7 +28,7 @@ export type LifecycleRequest = {
 /** Each move's statuses and its copy, shared by every surface and the server. */
 export const MOVES = {
   "pick-up": { move: "pick-up", from: "open", to: "in_progress", label: "Pick up", fromLabel: "Open", verb: "pick it up" },
-  done: { move: "done", from: "in_progress", to: "done", label: "Mark Done", fromLabel: "In Progress", verb: "mark it Done" },
+  done: { move: "done", from: "in_progress", to: "done", label: "Mark Done", fromLabel: "In progress", verb: "mark it Done" },
 } as const
 
 const offered = (move: LifecycleMove): AllowedMove => ({ move, to: MOVES[move].to, label: MOVES[move].label })
@@ -62,13 +62,4 @@ export function moveRefusal(
 /** A blocked pickup, said to this viewer: someone who can't edit the plan is told who can. */
 export function pickupBlockedMessage(reason: string, requester: string | null): string {
   return requester ? `Ask ${requester} to add current values before pickup.` : reason
-}
-
-export function statusLabel(status: string): string {
-  switch (status) {
-    case "open": return "Open"
-    case "in_progress": return "In Progress"
-    case "done": return "Done"
-    default: return status
-  }
 }

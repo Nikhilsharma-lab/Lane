@@ -3,7 +3,7 @@ import { settingsNavigation } from "@/components/settings/settings-catalog"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
-import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, type RequestStatusFilter } from "@/lib/request-workspace"
 import type { ShellSurface } from "./shell-openers"
 
 /**
@@ -52,7 +52,7 @@ export type PaletteEntry = {
   action: PaletteAction
 }
 
-const VIEW_LABELS: Record<RequestStatusFilter, string> = { all: "All Requests", open: "Open", in_progress: "In Progress", done: "Done" }
+const VIEW_LABELS: Record<RequestStatusFilter, string> = { ...REQUEST_STATUS_FILTER_LABELS, all: "All Requests" }
 
 /** The Anywhere keys from the one shortcut map, so the palette and the ? overlay never disagree. */
 function anywhereKeys(label: string): string[] {
@@ -114,7 +114,7 @@ const words = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filt
 
 /**
  * Every typed word must start a word of the entry's label or detail, in any
- * order and case ("in prog" finds In Progress). No fuzzy matching, no ranking:
+ * order and case ("in prog" finds In progress). No fuzzy matching, no ranking:
  * matches keep the list's own order. `empty` is the "No matches" state.
  */
 export function filterPaletteEntries<T extends PaletteEntry>(entries: T[], query: string): { entries: T[]; empty: boolean } {

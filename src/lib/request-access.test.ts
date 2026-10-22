@@ -114,7 +114,7 @@ describe("changing a Request", () => {
     as(GUEST);
     expect(await api.deleteRequest(memberRequest, { orgId: ORG })).toEqual({ error: "Not found" });
     as(MEMBER);
-    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: "Only the requester or an admin can delete this Request." });
+    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: "Only the Requester or a workspace admin can delete this Request." });
     as(ADMIN);
     expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ success: true });
   });

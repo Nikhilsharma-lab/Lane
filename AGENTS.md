@@ -10,15 +10,15 @@ Lane's foundations are **one source of truth for the product/journeys** and **pr
 ## Current implementation — target contract is in REQUIREMENTS.md
 
 1. On first login a person creates or joins a Clerk workspace, then picks a role — **PM, Designer, or Developer** (a label, editable later in Settings; it does NOT change what they can see or do). Anyone can submit a design request with a title, freeform description and Expected impact (Metric or Verified result), optional Project, Request type, related link and private file attachments; before a request can be saved, an AI gate classifies it as a **problem**, a **solution**, or a **hybrid**, reframing solution-shaped requests into a problem the submitter confirms.
-2. The current app has a shared **Open → In Progress → Done** board with pickup/completion, comments and private attachments; eligible non-guests share the same view. Expected impact creation → signed review → saved detail is implemented and locally verified. This is implementation scope, not proof that every production release gate passed.
-3. **Confirmed 2026-09-28 target:** optional reviewers on a Request (Looks good / Raise a concern; never block pickup; an edit resets answers; delete before pickup), assignment separate from start, complete readiness, success/evidence, creator-owned outcome closure and linked follow-ups; Closed never reopens. See `REQUIREMENTS.md` §§4–5. Alignment, launch, actual-result closure and quarter/year totals remain target only; the local Expected impact increment does not implement the whole pipeline.
+2. The current app has a shared **Open → In progress → Done → Measuring → Closed** board with pickup/completion, comments and private attachments; eligible non-guests share the same view. Expected impact creation → signed review → saved detail is implemented and locally verified. This is implementation scope, not proof that every production release gate passed.
+3. **Confirmed 2026-09-28 target:** optional reviewers on a Request (Looks good / Raise a concern; never block pickup; an edit resets answers; delete before pickup), assignment separate from start, complete readiness, success/evidence, Requester-owned outcome closure and linked follow-ups; Closed never reopens. See `REQUIREMENTS.md` §§4–5. Alignment, launch, actual-result closure and quarter/year totals remain target only; the local Expected impact increment does not implement the whole pipeline.
 
 ## The only screens that exist in the MVP
 
 1. **Auth** — login / signup / accept-invite.
 2. **Onboarding** — create/join a Clerk workspace → pick a role (PM / Designer / Developer) → Requests. Membership is required; interrupted Clerk organization tasks resume at `/login`. Role editable later in Settings.
 3. **Intake** — title/description, Expected impact, optional Project, Request type, Add link and private attachments + the AI gate. Earlier draft details remain visible read-only; existing saved context is preserved.
-4. **Requests** — one workspace-wide board everyone sees, grouped Open / In Progress / Done, with an optional `?status=` filter. Same view for every role. The workspace search pane (`/`) belongs to this screen: Requests and Projects by saved code, title, description and Expected impact text, with status, type and created-date filters, recent searches and a result preview; Enter on an exact saved code opens that Request. Whitelisted 2026-10-10; this scope approved 2026-10-20.
+4. **Requests** — one workspace-wide board everyone sees, grouped by the five Request statuses (Open / In progress / Done / Measuring / Closed), with an optional `?status=` filter. Same view for every role. The workspace search pane (`/`) belongs to this screen: Requests and Projects by saved code, title, description and Expected impact text, with status, type and created-date filters, recent searches and a result preview; Enter on an exact saved code opens that Request. Whitelisted 2026-10-10; this scope approved 2026-10-20.
 5. **Request detail** — current problem/context, saved Expected impact, pickup, Done and comments; confirmed alignment/readiness/outcome additions need scoped implementation approval. Profile labels never gate actions; named Request responsibilities may.
 6. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role; includes browser-local theme preference). Nothing else under settings.
 
@@ -30,9 +30,10 @@ If a screen isn't on this list, it does not get built without an explicit writte
 
 Requests (not tickets/tasks) · Intake (not backlog) · Prove (not sign-off) · Ideas (not idea board) ·
 Active Requests (not streams). Roles: **PM / Designer / Developer** (on `profiles.role`).
-Request lifecycle for the MVP is just **Open → In Progress → Done** — the Sense/Frame/Diverge/Converge/Prove
-design stages are DEFERRED, not built now.
-Reviewer terms and retired words (Agreement, Design review): `GLOSSARY.md`.
+Request status is one line: **Open → In progress → Done → Measuring → Closed**; "Closed without a result" is a
+form of Closed (#127, 2026-10-22). The person who closes is the **Requester** (not owner/creator). The
+Sense/Frame/Diverge/Converge/Prove design stages are DEFERRED, not built now.
+Request status, people, reviewer terms and retired words (Agreement, Design review): `GLOSSARY.md`.
 
 ## Stack
 
@@ -50,7 +51,7 @@ For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/ag
 - **Product UI authority: Arc UI only.** `DESIGN.md` and the official Arc/Arc Pro skills in `.claude/skills/` control components, tokens, typography and motion. Use actual Arc registry/MCP source and preserve documented APIs. Linear interactions are explicitly approved for the 2026-10-07 Requests/detail/Project navigation work; Arc remains the visual authority. Preserve working data, permissions, draft/upload recovery and Clerk flows. Verify production components in the running app and with tests, including keyboard, responsive and edge states (Storybook was removed on 2026-10-21 at Nikhil's request). The old `marketing/` repository was removed from Lane on 2026-10-15; the new marketing site is a separate local project built on the same 2026-10-13 Supabase-derived values. On 2026-10-09 Nikhil activated the Linear primitives in production for the whole app (root `data-visual-system="linear"`, Request detail included), retaining Arc components/motion; the compact Requests rows with saved priority and the folder-tree Project navigation ship with it. See `docs/design-system/linear-primitives.md`. On 2026-10-10 Nikhil accepted the MVP launch plan (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`) with its defaults: the same interaction approval extends to Profile auto-save, onboarding role keys, and keyboard operation of the notifications and search panes; the Arc Pro licence is recorded in `docs/licenses/arc-pro.md`. **Theme file (2026-10-22, retires the 2026-10-13 Supabase token decision):** every visual value lives in `src/styles/theme.css` (tweakcn export on top, never hand-edited; Lane additions below); `src/styles/theme-bridge.css` only renames; Arc keeps components and motion; product CSS writes no design literals (`pnpm design:check`). For any change to colours, fonts, corners, shadows, sizes or motion, read `docs/design-system/theme-file.md`.
 - **No new tables, routes, AI calls, or cron jobs without explicit written approval.** Default answer to "should we also build X" is no.
 - **Same view for everyone.** PM/Designer/Developer profile labels grant no permissions or separate dashboards.
-  Named Request participants/creator have scoped alignment/closure responsibilities; no creator/admin bypass.
+  Named Request participants/the Requester have scoped alignment/closure responsibilities; no Requester/admin bypass.
   Clerk alone owns tenancy: **admin | member | guest**. Lane never recreates membership or invitation authority.
 - **Actions receive context for workspace, derive identity from the session.** Server actions take
   `{orgId}` from the page render; they must NOT call `ensureWorkspace`/`getWorkspace` to re-derive which

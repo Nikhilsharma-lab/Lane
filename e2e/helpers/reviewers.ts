@@ -82,11 +82,16 @@ export type ReviewTeam = Awaited<ReturnType<typeof createReviewTeam>>;
  * Creates a Request as the PM. With `reviewers`, the PM goes back from the
  * restored review to the compose step, picks them in the Reviewers property,
  * and reviews again through the real gate, so the save carries the picks.
+ * `windowDays` is the agreed measurement window (7, 14, 30 or 90 days, the
+ * plan's only choices), so a release recorded today is due that many days later.
  */
 export async function createRequestThroughIntake(
   team: ReviewTeam,
   title: string,
-  { reviewers = [] }: { reviewers?: string[] } = {},
+  {
+    reviewers = [],
+    windowDays = 30,
+  }: { reviewers?: string[]; windowDays?: 7 | 14 | 30 | 90 } = {},
 ) {
   const page = team.pages[0];
   const source = {
@@ -104,7 +109,7 @@ export async function createRequestThroughIntake(
     expectedImpact: {
       kind: "measurement" as const, version: 2 as const,
       primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const },
-      measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" },
+      measurement: { audience: "all" as const, platform: "web" as const, windowDays, exactDates: false, startDate: "", endDate: "" },
       guardrails: [],
     },
   };

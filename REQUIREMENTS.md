@@ -19,8 +19,8 @@
 > **2026-10-21 #58 approval:** Named agreement and its persistence contract are approved for local
 > implementation/testing. Migration `0028` is prepared; hosted backup, staging acceptance and promotion
 > are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
-> **2026-10-21 #59 approval:** Release/measurement implementation is authorized locally, with UTC date boundaries, owner-only attributed correction/void recovery, and admin transfer when the current owner loses eligible access. Relative deadlines use actual exposure; fixed dates stay fixed. See `docs/superpowers/plans/2026-10-21-release-measurement.md`. Hosted migration/acceptance and #60 closure remain separate.
-> **2026-10-21 #60 approval:** Measured and exception closure, append-only closure corrections and linked follow-ups are authorized locally with no new table. The current release/outcome owner closes (measured only from the UTC due date; exceptions any time with a reason) and corrects; admin transfer stays available after closure when the owner loses access. Every agreed guardrail needs an actual value. Any active non-guest member may create a follow-up after release. See `docs/superpowers/plans/2026-10-21-outcome-closure.md`. Hosted migration `0030` and acceptance remain separate gates; quarter/year totals remain target only.
+> **2026-10-21 #59 approval:** Release/measurement implementation is authorized locally, with UTC date boundaries, attributed correction/void recovery, and admin handover when the Requester loses eligible access (who may release, correct and void was widened by #127 below). Relative deadlines use actual exposure; fixed dates stay fixed. See `docs/superpowers/plans/2026-10-21-release-measurement.md`. Hosted migration/acceptance and #60 closure remain separate.
+> **2026-10-21 #60 approval:** Measured and exception closure, append-only closure corrections and linked follow-ups are authorized locally with no new table. The Requester closes (measured only from the UTC due date; exceptions any time after pickup with a reason) and corrects; admin handover stays available after closure when the Requester loses access. Every agreed guardrail needs an actual value. Any active non-guest member may create a follow-up after release. See `docs/superpowers/plans/2026-10-21-outcome-closure.md`. Hosted migration `0030` and acceptance remain separate gates; quarter/year totals remain target only.
 > **2026-10-21 reviewers (Nikhil, supersedes the #58 trio gate and #60 exception rules above):** No
 > required PM/Designer/Developer agreement. The requester may add any number of optional reviewers (none
 > is fine); anyone may ask for a review before pickup. Reviewers answer Looks good or Raise a concern
@@ -29,6 +29,13 @@
 > Request for good. After pickup, work that is rolled back or can't be measured closes without a result
 > (Rolled back, Can't be measured, Other with a reason); it stays on record and outside measured impact.
 > Migration `0031`.
+> **2026-10-22 #127 journey (Nikhil, supersedes the #59/#60 ownership wording above):** One status line,
+> Open → In progress → Done → Measuring → Closed, derived from the saved facts. Any active non-guest member
+> records, corrects or voids a release while the Request is Done or Measuring and not closed; each change is
+> attributed in history. Closing (measured or without a result) and closure corrections stay with the
+> Requester only. A workspace admin may hand a Request to a new Requester at any point after pickup
+> (including after closure) once the current Requester has lost access. The person who closes is called the
+> **Requester** everywhere: not owner, creator or release and outcome owner.
 > **2026-10-21 trio plans retired (Nikhil):** Reviewers also replace every later trio plan. Build and
 > release readiness are checklists for the person doing the work: they guide, never block, and nobody else
 > signs off. Before pickup a change is an edit (which resets reviews); after pickup a material change before
@@ -129,10 +136,11 @@ plan that exposes a production `org:guest` custom role.
 
 ### Responsibility versus permission
 
-Responsibilities belong to a Request creator, its reviewers, current assignee, or explicitly transferred
-outcome owner. These are Request-scoped responsibilities, not new global roles.
-Changing a profile label never grants review or closure authority. Only the creator (or an
-explicitly transferred outcome owner) closes the outcome; PM is not a permission gate.
+Responsibilities belong to a Request's Requester, its reviewers and its current assignee. The Requester is
+the person who created the Request, or whoever an admin handed it to after they lost access. These are
+Request-scoped responsibilities, not new global roles.
+Changing a profile label never grants review or closure authority. Only the Requester closes the Request;
+PM is not a permission gate. Any active non-guest member may record, correct or void its release (#127).
 
 ---
 
@@ -168,7 +176,7 @@ Clerk cutover record still requires hosted invitation-return and production veri
 The confirmed journey is:
 
 **Create (optionally ask reviewers) → Pick up → Explore as needed → Check build readiness → Build →
-Check release readiness → Release → Measure → Creator closes → Follow-up Request if further work is needed.**
+Check release readiness → Release → Measure → Requester closes → Follow-up Request if further work is needed.**
 
 - Reviewers are optional and never block progression (§4.4). Readiness checklists guide the person doing the
   work; they never block and need no one else's sign-off.
@@ -177,8 +185,8 @@ Check release readiness → Release → Measure → Creator closes → Follow-up
 - Expected impact is recorded at creation. One primary success
   criterion, relevant guardrails, complete build/release readiness and evidence support delivery. Numeric
   impact is not compulsory where an observable acceptance criterion is more appropriate.
-- Active-work completion and outcome closure remain separate. The creator owns closure, including truthful
-  exceptions. Closed never reopens; further work uses a linked follow-up with its own reviewers and ownership.
+- Done and Closed remain separate steps. The Requester closes, including Closed without a result. Closed
+  never reopens; further work uses a linked follow-up with its own reviewers and its own Requester.
 - Overview / Work / Build / Outcome may organize information without becoming mandatory workflow stages.
 - Quarterly/yearly outcome summaries are confirmed target scope, derived from Request records with
   compatible metrics and no duplicate attribution (§9); no separate reporting route is selected yet.
@@ -211,7 +219,7 @@ Existing at_most and at_least retain inclusive meanings. No automatic monitoring
 they will check the result. Source/method is no longer required at creation; previously saved
 source details remain preserved and readable. Keep the compact “Check in [X] days” interval.
 This retains the existing post-launch review interval; it does not schedule notifications or
-automatically close Requests. The creator still owns results and closure.
+automatically close Requests. The Requester still records results and closes.
 
 ### Explicitly not authorized yet
 
@@ -432,11 +440,12 @@ details must be resolved in the release increment's plan before implementation.
 
 ### 4.10 Measure and close — Approved target
 
-The creator returns after delivery, records what happened, compares it with the original prediction, and
-closes the outcome. The comparison belongs to the Request and workspace learning—not to a personal score.
+The Requester returns after delivery, records what happened, compares it with the original prediction, and
+closes the Request. The comparison belongs to the Request and workspace learning—not to a personal score.
 
-**Confirmed 2026-10-06:** the person who submitted the Request owns this obligation, including when someone
-else did the work. For ordinary measured closure, actual results, their evidence/source and the agreed
+**Confirmed 2026-10-06; wording 2026-10-22 (#127):** the Requester (the person who submitted the Request, or
+whoever an admin handed it to) closes it, including when someone else did the work. Anyone working on the
+Request may record, correct or void the release, so measurement is never held up waiting for the Requester. For ordinary measured closure, actual results, their evidence/source and the agreed
 measurement period must be recorded first. A result below prediction is valid learning and may close;
 exceeding the prediction is not required. An overdue review remains outstanding rather than auto-closing.
 An explicitly recorded exception under §5 may close without a measured number and stays outside measured
@@ -452,15 +461,20 @@ uses the follow-up contract (§5), even while measurement of the original Reques
 
 ## 5. Locked lifecycle contract
 
-The approved target maintains two connected lifecycles. Readiness checklists are guidance, not extra board
-columns, permission roles or gates. Only the work lifecycle exists in the current implementation.
+**2026-10-22 (#127):** a Request has one status line, the same in the list, board, peek and Request page:
+
+`Open → In progress → Done → Measuring → Closed`
+
+It is derived from the saved work status, the release and the closure; it is never stored. "Closed without a
+result" is a form of Closed. Readiness checklists are guidance, not extra board columns, permission roles or
+gates. The two lifecycles below are the saved facts the status line is read from.
 
 ### Work lifecycle
 
-`Open → In Progress → Done`
+`Open → In progress → Done`
 
 - **Open:** saved work not yet started; it may be awaiting reviews or capacity.
-- **In Progress:** active design, development, or delivery work.
+- **In progress:** active design, development, or delivery work.
 - **Done:** active work has ended. Done does not mean the outcome has been measured or the Request has been
   fully closed.
 
@@ -477,11 +491,11 @@ only pickup check is a complete measurement plan.
 
 ### Outcome lifecycle
 
-`Not started → Measuring → Closed`
+The saved release and closure facts behind Done → Measuring → Closed.
 
-- **Not started:** no outcome measurement is currently underway.
-- **Measuring:** the delivery has entered its agreed observation window.
-- **Closed:** the creator has recorded a measured result or a truthful exception outcome.
+- **Done (no release yet):** no outcome measurement is currently underway.
+- **Measuring:** a release is recorded; the delivery has entered its agreed observation window.
+- **Closed:** the Requester has recorded a measured result, or closed without a result.
 
 A Request may close with:
 
@@ -499,21 +513,25 @@ measured-impact totals; display their counts and reasons separately so period re
 Measured results may be positive, neutral or negative; Closed never means successful by default. An unlaunched
 or cancelled Request may close directly from Not started with its reason, without a fabricated Measuring step.
 
-### Closure ownership
+### Who closes — the Requester
 
-- The Request creator owns outcome closure.
+- The Requester closes the Request (measured, or without a result) and adds closure corrections. Nobody else
+  does, admins included.
+- Any active non-guest member records, corrects or voids the release while the Request is Done or Measuring
+  and not closed; guests never do, and nobody does after closure. Each change is attributed in history.
 - Functional label does not grant closure permission.
-- If the creator leaves or loses access, a Clerk organization admin explicitly transfers outcome ownership to another
-  active member.
-- Transfer must be visible and attributable; it may not happen silently.
-- The exact administrative recovery path is a future implementation decision.
+- If the Requester leaves or loses access, a Clerk organization admin hands the Request to another active
+  non-guest member, with a reason, at any point after pickup (including after closure). Before any release,
+  the handover starts the release record with no release in it.
+- Handover must be visible and attributable; it may not happen silently. The former Requester loses close
+  rights at once.
 
 ### Closed is permanent; corrections are append-only — Confirmed 2026-09-28
 
 A Closed Request cannot reopen. Preserve its closure snapshot, commitment, outcome and evidence. Factual
 errors may receive an attributable append-only correction displayed beside the original; never silently
 overwrite history. A typo or mistaken evidence link is not new product work and must not inflate follow-up
-counts. **Specified 2026-10-21 (#60):** only the current release/outcome owner adds corrections, each naming
+counts. **Specified 2026-10-21 (#60):** only the Requester adds corrections, each naming
 the corrected part (actual, guardrails, evidence, observation period or exception reason) with a reason; they
 appear beside the unchanged closure record.
 
@@ -528,8 +546,8 @@ appear beside the unchanged closure record.
 
 The user-facing action is **Create follow-up Request**, not a Git-style branch/merge workflow. A follow-up
 links back to the original Request and references useful problem context, artifacts and outcomes; it states
-what changed and why, and has its own creator, reviewers and success criterion; carried-over reviewers start
-unanswered. Its creator owns its closure. Context can carry forward; review answers and outcome completion cannot.
+what changed and why, and has its own Requester (whoever created it), reviewers and success criterion;
+carried-over reviewers start unanswered. Its Requester closes it. Context can carry forward; review answers and outcome completion cannot.
 
 The original remains Closed if closed, or keeps its outstanding measurement obligation if still Measuring.
 When subsequent work changes the measured experience, record the effect on the earlier measurement and its
@@ -575,7 +593,7 @@ concept for Paper exploration, not a route or schema instruction:
 - Measurement window and source.
 - Actual result or truthful exception.
 - Comparison and concise Request-level learning.
-- Creator-owned close action.
+- Close action for the Requester only.
 - Closed snapshot, attributable corrections and follow-up links when implemented.
 
 These labels are information views, not a new lifecycle, permission model, or mandatory process.
@@ -852,7 +870,7 @@ increment at a time.
 - PM / Designer / Developer are labels, not permissions.
 - **2026-09-24:** workspace-first onboarding with Clerk Membership required; choose the functional label
   only after an active organization exists, then enter Requests.
-- Work lifecycle remains Open → In Progress → Done.
+- Work lifecycle remains Open → In progress → Done (2026-10-22: shown as one status line with Measuring and Closed, §5).
 - **2026-10-09:** Mark Done can be undone from the Requests list (and from Request detail once it is
   migrated, 2026-10-10) for 15 minutes after the move: the Request returns to In Progress and its Done
   notification is withdrawn. This is the undo of Mark Done, offered to the same members who can mark Done,
@@ -889,9 +907,9 @@ increment at a time.
   token values re-authored as Lane-owned tokens before any page sign-off; "Intake" names the flow and
   "New Request" the action and breadcrumb. The creation-to-outcome replan is a sketch session before
   Phase 2, not waived.
-- Outcome lifecycle is separate: Not started → Measuring → Closed.
+- One status line (2026-10-22, #127): Open → In progress → Done → Measuring → Closed, derived, never stored.
 - Done does not mean outcome closure.
-- The creator owns outcome closure; a Clerk organization admin may explicitly transfer responsibility if necessary.
+- The Requester closes and corrects; any active non-guest member records, corrects or voids the release; a Clerk organization admin may hand the Request to a new Requester after pickup when the Requester has lost access (2026-10-22, #127).
 - Truthful exception outcomes may close a Request: inconclusive, measurement unavailable, not launched or
   cancelled, rolled back, or superseded.
 - Design work is nonlinear and artifact-led; continuous text logging is not required.
@@ -919,7 +937,7 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
 
 - Final interaction labels and compact field presentation; how a material change after pickup is told
   apart from an ordinary correction.
-- Guest-created Request sponsorship and outcome-owner transfer recovery. Neither may weaken guest isolation.
+- Guest-created Request sponsorship. Requester handover is decided (§5, 2026-10-22); neither may weaken guest isolation.
 - Detailed partial-rollout representation, measurement-source handling and append-only correction authority.
 - Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.

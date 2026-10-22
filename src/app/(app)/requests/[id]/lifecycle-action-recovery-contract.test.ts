@@ -47,7 +47,7 @@ describe("Reliable Request lifecycle action contract", () => {
     expect(LIFECYCLE).toContain("Try again if this Request is still Open");
     expect(LIFECYCLE).toContain("Couldn’t confirm completion");
     expect(LIFECYCLE).toContain(
-      "Try again if this Request is still In Progress"
+      "Try again if this Request is still In progress"
     );
     expect(LIFECYCLE).toContain("router.refresh()");
   });
@@ -56,7 +56,7 @@ describe("Reliable Request lifecycle action contract", () => {
     // Plan item 1.4: each move is one data-modifying CTE. The UPDATE keeps the
     // status guard and the notification INSERT reads from its RETURNING row,
     // so the two commit or fail together (decision 8.17) and a race can only
-    // win once. Pick up guards Open → In Progress; Done guards In Progress → Done.
+    // win once. Pick up guards Open → In progress; Done guards In progress → Done.
     expect(MOVE_RULES).toContain('from: "open", to: "in_progress"');
     expect(MOVE_RULES).toContain('from: "in_progress", to: "done"');
     expect(TRANSITION).toContain(

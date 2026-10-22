@@ -30,6 +30,8 @@ export type RequestDetail = {
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
+  /** The release record: with the closures, what the one journey status reads from (#133). */
+  releaseState?: import("@/lib/request-release").ReleaseState | null
   designReviews?: SavedDesignReview[]
   id: string
   /** Saved workspace-local number (LAN-n). NOT NULL, CHECK > 0 in the schema. */

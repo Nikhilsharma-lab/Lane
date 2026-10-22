@@ -141,7 +141,7 @@ export async function runTriage(
       const [owned] = await db.select({ id: requests.id }).from(requests).where(and(
         eq(requests.id, existingRequestId), changeable(auth), eq(requests.status, "open"),
       )).limit(1);
-      if (!owned) return { success: false, error: { code: "validation", message: "Only the creator or a workspace admin can edit an Open Request." } };
+      if (!owned) return { success: false, error: { code: "validation", message: "Only the Requester or a workspace admin can edit an Open Request." } };
     } catch {
       return { success: false, error: { code: "network", message: "Could not check this Request. Your draft is kept." } };
     }

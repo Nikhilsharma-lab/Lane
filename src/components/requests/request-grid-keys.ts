@@ -103,15 +103,16 @@ export function tabbableKey(keys: GridKey[], active: { key: GridKey; index: numb
 
 /**
  * The grid's rows in page order. Grouped: each group with a Request on this
- * page gives its header, then its rows on this page unless it is collapsed.
- * Ungrouped: the page's rows.
+ * page gives its header, then its rows on this page unless it is collapsed;
+ * a group with no Requests at all (an empty board column) gives its header on
+ * every page. Ungrouped: the page's rows.
  */
 export function gridKeysFor(groups: { key: string; rows: { id: string }[] }[] | null, pageRows: { id: string }[], collapsedGroups: string[]): GridKey[] {
   if (!groups) return pageRows.map(row => `r:${row.id}`)
   const onPage = new Set(pageRows.map(row => row.id))
   return groups.flatMap(group => {
     const rows = group.rows.filter(row => onPage.has(row.id))
-    if (!rows.length) return []
+    if (!rows.length && group.rows.length) return []
     return [`g:${group.key}`, ...(collapsedGroups.includes(group.key) ? [] : rows.map(row => `r:${row.id}`))]
   })
 }

@@ -19,11 +19,21 @@ describe("listViewModel", () => {
   })
   it("pages the grouped order and leaves collapsed groups out of what is visible", () => {
     const model = listViewModel(view, rows)
-    expect(model.groups.map(g => g.key)).toEqual(["status:open", "status:in_progress", "status:done"])
+    expect(model.groups.map(g => g.key)).toEqual(["status:open", "status:in_progress", "status:done", "status:measuring", "status:closed"])
     expect(model.page).toMatchObject({ pageIndex: 0, pageCount: 2 })
     expect(model.page.rows.map(r => r.id)).toEqual(["c", "a"])
     expect(listViewModel({ ...view, collapsedGroups: ["status:open"] }, rows).visibleRows.map(r => r.id)).toEqual([])
     expect(listViewModel({ ...view, grouping: "none" }, rows).visibleRows.map(r => r.id)).toEqual(["d", "b"])
+  })
+})
+
+describe("the board's columns", () => {
+  it("shows all five statuses in journey order with every status, empty ones included", () => {
+    expect(listViewModel(view, rows).groups.map(g => [g.label, g.rows.length])).toEqual([["Open", 2], ["In progress", 1], ["Done", 1], ["Measuring", 0], ["Closed", 0]])
+  })
+  it("shows only the matching column once a status view is chosen", () => {
+    expect(listViewModel({ ...view, status: "open" }, rows).groups.map(g => g.label)).toEqual(["Open"])
+    expect(listViewModel({ ...view, status: "measuring" }, rows).groups).toEqual([])
   })
 })
 

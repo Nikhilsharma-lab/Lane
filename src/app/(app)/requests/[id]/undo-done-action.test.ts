@@ -16,6 +16,7 @@ let requestId: string;
 const api = () => import("./actions");
 const actAs = (userId: string, orgRole = "org:member", orgId = ORG) => { session.userId = userId; session.orgId = orgId; session.orgRole = orgRole; };
 const saved = async () => (await connection`select status::text as status, assigned_to from requests where id = ${requestId}`)[0];
+const doneAt = async (id = requestId) => (await connection`select done_at from requests where id = ${id}`)[0].done_at as Date | null;
 const doneNotifications = async () => (await connection`select count(*)::int as count from notifications where request_id = ${requestId} and type = 'request_done'`)[0].count;
 
 beforeAll(async () => {
@@ -40,14 +41,28 @@ afterAll(async () => {
 });
 
 describe("undoMarkDone", () => {
-  it("returns a Done Request to In Progress, keeps its owner and withdraws the Done notification", async () => {
+  it("returns a Done Request to In progress, keeps its owner and withdraws the Done notification", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
     expect(await pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
+    expect(await doneAt()).toBeNull();
     expect(await markDone(requestId, { orgId: ORG })).toEqual({ success: true });
     expect(await doneNotifications()).toBe(1);
+    expect(await doneAt()).toBeInstanceOf(Date);
     expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ success: true, status: "in_progress" });
     expect(await saved()).toEqual({ status: "in_progress", assigned_to: MEMBER });
     expect(await doneNotifications()).toBe(0);
+    // The release reminder counts from the Done time, so Undo leaves none behind.
+    expect(await doneAt()).toBeNull();
+  });
+
+  it("stamps a Done time on every Request a bulk Mark Done moves", async () => {
+    const { markDoneMany, pickUpRequests } = await api();
+    const other = randomUUID();
+    await connection`insert into requests (id,org_id,title,description,created_by) values (${other},${ORG},'Undo probe two','A Request',${REQUESTER})`;
+    await pickUpRequests([requestId, other], { orgId: ORG });
+    const before = new Date();
+    expect((await markDoneMany([requestId, other], { orgId: ORG })).moved).toHaveLength(2);
+    for (const id of [requestId, other]) expect((await doneAt(id))!.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
   });
 
   it("refuses once the Done move is older than the undo window", async () => {

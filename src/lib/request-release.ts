@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ExpectedImpact } from './request-impact';
+import { utcDay } from './utc-day';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
 const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true) };
@@ -36,13 +37,8 @@ export type ReleaseState = {
     release: ReleaseFact | null;
     history: ReleaseEvent[];
 };
-/** Shared owner contract for release and ticket #60 closure. Authorship never changes. */
-export function releaseOwner(request: {
-    createdBy: string;
-    releaseState?: ReleaseState | null;
-}) {
-    return request.releaseState?.ownerId ?? request.createdBy;
-}
+// The zod-free reads live apart so the list, the shell and the journey module load without zod (#133).
+export { dueWords, releaseMeasurement, requesterOf } from './request-release-facts';
 export function releaseWindow(impact: ExpectedImpact | null, exposureDate: string): Pick<ReleaseFact, 'dueDate' | 'startDate' | 'windowKind'> {
     if (!impact)
         throw new Error('A complete agreed measurement window is required.');
@@ -54,16 +50,9 @@ export function releaseWindow(impact: ExpectedImpact | null, exposureDate: strin
         throw new Error('A complete agreed measurement window is required.');
     const date = new Date(exposureDate + 'T00:00:00.000Z');
     date.setUTCDate(date.getUTCDate() + days);
-    return { startDate: exposureDate, dueDate: date.toISOString().slice(0, 10), windowKind: 'relative' };
-}
-export function releaseMeasurement(release: ReleaseFact | null, now: Date) {
-    if (!release)
-        return null;
-    const today = now.toISOString().slice(0, 10);
-    const days = Math.round((Date.parse(release.dueDate + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
-    return { due: days <= 0, days, label: days === 0 ? 'Due today' : days > 0 ? `${days} day${days === 1 ? '' : 's'} remaining` : `${-days} day${days === -1 ? '' : 's'} overdue` };
+    return { startDate: exposureDate, dueDate: utcDay(date), windowKind: 'relative' };
 }
 /** Exposure cannot predate the Request itself (UTC date). */
 export function earliestExposure(request: { createdAt: Date }) {
-    return request.createdAt.toISOString().slice(0, 10);
+    return utcDay(request.createdAt);
 }

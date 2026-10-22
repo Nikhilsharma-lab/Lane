@@ -11,11 +11,14 @@ export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "
  * What the list shows for a view and its rows (the overlay already applied):
  * the matching rows sorted and grouped, the current page, and the rows a
  * person can see on it (collapsed groups left out). The list, its keyboard
- * grid and its selection all read this.
+ * grid and its selection all read this. Grouped by status with every status
+ * shown, the board keeps a column for each journey status, empty ones
+ * included; a status view keeps only the columns with Requests in it.
  */
 export function listViewModel(view: ListViewState, rows: OverviewRequest[]) {
   const filters = listFiltersOf(view)
-  const groups = groupRequestRows(sortRequestRows(rows.filter(row => matchesListFilters(row, filters)), view.ordering), view.grouping)
+  const grouped = groupRequestRows(sortRequestRows(rows.filter(row => matchesListFilters(row, filters)), view.ordering), view.grouping)
+  const groups = view.status === "all" ? grouped : grouped.filter(group => group.rows.length)
   const matching = groups.flatMap(group => group.rows)
   const page = paginateRequests(matching, view.pagination.pageIndex, view.pagination.pageSize)
   const onPage = new Set(page.rows.map(row => row.id))

@@ -9,7 +9,7 @@ describe("paletteEntries", () => {
   it("lists a member's entries in order with nothing typed", () => {
     expect(ids(base)).toEqual([
       "new-request", "search",
-      "view:all", "view:open", "view:in_progress", "view:done",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:coming-soon",
       "notifications",
@@ -39,7 +39,7 @@ describe("paletteEntries", () => {
     it("offers Pick up and priority on an Open Request", () => {
       expect(actions({ request })).toEqual(["pick-up", "change-priority", "copy-link", "copy-code"])
     })
-    it("offers Mark Done on an In Progress Request, without priority", () => {
+    it("offers Mark Done on an In progress Request, without priority", () => {
       expect(actions({ request: { ...request, status: "in_progress", canEdit: false } })).toEqual(["mark-done", "copy-link", "copy-code"])
     })
     it("offers only copying on a Done Request", () => {
