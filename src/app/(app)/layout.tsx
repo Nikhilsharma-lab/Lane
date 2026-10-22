@@ -10,6 +10,7 @@ import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
 import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
+import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -44,6 +45,8 @@ export default async function AppLayout({
       <PickupConfirmationProvider>
       {/* #103: clears the palette's Undo Mark Done when the toast queue shrinks. */}
       <MarkDoneUndoWatcher />
+      {/* #135: one "Is it live?" prompt for every single-Request Mark Done. */}
+      <IsItLiveProvider orgId={result.orgId}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
@@ -61,6 +64,7 @@ export default async function AppLayout({
         </NewRequestProvider>
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
+      </IsItLiveProvider>
       </PickupConfirmationProvider>
       </PendingMutationsProvider>
     </RequestListViewProvider>
