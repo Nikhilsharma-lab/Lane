@@ -245,6 +245,17 @@ test('hard-to-read text pairs warn in light and dark but never fail', () => {
   assert.match(warnings[1], /dark: --foreground on --background is \d\.\d+:1/)
 })
 
+test('avatar initials on each avatar tone are contrast-checked in light and dark', () => {
+  // A dark-mode tone left as a pale light value makes the light initials unreadable.
+  const theme = cleanTheme
+    .replace('--duration-standard: 200ms;', '--duration-standard: 200ms; --avatar-tone-slate: oklch(0.96 0.005 240);')
+    .replace('--hairline: oklch(1 0 0 / .075);', '--hairline: oklch(1 0 0 / .075); --avatar-tone-slate: oklch(0.9 0.005 240);')
+  const { errors, warnings } = auditFixture({ 'src/styles/theme.css': theme })
+  assert.deepEqual(errors, [])
+  assert.equal(warnings.length, 1, warnings.join('\n'))
+  assert.match(warnings[0], /dark: --foreground on --avatar-tone-slate is \d\.\d+:1/)
+})
+
 test('the theme CLI exits cleanly with contrast warnings and fails on rule breaks', () => {
   const script = join(import.meta.dirname, 'token-contract.mjs')
   const run = overrides => {
