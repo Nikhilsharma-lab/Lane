@@ -261,7 +261,7 @@ export async function deleteRequest(
       .where(and(eq(requests.id, requestId), seeable(auth)))
       .for("update");
     if (!request) return { error: "Not found" };
-    if (!canChange(auth, request)) return { error: "Only the requester or an admin can delete this Request." };
+    if (!canChange(auth, request)) return { error: "Only the Requester or a workspace admin can delete this Request." };
     if (request.status !== "open") return { error: "Work has started, so this Request can’t be deleted. Close it without a result instead." };
     const files = await tx.select({ storagePath: requestAttachments.storagePath })
       .from(requestAttachments)

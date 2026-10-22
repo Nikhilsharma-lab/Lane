@@ -42,11 +42,11 @@ test('release, correction, countdown and explicit owner transfer survive reloads
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
     const admin = team.pages[1]; await admin.goto(lastPath); await admin.reload();
     const panel = admin.getByRole('region', { name: 'Release and measurement', exact: true });
-    await panel.getByRole('combobox', { name: 'New release and outcome owner' }).click();
+    await panel.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
-    await panel.getByLabel('Transfer reason').fill('Original owner left the acceptance workspace');
-    await panel.getByRole('button', { name: 'Transfer responsibility' }).click();
-    await admin.reload(); await expect(panel).toContainText('Release and outcome owner: Review Developer');
+    await panel.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
+    await panel.getByRole('button', { name: 'Hand over' }).click();
+    await admin.reload(); await expect(panel).toContainText('Requester: Review Developer');
     await expect(panel.getByText('14 days remaining', { exact: true })).toBeVisible();
   } finally { await team.close(testInfo); }
 });

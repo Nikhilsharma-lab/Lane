@@ -134,7 +134,7 @@ export async function removeReviewer(context: RequestChangeContext, input: unkno
     parsed.data,
     "reviewer_removed",
     async (tx, request, reviewersRow, auth) => {
-      insist(canChange(auth, request), "Only the requester or an admin can remove a reviewer.");
+      insist(canChange(auth, request), "Only the Requester or a workspace admin can remove a reviewer.");
       const reviewers = reviewersRow?.reviewers ?? [];
       insist(
         reviewers.some((r) => r.id === parsed.data.reviewerId),

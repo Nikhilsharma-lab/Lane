@@ -10,8 +10,11 @@ import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
 import { notifyReviewers } from '@/lib/request-reviewers';
-import { releaseOwner, releaseMeasurement } from '@/lib/request-release';
-import { agreedResult, correctableFields, guardrailHeld, isClosed, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
+import { releaseMeasurement } from '@/lib/request-release';
+import { journeyStatus, requesterOf } from '@/lib/request-journey';
+import { allow, journeyActionsFor, personName } from '@/lib/request-journey-access';
+const JOURNEY_ACTION = { measured: 'close', exception: 'closeWithoutResult', correction: 'correctClosure' } as const;
+import { agreedResult, correctableFields, guardrailHeld, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 /** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
 const requestContent = (r: typeof requests.$inferSelect) => ({ title: r.title, description: r.description, classification: r.classification, reframedProblem: r.reframedProblem, extractedSolution: r.extractedSolution, affectedPeople: r.affectedPeople, desiredChange: r.desiredChange, observedEvidence: r.observedEvidence, uncertainty: r.uncertainty, usefulLink: r.usefulLink, requestType: r.requestType, projectId: r.projectId, labelKeys: r.labelKeys, expectedImpact: r.expectedImpact });
@@ -28,20 +31,20 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
             const previous = [request.outcomeClosure, request.exceptionClosure, ...request.closureCorrections].find(entry => entry?.operationId === context.operationId);
             return previous ? { actorId: previous.actorId, fingerprint: previous.fingerprint, result: { success: true as const, revision: previous.revision } } : undefined;
         },
-        apply: async (_tx, { request, auth, revision, fingerprint }) => {
-            const ownerId = releaseOwner(request);
-            insist(ownerId === auth.userId, 'Only the current release and outcome owner can do this.');
-            const closedAt = new Date().toISOString();
+        apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
+            const ownerId = requesterOf(request);
+            // Closing, closing without a result and corrections stay with the Requester.
+            const now = new Date();
+            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, ownerId), now);
+            allow(actions[JOURNEY_ACTION[change.kind]]);
+            const closedAt = now.toISOString();
             if (change.kind === 'correction') {
-                insist(isClosed(request), 'Only a Closed Request takes corrections.');
                 insist(correctableFields(request.outcomeClosure ? 'measured' : 'exception').includes(change.field), 'Choose a part of this closure to correct.');
                 return { set: { closureCorrections: [...request.closureCorrections, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: closedAt, field: change.field, correction: change.correction, reason: change.reason, revision }] } };
             }
-            insist(!isClosed(request), 'This Request is permanently closed.');
             const release = request.releaseState?.release ?? null;
             if (change.kind === 'measured') {
-                insist(request.status === 'done' && release, 'Record release before closing with a measured result.');
-                insist(utcToday() >= release.dueDate, `Measured closure opens on ${release.dueDate} (UTC). If it can’t be measured, close it without a result.`);
+                insist(release, 'Record release before closing with a measured result.');
                 // Content cannot change after pickup, so the Request's Expected impact is the agreed one.
                 const expected = expectedImpactSchema.safeParse(request.expectedImpact).data;
                 insist(expected, 'The agreed Expected impact is unavailable.');
@@ -58,7 +61,6 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 };
                 return { set: { outcomeClosure: closure } };
             }
-            insist(request.status !== 'open', 'Nobody has picked this up yet. Delete the Request instead.');
             insist(change.reasonCode !== 'other' || change.reason, 'Say why this is closing without a result.');
             const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId, closedAt, operationId: context.operationId, fingerprint, release, revision };
             return { set: { exceptionClosure: closure } };
@@ -80,9 +82,8 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
             // Another kind of change under this key can never match: its fingerprint names its own kind.
             return { actorId: previous.actorId, fingerprint: previous.kind === 'follow_up_created' ? previous.payload.fingerprint : '', result: previous.payload.result as { success: true; revision: number; followUpId: string } };
         },
-        apply: async (tx, { request: original, auth, fingerprint }) => {
-            const closure = original.outcomeClosure ?? original.exceptionClosure;
-            insist(original.releaseState?.release || (closure && 'release' in closure && closure.release), 'Follow-ups start after release.');
+        apply: async (tx, { request: original, auth, roster, fingerprint }) => {
+            allow(journeyActionsFor(original, auth, roster, await personName(tx, roster, requesterOf(original)), new Date()).followUp);
             const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
             const [reviewersRow] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
             // Reviewers carry over unanswered, leaving out the creator: approval never carries forward.
@@ -111,35 +112,38 @@ export async function readRequestOutcome(requestId: string, context: {
         insist(request, 'Request unavailable.');
         const expected = request.status === 'open' ? null : expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
         const release = request.releaseState?.release ?? null;
-        const ownerId = releaseOwner(request);
+        const requesterId = requesterOf(request);
         const closure = request.outcomeClosure
             ? { ...request.outcomeClosure, guardrails: request.outcomeClosure.guardrails.map(g => ({ ...g, held: guardrailHeld(g) })) }
             : request.exceptionClosure;
-        const ids = [...new Set([ownerId, ...(closure ? [closure.actorId] : []), ...request.closureCorrections.map(c => c.actorId)])];
-        const saved = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
-        const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, saved.find(p => p.id === id)?.name ?? 'Former member']));
-        const measurement = releaseMeasurement(release, new Date());
-        let active = false;
+        let roster: Awaited<ReturnType<typeof workspaceRoster>> | null = null;
         if (auth.role !== 'guest')
             try {
-                active = (await workspaceRoster(auth.orgId)).some(p => p.nominee.kind === 'member' && p.nominee.userId === auth.userId);
+                roster = await workspaceRoster(auth.orgId);
             }
             catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
-        const owner = active && ownerId === auth.userId;
-        const releasedOnce = release ?? (closure && 'release' in closure ? closure.release : null);
+        // Live names first, as the actions' reasons use; saved profile names cover departed people and guests.
+        const ids = [...new Set([requesterId, ...(closure ? [closure.actorId] : []), ...request.closureCorrections.map(c => c.actorId)])];
+        const saved = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
+        const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, roster?.find(p => p.nominee.kind === 'member' && p.nominee.userId === id)?.name ?? saved.find(p => p.id === id)?.name ?? 'Former member']));
+        const now = new Date();
+        const measurement = releaseMeasurement(release, now);
+        // Every journey action with its reason, from the same rules the actions refuse with.
+        const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
         const visible = seeable(auth);
         const followRows = await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber, createdBy: requests.createdBy, createdAt: requests.createdAt }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.followUpOf, requestId), visible)).orderBy(asc(requests.createdAt), asc(requests.id));
         const reasons = followRows.length ? await db.select({ requestId: requestAgreementEvents.requestId, payload: requestAgreementEvents.payload }).from(requestAgreementEvents).where(and(eq(requestAgreementEvents.orgId, auth.orgId), eq(requestAgreementEvents.kind, 'follow_up_created'), inArray(requestAgreementEvents.requestId, followRows.map(f => f.id)))) : [];
         const parent = request.followUpOf ? (await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.id, request.followUpOf), visible)))[0] : undefined;
         return {
-            requestId, revision: request.agreementRevision, ownerId, names,
+            requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
+            journey: journeyStatus(request), actions,
             state: closure ? 'closed' as const : release ? 'measuring' as const : 'not_started' as const,
             agreed: expected ? agreedResult(expected) : null,
             release, measurement, closure: closure ?? null, corrections: request.closureCorrections,
-            canClose: owner && !closure && request.status === 'done' && !!expected && !!measurement?.due,
-            canCloseException: owner && !closure && request.status !== 'open',
-            canCorrect: owner && !!closure,
-            canFollowUp: active && !!releasedOnce,
+            canClose: actions.close.allowed && !!expected,
+            canCloseException: actions.closeWithoutResult.allowed,
+            canCorrect: actions.correctClosure.allowed,
+            canFollowUp: actions.followUp.allowed,
             followUpOf: parent ?? null,
             followUps: followRows.map(f => ({ ...f, createdAt: f.createdAt.toISOString(), reason: String((reasons.find(r => r.requestId === f.id)?.payload.input as { reason?: string } | undefined)?.reason ?? '') })),
         };

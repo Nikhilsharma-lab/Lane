@@ -164,7 +164,7 @@ it("guests, the person adding and the requester can't be added; only admins add 
   const id = await freshRequest();
   expect(await add(id, [member(guest)], designer)).toEqual({ error: "A selected person is no longer available." });
   expect(await add(id, [member(designer)], designer)).toEqual({ error: "You can’t add yourself as a reviewer." });
-  expect(await add(id, [member(owner)], designer)).toEqual({ error: "The requester can’t review their own Request." });
+  expect(await add(id, [member(owner)], designer)).toEqual({ error: "The Requester can’t review their own Request." });
   expect(await add(id, [invite], designer)).toEqual({ error: "Only an admin can invite someone by email." });
   expect(await add(id, [member(developer)], guest, "org:guest")).toHaveProperty("error");
   expect(await reviewersOf(id)).toEqual([]);
@@ -222,7 +222,7 @@ it("the requester or an admin removes a reviewer; nobody else can", async () => 
   await add(id, [member(designer), member(developer)]);
   const [first, second] = await reviewersOf(id);
   as(designer);
-  expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id })).toEqual({ error: "Only the requester or an admin can remove a reviewer." });
+  expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id })).toEqual({ error: "Only the Requester or a workspace admin can remove a reviewer." });
   as(owner);
   expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: first.id })).toMatchObject({ success: true });
   as(other, "org:admin");

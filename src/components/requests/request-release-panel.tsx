@@ -108,7 +108,7 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
    <div className={styles.header}><h2 id="release-heading" tabIndex={-1} ref={heading}>Release and measurement</h2></div>
    {error && <p role="alert">{error}</p>}
    {!view ? <p role="status">{error ? 'Release details unavailable.' : 'Loading release…'}</p> : <>
-     <p className={styles.muted}>Release and outcome owner: {view.ownerName}</p>
+     <p className={styles.muted}>Requester: {view.requesterName}</p>
      {view.release ? <div className={styles.facts}>
        <p>Released to {view.release.audience} on <time dateTime={view.release.exposureDate}>{view.release.exposureDate}</time> (UTC).</p>
        <p>{view.release.evidence}</p>
@@ -138,13 +138,13 @@ export function RequestReleasePanel({ requestId, orgId, revision }: {
        <div className={styles.controls}><Button type="submit" disabled={busy || !confirmed}>Confirm void</Button><Button variant="ghost" disabled={busy} onClick={() => setMode(null)}>Cancel void</Button></div>
      </form>}
      {view.canTransfer && <form className={styles.stack} onSubmit={e => { e.preventDefault(); void save({ kind: 'transfer', recipientId: recipient, reason: transferReason }); }}>
-       <p>The current owner no longer has eligible workspace access. Transfer responsibility without changing original authorship or reviews.</p>
-       <Select label="New release and outcome owner" options={view.people.map(p => ({ value: p.id, label: p.name }))} value={recipient} onValueChange={setRecipient} disabled={busy}/>
-       <Textarea label="Transfer reason" required maxLength={4000} value={transferReason} onChange={e => setTransferReason(e.target.value)} disabled={busy}/>
-       <Button type="submit" disabled={busy || !recipient}>Transfer responsibility</Button>
+       <p>The Requester no longer has workspace access. Hand this Request over without changing who wrote it or its reviews.</p>
+       <Select label="New Requester" options={view.people.map(p => ({ value: p.id, label: p.name }))} value={recipient} onValueChange={setRecipient} disabled={busy}/>
+       <Textarea label="Handover reason" required maxLength={4000} value={transferReason} onChange={e => setTransferReason(e.target.value)} disabled={busy}/>
+       <Button type="submit" disabled={busy || !recipient}>Hand over</Button>
      </form>}
      {!!view.history.length && <details><summary>Release history ({view.history.length})</summary><ol>{view.history.map(event => <li key={event.revision}>
-       <p>{event.input.kind === 'transfer' ? 'Responsibility transferred' : event.input.kind === 'void' ? 'Incorrect release voided' : event.input.kind === 'correct' ? 'Release corrected' : 'Release recorded'} by {view.names[event.actorId]} on <time dateTime={event.at}>{event.at}</time>.</p>
+       <p>{event.input.kind === 'transfer' ? 'Handed over' : event.input.kind === 'void' ? 'Incorrect release voided' : event.input.kind === 'correct' ? 'Release corrected' : 'Release recorded'} by {view.names[event.actorId]} on <time dateTime={event.at}>{event.at}</time>.</p>
        {'reason' in event.input && <p>{event.input.reason}</p>}
        {event.input.kind === 'transfer' && <p>{view.names[event.previousOwnerId]} → {view.names[event.ownerId]}</p>}
        {event.release && <p>Exposure: {event.release.exposureDate}. Audience: {event.release.audience}. Due: {event.release.dueDate} (UTC). Evidence: {event.release.evidence}</p>}
