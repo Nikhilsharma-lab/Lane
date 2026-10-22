@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE v3, throwaway: Lane impact</title>
+<!--
+  PROTOTYPE v3, THROWAWAY. Sample data only. Not Lane's look or components.
+  Every measured line shows: baseline (the value before release) -> actual, the change,
+  the prediction it is compared with, and the window measured after release.
+  Words used: "Baseline" = Current value at creation. "Window" = days after release (or exact dates).
+-->
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#fff;
+          --good:#2f7d4f; --neutral:#6b6b66; --bad:#b4442c; --due:#8a6d12; --ops:#4a6fa5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 "Geist", system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  .banner { background:#fff3bf; color:#5c4a00; padding:8px 16px; font-size:13px; border-bottom:1px solid #e8d77a; }
+  header { max-width:980px; margin:0 auto; padding:24px 24px 0; }
+  .eyebrow { font-size:12px; color:var(--muted); margin-bottom:2px; }
+  h1 { font-size:22px; margin:0 0 14px; font-weight:600; }
+  nav[role=tablist] { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; padding:10px 14px; font:inherit; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; }
+  nav button[aria-selected=true] { color:var(--fg); border-bottom-color:var(--fg); font-weight:600; }
+  nav button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  main { max-width:980px; margin:0 auto; padding:22px 24px 64px; }
+  [hidden] { display:none !important; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:26px 0 10px; }
+  h2:first-child { margin-top:0; }
+  .explain { color:var(--muted); font-size:13px; margin:0 0 14px; max-width:72ch; }
+  .key { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12px; color:var(--muted); margin:0 0 16px; }
+  .key b { color:var(--fg); font-weight:600; }
+  .row { display:grid; grid-template-columns: 1.1fr 1fr 150px; gap:16px; align-items:center;
+         background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
+  .row .title { font-weight:600; }
+  .row .why { color:var(--muted); font-size:13px; margin-top:2px; }
+  .flow { font-size:15px; font-variant-numeric: tabular-nums; }
+  .flow .big { font-size:22px; font-weight:600; line-height:1.15; }
+  .flow .sub { display:block; font-size:12px; color:var(--muted); margin-top:3px; }
+  .flow .big.good { color:var(--good); } .flow .big.bad { color:var(--bad); } .flow .big.neutral { color:var(--neutral); }
+  .flow .due { color:var(--due); font-weight:600; }
+  .flow .ops { color:var(--ops); font-weight:600; }
+  .pill { justify-self:end; font-size:12px; padding:3px 10px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .pill.good { color:var(--good); border-color:var(--good); } .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .pill.due { color:var(--due); border-color:var(--due); } .pill.ops { color:var(--ops); border-color:var(--ops); }
+  .lead { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:10px; }
+  .lead .metric { font-size:13px; color:var(--muted); }
+  .lead .flow .big { font-size:26px; }
+  .lead .facts { display:flex; flex-wrap:wrap; gap:6px 22px; margin-top:8px; font-size:13px; color:var(--muted); }
+  .lead .facts b { color:var(--fg); font-weight:600; }
+  .proj { margin-bottom:26px; }
+  .proj h3 { font-size:16px; margin:0 0 8px; font-weight:600; }
+  @media (max-width:700px) { .row { grid-template-columns: 1fr; } .pill { justify-self:start; } }
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE v3, THROWAWAY. Sample data only. Not Lane's look. Answers: can each number be read without asking "from what?" or "over what time?"</div>
+
+<header>
+  <div class="eyebrow">Impact · Q3 2026, grouped by release date</div>
+  <h1>What our work did</h1>
+  <nav role="tablist" aria-label="Impact views">
+    <button role="tab" id="t-personal" aria-selected="true" aria-controls="v-personal">My work</button>
+    <button role="tab" id="t-project" aria-selected="false" aria-controls="v-project" tabindex="-1">By project</button>
+    <button role="tab" id="t-org" aria-selected="false" aria-controls="v-org" tabindex="-1">Whole org</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MY WORK -->
+  <section id="v-personal" role="tabpanel" aria-labelledby="t-personal">
+    <p class="explain">Requests you requested or picked up. Each row shows where it started, where it landed, and the window it was measured over. Team totals are on the other tabs.</p>
+    <div class="key">
+      <span><b>Baseline:</b> the value before release</span>
+      <span><b>Actual:</b> measured after release</span>
+      <span><b>Predicted:</b> what was expected at creation</span>
+      <span><b>Window:</b> the period measured after release</span>
+    </div>
+
+    <h2>Measured</h2>
+    <div class="row">
+      <div>
+        <div class="title">Checkout: fewer steps</div>
+        <div class="why">Drop-offs (%) · you requested</div>
+        <div class="why">Window: 30 days after release (1–30 Sep)</div>
+      </div>
+      <div class="flow">
+        <span class="big good">40% → 35.6%</span>
+        <span class="sub">baseline → actual · change −11% (predicted −15%)</span>
+      </div>
+      <div class="pill good">Good result</div>
+    </div>
+
+    <h2>Still due</h2>
+    <div class="row">
+      <div>
+        <div class="title">Onboarding copy rewrite</div>
+        <div class="why">Activation (%) · you picked up</div>
+        <div class="why">Window: 30 days after release, due 14 Nov</div>
+      </div>
+      <div class="flow">
+        <span class="big">22% → measuring</span>
+        <span class="sub">baseline → actual · predicted +5%</span>
+      </div>
+      <div class="pill due">Still due</div>
+    </div>
+
+    <h2>Operational work</h2>
+    <div class="row">
+      <div><div class="title">Design-system button</div><div class="why">You picked up · no measurable impact: internal tooling</div></div>
+      <div class="flow"><span class="ops">Not measured</span><span class="sub">operational work, excluded from totals</span></div>
+      <div class="pill ops">Operational</div>
+    </div>
+
+    <h2>Closed without a result</h2>
+    <div class="row">
+      <div><div class="title">Export to CSV</div><div class="why">You requested · rolled back before release</div></div>
+      <div class="flow"><span class="big neutral">no result</span><span class="sub">reason recorded on the Request</span></div>
+      <div class="pill">Closed, reason given</div>
+    </div>
+  </section>
+
+  <!-- BY PROJECT -->
+  <section id="v-project" role="tabpanel" aria-labelledby="t-project" hidden>
+    <p class="explain">Each Project leads with what it measured: where it started, where it landed, and over what window. Lines are never added across different metrics.</p>
+    <div class="key">
+      <span><b>Baseline:</b> the value before release</span>
+      <span><b>Actual:</b> measured after release</span>
+      <span><b>Predicted:</b> what was expected at creation</span>
+      <span><b>Window:</b> the period measured after release</span>
+    </div>
+
+    <div class="proj">
+      <h3>Checkout</h3>
+      <div class="lead">
+        <div class="metric">Drop-offs (%)</div>
+        <div class="flow"><span class="big good">40% → 35.6%</span><span class="sub">baseline → actual · change −11% (predicted −15%)</span></div>
+        <div class="facts"><span>From: <b>Fewer steps</b></span><span>Window: <b>30 days after release (1–30 Sep)</b></span></div>
+      </div>
+      <div class="row">
+        <div><div class="title">Fewer steps</div><div class="why">Drop-offs (%) · you requested</div><div class="why">Window: 30 days after release (1–30 Sep)</div></div>
+        <div class="flow"><span class="big good">40% → 35.6%</span><span class="sub">baseline → actual · change −11% (predicted −15%)</span></div>
+        <div class="pill good">Good result</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Payment error retry</div><div class="why">Payment errors per month · predicted −20</div><div class="why">Window: 30 days after release, due 3 Dec</div></div>
+        <div class="flow"><span class="big">120 → measuring</span><span class="sub">baseline → actual · predicted −20 per month</span></div>
+        <div class="pill due">Still due</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Onboarding</h3>
+      <div class="lead">
+        <div class="metric">Activation (%)</div>
+        <div class="flow"><span class="big">22% → measuring</span><span class="sub">baseline → actual · predicted +5%. No measured result yet.</span></div>
+        <div class="facts"><span>From: <b>Copy rewrite</b></span><span>Window: <b>30 days after release, due 14 Nov</b></span></div>
+      </div>
+      <div class="row">
+        <div><div class="title">Time to first project</div><div class="why">Minutes · predicted −2</div><div class="why">Window: 14 days after release, due 28 Nov</div></div>
+        <div class="flow"><span class="big">9 min → measuring</span><span class="sub">baseline → actual · predicted −2 min</span></div>
+        <div class="pill due">Still due</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Design system</h3>
+      <div class="lead"><div class="metric">No measured impact</div><div class="flow"><span class="sub">Operational work, excluded from totals</span></div></div>
+      <div class="row">
+        <div><div class="title">Design-system button</div><div class="why">Internal tooling · you picked up</div></div>
+        <div class="flow"><span class="ops">Not measured</span><span class="sub">no measurable impact</span></div>
+        <div class="pill ops">Operational</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>No project</h3>
+      <div class="row">
+        <div><div class="title">Report load time</div><div class="why">Seconds · predicted −1.0 s</div><div class="why">Window: 14 days after release (1–14 Sep)</div></div>
+        <div class="flow"><span class="big good">4.0 s → 2.6 s</span><span class="sub">baseline → actual · change −1.4 s (predicted −1.0 s)</span></div>
+        <div class="pill good">Good result</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Export to CSV</div><div class="why">Rolled back before release</div></div>
+        <div class="flow"><span class="big neutral">no result</span><span class="sub">reason recorded on the Request</span></div>
+        <div class="pill">Closed, reason given</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHOLE ORG -->
+  <section id="v-org" role="tabpanel" aria-labelledby="t-org" hidden>
+    <p class="explain">Measured results this quarter, one line per metric. Different metrics are never added together. Each line carries its own baseline, change and window.</p>
+    <div class="key">
+      <span><b>Baseline:</b> the value before release</span>
+      <span><b>Actual:</b> measured after release</span>
+      <span><b>Predicted:</b> what was expected at creation</span>
+      <span><b>Window:</b> the period measured after release</span>
+    </div>
+
+    <h2>Measured impact</h2>
+    <div class="lead">
+      <div class="metric">Drop-offs (%) · Checkout</div>
+      <div class="flow"><span class="big good">40% → 35.6%</span><span class="sub">baseline → actual · change −11% (predicted −15%)</span></div>
+      <div class="facts"><span>From: <b>Fewer steps</b></span><span>Window: <b>30 days after release (1–30 Sep)</b></span></div>
+    </div>
+    <div class="lead">
+      <div class="metric">Guest completions (%) · Checkout</div>
+      <div class="flow"><span class="big neutral">62% → 63.2%</span><span class="sub">baseline → actual · change +2% (predicted +8%)</span></div>
+      <div class="facts"><span>From: <b>Guest checkout</b></span><span>Window: <b>30 days after release (1–30 Sep)</b></span></div>
+    </div>
+    <div class="lead">
+      <div class="metric">Report load time (seconds) · No project</div>
+      <div class="flow"><span class="big good">4.0 s → 2.6 s</span><span class="sub">baseline → actual · change −1.4 s (predicted −1.0 s)</span></div>
+      <div class="facts"><span>From: <b>Report speed</b></span><span>Window: <b>14 days after release (1–14 Sep)</b></span></div>
+    </div>
+
+    <h2>Still to measure</h2>
+    <div class="lead">
+      <div class="flow"><span class="big">3 results</span><span class="sub">baseline recorded, actual not yet due</span></div>
+      <div class="facts">
+        <span><b>Payment error retry</b> · due 3 Dec</span>
+        <span><b>Copy rewrite</b> · due 14 Nov</span>
+        <span><b>Time to first project</b> · due 28 Nov</span>
+      </div>
+    </div>
+
+    <h2>Kept apart from measured results</h2>
+    <div class="facts" style="font-size:13px;color:var(--muted);display:flex;gap:22px;flex-wrap:wrap">
+      <span><b style="color:var(--fg)">2</b> operational work items (no measurable impact)</span>
+      <span><b style="color:var(--fg)">1</b> closed without a result, reason recorded</span>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Tabs: click or arrow keys. Plain DOM, nothing else.
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  function show(id) {
+    tabs.forEach(t => {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    document.getElementById(id).focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.id));
+    t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const n = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        show(tabs[n].id);
+      }
+    });
+  });
+</script>
+</body>
+</html>
