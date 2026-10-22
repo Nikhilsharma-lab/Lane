@@ -260,12 +260,9 @@
   --arc-gradient-line: linear-gradient(100deg, var(--success-border), var(--success-border));
   --arc-gradient-ink: linear-gradient(100deg, var(--success), var(--success));
 
-
-  /* Clerk colours Lane has never set: Clerk's own defaults, kept so sign-in looks as it did. */
-  --clerk-success: #22C543;
-  --clerk-warning: #F36B16;
-  --clerk-shimmer: rgba(255, 255, 255, 0.36);
-  --clerk-backdrop: rgb(0 0 0 / 0.27);
+  /* Link ink: readable link text, separate from the button plate. Clerk's sign-in links read it,
+     because Clerk would otherwise paint links with the plate, too dark on a dark page (#93). */
+  --link-ink: var(--accent-ink);
 
   /* Raised and floating shadows and the button edge: tweakcn's shadow model can't reproduce
      them, and dark mode uses its own dialog and button shadows. */
@@ -475,10 +472,7 @@
   --arc-gradient-from: hsl(162deg 100% 2%);
   --arc-gradient-to: hsl(155.5deg 100% 9.6%);
 
-  --clerk-success: #22C543;
-  --clerk-warning: #F36B16;
-  --clerk-shimmer: rgba(255, 255, 255, 0.36);
-  --clerk-backdrop: rgb(0 0 0 / 0.27);
+  --link-ink: var(--accent-ink);
 
   --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
   --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);

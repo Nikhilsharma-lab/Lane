@@ -42,6 +42,38 @@ describe("clerkNeutralVariables", () => {
       expect(theme, `${key} reads ${name}`).toMatch(new RegExp(`^\\s*${name}:`, "m"));
     }
   });
+
+  // Part 2 (#93): Clerk's stock success, warning, backdrop and shimmer colours give way to Lane's.
+  it("paints success, warning, backdrop, shimmer and shadow with Lane's own tokens", () => {
+    expect(clerkNeutralVariables).toMatchObject({
+      colorSuccess: "var(--success)",
+      colorWarning: "var(--warning)",
+      colorModalBackdrop: "var(--overlay-backdrop)",
+      colorShimmer: "var(--hairline)",
+      colorShadow: "var(--shadow-color)",
+    });
+    expect(JSON.stringify(clerkNeutralVariables)).not.toMatch(/--clerk-/);
+  });
+});
+
+// Part 2 (#93): Clerk paints links with colorPrimary, the button plate, which is unreadable on a
+// dark page; sign-in links read Lane's link ink instead, and the button keeps the plate.
+describe("sign-in links", () => {
+  const LINKS = ["footerActionLink", "formResendCodeLink", "identityPreviewEditButton", "formFieldAction"] as const;
+
+  it("read the link ink token, also on hover", () => {
+    const elements = clerkEmbeddedAppearance.elements as Record<string, Record<string, unknown>>;
+    for (const link of LINKS) {
+      expect(elements[link], link).toMatchObject({ color: "var(--link-ink)", "&:hover": { color: "var(--link-ink)" } });
+    }
+    expect(clerkEmbeddedAppearance.variables.colorPrimary).toBe("var(--primary)");
+  });
+
+  it("have a link ink in the theme file's Lane additions for light and dark", () => {
+    const theme = readFileSync(join(process.cwd(), "src/styles/theme.css"), "utf8");
+    const additions = theme.slice(theme.indexOf("/* Lane additions"));
+    expect(additions.match(/^\s*--link-ink:/gm)).toHaveLength(2);
+  });
 });
 
 // Plan item 2.11: Clerk's sign-in, sign-up and session-task cards in Lane's auth column.
