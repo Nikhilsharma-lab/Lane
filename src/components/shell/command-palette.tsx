@@ -1,8 +1,7 @@
 "use client"
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import { useRouter } from "next/navigation"
-import { Check } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { useListAnnouncer } from "@/components/requests/list-announcer"
@@ -13,6 +12,7 @@ import { isShown } from "@/lib/keyboard-guards"
 import { requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
 import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { PaletteOption } from "./command-palette-option"
 import { paletteListKey, type PaletteStep } from "./command-palette-keys"
 import { canOpenShellSurface, openShellSurface } from "./shell-openers"
 import styles from "./command-palette.module.css"
@@ -191,18 +191,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     <div ref={list} id={listId} role="listbox" aria-label={priority ? "Priorities" : "Actions and places"} className={styles.list} hidden={empty}>
       {groups.map(group => <div key={group.name} role="group" aria-labelledby={`${uid}-group-${group.name}`} className={styles.group}>
         <div role="presentation" id={`${uid}-group-${group.name}`} className={styles.heading}>{group.name}</div>
-        {group.items.map(({ entry, index }) => {
-          const selected = index === activeIndex
-          const isCurrent = "current" in entry && entry.current
-          return <div key={entry.id} id={optionId(entry)} role="option" aria-selected={selected} data-index={index} className={styles.option} aria-keyshortcuts={entry.keys.join(" ") || undefined}
-            onPointerMove={() => { if (!selected) onActive(index) }} onPointerDown={event => event.preventDefault()} onClick={() => choose(entry)}>
-            <span className={styles.label}>{entry.label}{entry.detail ? <span className={styles.detail}>{entry.detail}</span> : null}{isCurrent ? <span className={styles.srOnly}>, current</span> : null}</span>
-            {isCurrent ? <Check data-icon-size="sm" aria-hidden="true" className={styles.check} /> : null}
-            {entry.keys.length ? <span className={styles.keys} aria-hidden="true">{entry.keys.slice(0, 1).map(keys => <Fragment key={keys}>
-              {keys.split(" ").map(part => <kbd key={part} className={styles.key}>{part}</kbd>)}
-            </Fragment>)}</span> : null}
-          </div>
-        })}
+        {group.items.map(({ entry, index }) => <PaletteOption key={entry.id} entry={entry} id={optionId(entry)} index={index} selected={index === activeIndex} onActive={onActive} onChoose={choose} />)}
       </div>)}
     </div>
     {/* Mounted empty, so the first count is heard. The empty state is this same message, shown. */}

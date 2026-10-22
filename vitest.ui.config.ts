@@ -47,6 +47,7 @@ export default defineConfig({
       "src/components/shell/command-palette-entries.test.ts",
       "src/components/shell/command-palette-keys.test.ts",
       "src/components/shell/command-palette-actions.test.ts",
+      "src/components/shell/shortcut-keys.test.ts",
     ],
   },
   resolve: {

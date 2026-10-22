@@ -1,10 +1,11 @@
 "use client"
 
-import { Fragment, useEffect, useEffectEvent, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { useShellOpener } from "./shell-openers"
+import { ShortcutKeys } from "./shortcut-keys"
 import styles from "./keyboard-shortcuts.module.css"
 
 /**
@@ -53,10 +54,7 @@ export function KeyboardShortcuts() {
           <dl className={styles.list}>
             {group.shortcuts.map(shortcut => <div key={shortcut.label} className={styles.item}>
               <dt className={styles.label}>{shortcut.label}</dt>
-              <dd className={styles.keys}>{shortcut.keys.map((alternative, index) => <Fragment key={alternative}>
-                {index > 0 && <span className={styles.or}>or</span>}
-                {alternative.split(" ").map(part => <kbd key={part} className={styles.key}>{part}</kbd>)}
-              </Fragment>)}</dd>
+              <dd className={styles.keys}><ShortcutKeys keys={shortcut.keys} /></dd>
             </div>)}
           </dl>
         </section>)}
