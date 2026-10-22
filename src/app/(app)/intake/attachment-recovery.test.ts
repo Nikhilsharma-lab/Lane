@@ -183,7 +183,7 @@ function recoveryHarness(files: Attachment[]) {
     // Plan item 2.3: the overlay insert and the unfinished-uploads record are
     // browser boundaries; the handlers only call them.
     showCreatedInList: (created?: { id: string }) => { if (created) state.listed.push(created.id); },
-    refreshClerkToken: async () => {},
+    callAction: (run: () => Promise<unknown>) => run(),
     readUnfinishedUploads: () => state.record,
     writeUnfinishedUploads: (_storage: unknown, _scope: string, record: UploadsRecord) => {
       state.record = record.files.length ? record : null;

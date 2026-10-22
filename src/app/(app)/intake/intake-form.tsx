@@ -91,7 +91,7 @@ import {
   type TriageResponse,
 } from "./actions";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
-import { refreshClerkToken } from "@/components/requests/use-optimistic-action";
+import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 
 type Stage =
@@ -415,9 +415,10 @@ export default function RequestEditor({
   const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
     const check = ++lostCheck.current;
     const settled = await Promise.all(lost.files.map(async (file): Promise<UnfinishedUpload | null> => {
-      if (!file.attachmentId) return file;
+      const attachmentId = file.attachmentId;
+      if (!attachmentId) return file;
       try {
-        const result = await discardAttachmentUpload({ requestId: lost.requestId, attachmentId: file.attachmentId }, context);
+        const result = await callAction(() => discardAttachmentUpload({ requestId: lost.requestId, attachmentId }, context));
         if (result.success && result.alreadyUploaded) return null;
         return result.success ? { ...file, attachmentId: null } : file;
       } catch {
@@ -727,16 +728,10 @@ export default function RequestEditor({
     onCancelCheckChange?.(cancelCheck);
 
     try {
-      let result: TriageResponse = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
+      // callAction refreshes a lapsed session first and retries an ended one
+      // once, so "session_expired" here means the person must sign in again.
+      const result: TriageResponse = await callAction(() => editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
       if (abandoned()) return;
-      if (!result.success && result.error.code === "session_expired") {
-        // A tab left hidden is the likely cause: ask Clerk for a fresh token and
-        // check once more before asking the person to sign in.
-        await refreshClerkToken().catch(() => undefined);
-        if (abandoned()) return;
-        result = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
-        if (abandoned()) return;
-      }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
           if (result.error.field === "editedProblemText" || result.error.field === "reviewers") {
@@ -798,13 +793,14 @@ export default function RequestEditor({
     attachment: QueuedAttachment,
     requestId: string,
   ): Promise<"discarded" | "uploaded" | "failed"> {
-    if (!attachment.attachmentId) return "discarded";
+    const attachmentId = attachment.attachmentId;
+    if (!attachmentId) return "discarded";
 
     try {
-      const result = await discardAttachmentUpload(
-        { requestId, attachmentId: attachment.attachmentId },
+      const result = await callAction(() => discardAttachmentUpload(
+        { requestId, attachmentId },
         context,
-      );
+      ));
       if (!result.success) {
         updateAttachment(attachment.key, {
           status: "failed",
@@ -847,7 +843,7 @@ export default function RequestEditor({
 
     let attachmentId: string | null = null;
     try {
-      const prepared = await prepareAttachmentUpload(
+      const prepared = await callAction(() => prepareAttachmentUpload(
         {
           requestId,
           fileName: attachment.file.name,
@@ -855,7 +851,7 @@ export default function RequestEditor({
           sizeBytes: attachment.file.size,
         },
         context,
-      );
+      ));
       if (!prepared.success) {
         updateAttachment(attachment.key, {
           status: "failed",
@@ -879,10 +875,11 @@ export default function RequestEditor({
         updateAttachment(attachment.key, { progress }),
       );
 
-      const finalized = await finalizeAttachmentUpload(
-        { requestId, attachmentId },
+      const reserved = prepared.attachmentId;
+      const finalized = await callAction(() => finalizeAttachmentUpload(
+        { requestId, attachmentId: reserved },
         context,
-      );
+      ));
       if (!finalized.success) {
         updateAttachment(attachment.key, {
           status: "failed",
@@ -961,7 +958,7 @@ export default function RequestEditor({
     uploadsRequest.current = null;
     const open = [...reservations.current.values()];
     reservations.current.clear();
-    void Promise.allSettled(open.map((attachmentId) => discardAttachmentUpload({ requestId, attachmentId }, context))).then(() => {
+    void Promise.allSettled(open.map((attachmentId) => callAction(() => discardAttachmentUpload({ requestId, attachmentId }, context)))).then(() => {
       if (readUnfinishedUploads(window.sessionStorage, draftScope)?.requestId === requestId) clearUnfinishedUploads(window.sessionStorage, draftScope);
     });
   }
@@ -1034,8 +1031,8 @@ export default function RequestEditor({
         editedProblemText:
           triage?.classification === "problem" ? null : editedProblem,
       };
-      // Saving is idempotent by the review's requestId, so an ended session
-      // gets one silent retry with a fresh Clerk token, as the gate does.
+      // Saving is idempotent by the review's requestId, so callAction's one
+      // retry after an ended session can never create the Request twice.
       const result: SaveResponse = editing && original
         ? await (async (): Promise<SaveResponse> => {
           const changes = { ...savingSource,
@@ -1055,10 +1052,7 @@ export default function RequestEditor({
         : await (async () => {
           // #78: the picks travel beside the signed review and are checked on their own.
           const picks = offerReviewers && reviewers.length ? { nominees: reviewers.map((person) => person.nominee), note: reviewQuestion } : undefined;
-          const first = await saveRequest(payload, context, picks);
-          if (first.success || first.error.code !== "session_expired") return first;
-          await refreshClerkToken().catch(() => undefined);
-          return saveRequest(payload, context, picks);
+          return callAction(() => saveRequest(payload, context, picks));
         })();
 
       if (!result.success) {

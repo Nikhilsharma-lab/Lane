@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
@@ -157,7 +158,7 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
     setFeedback(null);
     startTransition(async () => {
       try {
-        const result = await onSave(next);
+        const result = await callAction(() => onSave(next));
         if (result.error || !result.success) {
           setFeedback({ kind: "error", message: result.error || "Your role could not be saved. Try again." });
           return;

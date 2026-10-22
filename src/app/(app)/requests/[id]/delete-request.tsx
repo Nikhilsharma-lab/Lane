@@ -1,4 +1,5 @@
 "use client";
+import { callAction } from "@/lib/action-call";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -19,7 +20,7 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
     setBusy(true);
     setError("");
     try {
-      const result = await deleteRequest(requestId, { orgId });
+      const result = await callAction(() => deleteRequest(requestId, { orgId }));
       if ("error" in result) {
         setError(result.error);
         return;

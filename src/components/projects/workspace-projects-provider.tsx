@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { listProjects } from "@/app/(app)/intake/project-actions";
 import type { ProjectOption } from "@/lib/request-constants";
@@ -81,7 +82,7 @@ export function WorkspaceProjectsProvider({ orgId, initialProjects, children }: 
     const requestId = ++requestSequence.current;
     dispatch({ type: "load-started", requestId });
     try {
-      const result = await listProjects({ orgId });
+      const result = await callAction(() => listProjects({ orgId }));
       if (!mounted.current) return;
       if (result.success) dispatch({ type: "load-succeeded", requestId, projects: result.projects });
       else dispatch({ type: "load-failed", requestId, error: result.error.message });

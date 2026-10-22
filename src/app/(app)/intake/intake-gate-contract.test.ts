@@ -66,8 +66,8 @@ describe("Intake Gate contract", () => {
   });
 
   it("retries an ended session once with a fresh token before asking for sign-in", () => {
-    expect(FORM).toContain("await refreshClerkToken()");
-    expect(FORM.match(/error\.code (?:===|!==) "session_expired"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(FORM).toContain("await callAction(() => editing ? runTriage(");
+    expect(FORM).toContain("return callAction(() => saveRequest(");
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {
