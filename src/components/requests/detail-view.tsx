@@ -24,6 +24,8 @@ export type RequestStatus = "open" | "in_progress" | "done"
 export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
+  /** Why it can't be picked up yet (measurementReadiness), from the loader. */
+  pickupBlockedReason?: string | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null

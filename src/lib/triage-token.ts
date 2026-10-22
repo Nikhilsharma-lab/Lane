@@ -1,4 +1,4 @@
-import { labelKeysSchema, labelRequestType } from "./request-labels";
+import { labelKeysSchema, sourceRequestType } from "./request-labels";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { expectedImpactSchema } from "./request-impact";
@@ -90,7 +90,7 @@ export function createTriageToken(
     userId: context.userId,
     expectedImpact: existingRequestId ? expectedImpactSchema.safeParse(input.expectedImpact).data ?? null : expectedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
-    requestType: input.labelKeys ? labelRequestType(input.labelKeys) : input.requestType ?? null,
+    requestType: sourceRequestType(input),
     labelKeys: input.labelKeys,
     priority: input.priority ?? "none",
     title: input.title,

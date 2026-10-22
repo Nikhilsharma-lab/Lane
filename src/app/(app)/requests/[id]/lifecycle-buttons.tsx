@@ -9,7 +9,7 @@ import { useOptionalDetailRequest } from "@/components/requests/detail-context";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider";
 import { useRequestMoves } from "@/components/requests/request-moves";
-import { allowedMove, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle";
+import { availableMove, pickupBlockedMessage, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle";
 
 const NETWORK_ERRORS: Record<LifecycleMove, string> = {
   "pick-up": "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open.",
@@ -18,7 +18,7 @@ const NETWORK_ERRORS: Record<LifecycleMove, string> = {
 
 /**
  * Plan item 2.5: Request detail's action slot, in the strip at every width.
- * One filled button for the one move this viewer may make (allowedMove, the
+ * One filled button for the one move this viewer may make (availableMove, the
  * rule the row menu and the bulk bar share), or nothing. The move runs
  * through useRequestMoves, the list's own: Pick up is said in the polite
  * region, Mark Done confirms in a toast with Undo, and the page shows the
@@ -37,6 +37,7 @@ export function LifecycleButtons({
   context: { orgId: string };
   /** A guest has no lifecycle move (plan item 2.4); detail also hides the slot for guests. */
   isGuest?: boolean;
+  /** Why pickup isn't possible yet (the loader's measurementReadiness). */
   pickupBlockedReason?: string | null;
   /** Set for a viewer who cannot edit the requester's current values. */
   pickupRequester?: string | null;
@@ -87,11 +88,9 @@ export function LifecycleButtons({
     });
   }
 
-  const move = allowedMove({ status: buttonStatus }, { isGuest });
+  const move = availableMove({ status: buttonStatus, pickupBlockedReason }, { isGuest });
   if (!move) return null;
-  const pickupMessage = move.move === "pick-up" && pickupBlockedReason
-    ? pickupRequester ? `Ask ${pickupRequester} to add current values before pickup.` : pickupBlockedReason
-    : null;
+  const pickupMessage = move.blockedReason ? pickupBlockedMessage(move.blockedReason, pickupRequester) : null;
 
   return (
     <div ref={slot} data-slot="request-lifecycle-actions" className="flex items-center">

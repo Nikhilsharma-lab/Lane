@@ -8,7 +8,7 @@ vi.mock("@/db", async () => {
   const schema = await import("@/db/schema");
   return { ...schema, db: drizzle(async (sql, params) => { boundary.queries.push({ sql, params }); return { rows: boundary.responses.shift() ?? [] }; }, { schema }) };
 });
-vi.mock("@/lib/ai/triage", () => ({ triageRequest: async (input: unknown) => { boundary.aiInputs.push(input); return { classification: "problem", reframedProblem: null, extractedSolution: null }; }, classifyTriageFailure: () => "provider", triageFailureStatus: () => undefined }));
+vi.mock("@/lib/ai/triage", () => ({ triageRequest: async (input: unknown) => { boundary.aiInputs.push(input); return { ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }; } }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 const impact = { kind: "metric" as const, metric: "Signup completion", baseline: null, target: 70, unit: "%", source: "Signup funnel", reviewAfterDays: 30 };
 const input = { title: "Signup loses customers", description: "Customers abandon signup before finishing.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", expectedImpact: impact };

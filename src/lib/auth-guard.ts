@@ -47,3 +47,18 @@ export async function requireOwnerOrAdmin(
   if (!membership || membership.role !== "admin") return null;
   return { ...membership, role: "admin" };
 }
+
+/** What a refused action says when the caller is signed out, whatever the
+ * action's own refusal. The browser's callAction recognises it, renews the
+ * session once and retries (src/lib/action-call.ts). */
+export const SESSION_ENDED = "Your session ended. Sign in again to continue.";
+
+/**
+ * The message for a guard that returned null: SESSION_ENDED when there is no
+ * signed-in user at all, otherwise the action's own `copy` (which may hide
+ * whether a Request exists). Signed out reveals nothing about the workspace.
+ */
+export async function refusal(copy: string): Promise<string> {
+  const { userId } = await auth();
+  return userId ? copy : SESSION_ENDED;
+}

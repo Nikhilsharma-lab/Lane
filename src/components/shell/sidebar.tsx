@@ -55,10 +55,10 @@ export function Sidebar({
       pathname={pathname}
       statusFilter={parseRequestStatusFilter(searchParams.get("status") ?? undefined)}
       projectFilter={parseRequestProjectFilter(searchParams.get("project") ?? undefined)}
-      projects={projectState?.orgId === orgId ? projectState.projects : []}
-      projectsLoading={projectState?.loading}
-      projectsError={projectState?.error}
-      onRetryProjects={() => projectState?.reload()}
+      projects={projectState.projects}
+      projectsLoading={projectState.loading}
+      projectsError={projectState.error}
+      onRetryProjects={() => projectState.reload()}
       onCreateProject={async name => {
         const result = await callAction(() => createProject({ name }, { orgId }));
         if (!result.success) throw new Error(result.error.message);

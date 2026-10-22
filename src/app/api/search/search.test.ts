@@ -213,12 +213,12 @@ describe("GET /api/search query and authorization contract", () => {
     });
     for (const count of [false, true]) {
       const query = queryFor("requests", count);
-      expect(query.sql).toMatch(/where \("requests"\."org_id" = \$\d+ and /);
+      expect(query.sql).toMatch(/where \(\(?"requests"\."org_id" = \$\d+( and|\) and) /);
       expect(whereClause(query.sql)).toContain('"requests"."request_number" = $param');
       expect(query.params).toContain(42);
       expect(query.params).toContain("org_a");
       if (role === "org:guest") {
-        expect(query.sql).toMatch(/and "requests"\."created_by" = \$\d+ and \(/);
+        expect(query.sql).toMatch(/and "requests"\."created_by" = \$\d+\) and \(/);
         expect(query.params).toContain("user_member");
       }
     }

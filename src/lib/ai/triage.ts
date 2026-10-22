@@ -1,6 +1,7 @@
 import {
   APICallError,
   generateText,
+  type LanguageModel,
   NoObjectGeneratedError,
   Output,
   RetryError,
@@ -60,6 +61,11 @@ export type TriageFailureKind =
 
 const TRIAGE_TIMEOUT_MS = 15_000;
 
+/** The AI check's answer: the triage, or why it couldn't finish (and the provider's HTTP status for the log). */
+export type TriageOutcome =
+  | { ok: true; triage: TriageResult }
+  | { ok: false; kind: TriageFailureKind; status: number | undefined; error: unknown };
+
 function escapeXml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -88,8 +94,10 @@ export function normalizeTriageOutput(
   );
 }
 
-export function classifyTriageFailure(error: unknown): TriageFailureKind {
+function classifyTriageFailure(error: unknown): TriageFailureKind {
   if (NoObjectGeneratedError.isInstance(error)) return "malformed";
+  // An answer in the right shape whose parts contradict its classification.
+  if (error instanceof z.ZodError) return "malformed";
 
   if (RetryError.isInstance(error)) {
     if (error.reason === "abort") return "timeout";
@@ -110,21 +118,39 @@ export function classifyTriageFailure(error: unknown): TriageFailureKind {
 
 /** The provider's HTTP status behind a failure, for the log (a spend cap or
  * overload shows up here). Undefined when the failure carries none. */
-export function triageFailureStatus(error: unknown): number | undefined {
+function triageFailureStatus(error: unknown): number | undefined {
   if (RetryError.isInstance(error)) return triageFailureStatus(error.lastError);
   return APICallError.isInstance(error) ? error.statusCode : undefined;
 }
 
-export async function triageRequest(input: {
+/**
+ * The Intake gate's AI check against `model`, abandoned after `timeoutMs`.
+ * It never throws: every way it can fail to finish comes back as a
+ * TriageFailureKind, so the gate says the same thing for the same reason.
+ */
+export function createTriage({ model, timeoutMs }: { model: LanguageModel; timeoutMs: number }) {
+  return async function triage(input: { title: string; description: string }): Promise<TriageOutcome> {
+    try {
+      return { ok: true, triage: await runTriage(model, timeoutMs, input) };
+    } catch (error) {
+      return { ok: false, kind: classifyTriageFailure(error), status: triageFailureStatus(error), error };
+    }
+  };
+}
+
+/** The gate's check: Claude Haiku 4.5, abandoned after 15 seconds. */
+export const triageRequest = createTriage({ model: anthropic("claude-haiku-4-5"), timeoutMs: TRIAGE_TIMEOUT_MS });
+
+async function runTriage(model: LanguageModel, timeoutMs: number, input: {
   title: string;
   description: string;
 }): Promise<TriageResult> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TRIAGE_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const { output } = await generateText({
-      model: anthropic("claude-haiku-4-5"),
+      model,
       abortSignal: controller.signal,
       output: Output.object({
         schema: modelTriageSchema,

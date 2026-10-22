@@ -1,3 +1,4 @@
+import { seeable } from "@/lib/request-access";
 import { and, eq, exists, or } from "drizzle-orm";
 import { db, projects, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
@@ -9,9 +10,9 @@ export function accessibleProjectsWhere(auth: MemberAuth) {
     auth.role === "guest"
       ? or(
           eq(projects.createdBy, auth.userId),
+          // A guest sees a Project they created or one holding a Request they can see.
           exists(db.select({ id: requests.id }).from(requests).where(and(
-            eq(requests.orgId, auth.orgId),
-            eq(requests.createdBy, auth.userId),
+            seeable(auth),
             eq(requests.projectId, projects.id),
           ))),
         )

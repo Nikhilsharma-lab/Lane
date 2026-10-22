@@ -51,5 +51,6 @@ describe("isSessionFailure", () => {
     expect(isSessionFailure({ value: { success: false, error: { code: "validation", message: "x" } } })).toBe(false)
     expect(isSessionFailure({ value: null })).toBe(false)
     expect(isSessionFailure({ thrown: new Error("forbidden") })).toBe(true)
+    expect(isSessionFailure({ value: { error: "Your session ended. Sign in again to continue." } })).toBe(true)
   })
 })
