@@ -19,7 +19,7 @@ describe("Review copy", () => {
       "src/components/shell/notification-bell-view.tsx",
       "src/components/requests/pending-mutations-provider.tsx",
       "src/components/requests/detail-view.tsx",
-      "src/components/requests/request-reviewers-panel.tsx",
+      "src/components/requests/request-reviews.tsx",
     ]) {
       const file = source(path)
       expect(file, path).not.toContain("Changes requested")

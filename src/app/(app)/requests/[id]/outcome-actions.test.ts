@@ -43,7 +43,7 @@ it('closes a measured outcome only from the due date, keeping baseline and targe
     await at('2026-10-25T12:00:00Z');
     const id = await fixture();
     expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Opens on 28 Oct 2026.' });
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ journey: { status: 'measuring' }, canClose: false, actions: { close: { allowed: false, reason: 'Opens on 28 Oct 2026.', opensOn: '2026-10-28' } } });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ journey: { status: 'measuring' }, actions: { close: { allowed: false, reason: 'Opens on 28 Oct 2026.', opensOn: '2026-10-28' } } });
     await at('2026-10-28T00:00:00Z');
     const ctx = context(id, 1);
     const closed = await api.changeRequestOutcome(ctx, measured);
@@ -118,7 +118,7 @@ it('only the Requester closes; handover moves it, and admins, other members, gue
     session.userId = 'outcome_pm';
     session.orgRole = 'org:member';
     expect(await api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'PM disagrees' })).toEqual({ error: 'Only the Requester, outcome_owner, can close this.' });
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ requesterName: 'outcome_owner', canClose: false, canCloseException: false, actions: { close: { allowed: false, reason: 'Only the Requester, outcome_owner, can close this.' }, closeWithoutResult: { allowed: false, reason: 'Only the Requester, outcome_owner, can close this.' } } });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ requesterName: 'outcome_owner', actions: { close: { allowed: false, reason: 'Only the Requester, outcome_owner, can close this.' }, closeWithoutResult: { allowed: false, reason: 'Only the Requester, outcome_owner, can close this.' } } });
     session.userId = 'outcome_owner';
     session.orgRole = 'org:guest';
     expect(await api.changeRequestOutcome(context(id, 1), measured)).toHaveProperty('error');
@@ -137,7 +137,7 @@ it('only the Requester closes; handover moves it, and admins, other members, gue
     session.orgRole = 'org:member';
     expect(await api.changeRequestOutcome(context(id, 2), measured)).toEqual({ error: 'Only the Requester, outcome_next, can close this.' });
     session.userId = 'outcome_next';
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ requesterId: 'outcome_next', canClose: true, canCloseException: true, canCorrect: false });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ requesterId: 'outcome_next', actions: { close: { allowed: true }, closeWithoutResult: { allowed: true }, correctClosure: { allowed: false } } });
     expect(await api.changeRequestOutcome(context(id, 2), measured)).toEqual({ success: true, revision: 3 });
     const [row] = await connection `select created_by,outcome_closure from requests where id=${id}`;
     expect(row).toMatchObject({ created_by: 'outcome_owner', outcome_closure: { actorId: 'outcome_next', ownerId: 'outcome_next' } });
@@ -170,13 +170,13 @@ it('lets the admin transfer a closed Request after the owner leaves, so the new 
     roster.ids = everyone.filter(u => u !== 'outcome_owner');
     session.userId = 'outcome_admin';
     session.orgRole = 'org:admin';
-    expect(await releaseApi.readRequestRelease(id, { orgId })).toMatchObject({ canTransfer: true, canCorrect: false });
+    expect(await releaseApi.readRequestRelease(id, { orgId })).toMatchObject({ actions: { handover: { allowed: true }, correctRelease: { allowed: false } } });
     expect(await releaseApi.changeRequestRelease(context(id, 2), { kind: 'transfer', recipientId: 'outcome_next', reason: 'Owner left after closing' })).toEqual({ success: true, revision: 3 });
     expect(await releaseApi.changeRequestRelease(context(id, 3), { kind: 'release', exposureDate: '2026-10-22', evidence: 'x', audienceConfirmed: true })).toHaveProperty('error');
     session.userId = 'outcome_next';
     session.orgRole = 'org:member';
-    expect(await releaseApi.readRequestRelease(id, { orgId })).toMatchObject({ canCorrect: false, canRelease: false });
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ canCorrect: true, canClose: false });
+    expect(await releaseApi.readRequestRelease(id, { orgId })).toMatchObject({ actions: { correctRelease: { allowed: false }, release: { allowed: false } } });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ actions: { correctClosure: { allowed: true }, close: { allowed: false } } });
 });
 it('appends attributable corrections beside the immutable closure, with lost-response retry and no rewriting', async () => {
     const api = await import('./outcome-actions');
@@ -189,7 +189,7 @@ it('appends attributable corrections beside the immutable closure, with lost-res
         expect(await api.changeRequestOutcome(context(id, 2), invalid)).toHaveProperty('error');
     session.userId = 'outcome_pm';
     expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ error: 'Only the Requester, outcome_owner, can add a correction.' });
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ canCorrect: false, actions: { correctClosure: { allowed: false, reason: 'Only the Requester, outcome_owner, can add a correction.' } } });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ actions: { correctClosure: { allowed: false, reason: 'Only the Requester, outcome_owner, can add a correction.' } } });
     session.userId = 'outcome_owner';
     const ctx = context(id, 2);
     const results = await Promise.all([api.changeRequestOutcome(ctx, fix), api.changeRequestOutcome(ctx, fix)]);

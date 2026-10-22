@@ -87,15 +87,11 @@ export async function readRequestRelease(requestId: string, context: {
         const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
         return {
             requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
-            journey: journeyStatus(request), actions, done: request.status === 'done',
+            journey: journeyStatus(request), actions, workStatus: request.status, doneAt: request.doneAt?.toISOString() ?? null,
             release, measurement: releaseMeasurement(release, now), today: now.toISOString().slice(0, 10),
             audience: agreedAudience(request),
             earliestExposure: earliestExposure(request),
-            canRelease: actions.release.allowed,
-            canCorrect: actions.correctRelease.allowed,
-            canTransfer: actions.handover.allowed,
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
-            blocked: request.status !== 'done' ? 'Complete work before recording release.' : null,
             history: history.map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),
         };
     }
