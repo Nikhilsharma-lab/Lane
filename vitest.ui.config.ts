@@ -51,6 +51,7 @@ export default defineConfig({
       "src/components/shell/command-palette-motion.test.ts",
       "src/components/shell/command-palette-focus.test.ts",
       "src/components/shell/command-palette-acknowledgement.test.ts",
+      "src/lib/external-store.test.ts",
     ],
   },
   resolve: {

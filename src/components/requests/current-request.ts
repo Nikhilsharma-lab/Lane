@@ -1,3 +1,4 @@
+import { createExternalStore } from "@/lib/external-store"
 import { requestCodeOrNull } from "@/lib/request-code"
 import type { RequestPriority } from "@/lib/request-constants"
 import type { RequestStatus } from "@/lib/request-lifecycle"
@@ -41,17 +42,15 @@ export type CurrentRequestStore = {
 }
 
 export function createCurrentRequestStore(): CurrentRequestStore {
-  let state: CurrentRequestState = { open: null, highlightedId: null }
-  const listeners = new Set<() => void>()
-  const commit = (next: CurrentRequestState) => { state = next; listeners.forEach(listener => listener()) }
+  const store = createExternalStore<CurrentRequestState>({ open: null, highlightedId: null })
   return {
-    get: () => state,
-    subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    get: store.get,
+    subscribe: store.subscribe,
     setOpen: request => {
-      commit({ ...state, open: request })
-      return () => { if (state.open === request) commit({ ...state, open: null }) }
+      store.set({ ...store.get(), open: request })
+      return () => { if (store.get().open === request) store.set({ ...store.get(), open: null }) }
     },
-    setHighlighted: id => { if (state.highlightedId !== id) commit({ ...state, highlightedId: id }) },
+    setHighlighted: id => { if (store.get().highlightedId !== id) store.set({ ...store.get(), highlightedId: id }) },
   }
 }
 

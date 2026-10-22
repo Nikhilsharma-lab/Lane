@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useSyncExternalStore } from "react"
 import { useToastStack, type ToastStackApi } from "@/components/arc/toast-stack/toast-stack"
+import { createExternalStore } from "@/lib/external-store"
 
 /** #103: the latest Mark Done, while its toast still offers Undo. `undo` is that toast's own Undo. */
 export type UndoableMarkDone = { toastId: string; requestId: string; name: string; undo: () => void }
@@ -17,33 +18,34 @@ export type UndoableMarkDone = { toastId: string; requestId: string; name: strin
  * Undo, so it never offers one after the toast's Undo is gone.
  */
 export function createMarkDoneUndoStore() {
-  let latest: UndoableMarkDone | null = null
+  // `checking` is the pointer whose toast may have closed, until the watcher settles it.
+  const store = createExternalStore<{ latest: UndoableMarkDone | null; checking: UndoableMarkDone | null }>({ latest: null, checking: null })
   let queued: number | null = null
-  let checking: UndoableMarkDone | null = null
-  const listeners = new Set<() => void>()
-  const notify = () => listeners.forEach(listener => listener())
-  const commit = (next: UndoableMarkDone | null) => { latest = next; queued = null; checking = null; notify() }
+  const commit = (latest: UndoableMarkDone | null) => { queued = null; store.set({ latest, checking: null }) }
   return {
-    get: () => checking ? null : latest,
-    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    get: () => store.get().checking ? null : store.get().latest,
+    subscribe: store.subscribe,
     set: (pointer: UndoableMarkDone) => commit(pointer),
     /** Clears the pointer if it is still this toast's. */
-    clear: (toastId: string) => { if (latest?.toastId === toastId) commit(null) },
+    clear: (toastId: string) => { if (store.get().latest?.toastId === toastId) commit(null) },
     /** The pointer being checked, for the watcher to look for. */
-    checking: () => checking,
+    checking: () => store.get().checking,
     /** Reports the toast stack's queue length. True when it shrank and the watcher must `settle` whether the toast is still queued. */
     observe: (count: number): boolean => {
+      const { latest, checking } = store.get()
       if (!latest) return false
       const shrank = queued !== null && count < queued
       queued = count
-      if (shrank && !checking) { checking = latest; notify() }
+      if (shrank && !checking) store.set({ latest, checking: latest })
       // An open check is asked again with each new count, since the watcher compares the stack against it.
-      return checking !== null
+      return store.get().checking !== null
     },
     /** The watcher's answer: whether the checked toast is still queued. Ignored if a new Mark Done or an Undo overtook it. */
     settle: (present: boolean) => {
+      const { latest, checking } = store.get()
       if (!checking || checking !== latest) return
-      if (present) { checking = null; notify() } else commit(null)
+      if (present) store.set({ latest, checking: null })
+      else commit(null)
     },
   }
 }
