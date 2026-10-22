@@ -137,3 +137,50 @@ test("Lane paints the same theme on every page in light and dark", async ({
   }
   expect(failures, "Painted differently from the recorded baseline").toEqual([]);
 });
+
+/**
+ * #94: the last-resort error page (global-error) follows the saved light/dark setting.
+ *
+ * Lane has no way to crash the root layout on purpose, and none may ship. The test instead crashes it from
+ * the browser: the root layout's theme provider listens for `storage` events on the "theme" key, so a
+ * synthetic event with a value containing a space makes it call classList.add("crash test"), which throws.
+ * That error escapes the root layout and Next shows global-error (in development too, under the overlay,
+ * which settle() hides). The saved choice in localStorage is untouched, so the error page must paint it.
+ */
+const ERROR_PAGE_CASES: { saved: "light" | "dark" | "system"; device: Mode; expected: Mode }[] = [
+  { saved: "dark", device: "light", expected: "dark" },
+  { saved: "light", device: "dark", expected: "light" },
+  { saved: "system", device: "dark", expected: "dark" },
+  { saved: "system", device: "light", expected: "light" },
+];
+
+test("the error page paints the saved light/dark setting", async ({ browser }) => {
+  for (const { saved, device, expected } of ERROR_PAGE_CASES) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: device });
+    try {
+      await context.addInitScript((theme) => localStorage.setItem("theme", theme), saved);
+      const page = await context.newPage();
+      await page.goto("/login");
+      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
+      await settle(page, expected);
+      const paint = () =>
+        page.evaluate(() => ({
+          background: getComputedStyle(document.body).backgroundColor,
+          text: getComputedStyle(document.body).color,
+        }));
+      const appPaint = await paint();
+
+      await page.evaluate(() =>
+        window.dispatchEvent(new StorageEvent("storage", { key: "theme", newValue: "crash test" }))
+      );
+      await expect(page.getByRole("heading", { name: "Lane can’t load right now" })).toBeVisible();
+      await settle(page, expected);
+      const html = page.locator("html");
+      await expect(html).toHaveAttribute("data-theme", expected);
+      await expect(html).toHaveCSS("color-scheme", expected);
+      expect(await paint(), `error page with "${saved}" saved on a ${device} device`).toEqual(appPaint);
+    } finally {
+      await context.close();
+    }
+  }
+});

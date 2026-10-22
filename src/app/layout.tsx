@@ -83,13 +83,7 @@ export default function RootLayout({
             "reset-password": "/reset-password",
           }}
         >
-          <ThemeProvider
-            attribute={["class", "data-theme"]}
-            defaultTheme="system"
-            enableSystem
-            enableColorScheme
-            disableTransitionOnChange
-          >
+          <ThemeProvider>
             <ToastStackProvider>
               {children}
               {/* Plan item 2.4 (decision 8.22): toasts swap text and icons without a blur. The region is
