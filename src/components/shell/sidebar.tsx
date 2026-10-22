@@ -3,8 +3,8 @@
 import { callAction } from "@/lib/action-call";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { parseRequestStatusFilter, parseRequestProjectFilter, requestListHref } from "@/lib/request-workspace";
+import { usePathname, useRouter } from "next/navigation";
+import { requestListHref } from "@/lib/request-workspace";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { NotificationBell } from "./notification-bell";
@@ -31,7 +31,6 @@ export function Sidebar({
   unreadCount?: Promise<number>;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const projectState = useSharedWorkspaceProjects();
   const { isLoaded, organization } = useOrganization();
@@ -53,8 +52,6 @@ export function Sidebar({
       email={email}
       role={role}
       pathname={pathname}
-      statusFilter={parseRequestStatusFilter(searchParams.get("status") ?? undefined)}
-      projectFilter={parseRequestProjectFilter(searchParams.get("project") ?? undefined)}
       projects={projectState.projects}
       projectsLoading={projectState.loading}
       projectsError={projectState.error}
