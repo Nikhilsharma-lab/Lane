@@ -14,7 +14,9 @@ type Pane = ComponentType<WorkspaceSearchPaneProps>
 // from then on it renders synchronously, with no fallback. The precedent is date-range-picker-lazy.tsx.
 // It shares its dynamic import with the ⌘K palette (shell-lazy-surfaces.ts, #107).
 let loaded: Pane | null = null
-const load = () => import("./shell-lazy-surfaces").then(module => (loaded = module.WorkspaceSearchPane))
+/** The one dynamic import of the shell's on-demand surfaces; the ⌘K palette's host loads through it too. */
+export const loadShellSurfaces = () => import("./shell-lazy-surfaces")
+const load = () => loadShellSurfaces().then(module => (loaded = module.WorkspaceSearchPane))
 
 export function preloadWorkspaceSearch() {
   void load().catch(() => undefined)

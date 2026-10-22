@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
-import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest, type CurrentRequestState } from "./current-request"
+import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
 import { usePendingMutations } from "./pending-mutations-provider"
 import type { DetailSequence } from "./request-sequence"
 
@@ -77,8 +77,6 @@ const DetailSessionSetterContext = createContext<SetDetailSession | null>(null)
 // #103: the Request open on its page or in the preview, and the list's highlighted row, for the app shell.
 const CurrentRequestContext = createContext<ReturnType<typeof createCurrentRequestStore> | null>(null)
 CurrentRequestContext.displayName = "CurrentRequest"
-const noCurrentRequest: CurrentRequestState = { open: null, highlightedId: null }
-const noSubscription = () => () => {}
 DetailSessionContext.displayName = "RequestDetailSession"
 DetailSessionSetterContext.displayName = "RequestDetailSessionSetter"
 
@@ -132,23 +130,23 @@ export function useLoadedRequests(): () => readonly OverviewRequest[] {
 
 /** #103: Request detail (page or preview) publishes its Request while mounted. Keep `request` memoized: each new object republishes. */
 export function usePublishOpenRequest(request: CurrentRequest) {
-  const store = useContext(CurrentRequestContext)
-  useLayoutEffect(() => store?.setOpen(request), [store, request])
+  const store = required(useContext(CurrentRequestContext), "usePublishOpenRequest")
+  useLayoutEffect(() => store.setOpen(request), [store, request])
 }
 
 /** #103: the list publishes its highlighted row (the active row, not the ticked ones), or null on a group header. */
 export function usePublishHighlightedRequest(id: string | null) {
-  const store = useContext(CurrentRequestContext)
+  const store = required(useContext(CurrentRequestContext), "usePublishHighlightedRequest")
   useLayoutEffect(() => {
-    store?.setHighlighted(id)
-    return () => store?.setHighlighted(null)
+    store.setHighlighted(id)
+    return () => store.setHighlighted(null)
   }, [store, id])
 }
 
-/** #103: the Request the shell acts on: the open one, else the list's highlighted row, else null. Null outside the provider. */
+/** #103: the Request the shell acts on: the open one, else the list's highlighted row, else null. */
 export function useCurrentRequest(): CurrentRequest | null {
-  const store = useContext(CurrentRequestContext)
-  const state = useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? (() => noCurrentRequest), store?.get ?? (() => noCurrentRequest))
+  const store = required(useContext(CurrentRequestContext), "useCurrentRequest")
+  const state = useSyncExternalStore(store.subscribe, store.get, store.get)
   const rows = useLoadedRequests()()
   const overlay = usePendingMutations()
   // One object until the Request or its pending changes change, so readers can memoize on it.
