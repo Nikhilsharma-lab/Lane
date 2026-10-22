@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE v4, throwaway: Lane impact</title>
+<!--
+  PROTOTYPE v4, THROWAWAY. Sample data only. Not Lane's look or components. Plain inline SVG, no library.
+  Adds charts to v3. Each metric has its own scale and unit; charts never add different metrics together.
+  Dumbbell: hollow grey = baseline (value before release), blue tick = predicted, green dot = actual,
+  dashed amber ring = still due (no actual yet).
+-->
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#fff;
+          --good:#2f7d4f; --neutral:#6b6b66; --bad:#b4442c; --due:#8a6d12; --ops:#4a6fa5; --pred:#4a6fa5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 "Geist", system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  .banner { background:#fff3bf; color:#5c4a00; padding:8px 16px; font-size:13px; border-bottom:1px solid #e8d77a; }
+  header { max-width:1000px; margin:0 auto; padding:24px 24px 0; }
+  .eyebrow { font-size:12px; color:var(--muted); margin-bottom:2px; }
+  h1 { font-size:22px; margin:0 0 14px; font-weight:600; }
+  nav[role=tablist] { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; padding:10px 14px; font:inherit; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; }
+  nav button[aria-selected=true] { color:var(--fg); border-bottom-color:var(--fg); font-weight:600; }
+  nav button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  main { max-width:1000px; margin:0 auto; padding:22px 24px 64px; }
+  [hidden] { display:none !important; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:26px 0 10px; }
+  h2:first-child { margin-top:0; }
+  .explain { color:var(--muted); font-size:13px; margin:0 0 12px; max-width:72ch; }
+  .key { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12px; color:var(--muted); margin:0 0 16px; align-items:center; }
+  .key b { color:var(--fg); font-weight:600; }
+  .sw { display:inline-block; width:12px; height:12px; vertical-align:-2px; margin-right:4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .card .title { font-weight:600; }
+  .card .why { color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns: 1fr 1.3fr 130px; gap:16px; align-items:center; }
+  .flow .big { font-size:20px; font-weight:600; line-height:1.15; font-variant-numeric: tabular-nums; }
+  .flow .sub { display:block; font-size:12px; color:var(--muted); margin-top:3px; }
+  .good-t { color:var(--good); } .bad-t { color:var(--bad); } .neutral-t { color:var(--neutral); } .due-t { color:var(--due); } .ops-t { color:var(--ops); }
+  .pill { justify-self:end; font-size:12px; padding:3px 10px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .pill.good { color:var(--good); border-color:var(--good); } .pill.due { color:var(--due); border-color:var(--due); } .pill.ops { color:var(--ops); border-color:var(--ops); }
+  .chart svg { width:100%; height:auto; display:block; }
+  .proj { margin-bottom:26px; }
+  .proj h3 { font-size:16px; margin:0 0 8px; font-weight:600; }
+  .facts { font-size:13px; color:var(--muted); margin-top:6px; }
+  .facts b { color:var(--fg); font-weight:600; }
+  .stack-row { display:grid; grid-template-columns: 120px 1fr; gap:12px; align-items:center; margin-bottom:8px; font-size:13px; }
+  .stack-row .bar { display:flex; height:22px; border-radius:6px; overflow:hidden; background:#f0efeb; }
+  .stack-row .bar div { height:100%; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:8px 0 0; }
+  @media (max-width:760px) { .grid { grid-template-columns: 1fr; } .pill { justify-self:start; } }
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE v4, THROWAWAY. Sample data only. Not Lane's look. Answers: do the charts show actual impact against baseline and prediction at a glance, with no score that grades a person?</div>
+
+<header>
+  <div class="eyebrow">Impact · Q3 2026, grouped by release date</div>
+  <h1>What our work did</h1>
+  <nav role="tablist" aria-label="Impact views">
+    <button role="tab" id="t-personal" aria-selected="true" aria-controls="v-personal">My work</button>
+    <button role="tab" id="t-project" aria-selected="false" aria-controls="v-project" tabindex="-1">By project</button>
+    <button role="tab" id="t-org" aria-selected="false" aria-controls="v-org" tabindex="-1">Whole org</button>
+  </nav>
+</header>
+
+<main>
+  <div class="key">
+    <span><span class="sw" style="border:2px solid #6b6b66;border-radius:50%"></span><b>Baseline</b>, the value before release</span>
+    <span><span class="sw" style="background:var(--pred);width:4px"></span><b>Predicted</b>, expected at creation</span>
+    <span><span class="sw" style="background:var(--good);border-radius:50%"></span><b>Actual</b>, measured after release</span>
+    <span><span class="sw" style="border:2px dashed var(--due);border-radius:50%"></span><b>Still due</b>, no actual yet</span>
+  </div>
+
+  <!-- MY WORK -->
+  <section id="v-personal" role="tabpanel" aria-labelledby="t-personal">
+    <p class="explain">Requests you requested or picked up. Each row shows where it started, where it landed, and the window it was measured over. Team totals are on the other tabs.</p>
+
+    <h2>Measured</h2>
+    <div class="card grid">
+      <div><div class="title">Checkout: fewer steps</div><div class="why">Drop-offs (%) · you requested</div><div class="why">Window: 30 days after release (1–30 Sep)</div></div>
+      <div class="chart" data-chart="drop"></div>
+      <div class="flow"><span class="big good-t">−11%</span><span class="sub">change from baseline (predicted −15%)</span></div>
+    </div>
+
+    <h2>Still due</h2>
+    <div class="card grid">
+      <div><div class="title">Onboarding copy rewrite</div><div class="why">Activation (%) · you picked up</div><div class="why">Window: 30 days after release, due 14 Nov</div></div>
+      <div class="chart" data-chart="activation"></div>
+      <div class="flow"><span class="big due-t">Measuring</span><span class="sub">due 14 Nov</span></div>
+    </div>
+
+    <h2>Operational work</h2>
+    <div class="card grid">
+      <div><div class="title">Design-system button</div><div class="why">You picked up · no measurable impact: internal tooling</div></div>
+      <div class="flow"><span class="big ops-t">Not measured</span><span class="sub">operational work, excluded from totals</span></div>
+      <div class="pill ops">Operational</div>
+    </div>
+
+    <h2>Closed without a result</h2>
+    <div class="card grid">
+      <div><div class="title">Export to CSV</div><div class="why">You requested · rolled back before release</div></div>
+      <div class="flow"><span class="big neutral-t">No result</span><span class="sub">reason recorded on the Request</span></div>
+      <div class="pill">Closed, reason given</div>
+    </div>
+  </section>
+
+  <!-- BY PROJECT -->
+  <section id="v-project" role="tabpanel" aria-labelledby="t-project" hidden>
+    <p class="explain">Each Project leads with what it measured. Each metric has its own scale, and lines are never added across metrics.</p>
+
+    <div class="proj">
+      <h3>Checkout</h3>
+      <div class="card">
+        <div class="title">Drop-offs (%)</div>
+        <div class="chart" data-chart="drop"></div>
+        <div class="facts">From <b>Fewer steps</b> · Window <b>30 days after release (1–30 Sep)</b> · change −11% (predicted −15%)</div>
+      </div>
+      <div class="card">
+        <div class="title">Guest completions (%)</div>
+        <div class="chart" data-chart="guest"></div>
+        <div class="facts">From <b>Guest checkout</b> · Window <b>30 days after release (1–30 Sep)</b> · change +2% (predicted +8%)</div>
+      </div>
+      <div class="card">
+        <div class="title">Payment errors per month</div>
+        <div class="chart" data-chart="payment"></div>
+        <div class="facts">From <b>Payment error retry</b> · Window <b>30 days after release, due 3 Dec</b></div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Onboarding</h3>
+      <div class="card">
+        <div class="title">Activation (%)</div>
+        <div class="chart" data-chart="activation"></div>
+        <div class="facts">From <b>Copy rewrite</b> · Window <b>30 days after release, due 14 Nov</b></div>
+      </div>
+      <div class="card">
+        <div class="title">Time to first project (minutes)</div>
+        <div class="chart" data-chart="ttfp"></div>
+        <div class="facts">From <b>Time to first project</b> · Window <b>14 days after release, due 28 Nov</b></div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Design system</h3>
+      <div class="card grid">
+        <div><div class="title">Design-system button</div><div class="why">Internal tooling · you picked up</div></div>
+        <div class="flow"><span class="big ops-t">Not measured</span><span class="sub">no measurable impact, excluded from totals</span></div>
+        <div class="pill ops">Operational</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>No project</h3>
+      <div class="card">
+        <div class="title">Report load time (seconds)</div>
+        <div class="chart" data-chart="report"></div>
+        <div class="facts">From <b>Report speed</b> · Window <b>14 days after release (1–14 Sep)</b> · change −1.4 s (predicted −1.0 s)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHOLE ORG -->
+  <section id="v-org" role="tabpanel" aria-labelledby="t-org" hidden>
+    <p class="explain">Measured results this quarter, one chart per metric. Different metrics are never added together.</p>
+
+    <h2>Measured impact</h2>
+    <div class="card">
+      <div class="title">Drop-offs (%) · Checkout</div>
+      <div class="chart" data-chart="drop"></div>
+      <div class="facts">Window <b>30 days after release (1–30 Sep)</b></div>
+    </div>
+    <div class="card">
+      <div class="title">Guest completions (%) · Checkout</div>
+      <div class="chart" data-chart="guest"></div>
+      <div class="facts">Window <b>30 days after release (1–30 Sep)</b></div>
+    </div>
+    <div class="card">
+      <div class="title">Report load time (seconds) · No project</div>
+      <div class="chart" data-chart="report"></div>
+      <div class="facts">Window <b>14 days after release (1–14 Sep)</b></div>
+    </div>
+
+    <h2>When the rest land</h2>
+    <div class="card">
+      <div class="title">Results still to measure</div>
+      <div id="timeline" class="chart"></div>
+      <div class="facts">Each marker is a measurement due date. Nothing here is a result yet.</div>
+    </div>
+
+    <h2>Where each Request sits (secondary)</h2>
+    <div class="card">
+      <div id="stacks"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--good)"></span>Measured</span>
+        <span><span class="sw" style="background:#d9a929"></span>Still due</span>
+        <span><span class="sw" style="background:var(--ops)"></span>Operational</span>
+        <span><span class="sw" style="background:#9a9a92"></span>Closed, no result</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Sample data. Values are invented. Percent metrics use % units; each chart uses its own scale.
+  const M = {
+    drop:       { base:40,  pred:34,    actual:35.6, due:null,   fmt:v=>v.toFixed(1)+'%', good:true },
+    guest:      { base:62,  pred:66.96, actual:63.2, due:null,   fmt:v=>v.toFixed(1)+'%', good:true },
+    report:     { base:4.0, pred:3.0,   actual:2.6,  due:null,   fmt:v=>v.toFixed(1)+' s', good:true },
+    activation: { base:22,  pred:23.1,  actual:null, due:'14 Nov', fmt:v=>v.toFixed(1)+'%' },
+    ttfp:       { base:9,   pred:7,     actual:null, due:'28 Nov', fmt:v=>v.toFixed(0)+' min' },
+    payment:    { base:120, pred:100,   actual:null, due:'3 Dec', fmt:v=>v.toFixed(0)+' /mo' }
+  };
+
+  // One dumbbell: baseline -> actual, with the prediction as a tick. Scale is per metric.
+  function dumbbell(m) {
+    const W = 560, H = 62, pl = 22, pr = 22, cy = 36;
+    const vals = [m.base, m.pred, m.actual].filter(v => v != null);
+    const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.25 || 1;
+    const x = v => pl + (v - (lo - pad)) / ((hi + pad) - (lo - pad)) * (W - pl - pr);
+    const end = m.actual != null ? m.actual : m.pred;
+    const col = m.actual != null ? 'var(--good)' : 'var(--due)';
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Baseline ${m.fmt(m.base)}, predicted ${m.fmt(m.pred)}${m.actual != null ? ', actual ' + m.fmt(m.actual) : ', due ' + m.due}">`;
+    s += `<line x1="${x(m.base)}" y1="${cy}" x2="${x(end)}" y2="${cy}" stroke="#c9c8c1" stroke-width="4" stroke-linecap="round"/>`;
+    s += `<text x="${x(m.base)}" y="13" text-anchor="middle" font-size="11" fill="#6b6b66">${m.fmt(m.base)}</text>`;
+    s += `<circle cx="${x(m.base)}" cy="${cy}" r="6" fill="#fff" stroke="#6b6b66" stroke-width="2"><title>Baseline ${m.fmt(m.base)}</title></circle>`;
+    s += `<rect x="${x(m.pred) - 1.5}" y="${cy - 11}" width="3" height="22" fill="var(--pred)"><title>Predicted ${m.fmt(m.pred)}</title></rect>`;
+    if (m.actual != null) {
+      s += `<circle cx="${x(m.actual)}" cy="${cy}" r="7" fill="${col}"><title>Actual ${m.fmt(m.actual)}</title></circle>`;
+      s += `<text x="${x(m.actual)}" y="58" text-anchor="middle" font-size="11" font-weight="600" fill="${col}">${m.fmt(m.actual)}</text>`;
+    } else {
+      s += `<circle cx="${x(m.pred)}" cy="${cy}" r="7" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="3 2"><title>Still due ${m.due}</title></circle>`;
+      s += `<text x="${x(m.pred)}" y="58" text-anchor="middle" font-size="11" fill="${col}">due ${m.due}</text>`;
+    }
+    return s + '</svg>';
+  }
+
+  // Due-date timeline: one marker per result still to measure, positioned by day.
+  function timeline() {
+    const W = 560, H = 80, pl = 30, pr = 30, days = 40; // 1 Nov .. 10 Dec
+    const x = d => pl + d / days * (W - pl - pr);
+    const items = [['Copy rewrite', 13, '14 Nov'], ['Time to first project', 27, '28 Nov'], ['Payment error retry', 32, '3 Dec']];
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Measurement due dates, 14 Nov, 28 Nov and 3 Dec">`;
+    s += `<line x1="${pl}" y1="40" x2="${W - pr}" y2="40" stroke="#c9c8c1" stroke-width="2"/>`;
+    [[0, '1 Nov'], [14, '15 Nov'], [28, '29 Nov'], [39, '10 Dec']].forEach(([d, t]) => {
+      s += `<line x1="${x(d)}" y1="36" x2="${x(d)}" y2="44" stroke="#c9c8c1"/>`;
+      s += `<text x="${x(d)}" y="62" text-anchor="middle" font-size="11" fill="#6b6b66">${t}</text>`;
+    });
+    items.forEach(([name, d, when], i) => {
+      const y = 40, above = i % 2 === 0;
+      s += `<circle cx="${x(d)}" cy="${y}" r="6" fill="none" stroke="var(--due)" stroke-width="2" stroke-dasharray="3 2"><title>${name}, due ${when}</title></circle>`;
+      s += `<text x="${x(d)}" y="${above ? 18 : 80 - 2}" text-anchor="middle" font-size="11" fill="var(--fg)">${name}</text>`;
+    });
+    return s + '</svg>';
+  }
+
+  // Where each Request sits, per Project. Counts are secondary, so they sit in a small stacked bar.
+  const stacks = [
+    ['Checkout', [['good', 2], ['due', 1], ['ops', 0], ['closed', 0]]],
+    ['Onboarding', [['good', 0], ['due', 2], ['ops', 0], ['closed', 0]]],
+    ['Design system', [['good', 0], ['due', 0], ['ops', 2], ['closed', 0]]],
+    ['No project', [['good', 1], ['due', 0], ['ops', 0], ['closed', 1]]]
+  ];
+  const colors = { good:'var(--good)', due:'#d9a929', ops:'var(--ops)', closed:'#9a9a92' };
+  function stackRows() {
+    return stacks.map(([name, parts]) => {
+      const total = parts.reduce((a, [, n]) => a + n, 0) || 1;
+      const segs = parts.filter(([, n]) => n > 0).map(([k, n]) =>
+        `<div style="width:${n / total * 100}%;background:${colors[k]}" title="${n}"></div>`).join('');
+      return `<div class="stack-row"><span>${name}</span><div class="bar">${segs}</div></div>`;
+    }).join('');
+  }
+
+  // Fill every chart placeholder from the same data, so one metric always looks the same.
+  document.querySelectorAll('[data-chart]').forEach(el => { el.innerHTML = dumbbell(M[el.dataset.chart]); });
+  document.getElementById('timeline').innerHTML = timeline();
+  document.getElementById('stacks').innerHTML = stackRows();
+
+  // Tabs: click or arrow keys. Plain DOM, nothing else.
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  function show(id) {
+    tabs.forEach(t => {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    document.getElementById(id).focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.id));
+    t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const n = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        show(tabs[n].id);
+      }
+    });
+  });
+</script>
+</body>
+</html>
