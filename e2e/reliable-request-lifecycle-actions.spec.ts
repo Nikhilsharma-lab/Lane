@@ -4,6 +4,7 @@ import {
   createReviewTeam,
   createRequestThroughIntake,
 } from "./helpers/reviewers";
+import { answerIsItLive } from "./helpers/journey";
 
 const SURFACES = [
   {
@@ -119,7 +120,12 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       ) =>
         surface.viewport.width >= 1440
           ? expect(status).toHaveAttribute("data-status", value, { timeout })
-          : expect(status).toContainText(`${label},`, { timeout });
+          : // The state line's name carries the status: "Properties: Open, No priority".
+            expect(status).toHaveAttribute(
+              "aria-label",
+              new RegExp(`^Properties: ${label}(,|$)`),
+              { timeout },
+            );
 
       const failedPickup = await holdAndFailNextAction(page, actionPath);
       const pickUp = lifecycle.getByRole("button", {
@@ -176,6 +182,14 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await markDone.click();
       await expectStatus("done", "Done", 20_000);
       await expect(toasts).toContainText("Marked Done");
+      // #135: a confirmed Mark Done asks "Is it live?". Not yet keeps the
+      // Request at Done and brings back its Marked Done toast with Undo.
+      await answerIsItLive(page, "not yet");
+      await expect(toasts).toContainText("Marked Done");
+      await expect(
+        toasts.getByRole("button", { name: "Undo", exact: true }),
+      ).toBeVisible();
+      await expectStatus("done", "Done");
     }
   } finally {
     await team.close(testInfo);

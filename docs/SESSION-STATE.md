@@ -1,5 +1,21 @@
 # Shared Claude / Codex handoff
 
+## October 22 — #137 journey e2e authored, awaiting a hosted run (branch `journey-127`)
+
+The e2e for the #127 journey is updated but **not run**: Lane Staging is on 0030, and these specs need 0031–0033
+(applying them is a separate approved step with a verified backup and dry run). Run them on staging after that.
+Typecheck and lint pass.
+
+- `e2e/request-release.spec.ts`: Mark Done → "Is it live?" → "Yes, record release" records today's release in
+  the prompt (Undo Done ends); the timeline's Measuring step shows "· 3 days remaining" (a 3-day agreed window),
+  the page and the list row (`/?status=due`) show "Due in 3 days"; then correction and handover. 1440/390,
+  light/dark.
+- `e2e/request-outcome.spec.ts`: Mark Done → "Not yet" brings Undo back; release from the timeline's Done step;
+  closing without a result shows the Closed step. 1440/390, light/dark.
+- `e2e/reliable-request-lifecycle-actions.spec.ts` answers "Not yet" after Mark Done (and reads the phone state
+  line's name); `e2e/perf.spec.ts` (LANE_PERF_MUTATE=1) answers "Not yet" before Undo.
+- Shared helpers: `e2e/helpers/journey.ts`; `createRequestThroughIntake` takes `reviewAfterDays`.
+
 ## October 21 — #74 optional reviewers built: #75–#78 (branch `lifecycle-simplify`)
 
 Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `lifecycle-simplify`. Migration
