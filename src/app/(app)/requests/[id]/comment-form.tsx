@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, Send } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -92,7 +93,7 @@ export function CommentForm({
     };
 
     try {
-      const result = await addComment(requestId, formData, context);
+      const result = await callAction(() => addComment(requestId, formData, context));
 
       if ("error" in result && result.error) {
         fail(result.error);

@@ -17,7 +17,7 @@ import { projects } from "./projects";
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
 import type { ReleaseState } from "@/lib/request-release";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome";
-import type { DesignReview } from "@/lib/request-review";
+import type { SavedDesignReview } from "@/lib/request-design-link";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
 
@@ -56,7 +56,7 @@ export const requests = pgTable(
     priority: requestPriorityEnum("priority").notNull().default("none"),
     expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
     measurementDraft: jsonb("measurement_draft").$type<IncompleteMeasurement>(),
-    designReviews: jsonb("design_reviews").$type<DesignReview[]>().notNull().default([]),
+    designReviews: jsonb("design_reviews").$type<SavedDesignReview[]>().notNull().default([]),
     designReviewVersion: integer("design_review_version").notNull().default(0),
     title: text("title").notNull(),
     description: text("description").notNull(),

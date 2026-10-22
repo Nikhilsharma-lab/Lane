@@ -1,4 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +25,7 @@ const measure = queryCounter.measure;
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
   const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Statement ceiling tests require local lane_test");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Statement ceiling tests require local lane_test");
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Statement ceilings','statement-ceilings')`;
   for (const id of [MEMBER, REQUESTER]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;

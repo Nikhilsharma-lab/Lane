@@ -1,5 +1,6 @@
 "use client"
 
+import { listFiltersOf } from "./list-view-model"
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
@@ -121,19 +122,20 @@ export function useLoadedRequests(): () => readonly OverviewRequest[] {
   return store?.get ?? noLoadedRequests
 }
 
-/** The whole view and its setter. Outside the provider (older fixtures) it falls back to local state. */
+/** The (app) layout always provides the list's view and detail session. */
+function required<T>(value: T | null | undefined, hook: string): T {
+  if (value == null) throw new Error(`${hook} needs RequestListViewProvider (the (app) layout).`)
+  return value
+}
+
+/** The whole view and its setter. */
 export function useRequestListView(): [ListViewState, SetListView] {
-  const state = useContext(ListViewStateContext)
-  const setState = useContext(ListViewSetterContext)
-  const local = useState(initialView)
-  return state && setState ? [state, setState] : local
+  return [required(useContext(ListViewStateContext), "useRequestListView"), required(useContext(ListViewSetterContext), "useRequestListView")]
 }
 
 /** Only the setter: never re-renders when the view changes. */
 export function useSetRequestListView(): SetListView {
-  const setState = useContext(ListViewSetterContext)
-  const [, setLocal] = useState(initialView)
-  return setState ?? setLocal
+  return required(useContext(ListViewSetterContext), "useSetRequestListView")
 }
 
 /** Plan item 2.3: reads the current view when called, for an event handler.
@@ -143,10 +145,7 @@ export function useListViewSnapshot() {
 }
 
 /** The filters DataTable applies, read from a view. */
-export function listFiltersOf(view: ListViewState): ListFilters {
-  const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
-  return { status: view.status, project: view.project, title: local("title"), requestType: local("requestType") }
-}
+export { listFiltersOf }
 
 /**
  * Plan item 2.3: the smallest change to the view that shows this Request.
@@ -167,22 +166,19 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
   return { ...moved, localFilters, pagination: narrowed ? { ...moved.pagination, pageIndex: 0 } : moved.pagination, reveal: row.id }
 }
 
-/** Plan item 2.5: Request detail's session. Outside the provider (older fixtures) it has no sequence and keeps drafts locally. */
+/** Plan item 2.5: Request detail's session. */
 export function useDetailSession(): DetailSession {
-  const session = useContext(DetailSessionContext)
-  const [local] = useState<DetailSession>(() => ({ sequence: null, focusTitleOnArrival: false, focusOnArrival: null, commentDrafts: new Map() }))
-  return session ?? local
+  return required(useContext(DetailSessionContext), "useDetailSession")
 }
 
-/** Only the setter: never re-renders when the session changes. Does nothing outside the provider. */
+/** Only the setter: never re-renders when the session changes. */
 export function useSetDetailSession(): SetDetailSession {
-  return useContext(DetailSessionSetterContext) ?? noSession
+  return required(useContext(DetailSessionSetterContext), "useSetDetailSession")
 }
-const noSession: SetDetailSession = () => {}
 
-/** The status view and Project filter, or null outside the provider. Re-renders only when either changes. */
-export function useRequestListContext() {
-  return useContext(ListContextContext)
+/** The status view and Project filter. Re-renders only when either changes. */
+export function useRequestListContext(): RequestListContext {
+  return required(useContext(ListContextContext), "useRequestListContext")
 }
 
 /** Moves the list to another status view or Project and returns to the first page. */

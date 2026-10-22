@@ -1,5 +1,6 @@
 "use client"
 
+import { callAction } from "@/lib/action-call";
 import { useState } from "react"
 import { Download, LoaderCircle } from "lucide-react"
 
@@ -27,10 +28,10 @@ export function AttachmentDownload({
     setError(null)
 
     try {
-      const result = await getAttachmentDownloadUrl(
+      const result = await callAction(() => getAttachmentDownloadUrl(
         attachmentId,
         context
-      )
+      ))
       if (!("success" in result) || !result.success || !result.url) {
         setError(result.error ?? "Couldn’t prepare the download. Try again.")
         return

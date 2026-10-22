@@ -23,6 +23,9 @@ export interface ContextMenuItem {
   shortcut?: string;
   /** Keep the menu open for an action that confirms its result in place. */
   closeOnSelect?: boolean;
+  /** Why a disabled item can't be chosen, shown under its label. The item then
+   * stays focusable (aria-disabled) so keyboard and screen-reader users reach it. */
+  description?: string;
 }
 
 export interface ContextMenuProps {
@@ -164,13 +167,14 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
       {anchor && placement.overlap && <><button type="button" role="menuitem" tabIndex={-1} data-index={-1} className={styles.item} onClick={onBack} aria-label={`Back to ${anchor.label}`}>
         <ChevronLeft aria-hidden="true" /><span className={styles.label}>Back</span>
       </button><div className={styles.separator} role="separator" /></>}
-      {items.map((item, index) => <Fragment key={item.id}>
+      {items.map((item, index) => { const unavailable = Boolean(item.disabled && item.description); const descriptionId = `${id}-${item.id}-description`; return <Fragment key={item.id}>
         {item.separatorBefore && index > 0 && <div className={styles.separator} role="separator" />}
         <button type="button" role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"} aria-checked={item.checked}
           aria-haspopup={item.children?.length ? "menu" : undefined} aria-expanded={item.children?.length ? openedItem?.id === item.id : undefined}
           aria-controls={openedItem?.id === item.id ? submenuId : undefined}
           tabIndex={-1} data-index={index} data-tone={item.destructive ? "danger" : undefined} data-submenu-open={openedItem?.id === item.id || undefined}
-          style={{ "--i": index } as CSSProperties} disabled={item.disabled}
+          style={{ "--i": index } as CSSProperties} disabled={item.disabled && !unavailable}
+          aria-disabled={unavailable || undefined} aria-describedby={unavailable ? descriptionId : undefined}
           className={[styles.item, item.destructive ? styles.destructive : ""].filter(Boolean).join(" ")}
           onPointerMove={event => {
             if (!present || !isLive()) return;
@@ -187,18 +191,19 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
           }}
           onPointerLeave={() => { window.clearTimeout(hoverTimer.current); }}
           onClick={event => {
-            if (!present || !isLive()) return;
+            if (!present || !isLive() || unavailable) return;
             if (item.children?.length) { openChild(item, event.currentTarget, true); return; }
             if (item.closeOnSelect !== false) onClose();
             item.onSelect?.();
           }}>
           <span className={styles.icon} aria-hidden="true">{item.icon ?? (item.checked ? <Check /> : <MoreHorizontal />)}</span>
-          <span className={styles.label}>{item.label}</span>
+          {item.description ? <span className={styles.text}><span className={styles.label}>{item.label}</span><span id={descriptionId} className={styles.description}>{item.description}</span></span>
+            : <span className={styles.label}>{item.label}</span>}
           {item.checked && item.icon && <Check className={styles.check} data-icon-size="sm" aria-hidden="true" />}
           {item.shortcut && <kbd className={styles.shortcut} aria-hidden="true">{item.shortcut}</kbd>}
           {!!item.children?.length && <ChevronRight className={styles.chevron} data-icon-size="sm" aria-hidden="true" />}
         </button>
-      </Fragment>)}
+      </Fragment>; })}
     </motion.div>
     <AnimatePresence>
       {openedItem && child && <MenuPanel key={openedItem.id} id={submenuId} treeId={treeId} label={openedItem.label} items={openedItem.children!}

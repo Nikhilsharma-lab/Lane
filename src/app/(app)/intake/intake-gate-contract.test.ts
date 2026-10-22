@@ -21,6 +21,13 @@ describe("Intake Gate contract", () => {
     expect(FORM).not.toContain("SparklesIcon");
   });
 
+  it("checks reworded framing with the rule the save uses, beside its field", () => {
+    expect(FORM).toContain("savedFraming(storedShape(");
+    expect(FORM).toContain('error={framingError?.field === "reframedProblem"');
+    expect(FORM).toContain('error={framingError?.field === "extractedSolution"');
+    expect(ACTIONS).toContain("savedFraming(framingShape(payload.classification)");
+  });
+
   it("preserves source content and never resets the review with Escape", () => {
     expect(FORM).toContain("Your original Request");
     expect(FORM).toContain("Suggested change");
@@ -66,8 +73,8 @@ describe("Intake Gate contract", () => {
   });
 
   it("retries an ended session once with a fresh token before asking for sign-in", () => {
-    expect(FORM).toContain("await refreshClerkToken()");
-    expect(FORM.match(/error\.code (?:===|!==) "session_expired"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(FORM).toContain("await callAction(() => editing ? runTriage(");
+    expect(FORM).toContain("return callAction(() => saveRequest(");
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {

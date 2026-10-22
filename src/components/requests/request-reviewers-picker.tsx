@@ -1,4 +1,5 @@
 "use client";
+import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -43,7 +44,7 @@ export function useReviewerPeople(orgId: string) {
     setLoading(true);
     setError(null);
     try {
-      const result = await loadReviewerPeople({ orgId });
+      const result = await callAction(() => loadReviewerPeople({ orgId }));
       if (!mounted.current) return;
       if ("error" in result) setError(result.error ?? "Could not load people. Try again.");
       else setPeople(result.people);

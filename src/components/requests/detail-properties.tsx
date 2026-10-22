@@ -1,5 +1,6 @@
 "use client"
 
+import { canChange } from "@/lib/request-access-rules"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
@@ -11,8 +12,7 @@ import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
-import { statusLabel } from "@/lib/request-status"
+import { availableMove, statusLabel, type LifecycleMove } from "@/lib/request-lifecycle"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestMoves } from "./request-moves"
@@ -75,7 +75,7 @@ function usePropertyControls(inSheet = false) {
   const { move: runMove, setPriority } = useDetailMoves()
   const status = request.status
   const priority = request.priority
-  const move = allowedMove({ status, agreementBlocked: request.agreementBlocked }, { isGuest })
+  const move = availableMove({ status, agreementBlocked: request.agreementBlocked, pickupBlockedReason: request.pickupBlockedReason }, { isGuest })
   const priorityText = REQUEST_PRIORITY_LABELS[priority]
   const priorityGlyph = <span className={styles.priorityGlyph} data-priority={priority}><PriorityGlyph priority={priority} /></span>
   const selectMove = (kind: LifecycleMove) => {
@@ -92,10 +92,12 @@ function usePropertyControls(inSheet = false) {
 
   // Decision 2026-10-21 (critique 2.5): a value this viewer cannot change reads as plain glyph and text, like
   // Assignee and Project; only a control that opens something keeps the chip.
-  const statusControl = move ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
+  // A pickup that isn't ready is explained by the strip's Pick up beside it, so Status offers no move then.
+  const statusControl = move && !move.blockedReason ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
     : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
 
-  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Value icon={priorityGlyph}>{priorityText}</Value>
+  // Whoever can change the Request sets its priority, a guest on their own Request included.
+  const priorityControl = request.status !== "open" || !canChange({ userId: viewer.id, role: viewer.isAdmin ? "admin" : "member" }, request) ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }
