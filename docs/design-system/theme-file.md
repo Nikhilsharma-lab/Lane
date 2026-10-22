@@ -70,7 +70,7 @@ The values are the 2026-10-13 Supabase-derived values, copied as-is, including c
 
 ## Brand assets
 
-`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneMark` in `src/components/auth/auth-shell.tsx`.
+`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest, browser tab colours (`src/app/theme-color.json`, read by the root layout) and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneMark` in `src/components/auth/auth-shell.tsx`.
 
 ## History
 
