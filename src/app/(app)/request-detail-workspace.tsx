@@ -5,7 +5,7 @@ import { requestListHref } from "@/lib/request-workspace"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestUnavailable } from "@/components/requests/detail-view"
 import { RequestDetailPane } from "@/components/requests/request-detail-pane"
-import { RequestWorkspaceKeyboard } from "./request-workspace-keyboard"
+import { RequestWorkspaceKeyboard } from "@/components/requests/request-workspace-keyboard"
 
 /**
  * Canonical /requests/[id] (plan items 1.7 and 2.5). Its own module, apart

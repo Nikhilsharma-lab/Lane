@@ -11,7 +11,7 @@ import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
-import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
+import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
 import { requestListHref, parseRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { NewRequestLink } from "../new-request-link"
@@ -25,7 +25,7 @@ import { useListAnnouncer } from "../list-announcer"
 import { matchCountText, requestCount } from "../request-row-label"
 import { useRequestGrid } from "../use-request-grid"
 import { gridKeysFor, requestIdOf } from "../request-grid-keys"
-import { isShown, requestRowSelector, restoreRequestFocus } from "../list-focus"
+import { focusRowWhenShown, restoreRequestFocus } from "../list-focus"
 import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "../request-peek"
 import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
@@ -230,21 +230,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   useEffect(() => {
     if (!reveal) return
     revealRow(reveal)
-    let frame = 0, attempts = 0
-    const done = () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous)
-    const focusRow = () => {
-      // Plan item 2.4: the row, the list's one tab stop, not its title link.
-      const row = document.querySelector(requestRowSelector(reveal))
-      if (isShown(row)) {
-        row.focus({ preventScroll: true })
-        row.scrollIntoView({ block: "nearest" })
-        if (document.activeElement === row) return done()
-      }
-      if (++attempts < 20) frame = window.requestAnimationFrame(focusRow)
-      else done()
-    }
-    frame = window.requestAnimationFrame(focusRow)
-    return () => window.cancelAnimationFrame(frame)
+    // Plan item 2.4: the row, the list's one tab stop, not its title link.
+    return focusRowWhenShown(reveal, () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous))
   }, [reveal, setView])
   // Plan item 2.4 (decision 8.11): while a filter is on, the result count is
   // announced once the person stops changing filters; removing the last one

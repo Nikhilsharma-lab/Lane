@@ -27,7 +27,7 @@ vi.mock("@/db", async () => {
 vi.mock("./requests/[id]/comment-form", () => ({ CommentForm: () => null }))
 vi.mock("./requests/[id]/attachment-download", () => ({ AttachmentDownload: () => null }))
 vi.mock("./requests/[id]/lifecycle-buttons", () => ({ LifecycleButtons: () => null }))
-vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
+vi.mock("@/components/requests/request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
 // Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
 
 import { RequestsWorkspace } from "./requests-workspace"
