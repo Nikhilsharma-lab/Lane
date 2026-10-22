@@ -70,10 +70,10 @@ test('exception closure, correction, follow-up and transferred ownership survive
     const admin = team.pages[1]; await admin.goto(path); await admin.reload();
     await expect(admin.getByRole('region', { name: 'Outcome', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Release and measurement', exact: true });
-    await release.getByRole('combobox', { name: 'New release and outcome owner' }).click();
+    await release.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
-    await release.getByLabel('Transfer reason').fill('Original owner left the acceptance workspace');
-    await release.getByRole('button', { name: 'Transfer responsibility' }).click();
+    await release.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
+    await release.getByRole('button', { name: 'Hand over' }).click();
     const developer = team.pages[2]; await developer.goto(path);
     const outcome = developer.getByRole('region', { name: 'Outcome', exact: true });
     await outcome.getByRole('button', { name: 'Close without a result…' }).click();
