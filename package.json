@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "theme-parity:record": "LANE_THEME_PARITY_RECORD=1 playwright test e2e/theme-parity.spec.ts",
     "test:ui": "vitest run --config vitest.ui.config.ts --no-file-parallelism",
     "typecheck": "tsc --noEmit",
     "design:check": "node --test scripts/design-system/token-contract.test.mjs && node scripts/design-system/token-contract.mjs && node scripts/design-system/arc-source-check.mjs && node scripts/brand/brand-assets.mjs --check",

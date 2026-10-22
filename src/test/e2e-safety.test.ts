@@ -35,6 +35,10 @@ describe("E2E mutation boundary", () => {
     ["LANE_E2E_ALLOW_REMOTE", ""],
     ["NEXT_PUBLIC_SUPABASE_URL", "https://production.supabase.co"],
     ["CLERK_API_URL", "https://other-api.example.com"],
+    ["CLERK_FAPI", "other.clerk.accounts.dev"],
+    ["CLERK_FAPI", "https://thankful-caiman-3665.clerk.accounts.dev"],
+    ["CLERK_PROXY_URL", "https://proxy.example.com"],
+    ["NEXT_PUBLIC_CLERK_PROXY_URL", "https://proxy.example.com"],
   ])("rejects unsafe %s before creating anything", async (name, value) => {
     vi.stubEnv(name, value);
     const { createTestUser } = await import("../../e2e/helpers/test-user");
@@ -42,6 +46,15 @@ describe("E2E mutation boundary", () => {
     expect(provider.users.createUser).not.toHaveBeenCalled();
     expect(provider.organizations.createOrganization).not.toHaveBeenCalled();
     expect(postgres).not.toHaveBeenCalled();
+  });
+
+  // Clerk's Playwright setup writes the pinned instance's Frontend API host into
+  // CLERK_FAPI, and workers reload the config after it, so that one value is safe.
+  it("accepts CLERK_FAPI set by Clerk's test setup for the pinned development instance", async () => {
+    vi.stubEnv("CLERK_FAPI", "thankful-caiman-3665.clerk.accounts.dev");
+    const { createTestUser } = await import("../../e2e/helpers/test-user");
+    await expect(createTestUser("safety")).resolves.toMatchObject({ id: "user_owned" });
+    expect(provider.users.createUser).toHaveBeenCalledOnce();
   });
 
   it("rejects a secret key for a different development instance", async () => {
