@@ -13,6 +13,8 @@ import { expectedImpactSchema, incompleteMeasurementSchema } from "@/lib/request
 import { verifyTriageToken } from "@/lib/triage-token";
 import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
+import { recordExpectedImpactRevision } from "@/lib/request-impact-history";
+import { isDeepStrictEqual } from "node:util";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
     orgId: string;
@@ -80,6 +82,10 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: sourceRequestType(changes), ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
+            // A changed complete impact is a new agreed revision, kept with its editor and time.
+            const nextImpact = impactStorage.expectedImpact;
+            if (nextImpact && !isDeepStrictEqual(stored.expectedImpact, JSON.parse(JSON.stringify(nextImpact))))
+                await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, expectedImpact: nextImpact, authorId: auth.userId });
             return { success: true as const };
         });
         // The shared editor closes and announces success before refreshing.

@@ -26,14 +26,14 @@ describe("migrationPlan", () => {
     ]);
   });
   it("includes a new migration without editing the reset", () => {
-    const plan = names(migrationPlan(withTargets([...folder, "0035_next_change.sql"])));
-    expect(plan.at(-1)).toBe("db/migrations/0035_next_change.sql");
+    const plan = names(migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036_next_change.sql"])));
+    expect(plan.at(-1)).toBe("db/migrations/0036_next_change.sql");
     expect(plan[0]).toBe("db/migrations/0013_m13.sql");
   });
   it("stops at a gap, a repeated number or a misnamed file", () => {
-    expect(() => migrationPlan(withTargets([...folder, "0036_skipped_one.sql"]))).toThrow("Expected migration 0035 next; found 0036_skipped_one.sql.");
-    expect(() => migrationPlan(withTargets([...folder, "0034_twice.sql"]))).toThrow("Expected migration 0035 next");
-    expect(() => migrationPlan(withTargets([...folder, "0035-next-change.sql"]))).toThrow("0035-next-change.sql is not named");
+    expect(() => migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0037_skipped_one.sql"]))).toThrow("Expected migration 0036 next; found 0037_skipped_one.sql.");
+    expect(() => migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0034_twice.sql"]))).toThrow("Expected migration 0035 next");
+    expect(() => migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036-next-change.sql"]))).toThrow("0036-next-change.sql is not named");
   });
   it("stops when fixtures wait for a migration that isn't there", () => {
     expect(() => migrationPlan(folder)).toThrow("Fixtures wait for 0028_request_agreements.sql");
