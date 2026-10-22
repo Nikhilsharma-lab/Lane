@@ -1,4 +1,5 @@
 import "server-only";
+import { seeable } from "@/lib/request-access"
 
 import { and, count, desc, eq, exists, isNull, or } from "drizzle-orm";
 
@@ -17,8 +18,7 @@ export function notificationVisibility(auth: MemberAuth) {
       .where(
         and(
           eq(requests.id, notifications.requestId),
-          eq(requests.orgId, auth.orgId),
-          auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined
+          seeable(auth)
         )
       )
   );

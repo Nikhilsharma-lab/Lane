@@ -8,6 +8,7 @@ import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
+import { seeable } from '@/lib/request-access';
 import { notifyReviewers } from '@/lib/request-reviewers';
 import { releaseOwner, releaseMeasurement } from '@/lib/request-release';
 import { agreedResult, correctableFields, guardrailHeld, isClosed, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
@@ -106,7 +107,7 @@ export async function readRequestOutcome(requestId: string, context: {
         insist(z.uuid().safeParse(requestId).success, 'Request unavailable.');
         const auth = await requireActiveMember(context.orgId);
         insist(auth, 'Request unavailable.');
-        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined));
+        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
         insist(request, 'Request unavailable.');
         const expected = request.status === 'open' ? null : expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
         const release = request.releaseState?.release ?? null;
@@ -126,10 +127,10 @@ export async function readRequestOutcome(requestId: string, context: {
             catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
         const owner = active && ownerId === auth.userId;
         const releasedOnce = release ?? (closure && 'release' in closure ? closure.release : null);
-        const guestScope = auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined;
-        const followRows = await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber, createdBy: requests.createdBy, createdAt: requests.createdAt }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.followUpOf, requestId), guestScope)).orderBy(asc(requests.createdAt), asc(requests.id));
+        const visible = seeable(auth);
+        const followRows = await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber, createdBy: requests.createdBy, createdAt: requests.createdAt }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.followUpOf, requestId), visible)).orderBy(asc(requests.createdAt), asc(requests.id));
         const reasons = followRows.length ? await db.select({ requestId: requestAgreementEvents.requestId, payload: requestAgreementEvents.payload }).from(requestAgreementEvents).where(and(eq(requestAgreementEvents.orgId, auth.orgId), eq(requestAgreementEvents.kind, 'follow_up_created'), inArray(requestAgreementEvents.requestId, followRows.map(f => f.id)))) : [];
-        const parent = request.followUpOf ? (await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.id, request.followUpOf), guestScope)))[0] : undefined;
+        const parent = request.followUpOf ? (await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.id, request.followUpOf), visible)))[0] : undefined;
         return {
             requestId, revision: request.agreementRevision, ownerId, names,
             state: closure ? 'closed' as const : release ? 'measuring' as const : 'not_started' as const,

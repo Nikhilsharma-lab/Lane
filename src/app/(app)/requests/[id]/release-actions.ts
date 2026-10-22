@@ -6,6 +6,7 @@ import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
+import { seeable } from '@/lib/request-access';
 import { isClosed } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 /** The Request is what was agreed, so its "Users" are the agreed audience. */
@@ -65,7 +66,7 @@ export async function readRequestRelease(requestId: string, context: {
         insist(z.uuid().safeParse(requestId).success, 'Request unavailable.');
         const auth = await requireActiveMember(context.orgId);
         insist(auth, 'Request unavailable.');
-        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === 'guest' ? eq(requests.createdBy, auth.userId) : undefined));
+        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
         insist(request, 'Request unavailable.');
         const ownerId = releaseOwner(request);
         let people: Awaited<ReturnType<typeof workspaceRoster>> = [];

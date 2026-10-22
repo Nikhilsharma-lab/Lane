@@ -50,8 +50,8 @@ describe("Private Request attachment contract", () => {
 
   it("mints a short-lived, filename-preserving download after access checks", () => {
     expect(DOWNLOADS).toContain("requireActiveMember(context.orgId)");
-    expect(DOWNLOADS).toContain('auth.role === "guest"');
-    expect(DOWNLOADS).toContain("requestCreatedBy !== auth.userId");
+    // Visibility is part of the lookup itself (request-access.ts).
+    expect(DOWNLOADS).toContain("seeable(auth),");
     expect(DOWNLOADS).toContain(".createSignedUrl(attachment.storagePath, 60");
     expect(DOWNLOADS).toContain("download: attachment.fileName");
   });

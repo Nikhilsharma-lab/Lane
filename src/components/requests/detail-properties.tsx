@@ -1,5 +1,6 @@
 "use client"
 
+import { canChange } from "@/lib/request-access-rules"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
@@ -95,7 +96,8 @@ function usePropertyControls(inSheet = false) {
   const statusControl = move && !move.blockedReason ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
     : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
 
-  const priorityControl = isGuest || request.status !== "open" || (!viewer.isAdmin && request.createdBy !== viewer.id) ? <Value icon={priorityGlyph}>{priorityText}</Value>
+  // Whoever can change the Request sets its priority, a guest on their own Request included.
+  const priorityControl = request.status !== "open" || !canChange({ userId: viewer.id, role: viewer.isAdmin ? "admin" : "member" }, request) ? <Value icon={priorityGlyph}>{priorityText}</Value>
     : <RequestPriorityPicker className={styles.propertyButton} value={priority} onChange={setPriority} disabled={false} />
 
   return { statusControl, priorityControl }

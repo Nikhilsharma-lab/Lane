@@ -373,20 +373,6 @@ it("a priority change leaves answers alone, from the priority control or the edi
   expect(await notificationsFor(id)).toEqual([]);
 });
 
-it("supplying current values for Expected impact also resets answers", async () => {
-  const lifecycle = await import("./actions");
-  const plan = { kind: "measurement", version: 2, primary: { key: "conversion", name: "", unit: "percent", current: null, target: 75, noBaseline: false, check: "" }, measurement: { audience: "all", platform: "web", windowDays: 14, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
-  const [row] = await connection`insert into requests(org_id,title,description,created_by,request_type,expected_impact) values (${orgId},'Checkout problem','People cannot complete checkout',${owner},'improvement',${connection.json(plan)}) returning id`;
-  const id = row.id as string;
-  await add(id, [member(designer)]);
-  await answer(id, designer, "looks_good");
-  await connection`delete from notifications where request_id=${id}`;
-  as(owner);
-  expect(await lifecycle.saveRequestCurrentValues(id, { expectedImpact: plan, primary: 62, guardrails: [] }, { orgId })).toMatchObject({ success: true });
-  expect((await reviewersOf(id))[0].decision).toBeNull();
-  expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: owner, detail: null }]);
-});
-
 it("an admin who edits is named, and is not told about their own edit", async () => {
   const id = await freshRequest();
   await add(id, [member(designer), member(other)]);

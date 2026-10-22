@@ -1,5 +1,6 @@
 "use server";
 
+import { canChange, changeable, seeable, seeableSql } from "@/lib/request-access";
 import { CANNOT_CHANGE_REQUESTS, transitionRequests } from "@/lib/request-transition";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -7,10 +8,8 @@ import { db, requests, comments, notifications, requestAttachments } from "@/db"
 import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
 import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
-import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { MAX_MEASUREMENT_GUARDRAILS, measurementPlanSchema, measurementRequestTypeIssue, type MeasurementPlan } from "@/lib/request-measurement";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -151,17 +150,14 @@ export async function addComment(
     return { error: parsed.error.issues[0].message };
   }
 
-  // A guest may comment only on a Request they created; anything else reads
-  // as missing, the same answer as another workspace's or a malformed id.
-  const guestGuard =
-    auth.role === "guest" ? sql`and ${requests.createdBy} = ${auth.userId}` : sql``;
+  // Anyone who can see the Request comments; anything else reads as missing,
+  // the same answer as another workspace's or a malformed id.
   const rows = await db.execute<{ id: string; created_at: Date | string }>(sql`
     with r as (
       select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}
       from ${requests}
       where ${requests.id} = ${requestId}
-        and ${requests.orgId} = ${auth.orgId}
-        ${guestGuard}
+        ${seeableSql(auth)}
     ), c as (
       insert into ${comments} ("request_id", "author_id", "body")
       select r.id, ${auth.userId}, ${parsed.data.body} from r
@@ -200,7 +196,6 @@ export async function getAttachmentDownloadUrl(
     .select({
       storagePath: requestAttachments.storagePath,
       fileName: requestAttachments.fileName,
-      requestCreatedBy: requests.createdBy,
     })
     .from(requestAttachments)
     .innerJoin(requests, eq(requestAttachments.requestId, requests.id))
@@ -208,19 +203,13 @@ export async function getAttachmentDownloadUrl(
       and(
         eq(requestAttachments.id, attachmentId),
         eq(requestAttachments.orgId, auth.orgId),
-        eq(requests.orgId, auth.orgId),
+        seeable(auth),
         sql`${requestAttachments.uploadedAt} is not null`
       )
     )
     .limit(1);
 
-  if (
-    !attachment ||
-    (auth.role === "guest" &&
-      attachment.requestCreatedBy !== auth.userId)
-  ) {
-    return { error: "File not found" };
-  }
+  if (!attachment) return { error: "File not found" };
 
   const { data, error } = await createServiceClient()
     .storage.from(REQUEST_ATTACHMENTS_BUCKET)
@@ -239,7 +228,8 @@ export async function getAttachmentDownloadUrl(
 }
 
 /** Priority is a triage signal on the row. It never changes status,
- * assignment or what anyone may do; guests cannot set it. */
+ * assignment or what anyone may do. Whoever can change the Request sets it,
+ * as the full editor does. */
 export async function setRequestPriority(
   requestId: string,
   priority: unknown,
@@ -248,13 +238,13 @@ export async function setRequestPriority(
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const parsed = requestPrioritySchema.safeParse(priority);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireActiveMember(context.orgId);
   if (!auth) return { error: CANNOT_CHANGE_REQUESTS };
 
   const [updated] = await db
     .update(requests)
     .set({ priority: parsed.data })
-    .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), eq(requests.status, "open"), sql`${requests.exceptionClosure} is null`, auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId)))
+    .where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open"), sql`${requests.exceptionClosure} is null`))
     .returning({ priority: requests.priority });
 
   if (!updated) return { error: "Request not found" };
@@ -262,75 +252,6 @@ export async function setRequestPriority(
   revalidatePath("/");
   revalidatePath(`/requests/${requestId}`);
   return { success: true as const, priority: updated.priority };
-}
-
-const currentValuesSchema = z.strictObject({
-  expectedImpact: measurementPlanSchema,
-  primary: z.number().finite().nullable(),
-  guardrails: z.array(z.number().finite().nullable()).max(MAX_MEASUREMENT_GUARDRAILS),
-});
-
-/** The requester may supply missing numbers while Open. The client snapshot is
- * a compare-and-swap version, never a source of editable metric definitions. */
-export async function saveRequestCurrentValues(
-  requestId: string,
-  input: unknown,
-  context: { orgId: string }
-): Promise<{ error: string } | { success: true; impact: MeasurementPlan }> {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: "Not found" };
-  const parsed = currentValuesSchema.safeParse(input);
-  if (!parsed.success) return { error: "Enter valid current values for the saved metrics." };
-
-  const result = await db.transaction(async tx => {
-  // This also permits a guest to supply numbers for their own Request. It
-  // grants neither pickup permission nor access to another person's Request.
-  const [request] = await tx.select({
-    status: requests.status,
-    expectedImpact: requests.expectedImpact,
-    requestType: requests.requestType,
-  }).from(requests).where(and(
-    eq(requests.id, requestId),
-    eq(requests.orgId, auth.orgId),
-    eq(requests.createdBy, auth.userId),
-  )).for("update");
-  if (!request) return { error: "Not found" };
-  if (request.status !== "open") return { error: "Current values can only change before this Request is picked up." };
-  const stored = measurementPlanSchema.safeParse(request.expectedImpact);
-  if (!stored.success) return { error: "This Request does not have an editable measurement plan." };
-  if (JSON.stringify(stored.data) !== JSON.stringify(parsed.data.expectedImpact)) {
-    return { error: "The measurement plan changed. Refresh before editing current values." };
-  }
-  if (parsed.data.guardrails.length !== stored.data.guardrails.length) {
-    return { error: "Enter a current value or leave it blank for each saved guardrail." };
-  }
-  const next = measurementPlanSchema.safeParse({
-    ...stored.data,
-    primary: { ...stored.data.primary, current: parsed.data.primary },
-    guardrails: stored.data.guardrails.map((guardrail, index) => ({ ...guardrail, current: parsed.data.guardrails[index] })),
-  });
-  if (!next.success) return { error: next.error.issues[0].message };
-  const typeIssue = measurementRequestTypeIssue(next.data, request.requestType);
-  if (typeIssue) return { error: typeIssue };
-
-  // Changing values resets reviews; the notification names this editor.
-  await nameReviewResetActor(tx, auth.userId);
-  const [updated] = await tx.update(requests).set({ expectedImpact: next.data }).where(and(
-    eq(requests.id, requestId),
-    eq(requests.orgId, auth.orgId),
-    eq(requests.createdBy, auth.userId),
-    eq(requests.status, "open"),
-    sql`${requests.expectedImpact} = ${JSON.stringify(request.expectedImpact)}::jsonb`,
-    sql`${requests.requestType} is not distinct from ${request.requestType}::request_type`,
-  )).returning({ id: requests.id });
-  if (!updated) return { error: "This Request changed before the values were saved. Refresh and try again." };
-  return { success: true as const, impact: next.data };
-  });
-  if ("error" in result) return result;
-  revalidatePath("/");
-  revalidatePath(`/requests/${requestId}`);
-  return result;
 }
 
 /** The requester (or an admin) deletes a Request nobody has picked up yet. It
@@ -347,10 +268,10 @@ export async function deleteRequest(
   const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
     const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })
       .from(requests)
-      .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)))
+      .where(and(eq(requests.id, requestId), seeable(auth)))
       .for("update");
-    if (!request || (auth.role === "guest" && request.createdBy !== auth.userId)) return { error: "Not found" };
-    if (request.createdBy !== auth.userId && auth.role !== "admin") return { error: "Only the requester or an admin can delete this Request." };
+    if (!request) return { error: "Not found" };
+    if (!canChange(auth, request)) return { error: "Only the requester or an admin can delete this Request." };
     if (request.status !== "open") return { error: "Work has started, so this Request can’t be deleted. Close it without a result instead." };
     const files = await tx.select({ storagePath: requestAttachments.storagePath })
       .from(requestAttachments)

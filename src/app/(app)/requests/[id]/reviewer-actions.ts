@@ -1,4 +1,5 @@
 "use server";
+import { canChange, seeable } from "@/lib/request-access";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
@@ -133,10 +134,7 @@ export async function removeReviewer(context: RequestChangeContext, input: unkno
     parsed.data,
     "reviewer_removed",
     async (tx, request, reviewersRow, auth) => {
-      insist(
-        request.createdBy === auth.userId || auth.role === "admin",
-        "Only the requester or an admin can remove a reviewer.",
-      );
+      insist(canChange(auth, request), "Only the requester or an admin can remove a reviewer.");
       const reviewers = reviewersRow?.reviewers ?? [];
       insist(
         reviewers.some((r) => r.id === parsed.data.reviewerId),
@@ -213,11 +211,8 @@ export async function readReviews(
     const [request] = await db
       .select()
       .from(requests)
-      .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)));
-    insist(
-      request && (auth.role !== "guest" || request.createdBy === auth.userId),
-      "Request unavailable.",
-    );
+      .where(and(eq(requests.id, requestId), seeable(auth)));
+    insist(request, "Request unavailable.");
     const [reviewersRow] = await db
       .select()
       .from(requestAgreements)
@@ -236,8 +231,7 @@ export async function readReviews(
       open,
       canAdd: open && auth.role !== "guest",
       canInvite: open && auth.role === "admin",
-      canRemove:
-        open && (request.createdBy === auth.userId || auth.role === "admin"),
+      canRemove: open && canChange(auth, request),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
       unavailable: [
         reviewerKey({ kind: "member", userId: auth.userId }),

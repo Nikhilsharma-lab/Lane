@@ -1,4 +1,5 @@
 "use server";
+import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
 import { labelRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
@@ -33,7 +34,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
         if (!await canUseProject(changes.projectId, auth))
             return { error: "This Project is unavailable. Choose another Project." };
         const result = await db.transaction(async (tx) => {
-            const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId))).for("update");
+            const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), changeable(auth))).for("update");
             if (!stored)
                 return { error: "Request unavailable." };
             if (stored.status !== "open")
@@ -77,7 +78,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             );
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
-            await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
+            await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
             return { success: true as const };
         });
         // The shared editor closes and announces success before refreshing.

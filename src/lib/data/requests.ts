@@ -1,5 +1,6 @@
 import "server-only"
 
+import { changeableColumn, seeable } from "@/lib/request-access"
 import { and, asc, desc, eq, isNotNull, ne, sql, type SQL } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 
@@ -70,7 +71,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       status: requests.status,
       createdAt: requests.createdAt,
       creatorName: profiles.fullName,
-      canEdit: sql<boolean>`${requests.status} = 'open' and (${auth.role === "admin"} or ${requests.createdBy} = ${auth.userId})`,
+      canEdit: sql<boolean>`${requests.status} = 'open' and ${changeableColumn(auth)}`,
       assigneeName: assignee.fullName,
       assigneeAvatarUrl: assignee.avatarUrl,
       assignedTo: requests.assignedTo,
@@ -86,11 +87,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
     .leftJoin(assignee, eq(requests.assignedTo, assignee.id))
     .leftJoin(projects, and(eq(requests.projectId, projects.id), eq(projects.orgId, auth.orgId)))
     .where(
-      and(
-        eq(requests.orgId, auth.orgId),
-        auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
-        statusWhere,
-      )
+      and(seeable(auth), statusWhere)
     )
     .orderBy(desc(requests.createdAt), desc(requests.id))
     .limit(limit)
@@ -128,8 +125,7 @@ export async function loadOlderDoneRequests(auth: MemberAuth, beforeId: string):
       eq(requests.status, "done"),
       sql`(${requests.createdAt}, ${requests.id}) < (${db.select({ createdAt: cursor.createdAt, id: cursor.id }).from(cursor).where(and(
         eq(cursor.id, beforeId),
-        eq(cursor.orgId, auth.orgId),
-        auth.role === "guest" ? eq(cursor.createdBy, auth.userId) : undefined,
+        seeable(auth, cursor),
       ))})`,
     )!,
     DONE_PAGE_SIZE + 1,
@@ -149,11 +145,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   if (!UUID_RE.test(requestId)) return null
   const creator = alias(profiles, "request_detail_creator")
   const selectedAssignee = alias(profiles, "request_detail_assignee")
-  const visible = and(
-    eq(requests.id, requestId),
-    eq(requests.orgId, auth.orgId),
-    auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
-  )
+  const visible = and(eq(requests.id, requestId), seeable(auth))
   const [[request], requestComments, attachments] = await Promise.all([
     db
       .select({

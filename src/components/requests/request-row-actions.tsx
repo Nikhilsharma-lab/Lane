@@ -94,8 +94,9 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         label,
         icon,
         checked: current === priority,
-        disabled: isGuest || !request.canEdit || request.status !== "open",
-        onSelect: isGuest || !request.canEdit || request.status !== "open" || current === priority ? undefined : () => setPriority(request, priority),
+        // canEdit is the access rule for an Open Request, a guest's own included.
+        disabled: !request.canEdit,
+        onSelect: !request.canEdit || current === priority ? undefined : () => setPriority(request, priority),
       }))
     }
 

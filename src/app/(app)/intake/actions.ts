@@ -1,4 +1,5 @@
 "use server";
+import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
 import { labelRequestType } from "@/lib/request-labels";
 
@@ -150,8 +151,7 @@ export async function runTriage(
     if (!z.uuid().safeParse(existingRequestId).success) return { success: false, error: { code: "validation", message: "Request unavailable." } };
     try {
       const [owned] = await db.select({ id: requests.id }).from(requests).where(and(
-        eq(requests.id, existingRequestId), eq(requests.orgId, auth.orgId),
-        auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open"),
+        eq(requests.id, existingRequestId), changeable(auth), eq(requests.status, "open"),
       )).limit(1);
       if (!owned) return { success: false, error: { code: "validation", message: "Only the creator or a workspace admin can edit an Open Request." } };
     } catch {
