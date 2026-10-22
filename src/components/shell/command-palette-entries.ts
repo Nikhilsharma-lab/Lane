@@ -114,7 +114,7 @@ const words = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filt
 
 /**
  * Every typed word must start a word of the entry's label or detail, in any
- * order and case ("in prog" finds In Progress). No fuzzy matching, no ranking:
+ * order and case ("in prog" finds In progress). No fuzzy matching, no ranking:
  * matches keep the list's own order. `empty` is the "No matches" state.
  */
 export function filterPaletteEntries<T extends PaletteEntry>(entries: T[], query: string): { entries: T[]; empty: boolean } {

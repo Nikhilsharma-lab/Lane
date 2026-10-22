@@ -173,7 +173,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
 
       failedCompletion.release();
       await expect(toasts).toContainText(
-        "Try again if this Request is still In Progress",
+        "Try again if this Request is still In progress",
       );
       await expect(markDone).toBeEnabled();
       await expectStatus("in_progress", "In progress");

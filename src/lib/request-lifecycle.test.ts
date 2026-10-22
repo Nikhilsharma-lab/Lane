@@ -28,7 +28,7 @@ describe("availableMove", () => {
   it("offers a pickup that isn't ready with its reason, so every surface can show why", () => {
     expect(availableMove({ status: "open", pickupBlockedReason: NOT_READY }, member)).toMatchObject({ move: "pick-up", blockedReason: NOT_READY })
   })
-  it("marks an In Progress Request Done, whatever its plan says", () => {
+  it("marks an In progress Request Done, whatever its plan says", () => {
     expect(availableMove({ status: "in_progress", pickupBlockedReason: NOT_READY }, member)).toEqual({ move: "done", to: "done", label: "Mark Done", blockedReason: null })
   })
   it("gives a Done or closed Request no move", () => {
@@ -48,7 +48,7 @@ describe("moveRefusal", () => {
   })
   it("says which status the Request has left", () => {
     expect(moveRefusal({ status: "in_progress", ...unlocked }, "pick-up")).toBe("This Request is no longer Open. Refresh to see its current state.")
-    expect(moveRefusal({ status: "done", ...unlocked }, "done")).toBe("This Request is no longer In Progress. Refresh to see its current state.")
+    expect(moveRefusal({ status: "done", ...unlocked }, "done")).toBe("This Request is no longer In progress. Refresh to see its current state.")
   })
   it("refuses a pickup that isn't ready with the reason the surfaces show", () => {
     expect(moveRefusal({ status: "open", ...unlocked, pickupBlockedReason: NOT_READY }, "pick-up")).toBe(NOT_READY)

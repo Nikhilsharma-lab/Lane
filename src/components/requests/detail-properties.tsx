@@ -12,7 +12,7 @@ import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { availableMove, canEditRequest, type LifecycleMove } from "@/lib/request-lifecycle"
-import { dueSignal, journeyStatus, type DueSignal, type Journey } from "@/lib/request-journey"
+import { dueSignal, journeyFactsOf, journeyStatus, type DueSignal, type Journey } from "@/lib/request-journey"
 import { DueTag, useDueNow } from "./due-tag"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
@@ -33,12 +33,18 @@ export function stateLineText(journey: Journey, priority: RequestPriority | null
   return facts.join(", ")
 }
 
-/** The Request's one journey status and due tag (#133), read through the journey module. */
+/**
+ * The Request's one journey status and due tag (#133), read through the journey module. The due tag shows in
+ * the peek only: on the full Request page the timeline's Measuring step is the one place that counts down (#127).
+ */
+export function detailJourney(request: Parameters<typeof journeyFactsOf>[0], now: Date, { peek }: { peek: boolean }): { journey: Journey; due: DueSignal } {
+  const facts = journeyFactsOf(request)
+  return { journey: journeyStatus(facts), due: peek ? dueSignal(facts, now) : { kind: "none" } }
+}
+
 function useDetailJourney() {
-  const { request } = useDetailRequest()
-  const now = useDueNow()
-  const facts = { status: request.status, releaseState: request.releaseState ?? null, outcomeClosure: request.outcomeClosure ?? null, exceptionClosure: request.exceptionClosure ?? null }
-  return { journey: journeyStatus(facts), due: dueSignal(facts, now) }
+  const { request, peek } = useDetailRequest()
+  return detailJourney(request, useDueNow(), { peek })
 }
 
 /** The Status and Priority moves, the same ones the strip and the list run. */

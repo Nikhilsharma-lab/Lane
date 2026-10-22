@@ -28,7 +28,7 @@ export type LifecycleRequest = {
 /** Each move's statuses and its copy, shared by every surface and the server. */
 export const MOVES = {
   "pick-up": { move: "pick-up", from: "open", to: "in_progress", label: "Pick up", fromLabel: "Open", verb: "pick it up" },
-  done: { move: "done", from: "in_progress", to: "done", label: "Mark Done", fromLabel: "In Progress", verb: "mark it Done" },
+  done: { move: "done", from: "in_progress", to: "done", label: "Mark Done", fromLabel: "In progress", verb: "mark it Done" },
 } as const
 
 const offered = (move: LifecycleMove): AllowedMove => ({ move, to: MOVES[move].to, label: MOVES[move].label })

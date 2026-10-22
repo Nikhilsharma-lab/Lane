@@ -181,7 +181,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
 
   // Every row moves back in the same tick; each Undo is its own guarded action.
   async function undoDone(toastId: string, ids: string[], noun: string, scopeContext: { orgId: string }) {
-    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In Progress.`, action: undefined })
+    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In progress.`, action: undefined })
     const outcomes = await Promise.all(ids.map(id => optimistic({
       id,
       patch: { kind: "undo", status: "in_progress" },
@@ -197,7 +197,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (failed) refresh()
     // The result reuses the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
     if (failed) toast({ id: toastId, type: "error", title: `${failed} of ${ids.length} could not be undone`, description: "Those stay Done. Refresh to see their current state." })
-    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back In Progress`, description: undefined })
+    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back to In progress`, description: undefined })
   }
 
   async function copyLinks() {

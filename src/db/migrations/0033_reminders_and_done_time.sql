@@ -1,4 +1,4 @@
--- #127 / #131: reminders in the bell, and the time a Request was marked Done.
+-- #127 / #131: reminders in the bell, and the times a Request was picked up and marked Done.
 -- Reminders reuse notifications (no new table). They have no actor: Lane, not a person, is reminding.
 -- New enum values are added outside the transaction so the index and checks below can use them.
 ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'release_reminder';
@@ -34,4 +34,20 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.stamp_done_at() FROM PUBLIC;
 CREATE TRIGGER stamp_done_at BEFORE INSERT OR UPDATE OF status ON public.requests FOR EACH ROW EXECUTE FUNCTION public.stamp_done_at();
+
+-- When work was picked up, for the timeline's In progress step. Who picked it up is the assignee; no
+-- other "who" is kept. Work picked up before this migration has no known time and stays NULL (no backfill).
+ALTER TABLE public.requests ADD COLUMN picked_up_at timestamptz;
+ALTER TABLE public.requests ADD CONSTRAINT requests_picked_up_at_check CHECK(status <> 'open' OR picked_up_at IS NULL);
+-- Moving from Open into In progress (or a row written as In progress) stamps the time; going back to
+-- Open clears it; Done and Undo Done keep it.
+CREATE FUNCTION public.stamp_picked_up_at() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.status = 'open' THEN NEW.picked_up_at := NULL;
+ ELSIF NEW.status = 'in_progress' AND (TG_OP = 'INSERT' OR OLD.status = 'open') THEN NEW.picked_up_at := COALESCE(NEW.picked_up_at, now());
+ END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.stamp_picked_up_at() FROM PUBLIC;
+CREATE TRIGGER stamp_picked_up_at BEFORE INSERT OR UPDATE OF status ON public.requests FOR EACH ROW EXECUTE FUNCTION public.stamp_picked_up_at();
 COMMIT;

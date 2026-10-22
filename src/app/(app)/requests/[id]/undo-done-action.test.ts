@@ -41,7 +41,7 @@ afterAll(async () => {
 });
 
 describe("undoMarkDone", () => {
-  it("returns a Done Request to In Progress, keeps its owner and withdraws the Done notification", async () => {
+  it("returns a Done Request to In progress, keeps its owner and withdraws the Done notification", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
     expect(await pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
     expect(await doneAt()).toBeNull();

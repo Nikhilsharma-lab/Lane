@@ -24,7 +24,7 @@ function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput>
   return {
     journey: journeyStatus(saved), workStatus: facts.status, isGuest: viewer.role === "guest", audience: "All shoppers",
     requesterName: "Ana", requestedBy: "Ana", requestedAt: "2026-10-01T10:00:00Z",
-    assigneeName: facts.status === "open" ? null : "Dev", doneAt: facts.status === "done" ? "2026-10-20T15:00:00Z" : null,
+    assigneeName: facts.status === "open" ? null : "Dev", pickedUpAt: null, doneAt: facts.status === "done" ? "2026-10-20T15:00:00Z" : null,
     release: facts.releaseState?.release ?? null, releaseHistory: facts.releaseState?.history ?? [], closure, names: NAMES,
     hasAgreedResult: true, now: NOW,
     actions: journeyActions(saved, viewer, { requesterName: "Ana", requesterActive }, NOW),
@@ -50,6 +50,12 @@ describe("Request timeline", () => {
     expect(step(steps, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct 2026, recorded by Dev."])
   })
 
+  it("says when the work was picked up once Lane knows, and only who before that", () => {
+    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z" })), "in_progress").happened).toEqual(["Picked up by Dev on 12 Oct 2026."])
+    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z", assigneeName: null })), "in_progress").happened).toEqual(["Picked up on 12 Oct 2026."])
+    expect(step(timelineSteps(input({ status: "in_progress" }, ANA)), "in_progress").happened).toEqual(["Picked up by Dev."])
+  })
+
   it("says what is next and who does it on the current step only", () => {
     const steps = timelineSteps(input({ status: "done" }, DEV))
     expect(step(steps, "done").next).toBe("Record the release once All shoppers has the work. Anyone working on this Request can record it.")
@@ -60,9 +66,17 @@ describe("Request timeline", () => {
 
   it("shows the countdown only in the current Measuring step", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA))
-    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · 3 days remaining")
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
     expect(steps.filter(s => s.countdown).map(s => s.status)).toEqual(["measuring"])
     expect(step(steps, "measuring").next).toBe("On 28 Oct 2026 the Requester, Ana, records the measured result and closes this Request.")
+  })
+
+  it("words the countdown as the due tag does: Due in N days, Due today, Overdue N days", () => {
+    const countdown = (now: string) => step(timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA, { now: new Date(now) })), "measuring").countdown
+    expect(countdown("2026-10-27T23:00:00Z")).toBe("Result due 28 Oct 2026 · Due in 1 day")
+    expect(countdown("2026-10-28T08:00:00Z")).toBe("Result due 28 Oct 2026 · Due today")
+    expect(countdown("2026-10-29T08:00:00Z")).toBe("Result due 28 Oct 2026 · Overdue 1 day")
+    expect(countdown("2026-10-31T08:00:00Z")).toBe("Result due 28 Oct 2026 · Overdue 3 days")
   })
 
   it("offers Close Request to the Requester, unavailable until the due date", () => {
@@ -93,7 +107,7 @@ describe("Request timeline", () => {
   it("shows guests the timeline without actions or reasons", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, GUEST))
     expect(steps.flatMap(s => s.actions)).toEqual([])
-    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · 3 days remaining")
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
   })
 
   it("tells a former member once why nothing is available", () => {

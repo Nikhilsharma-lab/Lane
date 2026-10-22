@@ -1,18 +1,20 @@
 'use server';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, profiles, requests } from '@/db';
+import { db, requests } from '@/db';
 import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
 import { expectedImpactSchema } from '@/lib/request-impact';
-/** The Request is what was agreed, so its "Users" are the agreed audience. */
-const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 import { releaseChangeSchema, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
 import { journeyStatus, requesterOf } from '@/lib/request-journey';
-import { allow, journeyActionsFor, personName } from '@/lib/request-journey-access';
+import { allow, journeyActionsFor, peopleNames, personName, rosterMember } from '@/lib/request-journey-access';
+import { utcDay } from '@/lib/utc-day';
+/** The Request is what was agreed, so its "Users" are the agreed audience. */
+const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
+/** Each release change and the journey action that allows it. */
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
     const parsed = releaseChangeSchema.safeParse(input);
@@ -28,31 +30,31 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
             return previous && { actorId: previous.actorId, fingerprint: previous.fingerprint, result: { success: true as const, revision: previous.revision } };
         },
         apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
-            const ownerId = requesterOf(request);
+            const requesterId = requesterOf(request);
             // Release, correct and void: any active member while Done or Measuring. Handover: an admin, from pickup, once the Requester has lost access.
-            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, ownerId), new Date());
+            const actions = journeyActionsFor(request, auth, roster, await personName(tx, roster, requesterId), new Date());
             allow(actions[JOURNEY_ACTION[change.kind]]);
             // Before any release, a handover starts the release record with no release.
-            const state: ReleaseState = request.releaseState ?? { version: 1, ownerId, release: null, history: [] };
+            const state: ReleaseState = request.releaseState ?? { version: 1, ownerId: requesterId, release: null, history: [] };
             const before = state.release;
-            let nextOwner = ownerId;
+            let nextRequester = requesterId;
             let nextRelease = before;
             if (change.kind === 'transfer') {
-                insist(roster.some(p => p.nominee.kind === 'member' && p.nominee.userId === change.recipientId), 'Choose an active non-guest workspace member.');
-                nextOwner = change.recipientId;
+                insist(rosterMember(roster, change.recipientId), 'Choose an active non-guest workspace member.');
+                nextRequester = change.recipientId;
             }
             else {
                 if (change.kind === 'void') {
                     nextRelease = null;
                 }
                 else {
-                    insist(change.exposureDate <= new Date().toISOString().slice(0, 10), 'Exposure cannot be in the future.');
+                    insist(change.exposureDate <= utcDay(), 'Exposure cannot be in the future.');
                     const earliest = earliestExposure(request);
                     insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${earliest} (UTC).`);
                     nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null, change.exposureDate) };
                 }
             }
-            const next: ReleaseState = { version: 1, ownerId: nextOwner, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: ownerId, ownerId: nextOwner, revision }] };
+            const next: ReleaseState = { version: 1, ownerId: nextRequester, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: requesterId, ownerId: nextRequester, revision }] };
             return { set: { releaseState: next } };
         },
     });
@@ -79,16 +81,14 @@ export async function readRequestRelease(requestId: string, context: {
         const release = request.releaseState?.release ?? null;
         const history = request.releaseState?.history ?? [];
         // Saved profile names cover departed Requesters and guests, who receive no fresh roster.
-        const ids = [...new Set([requesterId, ...history.flatMap(e => [e.actorId, e.previousOwnerId, e.ownerId])])];
-        const saved = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
-        const names: Record<string, string> = Object.fromEntries(ids.map(id => [id, people.find(p => p.nominee.kind === 'member' && p.nominee.userId === id)?.name ?? saved.find(p => p.id === id)?.name ?? 'Former member']));
+        const names = await peopleNames(db, roster, [requesterId, ...history.flatMap(e => [e.actorId, e.previousOwnerId, e.ownerId])]);
         const now = new Date();
         // Every journey action with its reason, from the same rules the actions refuse with.
         const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
         return {
             requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
-            journey: journeyStatus(request), actions, workStatus: request.status, doneAt: request.doneAt?.toISOString() ?? null,
-            release, measurement: releaseMeasurement(release, now), today: now.toISOString().slice(0, 10),
+            journey: journeyStatus(request), actions, workStatus: request.status, pickedUpAt: request.pickedUpAt?.toISOString() ?? null, doneAt: request.doneAt?.toISOString() ?? null,
+            release, measurement: releaseMeasurement(release, now), today: utcDay(now),
             audience: agreedAudience(request),
             earliestExposure: earliestExposure(request),
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],

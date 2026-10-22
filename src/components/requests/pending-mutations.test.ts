@@ -79,7 +79,7 @@ describe("pending-mutation overlay: apply()", () => {
 describe("pending-mutation overlay: clearing", () => {
   it("keeps a pending patch even when the server rows already show its value", () => {
     const { view, flush } = setup()
-    // Undo begins while Done is pending: the stale server row still says In Progress.
+    // Undo begins while Done is pending: the stale server row still says In progress.
     view().begin("a", { kind: "undo", status: "in_progress" })
     view().apply([row("a", { status: "in_progress" })])
     flush()
@@ -309,12 +309,12 @@ describe("useOptimisticAction core", () => {
     const deps = depsFor(view)
     const outcome = await runOptimistic(deps, {
       id: "a", patch: { kind: "done", status: "done" },
-      run: async () => ({ error: "This Request is no longer In Progress. Refresh to see its current state." }),
+      run: async () => ({ error: "This Request is no longer In progress. Refresh to see its current state." }),
     })
-    expect(outcome).toEqual({ status: "error", error: "This Request is no longer In Progress. Refresh to see its current state.", thrown: false })
+    expect(outcome).toEqual({ status: "error", error: "This Request is no longer In progress. Refresh to see its current state.", thrown: false })
     expect(view().patches.a).toBeUndefined()
     expect(view().apply([row("a")])[0].status).toBe("in_progress")
-    expect(deps.notifyError).toHaveBeenCalledWith("This Request is no longer In Progress. Refresh to see its current state.")
+    expect(deps.notifyError).toHaveBeenCalledWith("This Request is no longer In progress. Refresh to see its current state.")
     expect(deps.refresh).toHaveBeenCalledTimes(1)
   })
 

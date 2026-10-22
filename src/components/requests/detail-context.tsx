@@ -17,6 +17,8 @@ export type DetailRequestValue = {
   viewer: DetailViewer
   orgId: string
   isGuest: boolean
+  /** Shown in the list's peek rather than as the full Request page. */
+  peek: boolean
   /** The saved code (LAN-12), or null for an unnumbered Request. */
   code: string | null
   /** What toasts and the polite region call this Request: its code, else its title. */
@@ -106,8 +108,9 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, pickupBlockedReason])
   usePublishOpenRequest(current)
 
-  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),
-    [request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm])
+  const peek = !arrival
+  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm }),
+    [request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm])
   return <DetailRequestContext.Provider value={value}>{children}</DetailRequestContext.Provider>
 }
 

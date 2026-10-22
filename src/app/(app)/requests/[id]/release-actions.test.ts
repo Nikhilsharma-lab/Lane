@@ -35,7 +35,7 @@ it('records past exposure once and derives UTC measurement deadline from exposur
     expect(saved).toEqual({ success: true, revision: 1 });
     expect(await api.changeRequestRelease(ctx, release)).toEqual(saved);
     const view = await api.readRequestRelease(id, { orgId });
-    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All shoppers', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: '3 days remaining', due: false }, requesterId: 'release_owner' });
+    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All shoppers', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: 'Due in 3 days', due: false }, requesterId: 'release_owner' });
     const [row] = await connection `select status,priority,release_state from requests where id=${id}`;
     expect(row.status).toBe('done');
     expect(row.priority).toBe('high');
@@ -47,11 +47,11 @@ it('uses the exact UTC deadline boundary and never auto-closes', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
     await api.changeRequestRelease(context(id), release);
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: false, label: '1 day remaining' } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: false, label: 'Due in 1 day' } });
     vi.setSystemTime(new Date('2026-10-28T00:00:00Z'));
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: true, label: 'Due today' } });
     vi.setSystemTime(new Date('2026-10-29T00:00:00Z'));
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: true, label: '1 day overdue' } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ measurement: { due: true, label: 'Overdue 1 day' } });
     const [row] = await connection `select status,exception_closure from requests where id=${id}`;
     expect(row).toMatchObject({ status: 'done', exception_closure: null });
 });
@@ -247,7 +247,7 @@ it('any active member records, corrects and voids a release, each attributed to 
     const api = await import('./release-actions');
     const id = await fixture();
     session.userId = 'release_developer';
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ requesterId: 'release_owner', requesterName: 'release_owner', journey: { status: 'done' }, workStatus: 'done', doneAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), actions: { release: { allowed: true }, close: { allowed: false, reason: 'Only the Requester, release_owner, can close this.' } } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ requesterId: 'release_owner', requesterName: 'release_owner', journey: { status: 'done' }, workStatus: 'done', pickedUpAt: null, doneAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), actions: { release: { allowed: true }, close: { allowed: false, reason: 'Only the Requester, release_owner, can close this.' } } });
     expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('success', true);
     session.userId = 'release_pm';
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ journey: { status: 'measuring', label: 'Measuring' }, actions: { correctRelease: { allowed: true }, voidRelease: { allowed: true }, release: { allowed: false, reason: 'The release is already recorded.' } } });

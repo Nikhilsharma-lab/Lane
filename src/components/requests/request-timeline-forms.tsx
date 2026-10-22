@@ -10,6 +10,7 @@ import { changeRequestOutcome, createFollowUpRequest } from "@/app/(app)/request
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { correctableFields, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, type agreedResult, type OutcomeChange } from "@/lib/request-outcome"
 import type { ReleaseFact } from "@/lib/request-release"
+import { utcDay } from "@/lib/utc-day"
 import { useJourneyChange } from "./use-journey-change"
 import styles from "./request-timeline.module.css"
 
@@ -19,7 +20,6 @@ type AgreedResult = ReturnType<typeof agreedResult>
 
 /** "50%", "12 ms" or "No baseline". */
 export const resultValue = (n: number | null, unit: string) => n === null ? "No baseline" : unit === "%" ? `${n}%` : `${n} ${unit}`.trim()
-const utcToday = () => new Date().toISOString().slice(0, 10)
 const RELEASE_FAILED = "Could not save release. Your input is preserved; try again."
 const OUTCOME_FAILED = "Could not save the outcome. Your input is preserved; try again."
 
@@ -68,7 +68,7 @@ export function HandoverForm({ requestId, orgId, revision, onSaved, onCancel, pe
 
 export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCancel, agreed, release }: FormProps & { agreed: AgreedResult; release: ReleaseFact | null }) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: OUTCOME_FAILED })
-  const today = utcToday()
+  const today = utcDay()
   const [actual, setActual] = useState("")
   const [passed, setPassed] = useState("")
   const [guardrails, setGuardrails] = useState<string[]>(() => agreed.guardrails.map(() => ""))

@@ -61,7 +61,7 @@ const commentSchema = z.object({
  * time itself; it is cleared when this undo moves the Request back. */
 const UNDO_DONE_WINDOW_MS = 15 * 60 * 1000;
 
-/** Returns a Request that was just marked Done to In Progress: the undo for
+/** Returns a Request that was just marked Done to In progress: the undo for
  * markDone, not a reverse lifecycle move. It only applies while the Done move
  * is recent (updated_at, see UNDO_DONE_WINDOW_MS), the status row and its Done
  * notification change together in one statement, and Closed outcomes are a

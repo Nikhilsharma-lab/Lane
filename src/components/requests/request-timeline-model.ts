@@ -7,7 +7,7 @@
  * Actions come from the journey module with their reasons, so the page never offers what the server refuses
  * and never hides an action without saying why. Guests follow along without actions. Pure and client-safe.
  */
-import { JOURNEY_STATUSES, journeyDate, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
+import { FORMER_MEMBER, JOURNEY_STATUSES, journeyDate, journeyDay as day, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome"
 import { releaseMeasurement, type ReleaseEvent, type ReleaseFact } from "@/lib/request-release"
@@ -27,6 +27,8 @@ export type TimelineInput = {
   requestedBy: string
   requestedAt: string
   assigneeName: string | null
+  /** When the work was picked up; unknown (null) for work picked up before Lane kept it. */
+  pickedUpAt: string | null
   doneAt: string | null
   /** The current release (none once voided). */
   release: ReleaseFact | null
@@ -76,7 +78,6 @@ const STEP_ACTIONS: Partial<Record<JourneyStatus, { action: JourneyAction; quiet
   closed: [{ action: "correctClosure" }, { action: "followUp", quiet: true }, { action: "handover", quiet: true }],
 }
 
-const day = (iso: string) => journeyDate(iso.slice(0, 10))
 const ORDER = JOURNEY_STATUSES.map(s => s.status)
 
 /** Where a Request closed without a result stopped: the last step it reached. */
@@ -121,7 +122,8 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
       if (isCurrent) next = "Waiting for someone to pick this up. Reviews are optional and never block pickup."
     }
     if (status === "in_progress" && reached) {
-      happened.push(input.assigneeName ? `Picked up by ${input.assigneeName}.` : "Picked up.")
+      const on = input.pickedUpAt ? ` on ${day(input.pickedUpAt)}` : ""
+      happened.push(input.assigneeName ? `Picked up by ${input.assigneeName}${on}.` : `Picked up${on}.`)
       if (isCurrent) next = `${input.assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
     }
     if (status === "done" && reached) {
@@ -129,7 +131,7 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
       if (isCurrent) next = `Record the release once ${input.audience} has the work. Anyone working on this Request can record it.`
     }
     if (status === "measuring" && reached && release) {
-      happened.push(`Released to ${release.audience} on ${journeyDate(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? "Former member"}` : ""}.`)
+      happened.push(`Released to ${release.audience} on ${journeyDate(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
       if (isCurrent) {
         countdown = `Result due ${journeyDate(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
         next = `On ${journeyDate(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
@@ -137,7 +139,7 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
     }
     if (status === "closed" && isCurrent && input.closure) {
       const closure = input.closure
-      const by = names[closure.actorId] ?? "Former member"
+      const by = names[closure.actorId] ?? FORMER_MEMBER
       if (closure.kind === "measured") happened.push(`Closed with a measured result by ${by} on ${day(closure.closedAt)}.`)
       else {
         const reason = EXCEPTION_REASON_OPTIONS.find(o => o.value === closure.reasonCode)?.label ?? closure.reasonCode

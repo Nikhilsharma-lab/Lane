@@ -9,7 +9,7 @@ import type { MemberAuth } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { parseRequestCode } from "@/lib/request-code";
 import { MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel } from "@/lib/request-measurement";
-import { journeyStatusColumn, journeyStatusCondition } from "@/lib/request-journey-sql";
+import { closedWithoutResultCondition, journeyStatusColumn, journeyStatusCondition } from "@/lib/request-journey-sql";
 import {
   WORKSPACE_SEARCH_PAGE_SIZE,
   WORKSPACE_SEARCH_QUERY_MAX,
@@ -136,7 +136,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       labelKeys: requests.labelKeys,
       createdAt: requests.createdAt,
       description: requests.description,
-      withoutResult: sql<boolean>`${requests.exceptionClosure} is not null`,
+      withoutResult: sql<boolean>`${closedWithoutResultCondition}`,
     }).from(requests)
       .leftJoin(projects, and(eq(projects.id, requests.projectId), eq(projects.orgId, auth.orgId)))
       .where(requestWhere).orderBy(...requestOrder)

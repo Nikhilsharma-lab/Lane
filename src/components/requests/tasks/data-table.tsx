@@ -269,7 +269,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
           {!grouped ? currentRows.map(request => renderRow(request))
           : groups.map(group => {
             const rows = group.rows.filter(row => pageIds.has(row.id))
-            if (!rows.length) return null
+            // An empty board column keeps its heading and a 0 count; a group whose rows sit on another page hides.
+            if (!rows.length && group.rows.length) return null
             const collapsed = collapsedGroups.includes(group.key)
             const id = `${groupId}-${group.key}`
             const count = `${rows.length < group.rows.length ? `${rows.length} of ` : ""}${requestCount(group.rows.length)}`

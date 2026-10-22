@@ -13,7 +13,7 @@ import { usePublishLoadedRequests, useRequestListContext, useSetRequestListView,
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
-import type { RequestStatusFilter } from "@/lib/request-workspace"
+import { finishedViewOf, type FinishedView, type RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
@@ -25,23 +25,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const OLDER_ERROR = "Older Requests could not be loaded. Try again."
 
-/** The status views paged from the database (#133): every finished Request ("all"), or one finished view. */
-type OlderView = "all" | "done" | "measuring" | "closed" | "due"
-const olderViewOf = (status: RequestStatusFilter): OlderView | null => status === "open" || status === "in_progress" ? null : status
 
 /** Reads older finished Requests through the GET route (plan items 1.7 and 1.16), never a server action.
  * The server filters a status view with the journey module's database condition. */
-async function fetchOlder(orgId: string, beforeId: string, view: OlderView): Promise<{ rows: OverviewRequest[]; hasOlderDone: boolean }> {
+async function fetchOlder(orgId: string, beforeId: string, view: FinishedView): Promise<{ rows: OverviewRequest[]; hasOlderFinished: boolean }> {
   const query = new URLSearchParams({ org: orgId, before: beforeId, ...(view === "all" ? {} : { status: view }) })
   const response = await fetch(`/api/requests/done?${query}`, { headers: { Accept: "application/json" } })
-  const body = await response.json().catch(() => null) as { rows?: OverviewRequest[]; hasOlderDone?: boolean; error?: string } | null
+  const body = await response.json().catch(() => null) as { rows?: OverviewRequest[]; hasOlderFinished?: boolean; error?: string } | null
   if (!response.ok || !body?.rows) throw new Error(body?.error ?? OLDER_ERROR)
-  return { rows: body.rows, hasOlderDone: Boolean(body.hasOlderDone) }
+  return { rows: body.rows, hasOlderFinished: Boolean(body.hasOlderFinished) }
 }
 
 const oldestFirst = (a: OverviewRequest, b: OverviewRequest) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
 
-type OlderPages = { pages: Partial<Record<OlderView, OverviewRequest[]>>; more: Partial<Record<OlderView, boolean>>; pending: OlderView | null; error: string | null }
+type OlderPages = { pages: Partial<Record<FinishedView, OverviewRequest[]>>; more: Partial<Record<FinishedView, boolean>>; pending: FinishedView | null; error: string | null }
 
 /**
  * The list's finished Requests past the first load, paged per status view (#133).
@@ -52,7 +49,7 @@ type OlderPages = { pages: Partial<Record<OlderView, OverviewRequest[]>>; more: 
  * with no gap. A finished view fetches its first page as soon as it is chosen, so Measuring,
  * Closed and Due soon or overdue are never limited to the newest page of finished work.
  */
-function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilter, context: { orgId: string } | undefined, hasOlderDone: boolean) {
+function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilter, context: { orgId: string } | undefined, hasOlderFinished: boolean) {
   const [older, setOlder] = useState<OlderPages>({ pages: {}, more: {}, pending: null, error: null })
   // Server rows win over older pages, so a revalidated row is never shown twice.
   const rows = useMemo(() => {
@@ -60,30 +57,30 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
     const extra = Object.values(older.pages).flat().filter(row => !ids.has(row.id) && (ids.add(row.id), true))
     return extra.length ? [...requests, ...extra] : requests
   }, [requests, older.pages])
-  const view = olderViewOf(status)
-  const hasMore = (item: OlderView) => hasOlderDone && older.more.all !== false && older.more[item] !== false
+  const view = finishedViewOf(status)
+  const hasMore = (item: FinishedView) => hasOlderFinished && older.more.all !== false && older.more[item] !== false
 
-  async function load(item: OlderView) {
-    const run = [...requests.filter(row => olderViewOf(rowJourney(row).status) !== null), ...(older.pages.all ?? []), ...(item === "all" ? [] : older.pages[item] ?? [])]
+  async function load(item: FinishedView) {
+    const run = [...requests.filter(row => finishedViewOf(rowJourney(row).status) !== null), ...(older.pages.all ?? []), ...(item === "all" ? [] : older.pages[item] ?? [])]
     const cursor = run.sort(oldestFirst)[0]
     if (!context || !cursor || older.pending) return
     setOlder(current => ({ ...current, pending: item, error: null }))
     try {
       const page = await fetchOlder(context.orgId, cursor.id, item)
-      setOlder(current => ({ pages: { ...current.pages, [item]: [...current.pages[item] ?? [], ...page.rows] }, more: { ...current.more, [item]: page.hasOlderDone }, pending: null, error: null }))
+      setOlder(current => ({ pages: { ...current.pages, [item]: [...current.pages[item] ?? [], ...page.rows] }, more: { ...current.more, [item]: page.hasOlderFinished }, pending: null, error: null }))
     } catch (error) {
       // A failed first page counts as fetched; "Show older" retries it.
       setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: error instanceof Error ? error.message : OLDER_ERROR }))
     }
   }
-  const loadFirstPage = useEffectEvent((item: OlderView) => { void load(item) })
+  const loadFirstPage = useEffectEvent((item: FinishedView) => { void load(item) })
   const firstPageNeeded = view !== null && view !== "all" && hasMore(view) && older.pages[view] === undefined
   useEffect(() => { if (firstPageNeeded && view) loadFirstPage(view) }, [firstPageNeeded, view])
 
   return { rows, view, showMore: Boolean(context && view && hasMore(view)), pending: older.pending !== null, error: older.error, loadMore: () => { if (view) void load(view) } }
 }
 
-export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderDone = false, canInvite = false, viewer }: {
+export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer }: {
   requests: OverviewRequest[]
   isGuest: boolean
   /** The empty workspace's welcome offers Invite teammates (admins only). */
@@ -92,7 +89,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   /** More Open and In progress Requests exist than the list loads. */
   activeCapped?: boolean
   /** Finished Requests (Done, Measuring, Closed) older than the loaded ones exist on the server. */
-  hasOlderDone?: boolean
+  hasOlderFinished?: boolean
   /** Plan item 2.12: who is reading, for the Request preview (read with the page; no extra query). */
   viewer?: PeekViewer
 }) {
@@ -100,7 +97,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
   const pendingMutations = usePendingMutations()
-  const older = useOlderRequests(requests, status, context, hasOlderDone)
+  const older = useOlderRequests(requests, status, context, hasOlderFinished)
   const rows = older.rows
   // Plan item 2.8: workspace search matches these rows the moment a person types.
   usePublishLoadedRequests(rows)

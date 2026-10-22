@@ -87,8 +87,8 @@ it("the Requester's bell writes each due result reminder once, however often it 
 it("two bell loads at once write each reminder once", async () => {
   at(today)
   as(assignee)
-  expect(await Promise.all([count(), count(), count()])).toEqual([1, 1, 1])
-  expect(await written()).toEqual([`${assignee} release_reminder: Done five days ago`])
+  expect(await Promise.all([count(), count(), count()])).toEqual([2, 2, 2])
+  expect(await written()).toEqual([`${assignee} release_reminder: Done five days ago`, `${assignee} release_reminder: Done, release voided`])
 })
 
 it("a weekly reminder is written once for its week, then again a week later", async () => {
@@ -106,7 +106,7 @@ it("a weekly reminder is written once for its week, then again a week later", as
   expect(await handedOverReminders()).toHaveLength(2)
 })
 
-it("nothing for closed or voided Requests, a former Requester, a guest, or another workspace", async () => {
+it("nothing for closed Requests, a former Requester, a guest, or another workspace; a voided release is owed again", async () => {
   at(today)
   as(former)
   expect(await count()).toBe(0)
@@ -118,6 +118,8 @@ it("nothing for closed or voided Requests, a former Requester, a guest, or anoth
   await count()
   expect(await written()).toEqual([
     `${assignee} release_reminder: Done five days ago`,
+    // Voided on 2 Oct: the release reminder started again on 5 Oct and is weekly, so 26 Oct's is owed.
+    `${assignee} release_reminder: Done, release voided`,
     `${requester} result_due: Measuring, due today`,
     `${requester} result_overdue: Measuring, handed over, overdue`,
   ])

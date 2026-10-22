@@ -90,4 +90,8 @@ describe("gridKeysFor", () => {
     expect(gridKeysFor(groups, [{ id: "c" }], [])).toEqual(["g:status:done", "r:c"])
     expect(gridKeysFor(null, [{ id: "b" }, { id: "a" }], [])).toEqual(["r:b", "r:a"])
   })
+  it("keeps the header of a status with no Requests, so its empty column reads on every page", () => {
+    const board = [{ key: "status:open", rows: [{ id: "a" }] }, { key: "status:measuring", rows: [] }, { key: "status:done", rows: [{ id: "c" }] }]
+    expect(gridKeysFor(board, [{ id: "a" }], [])).toEqual(["g:status:open", "r:a", "g:status:measuring"])
+  })
 })

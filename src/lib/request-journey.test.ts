@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ReleaseFact, ReleaseState } from "./request-release"
-import { dueSignal, journeyActions, journeyStatus, remindersDue, type JourneyViewer } from "./request-journey"
+import { dueSignal, journeyActions, journeyOf, journeyStatus, remindersDue, type JourneyViewer } from "./request-journey"
 
 const released: ReleaseFact = { exposureDate: "2026-10-21", audience: "All shoppers", evidence: "Rollout log", dueDate: "2026-10-28", startDate: "2026-10-21", windowKind: "relative" }
 const releaseState = (release: ReleaseFact | null, ownerId = "requester"): ReleaseState => ({ version: 1, ownerId, release, history: [] })
@@ -34,6 +34,15 @@ describe("journeyStatus", () => {
   })
   it("returns to Done after the release is voided", () => {
     expect(journeyStatus({ status: "done", releaseState: releaseState(null), outcomeClosure: null, exceptionClosure: null }).status).toBe("done")
+  })
+})
+
+describe("journeyOf", () => {
+  // A status the database already derived (search's journey status column) gets the same words.
+  it("words a derived status, Closed without a result included", () => {
+    expect(journeyOf("closed", true)).toEqual({ status: "closed", label: "Closed without a result", withoutResult: true })
+    expect(journeyOf("closed", false)).toEqual({ status: "closed", label: "Closed", withoutResult: false })
+    expect(journeyOf("in_progress", true)).toEqual({ status: "in_progress", label: "In progress", withoutResult: false })
   })
 })
 
@@ -184,9 +193,20 @@ describe("remindersDue", () => {
       expect(remindersDue({ ...done, ...closure }, on("2026-10-20"), active)).toEqual([])
     }
   })
-  it("stops after the release is voided", () => {
-    const voided: ReleaseState = { version: 1, ownerId: "requester", release: null, history: [{ operationId: "op", fingerprint: "f", actorId: "teammate", at: "2026-10-26T00:00:00Z", input: { kind: "void", reason: "Only staging", neverExposed: true }, previousRelease: released, release: null, previousOwnerId: "requester", ownerId: "requester", revision: 2 }] }
-    expect(remindersDue({ ...done, releaseState: voided }, on("2026-11-05"), active)).toEqual([])
+  // A voided release puts the Request back at Done with no release: the release reminder starts again
+  // 3 days after the latest void, then weekly, and the result reminders stop until a new release.
+  const voidedOn = (...days: string[]): ReleaseState => ({ version: 1, ownerId: "requester", release: null, history: days.map((day, index) => ({ operationId: `op${index}`, fingerprint: "f", actorId: "teammate", at: `${day}T10:00:00Z`, input: { kind: "void" as const, reason: "Only staging", neverExposed: true as const }, previousRelease: released, release: null, previousOwnerId: "requester", ownerId: "requester", revision: 2 + index })) })
+  it.each([
+    ["2026-10-28", []],
+    ["2026-10-29", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }]],
+    ["2026-11-04", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }]],
+    ["2026-11-05", [{ kind: "release_reminder", recipientId: "builder", day: "2026-11-05" }]],
+  ])("after a release voided on 2026-10-26, on %s the Request owes %o", (day, expected) => {
+    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-26") }, on(day), active)).toEqual(expected)
+  })
+  it("counts from the latest void when a release was voided more than once", () => {
+    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-14", "2026-10-26") }, on("2026-10-28"), active)).toEqual([])
+    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-14", "2026-10-26") }, on("2026-10-29"), active)).toEqual([{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }])
   })
   it("goes to the new Requester after a handover, never the former one", () => {
     const handedOver = { ...measuring, releaseState: releaseState(released, "teammate") }

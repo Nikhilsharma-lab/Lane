@@ -331,7 +331,7 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(glyph).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
-  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
 })
@@ -433,7 +433,7 @@ test("Mark Done on Request detail shows Done in the next frame with Undo, and ne
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
-  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done on detail, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
 })

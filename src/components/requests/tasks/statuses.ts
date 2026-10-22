@@ -1,6 +1,6 @@
 import { createElement, type SVGProps } from "react"
 import { StatusGlyph } from "../status-glyph"
-import { JOURNEY_STATUSES, type JourneyStatus } from "@/lib/request-journey"
+import { JOURNEY_STATUSES, type Journey, type JourneyStatus } from "@/lib/request-journey"
 
 const iconFor = (status: JourneyStatus) =>
   function StatusIcon(props: SVGProps<SVGSVGElement>) { return createElement(StatusGlyph, { ...props, status }) }
@@ -12,3 +12,6 @@ const TONES = { open: "neutral", in_progress: "warning", done: "success", measur
 export const statuses = JOURNEY_STATUSES.map(({ status, label }) => ({ value: status, label, icon: iconFor(status), tone: TONES[status] }))
 
 export const statusOf = (status: JourneyStatus) => statuses.find(item => item.value === status)!
+
+/** A Request's journey as its glyph, tone and own words ("Closed without a result" included). */
+export const statusOfJourney = (journey: Journey) => ({ ...statusOf(journey.status), label: journey.label })

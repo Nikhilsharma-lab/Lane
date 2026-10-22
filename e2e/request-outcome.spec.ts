@@ -28,7 +28,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
   await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
   await release.getByRole('button', { name: 'Mark as released' }).click();
-  await expect(release.getByText(/· 14 days remaining$/)).toBeVisible();
+  await expect(release.getByText(/· Due in 14 days$/)).toBeVisible();
   return path;
 }
 test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up and handover survive reloads', async ({ browser, page }, testInfo) => {
@@ -39,7 +39,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await page.setViewportSize({ width, height: 900 }); await page.emulateMedia({ colorScheme });
       const path = await releasedRequest(team, page, `${width} ${colorScheme}: outcome acceptance`);
       const outcome = page.getByRole('region', { name: 'Journey', exact: true });
-      await expect(outcome.getByText(/· 14 days remaining$/)).toBeVisible();
+      await expect(outcome.getByText(/· Due in 14 days$/)).toBeVisible();
       await expect(outcome.getByRole('button', { name: 'Close Request', exact: true })).toBeDisabled();
       await expect(outcome.getByText(/^Opens on /)).toBeVisible();
       // Follow-up first: the original keeps its obligation and the follow-up is reviewed afresh.
@@ -50,7 +50,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(page.getByRole('region', { name: 'Journey', exact: true })).toContainText('Follow-up of');
       await expect(page.getByRole('button', { name: 'Pick up', exact: true })).toBeVisible();
       await page.goto(path);
-      await expect(outcome.getByText(/· 14 days remaining$/)).toBeVisible();
+      await expect(outcome.getByText(/· Due in 14 days$/)).toBeVisible();
       await expect(outcome.getByRole('link', { name: /outcome acceptance/ })).toHaveCount(1);
       // Closing without a result by keyboard, early, with a reason and no invented numbers.
       await outcome.getByRole('button', { name: 'Close without a result…' }).focus(); await page.keyboard.press('Enter');

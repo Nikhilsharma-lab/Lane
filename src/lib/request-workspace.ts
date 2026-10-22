@@ -18,6 +18,13 @@ export const REQUEST_STATUS_FILTER_LABELS = {
 } as const satisfies Record<(typeof REQUEST_STATUS_FILTERS)[number], string>
 
 export type RequestStatusFilter = (typeof REQUEST_STATUS_FILTERS)[number]
+
+/** The status views that page from the database: every finished Request ("all"), or one finished view (#133). */
+export const FINISHED_VIEWS = ["all", "done", "measuring", "closed", "due"] as const satisfies readonly RequestStatusFilter[]
+export type FinishedView = (typeof FINISHED_VIEWS)[number]
+
+/** The finished view a status view pages through, or null for Open and In progress (always loaded in full). */
+export const finishedViewOf = (status: RequestStatusFilter): FinishedView | null => status === "open" || status === "in_progress" ? null : status
 // "all", "none", or a Project ID. IDs are authorized at the server boundary.
 export type RequestProjectFilter = string
 

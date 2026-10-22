@@ -39,7 +39,7 @@ describe("paletteEntries", () => {
     it("offers Pick up and priority on an Open Request", () => {
       expect(actions({ request })).toEqual(["pick-up", "change-priority", "copy-link", "copy-code"])
     })
-    it("offers Mark Done on an In Progress Request, without priority", () => {
+    it("offers Mark Done on an In progress Request, without priority", () => {
       expect(actions({ request: { ...request, status: "in_progress", canEdit: false } })).toEqual(["mark-done", "copy-link", "copy-code"])
     })
     it("offers only copying on a Done Request", () => {
