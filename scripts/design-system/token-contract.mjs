@@ -3,6 +3,7 @@ import ts from 'typescript'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve, relative, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { luminance, parseColour } from './colour.mjs'
 
 // Source definitions are audited separately by provenance. Consumers have no blanket vendor exemption.
 // A policy names where values may be written and which file owns shared control tokens. The one theme
@@ -324,42 +325,12 @@ export const contrastPairs = [
 ]
 export const minimumContrast = 4.5
 
-const channel = value => value.trim() === 'none' ? 0 : value.trim().endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
-const toLinear = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-const oklabToLinear = (l, a, b) => {
-  const [l_, m_, s_] = [l + 0.3963377774 * a + 0.2158037573 * b, l - 0.1055613458 * a - 0.0638541728 * b, l - 0.0894841775 * a - 1.291485548 * b].map(v => v ** 3)
-  return [4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_, -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_, -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_]
-}
-const hslToSrgb = (h, s, l) => [0, 8, 4].map(n => { const k = (n + h / 30) % 12; return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)) })
-
 // Linear-light sRGB of an opaque colour literal, or null for anything else (see-through,
 // color-mix, unknown syntax): those pairs are skipped rather than guessed.
 function linearRgb(value) {
-  const text = value.trim().toLowerCase()
-  const hex = text.match(/^#([\da-f]{3,8})$/)
-  if (hex) {
-    let digits = hex[1]
-    if (digits.length <= 4) digits = [...digits].map(d => d + d).join('')
-    if (digits.length === 8 && digits.slice(6) !== 'ff') return null
-    return [0, 2, 4].map(i => toLinear(Number.parseInt(digits.slice(i, i + 2), 16) / 255))
-  }
-  if (text === 'white') return [1, 1, 1]
-  if (text === 'black') return [0, 0, 0]
-  const fn = text.match(/^(rgba?|hsla?|oklch|oklab)\((.*)\)$/)
-  if (!fn) return null
-  const [colour, alpha] = fn[2].split('/')
-  if (alpha !== undefined && channel(alpha) < 1) return null
-  const parts = colour.trim().split(/[\s,]+/)
-  if (parts.length !== 3) return null
-  if (fn[1].startsWith('rgb')) return parts.map(part => toLinear(part.endsWith('%') ? channel(part) : Number.parseFloat(part) / 255))
-  if (fn[1].startsWith('hsl')) return hslToSrgb(Number.parseFloat(parts[0]), channel(parts[1]), channel(parts[2])).map(toLinear)
-  const lightness = channel(parts[0])
-  if (fn[1] === 'oklab') return oklabToLinear(lightness, channel(parts[1]), channel(parts[2]))
-  const chroma = channel(parts[1])
-  const hue = channel(parts[2]) * Math.PI / 180
-  return oklabToLinear(lightness, chroma * Math.cos(hue), chroma * Math.sin(hue))
+  const colour = parseColour(value)
+  return colour && colour.alpha >= 1 ? colour.linear : null
 }
-const luminance = rgb => { const [r, g, b] = rgb.map(c => Math.min(1, Math.max(0, c))); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
 
 // Reads tweakcn's light and dark slots the way the browser would: dark falls back to light,
 // and var() references are followed within the same mode.

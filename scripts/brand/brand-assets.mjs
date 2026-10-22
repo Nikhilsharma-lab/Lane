@@ -21,6 +21,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { toHex } from '../design-system/colour.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
 const require = createRequire(join(root, 'package.json'))
@@ -47,60 +48,8 @@ function token(block, name) {
   return match[1].trim()
 }
 
-const channel = (value, scale = 1) => (value.endsWith('%') ? parseFloat(value) / 100 : parseFloat(value) / scale)
-const oklabToLinearSrgb = (L, a, b) => {
-  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
-  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
-  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
-  return [
-    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
-  ]
-}
-const encode = linear => (linear <= 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055)
-const toByteHex = unit => Math.round(Math.min(1, Math.max(0, unit)) * 255).toString(16).padStart(2, '0')
-
-// An opaque CSS colour (oklch, oklab, hsl, rgb or hex) → #rrggbb. OKLab uses Björn Ottosson's
-// matrices and the CSS Color 4 sRGB transfer function; out-of-gamut channels are clipped.
-export function cssColourToHex(value) {
-  const text = value.trim().toLowerCase()
-  const hex = text.match(/^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/)
-  if (hex) {
-    const digits = hex[1].length <= 4 ? [...hex[1]].map(d => d + d).join('') : hex[1]
-    if (digits.length === 8 && digits.slice(6) !== 'ff') throw new Error(`Expected an opaque colour, got ${value}`)
-    return `#${digits.slice(0, 6)}`
-  }
-  const fn = text.match(/^(oklch|oklab|hsla?|rgba?)\((.*)\)$/)
-  if (!fn) throw new Error(`Unsupported colour: ${value}`)
-  const [body, alpha] = fn[2].split('/')
-  if (alpha !== undefined && channel(alpha.trim()) < 1) throw new Error(`Expected an opaque colour, got ${value}`)
-  const parts = body.trim().split(/[\s,]+/)
-  if (parts.length === 4 && fn[1].endsWith('a') && channel(parts[3]) < 1) throw new Error(`Expected an opaque colour, got ${value}`)
-  const [x, y, z] = parts
-  let srgb
-  if (fn[1] === 'oklch' || fn[1] === 'oklab') {
-    const L = channel(x)
-    const [a, b] = fn[1] === 'oklab'
-      ? [channel(y, 1) * (y.endsWith('%') ? 0.4 : 1), channel(z, 1) * (z.endsWith('%') ? 0.4 : 1)]
-      : (() => {
-          const C = channel(y, 1) * (y.endsWith('%') ? 0.4 : 1)
-          const hue = (parseFloat(z) * Math.PI) / 180
-          return [C * Math.cos(hue), C * Math.sin(hue)]
-        })()
-    srgb = oklabToLinearSrgb(L, a, b).map(c => encode(Math.min(1, Math.max(0, c))))
-  } else if (fn[1].startsWith('hsl')) {
-    const hue = parseFloat(x)
-    const [s, l] = [channel(y, 100), channel(z, 100)]
-    srgb = [0, 8, 4].map(n => {
-      const k = (n + hue / 30) % 12
-      return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1))
-    })
-  } else {
-    srgb = [x, y, z].map(part => channel(part, 255))
-  }
-  return `#${srgb.map(toByteHex).join('')}`
-}
+// An opaque CSS colour (oklch, oklab, hsl, rgb or hex) → #rrggbb, out-of-gamut channels clipped.
+export const cssColourToHex = toHex
 
 // Light and dark --background / --foreground from tweakcn's half. Dark falls back to light and
 // var() references are followed within the mode, the way the browser reads them.
