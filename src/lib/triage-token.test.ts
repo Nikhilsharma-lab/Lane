@@ -219,4 +219,10 @@ describe("existing Request review isolation", () => {
     expect(verifyTriageToken(token, context, requestId).valid).toBe(true);
     expect(verifyTriageToken(token, context, "a1000000-0000-4000-8000-000000000015").valid).toBe(false);
   });
+  it("never lets a new-Request review save an edit", async () => {
+    const { createTriageToken, verifyTriageToken } = await import("./triage-token");
+    const token = createTriageToken(input, triageResult, context);
+    expect(verifyTriageToken(token, context).valid).toBe(true);
+    expect(verifyTriageToken(token, context, "a1000000-0000-4000-8000-000000000016")).toEqual({ valid: false, reason: "context_mismatch" });
+  });
 });

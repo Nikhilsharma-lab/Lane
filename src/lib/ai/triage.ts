@@ -7,6 +7,7 @@ import {
 } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { refineFraming } from "@/lib/request-framing";
 
 // Explicit baseURL because Claude Desktop sets ANTHROPIC_BASE_URL to
 // https://api.anthropic.com (missing /v1). The override in next.config.ts
@@ -46,37 +47,7 @@ const modelTriageSchema = z.object({
       ),
   });
 
-const triageSchema = modelTriageSchema.superRefine((value, context) => {
-    if (
-      value.classification === "problem" &&
-      (value.reframedProblem !== null || value.extractedSolution !== null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Problem outcomes cannot include generated framing.",
-      });
-    }
-
-    if (
-      value.classification === "solution" &&
-      (value.reframedProblem === null || value.extractedSolution !== null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Solution outcomes require only a reframed problem.",
-      });
-    }
-
-    if (
-      value.classification === "hybrid" &&
-      (value.reframedProblem === null || value.extractedSolution === null)
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Hybrid outcomes require a problem and preserved solution.",
-      });
-    }
-  });
+const triageSchema = modelTriageSchema.superRefine(refineFraming);
 
 export type TriageResult = z.infer<typeof triageSchema>;
 type ModelTriageResult = z.infer<typeof modelTriageSchema>;

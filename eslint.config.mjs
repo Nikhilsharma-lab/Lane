@@ -33,7 +33,6 @@ const eslintConfig = defineConfig([
     ".next-audit/**",
     "out/**",
     "build/**",
-    "storybook-static/**",
     "next-env.d.ts",
     // Local research captures (gitignored); never lint them.
     "artifacts/**",
