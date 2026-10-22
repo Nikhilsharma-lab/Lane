@@ -53,12 +53,13 @@ const markDoneUndo = createMarkDoneUndoStore()
 /**
  * Mark Done's confirmation: "Marked Done" with Undo for 10 seconds (paused while the stack is
  * open or the tab hidden). The pointer keeps the same Undo callback the toast's action calls.
+ * Passing an earlier toast's id shows it again with a fresh 10 seconds (#135: after "Not yet").
  */
 export function showMarkedDone(toast: ToastStackApi["toast"], request: { id: string; name: string },
-  undo: (toastId: string, requestId: string, name: string) => void | Promise<void>, store: MarkDoneUndoStore = markDoneUndo): string {
+  undo: (toastId: string, requestId: string, name: string) => void | Promise<void>, store: MarkDoneUndoStore = markDoneUndo, again?: string): string {
   const { id: requestId, name } = request
   const runUndo = (id: string) => { store.clear(id); void undo(id, requestId, name) }
-  const toastId = toast({ type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: 10_000, action: { label: "Undo", onClick: runUndo } })
+  const toastId = toast({ id: again, type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: 10_000, action: { label: "Undo", onClick: runUndo } })
   store.set({ toastId, requestId, name, undo: () => runUndo(toastId) })
   return toastId
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
+import { useIsItLive } from "./is-it-live-prompt"
 import type { Announce } from "./list-announcer"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
@@ -31,6 +32,8 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
   const [busy] = useState(() => new Set<string>())
   const confirmPickup = usePickupConfirmation()
   const copyText = useCopy()
-  return useMemo(() => createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy }),
-    [afterMove, announce, busy, confirmPickup, copyText, optimistic, orgId, toast, update])
+  // #135: a successful Mark Done asks "Is it live?".
+  const isItLive = useIsItLive()
+  return useMemo(() => createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy, isItLive }),
+    [afterMove, announce, busy, confirmPickup, copyText, isItLive, optimistic, orgId, toast, update])
 }
