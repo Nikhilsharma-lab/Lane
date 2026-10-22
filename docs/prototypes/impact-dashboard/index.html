@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE, throwaway: Lane impact dashboard views</title>
+<!--
+  PROTOTYPE, THROWAWAY. Answers one question: does each view let a leader read the
+  result in under a minute, without a score that grades a person?
+  Static, sample data only, no app code, no routes. Colours and type are rough
+  placeholders, not Lane's theme. Final build uses Arc components and theme names.
+-->
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#fff;
+          --good:#2f7d4f; --neutral:#7a7a72; --bad:#b4442c; --due:#8a6d12; --ops:#4a6fa5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.45 "Geist", system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  .banner { background:#fff3bf; color:#5c4a00; padding:8px 16px; font-size:13px; border-bottom:1px solid #e8d77a; }
+  header { padding:20px 24px 0; max-width:1100px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; font-weight:600; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:14px; }
+  nav[role=tablist] { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; padding:10px 14px; font:inherit; color:var(--muted); cursor:pointer;
+               border-bottom:2px solid transparent; }
+  nav button[aria-selected=true] { color:var(--fg); border-bottom-color:var(--fg); font-weight:600; }
+  nav button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  main { max-width:1100px; margin:0 auto; padding:20px 24px 60px; }
+  [hidden] { display:none !important; }
+  .counts { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-bottom:22px; }
+  .count { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .count b { display:block; font-size:26px; font-weight:600; font-variant-numeric: tabular-nums; }
+  .count span { color:var(--muted); font-size:13px; }
+  .count.good b { color:var(--good); } .count.bad b { color:var(--bad); } .count.neutral b { color:var(--neutral); }
+  .count.due b { color:var(--due); } .count.ops b { color:var(--ops); }
+  .note { color:var(--muted); font-size:13px; margin:-8px 0 16px; }
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:14px; font-size:13px; color:var(--muted); }
+  select { font:inherit; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; font-size:14px; }
+  th { font-size:12px; color:var(--muted); font-weight:500; background:#f5f5f2; }
+  tr:last-child td { border-bottom:0; }
+  .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .tag.good { color:var(--good); border-color:var(--good); } .tag.bad { color:var(--bad); border-color:var(--bad); }
+  .tag.neutral { color:var(--neutral); } .tag.due { color:var(--due); border-color:var(--due); } .tag.ops { color:var(--ops); border-color:var(--ops); }
+  .muted { color:var(--muted); }
+  .project { margin-bottom:22px; }
+  .project h2 { font-size:15px; margin:0 0 6px; font-weight:600; }
+  .project .meta { font-size:13px; color:var(--muted); margin-bottom:6px; }
+  .empty { background:var(--card); border:1px dashed var(--line); border-radius:8px; padding:14px; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE, THROWAWAY. Sample data only. Not Lane's look. Answers: can a leader read each view in under a minute, with no score that grades a person?</div>
+
+<header>
+  <h1>Lane impact</h1>
+  <div class="sub">Predicted vs measured results. Quarter: Q3 2026 (by release date)</div>
+  <nav role="tablist" aria-label="Impact views">
+    <button role="tab" id="t-personal" aria-selected="true" aria-controls="v-personal">My work</button>
+    <button role="tab" id="t-project" aria-selected="false" aria-controls="v-project" tabindex="-1">By project</button>
+    <button role="tab" id="t-org" aria-selected="false" aria-controls="v-org" tabindex="-1">Whole org</button>
+  </nav>
+</header>
+
+<main>
+  <!-- PERSONAL: the Requests this person requested or picked up. No totals, no averages. -->
+  <section id="v-personal" role="tabpanel" aria-labelledby="t-personal">
+    <p class="note">Requests you requested or picked up. Shared product totals are on the other tabs.</p>
+    <table>
+      <thead><tr><th>Request</th><th>Your role</th><th>Predicted</th><th>Measured</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Checkout: fewer steps</td><td class="muted">Requested</td><td>−15% drop-offs</td><td>−11% drop-offs</td><td><span class="tag good">Measured: good</span></td></tr>
+        <tr><td>Onboarding copy rewrite</td><td class="muted">Picked up</td><td>+5% activation</td><td class="muted">Still due 14 Nov</td><td><span class="tag due">Still due</span></td></tr>
+        <tr><td>Design-system button</td><td class="muted">Picked up</td><td colspan="2" class="muted">No measurable impact: reason "internal tooling"</td><td><span class="tag ops">Operational work</span></td></tr>
+        <tr><td>Export to CSV</td><td class="muted">Requested</td><td>+2 support tickets avoided</td><td class="muted">Closed without a result: rolled back</td><td><span class="tag neutral">Closed, no result</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- PROJECT: predicted vs measured per Project. Totals only where metric, unit, audience and window match. -->
+  <section id="v-project" role="tabpanel" aria-labelledby="t-project" hidden>
+    <p class="note">Totals appear only where metric, unit, audience and window all match. Other results stay on their own lines.</p>
+    <div class="project">
+      <h2>Checkout</h2>
+      <div class="meta">3 Requests · 1 measured · 1 still due · 1 operational</div>
+      <table>
+        <thead><tr><th>Metric (unit)</th><th>Predicted</th><th>Measured</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Drop-offs (%)</td><td>−15%</td><td>−11%</td><td><span class="tag good">Good</span></td></tr>
+          <tr><td>Payment errors (count)</td><td class="muted">−20 / month</td><td class="muted">Still due 3 Dec</td><td><span class="tag due">Still due</span></td></tr>
+          <tr><td>Design-system button</td><td colspan="2" class="muted">No measurable impact. Excluded from totals.</td><td><span class="tag ops">Operational work</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="project">
+      <h2>Onboarding</h2>
+      <div class="meta">2 Requests · none measured yet · 2 still due</div>
+      <div class="empty">Nothing measured yet. Predictions shown above; no measured total until results arrive.</div>
+      <table style="margin-top:8px">
+        <thead><tr><th>Metric (unit)</th><th>Predicted</th><th>Measured</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Activation (%)</td><td>+5%</td><td class="muted">Still due 14 Nov</td><td><span class="tag due">Still due</span></td></tr>
+          <tr><td>Time to first project (minutes)</td><td>−2 min</td><td class="muted">Still due 28 Nov</td><td><span class="tag due">Still due</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ORG: counts only. No hit rate, no per-person figures. Operational work is its own line. -->
+  <section id="v-org" role="tabpanel" aria-labelledby="t-org" hidden>
+    <div class="toolbar">
+      Quarter
+      <select aria-label="Quarter">
+        <option>Q3 2026 (by release date)</option>
+        <option>Q2 2026</option>
+        <option>2026 year to date</option>
+      </select>
+    </div>
+    <div class="counts">
+      <div class="count good"><b>4</b><span>Measured: good</span></div>
+      <div class="count neutral"><b>1</b><span>Measured: neutral</span></div>
+      <div class="count bad"><b>1</b><span>Measured: bad</span></div>
+      <div class="count due"><b>5</b><span>Still due</span></div>
+      <div class="count ops"><b>3</b><span>Operational work</span></div>
+      <div class="count"><b>2</b><span>Closed without a result (with reason)</span></div>
+    </div>
+    <p class="note">Operational work and closed-without-a-result are kept apart. Neither is in the measured counts. No overall hit rate is shown.</p>
+    <table>
+      <thead><tr><th>Project</th><th>Requests</th><th>Measured</th><th>Still due</th><th>Operational</th></tr></thead>
+      <tbody>
+        <tr><td>Checkout</td><td>3</td><td>1</td><td>1</td><td>1</td></tr>
+        <tr><td>Onboarding</td><td>2</td><td>0</td><td>2</td><td>0</td></tr>
+        <tr><td>Design system</td><td>2</td><td>0</td><td>0</td><td>2</td></tr>
+        <tr><td>No project</td><td>3</td><td>3</td><td>2</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  // Tabs: click or arrow keys. Plain DOM, nothing else.
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  function show(id) {
+    tabs.forEach(t => {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    document.getElementById(id).focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.id));
+    t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const n = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        show(tabs[n].id);
+      }
+    });
+  });
+</script>
+</body>
+</html>
