@@ -1,7 +1,7 @@
 "use server";
 import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
-import { labelRequestType } from "@/lib/request-labels";
+import { sourceRequestType } from "@/lib/request-labels";
 
 import type { OverviewRequest } from "@/lib/request-overview";
 
@@ -22,7 +22,7 @@ import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
 import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { requestSchema, type RequestInput } from "@/lib/request-schema";
+import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
 import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
@@ -45,17 +45,7 @@ export type IntakeFailure = {
   code: IntakeFailureCode;
   message: string;
   field?:
-    | "expectedImpact"
-    | "projectId"
-    | "requestType"
-    | "priority"
-    | "title"
-    | "description"
-    | "affectedPeople"
-    | "desiredChange"
-    | "observedEvidence"
-    | "uncertainty"
-    | "usefulLink"
+    | RequestSourceField
     | "editedProblemText"
     | "reviewers";
   retryAfterSeconds?: number;
@@ -161,23 +151,7 @@ export async function runTriage(
   const parsed = (existingRequestId ? requestEditSourceSchema : requestSchema).safeParse(formData);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    const field =
-      typeof issue.path[0] === "string" &&
-      [
-        "expectedImpact",
-        "projectId",
-        "requestType",
-        "priority",
-        "title",
-        "description",
-        "affectedPeople",
-        "desiredChange",
-        "observedEvidence",
-        "uncertainty",
-        "usefulLink",
-      ].includes(issue.path[0])
-        ? (issue.path[0] as IntakeFailure["field"])
-        : undefined;
+    const field = sourceFieldOf(issue.path);
 
     return {
       success: false,
@@ -323,17 +297,13 @@ export async function saveRequest(
         id: payload.requestId,
         orgId: auth.orgId,
         projectId: payload.projectId,
-        requestType: payload.labelKeys ? labelRequestType(payload.labelKeys) : payload.requestType,
+        requestType: sourceRequestType(payload),
         labelKeys: payload.labelKeys,
         priority: payload.priority,
         expectedImpact: payload.expectedImpact,
         title: payload.title,
         description: payload.description,
-        affectedPeople: payload.affectedPeople || null,
-        desiredChange: payload.desiredChange || null,
-        observedEvidence: payload.observedEvidence || null,
-        uncertainty: payload.uncertainty || null,
-        usefulLink: payload.usefulLink || null,
+        ...storedContext(payload),
         classification: payload.classification,
         reframedProblem,
         extractedSolution,

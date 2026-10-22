@@ -7,6 +7,7 @@ import { MAX_REVIEWERS, reviewerIdentitySchema, REVIEW_NOTE_MAX } from "./reques
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {
+  REQUEST_CONTEXT_FIELDS,
   CONTEXT_MAX,
   DESCRIPTION_MAX,
   TITLE_MAX,
@@ -148,11 +149,7 @@ export function writeIntakeDraft(
     (draft.source.priority !== undefined && draft.source.priority !== "none") ||
     draft.source.title.trim().length > 0 ||
     draft.source.description.trim().length > 0 ||
-    draft.source.affectedPeople.trim().length > 0 ||
-    draft.source.desiredChange.trim().length > 0 ||
-    draft.source.observedEvidence.trim().length > 0 ||
-    draft.source.uncertainty.trim().length > 0 ||
-    draft.source.usefulLink.trim().length > 0 ||
+    REQUEST_CONTEXT_FIELDS.some((field) => draft.source[field].trim().length > 0) ||
     (draft.reviewers?.people.length ?? 0) > 0 ||
     Boolean(draft.reviewers?.question.trim());
 
