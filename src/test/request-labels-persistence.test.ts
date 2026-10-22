@@ -1,11 +1,12 @@
 import postgres from "postgres";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { loadWorkspaceSearch, workspaceSearchInputSchema } from "@/lib/data/search";
 import { randomUUID } from "node:crypto";
 let sql:ReturnType<typeof postgres>;
 const org="org_label_test",other="org_label_other",user="user_label_test",label=randomUUID();
 beforeAll(async()=>{
- const url=new URL(process.env.DATABASE_URL!);if(url.hostname!=="localhost"&&url.hostname!=="127.0.0.1"||url.pathname!=="/lane_test")throw Error("Local tests only");
+ const url=new URL(process.env.DATABASE_URL!);if(url.hostname!=="localhost"&&url.hostname!=="127.0.0.1"||!TEST_DATABASE_PATH.test(url.pathname))throw Error("Local tests only");
  sql=postgres(url.toString());
  await sql`insert into organizations(id,name,slug) values (${org},'Labels','labels-test'),(${other},'Other','labels-other')`;
  await sql`insert into profiles(id,full_name,email) values (${user},'Test','labels@example.test')`;

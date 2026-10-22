@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
@@ -17,7 +18,7 @@ let connection: ReturnType<typeof postgres>;
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
   const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") {
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) {
     throw new Error("Request code tests require disposable local lane_test PostgreSQL");
   }
   connection = postgres(databaseUrl, { max: 6, prepare: false });

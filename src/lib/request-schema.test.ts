@@ -9,7 +9,7 @@ import {
   DESCRIPTION_MAX,
 } from "./request-schema";
 
-const validImpact = { kind: "verification" as const, result: "People can finish the intended flow", source: "Released flow acceptance check", reviewAfterDays: 7 };
+const validImpact = { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
 
 describe("requestSchema", () => {
   it("valid input passes", () => {
@@ -197,5 +197,8 @@ describe("required expected impact", () => {
   });
   it("rejects an incomplete metric prediction", () => {
     expect(requestSchema.safeParse({ ...request, expectedImpact: { kind: "metric", metric: "Conversion", baseline: null, target: null, unit: "%", source: "Analytics", reviewAfterDays: null } }).success).toBe(false);
+    // A complete older kind is still refused on a new Request: only a measurement plan creates one.
+    for (const older of [{ kind: "metric", metric: "Conversion", baseline: 50, target: 70, unit: "%", source: "Analytics", reviewAfterDays: 30 }, { kind: "verification", result: "Checkout works", source: "QA", reviewAfterDays: 7 }])
+      expect(requestSchema.safeParse({ ...request, expectedImpact: older }).error?.issues[0].message).toBe("Choose what to measure for this Request");
   });
 });

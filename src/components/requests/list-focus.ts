@@ -58,3 +58,23 @@ export function rowIndexOf(id: string) {
   if (!row || !grid) return -1
   return [...grid.querySelectorAll("[data-grid-row]")].filter(isShown).indexOf(row as HTMLElement)
 }
+
+/**
+ * Focuses the Request's row as soon as it is shown. Bringing it into view may
+ * first expand its group or change the page, so it tries now and then each
+ * frame, for up to 20 frames. `onDone(true)` once the row has focus,
+ * `onDone(false)` after giving up. Returns a cancel for an effect's cleanup.
+ * The list's "Show it" reveal and the return from Request detail both use it.
+ */
+export function focusRowWhenShown(id: string, onDone: (focused: boolean) => void): () => void {
+  let frame = 0
+  let attempts = 0
+  const attempt = () => {
+    const row = document.querySelector(requestRowSelector(id))
+    if (isShown(row) && focus(row)) return onDone(true)
+    if (++attempts < 20) frame = window.requestAnimationFrame(attempt)
+    else onDone(false)
+  }
+  attempt()
+  return () => window.cancelAnimationFrame(frame)
+}

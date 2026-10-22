@@ -1,7 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { inArray, sql } from "drizzle-orm";
-import { db, notifications, profiles } from "@/db";
+import { db, profiles } from "@/db";
+import { notify } from "./notify";
 import type { MemberAuth } from "./auth-guard";
 import { MAX_REVIEWERS, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
 import {
@@ -110,34 +111,24 @@ export async function nameReviewResetActor(tx: RequestTx, userId: string) {
   await tx.execute(sql`select set_config('lane.actor_id', ${userId}, true)`);
 }
 
-/** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
+/** In-app bell only, through public.notify: nobody is told about their own
+ * action, and only people with a profile can be told. One call per kind and
+ * detail, inside the caller's transaction. */
 export async function notifyReviewers(
   tx: RequestTx,
   request: { id: string; orgId: string },
   actorId: string,
   items: ReviewNotification[],
 ) {
-  const recipients = items.filter((item) => item.userId !== actorId);
-  if (!recipients.length) return;
-  const known = new Set(
-    (
-      await tx
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(inArray(profiles.id, recipients.map((item) => item.userId)))
-    ).map((p) => p.id),
-  );
-  const values = recipients
-    .filter((item) => known.has(item.userId))
-    .map((item) => ({
-      userId: item.userId,
-      orgId: request.orgId,
-      type: item.type,
-      requestId: request.id,
-      actorId,
-      detail: item.detail || null,
-    }));
-  if (values.length) await tx.insert(notifications).values(values);
+  const groups = new Map<string, { type: ReviewNotification["type"]; detail: string; userIds: string[] }>();
+  for (const item of items) {
+    const key = JSON.stringify([item.type, item.detail]);
+    const group = groups.get(key) ?? { type: item.type, detail: item.detail, userIds: [] };
+    group.userIds.push(item.userId);
+    groups.set(key, group);
+  }
+  for (const { type, detail, userIds } of groups.values())
+    await tx.execute(sql`select ${notify(userIds, request.orgId, type, request.id, actorId, detail)}`);
 }
 
 /**

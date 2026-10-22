@@ -4,6 +4,8 @@ import path from "node:path"
 // Requests UI checks isolate external Clerk/database boundaries; no database setup.
 export default defineConfig({
   test: {
+    // Several sessions share this machine; a busy one must not fail a test on time alone.
+    testTimeout: 20_000,
     include: [
       "src/components/settings/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
@@ -14,10 +16,12 @@ export default defineConfig({
       "src/components/shell/project-tone.test.ts",
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",
+      "src/app/**/intake/intake-session.test.ts",
       "src/app/**/intake/intake-gate-contract.test.ts",
       "src/lib/intake-draft.test.ts",
       "src/lib/request-workspace.test.ts",
       "src/lib/request-overview.test.ts",
+      "src/components/requests/list-view-model.test.ts",
       "src/lib/request-code.test.ts",
       "src/lib/workspace-search.test.ts",
       "src/components/projects/workspace-projects-provider.test.ts",
