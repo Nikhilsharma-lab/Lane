@@ -10,13 +10,11 @@ const boundary = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: "user_member", orgId: "org_a", orgRole: "org:member" }) }));
 vi.mock("@/db", () => ({ db: {}, requests: {} }));
 vi.mock("@/lib/ai/triage", () => ({
-  triageRequest: async () => { boundary.aiCalls += 1; throw new Error("Illustrative provider failure"); },
-  classifyTriageFailure: () => boundary.kind,
-  triageFailureStatus: () => boundary.status,
+  triageRequest: async () => { boundary.aiCalls += 1; return { ok: false, kind: boundary.kind, status: boundary.status, error: new Error("Illustrative provider failure") }; },
 }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => boundary.limit }));
 
-const input = { expectedImpact: { kind: "verification" as const, result: "Customers can compare all plans", source: "Released pricing acceptance check", reviewAfterDays: 7 }, title: "Pricing is confusing", description: "Customers cannot compare the available plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: null };
+const input = { expectedImpact: { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] }, title: "Pricing is confusing", description: "Customers cannot compare the available plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: null };
 
 beforeEach(() => {
   boundary.kind = "provider"; boundary.status = undefined; boundary.limit = { allowed: true }; boundary.aiCalls = 0;

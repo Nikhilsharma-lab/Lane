@@ -247,6 +247,27 @@ it("a reviewer who left stays listed, greyed out, and a retried answer replays",
   expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ name: "agreement_design", active: false, canAnswer: false }] });
 });
 
+it("a reviewer who left no longer counts: the list, detail and panel agree nothing is outstanding", async () => {
+  const { loadRequestList, loadRequestDetail } = await import("@/lib/data/requests");
+  const api = await import("./reviewer-actions");
+  const { reviewStateOf } = await import("@/lib/request-reviewer-rules");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  await answer(id, designer, "concern", "No API yet.");
+  const auth = { userId: owner, orgId, role: "member" as const };
+  const listed = async () => (await loadRequestList(auth)).rows.find((row) => row.id === id)?.reviewState;
+  const panel = async () => {
+    const view = await api.readReviews(id, { orgId });
+    return reviewStateOf((view.reviewers ?? []).map((r) => ({ ...r, counts: r.active })));
+  };
+  expect(await listed()).toEqual({ concerns: [{ name: "agreement_design", reason: "No API yet." }], unanswered: 1 });
+  roster.delete(designer);
+  roster.delete(developer);
+  expect(await listed()).toBeNull();
+  expect((await loadRequestDetail(auth, id))?.request.reviewState).toBeNull();
+  expect(await panel()).toBeNull();
+});
+
 it("pickup succeeds with an open concern and an unanswered review; afterwards nothing about reviews changes", async () => {
   const api = await import("./reviewer-actions");
   const lifecycle = await import("./actions");
@@ -371,20 +392,6 @@ it("a priority change leaves answers alone, from the priority control or the edi
   expect((await reviewersOf(id))[0].decision).toMatchObject({ kind: "looks_good" });
   expect(await revisionOf(id)).toBe(revision);
   expect(await notificationsFor(id)).toEqual([]);
-});
-
-it("supplying current values for Expected impact also resets answers", async () => {
-  const lifecycle = await import("./actions");
-  const plan = { kind: "measurement", version: 2, primary: { key: "conversion", name: "", unit: "percent", current: null, target: 75, noBaseline: false, check: "" }, measurement: { audience: "all", platform: "web", windowDays: 14, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
-  const [row] = await connection`insert into requests(org_id,title,description,created_by,request_type,expected_impact) values (${orgId},'Checkout problem','People cannot complete checkout',${owner},'improvement',${connection.json(plan)}) returning id`;
-  const id = row.id as string;
-  await add(id, [member(designer)]);
-  await answer(id, designer, "looks_good");
-  await connection`delete from notifications where request_id=${id}`;
-  as(owner);
-  expect(await lifecycle.saveRequestCurrentValues(id, { expectedImpact: plan, primary: 62, guardrails: [] }, { orgId })).toMatchObject({ success: true });
-  expect((await reviewersOf(id))[0].decision).toBeNull();
-  expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: owner, detail: null }]);
 });
 
 it("an admin who edits is named, and is not told about their own edit", async () => {

@@ -2,12 +2,14 @@ import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels"
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
+import { loadLabels } from "@/lib/data/labels";
 import { loadUnreadCount } from "@/lib/data/notifications";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
+import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -29,7 +31,7 @@ export default async function AppLayout({
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
   const unreadCount = loadUnreadCount(member).catch(() => 0);
-  const [result, projects] = await Promise.all([getWorkspace(), loadProjects(member)]);
+  const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
   if (!result) redirect("/login");
   if (result.needsOnboarding) redirect("/onboarding");
 
@@ -40,8 +42,10 @@ export default async function AppLayout({
       <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
       {/* #77: one "Pick up anyway?" confirmation for every pickup entry point. */}
       <PickupConfirmationProvider>
+      {/* #103: clears the palette's Undo Mark Done when the toast queue shrinks. */}
+      <MarkDoneUndoWatcher />
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
-        <WorkspaceLabelsProvider orgId={result.orgId}>
+        <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
           <Sidebar
             workspaceName={result.workspaceName}
@@ -49,6 +53,7 @@ export default async function AppLayout({
             email={result.email}
             role={result.role}
             orgId={result.orgId}
+            userId={result.userId}
             unreadCount={unreadCount}
           >
             {children}

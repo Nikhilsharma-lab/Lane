@@ -29,6 +29,11 @@
 > Request for good. After pickup, work that is rolled back or can't be measured closes without a result
 > (Rolled back, Can't be measured, Other with a reason); it stays on record and outside measured impact.
 > Migration `0031`.
+> **2026-10-21 trio plans retired (Nikhil):** Reviewers also replace every later trio plan. Build and
+> release readiness are checklists for the person doing the work: they guide, never block, and nobody else
+> signs off. Before pickup a change is an edit (which resets reviews); after pickup a material change before
+> release becomes a linked replacement Request with its own optional reviewers. Assignment stays pickup by
+> any member: no Designer assignment, start window or acknowledgement step. Earlier notes above are history.
 > **2026-10-08 sequence selection:** Nikhil chose Request features first over starting trio agreement.
 > The current bounded local increment is saved Request codes for list copying and workspace search;
 > see `docs/superpowers/plans/2026-10-08-saved-request-codes.md` for its defaults and verification.
@@ -60,11 +65,11 @@ what happened after release.
    A disconnected list of Requests does not fulfil this principle. The maintained journey representation
    and linking model still need a bounded design decision (§7).
 2. **Expected impact compared with actual results.** Capture predicted impact when creating a Request,
-   agree it before work advances, measure after launch over the decided window, and retain the comparison
+   keep it with the Request as work advances, measure after launch over the decided window, and retain the comparison
    and learning. Show Request-level results and cumulative quarterly/yearly product results (§9).
 
-Named PM, Designer and Developer agreement governs progression across this chain. The submitter owns
-recording results and closing the Request, even when a different person is its named PM. The comparison
+Optional reviewers can look at a Request before work starts; nothing in this chain waits on their sign-off
+(§4.4). The submitter owns recording results and closing the Request, even when someone else did the work. The comparison
 supports understanding team/product effectiveness; it is not a prediction-accuracy or employee score.
 
 Lane is built on one belief: **surveillance produces performance; support produces truth.** It may measure the
@@ -124,9 +129,9 @@ plan that exposes a production `org:guest` custom role.
 
 ### Responsibility versus permission
 
-Responsibilities belong to a Request creator, named PM / Designer / Developer participants, current assignee,
-or explicitly transferred outcome owner. These are Request-scoped responsibilities, not new global roles.
-Changing a profile label never grants an alignment seat or closure authority. Only the creator (or an
+Responsibilities belong to a Request creator, its reviewers, current assignee, or explicitly transferred
+outcome owner. These are Request-scoped responsibilities, not new global roles.
+Changing a profile label never grants review or closure authority. Only the creator (or an
 explicitly transferred outcome owner) closes the outcome; PM is not a permission gate.
 
 ---
@@ -162,25 +167,24 @@ Clerk cutover record still requires hosted invitation-return and production veri
 
 The confirmed journey is:
 
-**Create and name participants → Align → Schedule and explore as needed → Confirm build readiness → Build →
-Confirm release readiness → Release → Measure → Creator closes → Follow-up Request if further work is needed.**
+**Create (optionally ask reviewers) → Pick up → Explore as needed → Check build readiness → Build →
+Check release readiness → Release → Measure → Creator closes → Follow-up Request if further work is needed.**
 
-- Named PM, Designer and Developer participants must align before prioritization or execution. A recorded
-  disagreement blocks progression; neither the creator nor an administrator may override it.
+- Reviewers are optional and never block progression (§4.4). Readiness checklists guide the person doing the
+  work; they never block and need no one else's sign-off.
 - Discovery and delivery are different commitments; exploration is nonlinear and requires no design diary.
-- Assignment is separate from alignment and authorization to start.
-- Expected impact is recorded at creation and forms part of the trio's agreement. One primary success
+- Picking up assigns the Request to that person and starts work.
+- Expected impact is recorded at creation. One primary success
   criterion, relevant guardrails, complete build/release readiness and evidence support delivery. Numeric
   impact is not compulsory where an observable acceptance criterion is more appropriate.
 - Active-work completion and outcome closure remain separate. The creator owns closure, including truthful
-  exceptions. Closed never reopens; further work uses a linked follow-up with fresh alignment and ownership.
+  exceptions. Closed never reopens; further work uses a linked follow-up with its own reviewers and ownership.
 - Overview / Work / Build / Outcome may organize information without becoming mandatory workflow stages.
 - Quarterly/yearly outcome summaries are confirmed target scope, derived from Request records with
   compatible metrics and no duplicate attribution (§9); no separate reporting route is selected yet.
 
 Expected impact creation/review/detail is the current bounded local implementation, with validation in
-progress. Alignment inside existing Requests remains a separately scoped target; its bounded design, schema
-proposal, acceptance tests and implementation plan must be approved before coding. Later parts of this target are
+progress. Optional reviewers replaced the planned trio alignment on 2026-10-21 (§4.4). Later parts of this target are
 sequenced in `lane-roadmap.md`, not independently authorized by this contract.
 
 2026-10-11 bounded Intake addition, explicitly approved by Nikhil: new primary metric units default
@@ -211,7 +215,7 @@ automatically close Requests. The creator still owns results and closure.
 
 ### Explicitly not authorized yet
 
-- Any alignment, readiness, outcome, amendment or follow-up storage/screens, or success-criterion work beyond
+- Any readiness, outcome, amendment or follow-up storage/screens, or success-criterion work beyond
   the approved Expected impact creation/review/detail increment, before the relevant focused plan is approved.
 - Handoff briefs, iteration summaries, prediction confidence, or individual calibration.
 - Figma, analytics, GitHub, Linear, or other product integrations.
@@ -245,7 +249,7 @@ change, observed evidence or uncertainty in separate inputs, and has no Details 
 People can include that context in their description. Existing saved Request context and the four legacy
 data keys, draft schema and signed-review tokens remain intact; nonempty earlier draft values appear in a
 read-only **Details from your earlier draft** section during composition and review. This is a form
-simplification, not a deletion of the target alignment/readiness/evidence contract or a backend migration.
+simplification, not a deletion of the target readiness/evidence contract or a backend migration.
 
 A PRD, research file, design brief, or other document may support a Request but is never universally required.
 
@@ -292,9 +296,8 @@ and fail recoverably. It must not fabricate user evidence.
 An accepted Request appears on the shared board. Every non-guest member sees the same board and may open the
 same Request. A guest sees only Requests they created; no broader guest entitlement is approved.
 
-Saving does not authorize execution under the confirmed target. A Request may remain Open while waiting
-for alignment or, once aligned, while waiting for capacity. Naming participants before agreement is allowed;
-commitment to roadmap work, formal discovery and delivery execution are blocked until alignment.
+A saved Request stays Open until a member picks it up. Reviewers may be asked while it is Open; their
+answers inform the person picking up and never block it (§4.4).
 
 ### 4.4 Optional reviewers — Approved for local implementation (2026-10-21)
 
@@ -329,11 +332,11 @@ being a named PM or having a PM profile label does not transfer closure ownershi
 The compact form implements Metric or Verified result and a “Check in [X] days” interval, with an
 optional unknown numeric baseline. Source/method is no longer requested at creation (2026-10-12);
 existing source details remain preserved. The same snapshot is preserved through signed review and shown read-only
-on saved detail. This bounded code is implemented and locally verified. Trio agreement, launch,
-actual-result collection/closure and period totals remain target only.
+on saved detail. This bounded code is implemented and locally verified. Launch, actual-result
+collection/closure and period totals remain target only.
 
 Every delivery commitment has **one primary success criterion**. Secondary metrics are optional. Capture
-the initial expectation and agree the measurement contract before progression:
+the initial expectation and complete the measurement contract before pickup:
 
 | Item | Contract |
 |---|---|
@@ -346,39 +349,31 @@ the initial expectation and agree the measurement contract before progression:
 
 A numeric business prediction is not compulsory for every kind of work. A specific, verifiable acceptance
 criterion with evidence is valid; “improve UX” is not. Use only relevant guardrails, not an arbitrary count.
-During discovery, baseline unknown is valid. Before delivery commitment, the trio must establish a defensible
-measurement approach. New capabilities may use an absolute target rather than a before/after baseline.
+During discovery, baseline unknown is valid. Before pickup, the Request needs a defensible measurement
+approach. New capabilities may use an absolute target rather than a before/after baseline.
 Existing evidence can be linked; no mandatory report or particular research/testing method is introduced.
 An unknown baseline is explicit, not a fabricated zero or permission to omit the intended result. The
 discovery/bug handling and creation validation need to preserve this distinction in the focused design.
 
-Alignment freezes the submitted commitment. Before release, material changes to problem, scope, audience,
-timing, success or guardrails use a linked replacement Request with fresh agreement. The original creator
+Before pickup, a change is an edit, which resets every review. After pickup and before release, material
+changes to problem, scope, audience, timing, success or guardrails use a linked replacement Request with its
+own optional reviewers. The original creator
 explicitly confirms the original as Superseded, a permanent exception excluded from measured-impact totals.
 Its Open/In Progress/Done column is retained; it cannot advance or reopen. Minor prose corrections append
 original wording, correction and reason beside the immutable snapshot. Routine exploration within the
-agreement does not need a replacement. After release, targets cannot be rewritten to match observed results. AI must not invent
+planned scope does not need a replacement. After release, targets cannot be rewritten to match observed results. AI must not invent
 targets, baselines or evidence; additional AI capability beyond Intake still requires separate authorization.
 
 ### 4.6 Assign and schedule — Current behaviour versus approved target
 
-**Current implementation:** an eligible member picks up an Open Request; this assigns it to that person and
-moves it to In Progress. The #58 local implementation gates single and bulk pickup on three explicit
-agreements, resolved concerns and current eligible Clerk membership. Submission also gates Done. Legacy
-In Progress Requests may finish only while unsubmitted, or after full agreement; their old status/history
-remain intact. Withdrawal blocks further advancement without moving the Request backward. Hosted
-migration and real multi-user staging acceptance remain release gates.
+**Current implementation and confirmed target (2026-10-21):** an eligible member picks up an Open Request;
+this assigns it to that person and moves it to In Progress. Pickup requires a complete measurement plan;
+reviews never block it, and open concerns or unanswered reviews ask for confirmation (§4.4). Self-pickup
+must not take an existing assignment from someone else. There is no separate Designer assignment, start
+window or acknowledgement step, and profile labels do not become permissions. Hosted migration and real
+multi-user staging acceptance remain release gates.
 
-**Confirmed target:** the Request creator may assign the Designer; an eligible Designer may volunteer through
-Pick up when unassigned; an administrator may assign. One accountable Designer is assigned at a time, while
-other people may contribute. Self-pickup must not take an existing assignment from someone else. Assignment
-does not start work, accept a deadline or supply alignment. A replacement Designer must acknowledge the
-current agreement; profile labels do not become global permissions.
-
-The trio agrees a start window. Administrators help resolve competing capacity commitments but cannot waive
-alignment. No automatic ranking, prioritization score or separate Roadmap screen is authorized. Aligned is
-not the same as scheduled. The exact assign/accept/start UI and concurrency-safe transition contract belongs
-in the focused implementation plan.
+No automatic ranking, prioritization score or separate Roadmap screen is authorized.
 
 ### 4.7 Explore and converge — Approved target
 
@@ -395,7 +390,7 @@ The intended work model is artifact-led:
 - The history records meaningful decisions, not performative activity.
 
 Design, product and engineering remain involved throughout. Data contributors may help establish baselines,
-instrumentation and interpretation without becoming a fourth mandatory approver or new global role.
+instrumentation and interpretation without becoming a mandatory approver or new global role.
 Material changes use the amendment rule (§4.5); routine design iteration does not create a follow-up Request.
 
 ### 4.8 Confirm complete build readiness — Approved target
@@ -404,30 +399,30 @@ Lane should show the connection between the problem, selected direction, and imp
 an engineering tracker. Source code, pull requests, deployment operations, and engineering task management
 remain in their specialist systems unless a later integration is explicitly approved.
 
-Before production implementation of the agreed release:
+Before production implementation of the planned release, the person doing the work checks:
 
-- The trio has aligned on the current agreement.
 - Scope, exclusions and acceptance criteria are clear.
 - Relevant flows, designs and edge states are available.
 - Technical approach and dependencies are understood.
 - Success criteria, guardrails and measurement responsibilities are defined.
-- Timing is agreed and no unresolved blocking concern remains.
+- Timing is clear, and any open review concerns have been considered.
 
-Completeness applies to the agreed release, not every future capability. Prototypes and technical experiments
-can occur during aligned discovery. Use existing links, evidence and concise confirmations rather than
+Completeness applies to the planned release, not every future capability. Prototypes and technical experiments
+can occur during discovery. Use existing links, evidence and concise confirmations rather than
 duplicating design or engineering documents. Irrelevant checks may be marked not applicable with a brief
-explanation; a failed relevant check may not be relabelled not applicable. The trio confirms readiness;
-there is no administrator bypass.
+explanation; a failed relevant check may not be relabelled not applicable. The checklist guides and never
+blocks; nobody else signs off, and the person doing the work may ask reviewers for a second opinion.
 
 ### 4.9 Confirm release readiness and release — Approved target
 
 Before the stated release:
 
-- Agreed scope is implemented and verified, with no unresolved release-blocking defects.
+- Planned scope is implemented and verified, with no unresolved release-blocking defects.
 - Relevant accessibility, security, performance and regression checks are complete.
 - Measurement/instrumentation works and has been verified.
 - Audience, rollout, rollback/recovery and operational ownership are clear.
-- The trio confirms readiness for that release; existing evidence supplies the check, not a new report.
+- The person releasing confirms readiness for that release; existing evidence supplies the check, not a
+  new report. Like build readiness, it guides and never blocks.
 
 Record what became available, to whom and when, the extent of rollout, supporting release evidence and known
 limitations. A merged PR or deployment alone does not prove customer exposure. PM coordinates product launch
@@ -440,8 +435,8 @@ details must be resolved in the release increment's plan before implementation.
 The creator returns after delivery, records what happened, compares it with the original prediction, and
 closes the outcome. The comparison belongs to the Request and workspace learning—not to a personal score.
 
-**Confirmed 2026-10-06:** the person who submitted the Request owns this obligation, including when the named
-PM is someone else. For ordinary measured closure, actual results, their evidence/source and the agreed
+**Confirmed 2026-10-06:** the person who submitted the Request owns this obligation, including when someone
+else did the work. For ordinary measured closure, actual results, their evidence/source and the agreed
 measurement period must be recorded first. A result below prediction is valid learning and may close;
 exceeding the prediction is not required. An overdue review remains outstanding rather than auto-closing.
 An explicitly recorded exception under §5 may close without a measured number and stays outside measured
@@ -457,14 +452,14 @@ uses the follow-up contract (§5), even while measurement of the original Reques
 
 ## 5. Locked lifecycle contract
 
-The approved target maintains two connected lifecycles. Alignment/readiness are separate conditions, not
-extra board columns or permission roles. Only the work lifecycle exists in the current implementation.
+The approved target maintains two connected lifecycles. Readiness checklists are guidance, not extra board
+columns, permission roles or gates. Only the work lifecycle exists in the current implementation.
 
 ### Work lifecycle
 
 `Open → In Progress → Done`
 
-- **Open:** saved work not yet started; in the target it may be assigned, awaiting alignment or awaiting capacity.
+- **Open:** saved work not yet started; it may be awaiting reviews or capacity.
 - **In Progress:** active design, development, or delivery work.
 - **Done:** active work has ended. Done does not mean the outcome has been measured or the Request has been
   fully closed.
@@ -477,9 +472,8 @@ Done may record a truthful completion reason:
 - Superseded
 - Not launched
 
-The existing implementation still lets eligible members pick up work and mark Done; guests may not. The
-target replaces automatic start-on-assignment with §4.6 and must enforce alignment/readiness at the relevant
-transition. Until that increment is implemented and verified, do not claim the new guards are live.
+Eligible members pick up work and mark Done; guests may not. Picking up assigns and starts work (§4.6); the
+only pickup check is a complete measurement plan.
 
 ### Outcome lifecycle
 
@@ -527,14 +521,15 @@ appear beside the unchanged closure record.
 
 | Situation | Treatment |
 |---|---|
-| Routine exploration within agreed scope | Continue the same Request; no branch or change form. |
-| Material change before release | Create a linked fresh Request with fresh agreement; creator explicitly confirms the original as permanent Superseded exception. |
+| Routine exploration within planned scope | Continue the same Request; no branch or change form. |
+| Change before pickup | Edit the Request; editing resets every review. |
+| Material change after pickup, before release | Create a linked replacement Request with its own optional reviewers; creator explicitly confirms the original as permanent Superseded exception. |
 | New work after release or closure | Create a linked follow-up Request; the predecessor is not reopened. |
 
 The user-facing action is **Create follow-up Request**, not a Git-style branch/merge workflow. A follow-up
 links back to the original Request and references useful problem context, artifacts and outcomes; it states
-what changed and why, has its own creator/participants/success criterion and obtains fresh alignment. Its
-creator owns its closure. Context can carry forward; approval and outcome completion cannot.
+what changed and why, and has its own creator, reviewers and success criterion; carried-over reviewers start
+unanswered. Its creator owns its closure. Context can carry forward; review answers and outcome completion cannot.
 
 The original remains Closed if closed, or keeps its outstanding measurement obligation if still Measuring.
 When subsequent work changes the measured experience, record the effect on the earlier measurement and its
@@ -557,7 +552,7 @@ concept for Paper exploration, not a route or schema instruction:
 
 - Confirmed problem frame.
 - Creator, assignee, and lifecycle.
-- Named trio, current agreement, unresolved concerns and alignment/readiness when implemented.
+- Reviewers, their answers and open concerns.
 - Affected audience and evidence.
 - Expected-impact summary implemented locally in existing detail; local checks passed. Actual-result
   collection and comparison remain target only.
@@ -819,8 +814,8 @@ Nikhil in plain English before it is considered complete.
 1. **Operational readiness:** authentication, isolation, recovery, deployment, and staging are trustworthy.
 2. **Intake value:** real teams repeatedly use the gate and prefer the resulting problem frames.
 3. **Requests workflow value:** the board becomes part of real work rather than a duplicate tracker.
-4. **Alignment value:** the named trio can resolve concerns and agree a commitment without redundant documents;
-   attempted progression without agreement is denied, including creator/admin and stale-version attempts.
+4. **Review value:** teams ask reviewers when it helps, and concerns reach the person picking up without
+   redundant documents or a blocking gate.
 5. **Next-problem evidence:** observed usage informs the next bounded increment of the confirmed pipeline.
 6. **Outcome-learning validation:** teams return to record outcomes or truthful exceptions and find the comparison useful.
 7. **Agent validation:** a separately approved bounded agent task saves effort without reducing human control.
@@ -833,13 +828,11 @@ Dates and enthusiasm do not advance gates. Evidence does.
 
 The confirmed pipeline is not one implementation plan. Operational release gates remain prerequisites to
 production. Expected impact creation/review/detail is implemented and locally verified.
-**Trio alignment inside existing Requests** is approved as the bounded #58 local implementation:
-participants, compact agreement, recorded concerns and a server-enforced no-bypass progression guard.
-Assignment/start separation and agreement versioning must be included wherever required to make that guard
-truthful. Its plan must define exact schema, actions, states, Storybook coverage and regression tests before coding.
+**Optional reviewers** (2026-10-21, migration `0031`) replaced the bounded #58 trio alignment: reviewers,
+Looks good / Raise a concern answers, reset on edit and a pickup confirmation, with no progression guard.
 
 Later contract slices are scoped separately: the full success/evidence contract, nonlinear artifact context,
-complete build/release readiness, measurement and creator-owned closure, immutable history/corrections and
+build/release readiness checklists, measurement and creator-owned closure, immutable history/corrections and
 follow-ups. Closure must not ship without its truthful exceptions and no-reopen/follow-up recovery contract.
 The order of later releases is chosen from dependencies and observed use; it is not a dated delivery promise.
 Workspace analytics and agentic operations remain separate, unselected hypotheses.
@@ -870,6 +863,9 @@ increment at a time.
   no in-app reviewer picker, review feedback form, decisions or new review notifications. Historical
   review data remains stored; links from those records remain accessible. This supersedes Ask for review
   from 2026-10-09 and does not add a Figma integration.
+- **2026-10-21:** Optional reviewers replace the named PM/Designer/Developer agreement and every later trio
+  plan (§4.4). Readiness checklists guide the person doing the work and never block; after pickup a material
+  change becomes a linked replacement Request; pickup by any member is the only assignment.
 - **2026-10-20:** Workspace search scope approved as shipped (plan item 2.8): Requests and Projects, matched by
   saved code, title, description and Expected impact text; status, type and created-date filters; recent
   searches (in memory only); a result preview, in a bottom sheet on narrow screens. Rich result rows stay
@@ -904,6 +900,9 @@ increment at a time.
 
 **Confirmed 2026-09-28:**
 
+_Superseded in part on 2026-10-21: optional reviewers replace the trio alignment, assignment and readiness
+sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as history._
+
 - Named PM / Designer / Developer alignment before commitment or execution; a specific recorded concern blocks
   progression. No creator/admin/timeout override. Replacement cannot erase dissent (§4.4).
 - Bounded discovery or delivery commitment; no mandatory linear exploration or diary (§4.4, §4.7).
@@ -918,10 +917,9 @@ increment at a time.
 
 ### Remaining focused design/implementation decisions
 
-- Final interaction labels and compact field presentation; schema/action boundaries and stale/concurrent
-  alignment protection; how blocking material edits are distinguished from ordinary edits.
-- Guest-created Request sponsorship, participant absence/replacement evidence, assignment acceptance and
-  outcome-owner transfer recovery. None may weaken the confirmed no-bypass rule or guest isolation.
+- Final interaction labels and compact field presentation; how a material change after pickup is told
+  apart from an ordinary correction.
+- Guest-created Request sponsorship and outcome-owner transfer recovery. Neither may weaken guest isolation.
 - Detailed partial-rollout representation, measurement-source handling and append-only correction authority.
 - Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.
@@ -937,6 +935,9 @@ increment at a time.
   plan decision 8.19); detail makes that reachable.
 
 ### Foundation clarification — confirmed 2026-10-06
+
+_Superseded in part on 2026-10-21: optional reviewers replace the trio alignment, assignment and readiness
+sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as history._
 
 - Lane's two foundations are a single source of truth for the product/journeys and expected-versus-actual
   impact at Request and quarterly/yearly product levels.
@@ -970,6 +971,6 @@ for the specific Request-level contract above. Requests remains the product surf
 to add a suite, an engineering tracker, integrations, background automation or individual performance metrics.
 
 The 2026-10-06 Expected impact creation/review/detail increment is separately authorized and implemented
-locally and verified. Bounded alignment design/planning remains target work. Every further
+locally and verified. Optional reviewers replaced the planned trio alignment on 2026-10-21. Every further
 implementation, schema, new route, AI capability and release still needs its explicit approval gate. Current
 release evidence and operational gates are unchanged. Historical planning snapshots do not override this dated amendment.

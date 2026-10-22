@@ -10,18 +10,22 @@ import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Res
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsNavigation, searchSettings, settingsEntries } from "./settings-catalog";
+import { settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
 import styles from "./settings.module.css";
 
-const sectionEvent = "lane-settings-navigation";
 function subscribe(listener: () => void) {
   window.addEventListener("popstate", listener);
   window.addEventListener(sectionEvent, listener);
   return () => { window.removeEventListener("popstate", listener); window.removeEventListener(sectionEvent, listener); };
 }
 const snapshot = () => new URLSearchParams(window.location.search).get("section") || (window.location.pathname === "/settings/members" ? "members" : "profile");
+
+/** / opens Settings search; ⌘K and Ctrl K are left to the app's command palette (issue #101). */
+export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean }, typing: boolean) {
+  return event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey;
+}
 
 export type SettingsCommandAdapterProps = {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members";
@@ -52,11 +56,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const suggestions = useMemo(() => searchSettings(entries, ""), [entries]);
 
   function select(id: string) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("section", id);
-    url.hash = "";
-    window.history.pushState(null, "", url);
-    window.dispatchEvent(new Event(sectionEvent));
+    showSettingsSection(id);
     content.current?.scrollTo({ top: 0 });
   }
   function focusDestination() {
@@ -111,13 +111,13 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     const target = event.target as HTMLElement;
     if (event.defaultPrevented || event.repeat || target.closest('[role="dialog"]')) return;
     const typing = target.isContentEditable || target.closest('input,textarea,select,[role="textbox"]');
-    if ((event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k")) {
+    if (opensSettingsSearch(event, !!typing)) {
       event.preventDefault(); event.stopPropagation(); openPalette();
     }
   }}>
     <header className={styles.header} inert={!!palette}>
       <div className={styles.heading}><Link href="/" className={styles.back} aria-label="Back to Requests"><ArrowLeft aria-hidden="true" /></Link><h1>Settings</h1></div>
-      <button ref={trigger} className={styles.searchTrigger} type="button" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K /"><Search aria-hidden="true" /><span>Search settings</span><kbd>⌘K</kbd></button>
+      <button ref={trigger} className={styles.searchTrigger} type="button" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="/"><Search aria-hidden="true" /><span>Search settings</span><kbd>/</kbd></button>
     </header>
     <aside className={styles.sidebar} inert={!!palette}>
       <nav aria-label="Settings" className={styles.navigation}><LayoutGroup id={`${uid}-nav`}>{[...new Set(nav.map(entry => entry.group))].map(group => <div key={group} className={styles.navGroup}><h2 className={styles.navGroupTitle}>{group}</h2><ul>

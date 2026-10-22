@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
 import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-reviewer-rules"
@@ -14,11 +14,43 @@ export type ConfirmPickup = (targets: PickupTarget[]) => Promise<boolean>
 /** A reviewers panel tells the confirmation what it last read for its Request; undefined when it goes away. */
 export type ReportReviewState = (requestId: string, state: ReviewState | null | undefined) => void
 
+/**
+ * #77: the pickup confirmation's logic, apart from its dialog
+ * (PickupConfirmationProvider). `show` receives what to ask, or null once it
+ * is answered; `settle` is the answer. A second request while one is shown
+ * cancels the first. What a reviewers panel last read wins for its Request.
+ */
+export function createPickupConfirmation(show: (confirmation: PickupConfirmation | null) => void) {
+  let resolver: ((confirmed: boolean) => void) | null = null
+  const latest = new Map<string, ReviewState | null>()
+
+  const report: ReportReviewState = (requestId, state) => {
+    if (state === undefined) latest.delete(requestId)
+    else latest.set(requestId, state)
+  }
+
+  const settle = (confirmed: boolean) => {
+    resolver?.(confirmed)
+    resolver = null
+    show(null)
+  }
+
+  const confirm: ConfirmPickup = targets => {
+    const confirmation = pickupConfirmation(targets, latest)
+    if (!confirmation) return Promise.resolve(true)
+    resolver?.(false)
+    return new Promise<boolean>(resolve => {
+      resolver = resolve
+      show(confirmation)
+    })
+  }
+
+  return { confirm, report, settle }
+}
+
 const PickupConfirmationContext = createContext<{ confirm: ConfirmPickup; report: ReportReviewState } | null>(null)
 PickupConfirmationContext.displayName = "PickupConfirmation"
 
-const pickUpAtOnce: ConfirmPickup = async () => true
-const reportNowhere: ReportReviewState = () => {}
 
 /**
  * #77: the one pickup confirmation, used by the detail button, the detail
@@ -35,32 +67,9 @@ const reportNowhere: ReportReviewState = () => {}
  */
 export function PickupConfirmationProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<PickupConfirmation | null>(null)
-  const resolver = useRef<((confirmed: boolean) => void) | null>(null)
-  const latest = useRef(new Map<string, ReviewState | null>())
-
-  const report = useCallback<ReportReviewState>((requestId, state) => {
-    if (state === undefined) latest.current.delete(requestId)
-    else latest.current.set(requestId, state)
-  }, [])
-
-  const settle = useCallback((confirmed: boolean) => {
-    resolver.current?.(confirmed)
-    resolver.current = null
-    setShown(null)
-  }, [])
-
-  const confirm = useCallback<ConfirmPickup>(targets => {
-    const confirmation = pickupConfirmation(targets, latest.current)
-    if (!confirmation) return Promise.resolve(true)
-    // A second request while one is open cancels the first.
-    resolver.current?.(false)
-    return new Promise<boolean>(resolve => {
-      resolver.current = resolve
-      setShown(confirmation)
-    })
-  }, [])
-
-  const value = useMemo(() => ({ confirm, report }), [confirm, report])
+  // The logic is createPickupConfirmation; this is its dialog. Its functions keep their identity.
+  const [value] = useState(() => createPickupConfirmation(setShown))
+  const { settle } = value
   const single = shown?.requests.length === 1
   return <PickupConfirmationContext.Provider value={value}>
     {children}
@@ -87,12 +96,19 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
   </PickupConfirmationContext.Provider>
 }
 
-/** The shared confirmation. Outside the provider (an isolated fixture) pickup goes ahead at once. */
-export function usePickupConfirmation(): ConfirmPickup {
-  return useContext(PickupConfirmationContext)?.confirm ?? pickUpAtOnce
+/** The (app) layout always provides the one "Pick up anyway?" confirmation. */
+function usePickupContext(hook: string) {
+  const context = useContext(PickupConfirmationContext)
+  if (!context) throw new Error(`${hook} needs PickupConfirmationProvider (the (app) layout).`)
+  return context
 }
 
-/** For the reviewers panel: report what it read so pickup confirms from it. Outside the provider it goes nowhere. */
+/** The shared confirmation. */
+export function usePickupConfirmation(): ConfirmPickup {
+  return usePickupContext("usePickupConfirmation").confirm
+}
+
+/** For the reviewers panel: report what it read so pickup confirms from it. */
 export function useReportReviewState(): ReportReviewState {
-  return useContext(PickupConfirmationContext)?.report ?? reportNowhere
+  return usePickupContext("useReportReviewState").report
 }

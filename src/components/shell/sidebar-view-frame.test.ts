@@ -1,11 +1,13 @@
 import { createElement, type ReactNode } from "react";
+import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
+  // The list view the layout reads from the URL: In Progress in the Website Project.
+  useSearchParams: () => new URLSearchParams({ status: "in_progress", project: "11111111-1111-4111-8111-111111111111" }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
@@ -15,11 +17,11 @@ import { PageStrip } from "./page-strip";
 // Plan item 2.0: the shell no longer renders a topbar; each page's strip shows
 // the shell's trail followed by its own name.
 const websiteId = "11111111-1111-4111-8111-111111111111";
-const render = (pathname: string, children?: ReactNode) => renderToStaticMarkup(createElement(SidebarView, {
+const render = (pathname: string, children?: ReactNode) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
   workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member",
-  pathname, statusFilter: "in_progress", projectFilter: websiteId,
+  pathname,
   projects: [{ id: websiteId, name: "Website", description: null }], notifications: null,
-}, children));
+}, children)));
 const crumbs = (html: string) => {
   const nav = /<nav aria-label="Breadcrumb"[^>]*>[\s\S]*?<\/nav>/.exec(html)?.[0];
   if (!nav) return null;
@@ -50,5 +52,14 @@ describe("SidebarView frame", () => {
     const html = render("/", createElement(PageStrip, { title: "Requests", heading: true }));
     expect(crumbs(html)).toBeNull();
     expect(html).toMatch(/<h1\b[^>]*>Requests<\/h1>/);
+  });
+
+  // #106: Settings renders only the page, so the palette's ⌘K is mounted in both branches.
+  it.each(["/", "/requests/x", "/settings/profile", "/settings/members"])("mounts the command palette once at %s", (pathname) => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+      workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "member", pathname, notifications: null,
+      palette: createElement("span", { "data-test-palette": "" }),
+    })));
+    expect(html.match(/data-test-palette/g)).toHaveLength(1);
   });
 });

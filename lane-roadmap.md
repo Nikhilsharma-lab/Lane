@@ -6,13 +6,14 @@
 > **2026-10-06:** product/journey source of truth and Request/quarter/year predicted-versus-actual impact
 > are core target requirements. Predictions begin at creation; the submitter owns results and closure.
 > Reasoned exception outcomes may close but are excluded from measured-impact totals.
+> **2026-10-21:** optional reviewers replace trio alignment and every later trio plan (`REQUIREMENTS.md` §4.4).
 
 `REQUIREMENTS.md` defines Lane's confirmed behaviour. This roadmap sequences focused increments through
 the product thesis: one source of truth, measurable impact, problem-first Intake and support for design
 teams without surveillance. It records what Lane builds, reshapes or refuses, and in what order.
 
 **How to read it:** `REQUIREMENTS.md` §§4–5 records confirmed product behaviour; this file sequences focused
-increments. Alignment is selected for planning, not already built. Later release order depends on dependencies
+increments. Optional reviewers replaced trio alignment on 2026-10-21. Later release order depends on dependencies
 and real use, not dates. Unrelated apps/integrations/agents remain hypotheses. No single full-pipeline build.
 
 ---
@@ -53,11 +54,11 @@ Refusing the REFUSE bucket is not deferral. It's positioning. These don't come b
 
 ## 2. The destination — one Request from problem to outcome
 
-**Requests remains Lane's product surface.** The confirmed target connects problem-first Intake, named trio
-alignment, assignment/scheduling, nonlinear discovery, complete build/release readiness, measurement and
-creator-owned closure. Closed is permanent; new work after release/closure uses a linked follow-up with fresh
-alignment. Recorded disagreement blocks progression without creator/admin override. Work stays
-Open / In Progress / Done; outcome Not started / Measuring / Closed and alignment/readiness are separate.
+**Requests remains Lane's product surface.** The confirmed target connects problem-first Intake, optional
+reviewers, pickup, nonlinear discovery, build/release readiness checklists, measurement and creator-owned
+closure. Closed is permanent; new work after release/closure uses a linked follow-up with its own reviewers.
+Reviews and readiness checklists never block progression. Work stays Open / In Progress / Done; outcome Not
+started / Measuring / Closed is separate.
 
 The 2026-10-06 clarification requires this chain to feed a shared product/journey record and quarterly/yearly
 outcome summaries. These are confirmed product requirements, distinct from the unselected generic Insights
@@ -101,24 +102,19 @@ sequence, the budgets and the open decisions; this section records only the sele
 Request features first when offered codes/priority versus trio agreement. Implement stable workspace-local
 codes, copy and existing workspace-search retrieval as one local slice; saved priority followed on 2026-10-09 (`0019`).
 See `docs/superpowers/plans/2026-10-08-saved-request-codes.md`. Staging now has `0017`–`0019` (applied 2026-10-09 after a verified export and a local rehearsal); production migration and release gates remain open.
-This selection changes the immediate sequence without removing the alignment and outcome contract below.
+This selection changed the immediate sequence without removing the outcome contract below.
 
-**Current foundational increment — Agreement before work starts (#58, approved 2026-10-21).**
-The local implementation uses three distinct named PM/Designer/Developer seats, an immutable submitted
-commitment, explicit decisions, recorded concerns and server guards for single/bulk pickup and Done.
-Submission does not approve on the creator's behalf. Pending Clerk invitations can be nominated but cannot
-approve. Participant replacement retains unchanged seats and concerns. Material changes use linked fresh
-Requests with fresh agreement; the original creator explicitly confirms Superseded as a permanent exception.
-The Open / In Progress / Done lifecycle remains unchanged. Legacy In Progress can finish unsubmitted;
-once submitted it must satisfy the complete agreement gate. No new assignment or release stage is added.
-See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md` and
-`docs/operations/request-agreement-rollout.md` for exact persistence, local evidence and outstanding
-hosted backup/staging acceptance. Local checks do not establish a production release or real pilot use.
+**Current foundational increment — Optional reviewers (#75–#78, 2026-10-21; migration `0031`).** This
+replaced the #58 named-trio agreement before it shipped. Reviewers are optional, added at creation or before
+pickup; each answers Looks good or Raise a concern with a reason. Editing the Request resets every answer.
+Reviews never block pickup; open concerns or unanswered reviews ask for confirmation. After pickup the list
+is read-only. Hosted backup, migration and staging acceptance remain separate gates. Local checks do not
+establish a production release or real pilot use.
 
-**Acceptance for the alignment increment:** creator/admin/direct-action/stale-version attempts cannot advance
-without the current trio's agreement; dissent has a specific reason; replacements cannot erase it; a team
-can align or withdraw without duplicate briefs; assignment does not bypass the start guard. Verify tenant
-isolation, recovery and accessibility alongside the user journey. Real design leads validate its usefulness.
+**Acceptance for the reviewers increment:** concerns and unanswered reviews reach the person picking up,
+single and bulk; edits reset answers and tell reviewers who had answered; guests and the requester cannot be
+reviewers. Verify tenant isolation, recovery and accessibility alongside the user journey. Real design leads
+validate its usefulness.
 
 **Later contract slices — separately planned, not a bundle:**
 
@@ -219,8 +215,8 @@ real use identifies its need. The confirmed pipeline is not permission to build 
 1. **Operational readiness:** pre-GTM auth, isolation, recovery, deployment, and live verification are done.
 2. **Intake value:** real teams repeatedly use the gate and designers prefer the resulting problem frames.
 3. **Requests workflow value:** the board becomes part of real work rather than a second source of truth.
-4. **Alignment value:** the trio can reach a clear commitment or stop with reasons, without redundant reporting;
-   server guards prevent disagreement, stale alignment and assignment from being bypassed.
+4. **Review value:** teams ask reviewers when it helps, and concerns reach the person picking up without
+   redundant reporting or a blocking gate.
 5. **Next-increment evidence:** observed use and dependencies select the next slice of the confirmed contract.
 6. **Outcome value:** teams return with results or truthful exceptions; changes remain traceable without scores.
 
@@ -238,7 +234,7 @@ product approval and sequencing rules above:
 2. **Optimistic update with rollback** — snapshot → apply → revert on error. Already on DEFERRED.md for the
    lifecycle actions; this is the proven shape.
 3. **Scoped responsibility** — derive identity from the Clerk session and enforce workspace/Request rights.
-   A creator's ownership never bypasses trio alignment, readiness or immutable closure. Plane's creator-bypass
+   A creator's ownership never bypasses immutable closure. Plane's creator-bypass
    pattern must not be copied into these transitions.
 4. **Feature flags for incremental rollout** — flip apps on per-workspace as they ship. Feature-gating only,
    never role-gating.

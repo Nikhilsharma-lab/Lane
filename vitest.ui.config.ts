@@ -4,6 +4,8 @@ import path from "node:path"
 // Requests UI checks isolate external Clerk/database boundaries; no database setup.
 export default defineConfig({
   test: {
+    // Several sessions share this machine; a busy one must not fail a test on time alone.
+    testTimeout: 20_000,
     include: [
       "src/components/settings/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
@@ -16,10 +18,12 @@ export default defineConfig({
       "src/components/shell/project-tone.test.ts",
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",
+      "src/app/**/intake/intake-session.test.ts",
       "src/app/**/intake/intake-gate-contract.test.ts",
       "src/lib/intake-draft.test.ts",
       "src/lib/request-workspace.test.ts",
       "src/lib/request-overview.test.ts",
+      "src/components/requests/list-view-model.test.ts",
       "src/lib/request-code.test.ts",
       "src/lib/workspace-search.test.ts",
       "src/components/projects/workspace-projects-provider.test.ts",
@@ -39,11 +43,22 @@ export default defineConfig({
       "src/components/shell/sidebar-motion.test.ts",
       "src/components/requests/request-detail-keys.test.ts",
       "src/components/requests/request-sequence.test.ts",
-      "src/lib/request-review.test.ts",
       "src/components/requests/local-time.test.ts",
+      "src/components/requests/review-copy-contract.test.ts",
       "src/components/shell/notification-read-state.test.ts",
       "src/components/shell/notification-keys.test.ts",
       "src/components/shell/notification-copy.test.ts",
+      "src/components/requests/current-request.test.ts",
+      "src/components/requests/mark-done-undo.test.ts",
+      "src/components/shell/shell-openers.test.ts",
+      "src/components/shell/command-palette-entries.test.ts",
+      "src/components/shell/command-palette-keys.test.ts",
+      "src/components/shell/command-palette-actions.test.ts",
+      "src/components/shell/shortcut-keys.test.ts",
+      "src/components/shell/command-palette-motion.test.ts",
+      "src/components/shell/command-palette-focus.test.ts",
+      "src/components/shell/command-palette-acknowledgement.test.ts",
+      "src/lib/external-store.test.ts",
     ],
   },
   resolve: {

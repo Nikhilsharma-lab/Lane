@@ -26,7 +26,7 @@ INSERT INTO profiles (id, full_name, email, role)
 VALUES ('user_test_admin_b', 'Test Admin B', 'admin-b@test.local', 'developer')
 ON CONFLICT DO NOTHING;
 
--- Open request in workspace A (used by auth-guard, guest-isolation, isolation tests)
+-- Open request in workspace A (used by auth-guard and isolation tests)
 INSERT INTO requests (id, org_id, title, description, status, created_by)
 VALUES ('de7fe180-b51b-4714-8e82-42b775fe53d4', 'org_test_a', 'Test Open Request', 'A request for forge tests', 'open', 'user_test_admin_a')
 ON CONFLICT DO NOTHING;

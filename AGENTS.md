@@ -32,6 +32,7 @@ Requests (not tickets/tasks) · Intake (not backlog) · Prove (not sign-off) · 
 Active Requests (not streams). Roles: **PM / Designer / Developer** (on `profiles.role`).
 Request lifecycle for the MVP is just **Open → In Progress → Done** — the Sense/Frame/Diverge/Converge/Prove
 design stages are DEFERRED, not built now.
+Reviewer terms and retired words (Agreement, Design review): `GLOSSARY.md`.
 
 ## Stack
 

@@ -1,14 +1,17 @@
 "use server";
+import { REQUEST_CONTEXT_FIELDS } from "@/lib/request-schema";
+import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
-import { labelRequestType } from "@/lib/request-labels";
+import { sourceRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, requests } from "@/db";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { requireActiveMember, refusal } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, incompleteMeasurementSchema } from "@/lib/request-impact";
 import { verifyTriageToken } from "@/lib/triage-token";
+import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
@@ -22,7 +25,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
         return { error: "Request unavailable." };
     const auth = await requireActiveMember(context.orgId);
     if (!auth)
-        return { error: "Request unavailable." };
+        return { error: await refusal("Request unavailable.") };
     const parsed = editSchema.safeParse(input);
     if (!parsed.success)
         return { error: parsed.error.issues[0].message };
@@ -32,7 +35,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
         if (!await canUseProject(changes.projectId, auth))
             return { error: "This Project is unavailable. Choose another Project." };
         const result = await db.transaction(async (tx) => {
-            const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId))).for("update");
+            const [stored] = await tx.select().from(requests).where(and(eq(requests.id, requestId), changeable(auth))).for("update");
             if (!stored)
                 return { error: "Request unavailable." };
             if (stored.status !== "open")
@@ -48,25 +51,35 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const impactStorage = complete.success
                 ? { expectedImpact: complete.data, measurementDraft: null }
                 : { expectedImpact: null, measurementDraft: partial?.success ? partial.data : null };
+            // Changed wording needs a fresh review of this Request, which sets the
+            // classification and the suggested change. Unchanged wording keeps the
+            // stored judgement; its framing is the person's to reword, never to drop.
             let classification = stored.classification;
+            let shape = storedShape(stored);
+            let extractedSolution = changes.extractedSolution;
+            let missingProblem: string | undefined;
             if (stored.title !== changes.title || stored.description !== changes.description) {
                 const review = token ? verifyTriageToken(token, auth, requestId) : null;
                 if (!review?.valid || review.payload.title !== changes.title || review.payload.description !== changes.description)
                     return { error: "Review the changed title and description before saving." };
                 classification = review.payload.classification;
+                shape = framingShape(classification);
+                extractedSolution = review.payload.extractedSolution;
+                missingProblem = "Describe the problem before saving this Request.";
             }
-            if ((classification === "solution" || classification === "hybrid") && !changes.reframedProblem)
-                return { error: "Keep a confirmed problem framing for this Request." };
+            const saved = savedFraming(shape, { reframedProblem: changes.reframedProblem, extractedSolution }, missingProblem);
+            if (!saved.ok)
+                return { error: saved.message };
             // Empty controls represent existing nulls; an unrelated edit must
             // not rewrite historical context merely because the form uses strings.
             const preservedContext = Object.fromEntries(
-                (["affectedPeople", "desiredChange", "observedEvidence", "uncertainty", "usefulLink"] as const)
+                REQUEST_CONTEXT_FIELDS
                     .filter(key => stored[key] === null && changes[key] === "")
                     .map(key => [key, null])
             );
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
-            await tx.update(requests).set({ ...changes, requestType: changes.labelKeys ? labelRequestType(changes.labelKeys) : changes.requestType, ...preservedContext, ...impactStorage, classification }).where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open")));
+            await tx.update(requests).set({ ...changes, requestType: sourceRequestType(changes), ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
             return { success: true as const };
         });
         // The shared editor closes and announces success before refreshing.

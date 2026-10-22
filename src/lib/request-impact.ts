@@ -134,6 +134,16 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
   return parsed.data;
 });
 
+/**
+ * Expected impact for a new Request: a complete measurement plan only. The
+ * Metric and Verified result kinds remain readable and editable on the older
+ * Requests that saved them; nothing creates them any more (architecture
+ * review I5, 2026-10-22).
+ */
+export const newRequestImpactSchema = requiredExpectedImpactSchema.superRefine((impact, context) => {
+  if (impact.kind !== "measurement") context.addIssue({ code: "custom", message: "Choose what to measure for this Request" });
+});
+
 /** How much of the Expected impact draft is filled in, for the composer's
  * collapsed disclosure row (plan item 2.3, decision 8.26). "complete" means the
  * strict review schema accepts it, so an open guardrail edit is never complete;

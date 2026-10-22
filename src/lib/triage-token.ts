@@ -1,4 +1,4 @@
-import { labelKeysSchema, labelRequestType } from "./request-labels";
+import { labelKeysSchema, sourceRequestType } from "./request-labels";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { expectedImpactSchema } from "./request-impact";
@@ -90,7 +90,7 @@ export function createTriageToken(
     userId: context.userId,
     expectedImpact: existingRequestId ? expectedImpactSchema.safeParse(input.expectedImpact).data ?? null : expectedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
-    requestType: input.labelKeys ? labelRequestType(input.labelKeys) : input.requestType ?? null,
+    requestType: sourceRequestType(input),
     labelKeys: input.labelKeys,
     priority: input.priority ?? "none",
     title: input.title,
@@ -150,8 +150,11 @@ export function verifyTriageToken(
       return { valid: false, reason: "context_mismatch" };
     }
 
+    // A review redeems only for what it was issued for: an edit review for
+    // its own Request, a new-Request review only for creating one.
+    if ((parsed.data.purpose === "edit") !== (existingRequestId !== undefined)) return { valid: false, reason: "context_mismatch" };
     if (parsed.data.purpose === "edit") {
-      if (!existingRequestId || parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
+      if (parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
       return { valid: true, payload: parsed.data };
     }
     if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };

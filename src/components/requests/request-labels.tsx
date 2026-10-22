@@ -1,19 +1,10 @@
 "use client";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Building2, Folder, Plus, Tags } from "lucide-react";
-import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/arc/badge/badge";
-import { Button } from "@/components/arc/button/button";
-import { Input } from "@/components/arc/input/input";
-import { Checkbox } from "@/components/arc/checkbox/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
-import { createLabel } from "@/app/(app)/intake/label-actions";
-import { LABEL_COLOURS, requestLabelKeys, type LabelColour, type RequestLabel } from "@/lib/request-labels";
+import { requestLabelKeys, type LabelColour } from "@/lib/request-labels";
 import type { RequestType } from "@/lib/request-constants";
-import { pickerPopoverProps } from "./request-property-pickers";
 import { useWorkspaceLabels } from "./workspace-labels";
 import styles from "./request-labels.module.css";
-import pickerStyles from "./request-property-pickers.module.css";
 export function LabelDot({colour}:{colour:LabelColour}) { return <span className={styles.dot} data-colour={colour} aria-hidden="true"/>; }
 export function useRequestLabels(request:{labelKeys?:string[]|null;requestType?:RequestType|null}) {
  const {labels}=useWorkspaceLabels();
@@ -25,41 +16,4 @@ export function LabelBadge({ children, icon, className }: { children: ReactNode;
 export function RequestLabels({request, compact = false}:{request:{labelKeys?:string[]|null;requestType?:RequestType|null}; compact?: boolean}) {
  const labels=useRequestLabels(request);
  return <span className={compact ? styles.compactLabels : styles.labels}>{labels.length ? (compact ? labels.slice(0,1) : labels).map(label=><LabelBadge key={label.id} icon={<LabelDot colour={label.colour}/>}>{label.name}</LabelBadge>) : <LabelBadge>No labels</LabelBadge>}{compact && labels.length > 1 && <LabelBadge className={styles.count}>+{labels.length - 1}</LabelBadge>}</span>;
-}
-function LabelSelection({chosen}:{chosen:RequestLabel[]}) {
- const icon = !chosen.length ? <Tags aria-hidden="true"/> : chosen.length > 1 ? <span className={styles.dotStack}>{chosen.slice(0,3).map(label=><LabelDot key={label.id} colour={label.colour}/>)}</span> : <LabelDot colour={chosen[0].colour}/>;
- return <span className={pickerStyles.chipContent}>{icon}<span className={pickerStyles.chipLabel}>{chosen.length > 1 ? `${chosen.length} labels` : chosen[0]?.name ?? "Labels"}</span></span>;
-}
-export function RequestLabelsPicker({orgId,value,onChange,disabled,project}:{orgId:string;value:string[];onChange:(keys:string[])=>void;disabled?:boolean;project?:{id:string;name:string}|null}) {
- const {toast}=useToastStack();
- const catalogue=useWorkspaceLabels(),id=useId(),search=useRef<HTMLInputElement>(null),stepFocus=useRef<HTMLButtonElement>(null);
- const [open,setOpen]=useState(false),[query,setQuery]=useState(""),[step,setStep]=useState<"labels"|"scope"|"colour">("labels"),[scopeProjectId,setScopeProjectId]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
- useEffect(()=>{if(open){if(step==="labels")search.current?.focus();else stepFocus.current?.focus();}},[step,open]);
- const chosen=value.map(key=>catalogue.labels.find(label=>label.id===key)).filter((label):label is RequestLabel=>!!label);
- const normalized=query.trim().replace(/\s+/g," ");
- const shown=catalogue.labels.filter(label=>(!label.projectId || label.projectId===project?.id || value.includes(label.id)) && label.name.toLowerCase().startsWith(normalized.toLowerCase())).sort((a,b)=>Number(value.includes(b.id))-Number(value.includes(a.id)));
- async function create(colour: LabelColour) {
-  setBusy(true);setError(null);
-  try {const result=await createLabel({name:normalized,colour,projectId:scopeProjectId},{orgId});
-   if(result.success){catalogue.add(result.label);onChange([...new Set([...value,result.label.id])]);setStep("labels");setQuery("");toast({type:"success",title:"Label added"});}
-   else setError(result.error);
-  } catch {setError("The label could not be created. Try again.");}
-  finally {setBusy(false);}
- }
- return <Popover open={open} onOpenChange={next=>{if(!busy){setOpen(next);if(!next){setStep("labels");setQuery("");setError(null);}}}}>
-  <PopoverTrigger asChild><Button variant="secondary" size="sm" className={pickerStyles.trigger} id="intake-request-labels" type="button" disabled={disabled} aria-label={chosen.length ? `Labels: ${chosen.map(label=>label.name).join(", ")}` : "Labels"}><LabelSelection chosen={chosen}/></Button></PopoverTrigger>
-  <PopoverContent {...pickerPopoverProps} className={styles.panel} aria-label={step === "labels" ? "Labels" : step === "scope" ? "Label scope" : "Label colour"} onOpenAutoFocus={event=>{event.preventDefault();search.current?.focus();}}>
-   {step === "labels" && <div className={styles.search}><Input ref={search} label="Search labels" hideLabel appearance="plain" placeholder="Add labels…" value={query} maxLength={80} onChange={event=>{setQuery(event.target.value);setError(null);}} disabled={busy} onKeyDown={event=>{if(event.key==="ArrowDown"){event.preventDefault();event.currentTarget.closest('[role="dialog"]')?.querySelector<HTMLButtonElement>('[role="checkbox"]')?.focus();}}}/></div>}
-   {step === "scope" ? <><p className={styles.caption}>Pick a scope for label</p><Button ref={stepFocus} type="button" size="sm" variant="ghost" className={styles.colourOption} onClick={()=>{setScopeProjectId(null);setStep("colour");}}><Building2 aria-hidden="true"/>Workspace</Button>{project ? <Button type="button" size="sm" variant="ghost" className={styles.colourOption} onClick={()=>{setScopeProjectId(project.id);setStep("colour");}}><Folder aria-hidden="true"/>{project.name}</Button> : <p className={styles.caption}>Choose a Project on the Request first to create a Project label.</p>}<Button type="button" size="sm" variant="ghost" onClick={()=>setStep("labels")}>Back</Button></> : step === "colour" ? <><p className={styles.caption}>Pick a colour for “{normalized}”</p><div className={styles.options}>{LABEL_COLOURS.map((colour,index)=><Button ref={index===0 ? stepFocus : undefined} key={colour} type="button" variant="ghost" size="sm" className={styles.colourOption} disabled={busy || !normalized || value.length>=20} onClick={()=>void create(colour)}><LabelDot colour={colour}/>{colour[0].toUpperCase()+colour.slice(1)}</Button>)}</div><Button type="button" variant="ghost" size="sm" disabled={busy} onClick={()=>setStep("scope")}>Back</Button>{busy && <p role="status">Creating label…</p>}</> : <>
-    <div className={styles.options} role="group" aria-label="Available labels" onKeyDown={event=>{if(!["ArrowDown","ArrowUp","Home","End"].includes(event.key))return;const items=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="checkbox"]'));const index=items.indexOf(event.target as HTMLButtonElement);if(index<0)return;event.preventDefault();items[event.key==="Home" ? 0 : event.key==="End" ? items.length-1 : (index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length]?.focus();}}>
-     {shown.map(label=><div key={label.id} className={styles.option}><label htmlFor={`${id}-${label.id}`}><LabelDot colour={label.colour}/><span className={styles.name}>{label.name}</span>{label.projectId && <span className={styles.scopeHint}>{label.projectId === project?.id ? "Project" : "Other Project — remove to save"}</span>}</label><Checkbox className={styles.checkbox} id={`${id}-${label.id}`} aria-label={label.name} checked={value.includes(label.id)} disabled={busy || (!value.includes(label.id)&&value.length>=20)} onCheckedChange={checked=>onChange(checked ? [...value,label.id] : value.filter(key=>key!==label.id))}/></div>)}
-    </div>
-    {catalogue.loading && <p role="status">Loading labels…</p>}
-    {catalogue.error && <><p role="alert" className={styles.error}>{catalogue.error}</p><Button type="button" size="sm" onClick={catalogue.reload}>Retry</Button></>}
-    {!shown.length && !catalogue.loading && !catalogue.canCreate && <p>No matching labels</p>}
-    {normalized && !shown.length && !catalogue.loading && catalogue.canCreate && !catalogue.error && <Button type="button" size="sm" variant="ghost" className={styles.create} disabled={value.length>=20} onClick={()=>setStep("scope")}><Plus aria-hidden="true"/>{normalized && !shown.some(label=>label.name.toLowerCase()===normalized.toLowerCase()) ? `Create new label: “${normalized}”` : "Create custom label…"}</Button>}
-   </>}
-   {error && <p role="alert" className={styles.error}>{error}</p>}
-  </PopoverContent>
- </Popover>;
 }

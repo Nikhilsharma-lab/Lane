@@ -12,8 +12,11 @@ type Pane = ComponentType<WorkspaceSearchPaneProps>
 // Plan item 2.8: the search pane (results, facets, preview, bottom sheets) stays out of every
 // route's first load. The shell preloads it once the page is idle, and again when search opens;
 // from then on it renders synchronously, with no fallback. The precedent is date-range-picker-lazy.tsx.
+// It shares its dynamic import with the ⌘K palette (shell-lazy-surfaces.ts, #107).
 let loaded: Pane | null = null
-const load = () => import("./workspace-search-pane").then(module => (loaded = module.WorkspaceSearchPane))
+/** The one dynamic import of the shell's on-demand surfaces; the ⌘K palette's host loads through it too. */
+export const loadShellSurfaces = () => import("./shell-lazy-surfaces")
+const load = () => loadShellSurfaces().then(module => (loaded = module.WorkspaceSearchPane))
 
 export function preloadWorkspaceSearch() {
   void load().catch(() => undefined)

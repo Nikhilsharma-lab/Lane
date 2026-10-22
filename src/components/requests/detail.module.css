@@ -98,10 +98,6 @@
   .editLabel { display: none; }
 }
 
-/* Match the compact empty review action while its chunk loads. */
-.reviewFallback { display: grid; }
-.reviewFallbackHeader { display: flex; height: var(--control-height-md); align-items: center; }
-
 /* The skeleton draws the loaded page's boxes. */
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
 .skeletonBlocks { display: grid; gap: var(--space-6); }
