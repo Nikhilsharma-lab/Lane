@@ -1,5 +1,6 @@
 "use client"
 
+import { listFiltersOf } from "./list-view-model"
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
@@ -143,10 +144,7 @@ export function useListViewSnapshot() {
 }
 
 /** The filters DataTable applies, read from a view. */
-export function listFiltersOf(view: ListViewState): ListFilters {
-  const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
-  return { status: view.status, project: view.project, title: local("title"), requestType: local("requestType") }
-}
+export { listFiltersOf }
 
 /**
  * Plan item 2.3: the smallest change to the view that shows this Request.

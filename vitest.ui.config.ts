@@ -18,6 +18,7 @@ export default defineConfig({
       "src/lib/intake-draft.test.ts",
       "src/lib/request-workspace.test.ts",
       "src/lib/request-overview.test.ts",
+      "src/components/requests/list-view-model.test.ts",
       "src/lib/request-code.test.ts",
       "src/lib/workspace-search.test.ts",
       "src/components/projects/workspace-projects-provider.test.ts",
