@@ -218,3 +218,33 @@ test("the error page paints the saved light/dark setting", async ({ browser }) =
     }
   }
 });
+
+/**
+ * #96: the browser tab colour follows Lane's resolved theme (the saved Profile choice), not only the
+ * device setting. The browser uses the first theme-color meta whose media query matches.
+ */
+test("the tab colour follows the saved light/dark setting", async ({ browser }) => {
+  const tabColours = JSON.parse(
+    readFileSync(path.join(__dirname, "..", "src", "app", "theme-color.json"), "utf8")
+  ) as Record<Mode, string>;
+  for (const { saved, device, expected } of ERROR_PAGE_CASES) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: device });
+    try {
+      await context.addInitScript((theme) => localStorage.setItem("theme", theme), saved);
+      const page = await context.newPage();
+      await page.goto("/login");
+      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
+      await settle(page, expected);
+      const tabColour = () =>
+        page.evaluate(() => {
+          const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
+          return metas.find((meta) => !meta.media || matchMedia(meta.media).matches)?.content ?? null;
+        });
+      await expect
+        .poll(tabColour, { message: `tab colour with "${saved}" saved on a ${device} device` })
+        .toBe(tabColours[expected]);
+    } finally {
+      await context.close();
+    }
+  }
+});

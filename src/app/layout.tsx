@@ -33,7 +33,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "Lane", description },
 };
 
-// The browser tab follows the system colour scheme with the theme's light and dark backgrounds.
+// The browser tab starts on the device colour scheme with the theme's light and dark backgrounds;
+// TabColour (in ThemeProvider) then switches it to Lane's resolved theme, the saved Profile choice.
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: tabColours.light },

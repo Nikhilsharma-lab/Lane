@@ -28,7 +28,9 @@ Decided 2026-10-22 (spec [#87](https://github.com/Nikhilsharma-lab/Lane/issues/8
 - Exact corner steps, written as ratios of tweakcn's `--radius`, so tweakcn's corner slider still moves every corner in proportion.
 - Type sizes and weights, spacing steps, component sizes (buttons, rows, header, icons, badges) and motion.
 
-Additions never reuse a name tweakcn exports, so a re-paste can't clash with them. Anything that differs between light and dark has a value in both `:root` and `.dark`.
+**Two tweakcn names Lane does not paint with.** The bridge points `--accent` at the `--accent-ink` addition (Arc's `--accent` is brand ink; tweakcn's is a grey hover read only by its preview) and `--border` at the see-through `--hairline` addition (tweakcn exports drop transparency, so its `--border` is opaque). Both tweakcn values stay in the paste untouched.
+
+Additions never reuse a name tweakcn exports (its `@theme inline` keys included), so a re-paste can't clash with them; `pnpm design:check` fails if one does. Anything that differs between light and dark has a value in both `:root` and `.dark`.
 
 ## Before the first real re-paste
 
@@ -48,13 +50,14 @@ If you change the font in tweakcn, an engineer also needs to load the new font i
 
 - **Keep the theme saved in tweakcn.** Importing an exported file back into tweakcn loses the shadow offsets and the letter-spacing. The saved theme in tweakcn is the real source; the CSS is a copy.
 - **Transparency is dropped** in every export format except rgb. That is why Lane's see-through lines and washes live in Lane additions.
-- **One radius, four corners.** tweakcn only exports small to extra-large corners from one `--radius`. Lane's exact corner steps are in additions, as ratios of `--radius`.
+- **One radius, four corners.** tweakcn only exports small to extra-large corners (`--radius-sm` to `--radius-xl`) from one `--radius`. Lane's exact corner steps are in additions as `--corner-*`, ratios of `--radius`; the bridge points the `--radius-*` names Arc, Lane and Tailwind read at them.
 - **tweakcn's preview won't match Lane exactly** for corner steps, menu shadows and slots Lane doesn't use (tweakcn's grey `--accent`, the charts it previews).
 - Lane sets dark mode with the `.dark` class tweakcn expects; your light/dark/system choice in Profile keeps working.
 
 ## Rules for code (enforced by `pnpm design:check`)
 
 - Product CSS and JSX write no visual literals: no colour, px/rem, ms or font values. They read theme or bridge names. Mechanical exceptions only: the 1px screen-reader pattern, zero values, media/container query thresholds, SVG geometry, measured layout, and Arc's JavaScript motion springs (`src/components/arc/motion-tokens.ts`, a recorded exemption).
+- Only the theme file (and Arc's layered foundation) has dark-mode selectors (`.dark`, `[data-theme="dark"]`, `prefers-color-scheme: dark`). When a screen looks different in dark, give it a Lane additions token with a light and a dark value.
 - The bridge holds only renames: no literals, calculations, colour mixing, keywords or dark-mode selectors. Every name it reads must be defined in `theme.css`.
 - Every Arc foundation name must be defined by the theme or the bridge, so no Arc default can paint.
 - Icons read `--icon-size` (roles xs to 2xl via `data-icon-size`); numeric icon sizes are rejected. Search inputs use Arc `SearchField`. Page CSS must not override shared control padding, corners or materials.
@@ -70,7 +73,7 @@ The values are the 2026-10-13 Supabase-derived values, copied as-is, including c
 
 ## Brand assets
 
-`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest, browser tab colours (`src/app/theme-color.json`, read by the root layout) and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneMark` in `src/components/auth/auth-shell.tsx`.
+`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest, browser tab colours (`src/app/theme-color.json`, read by the root layout and by `TabColour`, which switches the tab to Lane's resolved theme, the saved Profile choice) and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneMark` in `src/components/auth/auth-shell.tsx`.
 
 ## History
 

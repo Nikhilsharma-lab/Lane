@@ -3,6 +3,7 @@ import ts from 'typescript'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve, relative, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { luminance, parseColour } from './colour.mjs'
 
 // Source definitions are audited separately by provenance. Consumers have no blanket vendor exemption.
 // A policy names where values may be written and which file owns shared control tokens. The one theme
@@ -13,14 +14,22 @@ export const themeFiles = {
   bridge: 'src/styles/theme-bridge.css',
   foundation: 'src/components/arc/foundation.css',
 }
-const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge, ownerMayMix: false })
+const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge })
 const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt)\b/gi
 const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
 
 export function auditCss(css, file = 'component.css', policy = themePolicy()) {
-  const { sources, controlOwner, ownerMayMix } = policy
+  const { sources, controlOwner } = policy
   const errors = []
-  postcss.parse(css, { from: file }).walkDecls(d => {
+  const tree = postcss.parse(css, { from: file })
+  // Light and dark differences live in the theme file as tokens with both values; a dark
+  // selector anywhere else is a second, hidden place a mode's look is decided.
+  if (!sources.has(file)) tree.walk(node => {
+    const darkRule = node.type === 'rule' && /\.dark(?![\w-])|data-theme=["']?dark/.test(node.selector)
+    const darkMedia = node.type === 'atrule' && node.name === 'media' && /prefers-color-scheme:\s*dark/.test(node.params)
+    if (darkRule || darkMedia) errors.push(`${file}:${node.source.start.line} ${darkRule ? node.selector : `@media ${node.params}`} is a dark-mode selector: put the light and dark values in a Lane additions token`)
+  })
+  tree.walkDecls(d => {
     if (sources.has(file)) return
     const selector = d.parent.selector ?? ''
     const accessibility = /(?:srOnly|sr-only|visually-hidden)/i.test(selector)
@@ -30,14 +39,14 @@ export function auditCss(css, file = 'component.css', policy = themePolicy()) {
     const fixedType = /^(?:font-weight|line-height|letter-spacing)$/.test(d.prop) && /^-?[.\d]+$/.test(d.value) && !['0', '1'].includes(d.value)
     // Component geometry/materials belong to their shared implementation. Semantic
     // Badge tone and row-density composition remain legitimate context decisions.
-    const sharedControlToken = /^--(?:sb-|button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
+    const sharedControlToken = /^--(?:button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
     const ownsControlTokens = file === controlOwner || file.startsWith('src/components/arc/')
-    if (sharedControlToken && (!ownsControlTokens || d.prop.startsWith('--sb-') && file !== controlOwner)) {
+    if (sharedControlToken && !ownsControlTokens) {
       errors.push(`${file}:${d.source.start.line} shared control override ${d.prop}: update the shared component or theme mapping`)
     }
     // The Supabase-era token files are retired: nothing may read their names again.
     if (/var\(\s*--sb-/.test(d.value)) errors.push(`${file}:${d.source.start.line} ${d.prop} reads a retired --sb-* token: use the theme file's name`)
-    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value) && !(ownerMayMix && file === controlOwner && d.prop.startsWith("--") && d.value.startsWith("color-mix(") && !/#[\da-f]|\b(?:rgb|oklch)\(/i.test(d.value))) || fixedType) {
+    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value)) || fixedType) {
       errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value}`)
     }
   })
@@ -224,6 +233,10 @@ function splitTheme(css, file) {
 
 const darkScope = /\.dark\b|\[data-theme=["']?dark/
 const colourLiteral = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(|(?<![\w-])(?:black|white)\b(?!-)/i
+// A colour function whose colour channels are only var() references (hsl(var(--edge) / .1))
+// follows those references, so it is not a literal; its alpha may still be a number.
+const referencedColour = /\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(\s*(?:var\(--[\w-]+\)\s*)+(?=[/)])/gi
+const hasColourLiteral = value => colourLiteral.test(value.replace(referencedColour, 'var-colour('))
 
 // A literal colour in Lane additions is assumed to change between light and dark, so it
 // needs both values even when they match; otherwise dark mode silently falls back to light.
@@ -231,6 +244,14 @@ const colourLiteral = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)
 export function auditThemeFile(css, file = themeFiles.theme) {
   const theme = splitTheme(css, file)
   if (!theme) return [`${file} has no /* ${laneAdditionsMarker} */ marker: restore Lane's half below the tweakcn paste`]
+  const errors = []
+  // A re-paste replaces the tweakcn half wholesale; an addition sharing one of its names
+  // (its @theme inline keys included) would silently fight it.
+  const tweakcnNames = new Set()
+  for (const node of theme.tweakcn) node.walkDecls?.(d => { if (d.prop.startsWith('--')) tweakcnNames.add(d.prop) })
+  for (const node of theme.additions) node.walkDecls?.(d => {
+    if (tweakcnNames.has(d.prop)) errors.push(`${file}:${d.source.start.line} ${d.prop} is a name tweakcn exports: give the Lane addition its own name and point consumers at it in the bridge`)
+  })
   const light = new Map()
   const dark = new Map()
   for (const node of theme.additions) node.walkDecls?.(d => {
@@ -238,8 +259,7 @@ export function auditThemeFile(css, file = themeFiles.theme) {
     const scope = d.parent.type === 'rule' && darkScope.test(d.parent.selector) ? dark : light
     if (!scope.has(d.prop)) scope.set(d.prop, d)
   })
-  const errors = []
-  for (const [name, d] of light) if (!dark.has(name) && colourLiteral.test(d.value)) {
+  for (const [name, d] of light) if (!dark.has(name) && hasColourLiteral(d.value)) {
     errors.push(`${file}:${d.source.start.line} ${name} has a light colour but no dark value: add it to the Lane additions .dark block`)
   }
   for (const [name, d] of dark) if (!light.has(name)) {
@@ -309,42 +329,12 @@ export const contrastPairs = [
 ]
 export const minimumContrast = 4.5
 
-const channel = value => value.trim() === 'none' ? 0 : value.trim().endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
-const toLinear = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-const oklabToLinear = (l, a, b) => {
-  const [l_, m_, s_] = [l + 0.3963377774 * a + 0.2158037573 * b, l - 0.1055613458 * a - 0.0638541728 * b, l - 0.0894841775 * a - 1.291485548 * b].map(v => v ** 3)
-  return [4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_, -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_, -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_]
-}
-const hslToSrgb = (h, s, l) => [0, 8, 4].map(n => { const k = (n + h / 30) % 12; return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)) })
-
 // Linear-light sRGB of an opaque colour literal, or null for anything else (see-through,
 // color-mix, unknown syntax): those pairs are skipped rather than guessed.
 function linearRgb(value) {
-  const text = value.trim().toLowerCase()
-  const hex = text.match(/^#([\da-f]{3,8})$/)
-  if (hex) {
-    let digits = hex[1]
-    if (digits.length <= 4) digits = [...digits].map(d => d + d).join('')
-    if (digits.length === 8 && digits.slice(6) !== 'ff') return null
-    return [0, 2, 4].map(i => toLinear(Number.parseInt(digits.slice(i, i + 2), 16) / 255))
-  }
-  if (text === 'white') return [1, 1, 1]
-  if (text === 'black') return [0, 0, 0]
-  const fn = text.match(/^(rgba?|hsla?|oklch|oklab)\((.*)\)$/)
-  if (!fn) return null
-  const [colour, alpha] = fn[2].split('/')
-  if (alpha !== undefined && channel(alpha) < 1) return null
-  const parts = colour.trim().split(/[\s,]+/)
-  if (parts.length !== 3) return null
-  if (fn[1].startsWith('rgb')) return parts.map(part => toLinear(part.endsWith('%') ? channel(part) : Number.parseFloat(part) / 255))
-  if (fn[1].startsWith('hsl')) return hslToSrgb(Number.parseFloat(parts[0]), channel(parts[1]), channel(parts[2])).map(toLinear)
-  const lightness = channel(parts[0])
-  if (fn[1] === 'oklab') return oklabToLinear(lightness, channel(parts[1]), channel(parts[2]))
-  const chroma = channel(parts[1])
-  const hue = channel(parts[2]) * Math.PI / 180
-  return oklabToLinear(lightness, chroma * Math.cos(hue), chroma * Math.sin(hue))
+  const colour = parseColour(value)
+  return colour && colour.alpha >= 1 ? colour.linear : null
 }
-const luminance = rgb => { const [r, g, b] = rgb.map(c => Math.min(1, Math.max(0, c))); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
 
 // Reads tweakcn's light and dark slots the way the browser would: dark falls back to light,
 // and var() references are followed within the same mode.
@@ -397,8 +387,7 @@ export function auditThemeContract(root, files = themeFiles) {
   return { errors, warnings, exemptions: themeExemptions }
 }
 
-// Runs the one-theme-file contract on the repo (or `--root <dir>`). `--theme` is accepted for
-// compatibility with the #90 entry point; it is the only check now.
+// Runs the one-theme-file contract on the repo (or `--root <dir>`).
 function runThemeCheck(argv) {
   const rootFlag = argv.indexOf('--root')
   const root = rootFlag === -1 ? resolve(import.meta.dirname, '../..') : resolve(argv[rootFlag + 1])

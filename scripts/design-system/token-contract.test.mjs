@@ -17,11 +17,11 @@ test('accepts tokens, derived spacing and geometric mechanics', () => {
 })
 
 test('pages cannot redefine shared control tokens even with token-valued overrides', () => {
-  for (const token of ['--sb-spacing', '--button-padding-sm', '--input-background', '--badge-gap', '--segment-radius']) {
+  for (const token of ['--button-padding-sm', '--input-background', '--badge-gap', '--segment-radius']) {
     const css = `.page { ${token}: var(--space-1) }`
     assert.equal(auditCss(css, 'src/components/shell/page.module.css').length, 1, token)
     assert.deepEqual(auditCss(css, 'src/styles/theme-bridge.css'), [])
-    assert.equal(auditCss(css, 'src/components/arc/button/button.module.css').length, token.startsWith('--sb-') ? 1 : 0)
+    assert.deepEqual(auditCss(css, 'src/components/arc/button/button.module.css'), [])
   }
   assert.deepEqual(auditCss('.page { padding: var(--button-padding-sm); --content-width: calc(var(--space-1) * 80) }'), [])
   assert.deepEqual(auditCss('.row[data-selected] { --badge-background: var(--selection-background) }'), [])
@@ -36,6 +36,15 @@ test('search inputs have one shared component owner', () => {
   }
   assert.deepEqual(tokenContract.auditSharedControls('const view = <SearchField label="Search" value="" onValueChange={change} />'), [])
   assert.deepEqual(tokenContract.auditSharedControls('const view = <input type="file" />'), [])
+})
+test('only the theme file has dark-mode selectors; light/dark differences are theme tokens', () => {
+  for (const css of [':global([data-theme="dark"]) .thumb { box-shadow: none; }', ':global(.dark) .row { background: var(--surface); }', '.dark .row { color: var(--foreground); }', '@media (prefers-color-scheme: dark) { .row { color: var(--foreground); } }']) {
+    const errors = auditCss(css, 'src/components/shell/page.module.css')
+    assert.equal(errors.length, 1, `${css}\n${errors.join('\n')}`)
+    assert.match(errors[0], /^src\/components\/shell\/page\.module\.css:1 .*dark/)
+    assert.deepEqual(auditCss(css, 'src/styles/theme.css'), [])
+  }
+  assert.deepEqual(auditCss('.darkMode .row, .dark-panel { color: var(--foreground); } @media (prefers-color-scheme: light) { .x { color: var(--foreground); } }', 'src/components/shell/page.module.css'), [])
 })
 test('responsive thresholds and comments are not declarations', () => {
   assert.deepEqual(auditCss('/* old padding: 8px */ @media (max-width: 640px) { .x { padding: var(--space-2); } }'), [])
@@ -141,12 +150,12 @@ const cleanTheme = `@import "tailwindcss";
 @theme inline { --color-background: var(--background); --radius-sm: calc(var(--radius) - 4px); }
 
 /* Lane additions */
-:root { --accent-ink: var(--primary); --hairline: oklch(0 0 0 / .081); --radius-lg: calc(var(--radius) * 4 / 3); --duration-standard: 200ms; }
+:root { --accent-ink: var(--primary); --hairline: oklch(0 0 0 / .081); --corner-lg: calc(var(--radius) * 4 / 3); --duration-standard: 200ms; }
 .dark { --accent-ink: oklch(0.76 0.15 157.5); --hairline: oklch(1 0 0 / .075); }
 `
-const cleanBridge = `:root { --accent: var(--accent-ink); --border: var(--hairline); --radius-surface: var(--radius-lg); }
+const cleanBridge = `:root { --accent: var(--accent-ink); --border: var(--hairline); --radius-surface: var(--corner-lg); }
 [data-ui-surface="floating"] { --border: var(--hairline); }
-@theme inline { --radius-lg: var(--radius-lg); }
+@theme inline { --radius-lg: var(--corner-lg); }
 `
 const cleanFoundation = ':root { --accent: #0562ef; --border: rgb(0 0 0 / .1); --background: #fff; --radius-surface: 12px; }\n:root[data-theme="dark"] { --accent: #6ba3ff; }\n'
 
@@ -198,6 +207,15 @@ test('the theme file must keep its Lane additions marker', () => {
   assert.match(errors[0], /^src\/styles\/theme\.css .*Lane additions/)
 })
 
+test('Lane additions never reuse a name the tweakcn half defines, including its @theme inline keys', () => {
+  for (const [line, name] of [['--radius-sm: calc(var(--radius) * 2 / 3);', '--radius-sm'], ['--background: oklch(0.99 0 0);', '--background'], ['--color-background: var(--hairline);', '--color-background']]) {
+    const theme = cleanTheme.replace('--duration-standard: 200ms;', `--duration-standard: 200ms; ${line}`).replace('--hairline: oklch(1 0 0 / .075);', `--hairline: oklch(1 0 0 / .075); ${line}`)
+    const { errors } = auditFixture({ 'src/styles/theme.css': theme })
+    assert.ok(errors.length >= 1, `${name}\n${errors.join('\n')}`)
+    assert.ok(errors.every(error => error.startsWith('src/styles/theme.css:') && error.includes(name) && /tweakcn/.test(error)), errors.join('\n'))
+  }
+})
+
 test('the bridge holds only renames of names the theme file defines', () => {
   for (const line of ['--accent: #0562ef;', '--radius-surface: calc(var(--radius) * 2);', '--border: color-mix(in oklab, var(--foreground) 8%, transparent);', '--border: transparent;', '--radius-surface: 0;', '--accent: var(--accent-ink, #0562ef);', '--accent: var(--brand-ink);']) {
     const { errors } = auditFixture({ 'src/styles/theme-bridge.css': cleanBridge.replace('--accent: var(--accent-ink);', `--accent: var(--accent-ink); ${line}`) })
@@ -229,6 +247,9 @@ test('Lane additions colours need both a light and a dark value', () => {
   const darkErrors = auditFixture({ 'src/styles/theme.css': darkOnly }).errors
   assert.equal(darkErrors.length, 1, darkErrors.join('\n'))
   assert.match(darkErrors[0], /^src\/styles\/theme\.css:9 --project-slate .*light/)
+  // A colour function whose channels are all references follows them; only literal channels need a dark value.
+  const referenced = cleanTheme.replace('--duration-standard: 200ms;', '--duration-standard: 200ms; --edge-colour: 0 0% 0%; --edge: 0 1px 0 hsl(var(--edge-colour) / calc(.04 * var(--edge-strength)));').replace('--hairline: oklch(1 0 0 / .075);', '--hairline: oklch(1 0 0 / .075); --edge-colour: 0 0% 100%;')
+  assert.deepEqual(auditFixture({ 'src/styles/theme.css': referenced }).errors, [])
   // The tweakcn half is never policed for modes: tweakcn shares fonts, radius and shadows.
   assert.deepEqual(auditFixture({ 'src/styles/theme.css': cleanTheme.replace('--radius: 0.5rem;', '--radius: 0.5rem; --sidebar: #fcfcfc;') }).errors, [])
 })
@@ -260,7 +281,7 @@ test('the theme CLI exits cleanly with contrast warnings and fails on rule break
   const script = join(import.meta.dirname, 'token-contract.mjs')
   const run = overrides => {
     const root = themeFixture(overrides)
-    try { return spawnSync(process.execPath, [script, '--theme', '--root', root], { encoding: 'utf8' }) } finally { rmSync(root, { recursive: true, force: true }) }
+    try { return spawnSync(process.execPath, [script, '--root', root], { encoding: 'utf8' }) } finally { rmSync(root, { recursive: true, force: true }) }
   }
   const warned = run({ 'src/styles/theme.css': cleanTheme.replace('--primary-foreground: oklch(0.98 0 0);', '--primary-foreground: oklch(0.6 0.1 157.5);') })
   assert.equal(warned.status, 0, warned.stderr)
