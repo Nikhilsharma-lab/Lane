@@ -69,10 +69,12 @@ describe("sign-in links", () => {
     expect(clerkEmbeddedAppearance.variables.colorPrimary).toBe("var(--primary)");
   });
 
-  it("have a link ink in the theme file's Lane additions for light and dark", () => {
+  // The token follows --accent-ink, which has light and dark values; the parity e2e checks the
+  // painted dark link's contrast.
+  it("have a link ink in the theme file's Lane additions", () => {
     const theme = readFileSync(join(process.cwd(), "src/styles/theme.css"), "utf8");
     const additions = theme.slice(theme.indexOf("/* Lane additions"));
-    expect(additions.match(/^\s*--link-ink:/gm)).toHaveLength(2);
+    expect(additions).toMatch(/^\s*--link-ink: var\(--accent-ink\);/m);
   });
 });
 
