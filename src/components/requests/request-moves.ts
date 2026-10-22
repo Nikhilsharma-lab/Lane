@@ -6,7 +6,8 @@ import { markDone, pickUpRequest, setRequestPriority, undoMarkDone } from "@/app
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
-import { requestCodeOrNull } from "./detail-context"
+import { requestCodeOrNull } from "@/lib/request-code"
+import { clearMarkedDone, showMarkedDone } from "./mark-done-undo"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import type { Announce } from "./list-announcer"
 import { useCopy } from "./use-copy"
@@ -73,11 +74,8 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
     if (busy.current.has(key)) return Promise.resolve({ status: "busy" })
     busy.current.add(key)
     const { name } = request
-    const toastId = kind === "done"
-      // Done leaves the working views, so its confirmation carries the way back.
-      ? toast({ type: "success", title: "Marked Done", description: `${name} is now Done.`, duration: 10_000,
-        action: { label: "Undo", onClick: id => void undo(id, request.id, name) } })
-      : null
+    // Done leaves the working views, so its confirmation carries the way back; the palette's Undo runs the same one (#103).
+    const toastId = kind === "done" ? showMarkedDone(toast, request, undo) : null
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
     if (kind === "pick-up") announce("Picked up. The Request is now In Progress.", { key: "row-change" })
     const describe = (message: string, thrown: boolean) => thrown && networkError ? networkError : message
@@ -88,7 +86,7 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
       run: () => (kind === "done" ? markDone : pickUpRequest)(request.id, { orgId }),
       waitForPending: true,
       onError: toastId
-        ? (message, { thrown }) => { toast({ id: toastId, type: "error", title: FAILURE_TITLE, description: describe(message, thrown), action: undefined }) }
+        ? (message, { thrown }) => { clearMarkedDone(toastId); toast({ id: toastId, type: "error", title: FAILURE_TITLE, description: describe(message, thrown), action: undefined }) }
         : networkError ? (message, { thrown }) => { toast({ type: "error", title: FAILURE_TITLE, description: describe(message, thrown) }) } : undefined,
     }).then(result => {
       // The failure toast speaks for itself; the region drops the claim it made.
