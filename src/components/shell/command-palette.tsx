@@ -43,7 +43,8 @@ const roleOf = (role: string): PaletteRole => role === "admin" || role === "gues
  * active option, options are grouped, and the result count is polite.
  *
  * Under reduced motion Arc's Dialog still fades its layers; the palette's CSS
- * holds both at full opacity there, so it opens and closes with no animation.
+ * holds both at full opacity there and hides them once closed, so it opens
+ * and closes with no animation.
  */
 export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspace }: CommandPaletteProps) {
   const [step, setStep] = useState<PaletteStep>("entries")
