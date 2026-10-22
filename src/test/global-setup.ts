@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "path";
 import { buildLocalBaseline } from "./local-baseline";
 import { migrationPlan } from "./migration-plan";
+import { TEST_DATABASE_PATH } from "./test-database";
 
-const DB_NAME = "lane_test";
 const BASELINE_PATH = path.resolve(__dirname, "../db/baseline.sql");
 
 function getPgBinDir(): string {
@@ -37,17 +37,18 @@ export async function setup() {
   if (
     !["postgres:", "postgresql:"].includes(url.protocol) ||
     !["localhost", "127.0.0.1"].includes(url.hostname) ||
-    url.pathname !== `/${DB_NAME}` ||
+    !TEST_DATABASE_PATH.test(url.pathname) ||
     !url.username || url.search || url.hash ||
     (url.port && (Number(url.port) < 1 || Number(url.port) > 65535))
   ) {
     throw new Error(
-      "[test-setup] Refusing reset: require a loopback PostgreSQL URL with an explicit user, database lane_test, and no query or fragment."
+      "[test-setup] Refusing reset: require a loopback PostgreSQL URL with an explicit user, database lane_test (or lane_test_<copy>), and no query or fragment."
     );
   }
 
   // The reset and the tests must use the same target. Never inherit libpq
   // service/host/options settings or interpolate credentials into a shell.
+  const DB_NAME = url.pathname.slice(1);
   const username = decodeURIComponent(url.username);
   const password = decodeURIComponent(url.password);
   // Validate the canonical prerequisites before any destructive subprocess.

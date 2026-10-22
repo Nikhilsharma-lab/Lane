@@ -21,6 +21,8 @@ describe("disposable database reset boundary", () => {
     "https://tester@localhost/lane_test",
     "postgresql://localhost/lane_test",
     "postgresql://tester@localhost/lane_test#ignored",
+    "postgresql://tester@localhost/lane_test-copy",
+    "postgresql://tester@localhost/lane_testing",
   ])("rejects %s before invoking subprocesses", async (url) => {
     vi.stubEnv("DATABASE_URL", url);
     await expect(setup()).rejects.toThrow();
@@ -57,5 +59,13 @@ describe("disposable database reset boundary", () => {
     });
     await expect(setup()).rejects.toThrow("invalid SQL");
     expect(vi.mocked(execFileSync).mock.calls.filter(([binary, args]) => String(binary).endsWith("/psql") && !args?.includes("--version"))).toHaveLength(1);
+  });
+
+  it("resets a worktree's own lane_test_<copy>", async () => {
+    vi.mocked(execFileSync).mockReset();
+    vi.stubEnv("DATABASE_URL", "postgresql://tester:secret@127.0.0.1:5437/lane_test_some_copy");
+    await setup();
+    const reset = vi.mocked(execFileSync).mock.calls.filter(([binary]) => /\/(dropdb|createdb)$/.test(String(binary)));
+    expect(reset.map(([, args]) => args?.at(-1))).toEqual(["lane_test_some_copy", "lane_test_some_copy"]);
   });
 });

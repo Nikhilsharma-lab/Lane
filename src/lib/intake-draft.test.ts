@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTriageToken, verifyTriageToken } from "./triage-token";
 import { CONTEXT_MAX, DESCRIPTION_MAX, TITLE_MAX, USEFUL_LINK_MAX, requestSchema } from "./request-schema";
-import { EMPTY_METRIC_IMPACT, IMPACT_METRIC_MAX, IMPACT_RESULT_MAX, IMPACT_SOURCE_MAX, IMPACT_UNIT_MAX } from "./request-impact";
+import { EMPTY_METRIC_IMPACT } from "./request-impact";
+import { MAX_MEASUREMENT_GUARDRAILS, MEASUREMENT_SCOPE_NAME_MAX } from "./request-measurement";
 import { createEmptyMeasurementPlan } from "./request-measurement";
 
 import {
@@ -276,8 +277,11 @@ describe("Intake draft recovery", () => {
         observedEvidence: character.repeat(CONTEXT_MAX),
         uncertainty: character.repeat(CONTEXT_MAX),
         usefulLink: linkPrefix + "a".repeat(USEFUL_LINK_MAX - linkPrefix.length),
-        expectedImpact: { kind: "verification", result: character.repeat(IMPACT_RESULT_MAX), source: character.repeat(IMPACT_SOURCE_MAX), reviewAfterDays: 30,
-          guardrail: { metric: character.repeat(IMPACT_METRIC_MAX), operator: "at_most", limit: 0, unit: character.repeat(IMPACT_UNIT_MAX) } },
+        // The largest plan: custom names at their limit and every guardrail.
+        expectedImpact: { kind: "measurement", version: 4,
+          primary: { key: "custom", name: character.repeat(120), unit: "count", current: 1, target: 2, noBaseline: false, check: "" },
+          measurement: { audience: "custom", audienceName: character.repeat(MEASUREMENT_SCOPE_NAME_MAX), platform: "custom", platformName: character.repeat(MEASUREMENT_SCOPE_NAME_MAX), windowDays: 30, exactDates: false, startDate: "", endDate: "" },
+          guardrails: Array.from({ length: MAX_MEASUREMENT_GUARDRAILS }, () => ({ key: "custom", name: character.repeat(120), unit: "count", current: 1, noBaseline: false, operator: "at_most", limit: 3 })) },
       });
       const triage = { classification: "hybrid" as const, reframedProblem: character.repeat(DESCRIPTION_MAX), extractedSolution: character.repeat(DESCRIPTION_MAX) };
       const context = { orgId: "org_draft_size", userId: "user_draft_size" };

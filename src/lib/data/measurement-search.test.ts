@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadWorkspaceSearch } from "./search";
 
@@ -13,7 +14,7 @@ let connection: ReturnType<typeof postgres>;
 const ids: string[] = [];
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Measurement search requires loopback lane_test");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Measurement search requires loopback lane_test");
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations(id,name,slug) values (${ORG},'Measurement search','measurement-search'),(${OTHER},'Other','measurement-search-other')`;
   for (const user of [OWNER, GUEST]) await connection`insert into profiles(id,full_name,email) values(${user},'Search',${user + '@example.test'})`;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { isShown, requestRowSelector, restoreRequestFocus } from "@/components/requests/list-focus"
+import { focusRowWhenShown, isShown, restoreRequestFocus } from "@/components/requests/list-focus"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
@@ -43,36 +43,15 @@ export function RequestWorkspaceKeyboard({
 
     onRestoreRequest?.(requestId)
 
-    let frame = 0
-    let attempts = 0
-
-    function restoreFocus() {
-      // Plan item 2.4: the Request's row, the list's one tab stop. Restoring it
-      // may first expand its group or change pages, so do not consume the
-      // marker until the newly visible row accepts focus.
-      const row = document.querySelector(requestRowSelector(requestId!))
-      if (isShown(row)) {
-        row.focus({ preventScroll: true })
-        row.scrollIntoView({ block: "nearest" })
-        if (document.activeElement === row) {
-          clearReturnFocus()
-          return
-        }
-      }
-
-      attempts += 1
-      if (attempts < 20) {
-        frame = window.requestAnimationFrame(restoreFocus)
-      } else {
-        clearReturnFocus()
-        // A lifecycle change can remove the Request from the active filter:
-        // the grid's tab stop, else the title filter.
-        restoreRequestFocus(requestId!, { force: true })
-      }
-    }
-
-    restoreFocus()
-    return () => window.cancelAnimationFrame(frame)
+    // Plan item 2.4: the Request's row, the list's one tab stop. Restoring it
+    // may first expand its group or change pages, so the marker stays until
+    // the newly visible row accepts focus.
+    return focusRowWhenShown(requestId, (focused) => {
+      clearReturnFocus()
+      // A lifecycle change can remove the Request from the active filter:
+      // the grid's tab stop, else the title filter.
+      if (!focused) restoreRequestFocus(requestId, { force: true })
+    })
   }, [selectedRequestId, onRestoreRequest])
 
   useEffect(() => {

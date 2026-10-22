@@ -1,4 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,7 +26,7 @@ const setPlan = async (value: ReturnType<typeof plan>, type: "improvement" | "ne
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
   const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Measurement actions require local lane_test");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Measurement actions require local lane_test");
   connection = postgres(databaseUrl, { max: 4, prepare: false });
   await connection`insert into organizations(id,name,slug) values (${ORG},'Measurement actions','measurement-actions'),(${OTHER_ORG},'Other measurement workspace','other-measurement-actions')`;
   for (const id of [OWNER, MEMBER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`;
@@ -90,7 +91,7 @@ describe("measurement pickup readiness", () => {
       // Prove the pickup has reached its UPDATE and is waiting on this lock.
       let waiting = false;
       for (let check = 0; check < 100 && !waiting; check++) {
-        const rows = await connection`select pid from pg_stat_activity where datname='lane_test' and wait_event_type='Lock' and query like '%requests%' AND query like '%for update%'`;
+        const rows = await connection`select pid from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like '%requests%' AND query like '%for update%'`;
         waiting = rows.length > 0;
         if (!waiting) await new Promise(resolve => setTimeout(resolve, 10));
       }

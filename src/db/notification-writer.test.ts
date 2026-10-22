@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /** public.notify (migration 0032): the one writer of in-app notifications. */
@@ -7,7 +8,7 @@ let sql: ReturnType<typeof postgres>;
 let requestId: string;
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (url.pathname !== "/lane_test" || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
   sql = postgres(url.toString(), { max: 1 });
   await sql`insert into organizations(id,name,slug) values (${ORG},'Notify','notify-writer')`;
   await sql`insert into profiles(id,full_name,email) values ('notify_actor','Actor','actor@notify.test'),('notify_reader','Reader','reader@notify.test')`;

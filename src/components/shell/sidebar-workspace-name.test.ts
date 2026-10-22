@@ -1,11 +1,12 @@
 import { createElement } from "react";
-import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
+import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const clerk = vi.hoisted(() => ({
   pathname: "/",
   status: "all" as string | null,
+  project: null as string | null,
   resource: {
     isLoaded: true,
     organization: { id: "org_active", name: "Renamed workspace" } as { id: string; name: string } | null | undefined,
@@ -18,7 +19,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => clerk.pathname,
-  useSearchParams: () => new URLSearchParams(clerk.status === null ? {} : { status: clerk.status }),
+  useSearchParams: () => new URLSearchParams({ ...(clerk.status === null ? {} : { status: clerk.status }), ...(clerk.project ? { project: clerk.project } : {}) }),
   useRouter: () => ({ push: vi.fn() }),
 }));
 // Notifications have their own database boundary and are unrelated to the label.
@@ -31,12 +32,13 @@ import { SidebarView } from "./sidebar-view";
 beforeEach(() => {
   clerk.pathname = "/";
   clerk.status = "all";
+  clerk.project = null;
   clerk.resource = { isLoaded: true, organization: { id: "org_active", name: "Renamed workspace" } };
 });
 
 function renderSidebar(role = "member") {
   // The (app) layout always provides the workspace's Projects.
-  return renderToStaticMarkup(createElement(WorkspaceProjectsProvider, { orgId: "org_active", initialProjects: [] }, createElement(Sidebar, {
+  return renderToStaticMarkup(createElement(AppProviders, { orgId: "org_active" }, createElement(Sidebar, {
     workspaceName: "Saved workspace name",
     fullName: "Test Member",
     email: "member@example.test",
@@ -141,13 +143,13 @@ describe("approved Requests navigation", () => {
 });
 
 it("links accessible Projects and retains the Project selection within a Request detail", () => {
-  const html = renderToStaticMarkup(createElement(SidebarView, {
+  clerk.status = "in_progress"; clerk.project = "11111111-1111-4111-8111-111111111111";
+  const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
     workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test",
-    role: "member", pathname: "/requests/example", statusFilter: "in_progress",
-    projectFilter: "11111111-1111-4111-8111-111111111111",
+    role: "member", pathname: "/requests/example",
     projects: [{ id: "11111111-1111-4111-8111-111111111111", name: "Website", description: null }],
     notifications: null,
-  }));
+  })));
   expect(html).toContain('aria-label="Projects"');
   expect(html).toMatch(/<a(?=[^>]*href="\/\?status=in_progress&amp;project=11111111-1111-4111-8111-111111111111")(?=[^>]*aria-current="page")[^>]*>/);
   expect(html).toContain("Website");
