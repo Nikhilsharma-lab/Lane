@@ -214,9 +214,14 @@ export const REMINDER_TIMINGS = {
 } as const
 
 /**
- * One reminder a Request owes on a date. `day` is the UTC date the reminder was scheduled for: write it at
- * most once per (Request, recipient, kind, day). A recurring reminder keeps the same `day` until its next
- * occurrence, so someone who opens Lane later that week still gets it once, exactly as a daily job would.
+ * One reminder a Request owes on a date. `day` is the UTC date the reminder was scheduled for. A recurring
+ * reminder keeps the same `day` until its next occurrence, so someone who opens Lane later that week still
+ * gets it, exactly as a daily job would have sent it.
+ *
+ * Writer contract: insert only when no notification of this kind for this Request and recipient was created
+ * on or after `day` (UTC), with ON CONFLICT DO NOTHING. Migration 0033's unique index (one per Request,
+ * recipient, kind and created UTC day) stops same-day races; the "on or after `day`" check stops a weekly
+ * reminder being written again on each following day.
  */
 export type DueReminder = { kind: ReminderKind; recipientId: string; day: string }
 
