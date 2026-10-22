@@ -26,6 +26,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("E2E mutation boundary", () => {
+  it("accepts the pinned Clerk frontend API that clerkSetup() sets for the tests after it", async () => {
+    vi.stubEnv("CLERK_FAPI", "thankful-caiman-3665.clerk.accounts.dev");
+    const { assertE2ETarget } = await import("../../e2e/helpers/safety");
+    expect(assertE2ETarget().baseURL).toBe("http://localhost:3100");
+  });
   it.each([
     ["DATABASE_URL", "postgresql://postgres:secret@production.example.com/postgres"],
     ["DATABASE_URL", "postgresql://postgres.jznepeqghjixcrpuddym:secret@evil.example.com/postgres"],
@@ -35,6 +40,7 @@ describe("E2E mutation boundary", () => {
     ["LANE_E2E_ALLOW_REMOTE", ""],
     ["NEXT_PUBLIC_SUPABASE_URL", "https://production.supabase.co"],
     ["CLERK_API_URL", "https://other-api.example.com"],
+    ["CLERK_FAPI", "other.clerk.accounts.dev"],
   ])("rejects unsafe %s before creating anything", async (name, value) => {
     vi.stubEnv(name, value);
     const { createTestUser } = await import("../../e2e/helpers/test-user");

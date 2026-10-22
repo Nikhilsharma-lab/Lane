@@ -100,17 +100,18 @@ export async function createRequestThroughIntake(
     usefulLink: "",
     projectId: null,
     requestType: null,
+    // New Requests take a measurement plan only; a current value makes it ready to pick up.
     expectedImpact: {
-      kind: "verification" as const,
-      result:
-        "Customers can recover checkout without reentering payment details.",
-      source: "Pilot walkthrough",
-      reviewAfterDays: 14,
+      kind: "measurement" as const, version: 2 as const,
+      primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const },
+      measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" },
+      guardrails: [],
     },
   };
+  // A problem keeps its own wording: no reframed problem (request-framing.ts).
   const triage = {
     classification: "problem" as const,
-    reframedProblem: source.description,
+    reframedProblem: null,
     extractedSolution: null,
   };
   // Same signed-review seam as session-continuity-intake-draft.spec.ts. The save,
@@ -125,7 +126,7 @@ export async function createRequestThroughIntake(
         orgId: team.orgId,
         userId: team.users[0].id,
       }),
-      editedProblem: triage.reframedProblem,
+      editedProblem: "",
     },
   };
   await page.goto("/intake");
