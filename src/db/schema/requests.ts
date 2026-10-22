@@ -79,9 +79,9 @@ export const requests = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    /** When the work was marked Done; set and cleared by the stamp_done_at trigger (0033). Who marked it is not kept. */
+    /** When the work was marked Done; set and cleared by the stamp_done_at trigger (0034). Who marked it is not kept. */
     doneAt: timestamp("done_at", { withTimezone: true }),
-    /** When the work was picked up; set and cleared by the stamp_picked_up_at trigger (0033). Unknown (null) for work picked up before it. */
+    /** When the work was picked up; set and cleared by the stamp_picked_up_at trigger (0034). Unknown (null) for work picked up before it. */
     pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
   },
   (table) => ({

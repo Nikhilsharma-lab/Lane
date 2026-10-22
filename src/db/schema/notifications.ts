@@ -23,7 +23,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "review_looks_good",
   "review_concern",
   "review_reset",
-  // Reminders (0033): written by Lane with no actor, at most once per Request, recipient and UTC day.
+  // Reminders (0034): written by Lane with no actor, at most once per Request, recipient and UTC day.
   "release_reminder",
   "result_due_soon",
   "result_due",
@@ -62,7 +62,7 @@ export const notifications = pgTable(
       table.readAt
     ),
     // The real index is an expression over the UTC day of created_at, which
-    // Drizzle cannot describe; see 0033_reminders_and_done_time.sql.
+    // Drizzle cannot describe; see 0034_reminders_and_done_time.sql.
     reminderOnceADay: uniqueIndex("notifications_reminder_once_a_day")
       .on(table.requestId, table.userId, table.type, sql`((${table.createdAt} AT TIME ZONE 'UTC')::date)`)
       .where(sql`${table.type} IN ('release_reminder','result_due_soon','result_due','result_overdue')`),

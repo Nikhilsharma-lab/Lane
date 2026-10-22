@@ -1,23 +1,36 @@
 import styles from "./clerk-profile.module.css";
 
-// Clerk's documented appearance variables resolve directly to Lane's Supabase-backed tokens.
+// Clerk's documented appearance variables resolve directly to the theme file (src/styles/theme.css):
+// all 17 colour keys read a tweakcn slot or a Lane addition, so no Clerk default colour paints.
+// Success, warning, the modal backdrop, the avatar shimmer (Lane's skeleton fill) and the shadow
+// follow Lane's own tokens in light and dark (#93).
 // https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/variables
 export const clerkNeutralVariables = {
-  colorPrimary: "var(--primary-background)",
-  colorPrimaryForeground: "var(--primary-label)",
+  colorPrimary: "var(--primary)",
+  colorPrimaryForeground: "var(--primary-foreground)",
   colorForeground: "var(--foreground)",
-  colorMutedForeground: "var(--text-secondary)",
-  colorBackground: "var(--surface)",
+  colorMutedForeground: "var(--muted-foreground)",
+  colorBackground: "var(--card)",
   colorInput: "var(--input-background)",
   colorInputForeground: "var(--foreground)",
   colorBorder: "var(--border)",
   colorMuted: "var(--surface-muted)",
   colorRing: "var(--focus-outline)",
-  colorDanger: "var(--danger)",
+  colorDanger: "var(--destructive)",
   colorNeutral: "var(--foreground)",
-  fontFamily: "var(--font-body)",
+  colorSuccess: "var(--success)",
+  colorWarning: "var(--warning)",
+  colorShimmer: "var(--hairline)",
+  colorModalBackdrop: "var(--overlay-backdrop)",
+  colorShadow: "var(--shadow-color)",
+  fontFamily: "var(--font-sans)",
+  fontFamilyButtons: "var(--font-sans)",
   borderRadius: "var(--radius-control)",
 };
+
+// Clerk paints links with colorPrimary, the button plate, which is about 2.5:1 on a dark page.
+// Sign-in links read Lane's link ink instead; the button keeps the plate (#93).
+const authLink = { color: "var(--link-ink)", "&:hover": { color: "var(--link-ink)" } };
 
 const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", borderRadius: "var(--button-radius-md)" };
 
@@ -36,7 +49,7 @@ const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fo
 export const clerkEmbeddedAppearance = {
   variables: {
     ...clerkNeutralVariables,
-    spacing: "calc(var(--sb-spacing) * 4)",
+    spacing: "var(--space-4)",
     fontSize: { xs: "var(--text-xs)", sm: "var(--text-xs)", md: "var(--text-sm)", lg: "var(--text-base)", xl: "var(--text-base)" },
     fontWeight: { normal: "var(--weight-normal)", medium: "var(--weight-medium)", semibold: "var(--weight-medium)", bold: "var(--weight-medium)" },
   },
@@ -47,12 +60,16 @@ export const clerkEmbeddedAppearance = {
     rootBox: { width: "100%" },
     cardBox: { width: "100%", maxWidth: "100%" },
     card: { width: "100%" },
-    headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--sb-font-weight-semibold)" },
+    headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--weight-semibold)" },
     headerSubtitle: { marginTop: "calc(var(--space-3) - var(--space-1))", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
     // Arc's Input answers focus with its border colour alone; Clerk's 4px halo would also show on pointer focus.
     formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)", "&:focus, &:focus-visible": { boxShadow: "none" } },
     formButtonPrimary: { ...authControl, "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
     socialButtonsBlockButton: authControl,
+    footerActionLink: authLink,
+    formResendCodeLink: authLink,
+    identityPreviewEditButton: authLink,
+    formFieldAction: authLink,
   },
 };
 

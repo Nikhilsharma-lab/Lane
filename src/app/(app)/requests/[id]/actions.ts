@@ -57,7 +57,7 @@ const commentSchema = z.object({
  *
  * Decision 8.18: the window is measured from updated_at (stamped by the 0002
  * trigger on every update), so a priority edit on a Done Request restarts it.
- * requests.done_at (0033, kept by the stamp_done_at trigger) now holds the Done
+ * requests.done_at (0034, kept by the stamp_done_at trigger) now holds the Done
  * time itself; it is cleared when this undo moves the Request back. */
 const UNDO_DONE_WINDOW_MS = 15 * 60 * 1000;
 

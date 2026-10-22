@@ -1,8 +1,8 @@
-.panel { padding: 0; max-width: min(calc(var(--sb-spacing) * 106), calc(100vw - var(--space-6))); }
-.trigger { height: var(--row, var(--sb-size-inner-medium)); }
-.compact { grid-template-columns: 1fr; place-items: center; width: calc(var(--sb-spacing) * 10); padding: 0; }
+.panel { padding: 0; max-width: min(calc(var(--spacing) * 106), calc(100vw - var(--space-6))); }
+.trigger { height: var(--row, var(--size-inner-medium)); }
+.compact { grid-template-columns: 1fr; place-items: center; width: calc(var(--spacing) * 10); padding: 0; }
 /* Inverse pair like Arc's own count badge. */
-.compactCount { position: absolute; top: calc(var(--sb-spacing) * -.5); right: calc(var(--sb-spacing) * -1); border-radius: var(--radius-pill); padding: calc(var(--sb-spacing) * .25) var(--space-1); color: var(--background); background: var(--foreground); font-size: var(--text-xs); }
+.compactCount { position: absolute; top: calc(var(--spacing) * -.5); right: calc(var(--spacing) * -1); border-radius: var(--radius-pill); padding: calc(var(--spacing) * .25) var(--space-1); color: var(--background); background: var(--foreground); font-size: var(--text-xs); }
 .items { margin: 0; padding: 0; list-style: none; }
 /* Plan item 2.7: a 44px two-line row on the 2.4 row tokens, [dot] [Request and event] [toggle]. Line 1 at 14/20 and
  * line 2 at 12/16, one line each with an ellipsis, so every row keeps one height and the local-time swap moves nothing.
@@ -10,13 +10,13 @@
 .row { display: grid; grid-template-columns: var(--space-4) minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-1); min-height: var(--request-row-height); padding: var(--space-1) var(--space-2); border-radius: var(--request-row-radius); }
 .lead { display: grid; place-items: center; }
 .open { display: grid; gap: 0; min-width: 0; padding: 0; border-radius: var(--radius-control); }
-.primary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--sb-text-sm--line-height); text-overflow: ellipsis; white-space: nowrap; }
+.primary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--text-sm--line-height); text-overflow: ellipsis; white-space: nowrap; }
 /* Decision D3: an unread row carries the dot and medium weight on line 1; a read row reads in the secondary colour. */
-.row[data-unread] .primary { color: var(--foreground); font-weight: var(--sb-font-weight-medium); }
-.secondary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--sb-text-xs--line-height); text-overflow: ellipsis; white-space: nowrap; }
+.row[data-unread] .primary { color: var(--foreground); font-weight: var(--weight-medium); }
+.secondary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--text-xs--line-height); text-overflow: ellipsis; white-space: nowrap; }
 /* Arc's two-line skeleton is already 44px tall, so the placeholder row drops the block padding to match a real row. */
 .skeletonRow { padding-block: 0; }
 .error { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-3); }
 .error p { margin: 0; color: var(--danger); font-size: var(--text-sm); }
-.panel button:disabled, .panel button[aria-disabled="true"] { opacity: var(--sb-opacity-disabled); cursor: not-allowed; }
+.panel button:disabled, .panel button[aria-disabled="true"] { opacity: var(--opacity-disabled); cursor: not-allowed; }
 @media (hover: hover) and (pointer: fine) { .row:hover { background: var(--interaction-hover); } }

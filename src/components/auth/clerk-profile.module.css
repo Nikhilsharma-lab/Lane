@@ -8,7 +8,7 @@
 @media (max-width: 480px) {
   .membersPage .table { width: 100%; table-layout: fixed; }
   .membersPage .table th,
-  .membersPage .table td { padding: var(--space-2) calc(var(--sb-spacing) / 2); white-space: normal; overflow-wrap: anywhere; }
+  .membersPage .table td { padding: var(--space-2) calc(var(--spacing) / 2); white-space: normal; overflow-wrap: anywhere; }
   .membersPage .table th:first-child { width: 36%; }
   .membersPage .table th:nth-child(2) { width: 27%; }
   .membersPage .table th:nth-child(3) { width: 21%; }

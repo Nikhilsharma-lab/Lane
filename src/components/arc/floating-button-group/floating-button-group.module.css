@@ -20,13 +20,6 @@
 /* Raised for overlays such as a selection toolbar: the floating layer shadow and a hairline edge. */
 .floating { border-color: var(--border); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
 .vertical { flex-direction: column; align-items: stretch; }
-:global(:root[data-theme="dark"]) .group {
-  --fbg-highlight: var(--interaction-hover);
-  --fbg-highlight-press: var(--interaction-pressed);
-  --fbg-on: var(--selection-background);
-  --fbg-tray: var(--interaction-background);
-  --fbg-tray-edge: var(--interaction-border);
-}
 
 /* The highlight paints above the buttons' own backgrounds (a pressed tint) and below their content. */
 .highlight { position: absolute; z-index: 1; top: 0; left: 0; border-radius: var(--fbg-radius); background: var(--fbg-highlight); pointer-events: none; transition: background-color var(--duration-fast) var(--ease-standard); }

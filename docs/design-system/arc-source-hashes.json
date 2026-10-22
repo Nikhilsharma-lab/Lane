@@ -350,7 +350,7 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.module.css",
     "upstreamSha256": "182f0d9d3083efa61c40594e5227c3364f11445873524c368769eb13772aeac0",
-    "localSha256": "98b7c2c2b8785a24965b42b4f01e9bf61e1cccc6cdafa7ddbc943937c320e1a6"
+    "localSha256": "a919ae7ac4d718193429727fc86245192e886cb790cafd9ea3fe3a033b3f7e63"
   },
   {
     "id": "user-menu",
@@ -371,7 +371,7 @@
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css",
     "upstreamSha256": "0c80f65cc602adf3e78890d1045edd62201e279b78a104d63416a5594a702235",
-    "localSha256": "b7e7709652cd12474939466b1823b5dd87bf131d1cbccb024c721fe7e49f4bba"
+    "localSha256": "bee32883066e58396033739b0bb284c092e92e968a84b9b9b60fb3d0f62e3117"
   },
   {
     "id": "context-menu",
@@ -413,7 +413,7 @@
     "source": "https://uiarc.dev/r/floating-button-group.json",
     "file": "src/components/arc/floating-button-group/floating-button-group.module.css",
     "upstreamSha256": "a79a1fa8cb57d963f66d61678c2ba76becd41bb169e7ded0b3054f125a4f9f6e",
-    "localSha256": "7857b0183a99f2aa69a1b122ffdba4b9bd83750657947ed93c1854616bd0c897"
+    "localSha256": "dfa3a9c081f66608532776a5ebf53151c8a43c32cabc01db0898d1be65f78e82"
   },
   {
     "id": "calendar",
@@ -461,6 +461,6 @@
     "source": "https://uiarc.dev/r/pro/settings-command.json",
     "file": "src/components/arc/blocks/settings-command/settings-command.module.css",
     "upstreamSha256": "c6cb16a1fee97ce2a8eb1662d5b100c32ac32fa0f23689dadd74319a56d3adc9",
-    "localSha256": "2530d2f015b7eadf6345b3b0bbfcb3825550b44738e5109c5003cbdab5ae53b9"
+    "localSha256": "1b287612115e282fd735198a8cfad0effb96f0d4d14c7b54a44b89a1512ee004"
   }
 ]

@@ -2,25 +2,47 @@
 
 ## October 22 — #137 journey e2e authored, awaiting a hosted run (branch `journey-127`)
 
-The e2e for the #127 journey is updated but **not run**: Lane Staging is on 0030, and these specs need 0031–0033
-(applying them is a separate approved step with a verified backup and dry run). Run them on staging after that.
+The e2e for the #127 journey is updated but **not run**: Lane Staging has 0031 and 0032, and these specs also need
+main's 0033 and #127's `0034_reminders_and_done_time.sql` (renamed from 0033 when `main` was merged in; applying
+them is a separate approved step with a verified backup and dry run). Run them on staging after that.
 Typecheck and lint pass.
 
 - `e2e/request-release.spec.ts`: Mark Done → "Is it live?" → "Yes, record release" records today's release in
-  the prompt (Undo Done ends); the timeline's Measuring step shows "· 3 days remaining" (a 3-day agreed window),
-  the page and the list row (`/?status=due`) show "Due in 3 days"; then correction and handover. 1440/390,
+  the prompt (Undo Done ends); with a 7-day agreed window (the plan's shortest) the Measuring step shows
+  "Due in 7 days" and the list row carries no due tag and is not under `/?status=due`; then correction and handover. 1440/390,
   light/dark.
 - `e2e/request-outcome.spec.ts`: Mark Done → "Not yet" brings Undo back; release from the timeline's Done step;
   closing without a result shows the Closed step. 1440/390, light/dark.
 - `e2e/reliable-request-lifecycle-actions.spec.ts` answers "Not yet" after Mark Done (and reads the phone state
   line's name); `e2e/perf.spec.ts` (LANE_PERF_MUTATE=1) answers "Not yet" before Undo.
-- Shared helpers: `e2e/helpers/journey.ts`; `createRequestThroughIntake` takes `reviewAfterDays`.
+- Shared helpers: `e2e/helpers/journey.ts`; `createRequestThroughIntake` takes `windowDays` (7/14/30/90).
+
+## October 22 — architecture review work merged; staging has 0031 and 0032
+
+The architecture-review candidates are merged to `main` (#80–#125; W4 keyboard shortcuts waits for #109, the
+command palette). Database: **Lane Staging (`jznepeqghjixcrpuddym`) has 0031 and 0032.** 0031 was found already
+applied and complete on 2026-10-22 (no record of who applied it); another session applied 0032 that day from
+`backups/staging-0032-2026-10-22/`. Both were checked against the verified backup in
+`backups/reviewers-0031-0032-2026-10-22/` taken just before 0032: 14 Requests, every Request row unchanged, no
+comment or file lost, `notify` and the reset trigger match `0032`. Migration `0033` (drop the unused
+`request_review_state`) is written and passes locally; not applied anywhere.
+
+**Production (`tcfwabpoiydvfqxhtkur`) has 0028 → 0032, applied 2026-10-22 under the owner's explicit approval.**
+Verified backup and row snapshots in `backups/production-0028-0032-2026-10-22/` (3 Requests, 1 file, 1 Project);
+the backup was restored into a local database and 0028–0032 rehearsed there first; afterwards every check passed
+(all five migrations present, no Request, comment, file, notification or Project lost, Request content, status
+and priority unchanged). The pulled credentials were deleted. The production database password was reset by the
+owner the same day, so Vercel's production `DATABASE_URL` must hold the new password before the site connects.
+Production deploys are manual (GitHub shows only Preview deployments); `main` can be deployed once 0033 has run
+on staging and then production, or before 0033, which only drops an unused function.
+
+Other notes: each worktree's test suite now resets its own `lane_test_<copy>` (#122); `pnpm bundle:check`
+baseline reset with a written waiver (#128).
 
 ## October 21 — #74 optional reviewers built: #75–#78 (branch `lifecycle-simplify`)
 
 Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `lifecycle-simplify`. Migration
-`0031_simple_request_agreement.sql` holds all of it and is still unapplied anywhere (staging stops at 0030);
-applying it is a separate approved step with a backup and dry run.
+`0031_simple_request_agreement.sql` holds all of it. _Applied to staging by 2026-10-22; see the entry above._
 
 - **#75 reviewers replace the PM/Designer/Developer agreement.** `0031` stores an ordered reviewer list; filled
   seats convert (agree → Looks good, request changes → concern, withdraw → unanswered), the requester's own seat
@@ -37,8 +59,8 @@ applying it is a separate approved step with a backup and dry run.
   (`review_reset`); edit actions call `nameReviewResetActor` (sets `lane.actor_id`) so the editor is named. Adding notifies each reviewer
   (`review_requested`, with the optional question in `notifications.detail`); answers notify whoever added the
   reviewer (`review_looks_good` / `review_concern` with the reason). No self-notifications; bell only.
-- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gives list and detail loaders
-  the open concerns and unanswered count. One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
+- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gave list and detail loaders
+  the open concerns and unanswered count (_replaced 2026-10-22 by `reviewStatesOf` in the app, #111; 0033 drops it_). One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
   the detail button, status control, row menu and bulk bar (one combined dialog). The reviewers panel reports
   what it last read to the dialog, which prefers it over the loaded copy, so a reviewer just added, removed or
   answered (page or preview) is never skipped. "N concern(s)" marker on Open rows only.
@@ -346,7 +368,7 @@ Updated 2026-10-18. This is the shared engineering handoff, not a new product sp
 
 | Work | Source / current record |
 | --- | --- |
-| Supabase tokens, shared icon/control enforcement and Arc adaptations | `docs/design-system/supabase-tokens.md`; plans dated October 16 and October 18 for global tokens, shared icons and control consistency |
+| The theme file (replaced the Supabase tokens 2026-10-22), shared icon/control enforcement and Arc adaptations | `docs/design-system/theme-file.md`; plans dated October 16 and October 18 for global tokens, shared icons and control consistency |
 | Shared app/Storybook sidebar configuration and Request presentation | Current shell/components and Storybook fixtures |
 | Request detail, measurement summaries, priorities and status controls | `docs/superpowers/plans/2026-10-16-request-detail-polish.md` and current components |
 | Creator editing of Open Requests | `docs/superpowers/plans/2026-10-18-edit-open-request.md` |

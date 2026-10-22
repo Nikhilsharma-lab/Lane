@@ -1,0 +1,491 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.9700 0 0);
+  --foreground: oklch(0.1000 0 0);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.1000 0 0);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.3945 0 0);
+  --primary: oklch(0.5250 0.1200 157.5000);
+  --primary-foreground: oklch(0.9900 0.0028 157.5000);
+  --secondary: oklch(1.0000 0 0);
+  --secondary-foreground: oklch(0.1000 0 0);
+  --muted: oklch(0.9750 0 0);
+  --muted-foreground: oklch(0.3945 0 0);
+  --accent: oklch(0.9649 0 0);
+  --accent-foreground: oklch(0.1000 0 0);
+  --destructive: oklch(0.5200 0.1400 25.0000);
+  --destructive-foreground: oklch(0.9900 0.0112 25.0000);
+  --border: oklch(0.9340 0 0);
+  --input: oklch(0.8844 0 0);
+  --ring: oklch(0.7000 0.1500 157.5000);
+  --chart-1: oklch(0.6812 0.1365 160.1246);
+  --chart-2: oklch(0.6504 0.1925 251.6254);
+  --chart-3: oklch(0.5940 0.2163 347.0429);
+  --chart-4: oklch(0.5420 0.1795 288.0961);
+  --chart-5: oklch(0.5982 0.1936 33.1317);
+  --sidebar: oklch(0.9700 0 0);
+  --sidebar-foreground: oklch(0.3945 0 0);
+  --sidebar-primary: oklch(0.5250 0.1200 157.5000);
+  --sidebar-primary-foreground: oklch(0.9900 0.0028 157.5000);
+  --sidebar-accent: oklch(0.9800 0 0);
+  --sidebar-accent-foreground: oklch(0.1000 0 0);
+  --sidebar-border: oklch(0.9340 0 0);
+  --sidebar-ring: oklch(0.7000 0.1500 157.5000);
+  --font-sans: Geist, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: Geist Mono, monospace;
+  --radius: 0.5rem;
+  --shadow-x: 0px;
+  --shadow-y: 1px;
+  --shadow-blur: 2px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: #000000;
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: oklch(0.1900 0.0025 157.5000);
+  --foreground: oklch(0.9500 0.0028 157.5000);
+  --card: oklch(0.2150 0.0025 157.5000);
+  --card-foreground: oklch(0.9500 0.0028 157.5000);
+  --popover: oklch(0.2400 0.0025 157.5000);
+  --popover-foreground: oklch(0.7980 0.0028 157.5000);
+  --primary: oklch(0.4363 0.1100 157.5000);
+  --primary-foreground: oklch(0.9500 0.0028 157.5000);
+  --secondary: oklch(0.2217 0.0025 157.5324);
+  --secondary-foreground: oklch(0.9500 0.0028 157.5000);
+  --muted: oklch(0.2217 0.0025 157.5324);
+  --muted-foreground: oklch(0.7980 0.0028 157.5000);
+  --accent: oklch(0.2372 0.0024 157.5436);
+  --accent-foreground: oklch(0.9500 0.0028 157.5000);
+  --destructive: oklch(0.5500 0.1400 25.0000);
+  --destructive-foreground: oklch(0.9900 0.0112 25.0000);
+  --border: oklch(0.2609 0.0023 157.5759);
+  --input: oklch(0.3138 0.0022 157.6046);
+  --ring: oklch(0.7600 0.1500 157.5000);
+  --chart-1: oklch(0.7629 0.1537 159.3645);
+  --chart-2: oklch(0.7186 0.1517 250.7499);
+  --chart-3: oklch(0.7024 0.2087 347.7708);
+  --chart-4: oklch(0.7039 0.1607 289.2534);
+  --chart-5: oklch(0.6856 0.1715 32.9904);
+  --sidebar: oklch(0.1900 0.0025 157.5000);
+  --sidebar-foreground: oklch(0.7980 0.0028 157.5000);
+  --sidebar-primary: oklch(0.4363 0.1100 157.5000);
+  --sidebar-primary-foreground: oklch(0.9500 0.0028 157.5000);
+  --sidebar-accent: oklch(0.2139 0.0025 157.5261);
+  --sidebar-accent-foreground: oklch(0.9500 0.0028 157.5000);
+  --sidebar-border: oklch(0.2609 0.0023 157.5759);
+  --sidebar-ring: oklch(0.7600 0.1500 157.5000);
+  --font-sans: Geist, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: Geist Mono, monospace;
+  --radius: 0.5rem;
+  --shadow-x: 0px;
+  --shadow-y: 1px;
+  --shadow-blur: 2px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: #000000;
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.10), 0px 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.25);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Lane additions
+ *
+ * Everything above this comment is the tweakcn export (Tailwind v4, oklch) and is replaced
+ * wholesale on every re-paste; never edit it by hand. Everything below is Lane's: what tweakcn
+ * has no slot for, copied as-is from what Lane painted before the switch (2026-10-22, #91).
+ * No name here may repeat a name tweakcn exports, so a re-paste can never collide with it.
+ * Anything that differs between light and dark has a :root value and a .dark value.
+ * Values are literals, expressions over tweakcn slots (var(--radius), var(--spacing),
+ * var(--ring) ...) or references to other additions. */
+:root {
+  /* Text, surface and line levels tweakcn has no slot for. The see-through ones stay literals
+     because tweakcn exports drop transparency. */
+  --text-muted: oklch(0.52065 0 337.5);
+  --surface-muted: oklch(0.1 0 337.5 / 0.0268156);
+  --hairline: oklch(0.1 0 337.5 / 0.0812725);
+  --border-strong: oklch(0.1 0 337.5 / 0.146418);
+  --border-overlay: oklch(0.1 0 337.5 / 0.144163);
+  --input-border-hover: oklch(0.1 0 337.5 / 0.29769);
+  --pressed-wash: oklch(0.1 0 337.5 / 0.0402235);
+  --nav-hover: oklch(0.1 0 0 / 0.0201);
+  --control-on-subtle: oklch(0.1 0 0 / 0.0101);
+  --input-background: oklch(0 0 0 / 0.015);
+  --button-secondary-background: var(--card);
+  --button-secondary-hover: var(--surface-muted);
+  /* Dialogs sit above the grey frame in light, and use the darkest surface in dark. */
+  --dialog-surface: var(--card);
+
+  /* Brand ink is separate from the button plate (tweakcn's --accent is a grey hover and is read
+     only by tweakcn's preview). Light ink is the plate colour; dark ink is the ring colour. */
+  --accent-ink: var(--primary);
+  --accent-ink-foreground: oklch(0.99 0.00275 157.5);
+  --accent-strong: oklch(0.485 0.12 157.5);
+  --primary-hover: oklch(0.485 0.12 157.5);
+  --primary-hover-opacity: 1;
+  --primary-pressed-opacity: 1;
+
+  /* Focus ring geometry: keyboard focus only, 2px outline 2px away, the ring colour at 55%. */
+  --focus-ring: transparent;
+  --focus-outline-width: 2px;
+  --focus-outline-offset: 2px;
+  --selection-focus-decoration: underline;
+
+  /* Status colours: tweakcn has only destructive, and a brand change must not move them. */
+  --success: hsl(156.5deg 86.5% 26.1%);
+  --success-soft: hsl(152.9deg 60% 52.9% / 0.1);
+  --success-border: hsl(155.3deg 78.4% 40%);
+  --warning: hsl(30.3deg 80.3% 47.8%);
+  --warning-soft: oklch(0.55 0.14 58 / 0.1);
+  --warning-border: hsl(36.3deg 85.7% 67.1%);
+  --info: oklch(0.54 0.14 288);
+  --destructive-hover: oklch(0.48 0.14 25);
+  --input-error-background: hsl(0deg 100% 99.4%);
+  --input-error-border: hsl(7.1deg 91.3% 91%);
+
+  /* Project, avatar and label colours: fixed hues that must not follow the brand. Each has a
+     deliberate .dark value below (#95). */
+  --project-blue: hsl(206, 100%, 50%);
+  --project-green: hsl(151, 55%, 41.5%);
+  --project-violet: hsl(252, 56%, 57.5%);
+  --project-amber: hsl(39, 100%, 57%);
+  --project-coral: hsl(10, 78%, 54%);
+  --project-slate: hsl(206, 6%, 56.1%);
+  --avatar-tone-blue: hsl(209, 100%, 96.5%);
+  --avatar-tone-green: hsl(139, 55.2%, 94.5%);
+  --avatar-tone-violet: hsl(276, 83.1%, 97%);
+  --avatar-tone-amber: hsl(55, 100%, 90.9%);
+  --avatar-tone-coral: hsl(24, 100%, 95.3%);
+  --avatar-tone-slate: hsl(209, 13.3%, 95.3%);
+  --label-purple: hsl(272, 51%, 54%);
+
+  /* Arc's neutral ramp and brand gradient: Arc reads them, tweakcn has no slot. */
+  --neutral-0: hsl(206, 30%, 98.8%);
+  --neutral-1: hsl(210, 16.7%, 97.6%);
+  --neutral-2: hsl(209, 13.3%, 95.3%);
+  --neutral-3: hsl(209, 12.2%, 93.2%);
+  --neutral-4: hsl(208, 11.7%, 91.1%);
+  --neutral-5: hsl(208, 11.3%, 88.9%);
+  --neutral-6: hsl(207, 11.1%, 85.9%);
+  --neutral-7: hsl(205, 10.7%, 78%);
+  --neutral-8: hsl(206, 6%, 56.1%);
+  --neutral-9: hsl(206, 5.8%, 52.3%);
+  --neutral-10: hsl(206, 6%, 43.5%);
+  --neutral-11: hsl(206, 24%, 9%);
+  --arc-gradient-from: hsl(147.6deg 72.5% 90%);
+  --arc-gradient-to: hsl(151.3deg 66.9% 66.9%);
+  --arc-gradient: linear-gradient(100deg, var(--arc-gradient-from), var(--arc-gradient-to));
+  --arc-gradient-soft: linear-gradient(135deg, var(--arc-gradient-from), var(--arc-gradient-from));
+  --arc-gradient-line: linear-gradient(100deg, var(--success-border), var(--success-border));
+  --arc-gradient-ink: linear-gradient(100deg, var(--success), var(--success));
+
+  /* Link ink: readable link text, separate from the button plate. Clerk's sign-in links read it,
+     because Clerk would otherwise paint links with the plate, too dark on a dark page (#93). */
+  --link-ink: var(--accent-ink);
+
+  /* Raised and floating shadows and the button edge: tweakcn's shadow model can't reproduce
+     them, and dark mode uses its own dialog and button shadows. */
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
+  --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+  --dialog-shadow: var(--shadow-raised);
+  --button-shadow-drop: 0 1px 3px 0 hsl(0deg 0% 0% / 0.04);
+  --button-edge-strength: calc(.30636225 / .275625 * .6);
+  --button-edge-colour: 0 0% 0%;
+  --button-raised-shadow: var(--button-shadow-drop), inset 0 1px 0 0 hsl(var(--button-edge-colour) / calc(.04 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.06 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.1 * var(--button-edge-strength)));
+  --button-default-shadow: var(--button-shadow-drop), inset 0 1px 0 0 hsl(var(--button-edge-colour) / calc(.04 * var(--button-edge-strength))), inset 0 0 0 1px hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 -1px 0 0 hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.1 * var(--button-edge-strength)));
+  --button-solid-sheen: linear-gradient(to bottom, hsl(0 0% 100% / .015), hsl(0 0% 0% / .01));
+  --button-secondary-sheen: none;
+  --project-dot-shadow: none;
+  --avatar-status-shadow: none;
+  --user-menu-presence-shadow: none;
+  --user-menu-thumb-shadow: var(--shadow-xs);
+  --sidebar-photo-shadow: none;
+  --sidebar-logo-shadow: none;
+  --segment-selection-shadow: none;
+}
+
+:root {
+  /* See-through tints, overlays and fills derived from tweakcn slots (and --info), so they follow
+     the slot in both modes. Kept in their own block: Next's CSS compiler splits any rule holding
+     color-mix() and then drops the wide-gamut fallback of the colours after it. */
+  --accent-subtle: color-mix(in oklab, var(--ring) 15%, transparent);
+  --focus-outline: color-mix(in oklab, var(--ring) 55%, transparent);
+  --info-soft: color-mix(in oklab, var(--info) 10%, transparent);
+  --info-border: color-mix(in oklab, var(--info) 30%, transparent);
+  --destructive-soft: color-mix(in oklab, var(--destructive) 10%, transparent);
+  --destructive-border: color-mix(in oklab, var(--destructive) 30%, transparent);
+  --overlay-backdrop: color-mix(in oklab, var(--background) 80%, transparent);
+  --tooltip-muted: color-mix(in oklab, var(--background) 62%, var(--foreground));
+}
+
+:root {
+  /* Exact corner steps, as ratios of tweakcn's --radius so its corner slider drives them all
+     (pixel-exact at 0.5rem). Named --corner-* because tweakcn exports its own --radius-sm to
+     --radius-xl (used only by its preview); the bridge points Arc, Lane and Tailwind at these. */
+  --corner-xs: calc(var(--radius) / 3);
+  --corner-sm: calc(var(--radius) * 2 / 3);
+  --corner-md: var(--radius);
+  --corner-lg: calc(var(--radius) * 4 / 3);
+  --corner-xl: calc(var(--radius) * 2);
+  --corner-2xl: calc(var(--radius) * 8 / 3);
+  --corner-3xl: calc(var(--radius) * 4);
+  --corner-4xl: calc(var(--radius) * 16 / 3);
+  --corner-pill: calc(infinity * 1px);
+  --corner-item: calc(var(--radius) - 2px);
+  --corner-command-result: calc(var(--radius) * 9 / 8);
+  --button-radius-sm: var(--radius);
+  --button-radius-md: calc(var(--radius) * (1 + (34 / 26 - 1) * .35));
+  --button-radius-lg: calc(var(--radius) * (1 + (38 / 26 - 1) * .35));
+
+  /* Type scale and weights: tweakcn sets only the font families. */
+  --weight-normal: 450;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --text-xs: .75rem;
+  --text-xs--line-height: calc(1 / .75);
+  --text-sm: .875rem;
+  --text-sm--line-height: calc(1.25 / .875);
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem;
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl: 2.125rem;
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl: 2.875rem;
+  --text-5xl--line-height: 1;
+  --tracking-display: -.025em;
+  --badge-sm-font: 9px;
+
+  /* Spacing steps over tweakcn's --spacing unit. */
+  --space-1: calc(var(--spacing) * 1);
+  --space-2: calc(var(--spacing) * 2);
+  --space-3: calc(var(--spacing) * 3);
+  --space-4: calc(var(--spacing) * 4);
+  --space-5: calc(var(--spacing) * 5);
+  --space-6: calc(var(--spacing) * 6);
+  --space-8: calc(var(--spacing) * 8);
+  --space-10: calc(var(--spacing) * 10);
+  --space-12: calc(var(--spacing) * 12);
+  --space-16: calc(var(--spacing) * 16);
+  --space-20: calc(var(--spacing) * 20);
+  --space-24: calc(var(--spacing) * 24);
+  --button-padding-sm: calc(var(--spacing) * 2.5);
+  --button-padding-md: calc(var(--spacing) * 3);
+  --button-padding-lg: calc(var(--spacing) * 4);
+  --menu-padding: .25rem;
+  --menu-item-padding: 0 calc(var(--spacing) * 2);
+  --select-item-padding: 0 calc(var(--spacing) * 8) 0 calc(var(--spacing) * 2);
+  --textarea-padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  --badge-padding-y: 3px;
+  --badge-gap: .25rem;
+
+  /* Component sizes: control heights, rows, header, navigation, icons, badges. */
+  --border-width: 1px;
+  --control-height-sm: 26px;
+  --control-height-md: 34px;
+  --control-height-lg: 38px;
+  --size-inner-tiny: 24px;
+  --size-inner-small: 28px;
+  --size-inner-medium: 32px;
+  --size-inner-large: 36px;
+  --size-inner-xlarge: 44px;
+  --header-height: 3rem;
+  --toolbar-icon-size: 30px;
+  --sidebar-row-height: 2rem;
+  --menu-row-height: calc(var(--spacing) * 3 + var(--text-xs) * var(--text-xs--line-height));
+  --table-head-height: 2.5rem;
+  --popover-width: 18rem;
+  --navigation-width: 13rem;
+  --checkbox-size: 1rem;
+  --icon-size-xs: 12px;
+  --icon-size-sm: 14px;
+  --icon-size-md: 16px;
+  --icon-size-lg: 18px;
+  --icon-size-xl: 20px;
+  --icon-size-2xl: 24px;
+  --badge-height: calc(var(--badge-sm-font) + var(--badge-padding-y) * 2 + 2px);
+  --badge-sm-height: max(var(--badge-height), calc(max(calc(var(--badge-sm-font) * var(--text-sm--line-height)), var(--icon-size-xs)) + var(--badge-padding-y) * 2 + var(--border-width) * 2));
+  --segment-border-width: 0;
+  --segment-gap: 0;
+  --segment-selection-border-width: 0;
+  --segment-background: transparent;
+  --button-solid-border-width: 0;
+  --select-viewport-padding: 0;
+  --opacity-disabled: .5;
+
+  /* Motion: eases and durations (100ms dropdowns, 150ms default, 200ms controls, 300ms overlays). */
+  --ease-enter: cubic-bezier(.16, 1, .3, 1);
+  --ease-standard: cubic-bezier(.22, 1, .36, 1);
+  --ease-exit: cubic-bezier(.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+  --ease-spring: cubic-bezier(.22, 1, .36, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-standard: 200ms;
+  --duration-considered: 300ms;
+  --duration-spring: 200ms;
+}
+
+.dark {
+  --text-muted: oklch(0.684 0.00275 157.5);
+  --dialog-surface: var(--background);
+  --surface-muted: oklch(0.95 0.00275 157.5 / 0.0328947);
+  --hairline: oklch(0.95 0.001485 157.5 / 0.075125);
+  --border-strong: oklch(0.95 0.001375 157.5 / 0.134738);
+  --border-overlay: oklch(0.95 0.001375 157.5 / 0.133713);
+  --input-border-hover: oklch(0.95 0.001375 157.5 / 0.279862);
+  --pressed-wash: oklch(0.95 0.00275 157.5 / 0.0493421);
+  --nav-hover: oklch(0.95 0.0027 157.5 / 0.0247);
+  --control-on-subtle: oklch(0.95 0.0027 157.5 / 0.0123);
+  --input-background: oklch(0 0 0 / 0.12);
+  --button-secondary-background: var(--surface-muted);
+  --button-secondary-hover: var(--pressed-wash);
+
+  --accent-ink: var(--ring);
+  --accent-ink-foreground: oklch(0.19 0.00225 157.5);
+  --accent-strong: oklch(0.8 0.15 157.5);
+  --primary-hover: oklch(0.47627 0.11 157.5);
+
+  --success: hsl(154.9deg 59.5% 70%);
+  --success-soft: hsl(153.1deg 60.2% 52.7% / 0.1);
+  --success-border: hsl(154.9deg 100% 19.2%);
+  --warning: hsl(38.9deg 100% 42.9%);
+  --warning-soft: oklch(0.8 0.14 75 / 0.1);
+  --warning-border: hsl(34.8deg 90.9% 21.6%);
+  --info: oklch(0.7 0.14 288);
+  --destructive-hover: oklch(0.59 0.14 25);
+  --input-error-background: hsl(10.9deg 23.4% 9.2%);
+  --input-error-border: hsl(6.7deg 60% 20.6%);
+
+  /* Project and label dots keep their light hue and chroma, lifted so each clears 5:1 on the
+     dark popover. Avatar tones are one dark step (L 0.33) per hue, so the light initials read at
+     about 10:1 and the tone still shows against the dark card. */
+  --project-blue: oklch(0.7 0.15 252);
+  --project-green: oklch(0.7 0.14 158);
+  --project-violet: oklch(0.66 0.16 288);
+  --project-amber: oklch(0.82 0.16 76);
+  --project-coral: oklch(0.68 0.18 33);
+  --project-slate: oklch(0.66 0.015 240);
+  --avatar-tone-blue: oklch(0.33 0.07 250);
+  --avatar-tone-green: oklch(0.33 0.06 155);
+  --avatar-tone-violet: oklch(0.33 0.07 310);
+  --avatar-tone-amber: oklch(0.35 0.06 90);
+  --avatar-tone-coral: oklch(0.33 0.07 50);
+  --avatar-tone-slate: oklch(0.33 0.015 245);
+  --label-purple: oklch(0.68 0.16 305);
+
+  --neutral-0: hsl(0, 0%, 8.5%);
+  --neutral-1: hsl(0, 0%, 11%);
+  --neutral-2: hsl(0, 0%, 13.6%);
+  --neutral-3: hsl(0, 0%, 15.8%);
+  --neutral-4: hsl(0, 0%, 17.9%);
+  --neutral-5: hsl(0, 0%, 20.5%);
+  --neutral-6: hsl(0, 0%, 24.3%);
+  --neutral-7: hsl(0, 0%, 31.2%);
+  --neutral-8: hsl(0, 0%, 43.9%);
+  --neutral-9: hsl(0, 0%, 49.4%);
+  --neutral-10: #bbbbbb;
+  --neutral-11: hsl(0, 0%, 93%);
+  --arc-gradient-from: hsl(162deg 100% 2%);
+  --arc-gradient-to: hsl(155.5deg 100% 9.6%);
+
+  --shadow-raised: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
+  --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+  --dialog-shadow: var(--shadow-xs);
+  --button-shadow-drop: 0 1px 3px 0 hsl(0deg 0% 0% / 0.2);
+  --button-edge-strength: 1;
+  --button-edge-colour: 0 0% 100%;
+  --button-default-shadow: var(--button-shadow-drop), inset 0 1px 0 0 hsl(var(--button-edge-colour) / calc(.04 * var(--button-edge-strength))), inset 0 0 0 1px hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 -1px 0 0 hsl(0 0% 0% / calc(.06 * var(--button-edge-strength))), inset 0 0 0 1px hsl(var(--button-edge-colour) / calc(.1 * var(--button-edge-strength)));
+  --button-solid-sheen: linear-gradient(to bottom, hsl(0 0% 100% / .015), hsl(0 0% 0% / .01));
+  --button-secondary-sheen: var(--button-solid-sheen);
+  --user-menu-thumb-shadow: none;
+}

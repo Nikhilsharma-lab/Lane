@@ -13,7 +13,7 @@ import { journeyStatusCondition, requesterColumn } from "@/lib/request-journey-s
  * Asks the journey module which reminders `auth`'s member is owed today and inserts the missing ones
  * (no actor: Lane is reminding), following the writer contract on `DueReminder`: nothing of the same kind
  * for that Request and member since the reminder's `day`, and ON CONFLICT DO NOTHING against migration
- * 0033's once-a-day key, so concurrent loads write once.
+ * 0034's once-a-day key, so concurrent loads write once.
  *
  * The recipient is always the signed-in member. Their session already proves workspace access, so the
  * live roster is not re-read on every bell load; guests never receive reminders.

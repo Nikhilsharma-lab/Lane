@@ -3,7 +3,7 @@ import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from '.
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { answerIsItLive, journey, journeyStep } from './helpers/journey';
 
-// Hosted acceptance gate: requires verified backup and staging migrations 0028–0033 (#127 adds 0031–0033).
+// Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
 // Fixtures are retained with receipts by createReviewTeam, never silently erased.
 // A hosted run cannot reach a real measurement deadline (exposure cannot predate today's agreement), so measured
 // closure, the due-date gate and guardrail results are proven with a controlled clock in outcome-actions.test.ts

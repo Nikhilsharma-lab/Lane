@@ -46,9 +46,12 @@ export function assertE2ETarget(env: NodeJS.ProcessEnv = process.env) {
     Buffer.from(pk.slice(8), "base64").toString() !== `${CLERK_HOST}$` ||
     !env.CLERK_SECRET_KEY?.startsWith("sk_test_")
   ) fail();
-  for (const key of ["CLERK_API_URL", "CLERK_FAPI", "CLERK_PROXY_URL", "NEXT_PUBLIC_CLERK_PROXY_URL"]) {
+  for (const key of ["CLERK_API_URL", "CLERK_PROXY_URL", "NEXT_PUBLIC_CLERK_PROXY_URL"]) {
     if (env[key]) fail();
   }
+  // clerkSetup() (the setup project) writes the pinned instance's Frontend API
+  // host here, and workers reload this config afterwards. Only that exact host passes.
+  if (env.CLERK_FAPI && env.CLERK_FAPI !== CLERK_HOST) fail();
   return { databaseUrl, baseURL: base.origin };
 }
 

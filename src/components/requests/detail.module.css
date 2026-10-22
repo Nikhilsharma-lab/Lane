@@ -75,9 +75,9 @@
 .priorityGlyph { display: inline-flex; flex: none; color: var(--foreground); }
 .sheet .properties { padding-bottom: var(--space-4); }
 @media (pointer: coarse) {
-  .propertyRow { --property-row: var(--sb-size-inner-xlarge); }
-  .propertyButton, .stateLine { min-height: var(--sb-size-inner-xlarge); }
-  .propertyButton { margin-block: calc((var(--property-line) - var(--sb-size-inner-xlarge)) / 2); }
+  .propertyRow { --property-row: var(--size-inner-xlarge); }
+  .propertyButton, .stateLine { min-height: var(--size-inner-xlarge); }
+  .propertyButton { margin-block: calc((var(--property-line) - var(--size-inner-xlarge)) / 2); }
 }
 
 /* The strip: icon buttons, the sequence and which tools each width shows. */

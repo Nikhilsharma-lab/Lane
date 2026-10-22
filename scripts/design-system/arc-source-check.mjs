@@ -43,7 +43,10 @@ walk(join(root, 'src/components'))
 const config = JSON.parse(read('components.json'))
 const registryNames = Object.keys(config.registries ?? {}).sort()
 if (JSON.stringify(registryNames) !== JSON.stringify(['@uiarc', '@uiarc-pro'])) errors.push(`Unexpected UI registries: ${registryNames.join(', ')}`)
-if (!read('src/app/layout.tsx').includes('"@/components/arc/foundation.css"')) errors.push('Arc foundation not imported in root layout')
+// Arc's foundation loads once, from globals.css, inside its own cascade layer below the theme file
+// and bridge (#87), so none of its light or dark defaults can paint over the theme.
+if (!/^@import "\.\.\/components\/arc\/foundation\.css" layer\(arc-foundation\);$/m.test(read('src/app/globals.css'))) errors.push('Arc foundation not imported in globals.css as @import "../components/arc/foundation.css" layer(arc-foundation);')
+for (const file of ['src/app/layout.tsx', 'src/app/global-error.tsx']) if (read(file).includes('arc/foundation.css')) errors.push(`${file} imports Arc foundation unlayered; globals.css brings it in its cascade layer`)
 const packageJson = JSON.parse(read('package.json'))
 for (const name of Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies })) {
   if (/^@astryxdesign\/|^@base-ui\/react$|^@heroicons\/react$|^@stylexjs\/stylex$|^sonner$|^cmdk$/.test(name)) errors.push(`Retired UI dependency: ${name}`)

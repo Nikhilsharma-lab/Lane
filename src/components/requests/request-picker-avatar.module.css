@@ -7,17 +7,17 @@
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
-  border: var(--sb-border-width) solid var(--request-property-border);
+  border: var(--border-width) solid var(--request-property-border);
   border-radius: var(--radius-pill);
   background: var(--request-property-background);
   color: var(--request-property-foreground);
 }
 
-/* Stable identity colours from Supabase's palette step 300, only in the compact list. */
-.trigger .avatar[data-avatar-tone] { background: var(--picker-background, var(--sb-color-blue-300)); color: var(--foreground); }
-.trigger .avatar[data-avatar-tone="green"] { --picker-background: var(--sb-color-green-300); }
-.trigger .avatar[data-avatar-tone="violet"] { --picker-background: var(--sb-color-purple-300); }
-.trigger .avatar[data-avatar-tone="amber"] { --picker-background: var(--sb-color-yellow-300); }
-.trigger .avatar[data-avatar-tone="coral"] { --picker-background: var(--sb-color-orange-300); }
-.trigger .avatar[data-avatar-tone="slate"] { --picker-background: var(--sb-color-red-300); }
+/* Stable identity colours (the theme file's avatar tones), only in the compact list. */
+.trigger .avatar[data-avatar-tone] { background: var(--picker-background, var(--avatar-tone-blue)); color: var(--foreground); }
+.trigger .avatar[data-avatar-tone="green"] { --picker-background: var(--avatar-tone-green); }
+.trigger .avatar[data-avatar-tone="violet"] { --picker-background: var(--avatar-tone-violet); }
+.trigger .avatar[data-avatar-tone="amber"] { --picker-background: var(--avatar-tone-amber); }
+.trigger .avatar[data-avatar-tone="coral"] { --picker-background: var(--avatar-tone-coral); }
+.trigger .avatar[data-avatar-tone="slate"] { --picker-background: var(--avatar-tone-slate); }
 :global([data-selected]) .trigger .avatar[data-avatar-tone] { background: var(--request-property-background); color: var(--request-property-foreground); }

@@ -1,66 +1,35 @@
-@import "tailwindcss";
+/* Lane's stylesheet entry. The theme file (src/styles/theme.css) is the only place visual values
+   are written: tweakcn's export on top, with Tailwind itself, then Lane additions. Arc's foundation
+   loads in its own cascade layer below the theme and bridge, so none of Arc's defaults (light or
+   dark) can paint over the theme; the bridge renames Arc's and Lane's names onto the theme's. */
+@import "../styles/theme.css";
 @import "tw-animate-css";
+@import "../components/arc/foundation.css" layer(arc-foundation);
+@import "../styles/theme-bridge.css";
 
-@custom-variant dark (&:is(.dark *));
-
-/* Tailwind utilities used in product markup resolve to the Supabase tokens in
-   src/styles/supabase-tokens.css, through Arc's hooks where Arc owns the role. */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--surface);
-  --color-secondary: var(--sb-secondary);
-  --color-muted: var(--surface-muted);
-  --color-muted-foreground: var(--text-secondary);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--border-strong);
-  --color-ring: var(--focus-outline);
-
-  --font-sans: var(--font-body);
-  --font-mono: var(--sb-font-mono);
-  --font-weight-normal: var(--sb-font-weight-normal);
-  --font-weight-medium: var(--sb-font-weight-medium);
-  --font-weight-semibold: var(--sb-font-weight-semibold);
-
-  --text-type-ui: var(--sb-text-sm);
-  --text-type-ui--line-height: var(--sb-text-sm--line-height);
-  --text-type-ui--font-weight: var(--sb-font-weight-normal);
-
-  --radius-xs: var(--sb-radius-xs);
-  --radius-sm: var(--sb-radius-sm);
-  --radius-md: var(--sb-radius-md);
-  --radius-lg: var(--sb-radius-lg);
-  --radius-xl: var(--sb-radius-xl);
-  --radius-2xl: var(--sb-radius-2xl);
-  --radius-3xl: var(--sb-radius-3xl);
-  --radius-4xl: var(--sb-radius-4xl);
-}
-
-/* Studio's base layer: body text-default at font-weight-normal on the dash-sidebar canvas;
-   Manrope-role headings (Geist here) at semibold with Supabase's heading sizes. */
+/* Base type: body copy at the normal weight on the page canvas; headings at semibold with Lane's
+   heading sizes. Plumbing only: every value is a theme file name. */
 @layer base {
   * { border-color: var(--border); }
   body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
-    font-size: var(--sb-text-base);
-    font-weight: var(--sb-font-weight-normal);
-    line-height: var(--sb-text-base--line-height);
-    letter-spacing: var(--sb-tracking-normal);
+    font-size: var(--text-base);
+    font-weight: var(--weight-normal);
+    line-height: var(--text-base--line-height);
+    letter-spacing: var(--tracking-normal);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: var(--sb-font-weight-semibold); }
-  h1 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-2xl); line-height: var(--sb-text-2xl--line-height); letter-spacing: var(--sb-tracking-tight); }
-  h2 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-xl); line-height: var(--sb-text-xl--line-height); }
-  h3 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-base); line-height: var(--sb-text-base--line-height); }
-  h4, h5 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-sm); line-height: var(--sb-text-sm--line-height); }
-  h6 { scroll-margin-top: calc(var(--sb-spacing) * 20); font-size: var(--sb-text-xs); line-height: var(--sb-text-xs--line-height); }
-  small { font-size: var(--sb-text-xs); line-height: var(--sb-text-xs--line-height); }
-  strong { font-weight: var(--sb-font-weight-medium); }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: var(--weight-semibold); }
+  h1 { scroll-margin-top: calc(var(--spacing) * 20); font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); letter-spacing: var(--tracking-display); }
+  h2 { scroll-margin-top: calc(var(--spacing) * 20); font-size: var(--text-xl); line-height: var(--text-xl--line-height); }
+  h3 { scroll-margin-top: calc(var(--spacing) * 20); font-size: var(--text-base); line-height: var(--text-base--line-height); }
+  h4, h5 { scroll-margin-top: calc(var(--spacing) * 20); font-size: var(--text-sm); line-height: var(--text-sm--line-height); }
+  h6 { scroll-margin-top: calc(var(--spacing) * 20); font-size: var(--text-xs); line-height: var(--text-xs--line-height); }
+  small { font-size: var(--text-xs); line-height: var(--text-xs--line-height); }
+  strong { font-weight: var(--weight-medium); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,8 +1,7 @@
 /* Arc Pro source (https://uiarc.dev), used under the Arc Pro license as part of the Lane app.
    It is not covered by any license of this repository and may not be reused outside Lane. */
 .sidebar { --full: calc(var(--space-1) * 68); --row: var(--sidebar-row-height, calc(var(--space-1) * 8)); --row-radius: var(--sidebar-row-radius, var(--radius-control)); --row-hover: var(--interaction-hover); --row-active: var(--interaction-pressed); position: relative; display: flex; width: min(100%, var(--full)); max-width: 100%; height: calc(var(--space-1) * 176); min-height: 0; flex-direction: column; overflow: hidden; border: var(--border-width) solid var(--border); border-radius: var(--radius-xl); background: var(--navigation-background); color: var(--foreground); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); }
-:global(:root[data-theme="dark"]) .sidebar { --row-hover: var(--interaction-hover); --row-active: var(--interaction-pressed); background: var(--navigation-background); }
-.sidebar[data-placement="inline"], :global(:root[data-theme="dark"]) .sidebar[data-placement="inline"] { border: 0; border-radius: 0; background: transparent; }
+.sidebar[data-placement="inline"] { border: 0; border-radius: 0; background: transparent; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* The person's identity anchors account actions; search and compose retain their own accessible labels. */
@@ -195,14 +194,12 @@
   .createButton { width: calc(var(--space-1) * 11); height: calc(var(--space-1) * 11); }
 }
 .topbar { position: sticky; top: 0; z-index: 10; display: grid; min-width: 0; min-height: calc(var(--space-1) * 14); grid-template-columns: calc(var(--space-1) * 11) calc(var(--space-1) * 7) minmax(0, 1fr); align-items: center; gap: calc(var(--space-1) * 2.5); border: var(--border-width) solid var(--border); border-radius: var(--radius-xl); padding: calc(var(--space-1) * 1.75) calc(var(--space-1) * 4) calc(var(--space-1) * 1.75) calc(var(--space-1) * 1.75); background: var(--navigation-background); color: var(--foreground); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); }
-:global(:root[data-theme="dark"]) .topbar { background: var(--navigation-background); }
 .opener { display: grid; width: calc(var(--space-1) * 11); height: calc(var(--space-1) * 11); place-items: center; border: 0; border-radius: var(--radius-surface); padding: 0; background: transparent; color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
 .opener:active, .opener[aria-expanded="true"] { background: var(--interaction-pressed); color: var(--foreground); }
 .topbarText { display: grid; min-width: 0; }
 .topbarPage { font-weight: var(--weight-medium); line-height: var(--leading-body); }
 .topbarWorkspace { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--leading-body); }
 .backdrop { position: fixed; inset: 0; z-index: 50; background: var(--overlay-backdrop); opacity: 0; pointer-events: none; -webkit-tap-highlight-color: transparent; }
-:global(:root[data-theme="dark"]) .backdrop { background: var(--overlay-backdrop); }
 .backdrop[data-open] { pointer-events: auto; }
 .sheet { position: fixed; top: max(calc(var(--space-1) * 2), env(safe-area-inset-top)); bottom: max(calc(var(--space-1) * 2), env(safe-area-inset-bottom)); left: max(calc(var(--space-1) * 2), env(safe-area-inset-left)); z-index: 51; display: flex; width: min(calc(var(--space-1) * 76), calc(100vw - calc(var(--space-1) * 14))); outline: 0; visibility: hidden; touch-action: pan-y; will-change: transform; }
 .sheet[data-shown] { visibility: visible; }

@@ -236,7 +236,7 @@ export const REMINDER_TIMINGS = {
  * gets it, exactly as a daily job would have sent it.
  *
  * Writer contract: insert only when no notification of this kind for this Request and recipient was created
- * on or after `day` (UTC), with ON CONFLICT DO NOTHING. Migration 0033's unique index (one per Request,
+ * on or after `day` (UTC), with ON CONFLICT DO NOTHING. Migration 0034's unique index (one per Request,
  * recipient, kind and created UTC day) stops same-day races; the "on or after `day`" check stops a weekly
  * reminder being written again on each following day.
  */

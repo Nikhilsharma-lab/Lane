@@ -11,7 +11,7 @@ const reservedEmails = new Set<string>();
 export const fixtureMetadata = { laneE2ERunId: runId };
 
 export function testEmail(label: string) {
-  const email = `lane-e2e-${label}-${randomUUID()}+clerk_test@example.com`;
+  const email = `lane-e2e-${label}-${randomUUID().slice(0, 12)}+clerk_test@example.com`;
   reservedEmails.add(email);
   return email;
 }
