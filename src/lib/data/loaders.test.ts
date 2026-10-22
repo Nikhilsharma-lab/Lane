@@ -138,9 +138,11 @@ describe("loadProjects", () => {
 });
 
 describe("loadUnreadCount", () => {
-  it("counts unread notifications in the workspace in one statement", async () => {
+  // #136: one read for reminders owed (the bell writes them, no scheduled job), then the count.
+  // An insert is added only on a load where a reminder is actually due.
+  it("counts unread notifications in the workspace in two statements when no reminder is due", async () => {
     const { result, statements } = await queryCounter.measure(() => loadUnreadCount(admin));
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(2);
     expect(result).toBe(2);
   });
 
