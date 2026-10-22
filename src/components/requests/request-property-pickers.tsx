@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject, listProjects } from "@/app/(app)/intake/project-actions";
 import { Check, Plus } from "lucide-react";
@@ -31,7 +32,7 @@ export function useWorkspaceProjects(orgId: string, active: boolean) {
     setLoading(true);
     setError(null);
     try {
-      const result = await listProjects({ orgId });
+      const result = await callAction(() => listProjects({ orgId }));
       if (!mounted.current) return;
       if (result.success) { setProjects(result.projects); loaded.current = true; }
       else setError(result.error.message);
@@ -191,7 +192,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
     }
     setCreating(true); onBusyChange(true); setCreateError(null);
     try {
-      const result = await createProject({ name: choice.name }, { orgId });
+      const result = await callAction(() => createProject({ name: choice.name }, { orgId }));
       if (result.success) {
         state.addProject(result.project);
         onChange(result.project.id);

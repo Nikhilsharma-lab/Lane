@@ -1,4 +1,5 @@
 "use client";
+import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useOptimisticAction } from "./use-optimistic-action";
@@ -81,14 +82,14 @@ export function RequestReviewersPanel({
   }, []);
   const load = useCallback(async () => {
     try {
-      applyView(await actions.readReviews(requestId, { orgId }));
+      applyView(await callAction(() => actions.readReviews(requestId, { orgId })));
     } catch {
       setError("Could not load reviews. Try again.");
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
     let active = true;
-    void actions.readReviews(requestId, { orgId })
+    void callAction(() => actions.readReviews(requestId, { orgId }))
       .then((result) => { if (active) applyView(result); })
       .catch(() => { if (active) setError("Could not load reviews. Try again."); });
     return () => { active = false; };

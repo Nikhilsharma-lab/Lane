@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ export function Sidebar({
       projectsError={projectState?.error}
       onRetryProjects={() => projectState?.reload()}
       onCreateProject={async name => {
-        const result = await createProject({ name }, { orgId });
+        const result = await callAction(() => createProject({ name }, { orgId }));
         if (!result.success) throw new Error(result.error.message);
         projectState?.addProject(result.project);
         router.push(requestListHref("all", result.project.id));

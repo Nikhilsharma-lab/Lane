@@ -1,4 +1,5 @@
 "use client";
+import { callAction } from "@/lib/action-call";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { listLabels } from "@/app/(app)/intake/label-actions";
 import { DEFAULT_LABELS, type RequestLabel } from "@/lib/request-labels";
@@ -11,7 +12,7 @@ export function WorkspaceLabelsProvider({orgId,children,initialLabels}:{orgId:st
  useEffect(()=>{
   if(initialLabels && revision===0) return;
   let cancelled=false;
-  void listLabels({orgId}).then(result=>{
+  void callAction(() => listLabels({orgId})).then(result=>{
    if(cancelled)return;
    if(result.success){setLabels(result.labels);setCanCreate(result.canCreate);setError(null);}
    else setError(result.error);
