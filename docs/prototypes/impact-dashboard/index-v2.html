@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE v2, throwaway: Lane impact</title>
+<!--
+  PROTOTYPE v2, THROWAWAY. Sample data only. Not Lane's look or components.
+  Question: does each view show actual impact at a glance, with no score that grades a person?
+  Rule used: totals only where metric, unit, audience and window all match. Otherwise separate lines.
+-->
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#fff;
+          --good:#2f7d4f; --neutral:#6b6b66; --bad:#b4442c; --due:#8a6d12; --ops:#4a6fa5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 "Geist", system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  .banner { background:#fff3bf; color:#5c4a00; padding:8px 16px; font-size:13px; border-bottom:1px solid #e8d77a; }
+  header { max-width:960px; margin:0 auto; padding:24px 24px 0; }
+  .eyebrow { font-size:12px; color:var(--muted); letter-spacing:.02em; margin-bottom:2px; }
+  h1 { font-size:22px; margin:0 0 14px; font-weight:600; }
+  nav[role=tablist] { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; padding:10px 14px; font:inherit; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; }
+  nav button[aria-selected=true] { color:var(--fg); border-bottom-color:var(--fg); font-weight:600; }
+  nav button:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  main { max-width:960px; margin:0 auto; padding:22px 24px 64px; }
+  [hidden] { display:none !important; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:26px 0 10px; }
+  h2:first-child { margin-top:0; }
+  .row { display:grid; grid-template-columns: 1fr 200px 170px; gap:16px; align-items:center;
+         background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
+  .row .title { font-weight:600; }
+  .row .why { color:var(--muted); font-size:13px; margin-top:2px; }
+  .actual { font-size:22px; font-weight:600; font-variant-numeric: tabular-nums; line-height:1.1; }
+  .actual small { display:block; font-size:12px; font-weight:400; color:var(--muted); margin-top:3px; }
+  .actual.good { color:var(--good); } .actual.bad { color:var(--bad); } .actual.neutral { color:var(--neutral); }
+  .actual.due { font-size:15px; color:var(--due); font-weight:600; }
+  .actual.ops { font-size:15px; color:var(--ops); font-weight:600; }
+  .pill { justify-self:end; font-size:12px; padding:3px 10px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .pill.good { color:var(--good); border-color:var(--good); } .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .pill.due { color:var(--due); border-color:var(--due); } .pill.ops { color:var(--ops); border-color:var(--ops); }
+  .lead { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:10px; }
+  .lead .metric { font-size:13px; color:var(--muted); }
+  .lead .numbers { display:flex; gap:24px; align-items:baseline; flex-wrap:wrap; margin-top:4px; }
+  .lead .numbers .a { font-size:26px; font-weight:600; font-variant-numeric: tabular-nums; }
+  .lead .numbers .p { color:var(--muted); font-size:14px; }
+  .lead .where { color:var(--muted); font-size:13px; margin-top:6px; }
+  .strip { display:flex; flex-wrap:wrap; gap:18px; font-size:13px; color:var(--muted); margin-top:6px; }
+  .strip b { color:var(--fg); font-weight:600; }
+  .proj { margin-bottom:26px; }
+  .proj h3 { font-size:16px; margin:0 0 8px; font-weight:600; }
+  .none { color:var(--muted); font-size:14px; padding:6px 0 0; }
+  .explain { color:var(--muted); font-size:13px; margin:0 0 14px; max-width:70ch; }
+  @media (max-width:640px) { .row { grid-template-columns: 1fr; } .pill { justify-self:start; } }
+</style>
+</head>
+<body>
+<div class="banner">PROTOTYPE v2, THROWAWAY. Sample data only. Not Lane's look. Answers: can each view show actual impact at a glance, without a score that grades a person?</div>
+
+<header>
+  <div class="eyebrow">Impact · Q3 2026, by release date</div>
+  <h1>What our work did</h1>
+  <nav role="tablist" aria-label="Impact views">
+    <button role="tab" id="t-personal" aria-selected="true" aria-controls="v-personal">My work</button>
+    <button role="tab" id="t-project" aria-selected="false" aria-controls="v-project" tabindex="-1">By project</button>
+    <button role="tab" id="t-org" aria-selected="false" aria-controls="v-org" tabindex="-1">Whole org</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MY WORK: predicted and actual for each Request I requested or picked up. No totals, no averages. -->
+  <section id="v-personal" role="tabpanel" aria-labelledby="t-personal">
+    <p class="explain">Requests you requested or picked up. Each row shows what was predicted and what actually happened. Team totals are on the other tabs.</p>
+
+    <h2>Measured</h2>
+    <div class="row">
+      <div><div class="title">Checkout: fewer steps</div><div class="why">You requested · Drop-offs (%)</div></div>
+      <div class="actual good">−11%<small>actual · predicted −15%</small></div>
+      <div class="pill good">Good result</div>
+    </div>
+
+    <h2>Still due</h2>
+    <div class="row">
+      <div><div class="title">Onboarding copy rewrite</div><div class="why">You picked up · Activation (%) · predicted +5%</div></div>
+      <div class="actual due">Measured 14 Nov</div>
+      <div class="pill due">Still due</div>
+    </div>
+
+    <h2>Operational work</h2>
+    <div class="row">
+      <div><div class="title">Design-system button</div><div class="why">You picked up · no measurable impact: internal tooling</div></div>
+      <div class="actual ops">Not measured</div>
+      <div class="pill ops">Operational</div>
+    </div>
+
+    <h2>Closed without a result</h2>
+    <div class="row">
+      <div><div class="title">Export to CSV</div><div class="why">You requested · rolled back before release</div></div>
+      <div class="actual neutral">—<small>no result recorded</small></div>
+      <div class="pill">Closed, reason given</div>
+    </div>
+  </section>
+
+  <!-- BY PROJECT: each Project leads with its measured impact, then its Requests with actual per row. -->
+  <section id="v-project" role="tabpanel" aria-labelledby="t-project" hidden>
+    <p class="explain">Each Project leads with what it measured. Results are shown on separate lines unless the metric, unit and audience all match.</p>
+
+    <div class="proj">
+      <h3>Checkout</h3>
+      <div class="lead">
+        <div class="metric">Drop-offs (%)</div>
+        <div class="numbers"><span class="a">−11%</span><span class="p">actual · predicted −15%</span></div>
+        <div class="where">From Fewer steps</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Fewer steps</div><div class="why">Drop-offs (%) · requested by you</div></div>
+        <div class="actual good">−11%<small>actual · predicted −15%</small></div>
+        <div class="pill good">Good result</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Payment error retry</div><div class="why">Payment errors per month · predicted −20</div></div>
+        <div class="actual due">Measured 3 Dec</div>
+        <div class="pill due">Still due</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Onboarding</h3>
+      <div class="lead">
+        <div class="metric">Activation (%)</div>
+        <div class="numbers"><span class="p">Predicted +5% · no measured result yet</span></div>
+        <div class="where">Two Requests still due, 14 and 28 Nov</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Copy rewrite</div><div class="why">Activation (%) · picked up by you</div></div>
+        <div class="actual due">Measured 14 Nov</div>
+        <div class="pill due">Still due</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Time to first project</div><div class="why">Minutes · predicted −2</div></div>
+        <div class="actual due">Measured 28 Nov</div>
+        <div class="pill due">Still due</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>Design system</h3>
+      <div class="lead"><div class="metric">No measured impact</div><div class="numbers"><span class="p">Operational work, excluded from totals</span></div></div>
+      <div class="row">
+        <div><div class="title">Design-system button</div><div class="why">Internal tooling · picked up by you</div></div>
+        <div class="actual ops">Not measured</div>
+        <div class="pill ops">Operational</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Token audit</div><div class="why">Internal tooling</div></div>
+        <div class="actual ops">Not measured</div>
+        <div class="pill ops">Operational</div>
+      </div>
+    </div>
+
+    <div class="proj">
+      <h3>No project</h3>
+      <div class="row">
+        <div><div class="title">Report load time</div><div class="why">Seconds · predicted −1.0</div></div>
+        <div class="actual good">−1.4 s<small>actual · predicted −1.0 s</small></div>
+        <div class="pill good">Good result</div>
+      </div>
+      <div class="row">
+        <div><div class="title">Export to CSV</div><div class="why">Rolled back before release</div></div>
+        <div class="actual neutral">—<small>no result recorded</small></div>
+        <div class="pill">Closed, reason given</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHOLE ORG: leads with measured impact. Counts are secondary, in a strip below. -->
+  <section id="v-org" role="tabpanel" aria-labelledby="t-org" hidden>
+    <p class="explain">Measured results this quarter, one line per metric. Different metrics are never added together. Nothing here grades a person.</p>
+
+    <h2>Measured impact</h2>
+    <div class="lead">
+      <div class="metric">Drop-offs (%) · Checkout</div>
+      <div class="numbers"><span class="a">−11%</span><span class="p">actual · predicted −15%</span><span class="pill good">Good</span></div>
+      <div class="where">Fewer steps</div>
+    </div>
+    <div class="lead">
+      <div class="metric">Guest completions (%) · Checkout</div>
+      <div class="numbers"><span class="a">+2%</span><span class="p">actual · predicted +8%</span><span class="pill">Neutral</span></div>
+      <div class="where">Guest checkout</div>
+    </div>
+    <div class="lead">
+      <div class="metric">Report load time (seconds) · No project</div>
+      <div class="numbers"><span class="a">−1.4 s</span><span class="p">actual · predicted −1.0 s</span><span class="pill good">Good</span></div>
+      <div class="where">Report speed</div>
+    </div>
+
+    <h2>Still to measure</h2>
+    <div class="lead">
+      <div class="numbers"><span class="a">3</span><span class="p">results due 3 Dec, 14 Nov and 28 Nov</span></div>
+      <div class="where">Payment error retry · Copy rewrite · Time to first project</div>
+    </div>
+
+    <h2>Kept apart from measured results</h2>
+    <div class="strip">
+      <span><b>2</b> operational work items (no measurable impact)</span>
+      <span><b>1</b> closed without a result, reason recorded</span>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Tabs: click or arrow keys. Plain DOM, nothing else.
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  function show(id) {
+    tabs.forEach(t => {
+      const on = t.id === id;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    document.getElementById(id).focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.id));
+    t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const n = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        show(tabs[n].id);
+      }
+    });
+  });
+</script>
+</body>
+</html>
