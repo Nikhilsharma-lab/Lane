@@ -294,7 +294,7 @@ export default function RequestEditor({
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
-  const projects = useWorkspaceProjects(context.orgId, active);
+  const projects = useWorkspaceProjects();
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [source, setSource] = useState<RequestInput | null>(null);
