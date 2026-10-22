@@ -37,6 +37,7 @@ export default defineConfig({
       "src/lib/keyboard-shortcuts.test.ts",
       "src/components/requests/request-grid-keys.test.ts",
       "src/components/requests/request-row-label.test.ts",
+      "src/components/requests/due-tag.test.ts",
       "src/components/shell/sidebar-motion.test.ts",
       "src/components/requests/request-detail-keys.test.ts",
       "src/components/requests/request-sequence.test.ts",

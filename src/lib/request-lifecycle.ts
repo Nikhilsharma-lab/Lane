@@ -63,12 +63,3 @@ export function moveRefusal(
 export function pickupBlockedMessage(reason: string, requester: string | null): string {
   return requester ? `Ask ${requester} to add current values before pickup.` : reason
 }
-
-export function statusLabel(status: string): string {
-  switch (status) {
-    case "open": return "Open"
-    case "in_progress": return "In Progress"
-    case "done": return "Done"
-    default: return status
-  }
-}

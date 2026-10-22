@@ -11,7 +11,8 @@
  * `request-journey-sql.ts` and is proven against the same mapping.
  */
 import type { RequestStatus } from "./request-lifecycle"
-import { releaseMeasurement, releaseOwner, type ReleaseState } from "./request-release"
+import type { ReleaseState } from "./request-release"
+import { releaseMeasurement, releaseOwner } from "./request-release-facts"
 
 export type JourneyStatus = "open" | "in_progress" | "done" | "measuring" | "closed"
 export type JourneyLabel = "Open" | "In progress" | "Done" | "Measuring" | "Closed" | "Closed without a result"

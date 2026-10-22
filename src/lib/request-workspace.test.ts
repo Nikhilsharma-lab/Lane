@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { changesListInPlace, parseRequestProjectFilter, requestDetailHref, requestListHref } from "./request-workspace"
+import { REQUEST_STATUS_FILTER_LABELS, changesListInPlace, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListHref } from "./request-workspace"
+import { JOURNEY_STATUSES } from "./request-journey"
+
+describe("status views (#133)", () => {
+  it("offers each journey status under its glossary label, plus Due soon or overdue", () => {
+    for (const { status, label } of JOURNEY_STATUSES) expect(REQUEST_STATUS_FILTER_LABELS[status]).toBe(label)
+    expect(REQUEST_STATUS_FILTER_LABELS.due).toBe("Due soon or overdue")
+  })
+  it("reads each view from the URL and links to it", () => {
+    for (const view of ["measuring", "closed", "due"] as const) {
+      expect(parseRequestStatusFilter(view)).toBe(view)
+      expect(requestListHref(view)).toBe(`/?status=${view}`)
+    }
+    expect(parseRequestStatusFilter("archived")).toBe("all")
+  })
+})
 
 describe("changesListInPlace", () => {
   it("changes the list in place only on / and only for a Requests list link", () => {

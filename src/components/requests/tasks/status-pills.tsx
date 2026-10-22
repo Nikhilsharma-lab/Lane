@@ -3,15 +3,11 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
-import { isRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./data-table-toolbar.module.css"
 
-export const statusViews: { value: RequestStatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "done", label: "Done" },
-]
+/** All, the five journey statuses and Due soon or overdue (#133). */
+export const statusViews: { value: RequestStatusFilter; label: string }[] = REQUEST_STATUS_FILTERS.map(value => ({ value, label: REQUEST_STATUS_FILTER_LABELS[value] }))
 
 const GAP = 8 // the chip group's --space-2 gap
 const noop = () => {}

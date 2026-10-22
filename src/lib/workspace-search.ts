@@ -1,9 +1,11 @@
 import { parseRequestCode } from "./request-code";
+import type { JourneyStatus } from "./request-journey";
 
 export const WORKSPACE_SEARCH_PAGE_SIZE = 20;
 export const WORKSPACE_SEARCH_QUERY_MAX = 200;
 
-export type SearchStatus = "open" | "in_progress" | "done";
+/** The five journey statuses (#133). */
+export type SearchStatus = JourneyStatus;
 export type SearchRequestType = string;
 export type SearchSort = "relevance" | "newest" | "title";
 /** The filters the pane shows. Created dates are the viewer's calendar days, both inclusive. */
@@ -43,7 +45,10 @@ export type WorkspaceSearchRequest = {
   title: string;
   reframedProblem: string | null;
   description?: string;
-  status: "open" | "in_progress" | "done";
+  /** The one journey status (#133). */
+  status: JourneyStatus;
+  /** Closed without a measured result: reads "Closed without a result". */
+  withoutResult?: boolean;
   projectId: string | null;
   projectName: string | null;
   labelKeys?: string[] | null;

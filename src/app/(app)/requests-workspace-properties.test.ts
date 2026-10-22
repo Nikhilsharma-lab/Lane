@@ -32,11 +32,12 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     expect(recorded.queries[0].sql).toMatch(/where .*"requests"\."org_id" = \$\d+/)
   })
 
-  it("loads active Requests under the cap and the latest Done in one statement, with no status or Project filter in SQL (plan item 1.7)", async () => {
+  it("loads active Requests under the cap and the latest finished ones in one statement, with no Project filter in SQL (plan item 1.7; #133)", async () => {
     await RequestsWorkspace()
     const [list] = recorded.queries
-    expect(list.sql).toMatch(/^\(select .*"requests"\."status" <> \$\d+.*limit \$\d+\) union all \(select .*"requests"\."status" = \$\d+.*limit \$\d+\)$/)
-    expect(list.params).toEqual(expect.arrayContaining(["done", 201, 51]))
+    // Open and In progress, then Done, Measuring and Closed: the journey module's conditions (request-journey-sql.ts).
+    expect(list.sql).toMatch(/^\(select .*"requests"\."status" = 'open'\) or .*"requests"\."status" = 'in_progress'.*limit \$\d+\) union all \(select .*"requests"\."status" = 'done'.*"requests"\."outcome_closure" is not null or "requests"\."exception_closure" is not null.*limit \$\d+\)$/)
+    expect(list.params).toEqual(expect.arrayContaining([201, 51]))
     for (const where of list.sql.match(/where \([^)]*\)/g) ?? []) expect(where).not.toContain('"requests"."project_id"')
     expect(list.sql.match(/where \(/g)).toHaveLength(2)
     // Both halves join Projects within the workspace and filter by it.

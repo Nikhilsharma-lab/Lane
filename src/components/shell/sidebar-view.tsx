@@ -12,6 +12,7 @@ import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRe
 import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
+import { rowJourney } from "@/lib/request-overview";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
@@ -126,7 +127,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const loadedProjects = useRef(projects);
   useLayoutEffect(() => { loadedProjects.current = projects; }, [projects]);
   const getLoaded = useCallback((): LocalSearchSource => ({
-    requests: loadedRequests().map(row => ({ id: row.id, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem, status: row.status,
+    requests: loadedRequests().map(row => ({ id: row.id, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem, status: rowJourney(row).status, withoutResult: rowJourney(row).withoutResult,
       projectId: row.projectId ?? null, projectName: row.projectName ?? null, requestType: row.requestType ?? null, createdAt: row.createdAt })),
     projects: loadedProjects.current.map(project => ({ id: project.id, name: project.name, description: project.description ?? null })),
   }), [loadedRequests]);

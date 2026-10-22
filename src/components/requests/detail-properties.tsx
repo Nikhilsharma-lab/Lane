@@ -11,7 +11,9 @@ import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
 import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { availableMove, canEditRequest, statusLabel, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, canEditRequest, type LifecycleMove } from "@/lib/request-lifecycle"
+import { dueSignal, journeyStatus, type DueSignal, type Journey } from "@/lib/request-journey"
+import { DueTag, useDueNow } from "./due-tag"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestMoves } from "./request-moves"
@@ -24,10 +26,19 @@ import styles from "./detail.module.css"
 const PropertiesDrawer = dynamic(() => import("./detail-properties-drawer").then(module => module.PropertiesDrawer), { ssr: false })
 const preloadDrawer = () => { void import("./detail-properties-drawer") }
 
-/** "In Progress, High priority" or "Open, No priority": the phone's one state line (plan item 2.5). */
-export function stateLineText(status: Parameters<typeof statusLabel>[0], priority: RequestPriority) {
-  if (status === "done") return statusLabel(status)
-  return `${statusLabel(status)}, ${priority === "none" ? "No priority" : `${REQUEST_PRIORITY_LABELS[priority]} priority`}`
+/** "In progress, High priority", "Open, No priority" or "Measuring, Due in 3 days": the phone's one state line (plan item 2.5; #133).
+ * Priority is read only while it shows: before the work is Done. */
+export function stateLineText(journey: Journey, priority: RequestPriority | null, due: DueSignal) {
+  const facts = [journey.label, ...(due.kind === "none" ? [] : [due.label]), ...(priority ? [priority === "none" ? "No priority" : `${REQUEST_PRIORITY_LABELS[priority]} priority`] : [])]
+  return facts.join(", ")
+}
+
+/** The Request's one journey status and due tag (#133), read through the journey module. */
+function useDetailJourney() {
+  const { request } = useDetailRequest()
+  const now = useDueNow()
+  const facts = { status: request.status, releaseState: request.releaseState ?? null, outcomeClosure: request.outcomeClosure ?? null, exceptionClosure: request.exceptionClosure ?? null }
+  return { journey: journeyStatus(facts), due: dueSignal(facts, now) }
 }
 
 /** The Status and Priority moves, the same ones the strip and the list run. */
@@ -72,6 +83,7 @@ function SubmittedTime({ iso, label }: { iso: string; label: string }) {
 function usePropertyControls(inSheet = false) {
   const { request, isGuest, viewer } = useDetailRequest()
   const { move: runMove, setPriority } = useDetailMoves()
+  const { journey, due } = useDetailJourney()
   const status = request.status
   const priority = request.priority
   const move = availableMove({ status, agreementBlocked: request.agreementBlocked, pickupBlockedReason: request.pickupBlockedReason }, { isGuest })
@@ -92,8 +104,12 @@ function usePropertyControls(inSheet = false) {
   // Decision 2026-10-21 (critique 2.5): a value this viewer cannot change reads as plain glyph and text, like
   // Assignee and Project; only a control that opens something keeps the chip.
   // A pickup that isn't ready is explained by the strip's Pick up beside it, so Status offers no move then.
-  const statusControl = move && !move.blockedReason ? <RequestStatusControl status={status} move={move} onMove={selectMove} className={styles.propertyButton} />
-    : <Value icon={<StatusGlyph status={status} />}>{statusLabel(status)}</Value>
+  // #133: a Measuring Request's due tag sits beside its status, in words, in the warning tone.
+  const statusControl = <>
+    {move && !move.blockedReason ? <RequestStatusControl journey={journey} move={move} onMove={selectMove} className={styles.propertyButton} />
+      : <Value icon={<StatusGlyph status={journey.status} />}>{journey.label}</Value>}
+    <DueTag signal={due} />
+  </>
 
   // Whoever can change the Request sets its priority, a guest on their own Request included.
   const priorityControl = !canEditRequest(request, viewer) ? <Value icon={priorityGlyph}>{priorityText}</Value>
@@ -105,13 +121,14 @@ function usePropertyControls(inSheet = false) {
 export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
   const { request, submittedAgo } = useDetailRequest()
   const { statusControl, priorityControl } = usePropertyControls(inSheet)
+  const { journey } = useDetailJourney()
   const status = request.status
   const priority = request.priority
   const assignee = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : null
   return <div className={styles.properties}>
     <dl className={styles.propertyGroup}>
       {/* Sketch reservation (2026-10-11): Alignment and Outcome rows insert after Status, in this group. Nothing renders for them in Phase 2. */}
-      <Row label="Status" data-detail-status="" data-status={status}>{statusControl}</Row>
+      <Row label="Status" data-detail-status="" data-status={journey.status}>{statusControl}</Row>
     </dl>
     <dl className={styles.propertyGroup}>
       {status !== "done" && <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>}
@@ -133,6 +150,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
 export function DetailStateLine() {
   const { request } = useDetailRequest()
   const { statusControl, priorityControl } = usePropertyControls()
+  const { journey, due } = useDetailJourney()
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
@@ -150,7 +168,7 @@ export function DetailStateLine() {
     <div className={styles.compactProperties} role="group" aria-label="Request properties">
       {statusControl}
       {request.status !== "done" && priorityControl}
-    <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(request.status, request.priority)}`} aria-haspopup="dialog" aria-expanded={open}
+    <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(journey, request.status !== "done" ? request.priority : null, due)}`} aria-haspopup="dialog" aria-expanded={open}
       onPointerDown={preloadDrawer} onFocus={preloadDrawer}
       onClick={() => { setLoaded(true); setOpen(true) }}>
       <SlidersHorizontal strokeWidth={1.75} aria-hidden="true" />

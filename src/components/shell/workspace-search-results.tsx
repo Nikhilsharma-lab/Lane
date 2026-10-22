@@ -26,7 +26,13 @@ import { LocalTime, calendarDayLabel } from "@/components/requests/local-time";
 import { RequestLabels, LabelDot } from "@/components/requests/request-labels";
 import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { ProjectMarker } from "@/components/projects/project-marker";
-import { statuses } from "@/components/requests/tasks/statuses";
+import { statuses, statusOf } from "@/components/requests/tasks/statuses";
+
+/** A result's journey status (#133), with "Closed without a result" for a no-result closure. */
+const resultStatus = (item: WorkspaceSearchRequest) => {
+  const status = statusOf(item.status);
+  return item.withoutResult && item.status === "closed" ? { ...status, label: "Closed without a result" as const } : status;
+};
 import { formatRequestCode } from "@/lib/request-code";
 import { requestDetailHref, requestListHref } from "@/lib/request-workspace";
 import type { SearchSort, WorkspaceSearchFilters, WorkspaceSearchProject, WorkspaceSearchRequest, WorkspaceSearchResponse } from "@/lib/workspace-search";
@@ -74,7 +80,7 @@ const snippetOf = (result: Match) => result.item.description || (result.kind ===
 
 const Preview = memo(function Preview({ result, pattern, timeZone, onNavigate }: { result: Match; pattern: RegExp | null; timeZone?: string; onNavigate?: (href: string) => void }) {
   const item = result.item;
-  const status = result.kind === "request" ? statuses.find(status => status.value === result.item.status)! : null;
+  const status = result.kind === "request" ? resultStatus(result.item) : null;
   const snippet = snippetOf(result);
   return <article className={styles.previewCard} aria-label={`Preview of ${titleOf(result)}`}>
     <div className={styles.previewHead}><Lead result={result} /><div><h2 className={styles.previewTitle}><Highlight text={titleOf(result)} pattern={pattern} /></h2><p className={styles.previewMeta}>{result.kind === "request" ? codeOf(result) ?? "Request" : "Project"}</p></div></div>
@@ -93,8 +99,7 @@ const Preview = memo(function Preview({ result, pattern, timeZone, onNavigate }:
 
 function Lead({ result }: { result: Match }) {
   if (result.kind === "project") return <span className={styles.lead}><ProjectMarker projectId={result.item.id} /></span>;
-  const status = statuses.find(status => status.value === result.item.status)!;
-  const Icon = status.icon;
+  const Icon = statusOf(result.item.status).icon;
   return <Icon className={styles.lead} data-status={result.item.status} aria-hidden="true" />;
 }
 
@@ -111,7 +116,7 @@ const ResultRow = memo(function ResultRow({ result, optionId, pattern, selected,
   return <li id={optionId} role="option" aria-selected={selected} aria-label={nameOf(result)} data-search-result={result.item.id} className={styles.result} onClick={() => onPick(result)}>
     {selected ? <motion.span layoutId="cursor" className={styles.cursor} aria-hidden="true" transition={reduced ? { duration: 0 } : motionTokens.spring.smooth} /> : null}
     <Lead result={result} /><span className={styles.content}><span className={styles.title}><Highlight text={titleOf(result)} pattern={pattern} /></span>
-      <span className={styles.metadata}>{result.kind === "request" ? <>{code ? <Highlight text={code} pattern={pattern} /> : "Request"}<span>·</span>{statuses.find(status => status.value === result.item.status)!.label}<span>·</span>{result.item.projectName ?? "No Project"}</> : "Project"}</span>
+      <span className={styles.metadata}>{result.kind === "request" ? <>{code ? <Highlight text={code} pattern={pattern} /> : "Request"}<span>·</span>{resultStatus(result.item).label}<span>·</span>{result.item.projectName ?? "No Project"}</> : "Project"}</span>
       {snippet ? <span className={styles.snippet}><Highlight text={snippet} pattern={pattern} /></span> : null}
       {result.item.createdAt ? <LocalTime className={styles.metadata} iso={result.item.createdAt} day timeZone={timeZone} /> : null}</span>
   </li>;
@@ -206,7 +211,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   const showMenu = menuOpen && suggestions.length > 0;
   const chips: FilterChip[] = [
     ...(category === "all" ? [] : [{ id: "category", label: "Search in", value: category === "requests" ? "Requests" : "Projects" }]),
-    ...(filters.statuses ?? []).map(value => ({ id: `status:${value}`, label: "Status", value: statuses.find(status => status.value === value)!.label })),
+    ...(filters.statuses ?? []).map(value => ({ id: `status:${value}`, label: "Status", value: statusOf(value).label })),
     ...(filters.types ?? []).map(value => ({ id: `type:${value}`, label: "Labels", value: TYPES.find(type => type.value === value)?.label ?? "Saved label" })),
     ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${calendarDayLabel(filters.createdFrom)} to ${calendarDayLabel(filters.createdTo!)}` }] : []),
   ];
