@@ -62,8 +62,8 @@ describe("Reliable Request lifecycle action contract", () => {
     expect(TRANSITION).toContain(
       "and ${requests.status} = ${transition.from}::request_status"
     );
-    expect(TRANSITION).toContain("insert into ${notifications}");
-    expect(TRANSITION).toContain("where u.created_by <> ${auth.userId}");
+    // The one notification writer (migration 0032), inside the same statement.
+    expect(TRANSITION).toContain("${notify([sql`u.created_by`]");
     // The moved ids come from the UPDATE, not the INSERT, so a self pick up
     // (no notification) still succeeds.
     expect(TRANSITION).toContain("select u.id as id from u");

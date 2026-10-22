@@ -1,6 +1,7 @@
 "use server";
 
 import { canChange, changeable, seeable, seeableSql } from "@/lib/request-access";
+import { notify } from "@/lib/notify";
 import { CANNOT_CHANGE_REQUESTS, transitionRequests } from "@/lib/request-transition";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -162,13 +163,11 @@ export async function addComment(
       select r.id, ${auth.userId}, ${parsed.data.body} from r
       returning ${comments.id}, ${comments.createdAt}
     ), n as (
-      insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
-      select distinct recipient, r.org_id, ${"comment_added"}::notification_type, r.id, ${auth.userId}
-      from r cross join c cross join unnest(array[r.created_by, r.assigned_to]) as recipient
-      where recipient is not null and recipient <> ${auth.userId}
-      returning ${notifications.id}
+      select ${notify([sql`r.created_by`, sql`r.assigned_to`], sql`r.org_id`, "comment_added", sql`r.id`, auth.userId)} as sent
+      from r cross join c
     )
-    select c.id as id, c.created_at as created_at from c
+    -- Joining n runs it: a plain CTE is evaluated only when read.
+    select c.id as id, c.created_at as created_at from c cross join n
   `);
   const created = rows[0];
 

@@ -1,7 +1,8 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { db, notifications, requests } from "@/db";
+import { db, requests } from "@/db";
+import { notify } from "@/lib/notify";
 import { requireMemberOrAbove, refusal } from "@/lib/auth-guard";
 import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle";
 import { measurementReadiness } from "@/lib/request-measurement";
@@ -33,10 +34,10 @@ export type TransitionOutcome = {
  * Inside one transaction the Requests are locked, every refusal is decided on
  * the locked rows (`moveRefusal`: closed, no longer in the from-status, or not
  * ready to pick up), and the rest move in ONE data-modifying CTE (plan items
- * 1.4 and 1.6). The CTE's UPDATE keeps the status and readiness guards and the
- * notification INSERT reads its RETURNING rows, so a Request and its
- * notification commit or fail together (decision 8.17), a race can only win
- * once, and a self-move writes no notification (`created_by <> actor`).
+ * 1.4 and 1.6). The CTE's UPDATE keeps the status and readiness guards and
+ * public.notify reads its RETURNING rows, so a Request and its notification
+ * commit or fail together (decision 8.17), a race can only win once, and a
+ * self-move writes no notification (notify never tells the actor).
  */
 export async function transitionRequests(move: LifecycleMove, requestIds: unknown, context: { orgId: string }): Promise<TransitionOutcome> {
   const transition = MOVES[move];
@@ -99,13 +100,11 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
           and ${readiness}
         returning ${requests.id}, ${requests.orgId}, ${requests.createdBy}
       ), n as (
-        insert into ${notifications} ("user_id", "org_id", "type", "request_id", "actor_id")
-        select u.created_by, u.org_id, ${move === "pick-up" ? "request_picked_up" : "request_done"}::notification_type, u.id, ${auth.userId}
+        select ${notify([sql`u.created_by`], sql`u.org_id`, move === "pick-up" ? "request_picked_up" : "request_done", sql`u.id`, auth.userId)} as sent
         from u
-        where u.created_by <> ${auth.userId}
-        returning ${notifications.id}
       )
-      select u.id as id from u
+      -- Reading n runs it: a plain CTE is evaluated only when read.
+      select u.id as id from u where (select count(*) from n) >= 0
     `);
     const moved = updated.map((row) => row.id);
     // The rows are locked and were checked above, so a miss here means the
