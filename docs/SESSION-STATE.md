@@ -1,5 +1,16 @@
 # Shared Claude / Codex handoff
 
+## October 22 — staging 0033 + 0034 applied; journey e2e passes (user-approved)
+
+With the user's explicit approval: verified backup and a local-restore rehearsal in ignored
+`backups/journey-0033-0034-2026-10-22/` (22 Requests), then 0033 (drop `request_review_state`) and 0034
+(reminders, `done_at`, `picked_up_at`) applied to **Lane Staging**. Verify: all checks true; every Request row
+unchanged (incl. `updated_at`), nothing lost, `done_at` on exactly the 8 Done Requests. **Production is still on
+0032: run 0033 + 0034 there (verified backup, rehearsal) before deploying `main` with #127.** The journey e2e
+(`request-release`, `request-outcome`, `request-reviewers`, `reliable-request-lifecycle-actions`) then passed on
+staging, one worker (parallel runs hit Clerk's "Too Many Requests"). `command-palette.spec.ts` fails in its guest
+fixture (Clerk Not Found creating an `org:guest` membership): pre-existing, unrelated to #127.
+
 ## October 22 — #137 journey e2e authored, awaiting a hosted run (branch `journey-127`)
 
 The e2e for the #127 journey is updated but **not run**: Lane Staging has 0031 and 0032, and these specs also need
