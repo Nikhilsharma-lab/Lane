@@ -130,7 +130,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     // A Request that isn't ready to pick up stays selected with its reason; only the rest are sent.
     const notReady = availableAction === "pick-up" ? selected.flatMap(row => {
       const reason = availableMove(row, { isGuest })?.blockedReason
-      return reason ? [{ id: row.id, error: `${moveTarget(row).name}: ${pickupBlockedMessage(reason, row.canEdit ? null : row.creatorName || "the requester")}` }] : []
+      return reason ? [{ id: row.id, error: `${moveTarget(row).name}: ${pickupBlockedMessage(reason, row.canEdit ? null : row.creatorName || "the Requester")}` }] : []
     }) : []
     const ready = selected.filter(row => !notReady.some(item => item.id === row.id))
     if (!ready.length) {
