@@ -31,12 +31,14 @@ vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () =>
 // Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
 
 import { RequestsWorkspace } from "./requests-workspace"
+import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider"
 import { RequestDetailWorkspace } from "./request-detail-workspace"
 import { RequestListViewProvider } from "@/components/requests/list-view-state"
 
 // The root layout always supplies the toast stack that row actions report errors through,
 // and the (app) layout the list view state.
-const wrap = (page: ReactElement) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, page)))
+// The (app) layout's providers, as the page always has them.
+const wrap = (page: ReactElement) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, createElement(WorkspaceProjectsProvider, { orgId: "org_test", initialProjects: [] }, page))))
 const render = async (search = "") => {
   state.search = search
   return wrap(await RequestsWorkspace())

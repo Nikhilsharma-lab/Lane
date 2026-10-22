@@ -10,10 +10,9 @@ import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import {
   MAX_ATTACHMENT_FILES,
   MAX_ATTACHMENTS_TOTAL_BYTES,
-  REQUEST_ATTACHMENTS_BUCKET,
   validateAttachmentMetadata,
 } from "@/lib/request-attachments";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { blockPath, signUpload, storedObject } from "@/lib/attachment-storage";
 
 const prepareUploadSchema = z.object({
   requestId: z.string().uuid(),
@@ -113,18 +112,9 @@ async function cancelUpload(input: AttachmentInput, auth: MemberAuth): Promise<D
   if (attachment.uploadedAt) return { success: true, alreadyUploaded: true };
   if (attachment.uploadBlockedAt) return { success: true };
 
-  // Deletion cannot revoke a signed URL. Occupy its path permanently instead:
-  // Supabase's object commit lock rejects every old upsert:false capability,
-  // even a PUT/TUS request accepted before cancellation and completed later.
-  // Keep this private zero-byte object and its row when releasing quota.
-  const storage = createServiceClient().storage.from(REQUEST_ATTACHMENTS_BUCKET);
-  const { error } = await storage.upload(attachment.storagePath, new Blob([], { type: attachment.mimeType }), {
-    upsert: true,
-    contentType: attachment.mimeType,
-  });
-  if (error) throw error;
-  const { data, error: verificationError } = await storage.info(attachment.storagePath);
-  if (verificationError || !data || data.size !== 0) throw new Error("Storage did not confirm upload cancellation");
+  // The signed URL can't be revoked, so its path is occupied for good
+  // (attachment-storage.ts). Keep the zero-byte object and its row when releasing quota.
+  await blockPath(attachment.storagePath, attachment.mimeType);
   await db.update(requestAttachments).set({ uploadBlockedAt: new Date() })
     .where(and(eq(requestAttachments.id, attachment.id), isNull(requestAttachments.uploadedAt)));
   return { success: true };
@@ -267,16 +257,7 @@ export async function prepareAttachmentUpload(
     }
     reservationCreated = true;
 
-    const storage = createServiceClient().storage.from(
-      REQUEST_ATTACHMENTS_BUCKET
-    );
-    const { data, error } = await storage.createSignedUploadUrl(storagePath, {
-      upsert: false,
-    });
-
-    if (error || !data) {
-      throw error ?? new Error("Storage did not return a signed upload URL");
-    }
+    const data = await signUpload(storagePath);
 
     const recorded = await db.update(requestAttachments)
       .set({ uploadExpiresAt: signedUploadExpiry(data.signedUrl) })
@@ -356,17 +337,11 @@ export async function finalizeAttachmentUpload(
   };
 
   try {
-    const storage = createServiceClient().storage.from(
-      REQUEST_ATTACHMENTS_BUCKET
-    );
-    const { data, error } = await storage.info(attachment.storagePath);
-    const contentType = data?.contentType?.toLowerCase();
-
+    const stored = await storedObject(attachment.storagePath);
     if (
-      error ||
-      !data ||
-      data.size !== attachment.sizeBytes ||
-      contentType !== attachment.mimeType
+      !stored ||
+      stored.size !== attachment.sizeBytes ||
+      stored.contentType !== attachment.mimeType
     ) {
       await cancelUpload(parsed.data, auth);
       return {

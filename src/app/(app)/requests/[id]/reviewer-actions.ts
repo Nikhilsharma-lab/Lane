@@ -3,7 +3,7 @@ import { canChange, seeable } from "@/lib/request-access";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
-import { requireActiveMember, requireMemberOrAbove, type MemberAuth } from "@/lib/auth-guard";
+import { requireActiveMember, requireMemberOrAbove, type MemberAuth, refusal } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
@@ -207,7 +207,7 @@ export async function readReviews(
     if (!z.uuid().safeParse(requestId).success)
       return { error: "Request unavailable." };
     const auth = await requireActiveMember(context.orgId);
-    insist(auth, "Request unavailable.");
+    insist(auth, await refusal("Request unavailable."));
     const [request] = await db
       .select()
       .from(requests)
@@ -253,7 +253,7 @@ export async function readReviews(
 /** Members to choose from, plus pending invitations for admins. */
 export async function loadReviewerPeople(context: { orgId: string }) {
   const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: "Workspace unavailable." };
+  if (!auth) return { error: await refusal("Workspace unavailable.") };
   try {
     return {
       people: [
