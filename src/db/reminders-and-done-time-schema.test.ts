@@ -64,3 +64,29 @@ describe("requests.done_at", () => {
     await expect(sql`insert into requests(org_id,title,description,created_by,done_at) values (${ORG},'Open','Not done','reminder_requester',now())`).rejects.toThrow(/requests_done_at_check/);
   });
 });
+
+describe("requests.picked_up_at", () => {
+  it("is stamped when work is picked up, kept through Done and Undo Done, and cleared if it goes back to Open", async () => {
+    const [{ id }] = await sql`insert into requests(org_id,title,description,created_by) values (${ORG},'Pickup time','Stamp','reminder_requester') returning id`;
+    const pickedUpAt = async () => (await sql`select picked_up_at from requests where id=${id}`)[0].picked_up_at;
+    expect(await pickedUpAt()).toBeNull();
+    await sql`update requests set status='in_progress' where id=${id}`;
+    const stamped = await pickedUpAt();
+    expect(stamped).toBeInstanceOf(Date);
+    await sql`update requests set status='done' where id=${id}`;
+    expect(await pickedUpAt()).toEqual(stamped);
+    await sql`update requests set status='in_progress' where id=${id}`;
+    expect(await pickedUpAt()).toEqual(stamped);
+    await sql`update requests set status='open' where id=${id}`;
+    expect(await pickedUpAt()).toBeNull();
+  });
+  it("is stamped for a Request written as In progress, and left unknown for work picked up before 0033", async () => {
+    const [{ picked_up_at }] = await sql`insert into requests(org_id,title,description,created_by,status) values (${ORG},'Written in progress','Stamp','reminder_requester','in_progress') returning picked_up_at`;
+    expect(picked_up_at).toBeInstanceOf(Date);
+    expect((await sql`select picked_up_at from requests where org_id='org_done_time'`).map(r => r.picked_up_at)).toEqual([null, null]);
+  });
+  it("is never set on Open work", async () => {
+    const [{ picked_up_at }] = await sql`insert into requests(org_id,title,description,created_by,picked_up_at) values (${ORG},'Open','Not picked up','reminder_requester',now()) returning picked_up_at`;
+    expect(picked_up_at).toBeNull();
+  });
+});
