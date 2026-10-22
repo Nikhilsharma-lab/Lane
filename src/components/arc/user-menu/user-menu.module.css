@@ -80,8 +80,7 @@
 .row .icon .dot { --dot-size: calc(var(--space-1) * 2.5); }
 /* The thumb slides under the icons; the group owns the stacking context. */
 .segments { --segment: calc(var(--space-1) * 8); position: relative; isolation: isolate; display: inline-grid; height: calc(var(--space-1) * 7.5); flex: none; grid-auto-columns: var(--segment); grid-auto-flow: column; padding: calc(var(--space-1) * 0.5); border-radius: var(--radius-pill); background: var(--interaction-background); }
-.thumb { position: absolute; z-index: -1; top: calc(var(--space-1) * 0.5); bottom: calc(var(--space-1) * 0.5); left: calc(var(--space-1) * 0.5); width: var(--segment); border-radius: var(--radius-pill); background: var(--selection-background, var(--surface-raised)); box-shadow: var(--shadow-resting); transform: translateX(calc(var(--index) * 100%)); transition: transform var(--duration-spring) var(--ease-spring); }
-:global([data-theme="dark"]) .thumb { background: var(--selection-background); box-shadow: none; }
+.thumb { position: absolute; z-index: -1; top: calc(var(--space-1) * 0.5); bottom: calc(var(--space-1) * 0.5); left: calc(var(--space-1) * 0.5); width: var(--segment); border-radius: var(--radius-pill); background: var(--selection-background, var(--surface-raised)); box-shadow: var(--user-menu-thumb-shadow); transform: translateX(calc(var(--index) * 100%)); transition: transform var(--duration-spring) var(--ease-spring); }
 .segment { display: grid; place-items: center; margin: 0; padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; transition: color var(--duration-fast) var(--ease-standard); }
 .segment .dot { --dot-size: calc(var(--space-1) * 2.25); --presence-surface: var(--surface-raised); }
 @media (hover: hover) and (pointer: fine) { .segment:hover { color: var(--text-secondary); } }

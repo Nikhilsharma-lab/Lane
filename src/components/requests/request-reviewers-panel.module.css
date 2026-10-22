@@ -39,7 +39,7 @@
 .fields {
   grid-template-columns: repeat(
     auto-fit,
-    minmax(min(100%, var(--sb-popover-width)), 1fr)
+    minmax(min(100%, var(--popover-width)), 1fr)
   );
 }
 .controls {

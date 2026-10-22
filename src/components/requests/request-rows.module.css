@@ -6,11 +6,11 @@
 .list { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height); padding: 0 var(--space-2); border-radius: var(--request-row-radius); }
 .rowContent { display: flex; align-items: center; gap: var(--space-4); flex: 1; min-width: 0; }
-.savedCode { display: grid; flex: none; min-width: calc(var(--sb-spacing) * 28); max-width: 100%; }
+.savedCode { display: grid; flex: none; min-width: calc(var(--spacing) * 28); max-width: 100%; }
 .savedCode .codeButton { min-height: var(--request-row-height); justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
 /* The row owns the hover fill; copying retains its glyph, tooltip and focus outline. */
 .row .savedCode .codeButton:is(:hover, :active):not(:disabled) { background-color: transparent; }
-.codeError { max-width: calc(var(--sb-spacing) * 48); padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.codeError { max-width: calc(var(--spacing) * 48); padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .row[data-selected] .codeButton { color: var(--selection-foreground); }
 .row:hover, .row[data-menu-open] { background: var(--interaction-hover); }
 .row[data-selected] { background: var(--selection-background); }
@@ -26,7 +26,7 @@
 }
 .row[data-selected]:has(+ .row[data-selected]) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
-.title { flex: 1 1 calc(var(--sb-spacing) * 80); min-width: 0; display: flex; align-items: center; min-height: var(--request-row-height); padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); line-height: var(--request-title-line-height); text-decoration: none; overflow-wrap: anywhere; }
+.title { flex: 1 1 calc(var(--spacing) * 80); min-width: 0; display: flex; align-items: center; min-height: var(--request-row-height); padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--request-title-line-height); text-decoration: none; overflow-wrap: anywhere; }
 .row[data-selected] .title { color: var(--selection-foreground); }
 /* Selected metadata shares the row's colour pair, including labels, glyphs and initials. */
 :global(:root[data-ui-state-contract="semantic"]) .row[data-selected] {
@@ -58,24 +58,24 @@
   --badge-hover-border: var(--selection-foreground);
 }
 .properties { display: flex; flex: 0 1 auto; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); min-width: 0; }
-.propertyTrigger { display: inline-flex; align-items: center; justify-content: center; min-height: var(--sb-size-inner-medium); border: 0; padding: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
+.propertyTrigger { display: inline-flex; align-items: center; justify-content: center; min-height: var(--size-inner-medium); border: 0; padding: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
 .propertyTrigger[data-state="open"] { background: var(--interaction-focus); }
-.propertyValue { max-width: calc(var(--sb-spacing) * 36); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.propertyDetail { display: grid; gap: var(--space-2); max-width: calc(var(--sb-spacing) * 80); overflow-wrap: anywhere; font-size: var(--text-sm); }
+.propertyValue { max-width: calc(var(--spacing) * 36); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.propertyDetail { display: grid; gap: var(--space-2); max-width: calc(var(--spacing) * 80); overflow-wrap: anywhere; font-size: var(--text-sm); }
 .propertyLabel { color: var(--text-secondary); font-size: var(--text-xs); }
 .group { margin-block-end: var(--space-4); }
-.groupHeading { margin: 0; font-size: var(--text-sm); font-weight: var(--sb-font-weight-medium); }
+.groupHeading { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 /* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
 .groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius); }
 .groupCell { flex: 1; min-width: 0; }
-.groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--sb-table-head-height); }
+.groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--table-head-height); }
 .groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
-.groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--sb-table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
+.groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
 .groupButton > span:first-of-type { min-width: 0; overflow-wrap: anywhere; }
 .groupButton:hover { background: var(--interaction-hover); }
-.groupCount { flex-shrink: 0; margin-inline-start: auto; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--sb-font-weight-normal); font-variant-numeric: tabular-nums; }
-.displayPanel { display: grid; gap: var(--space-4); min-width: min(calc(var(--sb-spacing) * 72), 100%); }
+.groupCount { flex-shrink: 0; margin-inline-start: auto; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; }
+.displayPanel { display: grid; gap: var(--space-4); min-width: min(calc(var(--spacing) * 72), 100%); }
 .displayLabel { margin-bottom: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
 .footer { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-4); }
 .pageInfo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); }
@@ -84,12 +84,12 @@
   .row { padding-block: var(--space-1); align-items: flex-start; }
   .rowContent { flex-wrap: wrap; gap: 0; }
   .title { flex-basis: 100%; }
-  .savedCode + .title { flex-basis: calc(var(--sb-spacing) * 40); }
+  .savedCode + .title { flex-basis: calc(var(--spacing) * 40); }
   .properties { justify-content: flex-start; width: 100%; }
   /* Narrow compact records tighten the code column: one width up to four digits
      plus the copy glyph, which still appears for hover, focus and a copy result,
      so the status glyphs stay in a line and copying keeps its confirmation. */
-  .row[data-compact-row] .savedCode { min-width: calc(var(--sb-spacing) * 22); }
+  .row[data-compact-row] .savedCode { min-width: calc(var(--spacing) * 22); }
   .row[data-compact-row] .savedCode .codeButton { padding-inline: var(--space-1); }
 }
 
@@ -98,19 +98,19 @@
 .row[data-compact-row] { height: var(--request-row-height); min-height: var(--request-row-height); padding-block: 0; align-items: center; }
 .row[data-compact-row] .rowContent { flex-wrap: nowrap; gap: var(--space-2); }
 .row[data-compact-row] .title { flex: 1 1 0; display: block; padding: 0; line-height: var(--request-row-height); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row[data-compact-row] .properties { width: auto; flex: 0 1 auto; max-width: 48%; flex-wrap: nowrap; justify-content: flex-end; gap: calc(var(--sb-spacing) * 1.5); }
+.row[data-compact-row] .properties { width: auto; flex: 0 1 auto; max-width: 48%; flex-wrap: nowrap; justify-content: flex-end; gap: calc(var(--spacing) * 1.5); }
 .row[data-compact-row] .properties > span { display: flex; flex: 0 1 auto; min-width: 0; }
 .row[data-compact-row] .properties > [data-row-property="requestType"] { order: -2; }
 .row[data-compact-row] .properties > [data-row-property="project"] { order: -1; }
 .row[data-compact-row] .properties > [data-row-property="pickedUpBy"] { flex: none; }
 /* Reserve one date column so month/day lengths cannot move the avatar column. */
-.row[data-compact-row] .properties > [data-row-property="createdAt"] { flex: 0 0 calc(var(--sb-spacing) * 12); width: calc(var(--sb-spacing) * 12); justify-content: flex-start; }
+.row[data-compact-row] .properties > [data-row-property="createdAt"] { flex: 0 0 calc(var(--spacing) * 12); width: calc(var(--spacing) * 12); justify-content: flex-start; }
 .row[data-compact-row] .submittedDate { font-variant-numeric: tabular-nums; }
 .row[data-compact-row] .propertyTrigger { max-width: 100%; }
-.row[data-compact-row] .propertyBadge { max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); border-width: var(--sb-border-width); }
+.row[data-compact-row] .propertyBadge { max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); border-width: var(--border-width); }
 .row[data-compact-row] .propertyBadge > span { min-width: 0; max-width: 100%; }
-.identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-size-md); width: var(--icon-size-md); height: var(--sb-size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--sb-radius-sm); cursor: pointer; }
-.requestCode { flex: 0 0 calc(var(--sb-spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-size-md); width: var(--icon-size-md); height: var(--size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer; }
+.requestCode { flex: 0 0 calc(var(--spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row[data-selected] .requestCode { color: var(--selection-foreground); }
 .submittedDate { white-space: nowrap; color: var(--request-property-foreground); font-size: var(--text-xs); }
 /* The copy glyph appears on hover, focus and copy feedback. */
@@ -140,7 +140,7 @@
 }
 
 /* The checkbox column uses Supabase's inner small control and spans the row height. */
-.row[data-compact-row] > :first-child { --control-height-md: var(--sb-size-inner-small); }
+.row[data-compact-row] > :first-child { --control-height-md: var(--size-inner-small); }
 .row[data-compact-row] [role="checkbox"] { height: var(--request-row-height); }
 .groupHeader { display: flex; align-items: center; border-radius: var(--request-row-radius); background: var(--surface-muted); }
 .groupHeader .groupButton { background: transparent; }

@@ -5,10 +5,10 @@
 .dot[data-colour="blue"] { color: var(--state-info-icon); }
 .dot[data-colour="green"] { color: var(--state-success-icon); }
 .dot[data-colour="yellow"] { color: var(--state-warning-icon); }
-.dot[data-colour="purple"] { color: var(--sb-color-purple-900); }
+.dot[data-colour="purple"] { color: var(--label-purple); }
 .dot[data-colour="grey"] { color: var(--text-muted); }
-.panel { composes: panel from "./request-picker-layout.module.css"; width: max-content; min-width: calc(var(--sb-spacing) * 44); max-width: min(calc(var(--sb-spacing) * 52), calc(100vw - var(--space-6))); }
-.options { display: grid; gap: 0; max-height: calc(var(--sb-spacing) * 64); overflow-y: auto; }
+.panel { composes: panel from "./request-picker-layout.module.css"; width: max-content; min-width: calc(var(--spacing) * 44); max-width: min(calc(var(--spacing) * 52), calc(100vw - var(--space-6))); }
+.options { display: grid; gap: 0; max-height: calc(var(--spacing) * 64); overflow-y: auto; }
 .option { composes: row from "./request-picker-layout.module.css"; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .option:hover, .option:focus-within { background: var(--interaction-hover); }
 .option label { display: flex; flex: 1; min-width: 0; align-items: center; gap: var(--space-2); cursor: pointer; }
@@ -18,7 +18,7 @@
 
 .trigger { display: inline-flex; max-width: 100%; border: 0; padding: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
 .trigger:disabled { cursor: not-allowed; opacity: var(--button-disabled-opacity); }
-.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: calc(var(--sb-spacing) * 40); }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: calc(var(--spacing) * 40); }
 .checkbox { width: var(--icon-size, var(--icon-size-md)); height: var(--control-height-sm); }
 /* Retain Arc's accessible toggle and check motion without its box or fill. */
 .checkbox,
