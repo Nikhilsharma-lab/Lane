@@ -7,10 +7,7 @@ import { PageStrip } from "@/components/shell/page-strip";
 import { reportClientError } from "@/lib/report-client-error";
 import frame from "./app-frame.module.css";
 import { SupportContact } from "./support-contact";
-import "@/components/arc/foundation.css";
 import "./globals.css";
-import "@/styles/supabase-tokens.css";
-import "@/styles/lane-arc-theme.css";
 
 // Last resort (plan item 1.12): this replaces the root layout when it throws, so it
 // has to render <html> and <body> itself. Next only shows it in production; in

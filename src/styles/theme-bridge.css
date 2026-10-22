@@ -1,0 +1,192 @@
+/* Theme bridge: plumbing only, no values (#87).
+ * Every line points an existing Arc or Lane name at a name defined in src/styles/theme.css,
+ * so the path from the theme file to the screen is one hop. Anything that changes between
+ * light and dark lives in the theme file's Lane additions, never here. `pnpm design:check`
+ * fails on any literal, calculation, colour mix, keyword or dark-mode selector in this file. */
+:root {
+  /* Surfaces and text. */
+  --surface: var(--card);
+  --surface-raised: var(--popover);
+  --workspace-canvas: var(--background);
+  --dialog-background: var(--background);
+  --navigation-background: var(--sidebar);
+  --text-secondary: var(--muted-foreground);
+  --floating-foreground: var(--muted-foreground);
+  --state-neutral-text: var(--muted-foreground);
+  --request-property-foreground: var(--muted-foreground);
+  --segment-foreground: var(--muted-foreground);
+  --state-neutral-background: var(--card);
+  --request-property-background: var(--card);
+  --search-highlight-foreground: var(--foreground);
+  --arc-gradient-foreground: var(--foreground);
+
+  /* Lines: tweakcn's --border is opaque, so Lane's see-through hairline stands in for it. */
+  --border: var(--hairline);
+  --border-subtle: var(--hairline);
+  --interaction-border: var(--hairline);
+  --input-readonly-border: var(--hairline);
+  --skeleton-fill: var(--hairline);
+  --control-track-hover: var(--hairline);
+  --input-border: var(--border-strong);
+  --selection-property-border: var(--border-strong);
+  --state-neutral-border: var(--border-strong);
+  --request-property-border: var(--border-strong);
+  --selection-border: var(--input-border-hover);
+
+  /* Interaction and selection washes. */
+  --interaction-background: var(--button-secondary-background);
+  --interaction-hover: var(--surface-muted);
+  --interaction-pressed: var(--pressed-wash);
+  --interaction-focus: var(--pressed-wash);
+  --state-neutral-hover: var(--surface-muted);
+  --selection-background: var(--surface-muted);
+  --selection-hover: var(--surface-muted);
+  --selection-pressed: var(--surface-muted);
+  --segment-selection-background: var(--pressed-wash);
+  --control-track: var(--pressed-wash);
+  --selection-foreground: var(--foreground);
+  --selection-secondary-foreground: var(--foreground);
+  --selection-icon: var(--foreground);
+
+  /* Brand: Arc's --accent is brand ink, not tweakcn's grey hover. */
+  --accent: var(--accent-ink);
+  --accent-foreground: var(--accent-ink-foreground);
+  --primary-background: var(--primary);
+  --primary-label: var(--primary-foreground);
+  --primary-hover-background: var(--primary-hover);
+  --primary-focus-background: var(--primary-hover);
+  --primary-pressed-background: var(--primary-hover);
+
+  /* Controls. */
+  --control-on: var(--foreground);
+  --control-glyph: var(--background);
+  --control-fill: var(--foreground);
+  --control-thumb: var(--text-muted);
+  --control-thumb-on: var(--accent-ink-foreground);
+  --control-thumb-shadow: var(--shadow-floating);
+
+  /* Status. */
+  --danger: var(--destructive);
+  --success-foreground: var(--success);
+  --state-success-text: var(--success);
+  --state-success-icon: var(--success);
+  --state-success-background: var(--success-soft);
+  --state-success-hover: var(--success-soft);
+  --state-success-border: var(--success-border);
+  --warning-foreground: var(--warning);
+  --state-warning-text: var(--warning);
+  --state-warning-icon: var(--warning);
+  --state-warning-background: var(--warning-soft);
+  --state-warning-hover: var(--warning-soft);
+  --state-warning-border: var(--warning-border);
+  --state-danger-text: var(--destructive);
+  --state-danger-icon: var(--destructive);
+  --state-danger-background: var(--destructive-soft);
+  --state-danger-hover: var(--destructive-soft);
+  --state-danger-border: var(--destructive-border);
+  --info-foreground: var(--info);
+  --state-info-text: var(--info);
+  --state-info-icon: var(--info);
+  --state-info-background: var(--info-soft);
+  --state-info-hover: var(--info-soft);
+  --state-info-border: var(--info-border);
+  --button-danger-background: var(--destructive);
+  --button-danger-foreground: var(--destructive-foreground);
+  --button-danger-hover: var(--destructive-hover);
+  --input-error-border-active: var(--destructive);
+
+  /* Charts. */
+  --series-1: var(--chart-1);
+  --series-2: var(--chart-2);
+  --series-3: var(--chart-3);
+  --series-4: var(--chart-4);
+
+  /* Corners. */
+  --radius-control: var(--radius-md);
+  --radius-panel: var(--radius-md);
+  --radius-surface: var(--radius-lg);
+  --lane-panel-radius: var(--radius-lg);
+  --workspace-pane-radius: var(--radius-xl);
+  --request-row-radius: var(--radius-md);
+  --sidebar-row-radius: var(--radius-md);
+  --segment-radius: var(--radius-md);
+  --select-panel-radius: var(--radius-md);
+  --checkbox-radius: var(--radius-sm);
+  --segment-item-radius: var(--radius-sm);
+  --menu-item-radius: var(--radius-item);
+
+  /* Type. */
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+  --tracking-body: var(--tracking-normal);
+  --leading-body: var(--text-sm--line-height);
+  --leading-display: var(--text-2xl--line-height);
+  --request-title-line-height: var(--text-sm--line-height);
+  --segment-font-size: var(--text-xs);
+  --badge-font-weight: var(--weight-medium);
+  --menu-font-weight: var(--weight-normal);
+
+  /* Sizes and spacing. */
+  --segment-height: var(--control-height-sm);
+  --floating-action-height: var(--control-height-sm);
+  --segment-padding: var(--border-width);
+  --floating-border-width: var(--border-width);
+  --workspace-pane-border-width: var(--border-width);
+  --segment-item-padding: var(--button-padding-sm);
+  --sidebar-icon-size: var(--icon-size-md);
+  --sidebar-action-icon-size: var(--icon-size-md);
+  --button-icon-sm: var(--icon-size-sm);
+  --button-icon-md: var(--icon-size-lg);
+  --button-icon-lg: var(--icon-size-xl);
+  --request-toolbar-height: var(--header-height);
+  --workspace-header-height: var(--header-height);
+  --request-row-height: var(--size-inner-xlarge);
+  --request-avatar-size: var(--badge-sm-height);
+  --request-group-gap: var(--space-2);
+  --badge-sm-padding: var(--space-2);
+  --badge-icon-padding-start: var(--space-2);
+  --menu-item-gap: var(--space-2);
+  --badge-sm-icon-padding-start: var(--space-1);
+  --badge-padding-x: var(--space-3);
+  --popover-padding: var(--space-4);
+  --badge-sm-gap: var(--badge-gap);
+  --button-disabled-opacity: var(--opacity-disabled);
+
+  /* Elevation and overlays. */
+  --shadow-resting: var(--shadow-xs);
+  --menu-shadow: var(--shadow-raised);
+  --popover-shadow: var(--shadow-raised);
+  --overlay: var(--overlay-backdrop);
+}
+
+/* Portals take the overlay border, and every wash inside them is the pressed wash. */
+:root[data-visual-system="lane"] [data-ui-surface="floating"] {
+  --border: var(--border-overlay);
+  --border-subtle: var(--border-overlay);
+  --interaction-hover: var(--pressed-wash);
+  --interaction-focus: var(--pressed-wash);
+  --interaction-pressed: var(--pressed-wash);
+}
+
+/* Sidebar items hover with the lighter navigation wash and settle on the pressed wash. */
+:root[data-visual-system="lane"] nav[aria-label="Primary navigation"] {
+  --interaction-hover: var(--nav-hover);
+  --interaction-focus: var(--pressed-wash);
+  --interaction-pressed: var(--pressed-wash);
+}
+
+/* Tailwind utilities resolve through the same names. Loaded after the theme file's own
+   @theme inline, so these win: weights and Lane's exact corner steps. */
+@theme inline {
+  --font-weight-normal: var(--weight-normal);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-semibold: var(--weight-semibold);
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+  --radius-4xl: var(--radius-4xl);
+}
