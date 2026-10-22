@@ -49,8 +49,8 @@ export function assertE2ETarget(env: NodeJS.ProcessEnv = process.env) {
   for (const key of ["CLERK_API_URL", "CLERK_PROXY_URL", "NEXT_PUBLIC_CLERK_PROXY_URL"]) {
     if (env[key]) fail();
   }
-  // clerkSetup() in the setup project sets CLERK_FAPI from the publishable key, and every test after it
-  // inherits it; only the pinned development host is ever allowed.
+  // clerkSetup() (the setup project) writes the pinned instance's Frontend API
+  // host here, and workers reload this config afterwards. Only that exact host passes.
   if (env.CLERK_FAPI && env.CLERK_FAPI !== CLERK_HOST) fail();
   return { databaseUrl, baseURL: base.origin };
 }

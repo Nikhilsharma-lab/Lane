@@ -10,9 +10,8 @@ const organizations = new Map<string, string>();
 const reservedEmails = new Set<string>();
 export const fixtureMetadata = { laneE2ERunId: runId };
 
-/** A Clerk test address. The part before "@" must stay within 64 characters, or Clerk rejects the user. */
 export function testEmail(label: string) {
-  const email = `lane-e2e-${label.slice(0, 20)}-${randomUUID().slice(0, 12)}+clerk_test@example.com`;
+  const email = `lane-e2e-${label}-${randomUUID().slice(0, 12)}+clerk_test@example.com`;
   reservedEmails.add(email);
   return email;
 }

@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest"
-import { availableMove, moveRefusal, pickupBlockedMessage } from "./request-lifecycle"
+import { availableMove, canEditRequest, moveRefusal, pickupBlockedMessage } from "./request-lifecycle"
+
+describe("canEditRequest", () => {
+  const viewer = { id: "u1" }
+  it("lets the creator and an admin edit an Open Request", () => {
+    expect(canEditRequest({ status: "open", createdBy: "u1" }, viewer)).toBe(true)
+    expect(canEditRequest({ status: "open", createdBy: "u2" }, { id: "u1", isAdmin: true })).toBe(true)
+    expect(canEditRequest({ status: "open", createdBy: "u2" }, viewer)).toBe(false)
+  })
+  it("lets no one edit once it is picked up or Done", () => {
+    expect(canEditRequest({ status: "in_progress", createdBy: "u1" }, { id: "u1", isAdmin: true })).toBe(false)
+    expect(canEditRequest({ status: "done", createdBy: "u1" }, viewer)).toBe(false)
+  })
+})
 
 const member = { isGuest: false }
 const NOT_READY = "Add the current value before picking up this Request."

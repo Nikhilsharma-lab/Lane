@@ -9,7 +9,7 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
+import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
@@ -137,6 +137,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // The preview follows the active row; a group header keeps the last Request. The active row,
   // not the tab stop: a Request that leaves the view after a change made in the preview stays in it.
   const activeRequestId = grid.activeKey ? requestIdOf(grid.activeKey) : null
+  // #103: the shell's current Request when nothing is open; the ticked rows never count.
+  usePublishHighlightedRequest(activeRequestId)
   const [followedId, setFollowedId] = useState(activeRequestId)
   let nextPeekId = peekId
   if (followedId !== activeRequestId) {

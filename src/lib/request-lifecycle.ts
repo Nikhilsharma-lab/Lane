@@ -1,3 +1,4 @@
+import { canChange } from "./request-access-rules"
 export type RequestStatus = "open" | "in_progress" | "done"
 export type LifecycleMove = "pick-up" | "done"
 export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; label: "Pick up" | "Mark Done" }
@@ -5,6 +6,15 @@ export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; lab
 export type AvailableMove = AllowedMove & { blockedReason: string | null }
 /** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does today. */
 export type MoveViewer = { isGuest: boolean }
+
+/**
+ * The edit rule (priority and the Request's own fields): Open, and the viewer can change it
+ * (`canChange`: an admin or its creator, a guest's own Request included). The row menu, the detail panel
+ * and the ⌘K palette share it; lib/data/requests.ts computes the same for list rows as `canEdit`.
+ */
+export function canEditRequest(request: { status: RequestStatus; createdBy: string | null }, viewer: { id: string; isAdmin?: boolean }): boolean {
+  return request.status === "open" && canChange({ userId: viewer.id, role: viewer.isAdmin ? "admin" : "member" }, { createdBy: request.createdBy ?? "" })
+}
 
 /** What a surface knows about a Request to decide its move. `pickupBlockedReason`
  * is `measurementReadiness`, worked out where the measurement plan is loaded. */

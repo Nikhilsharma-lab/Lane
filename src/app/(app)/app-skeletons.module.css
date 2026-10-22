@@ -4,7 +4,7 @@
 .titleSkeleton { display: block; width: calc(var(--space-1) * 40); max-width: 100%; }
 .toolbarStatus { display: block; width: calc(var(--space-1) * 60); max-width: 60%; }
 /* The group header matches the loaded table header, independently of record row height. */
-.groupHeader { min-height: var(--sb-table-head-height); }
+.groupHeader { min-height: var(--table-head-height); }
 .groupLabel { display: block; width: calc(var(--space-1) * 35); max-width: 50%; padding-inline: var(--space-2); }
 .rowTitle { display: block; flex: 1 1 0; min-width: 0; padding-inline: var(--space-2); }
 .rowMeta { display: block; flex: none; width: 25%; max-width: calc(var(--space-1) * 40); }

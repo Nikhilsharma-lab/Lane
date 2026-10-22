@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest"
-import { parseRequestProjectFilter, requestDetailHref, requestListHref } from "./request-workspace"
+import { changesListInPlace, parseRequestProjectFilter, requestDetailHref, requestListHref } from "./request-workspace"
+
+describe("changesListInPlace", () => {
+  it("changes the list in place only on / and only for a Requests list link", () => {
+    expect(changesListInPlace("/", "/?project=none")).toBe(true)
+    expect(changesListInPlace("/", "/")).toBe(true)
+    expect(changesListInPlace("/intake", "/?project=none")).toBe(false)
+    expect(changesListInPlace("/requests/r1", "/")).toBe(false)
+    expect(changesListInPlace("/", "/settings/profile")).toBe(false)
+    expect(changesListInPlace("/", "/requests/r1")).toBe(false)
+  })
+})
 
 const projectId = "00000000-0000-4000-8000-000000000002"
 

@@ -9,6 +9,7 @@ import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
+import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -41,6 +42,8 @@ export default async function AppLayout({
       <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
       {/* #77: one "Pick up anyway?" confirmation for every pickup entry point. */}
       <PickupConfirmationProvider>
+      {/* #103: clears the palette's Undo Mark Done when the toast queue shrinks. */}
+      <MarkDoneUndoWatcher />
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
@@ -50,6 +53,7 @@ export default async function AppLayout({
             email={result.email}
             role={result.role}
             orgId={result.orgId}
+            userId={result.userId}
             unreadCount={unreadCount}
           >
             {children}

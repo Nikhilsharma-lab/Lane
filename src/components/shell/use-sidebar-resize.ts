@@ -32,7 +32,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   const previewCompact = useSyncExternalStore(subscribeLinearPreviewCompact, () => window.matchMedia(LINEAR_PREVIEW_COMPACT).matches, () => false);
   const autoCollapsed = linearPreviewAutoCollapse && previewCompact;
   const reduced = useReducedMotion();
-  // Supabase's sidebar width (--sb-sidebar-width, 13rem).
+  // The theme's navigation width (--navigation-width, 13rem).
   const initialWidth = 208;
   const [width, setWidth] = useState(initialWidth);
   const [resizing, setResizing] = useState(false);

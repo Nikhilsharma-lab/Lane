@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { fontVariables } from "@/lib/fonts";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ui } from "@clerk/ui";
@@ -7,12 +7,9 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { SpeedInsights } from "@/components/speed-insights";
 import { WebVitals } from "@/components/web-vitals";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
-import "@/components/arc/foundation.css";
+// The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
+// globals.css; src/styles/theme.css explains its two halves.
 import "./globals.css";
-// Supabase Studio visual values through Arc token hooks.
-// See docs/design-system/supabase-tokens.md for source and approved differences.
-import "@/styles/supabase-tokens.css";
-import "@/styles/lane-arc-theme.css";
 // Styles used by the root error, global-error and not-found boundaries. Next.js preloads a boundary's CSS on
 // every page so the fallback paints instantly, and Chrome then warns that the file went unused. Loading these
 // small modules here makes them part of the layout's own stylesheet, so the boundaries need no separate file.
@@ -20,9 +17,10 @@ import "@/components/arc/button/button.module.css";
 import "@/components/arc/empty-state/empty-state.module.css";
 import "@/components/shell/page-strip.module.css";
 import "./app-frame.module.css";
+import tabColours from "./theme-color.json";
 
-// The favicon, icons, manifest and Open Graph image beside this file are generated from the Lane mark and the
-// Supabase tokens by scripts/brand/brand-assets.mjs (plan §6.4, O4). Open Graph and Twitter need absolute image
+// The favicon, icons, manifest, tab colours and Open Graph image beside this file are generated from the Lane
+// mark and the theme file by scripts/brand/brand-assets.mjs (plan §6.4, O4, #96). Open Graph and Twitter need absolute image
 // URLs; without a parseable NEXT_PUBLIC_APP_URL, Next falls back to its own deployment URL.
 const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 const description = "Collect design requests, clarify the problem, and track the work from Open to Done.";
@@ -33,6 +31,15 @@ export const metadata: Metadata = {
   description,
   openGraph: { type: "website", siteName: "Lane", title: "Lane", description },
   twitter: { card: "summary_large_image", title: "Lane", description },
+};
+
+// The browser tab starts on the device colour scheme with the theme's light and dark backgrounds;
+// TabColour (in ThemeProvider) then switches it to Lane's resolved theme, the saved Profile choice.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: tabColours.light },
+    { media: "(prefers-color-scheme: dark)", color: tabColours.dark },
+  ],
 };
 
 // Origins Clerk may redirect back to after sign-in, sign-up and invite flows.
@@ -86,13 +93,7 @@ export default function RootLayout({
             "reset-password": "/reset-password",
           }}
         >
-          <ThemeProvider
-            attribute={["class", "data-theme"]}
-            defaultTheme="system"
-            enableSystem
-            enableColorScheme
-            disableTransitionOnChange
-          >
+          <ThemeProvider>
             <ToastStackProvider>
               {children}
               {/* Plan item 2.4 (decision 8.22): toasts swap text and icons without a blur. The region is
