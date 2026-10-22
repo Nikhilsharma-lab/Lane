@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { paletteEntries } from "./command-palette-entries"
-import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 
 const current = (overrides: Partial<CurrentRequest> = {}): CurrentRequest => ({
   id: "r1", code: "LAN-12", name: "LAN-12", status: "open", priority: "none", source: "list", canEdit: true,
@@ -99,13 +99,6 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
 // The acknowledgement of each mutation, through the real moves, is command-palette-acknowledgement.test.ts.
 
 describe("what the palette offers where it is (#106)", () => {
-  it("maps the current Request to the entry list's", () => {
-    expect(paletteRequest(current({ pickupBlockedReason: "Add a metric" }))).toEqual({
-      id: "r1", code: "LAN-12", status: "open", agreementBlocked: false, priority: "none", canEdit: true, pickupBlockedReason: "Add a metric",
-    })
-    expect(paletteRequest(null)).toBeNull()
-  })
-
   it("leaves out search, the bell and the ? overlay where they are not mounted (Settings), and keeps New Request", () => {
     const entries = paletteEntries({ role: "member", request: null, undo: null, projects: [] })
     const ids = openableEntries(entries, surface => surface === "composer").map(entry => entry.id)

@@ -1,7 +1,8 @@
+import type { CurrentRequest } from "@/components/requests/current-request"
 import { settingsNavigation } from "@/components/settings/settings-catalog"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle"
+import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-workspace"
 
 /**
@@ -11,18 +12,8 @@ import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-
  */
 export type PaletteRole = "admin" | "member" | "guest"
 
-/** The open Request (its page or preview), else the list's highlighted row, with pending changes applied. */
-export type PaletteRequest = {
-  id: string
-  code: string | null
-  status: RequestStatus
-  agreementBlocked?: boolean
-  priority: RequestPriority
-  /** Whether this viewer may edit the Request (the row's canEdit; on detail, admin or creator). */
-  canEdit: boolean
-  /** Set while a pickup can't go ahead (the detail strip's rule); Pick up is hidden then. */
-  pickupBlockedReason?: string | null
-}
+/** What the entry list reads of the current Request (current-request.ts): the open one, else the list's highlighted row, with pending changes applied. */
+export type PaletteRequest = Pick<CurrentRequest, "id" | "code" | "status" | "priority" | "canEdit"> & Partial<Pick<CurrentRequest, "agreementBlocked" | "pickupBlockedReason">>
 
 export type PaletteUndo = { requestId: string }
 

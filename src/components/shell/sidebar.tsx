@@ -9,6 +9,7 @@ import { createProject } from "@/app/(app)/intake/project-actions";
 import { NotificationBell } from "./notification-bell";
 import { SidebarView } from "./sidebar-view";
 import { CommandPaletteHost } from "./command-palette-lazy";
+import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 
@@ -28,7 +29,7 @@ export function Sidebar({
   workspaceName: string;
   fullName: string;
   email: string;
-  role: string;
+  role: PaletteRole;
   orgId: string;
   /** The signed-in user: a Pick up from the palette on Request detail names them as Assignee (#106). */
   userId: string;

@@ -3,7 +3,7 @@ import type { MoveOptions, MoveTarget } from "@/components/requests/request-move
 import type { RequestPriority } from "@/lib/request-constants"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
-import type { PaletteAction, PaletteEntry, PaletteRequest } from "./command-palette-entries"
+import type { PaletteAction, PaletteEntry } from "./command-palette-entries"
 import type { ShellSurface } from "./shell-openers"
 
 /**
@@ -57,13 +57,6 @@ export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priorit
     case "settings": deps.settings(action.section, action.href); return
     default: deps.open(SURFACES[action.kind])
   }
-}
-
-/** The entry list's view of the current Request. */
-export function paletteRequest(request: CurrentRequest | null): PaletteRequest | null {
-  if (!request) return null
-  const { id, code, status, agreementBlocked, priority, canEdit, pickupBlockedReason } = request
-  return { id, code, status, agreementBlocked, priority, canEdit, pickupBlockedReason }
 }
 
 /** Search, the bell and the ? overlay are not mounted on Settings, so their entries are left out there. */

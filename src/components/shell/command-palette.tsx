@@ -12,7 +12,7 @@ import { showSettingsSection } from "@/components/settings/settings-section"
 import { isShown } from "@/lib/keyboard-guards"
 import { changesListInPlace, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
-import { openableEntries, paletteRequest, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
 import { paletteListKey, type PaletteStep } from "./command-palette-keys"
 import { createPaletteFocus } from "./command-palette-focus"
@@ -21,8 +21,8 @@ import styles from "./command-palette.module.css"
 
 export type CommandPaletteWorkspace = {
   orgId: string
-  /** The Clerk workspace role: admin, member or guest. */
-  role: string
+  /** The Clerk workspace role. */
+  role: PaletteRole
   /** Who a Pick up from Request detail names as Assignee. */
   viewer: { id: string; name: string }
   projects: readonly { id: string; name: string }[]
@@ -35,7 +35,6 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
   returnFocusRef: RefObject<HTMLElement | null>
 }
 
-const roleOf = (role: string): PaletteRole => role === "admin" || role === "guest" ? role : "member"
 
 /**
  * Issue #106 (spec #101): the ⌘K command palette, loaded on demand by
@@ -89,13 +88,11 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   const moves = useRequestMoves({ orgId, announce })
   const listContext = useRequestListContext()
   const setListView = useSetRequestListView()
-  const paletteRole = roleOf(role)
-  const request = paletteRequest(current)
-
-  const entries = useMemo(() => openableEntries(paletteEntries({ role: paletteRole, request, undo: undo && { requestId: undo.requestId }, projects }), canOpenShellSurface),
-    // `request` is rebuilt each render; its fields decide the entries.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [paletteRole, request?.id, request?.status, request?.priority, request?.canEdit, request?.code, request?.agreementBlocked, request?.pickupBlockedReason, undo?.requestId, projects])
+  // useCurrentRequest keeps one object until the Request or its pending changes change.
+  const request = current
+  const undoId = undo?.requestId
+  const entries = useMemo(() => openableEntries(paletteEntries({ role, request, undo: undoId ? { requestId: undoId } : null, projects }), canOpenShellSurface),
+    [role, request, undoId, projects])
   // The priority step needs the Request it opened for; if that goes away, the palette is back on its first step.
   const priority = step === "priority" && request ? priorityEntries(request) : null
   const { entries: shown, empty } = filterPaletteEntries<PaletteEntry | PriorityEntry>(priority ?? entries, query)

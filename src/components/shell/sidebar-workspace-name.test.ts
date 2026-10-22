@@ -35,7 +35,7 @@ beforeEach(() => {
   clerk.resource = { isLoaded: true, organization: { id: "org_active", name: "Renamed workspace" } };
 });
 
-function renderSidebar(role = "member") {
+function renderSidebar(role: "admin" | "member" | "guest" = "member") {
   return renderToStaticMarkup(createElement(Sidebar, {
     workspaceName: "Saved workspace name",
     fullName: "Test Member",
@@ -134,7 +134,7 @@ describe("approved Requests navigation", () => {
     ["guest", "My Requests", "All Requests"],
     ["member", "All Requests", "My Requests"],
     ["admin", "All Requests", "My Requests"],
-  ])("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
+  ] as const)("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
     const html = renderSidebar(role);
     expect(html).toContain(label);
     expect(html).not.toContain(otherLabel);
