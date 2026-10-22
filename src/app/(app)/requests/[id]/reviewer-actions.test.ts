@@ -247,6 +247,27 @@ it("a reviewer who left stays listed, greyed out, and a retried answer replays",
   expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ name: "agreement_design", active: false, canAnswer: false }] });
 });
 
+it("a reviewer who left no longer counts: the list, detail and panel agree nothing is outstanding", async () => {
+  const { loadRequestList, loadRequestDetail } = await import("@/lib/data/requests");
+  const api = await import("./reviewer-actions");
+  const { reviewStateOf } = await import("@/lib/request-reviewer-rules");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  await answer(id, designer, "concern", "No API yet.");
+  const auth = { userId: owner, orgId, role: "member" as const };
+  const listed = async () => (await loadRequestList(auth)).rows.find((row) => row.id === id)?.reviewState;
+  const panel = async () => {
+    const view = await api.readReviews(id, { orgId });
+    return reviewStateOf((view.reviewers ?? []).map((r) => ({ ...r, counts: r.active })));
+  };
+  expect(await listed()).toEqual({ concerns: [{ name: "agreement_design", reason: "No API yet." }], unanswered: 1 });
+  roster.delete(designer);
+  roster.delete(developer);
+  expect(await listed()).toBeNull();
+  expect((await loadRequestDetail(auth, id))?.request.reviewState).toBeNull();
+  expect(await panel()).toBeNull();
+});
+
 it("pickup succeeds with an open concern and an unanswered review; afterwards nothing about reviews changes", async () => {
   const api = await import("./reviewer-actions");
   const lifecycle = await import("./actions");

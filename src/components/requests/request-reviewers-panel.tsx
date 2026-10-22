@@ -69,7 +69,7 @@ export function RequestReviewersPanel({
   // page's or the preview's loaded copy once a reviewer is added, removed or answers.
   useEffect(() => {
     if (!view) return;
-    reportReviewState(view.requestId, reviewStateOf(view.reviewers));
+    reportReviewState(view.requestId, reviewStateOf(view.reviewers.map((r) => ({ ...r, counts: r.active }))));
     return () => reportReviewState(view.requestId, undefined);
   }, [reportReviewState, view]);
 

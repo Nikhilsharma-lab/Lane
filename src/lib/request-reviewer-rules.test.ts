@@ -37,14 +37,19 @@ describe("pickupConfirmation", () => {
 });
 
 describe("fresh review state at pickup", () => {
-  const waiting = { name: "Sam", decision: null };
-  const fine = { name: "Alex", decision: { kind: "looks_good" as const, reason: "" } };
-  const worried = { name: "Priya", decision: { kind: "concern" as const, reason: concern.reason } };
+  const waiting = { name: "Sam", decision: null, counts: true };
+  const fine = { name: "Alex", decision: { kind: "looks_good" as const, reason: "" }, counts: true };
+  const worried = { name: "Priya", decision: { kind: "concern" as const, reason: concern.reason }, counts: true };
 
   it("reads the reviewers list the way saved reviews are summarised: concerns in order, then the unanswered count", () => {
     expect(reviewStateOf([])).toBeNull();
     expect(reviewStateOf([fine])).toBeNull();
     expect(reviewStateOf([waiting, worried, fine, waiting])).toEqual({ concerns: [concern], unanswered: 2 });
+  });
+
+  it("leaves out reviewers who left the workspace: their concern and their missing answer no longer count", () => {
+    expect(reviewStateOf([{ ...worried, counts: false }, { ...waiting, counts: false }])).toBeNull();
+    expect(reviewStateOf([{ ...worried, counts: false }, waiting])).toEqual({ concerns: [], unanswered: 1 });
   });
 
   it("confirms from what the reviewers panel last read, not the older copy the page or preview loaded", () => {
