@@ -22,6 +22,8 @@ vi.mock("next/navigation", () => ({
 }));
 // Notifications have their own database boundary and are unrelated to the label.
 vi.mock("./notification-bell", () => ({ NotificationBell: () => null }));
+// The palette is its own chunk with its own tests.
+vi.mock("./command-palette-lazy", () => ({ CommandPaletteHost: () => null }));
 vi.mock("./use-workspace-switcher", () => ({ useWorkspaceSwitcher: () => undefined }));
 
 import { Sidebar } from "./sidebar";
@@ -40,6 +42,7 @@ function renderSidebar(role = "member") {
     email: "member@example.test",
     role,
     orgId: "org_active",
+    userId: "user_1",
   }));
 }
 

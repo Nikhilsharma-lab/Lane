@@ -52,6 +52,7 @@ export default async function AppLayout({
             email={result.email}
             role={result.role}
             orgId={result.orgId}
+            userId={result.userId}
             unreadCount={unreadCount}
           >
             {children}
