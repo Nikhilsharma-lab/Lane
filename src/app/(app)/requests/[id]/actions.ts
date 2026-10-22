@@ -7,9 +7,8 @@ import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
 import { requireActiveMember, requireMemberOrAbove, refusal } from "@/lib/auth-guard";
-import { REQUEST_ATTACHMENTS_BUCKET } from "@/lib/request-attachments";
 import { requestPrioritySchema } from "@/lib/request-properties";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { removeObjects, signDownload } from "@/lib/attachment-storage";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -211,20 +210,12 @@ export async function getAttachmentDownloadUrl(
 
   if (!attachment) return { error: "File not found" };
 
-  const { data, error } = await createServiceClient()
-    .storage.from(REQUEST_ATTACHMENTS_BUCKET)
-    .createSignedUrl(attachment.storagePath, 60, {
-      download: attachment.fileName,
-    });
-
-  if (error || !data) {
+  try {
+    return { success: true, url: await signDownload(attachment.storagePath, attachment.fileName) };
+  } catch (error) {
     console.error("[request/attachments] download signing failed:", error);
-    return {
-      error: "Lane could not prepare this download. Try again.",
-    };
+    return { error: "Lane could not prepare this download. Try again." };
   }
-
-  return { success: true, url: data.signedUrl };
 }
 
 /** Priority is a triage signal on the row. It never changes status,
@@ -283,7 +274,7 @@ export async function deleteRequest(
 
   // The rows are gone; a stored file left behind is unreachable, so log rather than fail.
   if (result.files.length) {
-    const { error } = await createServiceClient().storage.from(REQUEST_ATTACHMENTS_BUCKET).remove(result.files);
+    const { error } = await removeObjects(result.files);
     if (error) console.error("[request/delete] file cleanup failed", { count: result.files.length, kind: error.name });
   }
 
