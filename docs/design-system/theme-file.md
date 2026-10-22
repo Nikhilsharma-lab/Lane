@@ -28,6 +28,8 @@ Decided 2026-10-22 (spec [#87](https://github.com/Nikhilsharma-lab/Lane/issues/8
 - Exact corner steps, written as ratios of tweakcn's `--radius`, so tweakcn's corner slider still moves every corner in proportion.
 - Type sizes and weights, spacing steps, component sizes (buttons, rows, header, icons, badges) and motion.
 
+**Two tweakcn names Lane does not paint with.** The bridge points `--accent` at the `--accent-ink` addition (Arc's `--accent` is brand ink; tweakcn's is a grey hover read only by its preview) and `--border` at the see-through `--hairline` addition (tweakcn exports drop transparency, so its `--border` is opaque). Both tweakcn values stay in the paste untouched.
+
 Additions never reuse a name tweakcn exports (its `@theme inline` keys included), so a re-paste can't clash with them; `pnpm design:check` fails if one does. Anything that differs between light and dark has a value in both `:root` and `.dark`.
 
 ## Before the first real re-paste
