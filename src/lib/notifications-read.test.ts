@@ -342,3 +342,19 @@ describe("notification visibility after a member becomes a guest", () => {
     expect(await readUnreadCount({ orgId: WS_ID })).toEqual({ count: 0 });
   });
 });
+
+describe("reminders in the bell", () => {
+  const REMINDER = "00000000-0000-4000-b000-00000000f205";
+  afterAll(async () => {
+    await db.delete(notifications).where(eq(notifications.id, REMINDER));
+  });
+
+  it("loads and counts a reminder that has no actor", async () => {
+    mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
+    const before = (await readUnreadCount({ orgId: WS_ID })).count;
+    await db.insert(notifications).values({ id: REMINDER, userId: USER_B, orgId: WS_ID, type: "result_due", requestId: REQ_ID, actorId: null });
+    const { notifications: rows } = await readNotifications({ orgId: WS_ID });
+    expect(rows.find((n) => n.id === REMINDER)).toMatchObject({ type: "result_due", actorId: null, actorName: null, requestTitle: "Read test request" });
+    expect((await readUnreadCount({ orgId: WS_ID })).count).toBe(before + 1);
+  });
+});
