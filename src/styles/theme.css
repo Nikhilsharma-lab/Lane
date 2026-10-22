@@ -224,7 +224,8 @@
   --input-error-background: hsl(0deg 100% 99.4%);
   --input-error-border: hsl(7.1deg 91.3% 91%);
 
-  /* Project, avatar and label colours: fixed hues that must not follow the brand. */
+  /* Project, avatar and label colours: fixed hues that must not follow the brand. Each has a
+     deliberate .dark value below (#95). */
   --project-blue: hsl(206, 100%, 50%);
   --project-green: hsl(151, 55%, 41.5%);
   --project-violet: hsl(252, 56%, 57.5%);
@@ -236,7 +237,7 @@
   --avatar-tone-violet: hsl(276, 83.1%, 97%);
   --avatar-tone-amber: hsl(55, 100%, 90.9%);
   --avatar-tone-coral: hsl(24, 100%, 95.3%);
-  --avatar-tone-slate: hsl(360, 100%, 96.8%);
+  --avatar-tone-slate: hsl(209, 13.3%, 95.3%);
   --label-purple: hsl(272, 51%, 54%);
 
   /* Arc's neutral ramp and brand gradient: Arc reads them, tweakcn has no slot. */
@@ -442,19 +443,22 @@
   --input-error-background: hsl(10.9deg 23.4% 9.2%);
   --input-error-border: hsl(6.7deg 60% 20.6%);
 
-  --project-blue: hsl(206, 100%, 50%);
-  --project-green: hsl(151, 55%, 41.5%);
-  --project-violet: hsl(252, 56%, 57.5%);
-  --project-amber: hsl(39, 100%, 57%);
-  --project-coral: hsl(10, 78%, 54%);
-  --project-slate: hsl(0, 0%, 43.9%);
-  --avatar-tone-blue: hsl(214, 59.4%, 15.3%);
-  --avatar-tone-green: hsl(155, 46.7%, 10.9%);
-  --avatar-tone-violet: hsl(281, 37.5%, 16.5%);
-  --avatar-tone-amber: hsl(45, 100%, 8.7%);
-  --avatar-tone-coral: hsl(26, 91.1%, 11.6%);
-  --avatar-tone-slate: hsl(356, 43.4%, 16.4%);
-  --label-purple: hsl(272, 51%, 54%);
+  /* Project and label dots keep their light hue and chroma, lifted so each clears 5:1 on the
+     dark popover. Avatar tones are one dark step (L 0.33) per hue, so the light initials read at
+     about 10:1 and the tone still shows against the dark card. */
+  --project-blue: oklch(0.7 0.15 252);
+  --project-green: oklch(0.7 0.14 158);
+  --project-violet: oklch(0.66 0.16 288);
+  --project-amber: oklch(0.82 0.16 76);
+  --project-coral: oklch(0.68 0.18 33);
+  --project-slate: oklch(0.66 0.015 240);
+  --avatar-tone-blue: oklch(0.33 0.07 250);
+  --avatar-tone-green: oklch(0.33 0.06 155);
+  --avatar-tone-violet: oklch(0.33 0.07 310);
+  --avatar-tone-amber: oklch(0.35 0.06 90);
+  --avatar-tone-coral: oklch(0.33 0.07 50);
+  --avatar-tone-slate: oklch(0.33 0.015 245);
+  --label-purple: oklch(0.68 0.16 305);
 
   --neutral-0: hsl(0, 0%, 8.5%);
   --neutral-1: hsl(0, 0%, 11%);

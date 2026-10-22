@@ -297,14 +297,15 @@ export function auditArcCoverage(foundationCss, themeCss, bridgeCss, file = them
   return errors
 }
 
-// Text-on-surface pairs tweakcn exports. Nikhil may keep a pair below AA on purpose, so
-// these are warnings for him, never failures.
+// Text-on-surface pairs tweakcn exports, plus avatar initials (--foreground) on Lane's avatar
+// tones. Nikhil may keep a pair below AA on purpose, so these are warnings for him, never failures.
 export const contrastPairs = [
   ['foreground', 'background'], ['card-foreground', 'card'], ['popover-foreground', 'popover'],
   ['primary-foreground', 'primary'], ['secondary-foreground', 'secondary'],
   ['muted-foreground', 'background'], ['muted-foreground', 'muted'], ['accent-foreground', 'accent'],
   ['destructive-foreground', 'destructive'], ['sidebar-foreground', 'sidebar'],
   ['sidebar-primary-foreground', 'sidebar-primary'], ['sidebar-accent-foreground', 'sidebar-accent'],
+  ...['blue', 'green', 'violet', 'amber', 'coral', 'slate'].map(tone => ['foreground', `avatar-tone-${tone}`]),
 ]
 export const minimumContrast = 4.5
 
