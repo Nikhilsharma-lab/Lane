@@ -42,6 +42,7 @@ export default defineConfig({
       "src/components/shell/notification-keys.test.ts",
       "src/components/shell/notification-copy.test.ts",
       "src/components/shell/shell-openers.test.ts",
+      "src/components/shell/command-palette-entries.test.ts",
     ],
   },
   resolve: {
