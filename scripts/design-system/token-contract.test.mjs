@@ -17,11 +17,11 @@ test('accepts tokens, derived spacing and geometric mechanics', () => {
 })
 
 test('pages cannot redefine shared control tokens even with token-valued overrides', () => {
-  for (const token of ['--sb-spacing', '--button-padding-sm', '--input-background', '--badge-gap', '--segment-radius']) {
+  for (const token of ['--button-padding-sm', '--input-background', '--badge-gap', '--segment-radius']) {
     const css = `.page { ${token}: var(--space-1) }`
     assert.equal(auditCss(css, 'src/components/shell/page.module.css').length, 1, token)
     assert.deepEqual(auditCss(css, 'src/styles/theme-bridge.css'), [])
-    assert.equal(auditCss(css, 'src/components/arc/button/button.module.css').length, token.startsWith('--sb-') ? 1 : 0)
+    assert.deepEqual(auditCss(css, 'src/components/arc/button/button.module.css'), [])
   }
   assert.deepEqual(auditCss('.page { padding: var(--button-padding-sm); --content-width: calc(var(--space-1) * 80) }'), [])
   assert.deepEqual(auditCss('.row[data-selected] { --badge-background: var(--selection-background) }'), [])
@@ -281,7 +281,7 @@ test('the theme CLI exits cleanly with contrast warnings and fails on rule break
   const script = join(import.meta.dirname, 'token-contract.mjs')
   const run = overrides => {
     const root = themeFixture(overrides)
-    try { return spawnSync(process.execPath, [script, '--theme', '--root', root], { encoding: 'utf8' }) } finally { rmSync(root, { recursive: true, force: true }) }
+    try { return spawnSync(process.execPath, [script, '--root', root], { encoding: 'utf8' }) } finally { rmSync(root, { recursive: true, force: true }) }
   }
   const warned = run({ 'src/styles/theme.css': cleanTheme.replace('--primary-foreground: oklch(0.98 0 0);', '--primary-foreground: oklch(0.6 0.1 157.5);') })
   assert.equal(warned.status, 0, warned.stderr)

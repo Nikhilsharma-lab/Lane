@@ -14,12 +14,12 @@ export const themeFiles = {
   bridge: 'src/styles/theme-bridge.css',
   foundation: 'src/components/arc/foundation.css',
 }
-const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge, ownerMayMix: false })
+const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge })
 const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt)\b/gi
 const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
 
 export function auditCss(css, file = 'component.css', policy = themePolicy()) {
-  const { sources, controlOwner, ownerMayMix } = policy
+  const { sources, controlOwner } = policy
   const errors = []
   const tree = postcss.parse(css, { from: file })
   // Light and dark differences live in the theme file as tokens with both values; a dark
@@ -39,14 +39,14 @@ export function auditCss(css, file = 'component.css', policy = themePolicy()) {
     const fixedType = /^(?:font-weight|line-height|letter-spacing)$/.test(d.prop) && /^-?[.\d]+$/.test(d.value) && !['0', '1'].includes(d.value)
     // Component geometry/materials belong to their shared implementation. Semantic
     // Badge tone and row-density composition remain legitimate context decisions.
-    const sharedControlToken = /^--(?:sb-|button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
+    const sharedControlToken = /^--(?:button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
     const ownsControlTokens = file === controlOwner || file.startsWith('src/components/arc/')
-    if (sharedControlToken && (!ownsControlTokens || d.prop.startsWith('--sb-') && file !== controlOwner)) {
+    if (sharedControlToken && !ownsControlTokens) {
       errors.push(`${file}:${d.source.start.line} shared control override ${d.prop}: update the shared component or theme mapping`)
     }
     // The Supabase-era token files are retired: nothing may read their names again.
     if (/var\(\s*--sb-/.test(d.value)) errors.push(`${file}:${d.source.start.line} ${d.prop} reads a retired --sb-* token: use the theme file's name`)
-    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value) && !(ownerMayMix && file === controlOwner && d.prop.startsWith("--") && d.value.startsWith("color-mix(") && !/#[\da-f]|\b(?:rgb|oklch)\(/i.test(d.value))) || fixedType) {
+    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value)) || fixedType) {
       errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value}`)
     }
   })
@@ -387,8 +387,7 @@ export function auditThemeContract(root, files = themeFiles) {
   return { errors, warnings, exemptions: themeExemptions }
 }
 
-// Runs the one-theme-file contract on the repo (or `--root <dir>`). `--theme` is accepted for
-// compatibility with the #90 entry point; it is the only check now.
+// Runs the one-theme-file contract on the repo (or `--root <dir>`).
 function runThemeCheck(argv) {
   const rootFlag = argv.indexOf('--root')
   const root = rootFlag === -1 ? resolve(import.meta.dirname, '../..') : resolve(argv[rootFlag + 1])
