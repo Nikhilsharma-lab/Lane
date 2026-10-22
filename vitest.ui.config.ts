@@ -30,6 +30,7 @@ export default defineConfig({
       "src/components/shell/page-strip.test.ts",
       "src/components/shell/sidebar-view-frame.test.ts",
       "src/app/**/app-frame.test.ts",
+      "src/app/global-error-theme.test.ts",
       "src/lib/request-lifecycle.test.ts",
       "src/lib/request-reviewer-rules.test.ts",
       "src/lib/keyboard-shortcuts.test.ts",
