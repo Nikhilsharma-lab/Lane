@@ -9,12 +9,12 @@ import { Select } from "@/components/arc/select/select"
 import { Button } from "@/components/arc/button/button"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
-import { ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
+import { CalendarClock, ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
-import { isRequestStatusFilter } from "@/lib/request-workspace"
-import type { OverviewRequest, RequestGrouping, RequestOrdering } from "@/lib/request-overview"
+import { REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter } from "@/lib/request-workspace"
+import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
 import { statuses } from "./statuses"
@@ -47,8 +47,14 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   const projectNames = new Set(projects.map(([, name]) => name))
   let noProjectLabel = projectNames.has("No Project") ? "Requests without a Project" : "No Project"
   while (projectNames.has(noProjectLabel)) noProjectLabel += " (unassigned)"
+  // #133: the five journey statuses and Due soon or overdue, counted the way the list filters them.
+  const now = new Date()
+  const statusHint = (view: RequestStatusFilter) => summaryOpen !== undefined ? data.filter(row => matchesStatusView(row, view, now)).length : undefined
   const fields = [
-    { id: "status", label: "Status", options: statuses.map(item => ({ value: item.value, label: item.label, hint: summaryOpen !== undefined ? data.filter(row => row.status === item.value).length : undefined, icon: <item.icon aria-hidden="true" /> })) },
+    { id: "status", label: "Status", options: [
+      ...statuses.map(item => ({ value: item.value, label: item.label, hint: statusHint(item.value), icon: <item.icon aria-hidden="true" /> })),
+      { value: "due", label: REQUEST_STATUS_FILTER_LABELS.due, hint: statusHint("due"), icon: <CalendarClock aria-hidden="true" /> },
+    ] },
     { id: "project", label: "Project", options: [{ value: "none", label: noProjectLabel, icon: <ProjectMarker projectId={null} /> }, ...projects.map(([value, label]) => ({ value, label, icon: <ProjectMarker projectId={value} />, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === value).length : undefined }))] },
     { id: "requestType", label: "Labels", options: requestTypeOptions },
   ]

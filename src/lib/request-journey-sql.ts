@@ -28,6 +28,14 @@ export function journeyStatusCondition(status: JourneyStatus): SQL {
   }
 }
 
+/** Each Request's journey status as a column, built from the conditions above: for grouping and counting in SQL (search facets). */
+export const journeyStatusColumn = sql<JourneyStatus>`case
+  when ${journeyStatusCondition("closed")} then 'closed'
+  when ${journeyStatusCondition("measuring")} then 'measuring'
+  when ${journeyStatusCondition("done")} then 'done'
+  when ${journeyStatusCondition("in_progress")} then 'in_progress'
+  else 'open' end`
+
 /** Measuring Requests due within `DUE_SOON_DAYS`, due today or overdue, on `now`'s UTC date (the row tag's rule). */
 export function dueSoonOrOverdueCondition(now: Date): SQL {
   const today = now.toISOString().slice(0, 10)

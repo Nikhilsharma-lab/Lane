@@ -1,12 +1,14 @@
 import { createElement, type SVGProps } from "react"
 import { StatusGlyph } from "../status-glyph"
-import { statusLabel } from "@/lib/request-lifecycle"
+import { JOURNEY_STATUSES, type JourneyStatus } from "@/lib/request-journey"
 
-const iconFor = (status: "open" | "in_progress" | "done") =>
+const iconFor = (status: JourneyStatus) =>
   function StatusIcon(props: SVGProps<SVGSVGElement>) { return createElement(StatusGlyph, { ...props, status }) }
 
-export const statuses = [
-  { value: "open", label: statusLabel("open"), icon: iconFor("open"), tone: "neutral" },
-  { value: "in_progress", label: statusLabel("in_progress"), icon: iconFor("in_progress"), tone: "warning" },
-  { value: "done", label: statusLabel("done"), icon: iconFor("done"), tone: "success" },
-] as const
+const TONES = { open: "neutral", in_progress: "warning", done: "success", measuring: "info", closed: "success" } as const satisfies Record<JourneyStatus, string>
+
+/** The five journey statuses with their glossary labels (request-journey.ts), glyphs and tones (#133).
+ * A row's own words come from `rowJourney(row).label`, which also says "Closed without a result". */
+export const statuses = JOURNEY_STATUSES.map(({ status, label }) => ({ value: status, label, icon: iconFor(status), tone: TONES[status] }))
+
+export const statusOf = (status: JourneyStatus) => statuses.find(item => item.value === status)!

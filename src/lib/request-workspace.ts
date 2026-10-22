@@ -1,9 +1,21 @@
+/**
+ * The list's status views (URL `?status=`): every Request, each of the five journey statuses
+ * (request-journey.ts), and "due" for Measuring Requests due soon, due today or overdue (#133).
+ */
 export const REQUEST_STATUS_FILTERS = [
   "all",
   "open",
   "in_progress",
   "done",
+  "measuring",
+  "closed",
+  "due",
 ] as const
+
+/** Each status view's words, shared by the list's views, its filter menu and the ⌘K palette. */
+export const REQUEST_STATUS_FILTER_LABELS = {
+  all: "All", open: "Open", in_progress: "In progress", done: "Done", measuring: "Measuring", closed: "Closed", due: "Due soon or overdue",
+} as const satisfies Record<(typeof REQUEST_STATUS_FILTERS)[number], string>
 
 export type RequestStatusFilter = (typeof REQUEST_STATUS_FILTERS)[number]
 // "all", "none", or a Project ID. IDs are authorized at the server boundary.

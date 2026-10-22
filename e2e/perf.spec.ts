@@ -142,7 +142,7 @@ test("status view switch responds in the next frame with zero network", async ({
 
   const durations: number[] = []
   for (let run = 0; run < RUNS; run++) {
-    for (const label of ["Open", "In Progress", "Done", "All"]) {
+    for (const label of ["Open", "In progress", "Done", "All"]) {
       const chip = statusChip(page, label)
       if (!(await chip.isVisible())) continue // folded into "N more" at narrow widths
       const since = await now(page)

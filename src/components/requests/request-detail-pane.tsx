@@ -29,7 +29,7 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, p
   const pickupBlockedReason = request.pickupBlockedReason ?? null
   // Whoever can edit the plan is told what to fix; anyone else is told who can (as in the list).
   const changes = canChange({ userId: currentUserId, role: isAdmin ? "admin" : "member" }, request)
-  const pickupRequester = changes ? null : request.creatorName || "the requester"
+  const pickupRequester = changes ? null : request.creatorName || "the Requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin }} peekStrip={peekStrip}
     requestPanels={<><RequestReviewersPanel revision={request.agreementRevision} requestId={request.id} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} /><RequestReleasePanel key={request.id} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /><RequestOutcomePanel key={`outcome-${request.id}`} requestId={request.id} orgId={orgId} revision={request.agreementRevision ?? 0} /></>}

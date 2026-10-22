@@ -3,7 +3,7 @@
 import { useCallback, useMemo, type ReactNode } from "react"
 import { Copy } from "lucide-react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
-import type { OverviewRequest } from "@/lib/request-overview"
+import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { type RequestPriority } from "@/lib/request-constants"
 import { availableMove, pickupBlockedMessage, type AvailableMove, type LifecycleMove } from "@/lib/request-lifecycle"
@@ -72,13 +72,15 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   // memoised rows call it only when they re-render (plan item 1.14).
   const menuItems = useMemo(() => {
 
+    // The five journey statuses (#133); only the lifecycle's next move is ever selectable.
     function statusItems(request: OverviewRequest, next: AvailableMove | null, reason: string | undefined): ContextMenuItem[] {
+      const journey = rowJourney(request)
       return statuses.map(status => {
-        const current = request.status === status.value
+        const current = journey.status === status.value
         const transition = next?.to === status.value ? next : undefined
         return {
           id: status.value,
-          label: current || !transition ? status.label : `${status.label} (${transition.label.toLowerCase()})`,
+          label: current ? journey.label : !transition ? status.label : `${status.label} (${transition.label.toLowerCase()})`,
           icon: <StatusGlyph status={status.value} />,
           checked: current,
           disabled: !transition || Boolean(reason),
@@ -105,11 +107,11 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
       // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move,
       // and a pickup that isn't ready shows why instead of failing on the server.
       const next = availableMove(request, { isGuest })
-      const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the requester") : undefined
+      const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the Requester") : undefined
       return [
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),
-        { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next, reason) },
+        { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={rowJourney(request).status} />, children: statusItems(request, next, reason) },
         ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
         { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
           ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),

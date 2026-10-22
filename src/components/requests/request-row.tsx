@@ -7,7 +7,7 @@ import { Check, Copy, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import { concernMarker } from "@/lib/request-reviewer-rules"
 import { Badge } from "@/components/arc/badge/badge"
-import type { OverviewRequest } from "@/lib/request-overview"
+import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
 import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { ROW_MENU_HINTS } from "@/lib/keyboard-shortcuts"
@@ -21,7 +21,8 @@ import { Button } from "@/components/arc/button/button"
 import { ContextMenu, type ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
-import { statuses } from "./tasks/statuses"
+import { statusOf } from "./tasks/statuses"
+import { DueTag, useDueNow } from "./due-tag"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestPeekOpener } from "./request-peek"
 
@@ -128,7 +129,11 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     { id: "open", label: "Open Request", shortcut: ROW_MENU_HINTS.open, onSelect: () => rowRef.current?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click() },
     ...(peek ? [{ id: "peek", label: "Preview", shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
   ] : []
-  const status = statuses.find(item => item.value === request.status)!
+  // #133: the one journey status and, while Measuring, the due tag (the row's name reads both).
+  const journey = rowJourney(request)
+  const status = { ...statusOf(journey.status), label: journey.label }
+  const now = useDueNow()
+  const due = rowDue(request, now)
   // #77: open concerns from saved reviews, on Open rows only. The row's name already reads it, so the marker is not read twice.
   const concerns = concernMarker(request)
   const priorityLabel = identity ? REQUEST_PRIORITY_LABELS[identity.priority] : ""
@@ -139,7 +144,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
   // stop and carries every value in its name; each control inside it is
   // tabIndex -1 and stays reachable through the row menu or a key.
-  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name))} tabIndex={tabbable ? 0 : -1}
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
     onFocus={event => { if (event.target === event.currentTarget) prefetch.schedule() }}
@@ -155,12 +160,13 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     }
     {savedCode ? <RequestCodeControl key={savedCode} code={savedCode} /> : identity ? <span className={styles.requestCode} data-request-code>{identity.code}</span> : null}
     {identity && visibility.status !== false && <GlyphMenu label="Request status" items={actionItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
-        <button type="button" tabIndex={-1} className={styles.identityControl} data-status={request.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={request.status} /></button>
+        <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
       </GlyphMenu>}
     {columns[0].render(request, filter, projectFilter)}
     {/* Sketch reservation (2026-10-11): a later "waiting" token joins these as data-row-property="waiting"; see request-rows.module.css. */}
     <div className={styles.properties}>
       {concerns && <span data-row-property="concerns" aria-hidden="true"><Badge size="sm" tone="warning">{concerns}</Badge></span>}
+      {due.kind !== "none" && <span data-row-property="due" aria-hidden="true"><DueTag signal={due} /></span>}
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}
     </div>
 

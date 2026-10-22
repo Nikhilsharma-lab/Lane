@@ -6,11 +6,11 @@ import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
-import type { OverviewRequest } from "@/lib/request-overview"
+import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import { requestLabelKeys } from "@/lib/request-labels"
 import { useWorkspaceLabels } from "./workspace-labels"
-import { statuses } from "./tasks/statuses"
+import { statusOf } from "./tasks/statuses"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import styles from "./tasks/data-table-toolbar.module.css"
 
@@ -38,8 +38,8 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
       for (const key of requestLabelKeys(row).length ? requestLabelKeys(row) : ["none"]) counts.set(key, { label: key === "none" ? "No labels" : labels.find(label => label.id === key)?.name ?? "Saved label", count: (counts.get(key)?.count ?? 0) + 1 })
       continue
     }
-    const value = dimension === "status" ? row.status : dimension === "project" ? row.projectId ?? "none" : row.requestType ?? "none"
-    const label = dimension === "status" ? statuses.find(status => status.value === row.status)!.label
+    const value = dimension === "status" ? rowJourney(row).status : dimension === "project" ? row.projectId ?? "none" : row.requestType ?? "none"
+    const label = dimension === "status" ? statusOf(rowJourney(row).status).label
       : dimension === "project" ? row.projectName ?? (row.projectId ? "Unavailable Project" : "No Project")
         : "No labels"
     counts.set(value, { label, count: (counts.get(value)?.count ?? 0) + 1 })

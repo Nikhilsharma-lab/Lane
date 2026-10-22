@@ -147,7 +147,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
 
       // A pick up is said in the polite region, with no success toast.
       await pickUp.click();
-      await expectStatus("in_progress", "In Progress", 20_000);
+      await expectStatus("in_progress", "In progress", 20_000);
 
       const failedCompletion = await holdAndFailNextAction(page, actionPath);
       const markDone = lifecycle.getByRole("button", {
@@ -170,7 +170,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
         "Try again if this Request is still In Progress",
       );
       await expect(markDone).toBeEnabled();
-      await expectStatus("in_progress", "In Progress");
+      await expectStatus("in_progress", "In progress");
       await page.unroute(actionPath);
 
       await markDone.click();

@@ -9,7 +9,7 @@ describe("paletteEntries", () => {
   it("lists a member's entries in order with nothing typed", () => {
     expect(ids(base)).toEqual([
       "new-request", "search",
-      "view:all", "view:open", "view:in_progress", "view:done",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:coming-soon",
       "notifications",

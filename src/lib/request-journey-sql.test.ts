@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { db, requests } from "@/db"
 import { JOURNEY_STATUSES, dueSignal, journeyStatus } from "./request-journey"
-import { dueSoonOrOverdueCondition, journeyStatusCondition } from "./request-journey-sql"
+import { dueSoonOrOverdueCondition, journeyStatusColumn, journeyStatusCondition } from "./request-journey-sql"
 import type { ReleaseFact } from "./request-release"
 
 const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false })
@@ -57,6 +57,12 @@ it.each(JOURNEY_STATUSES.map(s => [s.status]))("the %s condition selects exactly
   const expected = all.filter(r => journeyStatus(r).status === status)
   expect(expected.length).toBeGreaterThan(0)
   expect(titles(await db.select({ title: requests.title }).from(requests).where(and(inOrg, journeyStatusCondition(status))))).toEqual(titles(expected))
+})
+
+it("the journey status column reads each Request's status as the mapping does (search facets, #133)", async () => {
+  const rows = await db.select({ title: requests.title, column: journeyStatusColumn, status: requests.status, releaseState: requests.releaseState, outcomeClosure: requests.outcomeClosure, exceptionClosure: requests.exceptionClosure }).from(requests).where(inOrg)
+  expect(rows.length).toBe(fixtures.length)
+  for (const row of rows) expect([row.title, row.column]).toEqual([row.title, journeyStatus(row).status])
 })
 
 it("the Due soon or overdue condition selects exactly the Requests with a due tag", async () => {

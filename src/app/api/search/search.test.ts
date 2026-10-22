@@ -20,7 +20,7 @@ vi.mock("@/db", async () => {
     boundary.queries.push({ sql, params });
     if (boundary.failure) throw new Error("Private SQL failure: customer secret");
     const isRequest = sql.match(/from "(requests|projects)"/)?.[1] === "requests";
-    if (sql.includes("group by")) return { rows: [[sql.includes('group by "requests"."status"') ? "open" : "bug", boundary.requestTotal]] };
+    if (sql.includes("group by")) return { rows: [[sql.includes("then 'closed'") ? "open" : "bug", boundary.requestTotal]] };
     return { rows: sql.includes("count(*)")
       ? [[isRequest ? boundary.requestTotal : boundary.projectTotal]]
       : isRequest ? boundary.requestRows : boundary.projectRows };
@@ -81,10 +81,12 @@ describe("GET /api/search query and authorization contract", () => {
     const response = await search({ query: "signup", statuses: "open,done", types: "bug", createdSince: "2026-09-30T18:30:00.000Z", createdBefore: "2026-10-18T18:30:00.000Z", sort: "title", requestsPage: 2 });
     expect(response).toHaveProperty("facets");
     const row = queryFor("requests");
-    expect(row.sql).toContain('"requests"."status" in');
+    // #133: each chosen journey status through the journey module's condition.
+    expect(row.sql).toContain(`"requests"."status" = 'open'`);
+    expect(row.sql).toContain(`"requests"."status" = 'done' and coalesce(jsonb_typeof("requests"."release_state"->'release'), 'null') <> 'object'`);
     expect(row.sql).toContain('"requests"."label_keys" && ARRAY[');
     expect(row.sql).toContain('order by lower("requests"."title") asc');
-    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "open", "done", "bug", "2026-09-30T18:30:00.000Z", "2026-10-18T18:30:00.000Z", 40]));
+    expect(row.params).toEqual(expect.arrayContaining(["org_a", "user_member", "bug", "2026-09-30T18:30:00.000Z", "2026-10-18T18:30:00.000Z", 40]));
     expect(whereClause(row.sql)).toBe(whereClause(queryFor("requests", true).sql));
     const facets = boundary.queries.filter(({ sql }) => sql.includes("group by"));
     expect(facets).toHaveLength(2);
@@ -93,8 +95,8 @@ describe("GET /api/search query and authorization contract", () => {
       expect(facet.params).toContain("user_member");
       expect(facet.sql).not.toContain("limit");
     }
-    const statuses = facets.find(({ sql }) => sql.includes('group by "requests"."status"'))!;
-    expect(whereClause(statuses.sql).split("group by")[0]).not.toContain('"requests"."status" in');
+    const statuses = facets.find(({ sql }) => sql.includes("then 'closed'"))!;
+    expect(whereClause(statuses.sql).split("group by")[0]).not.toContain(`"requests"."status" = 'open'`);
     expect(statuses.params).toContain("bug");
   });
 
