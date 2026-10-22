@@ -23,7 +23,9 @@ export const REPRESENTATIVE_ELEMENTS: Record<string, string> = {
   link: "main a",
   button: "main button",
   submit: 'button[type="submit"]',
-  input: 'input:not([type="hidden"])',
+  // Not aria-hidden inputs: Radix renders an invisible one beside each row checkbox in the server HTML and
+  // drops it on hydration, so whether it is read would depend on timing. It never paints anything.
+  input: 'input:not([type="hidden"]):not([aria-hidden="true"])',
   textarea: "textarea",
   label: "label",
   navigation: 'nav[aria-label="Primary navigation"]',
