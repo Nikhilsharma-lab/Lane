@@ -9,7 +9,7 @@ import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/bloc
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
-import { changesListInPlace, parseRequestStatusFilter, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
+import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
@@ -28,9 +28,6 @@ export interface SidebarViewProps {
   email: string;
   role: string;
   pathname: string;
-  /** The URL status view. Read only without the list view provider (fixtures); the layout state wins (plan item 1.7). */
-  statusFilter?: string;
-  projectFilter?: string;
   projects?: ProjectOption[];
   projectsLoading?: boolean;
   projectsError?: string | null;
@@ -39,8 +36,6 @@ export interface SidebarViewProps {
   notifications: ReactNode;
   /** Issue #106: the ⌘K command palette. Mounted on every page, Settings included, so one ⌘K works everywhere. */
   palette?: ReactNode;
-  /** No longer read: one bell instance serves both the panel and the rail (plan item 1.8, 2026-10-10). Kept so existing fixtures type-check. */
-  compactNotifications?: ReactNode;
   onSignOut?: () => void | Promise<unknown>;
   /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
   onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
@@ -54,7 +49,7 @@ const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey
 const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, statusFilter, projectFilter: urlProjectFilter = "all", projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -73,8 +68,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const setDetailSession = useSetDetailSession();
   const router = useRouter();
   const listContext = useRequestListContext();
-  const filter = listContext?.status ?? parseRequestStatusFilter(statusFilter);
-  const projectFilter = listContext?.project ?? urlProjectFilter;
+  const { status: filter, project: projectFilter } = listContext;
   // Already on "/", a plain click on a Requests list link (All Requests, a
   // Project, No Project) changes the view in place with no request; the URL
   // follows through history.replaceState. onNavigate has already set the

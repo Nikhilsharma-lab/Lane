@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
 import { requestCodeOrNull } from "@/lib/request-code"
 import { canEditRequest } from "@/lib/request-lifecycle"
-import { measurementReadiness } from "@/lib/request-measurement"
 import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
 import { useDetailSession, usePublishOpenRequest, useSetDetailSession } from "./list-view-state"
@@ -97,14 +96,14 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   }, arrival)
 
   // #103: the shell's current Request, with the same edit and pickup rules as the panel and the strip's button.
-  const { id, status, priority, createdBy, agreementBlocked, reviewState, expectedImpact, requestType } = request
+  const { id, status, priority, createdBy, agreementBlocked, reviewState, pickupBlockedReason } = request
   const source = arrival ? "page" : "peek"
   const current = useMemo<CurrentRequest>(() => ({
     id, code, name, status, priority, source,
     canEdit: canEditRequest({ status, createdBy }, viewer),
     agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
-    pickupBlockedReason: measurementReadiness(expectedImpact, requestType),
-  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, expectedImpact, requestType])
+    pickupBlockedReason: pickupBlockedReason ?? null,
+  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, pickupBlockedReason])
   usePublishOpenRequest(current)
 
   const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),

@@ -1,4 +1,5 @@
 'use client';
+import { changeAttempt, type ChangeAttempt } from './change-attempt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -40,7 +41,7 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
     const [field, setField] = useState('');
     const [text, setText] = useState('');
     const [reason, setReason] = useState('');
-    const retry = useRef<{ fingerprint: string; operationId: string; expectedRevision: number } | null>(null);
+    const retry = useRef<ChangeAttempt | null>(null);
     const running = useRef(false);
     const heading = useRef<HTMLHeadingElement>(null);
     const generation = useRef(0);
@@ -89,11 +90,9 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
         running.current = true;
         setBusy(true);
         setError('');
-        const fingerprint = JSON.stringify({ followUp, input });
-        if (retry.current?.fingerprint !== fingerprint)
-            retry.current = { fingerprint, operationId: crypto.randomUUID(), expectedRevision: view.revision };
+        const attempt = retry.current = changeAttempt(retry.current, { followUp, input }, view.revision);
         try {
-            const ctx = { orgId, requestId, operationId: retry.current.operationId, expectedRevision: retry.current.expectedRevision };
+            const ctx = { orgId, requestId, operationId: attempt.operationId, expectedRevision: attempt.expectedRevision };
             const outcome = await runAction({
                 id: requestId, refreshOnError: false,
                 run: () => followUp ? actions.createFollowUpRequest(ctx, input) : actions.changeRequestOutcome(ctx, input),
@@ -102,12 +101,6 @@ export function RequestOutcomePanel({ requestId, orgId, revision }: {
             if (outcome.status !== 'success')
                 return;
             const result = outcome.value;
-            if ('error' in result) {
-                setError(result.error);
-                if (result.error.includes('Reload'))
-                    retry.current = null;
-                return;
-            }
             retry.current = null;
             setMode(null);
             if ('followUpId' in result) {

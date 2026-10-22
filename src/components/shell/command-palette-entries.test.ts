@@ -57,9 +57,10 @@ describe("paletteEntries", () => {
     it("hides Copy code for a Request with no code", () => {
       expect(actions({ request: { ...request, code: null } })).toEqual(["pick-up", "change-priority", "copy-link"])
     })
-    it("gives a guest only copying", () => {
+    it("gives a guest no move, and priority only on an Open Request of their own", () => {
+      expect(actions({ role: "guest", request })).toEqual(["change-priority", "copy-link", "copy-code"])
       for (const status of ["open", "in_progress", "done"] as const)
-        expect(actions({ role: "guest", request: { ...request, status } })).toEqual(["copy-link", "copy-code"])
+        expect(actions({ role: "guest", request: { ...request, status, canEdit: false } })).toEqual(["copy-link", "copy-code"])
     })
     it("describes each action as data", () => {
       const byId = Object.fromEntries(paletteEntries({ ...base, request }).map(entry => [entry.id, entry]))

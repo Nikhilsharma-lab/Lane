@@ -2,7 +2,7 @@ import type { CurrentRequest } from "@/components/requests/current-request"
 import { settingsNavigation } from "@/components/settings/settings-catalog"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { REQUEST_STATUS_FILTERS, type RequestStatusFilter } from "@/lib/request-workspace"
 import type { ShellSurface } from "./shell-openers"
 
@@ -65,14 +65,16 @@ function requestEntries(request: PaletteRequest | null, undo: PaletteUndo | null
   // The latest Mark Done may be another Request than the current one; it stays undoable either way.
   const undoEntry: PaletteEntry[] = undo && !isGuest ? [{ id: "undo-mark-done", label: "Undo Mark Done", group, keys: [], action: { kind: "undo-done", requestId: undo.requestId } }] : []
   if (!request) return undoEntry
-  // The row menu and the detail strip offer the same move (plan item 2.4); the strip also stops a blocked pickup.
-  const next = allowedMove(request, { isGuest })
-  const move = next && !(next.move === "pick-up" && request.pickupBlockedReason) ? next : null
+  // The row menu and the detail strip offer the same move (plan item 2.4). A pickup that isn't ready is
+  // left out here: the strip and the row menu say why beside it, and the palette has no room for the reason.
+  const next = availableMove(request, { isGuest })
+  const move = next && !next.blockedReason ? next : null
   const entries: PaletteEntry[] = []
   if (move) entries.push({ id: move.move === "done" ? "mark-done" : "pick-up", label: move.label, group, keys: [], action: { kind: "move", move: move.move, requestId: request.id } })
   entries.push(...undoEntry)
-  // The row menu's rule: priority changes only on a Request the viewer may edit now (Open, and theirs or an admin's).
-  if (!isGuest && request.canEdit) entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
+  // The row menu's rule: priority changes only on a Request the viewer may edit now (canEditRequest: Open, and
+  // theirs or an admin's, a guest's own included).
+  if (request.canEdit) entries.push({ id: "change-priority", label: "Change priority…", group, keys: [], action: { kind: "priority", requestId: request.id } })
   entries.push({ id: "copy-link", label: "Copy link", group, keys: [], action: { kind: "copy", copy: "link", requestId: request.id } })
   if (request.code) entries.push({ id: "copy-code", label: "Copy code", group, keys: [], action: { kind: "copy", copy: "code", requestId: request.id, code: request.code } })
   return entries

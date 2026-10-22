@@ -1,9 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { inArray, sql } from "drizzle-orm";
-import { db, notifications, profiles } from "@/db";
+import { db, profiles } from "@/db";
+import { notify } from "./notify";
 import type { MemberAuth } from "./auth-guard";
-import { MAX_REVIEWERS, reviewerKey, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
+import { MAX_REVIEWERS, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
 import {
   pendingInvitations,
   workspaceRoster,
@@ -110,54 +111,92 @@ export async function nameReviewResetActor(tx: RequestTx, userId: string) {
   await tx.execute(sql`select set_config('lane.actor_id', ${userId}, true)`);
 }
 
-/** In-app bell only. Nobody is told about their own action, and only people with a profile can be told. */
+/** In-app bell only, through public.notify: nobody is told about their own
+ * action, and only people with a profile can be told. One call per kind and
+ * detail, inside the caller's transaction. */
 export async function notifyReviewers(
   tx: RequestTx,
   request: { id: string; orgId: string },
   actorId: string,
   items: ReviewNotification[],
 ) {
-  const recipients = items.filter((item) => item.userId !== actorId);
-  if (!recipients.length) return;
-  const known = new Set(
-    (
-      await tx
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(inArray(profiles.id, recipients.map((item) => item.userId)))
-    ).map((p) => p.id),
-  );
-  const values = recipients
-    .filter((item) => known.has(item.userId))
-    .map((item) => ({
-      userId: item.userId,
-      orgId: request.orgId,
-      type: item.type,
-      requestId: request.id,
-      actorId,
-      detail: item.detail || null,
-    }));
-  if (values.length) await tx.insert(notifications).values(values);
+  const groups = new Map<string, { type: ReviewNotification["type"]; detail: string; userIds: string[] }>();
+  for (const item of items) {
+    const key = JSON.stringify([item.type, item.detail]);
+    const group = groups.get(key) ?? { type: item.type, detail: item.detail, userIds: [] };
+    group.userIds.push(item.userId);
+    groups.set(key, group);
+  }
+  for (const { type, detail, userIds } of groups.values())
+    await tx.execute(sql`select ${notify(userIds, request.orgId, type, request.id, actorId, detail)}`);
+}
+
+/**
+ * Whether each saved reviewer still counts: a member still in the workspace,
+ * or an invitation still pending or accepted. A reviewer who left stays
+ * listed, greyed out, and their answer no longer counts (REQUIREMENTS §4.4).
+ * The list, the reviewers panel and pickup confirmation all read this.
+ * Worked out at read time from the identity provider; if it is unreachable,
+ * everyone counts and nobody is greyed out. Asks the provider only when some
+ * reviewer is an invitation or a member.
+ */
+export async function reviewerStanding(orgId: string, reviewers: Reviewer[]) {
+  const members = reviewers.some((r) => r.nominee.kind === "member");
+  const invitations = reviewers.flatMap((r) => (r.nominee.kind === "invitation" ? [r.nominee] : []));
+  let active: Set<string> | null = null;
+  if (members)
+    try {
+      active = new Set((await workspaceRoster(orgId)).flatMap((p) => (p.nominee.kind === "member" ? [p.nominee.userId] : [])));
+    } catch {
+      active = null;
+    }
+  const states = new Map<string, string>();
+  if (invitations.length) {
+    let pending: Set<string> | null = null;
+    try {
+      pending = new Set((await pendingInvitations(orgId)).flatMap((p) => (p.nominee.kind === "invitation" ? [p.nominee.invitationId] : [])));
+    } catch {
+      pending = null;
+    }
+    for (const nominee of invitations) {
+      if (pending?.has(nominee.invitationId)) states.set(nominee.invitationId, "pending");
+      else if (pending)
+        try {
+          states.set(nominee.invitationId, (await invitationState(orgId, nominee)) ?? "unavailable");
+        } catch {
+          /* Unknown: it counts, like an unreachable roster. */
+        }
+    }
+  }
+  return {
+    /** The invitation's provider state, when it could be read. */
+    invitation: (r: Reviewer) => (r.nominee.kind === "invitation" ? states.get(r.nominee.invitationId) ?? null : null),
+    counts: (r: Reviewer) => {
+      if (r.nominee.kind === "member") return !active || active.has(r.nominee.userId);
+      const state = states.get(r.nominee.invitationId);
+      return state === undefined || state === "pending" || state === "accepted";
+    },
+  };
+}
+
+/** The review state of saved reviewers: only reviewers who still count. */
+export async function reviewStatesOf(orgId: string, rows: { id: string; reviewers: Reviewer[] | null }[]) {
+  const outstanding = rows.flatMap((row) => (row.reviewers ?? []).filter((r) => r.decision === null || r.decision.kind === "concern"));
+  const standing = outstanding.length ? await reviewerStanding(orgId, outstanding) : null;
+  return new Map(rows.map((row) => [row.id, reviewStateOf((row.reviewers ?? []).map((r) => ({
+    name: r.displayNameAtSelection,
+    decision: r.decision,
+    counts: standing ? standing.counts(r) : true,
+  })))]));
 }
 
 /**
  * Each saved reviewer as the reviewers panel shows it to this viewer: the
- * profile role (grey information only), whether they are still in the
- * workspace or their invitation still stands, and whether this viewer may
- * answer.
+ * profile role (grey information only), whether they still count
+ * (`reviewerStanding`), and whether this viewer may answer.
  */
 export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: boolean) {
-  // Worked out at read time from the identity provider; if it is unreachable nobody is greyed out.
-  let active: Set<string> | null = null;
-  try {
-    active = new Set(
-      (await workspaceRoster(auth.orgId)).flatMap((p) =>
-        p.nominee.kind === "member" ? [p.nominee.userId] : [],
-      ),
-    );
-  } catch {
-    active = null;
-  }
+  const standing = await reviewerStanding(auth.orgId, saved);
   const memberIds = saved.flatMap((r) =>
     r.nominee.kind === "member" ? [r.nominee.userId] : [],
   );
@@ -174,6 +213,7 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
         name: r.displayNameAtSelection,
         note: r.note,
         decision: r.decision,
+        active: standing.counts(r),
       };
       if (r.nominee.kind === "member") {
         const userId = r.nominee.userId;
@@ -181,30 +221,22 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
         return {
           ...view,
           role: role ? PROFILE_ROLE_LABELS[role] : null,
-          active: !active || active.has(userId),
           invitation: null,
           canAnswer: open && auth.role !== "guest" && userId === auth.userId,
         };
       }
-      let state = "unavailable";
+      const state = standing.invitation(r) ?? "unavailable";
       let canAnswer = false;
       try {
-        state = (await invitationState(auth.orgId, r.nominee)) ?? "unavailable";
         canAnswer =
           open &&
           auth.role !== "guest" &&
           state === "accepted" &&
           (await resolveInvitedMember(auth.orgId, r.nominee, auth.userId));
       } catch {
-        state = "unavailable";
+        canAnswer = false;
       }
-      return {
-        ...view,
-        role: null,
-        active: state === "pending" || state === "accepted",
-        invitation: state,
-        canAnswer,
-      };
+      return { ...view, role: null, invitation: state, canAnswer };
     }),
   );
 }

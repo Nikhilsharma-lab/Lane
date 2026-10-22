@@ -17,14 +17,12 @@ vi.mock("@/db", async () => {
   }, { schema }) };
 });
 vi.mock("@/lib/ai/triage", () => ({
-  triageRequest: async () => { boundary.aiCalls += 1; return { classification: "problem", reframedProblem: null, extractedSolution: null }; },
-  classifyTriageFailure: () => "provider",
-  triageFailureStatus: () => undefined,
+  triageRequest: async () => { boundary.aiCalls += 1; return { ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }; },
 }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 
 const PROJECT_ID = "00000000-0000-4000-a000-000000000001";
-const input = { expectedImpact: { kind: "verification" as const, result: "Customers can compare all plans", source: "Released pricing acceptance check", reviewAfterDays: 7 }, title: "Pricing is confusing", description: "Customers cannot compare the available plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: PROJECT_ID, requestType: "bug" as const };
+const input = { expectedImpact: { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] }, title: "Pricing is confusing", description: "Customers cannot compare the available plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: PROJECT_ID, requestType: "bug" as const };
 const triage = { classification: "problem" as const, reframedProblem: null, extractedSolution: null };
 const context = { orgId: "org_a", userId: "user_member" };
 

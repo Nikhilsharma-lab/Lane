@@ -1,8 +1,9 @@
 "use server";
+import { canChange, seeable } from "@/lib/request-access";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
-import { db, requests, requestAgreements } from "@/db";
-import { requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
+import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
+import { requireActiveMember, requireMemberOrAbove, type MemberAuth, refusal } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
@@ -15,16 +16,69 @@ import {
   workspaceRoster,
   pendingInvitations,
   resolveInvitedMember,
+  type WorkspacePerson,
 } from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
-  mutateReviewers,
+  changeRequest,
   insist,
   RequestChangeError,
   type RequestTx,
   type StoredRequest,
-  type ReviewersRow,
 } from "@/lib/request-change-store";
+
+type ReviewersRow = typeof requestAgreements.$inferSelect;
+
+/**
+ * A reviewer change through changeRequest. Reviewers change only while the
+ * Request is Open; every change is logged with the reviewers before and after,
+ * and that log is how a retried operation replays.
+ */
+function changeReviewers(
+  context: RequestChangeContext,
+  input: unknown,
+  kind: "reviewers_added" | "reviewer_removed" | "reviewed",
+  rule: (tx: RequestTx, request: StoredRequest, reviewersRow: ReviewersRow | undefined, auth: MemberAuth, roster: WorkspacePerson[]) => Promise<void>,
+) {
+  return changeRequest(context, {
+    fingerprint: { requestId: context.requestId, kind, input },
+    messages: {
+      invalid: "Invalid review action.",
+      forbidden: "You cannot change reviews in this workspace.",
+      failed: "Couldn’t save the review. Your input is preserved; try again.",
+    },
+    replayOf: async (tx, _request, auth) => {
+      const [previous] = await tx
+        .select()
+        .from(requestAgreementEvents)
+        .where(and(
+          eq(requestAgreementEvents.orgId, auth.orgId),
+          eq(requestAgreementEvents.actorId, auth.userId),
+          eq(requestAgreementEvents.operationId, context.operationId),
+        ));
+      return previous && { actorId: previous.actorId, fingerprint: previous.payload.fingerprint, result: previous.payload.result };
+    },
+    apply: async (tx, { request, auth, roster, revision, fingerprint }) => {
+      insist(request.status === "open", "Work has started. Reviews can no longer change.");
+      const reviewersRowOf = async () => (await tx
+        .select()
+        .from(requestAgreements)
+        .where(and(eq(requestAgreements.requestId, request.id), eq(requestAgreements.orgId, auth.orgId))))[0];
+      const reviewersRow = await reviewersRowOf();
+      const before = reviewersRow ? structuredClone(reviewersRow) : null;
+      await rule(tx, request, reviewersRow, auth, roster);
+      await tx.insert(requestAgreementEvents).values({
+        orgId: auth.orgId,
+        requestId: request.id,
+        revision,
+        operationId: context.operationId,
+        actorId: auth.userId,
+        kind,
+        payload: { version: 1, fingerprint, input, before, after: await reviewersRowOf(), result: { success: true, revision } },
+      });
+    },
+  });
+}
 
 async function saveReviewers(
   tx: RequestTx,
@@ -52,7 +106,7 @@ async function saveReviewers(
 export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose people to review." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewers_added",
@@ -75,15 +129,12 @@ export async function addReviewers(context: RequestChangeContext, input: unknown
 export async function removeReviewer(context: RequestChangeContext, input: unknown) {
   const parsed = removeReviewerSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose a reviewer to remove." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewer_removed",
     async (tx, request, reviewersRow, auth) => {
-      insist(
-        request.createdBy === auth.userId || auth.role === "admin",
-        "Only the requester or an admin can remove a reviewer.",
-      );
+      insist(canChange(auth, request), "Only the requester or an admin can remove a reviewer.");
       const reviewers = reviewersRow?.reviewers ?? [];
       insist(
         reviewers.some((r) => r.id === parsed.data.reviewerId),
@@ -105,7 +156,7 @@ export async function answerReview(context: RequestChangeContext, input: unknown
   if (!parsed.success) return { error: "Invalid review answer." };
   if (parsed.data.kind === "concern" && !parsed.data.reason)
     return { error: "Say what concerns you." };
-  return mutateReviewers(
+  return changeReviewers(
     context,
     parsed.data,
     "reviewed",
@@ -156,15 +207,12 @@ export async function readReviews(
     if (!z.uuid().safeParse(requestId).success)
       return { error: "Request unavailable." };
     const auth = await requireActiveMember(context.orgId);
-    insist(auth, "Request unavailable.");
+    insist(auth, await refusal("Request unavailable."));
     const [request] = await db
       .select()
       .from(requests)
-      .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)));
-    insist(
-      request && (auth.role !== "guest" || request.createdBy === auth.userId),
-      "Request unavailable.",
-    );
+      .where(and(eq(requests.id, requestId), seeable(auth)));
+    insist(request, "Request unavailable.");
     const [reviewersRow] = await db
       .select()
       .from(requestAgreements)
@@ -183,8 +231,7 @@ export async function readReviews(
       open,
       canAdd: open && auth.role !== "guest",
       canInvite: open && auth.role === "admin",
-      canRemove:
-        open && (request.createdBy === auth.userId || auth.role === "admin"),
+      canRemove: open && canChange(auth, request),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
       unavailable: [
         reviewerKey({ kind: "member", userId: auth.userId }),
@@ -206,7 +253,7 @@ export async function readReviews(
 /** Members to choose from, plus pending invitations for admins. */
 export async function loadReviewerPeople(context: { orgId: string }) {
   const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: "Workspace unavailable." };
+  if (!auth) return { error: await refusal("Workspace unavailable.") };
   try {
     return {
       people: [

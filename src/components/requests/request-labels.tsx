@@ -1,4 +1,5 @@
 "use client";
+import { callAction } from "@/lib/action-call";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Building2, Folder, Plus, Tags } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
@@ -40,7 +41,7 @@ export function RequestLabelsPicker({orgId,value,onChange,disabled,project}:{org
  const shown=catalogue.labels.filter(label=>(!label.projectId || label.projectId===project?.id || value.includes(label.id)) && label.name.toLowerCase().startsWith(normalized.toLowerCase())).sort((a,b)=>Number(value.includes(b.id))-Number(value.includes(a.id)));
  async function create(colour: LabelColour) {
   setBusy(true);setError(null);
-  try {const result=await createLabel({name:normalized,colour,projectId:scopeProjectId},{orgId});
+  try {const result=await callAction(() => createLabel({name:normalized,colour,projectId:scopeProjectId},{orgId}));
    if(result.success){catalogue.add(result.label);onChange([...new Set([...value,result.label.id])]);setStep("labels");setQuery("");toast({type:"success",title:"Label added"});}
    else setError(result.error);
   } catch {setError("The label could not be created. Try again.");}

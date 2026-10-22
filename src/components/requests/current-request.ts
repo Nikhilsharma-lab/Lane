@@ -9,7 +9,7 @@ import type { ReviewState } from "@/lib/request-reviewer-rules"
  * #103: the one Request the app shell acts on (the ⌘K palette, #101). The
  * Request open on its page or in the list's preview wins; otherwise the list's
  * highlighted row (its active row, never the ticked ones). The viewer's role is
- * the caller's to apply, as `allowedMove(request, { isGuest })` does.
+ * the caller's to apply, as `availableMove(request, { isGuest })` does.
  */
 export type CurrentRequest = {
   id: string
@@ -60,7 +60,7 @@ export function rowCurrentRequest(row: OverviewRequest): CurrentRequest {
   return {
     id: row.id, code, name: code ?? row.reframedProblem ?? row.title, status: row.status, priority: row.priority ?? "none", source: "list",
     // The server's canEdit is the same rule on the saved status; a pending Pick up or Done ends it at once.
-    canEdit: (row.canEdit ?? false) && row.status === "open", agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: null,
+    canEdit: (row.canEdit ?? false) && row.status === "open", agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: row.pickupBlockedReason ?? null,
   }
 }
 

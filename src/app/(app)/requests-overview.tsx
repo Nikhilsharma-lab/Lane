@@ -13,7 +13,6 @@ import { usePublishLoadedRequests, useRequestListContext, useSetRequestListView,
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import type { OverviewRequest } from "@/lib/request-overview"
-import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
@@ -43,12 +42,6 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   hasOlderDone?: boolean
   /** Plan item 2.12: who is reading, for the Request preview (read with the page; no extra query). */
   viewer?: PeekViewer
-  /** No longer read: the status view comes from the layout's list view state (plan item 1.7). Kept so fixtures type-check. */
-  filter?: RequestStatusFilter
-  /** No longer read, as `filter`. */
-  projectFilter?: RequestProjectFilter
-  /** No longer read: the name comes from the workspace's Projects. */
-  projectName?: string
 }) {
   const listContext = useRequestListContext()
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
@@ -69,12 +62,11 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
   const workspaceEmpty = rows.length === 0 && (pendingMutations?.apply(rows).length ?? 0) === 0
 
   const projectName = project === "all" || project === "none" ? undefined
-    : sharedProjects?.projects.find(item => item.id === project)?.name ?? rows.find(row => row.projectId === project)?.projectName ?? undefined
+    : sharedProjects.projects.find(item => item.id === project)?.name ?? rows.find(row => row.projectId === project)?.projectName ?? undefined
   // A Project id that is malformed or not in this workspace's Projects never
-  // falls back to all Requests. Without the Projects provider (fixtures), a
-  // Project counts as available when a loaded Request names it.
+  // falls back to all Requests.
   const projectUnavailable = project !== "all" && project !== "none" && (!UUID_RE.test(project)
-    || (sharedProjects ? !sharedProjects.projects.some(item => item.id === project) : !rows.some(row => row.projectId === project)))
+    || !sharedProjects.projects.some(item => item.id === project))
   if (projectUnavailable) return <ProjectUnavailable />
 
   const heading = projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")

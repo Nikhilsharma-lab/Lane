@@ -6,7 +6,7 @@ import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu
 import type { OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { type RequestPriority } from "@/lib/request-constants"
-import { allowedMove, type AllowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, pickupBlockedMessage, type AvailableMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
@@ -72,7 +72,7 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   // memoised rows call it only when they re-render (plan item 1.14).
   const menuItems = useMemo(() => {
 
-    function statusItems(request: OverviewRequest, next: AllowedMove | null): ContextMenuItem[] {
+    function statusItems(request: OverviewRequest, next: AvailableMove | null, reason: string | undefined): ContextMenuItem[] {
       return statuses.map(status => {
         const current = request.status === status.value
         const transition = next?.to === status.value ? next : undefined
@@ -81,8 +81,9 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
           label: current || !transition ? status.label : `${status.label} (${transition.label.toLowerCase()})`,
           icon: <StatusGlyph status={status.value} />,
           checked: current,
-          disabled: !transition,
-          onSelect: transition ? () => move(request, transition.move) : undefined,
+          disabled: !transition || Boolean(reason),
+          description: transition ? reason : undefined,
+          onSelect: transition && !reason ? () => move(request, transition.move) : undefined,
         }
       })
     }
@@ -93,19 +94,22 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         label,
         icon,
         checked: current === priority,
-        disabled: isGuest || !request.canEdit || request.status !== "open",
-        onSelect: isGuest || !request.canEdit || request.status !== "open" || current === priority ? undefined : () => setPriority(request, priority),
+        // canEdit is the access rule for an Open Request, a guest's own included.
+        disabled: !request.canEdit,
+        onSelect: !request.canEdit || current === priority ? undefined : () => setPriority(request, priority),
       }))
     }
 
     return (request: OverviewRequest): ContextMenuItem[] => {
       const identity = identities[request.id] ?? { code: "", priority: request.priority ?? "none" }
-      // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move.
-      const next = allowedMove(request, { isGuest })
+      // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move,
+      // and a pickup that isn't ready shows why instead of failing on the server.
+      const next = availableMove(request, { isGuest })
+      const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the requester") : undefined
       return [
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
-        ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, onSelect: () => move(request, next.move) }] : []),
-        { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next) },
+        ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),
+        { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={request.status} />, children: statusItems(request, next, reason) },
         ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
         { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
           ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),

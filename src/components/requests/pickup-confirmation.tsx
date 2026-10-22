@@ -51,8 +51,6 @@ export function createPickupConfirmation(show: (confirmation: PickupConfirmation
 const PickupConfirmationContext = createContext<{ confirm: ConfirmPickup; report: ReportReviewState } | null>(null)
 PickupConfirmationContext.displayName = "PickupConfirmation"
 
-const pickUpAtOnce: ConfirmPickup = async () => true
-const reportNowhere: ReportReviewState = () => {}
 
 /**
  * #77: the one pickup confirmation, used by the detail button, the detail
@@ -98,12 +96,19 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
   </PickupConfirmationContext.Provider>
 }
 
-/** The shared confirmation. Outside the provider (an isolated fixture) pickup goes ahead at once. */
-export function usePickupConfirmation(): ConfirmPickup {
-  return useContext(PickupConfirmationContext)?.confirm ?? pickUpAtOnce
+/** The (app) layout always provides the one "Pick up anyway?" confirmation. */
+function usePickupContext(hook: string) {
+  const context = useContext(PickupConfirmationContext)
+  if (!context) throw new Error(`${hook} needs PickupConfirmationProvider (the (app) layout).`)
+  return context
 }
 
-/** For the reviewers panel: report what it read so pickup confirms from it. Outside the provider it goes nowhere. */
+/** The shared confirmation. */
+export function usePickupConfirmation(): ConfirmPickup {
+  return usePickupContext("usePickupConfirmation").confirm
+}
+
+/** For the reviewers panel: report what it read so pickup confirms from it. */
 export function useReportReviewState(): ReportReviewState {
-  return useContext(PickupConfirmationContext)?.report ?? reportNowhere
+  return usePickupContext("useReportReviewState").report
 }

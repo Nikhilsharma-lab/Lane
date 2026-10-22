@@ -1,5 +1,6 @@
 "use client"
 
+import { listViewModel, viewResets } from "../list-view-model"
 import { memo, useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
@@ -10,8 +11,8 @@ import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
-import { RequestWorkspaceKeyboard } from "@/app/(app)/request-workspace-keyboard"
-import { groupRequestRows, matchesListFilters, paginateRequests, sortRequestRows, type OverviewRequest } from "@/lib/request-overview"
+import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
+import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
 import { requestListHref, parseRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { NewRequestLink } from "../new-request-link"
 import { useRequestRowPresentation } from "../row-presentation"
@@ -24,7 +25,7 @@ import { useListAnnouncer } from "../list-announcer"
 import { matchCountText, requestCount } from "../request-row-label"
 import { useRequestGrid } from "../use-request-grid"
 import { gridKeysFor, requestIdOf } from "../request-grid-keys"
-import { isShown, requestRowSelector, restoreRequestFocus } from "../list-focus"
+import { focusRowWhenShown, restoreRequestFocus } from "../list-focus"
 import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "../request-peek"
 import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
@@ -65,7 +66,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const summaryTrigger = useRef<HTMLButtonElement>(null)
   const groupId = useId()
   const [view, setView] = useRequestListView()
-  const { localFilters, ordering, grouping, collapsedGroups, pagination, status: filter, project: projectFilter } = view
+  const { ordering, grouping, collapsedGroups, pagination, status: filter, project: projectFilter } = view
   // Plan item 1.5: pending lifecycle and priority moves apply before grouping
   // and sorting, so an optimistic change regroups the row in the next frame.
   const pendingMutations = usePendingMutations()
@@ -84,19 +85,13 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   }, [workspaceEmpty, filter, setView])
   const viewColumnVisibility = view.columnVisibility
   const columnVisibility = useMemo<Record<string, boolean>>(() => ({ project: projectFilter === "all", ...viewColumnVisibility }), [projectFilter, viewColumnVisibility])
-  const valueFor = (id: string) => String(localFilters.find(item => item.id === id)?.value ?? "")
-  const title = valueFor("title"), project = projectFilter === "all" ? "" : projectFilter, requestType = valueFor("requestType")
-  const groups = useMemo(() => {
-    // The composer's hidden-by-filters toast reads the same function (plan item 2.3).
-    const filters = { status: filter, project: projectFilter, title, requestType }
-    const rows = data.filter(row => matchesListFilters(row, filters))
-    return groupRequestRows(sortRequestRows(rows, ordering), grouping)
-  }, [data, filter, title, projectFilter, requestType, ordering, grouping])
-  const matching = useMemo(() => groups.flatMap(group => group.rows), [groups])
-  const { rows: currentRows, pageIndex, pageCount } = useMemo(() => paginateRequests(matching, pagination.pageIndex, pagination.pageSize), [matching, pagination.pageIndex, pagination.pageSize])
-  const pageIds = new Set(currentRows.map(row => row.id))
-  const visibleRows = grouping === "none" ? currentRows : groups.filter(group => !collapsedGroups.includes(group.key)).flatMap(group => group.rows.filter(row => pageIds.has(row.id)))
-  const selectionScope = JSON.stringify([context?.orgId, isGuest, filter, projectFilter, localFilters, ordering, grouping, collapsedGroups, pagination])
+  // The composer's hidden-by-filters toast reads the same filters (plan item 2.3).
+  const model = useMemo(() => listViewModel(view, data), [view, data])
+  const { groups, matching, visibleRows, onPage: pageIds } = model
+  const { rows: currentRows, pageIndex, pageCount } = model.page
+  const { title, requestType } = model.filters
+  const project = projectFilter === "all" ? "" : projectFilter
+  const selectionScope = viewResets.selection(view, { orgId: context?.orgId, isGuest })
   const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest)
   const announce = useListAnnouncer()
   // Plan item 2.12: the Request preview beside the list. Space or the row menu opens it; it follows
@@ -153,7 +148,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // A filter, view or page change that leaves the previewed Request off the page closes the
   // preview (a J or K across a page has already moved it to the new row above). A change made in
   // the preview that moves its Request out of the view does not: that is no view change.
-  const viewSignature = JSON.stringify([filter, projectFilter, localFilters, ordering, grouping, pagination])
+  const viewSignature = viewResets.preview(view)
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)
@@ -237,27 +232,14 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   useEffect(() => {
     if (!reveal) return
     revealRow(reveal)
-    let frame = 0, attempts = 0
-    const done = () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous)
-    const focusRow = () => {
-      // Plan item 2.4: the row, the list's one tab stop, not its title link.
-      const row = document.querySelector(requestRowSelector(reveal))
-      if (isShown(row)) {
-        row.focus({ preventScroll: true })
-        row.scrollIntoView({ block: "nearest" })
-        if (document.activeElement === row) return done()
-      }
-      if (++attempts < 20) frame = window.requestAnimationFrame(focusRow)
-      else done()
-    }
-    frame = window.requestAnimationFrame(focusRow)
-    return () => window.cancelAnimationFrame(frame)
+    // Plan item 2.4: the row, the list's one tab stop, not its title link.
+    return focusRowWhenShown(reveal, () => setView(previous => previous.reveal === reveal ? { ...previous, reveal: undefined } : previous))
   }, [reveal, setView])
   // Plan item 2.4 (decision 8.11): while a filter is on, the result count is
   // announced once the person stops changing filters; removing the last one
   // says so. A count that changes only because the data did is not announced,
   // and nothing is said on the first render.
-  const filterSignature = JSON.stringify([filter, projectFilter, title, requestType])
+  const filterSignature = viewResets.announcement(view)
   const announcedFilters = useRef(filterSignature)
   const matchCount = matching.length
   useEffect(() => {

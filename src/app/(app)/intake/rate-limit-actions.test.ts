@@ -8,20 +8,20 @@ vi.mock("@upstash/ratelimit", () => ({ Ratelimit: class {
 vi.mock("@upstash/redis", () => ({ Redis: class {} }));
 vi.mock("@/lib/auth-guard", () => ({ requireActiveMember: async () => ({ userId: "session-user", orgId: "org-test", orgRole: "org:member" }) }));
 vi.mock("@/lib/project-access", () => ({ canUseProject: async () => true }));
-vi.mock("@/lib/ai/triage", () => ({ triageRequest: boundary.triage, classifyTriageFailure: () => "provider" }));
+vi.mock("@/lib/ai/triage", () => ({ triageRequest: boundary.triage }));
 vi.mock("@/db", async () => ({ ...(await import("@/db/schema")), db: {} }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const input = {
   title: "Customers cannot finish signup",
   description: "Customers abandon signup when the confirmation email does not arrive.",
   affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "",
-  expectedImpact: { kind: "metric" as const, metric: "Signup completion", baseline: null, target: 70, unit: "%", source: "Signup funnel", reviewAfterDays: 30 },
+  expectedImpact: { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] },
 };
 const providerSuccess = () => ({ success: true, limit: 10, remaining: 9, reset: Date.now() + 60_000, pending: Promise.resolve() });
 beforeEach(() => {
   vi.resetModules();
   boundary.limit.mockReset();
-  boundary.triage.mockReset().mockResolvedValue({ classification: "problem", reframedProblem: null, extractedSolution: null });
+  boundary.triage.mockReset().mockResolvedValue({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } });
   vi.stubEnv("KV_REST_API_URL", "https://fake.upstash.io");
   vi.stubEnv("KV_REST_API_TOKEN", "fake-token");
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "triage-test-secret".repeat(3));

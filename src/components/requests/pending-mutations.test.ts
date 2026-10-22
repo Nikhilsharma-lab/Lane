@@ -31,7 +31,7 @@ function depsFor(view: () => ReturnType<ReturnType<typeof setup>["view"]>) {
     overlay: view(),
     refresh: vi.fn<() => void>(),
     notifyError: vi.fn<(message: string) => void>(),
-    refreshToken: vi.fn(async () => {}),
+    session: { current: vi.fn(async () => {}), renew: vi.fn(async () => {}) },
   } satisfies OptimisticDeps
 }
 
@@ -327,7 +327,7 @@ describe("useOptimisticAction core", () => {
     expect(view().patches.a).toBeUndefined()
     expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: false })
     expect(deps.notifyError).not.toHaveBeenCalled()
-    expect(deps.refreshToken).not.toHaveBeenCalled()
+    expect(deps.session.renew).not.toHaveBeenCalled()
   })
 
   // Critique 2.7: a session that is still expired after the one token refresh is not a connection problem.
@@ -336,7 +336,7 @@ describe("useOptimisticAction core", () => {
     const deps = depsFor(view)
     const onError = vi.fn()
     await runOptimistic(deps, { id: "a", run: async () => { throw new Error("401 Unauthorized") }, onError })
-    expect(deps.refreshToken).toHaveBeenCalledTimes(1)
+    expect(deps.session.renew).toHaveBeenCalledTimes(1)
     expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: true })
   })
 
@@ -348,7 +348,7 @@ describe("useOptimisticAction core", () => {
       .mockResolvedValueOnce({ success: true })
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run })
     expect(outcome.status).toBe("success")
-    expect(deps.refreshToken).toHaveBeenCalledTimes(1)
+    expect(deps.session.renew).toHaveBeenCalledTimes(1)
     expect(run).toHaveBeenCalledTimes(2)
     expect(view().patches.a).toBeDefined()
   })
@@ -393,7 +393,7 @@ describe("useOptimisticAction core", () => {
   })
 
   it("runs without an overlay outside the provider", async () => {
-    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), refreshToken: vi.fn(async () => {}) }
+    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), session: { current: vi.fn(async () => {}), renew: vi.fn(async () => {}) } }
     await expect(runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run: async () => ({ success: true }) })).resolves.toMatchObject({ status: "success" })
   })
 })

@@ -1,4 +1,5 @@
 import "server-only";
+import { seeable } from "@/lib/request-access";
 
 import { and, asc, count, desc, eq, gte, inArray, lt, or, sql, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
@@ -86,8 +87,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
 
   const requestNumber = parseRequestCode(query);
   const requestBase = and(
-    eq(requests.orgId, auth.orgId),
-    auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
+    seeable(auth),
     or(requestNumber === null ? undefined : eq(requests.requestNumber, requestNumber), measurementMatches(query), ...[
       requests.title, requests.description, requests.reframedProblem,
       requests.extractedSolution, requests.affectedPeople, requests.desiredChange,

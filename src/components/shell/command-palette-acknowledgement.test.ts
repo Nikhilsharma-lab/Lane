@@ -55,7 +55,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
     settled: (...args: Parameters<ReturnType<typeof pending.view>["settled"]>) => pending.view(pending.getSnapshot()).settled(...args),
   }
   const failures: string[] = []
-  const optimisticDeps = { overlay, refresh: () => {}, refreshToken: async () => {}, notifyError: (message: string) => { failures.push(message) } }
+  const optimisticDeps = { overlay, refresh: () => {}, session: { current: async () => {}, renew: async () => {} }, notifyError: (message: string) => { failures.push(message) } }
 
   let asked: PickupConfirmation | null = null
   const confirmation = createPickupConfirmation(shown => { asked = shown })
