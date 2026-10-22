@@ -5,6 +5,8 @@ import { cleanupTestWorkspace, seedRowIdentityFixtures } from "./helpers/cleanup
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { capturePaintedTheme } from "./theme-parity/capture";
+import { clerkColourTokens } from "./theme-parity/clerk-colours";
+import { contrastRatio } from "./theme-parity/contrast";
 import {
   compareThemes,
   type KNOWN_EXCEPTIONS,
@@ -24,6 +26,22 @@ import { THEME_NAMES } from "./theme-parity/names";
 const BASELINE = path.join(__dirname, "theme-parity", "baseline.json");
 const RECORD = process.env.LANE_THEME_PARITY_RECORD === "1";
 const MODES: Mode[] = ["light", "dark"];
+
+/**
+ * Part 2 (#93): the dark sign-in link must be at least as readable as body text has to be
+ * (WCAG AA for body-size text). Before #93 it painted the button plate, about 2.5:1.
+ */
+const BODY_TEXT_CONTRAST = 4.5;
+
+/** Every Clerk colour key and the theme-file name it reads (spec #87 *Clerk*). */
+const CLERK_COLOURS = (() => {
+  const read = (file: string) => readFileSync(path.join(__dirname, "..", file), "utf8");
+  return clerkColourTokens(
+    read("src/components/auth/clerk-appearance.ts"),
+    read("node_modules/@clerk/ui/dist/internal/appearance.d.ts"),
+    read("src/styles/theme.css")
+  );
+})();
 
 /** Differences the switch is allowed to make, by name (spec #87, Further Notes). */
 const ALLOWED: (keyof typeof KNOWN_EXCEPTIONS)[] = [
@@ -75,7 +93,23 @@ test("Lane paints the same theme on every page in light and dark", async ({
       await page.goto("/login");
       // Clerk's card mounts on the client; its submit button means it has painted.
       await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
+      // Every Clerk colour key reads a theme name that paints something on this page.
+      const unresolved = await page.evaluate(
+        (names) =>
+          names.filter((name) => !getComputedStyle(document.documentElement).getPropertyValue(name).trim()),
+        Object.values(CLERK_COLOURS.tokens)
+      );
+      expect(unresolved, "Clerk colour keys whose theme name is empty on the sign-in page").toEqual([]);
     });
+    expect(CLERK_COLOURS.problems, "Clerk colour keys not on a theme or additions token").toEqual([]);
+    // Clerk's card is flush (transparent), so the link sits on the page colour.
+    const darkSignIn = captured["sign-in"].dark?.elements;
+    const link = darkSignIn?.clerkFooterLink?.color ?? "";
+    const background = darkSignIn?.body?.["background-color"] ?? "";
+    expect(
+      contrastRatio(link, background),
+      `dark "Sign up" link ${link} on ${background}`
+    ).toBeGreaterThanOrEqual(BODY_TEXT_CONTRAST);
   } finally {
     await signedOut.close();
   }

@@ -2,8 +2,8 @@ import styles from "./clerk-profile.module.css";
 
 // Clerk's documented appearance variables resolve directly to the theme file (src/styles/theme.css):
 // all 17 colour keys read a tweakcn slot or a Lane addition, so no Clerk default colour paints.
-// colorSuccess, colorWarning, colorShimmer and colorModalBackdrop hold Clerk's own defaults as
-// --clerk-* additions until the Part 2 dark-mode fixes (#93) move them onto Lane's tokens.
+// Success, warning, the modal backdrop, the avatar shimmer (Lane's skeleton fill) and the shadow
+// follow Lane's own tokens in light and dark (#93).
 // https://clerk.com/docs/nextjs/guides/customizing-clerk/appearance-prop/variables
 export const clerkNeutralVariables = {
   colorPrimary: "var(--primary)",
@@ -18,15 +18,19 @@ export const clerkNeutralVariables = {
   colorRing: "var(--focus-outline)",
   colorDanger: "var(--destructive)",
   colorNeutral: "var(--foreground)",
-  colorSuccess: "var(--clerk-success)",
-  colorWarning: "var(--clerk-warning)",
-  colorShimmer: "var(--clerk-shimmer)",
-  colorModalBackdrop: "var(--clerk-backdrop)",
+  colorSuccess: "var(--success)",
+  colorWarning: "var(--warning)",
+  colorShimmer: "var(--hairline)",
+  colorModalBackdrop: "var(--overlay-backdrop)",
   colorShadow: "var(--shadow-color)",
   fontFamily: "var(--font-sans)",
   fontFamilyButtons: "var(--font-sans)",
   borderRadius: "var(--radius-control)",
 };
+
+// Clerk paints links with colorPrimary, the button plate, which is about 2.5:1 on a dark page.
+// Sign-in links read Lane's link ink instead; the button keeps the plate (#93).
+const authLink = { color: "var(--link-ink)", "&:hover": { color: "var(--link-ink)" } };
 
 const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", borderRadius: "var(--button-radius-md)" };
 
@@ -62,6 +66,10 @@ export const clerkEmbeddedAppearance = {
     formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)", "&:focus, &:focus-visible": { boxShadow: "none" } },
     formButtonPrimary: { ...authControl, "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
     socialButtonsBlockButton: authControl,
+    footerActionLink: authLink,
+    formResendCodeLink: authLink,
+    identityPreviewEditButton: authLink,
+    formFieldAction: authLink,
   },
 };
 

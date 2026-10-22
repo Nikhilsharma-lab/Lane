@@ -7,6 +7,8 @@ export default defineConfig({
     include: [
       "src/components/settings/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
+      "src/test/theme-parity-contrast.test.ts",
+      "src/test/theme-parity-clerk-colours.test.ts",
       "src/components/auth/auth-frames.test.ts",
       "src/app/terms/terms-page.test.ts",
       "src/components/shell/sidebar-workspace-name.test.ts",
