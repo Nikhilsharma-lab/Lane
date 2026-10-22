@@ -7,6 +7,7 @@ import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
 import { requestDetailHref } from "@/lib/request-workspace";
 import { NotificationBellView, type NotificationItem } from "./notification-bell-view";
+import { useShellOpener } from "./shell-openers";
 import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "./notification-read-state";
 import {
   markNotificationRead,
@@ -180,6 +181,8 @@ function LoadedNotificationBell({
     setError(null);
     setSessionExpired(false);
   }, []);
+  // Issue #102: the palette opens the bell as a click does. The bell is not mounted on Settings, so it has no opener there.
+  useShellOpener("notifications", () => setOpen(true));
 
   // An expired session, refused or thrown, says to refresh; "Check your connection" is only for real network failures.
   const failed = useCallback((message: string, { auth }: { auth: boolean }) => {

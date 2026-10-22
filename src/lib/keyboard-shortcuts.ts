@@ -19,6 +19,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["/"], label: "Search workspace" },
     { keys: ["["], label: "Show or hide sidebar" },
     { keys: ["?"], label: "Show or hide keyboard shortcuts" },
+    { keys: ["⌘ K", "Ctrl K"], label: "Open command palette" },
     // The toast region's name is "Messages (Alt+T)" (src/app/layout.tsx), apart from the sidebar's Notifications inbox.
     { keys: ["Alt T"], label: "Go to messages, such as Undo" },
   ] },

@@ -17,6 +17,7 @@ import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 import { parseRequestListContext, requestDetailHref, requestListHref, type RequestListContext } from "@/lib/request-workspace";
 import { requestRowSelector } from "./list-focus";
 import { isRequestPopoverEvent } from "./request-popover-events";
+import { useShellOpener } from "@/components/shell/shell-openers";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -143,6 +144,9 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openComposer]);
+
+  // Issue #102: the palette opens the composer as C does, naming the element that had focus before it.
+  useShellOpener("composer", ({ returnFocus }) => openComposer(returnFocus ?? undefined));
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
   const onCancelCheckChange = useCallback((cancel: (() => void) | null) => { cancelCheck.current = cancel; }, []);

@@ -56,6 +56,10 @@ describe("keyboard shortcut map", () => {
   it("keeps the app-wide letters out of the notifications commands", () => {
     for (const key of keysOf("anywhere").filter(key => key.length === 1)) expect(notificationCommand({ key: key.toLowerCase() }), key).toBeNull()
   })
+  // Issue #101: the command palette opens from anywhere, Settings included.
+  it("lists the command palette under Anywhere", () => {
+    expect(SHORTCUT_GROUPS.find(group => group.scope === "anywhere")?.shortcuts).toContainEqual({ keys: ["⌘ K", "Ctrl K"], label: "Open command palette" })
+  })
   it("hints only the row menu's supported actions", () => {
     expect(ROW_MENU_HINTS).toEqual({ select: "X", open: "Enter", peek: "Space" })
     expect(keysOf("list")).toEqual(expect.arrayContaining([ROW_MENU_HINTS.select, ROW_MENU_HINTS.open]))
