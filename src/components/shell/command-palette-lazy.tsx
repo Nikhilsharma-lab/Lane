@@ -9,10 +9,11 @@ import { paletteShortcut } from "./command-palette-shortcut"
 type Palette = ComponentType<CommandPaletteProps>
 
 // Issue #106 (spec #101): only this listener and loader are in every route's first load. The palette
-// itself is its own chunk, preloaded once the page is idle and fetched on the first ⌘K if it has not
-// arrived; from then on it renders synchronously. The precedent is workspace-search-pane-lazy.tsx.
+// itself loads on demand with the search pane (shell-lazy-surfaces.ts, #107), preloaded once the page
+// is idle and fetched on the first ⌘K if it has not arrived; from then on it renders synchronously.
+// The precedent is workspace-search-pane-lazy.tsx.
 let loaded: Palette | null = null
-const load = () => import("./command-palette").then(module => (loaded = module.CommandPalette))
+const load = () => import("./shell-lazy-surfaces").then(module => (loaded = module.CommandPalette))
 
 /**
  * ⌘K or Ctrl+K anywhere in the signed-in app, Settings included (the shell
