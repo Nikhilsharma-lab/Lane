@@ -65,7 +65,7 @@ export async function appendReviewers({
       );
       insist(
         nominee.userId !== requesterId,
-        "The requester can’t review their own Request.",
+        "The Requester can’t review their own Request.",
       );
     }
     insist(
