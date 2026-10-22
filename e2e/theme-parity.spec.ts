@@ -72,7 +72,8 @@ test("Lane paints the same theme on every page in light and dark", async ({
     const page = await signedOut.newPage();
     await record(captured, page, "sign-in", async () => {
       await page.goto("/login");
-      await expect(page.locator(".cl-card").first()).toBeVisible();
+      // Clerk's card mounts on the client; its submit button means it has painted.
+      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
     });
   } finally {
     await signedOut.close();
@@ -90,6 +91,7 @@ test("Lane paints the same theme on every page in light and dark", async ({
 
     await record(captured, page, "requests", async () => {
       await page.goto("/");
+      await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
       await expect(
         page.locator('[data-slot="row"]').filter({
           hasText: "Help customers understand why their Requests changed",
@@ -104,11 +106,12 @@ test("Lane paints the same theme on every page in light and dark", async ({
     });
     await record(captured, page, "intake", async () => {
       await page.goto("/intake");
-      await expect(page.locator("main textarea, main input").first()).toBeVisible();
+      await expect(page.getByPlaceholder("Request title")).toBeVisible();
     });
     await record(captured, page, "settings", async () => {
       await page.goto("/settings/profile");
-      await expect(page.locator("main h1, main h2").first()).toBeVisible();
+      // The loading skeleton also says "Settings"; only the loaded page has this region.
+      await expect(page.getByRole("region", { name: "Settings content" })).toBeVisible();
     });
   } finally {
     await signedIn.close();
