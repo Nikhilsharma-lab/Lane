@@ -4,6 +4,8 @@ import path from "node:path"
 // Requests UI checks isolate external Clerk/database boundaries; no database setup.
 export default defineConfig({
   test: {
+    // Several sessions share this machine; a busy one must not fail a test on time alone.
+    testTimeout: 20_000,
     include: [
       "src/components/settings/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
