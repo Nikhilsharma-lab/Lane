@@ -360,18 +360,32 @@ function byRequestNumber<T extends { requestNumber: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.requestNumber - b.requestNumber);
 }
 
+/** The Requests one person requested or picked up, from the rows a viewer may see, marked by the role they had. */
+function workOf(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[] {
+  return byRequestNumber(visible.flatMap(row => {
+    const requester = requesterOf(row) === personId;
+    const picker = row.assignedTo === personId;
+    if (!requester && !picker) return [];
+    const role: MyWorkEntry["role"] = requester && picker ? "both" : requester ? "requester" : "picker";
+    return [{ ...entryOf(row, now), role }];
+  }));
+}
+
+/**
+ * A teammate's list (spec story 12): the same entries as My work, for one person, shown to a non-guest viewer.
+ * Null for a guest, who has no view of anyone else's Requests. Holds no totals, averages, scores or rankings.
+ */
+export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions = {}): MyWorkEntry[] | null {
+  if (viewer.role === "guest") return null;
+  return workOf(visibleTo(viewer, rows), personId, options.now ?? new Date());
+}
+
 export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
   const now = options.now ?? new Date();
   const period = options.period ?? null;
   const visible = visibleTo(viewer, rows);
 
-  const myWork = byRequestNumber(visible.flatMap(row => {
-    const requester = requesterOf(row) === viewer.userId;
-    const picker = row.assignedTo === viewer.userId;
-    if (!requester && !picker) return [];
-    const role: MyWorkEntry["role"] = requester && picker ? "both" : requester ? "requester" : "picker";
-    return [{ ...entryOf(row, now), role }];
-  }));
+  const myWork = workOf(visible, viewer.userId, now);
 
   const projectKey = (row: ImpactRow) => row.projectId ?? "";
   const projectGroups = new Map<string, ImpactRow[]>();
