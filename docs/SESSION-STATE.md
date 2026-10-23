@@ -1,5 +1,51 @@
 # Shared Claude / Codex handoff
 
+## October 23 — recovery fixes merged and deployed to production
+
+PR #163 is merged at `03728f3372a6d6b76938493e5e7ff052f8a64629`: expired-session
+return to the exact Intake review, current browser selectors, inspected row/selection
+baselines, and the local E2E app using transaction pooling. Production and staging
+already have migrations through 0034; no new migration was required for this release.
+The production backup and verified 0033/0034 receipt were inspected at
+`/Users/nikhilsharma/Documents/Work/Lane/backups/production-0033-0034-2026-10-23/`;
+the backup contains all three 0020 attachment columns and the discard constraint.
+The earlier claim that production still needed 0033/0034 was stale.
+
+- Staging runtime pooling uses 6543 (`prepare: false` already in the app). Missing
+  staging 0020 was repaired after verified pg_dump, rolled-back dry run and
+  ON_ERROR_STOP application; original values in six table snapshots were preserved.
+  Receipt: `backups/staging-0020-repair-2026-10-23/` in the recovery checkout.
+- Deployed the exact release source to staging:
+  `dpl_2J1tdPVER9gy14auAamMMSoXoBe5`, `lane-staging.vercel.app`.
+- Production is live on `dpl_7vH2yBcnjesmQ3bYBkXSJtXEH7bd` at
+  `https://app.uselane.app`, source `03728f3` (same tree as release archive `9e84f7d`).
+  Signed-in Requests list, saved Request detail and loaded Journey were visually
+  verified with correct styling. Anonymous login returns 200; Intake redirects to
+  login while preserving its full return URL. No production Request was mutated.
+- First candidate `dpl_8ZxU5ZE9Tb6ccUNV2icko2YrhDSm` loaded data but rendered broken
+  component styles. It was immediately rolled back to `dpl_GWNv4i7n6ixdJuDbdrNBQ5q3V33H`.
+  Rebuilding the identical source with `--force` and without `--with-cache` resolved
+  the rendering failure; the replacement was visually checked before promotion.
+  Old build cache is the suspected cause, not a proven root-cause diagnosis.
+- All PR CI checks passed: typecheck, lint, design checks, build/bundle and tests.
+  Local unit run: 1,541 passed / one skipped. Local browser recovery passed desktop
+  and mobile in light/dark, including save and draft clearing. Focused attachment
+  permissions, comment recovery, isolation, row identity and selection checks passed.
+- Hosted signup and expired-session Intake recovery passed on the new staging
+  deployment (desktop/mobile, light/dark, exact draft restoration, save and clear).
+  Command-palette hosted E2E failed an input-focus assertion; the dialog opened but
+  its input did not retain focus. It is not a fully green browser suite.
+- Synthetic staging LAN-31 and LAN-33 remain In progress from pickup verification;
+  LAN-34 remains Open. No production Request was changed by recovery checks.
+- Manual failed-upload/Retry/Leave-page and Show it acceptance remain incomplete.
+  The earlier browser extension file permission blocked manual uploads; automated
+  real private upload/download and access rejection passed.
+
+Release work is isolated in `codex/production-recovery-2026-10-23` at
+`/Users/nikhilsharma/.codex/worktrees/lane-recovery-20261023`. The original research
+checkout was preserved. Deployment input is a clean Git archive (913 files, about
+6 MB); no environment files, backups, traces or local build output were uploaded.
+
 ## October 23 — production 0033 + 0034 applied; #127 deployed (user-approved)
 
 **Production (`tcfwabpoiydvfqxhtkur`) and Lane Staging both have 0013 → 0034. Next migration: 0035.** Production
