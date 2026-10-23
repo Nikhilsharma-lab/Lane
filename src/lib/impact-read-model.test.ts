@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildImpactDashboard, buildTeammateWork, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactRow, type ImpactViewer } from "./impact-read-model";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -224,6 +224,42 @@ describe("impact read model: still due, closed without result and operational wo
     expect(org.timeline).toEqual([]);
     expect(org.unreleased).toMatchObject([{ requestNumber: 1 }]);
   });
+
+  it("lists a Request with no release date under no release date whether it is Done or still open", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: null }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "open", releaseState: null }),
+      row({ id: "c", requestNumber: 3, createdBy: MEMBER, status: "in_progress", releaseState: null }),
+      row({ id: "d", requestNumber: 4, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG) }),
+    ];
+    const org = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!;
+    expect(org.unreleased.map(item => item.requestNumber)).toEqual([1, 2, 3]);
+    expect(org.lines).toEqual([]);
+    expect(org.timeline.map(item => item.requestNumber)).toEqual([4]);
+  });
+
+  it("never counts an open Request with no release date in a period total", () => {
+    const rows = [row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "open", releaseState: null, expectedImpact: plan(), outcomeClosure: null })];
+    const org = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW, period: { kind: "year", year: 2026 } }).wholeOrg!;
+    expect(org.lines).toEqual([]);
+    expect(org.unreleased.map(item => item.requestNumber)).toEqual([2]);
+  });
+
+  it("does not list operational work or a closed-without-result Request as unreleased", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "open", releaseState: null, noMeasurableImpactReason: "Design token rename" }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "open", releaseState: null, exceptionClosure: { version: 1, kind: "exception", reasonCode: "other", reason: "Dropped", actorId: MEMBER, ownerId: MEMBER, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-d", fingerprint: "fp", revision: 1 } as OutcomeException }),
+    ];
+    const org = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!;
+    expect(org.unreleased).toEqual([]);
+    expect(org.operational.map(item => item.requestNumber)).toEqual([1]);
+    expect(org.closedWithoutResult.map(item => item.requestNumber)).toEqual([2]);
+  });
+
+  it("says nothing measured this period yet when no period is selected either", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "open", releaseState: null })];
+    expect(buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.emptyMessage).toBe("Nothing measured this period yet");
+  });
 });
 
 describe("impact read model: corrections, shared results and projects", () => {
@@ -372,6 +408,21 @@ describe("impact read model: a teammate's list (#155, spec story 12)", () => {
   it("gives a guest no teammate list, and hides other people's Requests from a guest who asks for one", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: GUEST })];
     expect(buildTeammateWork(GUEST_VIEWER, rows, MEMBER, { now: NOW })).toBeNull();
+  });
+
+  it("lists the teammates a non-guest can open: everyone who requested or picked up a visible Request, not the viewer", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: ADMIN }),
+      row({ id: "b", requestNumber: 2, createdBy: ADMIN, assignedTo: "user_picker" }),
+      row({ id: "c", requestNumber: 3, createdBy: "user_elsewhere", orgId: "org_other", assignedTo: "user_outsider" }),
+    ];
+    expect(teammateIdsOf(ADMIN_VIEWER, rows)).toEqual([MEMBER, "user_picker"]);
+    expect(teammateIdsOf(MEMBER_VIEWER, rows)).toEqual([ADMIN, "user_picker"]);
+  });
+
+  it("gives a guest no list of teammates", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: GUEST })];
+    expect(teammateIdsOf(GUEST_VIEWER, rows)).toBeNull();
   });
 
   it("keeps a teammate's list inside the viewer's workspace", () => {

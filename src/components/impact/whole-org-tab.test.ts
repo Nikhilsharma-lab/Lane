@@ -139,6 +139,12 @@ describe("Whole org tab: operational work, exceptions and due dates (#157)", () 
     expect(timeline).not.toMatch(/actual|change/i)
   })
 
+  it("says nothing measured this period yet with no period selected, as with one selected", () => {
+    const markup = html(orgOf([row({ id: "a", requestNumber: 1, releaseState: null })]), null)
+    expect(text(section(markup, "measured"))).toContain("Nothing measured this period yet")
+    expect(markup).not.toContain("Nothing measured yet")
+  })
+
   it("lists a Request with no release date as excluded from every period, never a total", () => {
     const rows = [row({ id: "f", requestNumber: 6, releaseState: null })]
     const markup = html(orgOf(rows, { kind: "year", year: 2026 }), { kind: "year", year: 2026 })

@@ -158,3 +158,12 @@ it("links accessible Projects and retains the Project selection within a Request
   expect(html).toContain("Website");
   expect(html).toContain('href="/?status=in_progress&amp;project=none"');
 });
+
+// #159: the Impact Dashboard is one entry in the workspace navigation, for every role (a guest sees only their own work on it).
+describe("Impact Dashboard navigation (#159)", () => {
+  it.each(["admin", "member", "guest"] as const)("lists the Impact screen in the workspace navigation for Clerk %s", (role) => {
+    const html = renderSidebar(role);
+    expect(html).toMatch(/<a(?=[^>]*href="\/impact")[^>]*>/);
+    expect(html).toContain("Impact");
+  });
+});

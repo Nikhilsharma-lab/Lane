@@ -18,6 +18,7 @@ import { SidebarView } from "@/components/shell/sidebar-view"
 import ListLoading from "./loading"
 import DetailLoading from "./requests/[id]/loading"
 import IntakeLoading from "./intake/loading"
+import ImpactLoading from "./impact/loading"
 import ProfileLoading from "./settings/profile/loading"
 import MembersLoading from "./settings/members/loading"
 import AppError from "./error"
@@ -45,6 +46,7 @@ const skeletons: [string, string, ComponentType, string, string][] = [
   ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
   ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
+  ["impact/loading.tsx", "/impact", ImpactLoading, "impact", "Loading impact"],
 ]
 
 const settingsSkeletons: [string, string, ComponentType, string][] = [

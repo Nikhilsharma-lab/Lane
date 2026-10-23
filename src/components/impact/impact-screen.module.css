@@ -1,0 +1,20 @@
+/* The Dashboard screen (#159). Theme tokens only: no design literals here (pnpm design:check). */
+.screen { display: grid; gap: var(--space-6); min-width: 0; padding: var(--space-6); }
+.header { display: grid; gap: var(--space-1); min-width: 0; }
+.title { margin: 0; color: var(--foreground); font-size: var(--text-xl); font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.intro { margin: 0; color: var(--muted-foreground); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.tablist { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; border-bottom: var(--border-width) solid var(--border); }
+.tab { flex: none; margin-bottom: calc(var(--border-width) * -1); padding: var(--space-2) var(--space-3); border: 0; border-bottom: var(--border-width) solid transparent; background: none; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--foreground); border-bottom-color: var(--foreground); font-weight: var(--weight-semibold); }
+.tab:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+.panel { min-width: 0; }
+.panel[hidden] { display: none; }
+.people { display: grid; gap: var(--space-2); margin-top: var(--space-6); min-width: 0; }
+.heading { margin: 0; color: var(--foreground); font-size: var(--text-lg); font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.note { margin: 0; color: var(--muted-foreground); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.peopleList { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.person { color: var(--foreground); font-size: var(--text-sm); text-decoration: underline; text-underline-offset: var(--space-1); }
+.person[aria-current="true"] { font-weight: var(--weight-semibold); }
+.person:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+.personList { display: grid; gap: var(--space-3); margin-top: var(--space-6); min-width: 0; }
+.loading { display: grid; min-width: 0; padding: var(--space-6); }
