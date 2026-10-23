@@ -148,6 +148,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
       <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
     </div>
     <div role="gridcell" className={styles.rowContent}>
+    {/* Done rows drop the priority glyph but keep its slot, so codes and titles line up across groups. */}
+    {identity && request.status === "done" && <span className={styles.identitySlot} aria-hidden="true" />}
     {identity && request.status !== "done" &&
       <GlyphMenu label="Request priority" items={actionItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
         <button type="button" tabIndex={-1} className={styles.identityControl} data-priority={identity.priority} aria-haspopup="menu" aria-label={`Priority: ${priorityLabel}`}><PriorityGlyph priority={identity.priority} /></button>
