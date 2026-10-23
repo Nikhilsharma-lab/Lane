@@ -682,8 +682,11 @@ Reporting requirements for the bounded design:
   exceptions from measured-impact totals without excluding them from the report's coverage.
 - Show evidence, limitations and related Requests when contributions cannot be isolated. A before/after
   change alone is not proof that a specific Request caused it.
-- Define the quarter/year basis (launch cohort or measurement period), reporting cutoff, deduplication
-  and treatment of cross-period/shared results before implementation. No aggregation formula is approved yet.
+- **Quarter/year basis, approved 2026-10-23 (GitHub #151):** totals group by the release date (UTC), and a Request
+  with no release date is never counted in any period. A total is made only where metric, unit, audience and window
+  match exactly. Percentages are never summed, and Verified results are counted as good or bad, never summed.
+  Operational work and closed-without-result Requests are never in a total. A shared result is counted once.
+  Built on the integration branch; not yet shipped.
 - Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
   valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
 
@@ -700,6 +703,11 @@ Permanently prohibited:
 - Individual cycle-time rankings.
 - Activity, presence, keystroke, or “last active” monitoring.
 - Manager-facing views that expose an individual's behavioural history as performance evidence.
+
+> **2026-10-23 amendment (GitHub #151, approved by Nikhil):** teammate lists and manager views of an individual's
+> Requests and results are approved ("I need teammate lists and manager views."). They show no per-person totals,
+> scores or rankings, and they remain guest-excluded. The prohibition above keeps what it protects: no per-person
+> scores, rankings, hit rates, averages or totals.
 
 The phrase “designer effectiveness” or “PM effectiveness” must be interpreted as the effectiveness of the
 supported process and resulting product decisions, never an employee score.

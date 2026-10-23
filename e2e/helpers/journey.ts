@@ -39,6 +39,8 @@ export async function recordReleaseInPrompt(page: Page, evidence: string) {
   const today = new Date().toISOString().slice(0, 10);
   await expect(form.getByLabel("Actual exposure date (UTC)")).toHaveValue(today);
   await expect(form.getByText(IS_IT_LIVE_COPY.endsUndo, { exact: true })).toBeVisible();
+  // The helper's measured plan (current 62%) requires the value before release, in its unit.
+  await form.getByLabel("Value before release (%)", { exact: true }).fill("62");
   await form.getByLabel("Release evidence", { exact: true }).fill(evidence);
   await form.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
   await form.getByRole("button", { name: "Mark as released", exact: true }).click();

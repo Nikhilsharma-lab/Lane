@@ -3,7 +3,7 @@
 import type { ImpactPeriod, OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { Select } from "@/components/arc/select/select"
 import { metricChart } from "@/lib/impact-chart-view"
-import { actualText, changeText, NOTHING_MEASURED, totalText, valueText } from "@/lib/impact-presenter"
+import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel } from "./impact-period"
 import { MetricChart } from "./metric-chart"
 import styles from "./whole-org-tab.module.css"
@@ -12,7 +12,7 @@ import styles from "./whole-org-tab.module.css"
 // shown here is one the read model returned. Guests get no OrgView, so this tab renders nothing for them.
 
 function baselineText(result: ResultView): string {
-  if (result.baselineState === "known" && result.baseline !== null) return `Baseline ${valueText(result.baseline, result.unit)}`
+  if (result.baselineSource !== null && result.baseline !== null) return `${baselineLabelOf(result.baselineSource)} ${valueText(result.baseline, result.unit)}`
   if (result.baselineState === "new_capability") return `New capability, target ${result.predictedTarget !== null ? valueText(result.predictedTarget, result.unit) : "not set"}, no change`
   if (result.baselineState === "unknown") return "Baseline unknown"
   return ""
@@ -29,7 +29,7 @@ function ResultDetail({ result }: { result: ResultView }) {
           {baselineText(result) && <span>{baselineText(result)}</span>}
           {result.actual !== null && <span>Actual {valueText(result.actual, result.unit)}</span>}
           {result.change !== null && <span>Change {changeText(result.change, result.unit, result.changeUnit)}</span>}
-          {result.predictedChange !== null && <span>Predicted {changeText(result.predictedChange, result.unit, result.changeUnit)}</span>}
+          {result.predictedChange !== null && <span>Predicted {predictedText({ form: result.form, unit: result.unit, changeUnit: result.changeUnit, predictedChange: result.predictedChange, target: result.predictedTarget, baseline: result.plannedBaseline })}</span>}
         </>}
       <span>Window: {result.window}</span>
     </p>

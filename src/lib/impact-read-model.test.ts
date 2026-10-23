@@ -45,6 +45,12 @@ function releaseFact(exposureDate: string, dueDate: string): ReleaseFact {
   return { exposureDate, audience: "all", evidence: "Released to all users", dueDate, startDate: exposureDate, windowKind: "relative" };
 }
 
+/** A release recorded with the value before release, as the release action stores it: in its history entry. */
+function recordedState(ownerId: string, release: ReleaseFact, value: number): ReleaseState {
+  const input = { kind: "release" as const, exposureDate: release.exposureDate, evidence: release.evidence, audienceConfirmed: true as const, valueBeforeRelease: { value, unit: "%" } };
+  return { version: 1, ownerId, release, history: [{ operationId: "op-release", fingerprint: "fp", actorId: ownerId, at: "2026-08-10T09:00:00.000Z", input, previousRelease: null, release, previousOwnerId: ownerId, ownerId, revision: 1 }] };
+}
+
 function releaseState(ownerId: string, release: ReleaseFact | null): ReleaseState {
   return { version: 1, ownerId, release, history: [] };
 }
@@ -475,5 +481,26 @@ describe("impact read model: a teammate's list (#155, spec story 12)", () => {
   it("keeps a teammate's list inside the viewer's workspace", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, orgId: "org_other" })];
     expect(buildTeammateWork(MEMBER_VIEWER, rows, MEMBER, { now: NOW })).toEqual([]);
+  });
+});
+
+describe("impact read model: value before release (#151 decision 3)", () => {
+  it("measures change from the value recorded before release, and keeps the planned baseline visible", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: recordedState(MEMBER, RELEASE_AUG, 42), outcomeClosure: measuredClosure(plan(), RELEASE_AUG, 46) })];
+    const [result] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines[0].results;
+    expect(result).toMatchObject({ baselineState: "known", baseline: 42, baselineSource: "release", plannedBaseline: 40, actual: 46, change: 4, predictedChange: 10 });
+  });
+
+  it("falls back to the planning baseline for a release recorded before this change, and says so", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), outcomeClosure: measuredClosure(plan(), RELEASE_AUG, 46) })];
+    const [result] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines[0].results;
+    expect(result).toMatchObject({ baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6 });
+  });
+
+  it("gives a new capability no change and no baseline, whatever the release recorded", () => {
+    const newCapability = plan({ current: null, target: 25, noBaseline: true });
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: recordedState(MEMBER, RELEASE_AUG, 42), outcomeClosure: measuredClosure(newCapability, RELEASE_AUG, 20) })];
+    const [result] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines[0].results;
+    expect(result).toMatchObject({ baselineState: "new_capability", baseline: null, baselineSource: null, change: null, plannedBaseline: null });
   });
 });

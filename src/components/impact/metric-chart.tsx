@@ -12,6 +12,7 @@ const LEGEND: { series: Series; label: string }[] = [
   { series: "actual", label: "Actual" },
   { series: "predicted", label: "Predicted" },
 ]
+// The baseline's legend name comes from the chart: "Before release", "Planning baseline", or both when one chart mixes them.
 
 export function MetricChart({ chart }: { chart: MetricChartView | null }) {
   if (!chart || chart.groups.length === 0) return <p className={styles.empty}>{NOTHING_MEASURED}</p>
@@ -33,7 +34,7 @@ export function MetricChart({ chart }: { chart: MetricChartView | null }) {
     <figcaption>
       <ul className={styles.legend}>
         {LEGEND.map(item => <li key={item.series} className={styles.legendItem}>
-          <span aria-hidden="true" className={styles.swatch} data-series={item.series} />{item.label}
+          <span aria-hidden="true" className={styles.swatch} data-series={item.series} />{item.series === "baseline" ? chart.baselineLabel : item.label}
         </li>)}
       </ul>
     </figcaption>

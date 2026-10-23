@@ -27,6 +27,12 @@ function plan(over: { key?: "conversion" | "adoption" | "check"; unit?: "percent
   } as ExpectedImpact
 }
 
+/** A release recorded with the value before release, as the release action stores it: in its history entry. */
+function recordedState(ownerId: string, release: ReleaseFact, value: number): ReleaseState {
+  const input = { kind: "release" as const, exposureDate: release.exposureDate, evidence: release.evidence, audienceConfirmed: true as const, valueBeforeRelease: { value, unit: "%" } };
+  return { version: 1, ownerId, release, history: [{ operationId: "op-release", fingerprint: "fp", actorId: ownerId, at: "2026-08-10T09:00:00.000Z", input, previousRelease: null, release, previousOwnerId: ownerId, ownerId, revision: 1 }] };
+}
+
 function releaseState(release: ReleaseFact | null): ReleaseState {
   return { version: 1, ownerId: MEMBER_ID, release, history: [] }
 }
@@ -189,3 +195,19 @@ describe("Whole org tab: periods and breakdown (#157)", () => {
     expect(breakdown).not.toMatch(/percentage|Total change/)
   })
 })
+
+describe("Whole org tab: value before release (#151 decision 3)", () => {
+  it("names the release-time baseline, and shows the planned baseline beside the predicted change", () => {
+    const body = text(html(orgOf([row({ id: "a", requestNumber: 1, releaseState: recordedState(MEMBER_ID, RELEASE_AUG, 42), outcomeClosure: closure(plan(), RELEASE_AUG, 46, "e1") })])));
+    expect(body).toContain("Before release 42%");
+    expect(body).toContain("Change +4 percentage points");
+    expect(body).toContain("Predicted +10 percentage points (planned baseline 40%)");
+    expect(body).not.toContain("Planning baseline");
+  });
+
+  it("labels a release recorded before this change as the planning baseline", () => {
+    const body = text(html(orgOf([row({ id: "a", requestNumber: 1, releaseState: releaseState(RELEASE_AUG), outcomeClosure: closure(plan(), RELEASE_AUG, 46, "e1") })])));
+    expect(body).toContain("Planning baseline 40%");
+    expect(body).not.toContain("Before release");
+  });
+});

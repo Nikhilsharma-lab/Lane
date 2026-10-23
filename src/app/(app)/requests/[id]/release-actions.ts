@@ -8,8 +8,9 @@ import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
 import { expectedImpactSchema } from '@/lib/request-impact';
-import { releaseChangeSchema, releaseWindow, releaseMeasurement, earliestExposure, type ReleaseState } from '@/lib/request-release';
+import { releaseChangeSchema, releaseWindow, releaseMeasurement, earliestExposure, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
 import { journeyStatus, requesterOf } from '@/lib/request-journey';
+import { valueBeforeReleaseFor } from '@/lib/request-release-facts';
 import { allow, journeyActionsFor, peopleNames, personName, rosterMember } from '@/lib/request-journey-access';
 import { utcDay } from '@/lib/utc-day';
 /** The Request is what was agreed, so its "Users" are the agreed audience. */
@@ -18,7 +19,7 @@ const agreedAudience = (request: { affectedPeople: string | null }) => request.a
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
     const parsed = releaseChangeSchema.safeParse(input);
-    if (!parsed.success) return { error: 'Check the exposure date, evidence, confirmation and reason.' };
+    if (!parsed.success) return { error: 'Check the exposure date, evidence, confirmation, value before release and reason.' };
     const change = parsed.data;
     const fingerprint = { requestId: context.requestId, change };
     return changeRequest(context, {
@@ -51,7 +52,15 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
                     insist(change.exposureDate <= utcDay(), 'Exposure cannot be in the future.');
                     const earliest = earliestExposure(request);
                     insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${earliest} (UTC).`);
-                    nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null, change.exposureDate) };
+                    // A measured plan records the value before release, in its metric's unit, or the release is refused.
+                    const impact = expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
+                    const valueBefore = valueBeforeReleaseOf(impact);
+                    // The value is kept in this change's history entry (valueBeforeReleaseFor reads it back), never in the release fact.
+                    if (valueBefore.required) {
+                        insist(change.valueBeforeRelease, 'Enter the value before release.');
+                        insist(change.valueBeforeRelease.unit === valueBefore.unit, `Enter the value before release in ${valueBefore.unit}.`);
+                    }
+                    nextRelease = { exposureDate: change.exposureDate, evidence: change.evidence, audience: agreedAudience(request), ...releaseWindow(impact, change.exposureDate) };
                 }
             }
             const next: ReleaseState = { version: 1, ownerId: nextRequester, release: nextRelease, history: [...state.history, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: new Date().toISOString(), input: change, previousRelease: before, release: nextRelease, previousOwnerId: requesterId, ownerId: nextRequester, revision }] };
@@ -89,6 +98,8 @@ export async function readRequestRelease(requestId: string, context: {
             requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
             journey: journeyStatus(request), actions, workStatus: request.status, pickedUpAt: request.pickedUpAt?.toISOString() ?? null, doneAt: request.doneAt?.toISOString() ?? null,
             release, measurement: releaseMeasurement(release, now), today: utcDay(now),
+            valueBefore: valueBeforeReleaseOf(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null),
+            recordedValueBefore: valueBeforeReleaseFor(request.releaseState, release),
             audience: agreedAudience(request),
             earliestExposure: earliestExposure(request),
             people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],

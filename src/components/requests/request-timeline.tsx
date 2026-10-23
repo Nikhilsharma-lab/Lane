@@ -115,8 +115,8 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
 
   function stepForm(action: JourneyAction) {
     switch (action) {
-      case "release": return <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} />
-      case "correctRelease": return release.release && <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} correcting={release.release} />
+      case "release": return <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} />
+      case "correctRelease": return release.release && <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} correcting={{ ...release.release, valueBefore: release.recordedValueBefore }} />
       case "voidRelease": return <VoidReleaseForm {...form} />
       case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
       case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
@@ -134,6 +134,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
       if (!fact) return null
       return <div className={styles.facts}>
         <p className={styles.muted}>Evidence: {fact.evidence}</p>
+        {release.recordedValueBefore && <p className={styles.muted}>Value before release: {resultValue(release.recordedValueBefore.value, release.recordedValueBefore.unit)}.</p>}
         {fact.windowKind === "fixed" && <p className={styles.muted}>Agreed fixed window: {journeyDate(fact.startDate)} to {journeyDate(fact.dueDate)}. Release timing does not move these dates.</p>}
         {step.state === "current" && <p className={styles.muted}>The due date does not close this Request automatically.</p>}
       </div>

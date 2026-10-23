@@ -1,9 +1,12 @@
 import { z } from 'zod';
 import type { ExpectedImpact } from './request-impact';
+import { agreedResult } from './request-outcome';
 import { utcDay } from './utc-day';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
-const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true) };
+/** The measured value just before release, in the agreed metric's unit (#151 decision 3). Required for a measured plan. */
+export const valueBeforeReleaseSchema = z.object({ value: z.number(), unit: z.string().trim().min(1).max(40) }).strict();
+const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true), valueBeforeRelease: valueBeforeReleaseSchema.optional() };
 export const releaseChangeSchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('release'), ...facts }).strict(),
     z.object({ kind: z.literal('correct'), ...facts, reason: text }).strict(),
@@ -52,6 +55,18 @@ export function releaseWindow(impact: ExpectedImpact | null, exposureDate: strin
     date.setUTCDate(date.getUTCDate() + days);
     return { startDate: exposureDate, dueDate: utcDay(date), windowKind: 'relative' };
 }
+/**
+ * Whether a release must record the value before release: a numeric result whose plan has a planning baseline.
+ * A Verified check, a new capability and an unknown baseline never take one (#151 decision 3).
+ */
+export function valueBeforeReleaseOf(impact: ExpectedImpact | null): { required: true; unit: string } | { required: false; unit: null } {
+    if (!impact) return { required: false, unit: null };
+    const agreed = agreedResult(impact);
+    if (agreed.form !== 'numeric') return { required: false, unit: null };
+    const planned = impact.kind === 'measurement' ? !impact.primary.noBaseline && impact.primary.current !== null : impact.kind === 'metric' && impact.noBaseline !== true && agreed.baseline !== null;
+    return planned ? { required: true, unit: agreed.unit } : { required: false, unit: null };
+}
+
 /** Exposure cannot predate the Request itself (UTC date). */
 export function earliestExposure(request: { createdAt: Date }) {
     return utcDay(request.createdAt);
