@@ -1,12 +1,22 @@
 # Shared Claude / Codex handoff
 
+## October 23 — production 0033 + 0034 applied; #127 deployed (user-approved)
+
+**Production (`tcfwabpoiydvfqxhtkur`) and Lane Staging both have 0013 → 0034. Next migration: 0035.** Production
+ran from `backups/production-0033-0034-2026-10-23/` (`run.sh` → `migrate.cjs`): verified backup (3 Requests, 1 file,
+1 Project), rehearsal on a local restore, then 0033 and 0034; verify: every migration present, nothing lost, every
+Request unchanged (incl. `updated_at`), `done_at` on exactly the Done Requests. The connection string came from
+Supabase via the clipboard (Vercel's production `DATABASE_URL` is Sensitive and cannot be pulled) and was deleted
+after. The owner then reset the production database password, updated Vercel's production `DATABASE_URL`, and
+deployed `main` (PR #139); the live journey was checked by the owner.
+
 ## October 22 — staging 0033 + 0034 applied; journey e2e passes (user-approved)
 
 With the user's explicit approval: verified backup and a local-restore rehearsal in ignored
 `backups/journey-0033-0034-2026-10-22/` (22 Requests), then 0033 (drop `request_review_state`) and 0034
 (reminders, `done_at`, `picked_up_at`) applied to **Lane Staging**. Verify: all checks true; every Request row
-unchanged (incl. `updated_at`), nothing lost, `done_at` on exactly the 8 Done Requests. **Production is still on
-0032: run 0033 + 0034 there (verified backup, rehearsal) before deploying `main` with #127.** The journey e2e
+unchanged (incl. `updated_at`), nothing lost, `done_at` on exactly the 8 Done Requests. _Production got 0033 + 0034 on
+October 23; see the entry above._ The journey e2e
 (`request-release`, `request-outcome`, `request-reviewers`, `reliable-request-lifecycle-actions`) then passed on
 staging, one worker (parallel runs hit Clerk's "Too Many Requests"). `command-palette.spec.ts` fails in its guest
 fixture (Clerk Not Found creating an `org:guest` membership): pre-existing, unrelated to #127.
