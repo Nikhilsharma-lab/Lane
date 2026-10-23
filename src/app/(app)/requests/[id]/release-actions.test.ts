@@ -18,7 +18,7 @@ beforeAll(async () => {
 afterAll(() => connection.end());
 afterEach(() => { vi.useRealTimers(); session.userId = 'release_owner'; session.orgId = orgId; session.orgRole = 'org:member'; roster.ids = ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next']; });
 const context = (requestId: string, expectedRevision = 0) => ({ orgId, requestId, expectedRevision, operationId: randomUUID() });
-const release = { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full audience rollout confirmed in release log', audienceConfirmed: true };
+const release = { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full audience rollout confirmed in release log', audienceConfirmed: true, valueBeforeRelease: { value: 50, unit: '%' } };
 async function fixture(fixed = false) {
     const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,created_at) values (${orgId},'Checkout problem','Unable to pay','All shoppers','release_owner','done','high','2026-10-01T00:00:00Z') returning *`;
     const impact = { kind: 'measurement', version: 2, primary: { key: 'conversion', name: '', unit: 'percent', current: 50, target: 80, noBaseline: false, check: '' }, measurement: { audience: 'all', platform: 'all', windowDays: 7, exactDates: fixed, startDate: fixed ? '2026-10-01' : '', endDate: fixed ? '2026-10-15' : '' }, guardrails: [] };
@@ -303,4 +303,33 @@ it('an admin hands over an In progress Request before any release, creating the 
     session.orgRole = 'org:member';
     roster.ids = roster.ids.filter(u => u !== 'release_next');
     expect(await api.changeRequestRelease(context(id, 1), { ...handover, recipientId: 'release_pm' })).toEqual({ error: 'Only a workspace admin can hand this over.' });
+});
+it('requires the value before release for a measured plan: never blank, never another unit, kept on the release and its correction (#151 decision 3)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const withoutValue = { ...release, valueBeforeRelease: undefined };
+    expect(await api.changeRequestRelease(context(id), withoutValue)).toHaveProperty('error');
+    expect(await api.changeRequestRelease(context(id), { ...release, valueBeforeRelease: { value: null, unit: '%' } })).toHaveProperty('error');
+    expect(await api.changeRequestRelease(context(id), { ...release, valueBeforeRelease: { value: 50, unit: 'seconds' } })).toEqual({ error: 'Enter the value before release in %.' });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: null, valueBefore: { required: true, unit: '%' } });
+    expect(await api.changeRequestRelease(context(id), release)).toEqual({ success: true, revision: 1 });
+    expect(await api.changeRequestRelease(context(id, 1), { ...withoutValue, kind: 'correct', reason: 'Wrong log' })).toHaveProperty('error');
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', valueBeforeRelease: { value: 48, unit: '%' }, reason: 'Wrong log' })).toHaveProperty('success', true);
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ recordedValueBefore: { value: 48, unit: '%' } });
+    const [row] = await connection `select release_state from requests where id=${id}`;
+    expect(row.release_state.history[0].input.valueBeforeRelease).toEqual({ value: 50, unit: '%' });
+    expect(row.release_state.history[1].input.valueBeforeRelease).toEqual({ value: 48, unit: '%' });
+});
+it('does not ask for a value before release on a verified check', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const impact = { kind: 'verification', result: 'Keyboard checkout works', source: 'Checklist', reviewAfterDays: 14 };
+    await connection `update requests set expected_impact=${connection.json(impact)} where id=${id}`;
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ valueBefore: { required: false, unit: null } });
+    expect(await api.changeRequestRelease(context(id), { ...release, valueBeforeRelease: undefined })).toEqual({ success: true, revision: 1 });
+    const [row] = await connection `select release_state from requests where id=${id}`;
+    expect(row.release_state.history[0].input.valueBeforeRelease ?? null).toBeNull();
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ recordedValueBefore: null });
 });

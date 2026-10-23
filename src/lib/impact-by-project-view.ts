@@ -6,7 +6,7 @@
 import type { ProjectView, ResultLine, ResultView } from "./impact-read-model";
 import { requestCodeOrNull } from "./request-code";
 import { metricChart, type MetricChart } from "./impact-chart-view";
-import { actualText, changeText, NOT_APPLICABLE, noteOf, predictedText, totalText, valueText } from "./impact-presenter";
+import { actualText, baselineLabelOf, changeText, NOT_APPLICABLE, noteOf, predictedText, totalText, valueText } from "./impact-presenter";
 
 export const UNASSIGNED_HEADING = "Requests without a Project";
 
@@ -50,14 +50,14 @@ function cellsOf(result: ResultView): MetricCells {
   }
   const baseline = result.baselineState === "unknown" ? "Baseline unknown"
     : result.baselineState === "new_capability" ? "New capability"
-    : result.baseline !== null ? valueText(result.baseline, result.unit)
+    : result.baseline !== null && result.baselineSource !== null ? `${baselineLabelOf(result.baselineSource)} ${valueText(result.baseline, result.unit)}`
     : NOT_APPLICABLE;
   const change = result.change !== null ? changeText(result.change, result.unit, result.changeUnit) : "Not shown";
   return {
     baseline,
     actual: actualText(result),
     change,
-    predicted: predictedText({ form: result.form, unit: result.unit, changeUnit: result.changeUnit, predictedChange: result.predictedChange, target: result.predictedTarget }),
+    predicted: predictedText({ form: result.form, unit: result.unit, changeUnit: result.changeUnit, predictedChange: result.predictedChange, target: result.predictedTarget, baseline: result.plannedBaseline }),
   };
 }
 

@@ -30,7 +30,7 @@ export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request
   if ("error" in read) return <><p role="alert">{read.error}</p>{notYet}</>
   if (!read.actions.release.allowed) return <><p className={styles.note}>{read.actions.release.reason}</p>{notYet}</>
   return <ReleaseForm requestId={request.id} orgId={orgId} revision={read.revision} audience={read.audience}
-    earliestExposure={read.earliestExposure} today={read.today} defaultExposureDate={read.today}
+    earliestExposure={read.earliestExposure} today={read.today} valueBefore={read.valueBefore} defaultExposureDate={read.today}
     intro={<p className={styles.note}>{IS_IT_LIVE_COPY.endsUndo}</p>}
     onSaved={onSaved} onCancel={onNotYet} cancelLabel={IS_IT_LIVE_COPY.notYet} />
 }

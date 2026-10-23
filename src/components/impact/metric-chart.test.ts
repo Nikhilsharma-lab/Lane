@@ -15,7 +15,7 @@ function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): 
   return {
     requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, metric: "Conversion rate", form: "numeric",
     unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release",
-    baselineState: "known", baseline: 40, actual: 46, change: 6, verdict: null, predictedTarget: 50, predictedChange: 10,
+    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, predictedTarget: 50, predictedChange: 10,
     releaseDate: "2026-08-10", observedFrom: "2026-08-10", observedTo: "2026-09-09", evidence: "Released", guardrails: [],
     corrections: [], requests: [], ...over,
   }
@@ -38,7 +38,7 @@ describe("metric chart: one chart per metric (#158)", () => {
     const markup = render(line("Conversion rate", [result({ requestNumber: 1 })]))
     expect(markup.match(/<svg/g)).toHaveLength(1)
     expect(markup).toContain('role="img"')
-    expect(markup).toContain("baseline 40 %, actual 46 %, predicted 50 %")
+    expect(markup).toContain("planning baseline 40 %, actual 46 %, predicted 50 %")
   })
 
   it("gives each chart its own scale: bar heights are shares of that chart's own largest value", () => {
@@ -83,3 +83,12 @@ describe("metric chart: whole org wiring (#158)", () => {
     expect(markup.match(/<svg viewBox="0 0 100 100"/g)).toHaveLength(2)
   })
 })
+
+describe("metric chart: the baseline's name in the legend (#151 decision 3)", () => {
+  it("names a release-time baseline in the legend, never as the planning baseline", () => {
+    const markup = render(line("Conversion rate", [result({ requestNumber: 1, baseline: 42, baselineSource: "release" })]))
+    expect(markup).toContain("Before release")
+    expect(markup).not.toContain("Planning baseline")
+  })
+})
+

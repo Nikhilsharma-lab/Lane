@@ -33,7 +33,7 @@ async function fixture({ impact = conversion as postgres.JSONValue, released = t
     const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,expected_impact,created_at) values (${orgId},'Checkout problem','Unable to pay','All shoppers','outcome_owner','done','high',${connection.json(impact)},'2026-10-01T00:00:00Z') returning *`;
     if (released) {
         const releaseApi = await import('./release-actions');
-        const result = await releaseApi.changeRequestRelease(context(row.id, 0), { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full rollout in release log', audienceConfirmed: true });
+        const result = await releaseApi.changeRequestRelease(context(row.id, 0), { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full rollout in release log', audienceConfirmed: true, valueBeforeRelease: { value: 50, unit: '%' } });
         if (!('success' in result)) throw Error(result.error);
     }
     return row.id as string;

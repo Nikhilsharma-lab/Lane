@@ -26,6 +26,11 @@ const RELEASE_AUG: ReleaseFact = { exposureDate: "2026-08-10", audience: "all", 
 const RELEASE_OCT: ReleaseFact = { exposureDate: "2026-10-01", audience: "all", evidence: "Released to all users", dueDate: "2026-10-31", startDate: "2026-10-01", windowKind: "relative" };
 
 const releaseState = (release: ReleaseFact): ReleaseState => ({ version: 1, ownerId: MEMBER, release, history: [] });
+/** A release recorded with the value before release, as the release action stores it: in its history entry. */
+function recordedState(ownerId: string, release: ReleaseFact, value: number): ReleaseState {
+  const input = { kind: "release" as const, exposureDate: release.exposureDate, evidence: release.evidence, audienceConfirmed: true as const, valueBeforeRelease: { value, unit: "%" } };
+  return { version: 1, ownerId, release, history: [{ operationId: "op-release", fingerprint: "fp", actorId: ownerId, at: "2026-08-10T09:00:00.000Z", input, previousRelease: null, release, previousOwnerId: ownerId, ownerId, revision: 1 }] };
+}
 
 function measured(expected: ExpectedImpact, release: ReleaseFact, actual: number, evidence: string, passed?: boolean): OutcomeClosure {
   const primary = passed === undefined ? { kind: "numeric" as const, actual, unit: "%" } : { kind: "pass_fail" as const, passed };
@@ -58,7 +63,7 @@ describe("By project view: a Project with measured results", () => {
     const [line] = search.measured;
     expect(line.metric).toBe("Conversion rate");
     expect(line.window).toBe("30 days after release");
-    expect(line.cells).toEqual({ baseline: "40%", actual: "46%", change: "+6 percentage points", predicted: "+10 percentage points" });
+    expect(line.cells).toEqual({ baseline: "Planning baseline 40%", actual: "46%", change: "+6 percentage points", predicted: "+10 percentage points (planned baseline 40%)" });
     expect(line.results).toHaveLength(1);
     expect(search.emptyMessage).toBeNull();
   });
@@ -93,7 +98,7 @@ describe("By project view: a Project with measured results", () => {
     expect(search.measured.map(line => line.metric)).toEqual(["Conversion rate", "Users who adopted"]);
     const [percent, count] = search.measured;
     expect(percent.total).toBeNull();
-    expect(percent.cells).toEqual({ baseline: "40%", actual: "46%", change: "+6 percentage points", predicted: "+10 percentage points" });
+    expect(percent.cells).toEqual({ baseline: "Planning baseline 40%", actual: "46%", change: "+6 percentage points", predicted: "+10 percentage points (planned baseline 40%)" });
     expect(count.cells).toBeNull();
     expect(count.total).toBe("+50 in total");
     expect(count.results.map(result => result.cells.actual)).toEqual(["130", "120"]);
@@ -128,7 +133,7 @@ describe("By project view: a Project with predictions but nothing measured", () 
     expect(search.measured).toEqual([]);
     expect(search.emptyMessage).toBe("Nothing measured this period yet");
     expect(search.stillDueLabel).toBe("1 still due");
-    expect(search.predictions).toMatchObject([{ requestNumber: 1, metric: "Conversion rate", predicted: "+10 percentage points", window: "30 days after release" }]);
+    expect(search.predictions).toMatchObject([{ requestNumber: 1, metric: "Conversion rate", predicted: "+10 percentage points (planned baseline 40%)", window: "30 days after release" }]);
   });
 });
 
@@ -156,5 +161,12 @@ describe("By project view: Requests without a Project", () => {
     expect(unassigned.heading).toBe("Requests without a Project");
     expect(unassigned.measured[0].cells?.actual).toBe("46%");
     expect(sections.find(section => section.projectId === "p1")!.heading).toBe("Search");
+  });
+});
+
+describe("impact by project: value before release (#151 decision 3)", () => {
+  it("shows the value recorded before release as the baseline, with the planned baseline beside the predicted change", () => {
+    const rows = [row({ id: "a", requestNumber: 1, releaseState: recordedState(MEMBER, RELEASE_AUG, 42), outcomeClosure: measured(plan(), RELEASE_AUG, 46, "e1") })];
+    expect(sectionsOf(rows)[0].measured[0].cells).toEqual({ baseline: "Before release 42%", actual: "46%", change: "+4 percentage points", predicted: "+10 percentage points (planned baseline 40%)" });
   });
 });

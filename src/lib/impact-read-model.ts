@@ -19,7 +19,7 @@ import { measurementAudienceLabel, measurementPlatformLabel } from "./request-me
 import { impactStateOf, type ExpectedImpact } from "./request-impact";
 import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
-import { releaseMeasurement } from "./request-release-facts";
+import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-facts";
 import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS } from "./utc-day";
 
@@ -48,6 +48,8 @@ export type ImpactRow = {
 };
 
 export type BaselineState = "known" | "unknown" | "new_capability" | "not_applicable";
+/** Where a known baseline came from: the value recorded before release, or (a release from before #151 decision 3) the planning baseline. */
+export type BaselineSource = "release" | "planning";
 export type Verdict = "good" | "bad";
 export type RequestRef = { requestId: string; requestNumber: number; title: string };
 
@@ -82,7 +84,11 @@ export type ResultView = {
   platform: string;
   window: string;
   baselineState: BaselineState;
+  /** The baseline the change is measured from: the value before release, else the planning baseline (legacy). */
   baseline: number | null;
+  baselineSource: BaselineSource | null;
+  /** The planning baseline entered at Request creation, shown beside the predicted change so the plan stays visible. */
+  plannedBaseline: number | null;
   actual: number | null;
   change: number | null;
   verdict: Verdict | null;
@@ -227,8 +233,13 @@ function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
   const prediction = predictionOf(closure.expected);
   const passed = closure.primary.kind === "pass_fail" ? closure.primary.passed : null;
   const actual = closure.primary.kind === "numeric" ? closure.primary.actual : null;
-  const known = prediction.baselineState === "known" && prediction.baseline !== null;
-  const change = known && actual !== null ? actual - prediction.baseline! : null;
+  // Change is measured from the value recorded before release (#151 decision 3). A release recorded before that has none,
+  // so it keeps the planning baseline, and every view labels it as such. A new capability or unknown baseline has no change.
+  const planned = prediction.baselineState === "known" ? prediction.baseline : null;
+  const recorded = valueBeforeReleaseFor(row.releaseState, closure.release);
+  const baselineSource: BaselineSource | null = planned === null ? null : recorded ? "release" : "planning";
+  const baseline = baselineSource === "release" ? recorded!.value : planned;
+  const change = baseline !== null && actual !== null ? actual - baseline : null;
   return {
     requestId: row.id,
     requestNumber: row.requestNumber,
@@ -241,7 +252,9 @@ function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
     platform: prediction.platform,
     window: windowOfRelease(closure.release),
     baselineState: prediction.baselineState,
-    baseline: prediction.baseline,
+    baseline,
+    baselineSource,
+    plannedBaseline: prediction.baseline,
     actual,
     change,
     verdict: passed === null ? null : passed ? "good" : "bad",

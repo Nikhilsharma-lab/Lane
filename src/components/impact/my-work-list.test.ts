@@ -25,6 +25,11 @@ function plan(): Extract<ExpectedImpact, { kind: "measurement" }> {
 const RELEASE_AUG: ReleaseFact = { exposureDate: "2026-08-10", audience: "all", evidence: "Released to all users", dueDate: "2026-09-09", startDate: "2026-08-10", windowKind: "relative" }
 const RELEASE_OCT: ReleaseFact = { exposureDate: "2026-10-01", audience: "all", evidence: "Released", dueDate: "2026-10-31", startDate: "2026-10-01", windowKind: "relative" }
 const releaseState = (ownerId: string, release: ReleaseFact | null): ReleaseState => ({ version: 1, ownerId, release, history: [] })
+/** A release recorded with the value before release, as the release action stores it: in its history entry. */
+function recordedState(ownerId: string, release: ReleaseFact, value: number): ReleaseState {
+  const input = { kind: "release" as const, exposureDate: release.exposureDate, evidence: release.evidence, audienceConfirmed: true as const, valueBeforeRelease: { value, unit: "%" } };
+  return { version: 1, ownerId, release, history: [{ operationId: "op-release", fingerprint: "fp", actorId: ownerId, at: "2026-08-10T09:00:00.000Z", input, previousRelease: null, release, previousOwnerId: ownerId, ownerId, revision: 1 }] };
+}
 function measured(actual: number): OutcomeClosure {
   return {
     version: 1, kind: "measured", actorId: ME, ownerId: ME, closedAt: "2026-09-10T09:00:00.000Z", operationId: `op-${actual}`, fingerprint: "fp",
@@ -80,7 +85,7 @@ describe("My work rows (#155)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Conversion rate")
-    expect(out).toContain("Baseline 40%")
+    expect(out).toContain("Planning baseline 40%")
     expect(out).toContain("Actual 46%")
     expect(out).toContain("Change +6 percentage points")
     expect(out).toContain("Predicted change +10 percentage points")
@@ -164,5 +169,24 @@ describe("My work states (#155)", () => {
   it("renders a loading state that announces itself", () => {
     const out = renderToStaticMarkup(createElement(MyWorkLoading))
     expect(out).toContain("Loading")
+  })
+})
+
+describe("My work: value before release (#151 decision 3)", () => {
+  it("shows the value recorded before release as the baseline, and the planned baseline beside the predicted change", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: recordedState(ME, RELEASE_AUG, 42), outcomeClosure: measured(46) })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("Before release 42%")
+    expect(out).toContain("Change +4 percentage points")
+    expect(out).toContain("Predicted change +10 percentage points")
+    expect(out).toContain("Planned baseline 40%")
+    expect(out).not.toContain("Planning baseline")
+  })
+
+  it("labels a release recorded before this change as the planning baseline, never as before release", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("Planning baseline 40%")
+    expect(out).not.toContain("Before release")
   })
 })

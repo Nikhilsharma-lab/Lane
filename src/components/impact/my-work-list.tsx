@@ -1,7 +1,7 @@
 import Link from "next/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
-import { actualText, changeText, entryKindOf, valueText } from "@/lib/impact-presenter"
+import { actualText, baselineLabelOf, changeText, entryKindOf, valueText } from "@/lib/impact-presenter"
 import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
@@ -36,15 +36,16 @@ function ResultDetail({ entry }: { entry: MyWorkEntry }) {
 }
 
 function MeasuredFacts({ result }: { result: ResultView }) {
-  const { baselineState, baseline, actual, change, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections, evidence } = result
+  const { baselineState, baselineSource, baseline, plannedBaseline, actual, change, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections, evidence } = result
   return <div className={styles.result}>
     <p className={styles.metric}>{metric}</p>
     <dl className={styles.facts}>
       {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{actualText(result)}</dd></div> : null}
-      {result.form === "numeric" && baselineState === "known" && baseline !== null ? <div><dt>Baseline</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
+      {result.form === "numeric" && baselineSource !== null && baseline !== null ? <div><dt>{baselineLabelOf(baselineSource)}</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
       {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}</dd></div> : null}
       {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, unit, changeUnit)}</dd></div> : null}
       {predictedChange !== null && changeUnit !== null ? <div><dt>Predicted change</dt><dd>{changeText(predictedChange, unit, changeUnit)}</dd></div> : null}
+      {predictedChange !== null && plannedBaseline !== null ? <div><dt>Planned baseline</dt><dd>{valueText(plannedBaseline, unit)}</dd></div> : null}
       {predictedTarget !== null && result.form === "numeric" ? <div><dt>Predicted</dt><dd>{valueText(predictedTarget, unit)}</dd></div> : null}
       <div><dt>Window</dt><dd>{window}</dd></div>
       {evidence ? <div><dt>Evidence</dt><dd>{evidence}</dd></div> : null}
