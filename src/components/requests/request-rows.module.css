@@ -112,6 +112,7 @@
 .row[data-compact-row] .propertyBadge { max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); border-width: var(--border-width); }
 .row[data-compact-row] .propertyBadge > span { min-width: 0; max-width: 100%; }
 .identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-size-md); width: var(--icon-size-md); height: var(--size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer; }
+.identitySlot { flex: 0 0 var(--icon-size-md); }
 .requestCode { flex: 0 0 calc(var(--spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row[data-selected] .requestCode { color: var(--selection-foreground); }
 .submittedDate { white-space: nowrap; color: var(--request-property-foreground); font-size: var(--text-xs); }
