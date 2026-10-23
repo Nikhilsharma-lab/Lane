@@ -12,5 +12,7 @@
 .result { display: grid; gap: var(--space-1); padding-top: var(--space-2); border-top: var(--border-width) solid var(--border); min-width: 0; }
 .resultFacts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); font-variant-numeric: tabular-nums; }
 .resultTitle { color: var(--foreground); }
+.link { color: var(--link-ink); border-radius: var(--corner-sm); }
+.link:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline); outline-offset: var(--focus-outline-offset); }
 .empty { margin: 0; color: var(--muted-foreground); font-size: var(--text-sm); }
 .list li { color: var(--foreground); font-size: var(--text-sm); overflow-wrap: anywhere; }

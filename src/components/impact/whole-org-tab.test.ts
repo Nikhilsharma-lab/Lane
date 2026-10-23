@@ -129,6 +129,11 @@ describe("Whole org tab: operational work, exceptions and due dates (#157)", () 
     expect(text(html(orgOf(rows)))).toContain("Evidence: Warehouse export, 14 Sep")
   })
 
+  it("opens each Request from its title as a link, from the keyboard too", () => {
+    const rows = [row({ id: "a", requestNumber: 1, releaseState: releaseState(RELEASE_AUG), outcomeClosure: closure(plan(), RELEASE_AUG, 46, "Warehouse export, 14 Sep") })]
+    expect(html(orgOf(rows))).toContain('href="/requests/a"')
+  })
+
   it("never shows a neutral count for a Verified line, only good and bad", () => {
     const check = plan({ key: "check", unit: "count", current: 0, target: 1 })
     const rows = [row({ id: "a", requestNumber: 1, releaseState: releaseState(RELEASE_AUG), expectedImpact: check, outcomeClosure: { ...closure(check, RELEASE_AUG, 0, "p1"), primary: { kind: "pass_fail", passed: true } } as OutcomeClosure })]

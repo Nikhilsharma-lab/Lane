@@ -1,9 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import type { ImpactPeriod, OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { Select } from "@/components/arc/select/select"
 import { metricChart } from "@/lib/impact-chart-view"
 import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
+import { requestDetailHref } from "@/lib/request-workspace"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel } from "./impact-period"
 import { MetricChart } from "./metric-chart"
 import styles from "./whole-org-tab.module.css"
@@ -18,10 +20,15 @@ function baselineText(result: ResultView): string {
   return ""
 }
 
+/** The Request's title as a link, so every Request on this tab opens from the keyboard. */
+function RequestTitle({ requestId, requestNumber, title }: { requestId: string; requestNumber: number; title: string }) {
+  return <Link href={requestDetailHref(requestId, "all")} className={styles.link}>Request #{requestNumber} {title}</Link>
+}
+
 function ResultDetail({ result }: { result: ResultView }) {
   const sharedWith = result.requests.filter(request => request.requestId !== result.requestId)
   return <li className={styles.result}>
-    <p className={styles.resultTitle}>Request #{result.requestNumber} {result.title}</p>
+    <p className={styles.resultTitle}><RequestTitle requestId={result.requestId} requestNumber={result.requestNumber} title={result.title} /></p>
     <p className={styles.resultFacts}>
       {result.form === "pass_fail"
         ? <span>{actualText(result)}</span>
@@ -79,7 +86,7 @@ export function WholeOrgTab({ view, period, year = new Date().getUTCFullYear(), 
       <h2 id="org-operational-heading" className={styles.heading}>Operational work</h2>
       <p className={styles.note}>Not measured and not in any total.</p>
       {view.operational.length === 0 ? <p className={styles.empty}>No operational work.</p> : <ul className={styles.list}>
-        {view.operational.map(item => <li key={item.requestId}>Request #{item.requestNumber} {item.title}{item.projectName ? ` · ${item.projectName}` : ""}: {item.reason}</li>)}
+        {view.operational.map(item => <li key={item.requestId}><RequestTitle requestId={item.requestId} requestNumber={item.requestNumber} title={item.title} />{item.projectName ? ` · ${item.projectName}` : ""}: {item.reason}</li>)}
       </ul>}
     </section>
 
@@ -87,7 +94,7 @@ export function WholeOrgTab({ view, period, year = new Date().getUTCFullYear(), 
       <h2 id="org-closed-heading" className={styles.heading}>Closed without a result</h2>
       <p className={styles.note}>Not in any total. Shown with the reason it was closed.</p>
       {view.closedWithoutResult.length === 0 ? <p className={styles.empty}>None.</p> : <ul className={styles.list}>
-        {view.closedWithoutResult.map(item => <li key={item.requestId}>Request #{item.requestNumber} {item.title}{item.projectName ? ` · ${item.projectName}` : ""}: {item.reason}</li>)}
+        {view.closedWithoutResult.map(item => <li key={item.requestId}><RequestTitle requestId={item.requestId} requestNumber={item.requestNumber} title={item.title} />{item.projectName ? ` · ${item.projectName}` : ""}: {item.reason}</li>)}
       </ul>}
     </section>
 
@@ -95,14 +102,14 @@ export function WholeOrgTab({ view, period, year = new Date().getUTCFullYear(), 
       <h2 id="org-timeline-heading" className={styles.heading}>Still due</h2>
       <p className={styles.note}>Placed by due date. Results are not shown until they are recorded.</p>
       {view.timeline.length === 0 ? <p className={styles.empty}>Nothing is waiting to be measured.</p> : <ol className={styles.list}>
-        {view.timeline.map(item => <li key={item.requestId}><time dateTime={item.dueDate}>{item.dueDate}</time> Request #{item.requestNumber} {item.title} · {item.metric} · {item.dueLabel}</li>)}
+        {view.timeline.map(item => <li key={item.requestId}><time dateTime={item.dueDate}>{item.dueDate}</time> <RequestTitle requestId={item.requestId} requestNumber={item.requestNumber} title={item.title} /> · {item.metric} · {item.dueLabel}</li>)}
       </ol>}
     </section>
 
     {view.unreleased.length > 0 && <section className={styles.block} data-section="unreleased" aria-labelledby="org-unreleased-heading">
       <h2 id="org-unreleased-heading" className={styles.heading}>No release date</h2>
       <p className={styles.note}>Not counted in any quarter or year until a release date is recorded.</p>
-      <ul className={styles.list}>{view.unreleased.map(item => <li key={item.requestId}>Request #{item.requestNumber} {item.title}</li>)}</ul>
+      <ul className={styles.list}>{view.unreleased.map(item => <li key={item.requestId}><RequestTitle requestId={item.requestId} requestNumber={item.requestNumber} title={item.title} /></li>)}</ul>
     </section>}
 
     <section className={styles.block} data-section="projects" aria-labelledby="org-projects-heading">
