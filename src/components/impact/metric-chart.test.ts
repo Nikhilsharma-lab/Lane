@@ -50,7 +50,7 @@ describe("metric chart: one chart per metric (#158)", () => {
   it("draws nothing and shows the empty message, never a zero bar, when no value is recorded", () => {
     const markup = render(line("Conversion rate", [result({ requestNumber: 1, baselineState: "unknown", baseline: null, actual: null, predictedTarget: null })]))
     expect(markup).not.toContain("<svg")
-    expect(markup).toContain("Nothing measured yet")
+    expect(markup).toContain("Nothing measured this period yet")
     expect(markup).not.toMatch(/height="0"/)
   })
 

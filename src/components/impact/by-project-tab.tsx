@@ -31,8 +31,10 @@ function MeasuredEntry({ line }: { line: MeasuredLine }) {
       {line.results.map(result => <li key={result.requestId} className={styles.nestedRow}>
         <Link href={requestDetailHref(result.requestId, "all")} className={styles.link}>{result.title}</Link>
         <Cells cells={result.cells} />
+        {result.evidence && <span className={styles.muted}>Evidence: {result.evidence}</span>}
       </li>)}
     </ul>}
+    {line.evidence && <p className={styles.muted}>Evidence: {line.evidence}</p>}
   </li>
 }
 

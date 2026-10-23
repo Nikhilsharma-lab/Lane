@@ -18,7 +18,7 @@ const LEADER_VIEWER = viewer(LEADER, "member");
 const GUEST_VIEWER = viewer(GUEST, "guest");
 
 /** A measurement plan: percent conversion by default, 40 now, 50 predicted, 30 days after release. */
-function plan(over: { key?: "conversion" | "adoption" | "check"; unit?: "percent" | "count"; current?: number | null; target?: number | null; noBaseline?: boolean; audience?: "all" | "new"; windowDays?: 30 | 90 } = {}): ExpectedImpact {
+function plan(over: { key?: "conversion" | "adoption" | "check"; unit?: "percent" | "count" | "seconds"; current?: number | null; target?: number | null; noBaseline?: boolean; audience?: "all" | "new"; windowDays?: 30 | 90 } = {}): ExpectedImpact {
   return {
     kind: "measurement",
     version: 4,
@@ -247,7 +247,7 @@ describe("impact read model: still due, closed without result and operational wo
 
   it("does not list operational work or a closed-without-result Request as unreleased", () => {
     const rows = [
-      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "open", releaseState: null, noMeasurableImpactReason: "Design token rename" }),
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "open", releaseState: null, expectedImpact: null, noMeasurableImpactReason: "Design token rename" }),
       row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "open", releaseState: null, exceptionClosure: { version: 1, kind: "exception", reasonCode: "other", reason: "Dropped", actorId: MEMBER, ownerId: MEMBER, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-d", fingerprint: "fp", revision: 1 } as OutcomeException }),
     ];
     const org = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!;
@@ -351,7 +351,7 @@ describe("impact read model: totals rule", () => {
       row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: check, outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "p2" }) }),
     ];
     const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
-    expect(line.verdicts).toEqual({ good: 1, neutral: 0, bad: 1 });
+    expect(line.verdicts).toEqual({ good: 1, bad: 1 });
     expect(line.summed).toBeNull();
     expect(line.results.map(result => result.verdict)).toEqual(["good", "bad"]);
   });
@@ -362,6 +362,53 @@ describe("impact read model: totals rule", () => {
     expect(org.lines).toEqual([]);
     expect(org.emptyMessage).toBe("Nothing measured this period yet");
     expect(org.timeline).toHaveLength(1);
+  });
+});
+
+describe("impact read model: unknown changes and other units (#151 review)", () => {
+  it("shows no change total on a line when any result on it has an unknown baseline, and keeps the count", () => {
+    const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const unknown = plan({ key: "adoption", unit: "count", current: null, target: 150 });
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: adoption, outcomeClosure: measuredClosure(adoption, RELEASE_AUG, 130, { evidence: "u1" }) }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: unknown, outcomeClosure: measuredClosure(unknown, RELEASE_AUG, 120, { evidence: "u2" }) }),
+    ];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line.count).toBe(2);
+    expect(line.summed).toEqual({ count: 2, change: null });
+  });
+
+  it("sums a non-percentage unit that matches exactly, such as seconds", () => {
+    const seconds = plan({ unit: "seconds", current: 40, target: 30 });
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: seconds, outcomeClosure: measuredClosure(seconds, RELEASE_AUG, 35, { evidence: "s1" }) }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: seconds, outcomeClosure: measuredClosure(seconds, RELEASE_AUG, 30, { evidence: "s2" }) }),
+    ];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line.unit).toBe("seconds");
+    expect(line.summed).toEqual({ count: 2, change: -15 });
+  });
+});
+
+describe("impact read model: follow-up Requests (#151 review, US7)", () => {
+  it("lists on each Request the follow-up Requests linked to it", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, followUpOf: "a" }),
+    ];
+    const mine = buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW }).myWork.requests;
+    expect(mine.find(entry => entry.requestNumber === 1)!.followUps).toEqual([{ requestId: "b", requestNumber: 2, title: "Request 2" }]);
+    expect(mine.find(entry => entry.requestNumber === 2)!.followUps).toEqual([]);
+    const project = buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW }).byProject[0];
+    expect(project.requests.find(entry => entry.requestNumber === 1)!.followUps.map(request => request.requestNumber)).toEqual([2]);
+  });
+
+  it("never lists a follow-up a guest cannot see", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: GUEST }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, followUpOf: "a" }),
+    ];
+    expect(buildImpactDashboard(GUEST_VIEWER, rows, { now: NOW }).myWork.requests[0].followUps).toEqual([]);
   });
 });
 

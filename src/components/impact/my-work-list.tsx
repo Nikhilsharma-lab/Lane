@@ -1,5 +1,7 @@
 import Link from "next/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
+import type { ResultView } from "@/lib/impact-read-model"
+import { actualText, changeText, entryKindOf, valueText } from "@/lib/impact-presenter"
 import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
@@ -16,48 +18,41 @@ function roleLabel(role: MyWorkEntry["role"], subject: string | undefined): stri
   return role === "both" ? `Requested and picked up by ${by}` : role === "requester" ? `Requested by ${by}` : `Picked up by ${by}`
 }
 
-/** Values carry their unit; a percentage is a percentage, a count is a bare number. */
-function valueText(value: number, unit: string): string {
-  return unit === "%" ? `${value}%` : unit === "count" ? `${value}` : `${value} ${unit}`
-}
-
-function changeText(change: number, changeUnit: string): string {
-  const sign = change > 0 ? "+" : ""
-  return changeUnit === "count" ? `${sign}${change}` : `${sign}${change} ${changeUnit}`
-}
-
 function ResultDetail({ entry }: { entry: MyWorkEntry }) {
-  const { result, predicted } = entry
-  if (result) {
-    const { baselineState, baseline, actual, change, verdict, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections } = result
-    return <div className={styles.result}>
-      <p className={styles.metric}>{metric}</p>
+  const kind = entryKindOf(entry)
+  switch (kind.kind) {
+    case "result": return <MeasuredFacts result={kind.result} />
+    case "still_due": return <div className={styles.result}>
+      <p className={styles.metric}>{kind.due.metric}</p>
       <dl className={styles.facts}>
-        {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{verdict === "good" ? "Passed" : "Did not pass"}</dd></div> : null}
-        {result.form === "numeric" && baselineState === "known" && baseline !== null ? <div><dt>Baseline</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
-        {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}</dd></div> : null}
-        {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, changeUnit)}</dd></div> : null}
-        {predictedChange !== null && changeUnit !== null ? <div><dt>Predicted change</dt><dd>{changeText(predictedChange, changeUnit)}</dd></div> : null}
-        {predictedTarget !== null && result.form === "numeric" ? <div><dt>Predicted</dt><dd>{valueText(predictedTarget, unit)}</dd></div> : null}
-        <div><dt>Window</dt><dd>{window}</dd></div>
-      </dl>
-      {baselineState === "unknown" ? <p className={styles.note}>Baseline unknown</p> : null}
-      {baselineState === "new_capability" ? <p className={styles.note}>New capability. Target only, no change.</p> : null}
-      {corrections.map(correction => <p key={`${correction.field}-${correction.at}`} className={styles.note}>Correction to {correction.field}: {correction.correction}. Reason: {correction.reason}</p>)}
-    </div>
-  }
-  if (entry.stillDue) {
-    return <div className={styles.result}>
-      <p className={styles.metric}>{entry.stillDue.metric}</p>
-      <dl className={styles.facts}>
-        <div><dt>Still due</dt><dd>Due {entry.stillDue.dueDate} ({entry.stillDue.dueLabel})</dd></div>
+        <div><dt>Still due</dt><dd>Due {kind.due.dueDate} ({kind.due.dueLabel})</dd></div>
       </dl>
     </div>
+    case "closed_without_result": return <p className={styles.note}>Closed without a result: {kind.reason}</p>
+    case "operational": return <p className={styles.note}>Operational work: {kind.reason}</p>
+    case "predicted": return <div className={styles.result}><p className={styles.metric}>{kind.predicted.metric}</p><p className={styles.note}>Predicted, not measured yet</p></div>
+    default: return null
   }
-  if (entry.closedWithoutResult) return <p className={styles.note}>Closed without a result: {entry.closedWithoutResult.reason}</p>
-  if (entry.operationalReason) return <p className={styles.note}>Operational work: {entry.operationalReason}</p>
-  if (predicted) return <div className={styles.result}><p className={styles.metric}>{predicted.metric}</p><p className={styles.note}>Predicted, not measured yet</p></div>
-  return null
+}
+
+function MeasuredFacts({ result }: { result: ResultView }) {
+  const { baselineState, baseline, actual, change, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections, evidence } = result
+  return <div className={styles.result}>
+    <p className={styles.metric}>{metric}</p>
+    <dl className={styles.facts}>
+      {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{actualText(result)}</dd></div> : null}
+      {result.form === "numeric" && baselineState === "known" && baseline !== null ? <div><dt>Baseline</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
+      {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}</dd></div> : null}
+      {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, unit, changeUnit)}</dd></div> : null}
+      {predictedChange !== null && changeUnit !== null ? <div><dt>Predicted change</dt><dd>{changeText(predictedChange, unit, changeUnit)}</dd></div> : null}
+      {predictedTarget !== null && result.form === "numeric" ? <div><dt>Predicted</dt><dd>{valueText(predictedTarget, unit)}</dd></div> : null}
+      <div><dt>Window</dt><dd>{window}</dd></div>
+      {evidence ? <div><dt>Evidence</dt><dd>{evidence}</dd></div> : null}
+    </dl>
+    {baselineState === "unknown" ? <p className={styles.note}>Baseline unknown</p> : null}
+    {baselineState === "new_capability" ? <p className={styles.note}>New capability. Target only, no change.</p> : null}
+    {corrections.map(correction => <p key={`${correction.field}-${correction.at}`} className={styles.note}>Correction to {correction.field}: {correction.correction}. Reason: {correction.reason}</p>)}
+  </div>
 }
 
 /** One row per Request. The whole row is a link to the Request detail, so it opens from the keyboard. */
@@ -72,6 +67,7 @@ export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; 
           <Badge size="sm">{entry.journey}</Badge>
         </span>
         <ResultDetail entry={entry} />
+        {entry.followUps.length > 0 && <span className={styles.note}>Follow-up Requests: {entry.followUps.map(followUp => `${formatRequestCode(followUp.requestNumber)} ${followUp.title}`).join(", ")}</span>}
       </Link>
     </li>)}
   </ul>

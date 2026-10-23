@@ -1,4 +1,5 @@
 import type { ResultLine, ResultView } from "@/lib/impact-read-model"
+import { NOTHING_MEASURED } from "@/lib/impact-presenter"
 
 // The chart presenter (#158). It takes one ResultLine from the read model and shapes its recorded values for one
 // chart: one line is one metric, so one chart and one scale. It adds, averages and combines nothing; the scale is
@@ -40,7 +41,7 @@ export function metricChart(line: ResultLine): MetricChart | null {
   }))
   const head = `${line.metric}, unit ${line.unit}, window ${line.window}.`
   const description = groups.length === 0
-    ? `${head} Nothing measured yet.`
+    ? `${head} ${NOTHING_MEASURED}.`
     : `${head} ${withValues.map(({ result }) => describeGroup(result, line.unit)).join(" ")}`
   return { metric: line.metric, unit: line.unit, window: line.window, scaleMax, groups, description }
 }
