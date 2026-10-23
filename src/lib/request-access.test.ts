@@ -1,5 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,7 +33,7 @@ const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort();
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 2 });
   await sql`insert into organizations(id,name,slug) values (${ORG},'Access','request-access'),(${OTHER},'Other access','request-access-other')`;
   for (const id of Object.keys(ROLES)) await sql`insert into profiles(id,full_name,email) values (${id},${id},${id + "@access.test"})`;

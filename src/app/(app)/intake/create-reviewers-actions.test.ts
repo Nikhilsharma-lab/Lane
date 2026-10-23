@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createTriageToken } from "@/lib/triage-token";
@@ -32,7 +33,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   }),
 }));
 
-const connection = postgres(process.env.DATABASE_URL!, { max: 2, prepare: false });
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 2, prepare: false });
 const orgId = "org_create_reviewers";
 const [owner, designer, developer, guest] = users;
 const member = (userId: string) => ({ kind: "member", userId });

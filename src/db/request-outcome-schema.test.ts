@@ -1,7 +1,8 @@
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false });
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 1, prepare: false });
 beforeAll(async () => { await connection `insert into organizations(id,name,slug) values ('org_outcome_schema','Outcome schema','outcome-schema')`; });
 afterAll(() => connection.end());
 const fingerprint = 'a'.repeat(64);

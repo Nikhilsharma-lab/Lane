@@ -1,19 +1,12 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
 import dotenv from "dotenv";
-import { testDatabaseFor } from "./src/test/test-database";
+import { resolveTestDatabase } from "./src/test/test-database";
 
 dotenv.config({ path: ".env.test" });
 
-// Each git worktree resets its own lane_test_<copy>, so sessions working in
-// parallel copies never wipe each other's database mid-run (src/test/test-database.ts).
-if (process.env.DATABASE_URL) {
-  const url = new URL(process.env.DATABASE_URL);
-  if (url.pathname === "/lane_test") {
-    url.pathname = `/${testDatabaseFor(process.cwd())}`;
-    process.env.DATABASE_URL = url.toString();
-  }
-}
+// Resolve the checkout-owned target once before any worker or global reset starts.
+process.env.DATABASE_URL = resolveTestDatabase(process.env.DATABASE_URL).url;
 
 export default defineConfig({
   test: {
