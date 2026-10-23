@@ -257,7 +257,7 @@ describe("impact read model: corrections, shared results and projects", () => {
     expect(project.measured).toEqual([]);
     expect(project.predictions.map(prediction => prediction.requestNumber)).toEqual([1]);
     expect(project.stillDueCount).toBe(1);
-    expect(project.emptyMessage).toBe("Nothing measured yet");
+    expect(project.emptyMessage).toBe("Nothing measured this period yet");
   });
 
   it("gives a new capability its target only, and never a change", () => {
