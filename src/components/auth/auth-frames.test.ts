@@ -7,14 +7,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { statusLabels, withoutHidden } from "@/test/exposed-markup";
 
 type SessionState = { isLoaded: boolean; session?: { currentTask?: { key: string } } | null };
-const clerk = vi.hoisted(() => ({ session: { isLoaded: false } as SessionState, status: "loading" }));
+const clerk = vi.hoisted(() => ({ session: { isLoaded: false } as SessionState, status: "loading", returnUrl: "", signIn: vi.fn() }));
+
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(clerk.returnUrl ? { redirect_url: clerk.returnUrl } : {}) }));
 
 // Clerk's components draw nothing without an instance; these stand-ins render
 // what Lane hands them as `fallback`, which is all Lane controls while Clerk mounts.
 vi.mock("@clerk/nextjs", () => {
   const withFallback = ({ fallback }: { fallback?: ReactNode }) => fallback ?? null;
   return {
-    SignIn: withFallback,
+    SignIn: (props: { fallback?: ReactNode }) => { clerk.signIn(props); return withFallback(props); },
     SignUp: withFallback,
     TaskChooseOrganization: withFallback,
     TaskResetPassword: withFallback,
@@ -35,7 +37,7 @@ const { default: LoginLoading } = await import("@/app/(auth)/login/loading");
 const { default: SignupPage } = await import("@/app/(auth)/signup/page");
 const { default: SignupLoading } = await import("@/app/(auth)/signup/loading");
 
-const render = (element: ReturnType<typeof createElement>) => renderToStaticMarkup(element);
+const render = (element: ReturnType<typeof createElement>) => renderToStaticMarkup(element).replace(/<!--.*?-->/g, "");
 const source = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("Plan item 2.11: the reset link during a Clerk session task", () => {
@@ -79,6 +81,14 @@ describe("Plan item 2.11: the card's space is reserved while Clerk loads", () =>
       expect(html).toContain(title);
       expect(html).toMatch(new RegExp(`<a href="${href}"[^>]*>.*Reload</a>`));
     }
+  });
+
+  it("preserves the server redirect destination through the hash-routed sign-in form", () => {
+    clerk.returnUrl = "http://localhost:3100/intake";
+    try {
+      render(createElement(ClerkHashSignIn));
+      expect(clerk.signIn).toHaveBeenLastCalledWith(expect.objectContaining({ fallbackRedirectUrl: clerk.returnUrl }));
+    } finally { clerk.returnUrl = ""; }
   });
 
   it("gives Clerk's sign-in the card skeleton as its fallback", () => {

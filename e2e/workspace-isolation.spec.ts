@@ -11,11 +11,13 @@ async function openWorkspace(
 ): Promise<Page> {
   const page = await context.newPage();
   await provisionAndSignIn(page, user, { name, workspaceName });
-  await expect(page.getByRole("heading", { name: "Requests" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
   return page;
 }
 
 test("fresh users cannot read requests across workspaces", async ({ browser }) => {
+  // Two real Clerk accounts plus remote fixture teardown can exceed two minutes.
+  test.setTimeout(180_000);
   const userA = await createTestUser("isolation-a");
   const userB = await createTestUser("isolation-b");
   const contextA = await browser.newContext();

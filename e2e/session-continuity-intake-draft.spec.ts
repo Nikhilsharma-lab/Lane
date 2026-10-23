@@ -9,6 +9,7 @@ import {
   deleteTestUser,
 } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { assertOwnedUser } from "./helpers/fixtures";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -39,10 +40,11 @@ const SURFACES = [
   },
 ] as const;
 
-test("the session-expiry link signs back in to the exact Intake review without another framing check", async ({
+test("an expired session signs back in to the exact Intake review without another framing check", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
+  // Four real revoked-session/password sign-ins, each followed by a saved Request.
+  test.setTimeout(360_000);
   const user = await createTestUser("intake-session-recovery");
 
   try {
@@ -135,13 +137,25 @@ test("the session-expiry link signs back in to the exact Intake review without a
         geometry.viewport
       );
 
+      // Removing app cookies alone leaves Clerk's session active: its client can
+      // refresh them and immediately return from /login without a sign-in form.
+      // Revoke only this fixture's session to exercise genuine session recovery.
+      // The restored form can render before Clerk finishes hydrating its client.
+      await expect.poll(() => page.evaluate(() => window.Clerk?.session?.id)).toBeTruthy();
+      const sessionId = await page.evaluate(() => window.Clerk.session?.id);
+      expect(sessionId).toBeTruthy();
+      const clerkClient = await assertOwnedUser(user.id);
+      await clerkClient.sessions.revokeSession(sessionId!);
       await page.context().clearCookies();
       await page
         .getByRole("button", { name: "Create Request", exact: true })
         .click();
       const signInAgain = page.getByRole("link", { name: "Sign in again" });
-      await expect(signInAgain).toBeVisible();
-      await signInAgain.click();
+      // Clerk can observe the revocation and redirect before the action's
+      // recovery link renders. Either path must retain the same continuation.
+      const signInHeading = page.getByRole("heading", { name: "Sign in to Lane", exact: true });
+      await expect(signInAgain.or(signInHeading)).toBeVisible();
+      if (await signInAgain.isVisible()) await signInAgain.click();
       await page.waitForURL((url) => url.pathname === "/login");
 
       // Reload the recovery URL to discard the expired Clerk client session,
@@ -151,9 +165,9 @@ test("the session-expiry link signs back in to the exact Intake review without a
       await page.getByRole("button", { name: "Continue", exact: true }).click();
       await page.locator('input[name="password"]').fill(user.password);
       await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page
-        .getByRole("textbox", { name: "Enter verification code" })
-        .pressSequentially("424242");
+      const verificationCode = page.getByRole("textbox", { name: "Enter verification code" });
+      await expect(verificationCode.or(reviewHeading)).toBeVisible({ timeout: 30_000 });
+      if (await verificationCode.isVisible()) await verificationCode.pressSequentially("424242");
 
       // No helper or manual navigation may supply the missing return route.
       await expect(page).toHaveURL("/intake");
@@ -173,8 +187,9 @@ test("the session-expiry link signs back in to the exact Intake review without a
       // Creating on /intake opens the new Request, as 2.3's page did.
       await page.waitForURL("**/requests/**", { timeout: 20_000 });
       await expect(
-        page.getByRole("heading", { name: editedProblem })
+        page.getByRole("heading", { name: source.title, exact: true })
       ).toBeVisible();
+      await expect(page.getByRole("region", { name: "Problem", exact: true })).toContainText(editedProblem);
       expect(
         await page.evaluate(
           (key) => window.sessionStorage.getItem(key),

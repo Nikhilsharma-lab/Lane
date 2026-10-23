@@ -30,7 +30,7 @@ const SURFACES = [
   },
 ] as const
 
-async function holdNextCommentPost(page: Page) {
+async function holdNextCommentPost(page: Page, body: string) {
   let releaseRequest: (() => void) | undefined
   let markSeen: (() => void) | undefined
   let requestCount = 0
@@ -45,7 +45,8 @@ async function holdNextCommentPost(page: Page) {
     const request = route.request()
     if (
       request.method() === "POST" &&
-      request.headers()["next-action"]
+      request.headers()["next-action"] &&
+      request.postData()?.includes(body)
     ) {
       requestCount += 1
       markSeen?.()
@@ -104,7 +105,7 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
       const slowComment = `${surface.name}: one slow comment`
 
       await textarea.fill(slowComment)
-      const heldPost = await holdNextCommentPost(page)
+      const heldPost = await holdNextCommentPost(page, slowComment)
       await textarea.evaluate((element: HTMLTextAreaElement) => {
         const shortcut = {
           key: "Enter",
@@ -144,7 +145,8 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
         if (
           failedRequestCount === 0 &&
           requestToFail.method() === "POST" &&
-          requestToFail.headers()["next-action"]
+          requestToFail.headers()["next-action"] &&
+          requestToFail.postData()?.includes(failedComment)
         ) {
           failedRequestCount += 1
           await route.abort("failed")
@@ -155,7 +157,7 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
 
       await submit.click()
       await expect(
-        form.locator('[data-slot="feedback"][role="alert"]')
+        form.getByRole("alert")
       ).toContainText("Your draft is still here.")
       // The pending comment goes and its text comes back into the box.
       await expect(page.locator("#conversation li").filter({ hasText: failedComment })).toHaveCount(0)

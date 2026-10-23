@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
@@ -26,14 +27,14 @@ export default async function AppLayout({
   // Identity and permission come from Clerk claims, so the reads below can
   // start before any database round trip (plan item 1.8).
   const member = await getMember();
-  if (!member) redirect("/login");
+  if (!member) return (await auth()).redirectToSignIn();
 
   // The unread count is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
   const unreadCount = loadUnreadCount(member).catch(() => 0);
   const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
-  if (!result) redirect("/login");
+  if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
 
   return (
