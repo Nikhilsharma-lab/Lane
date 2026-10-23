@@ -1,11 +1,12 @@
 import "server-only"
 
 import { seeable } from "@/lib/request-access"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 
-import { db, projects, requests } from "@/db"
+import { db, profiles, projects, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { buildImpactDashboard, buildTeammateWork, type ImpactDashboard, type ImpactOptions, type ImpactRow, type MyWorkEntry } from "@/lib/impact-read-model"
+import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDashboard, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
+import { FORMER_MEMBER } from "@/lib/request-journey"
 
 // Loads the Requests the viewer may see (every Request in the workspace, or only the guest's own) and hands
 // them to the impact read model. Identity and workspace come from the guard's session-derived `auth`, never
@@ -48,4 +49,13 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
 export async function loadTeammateWork(auth: MemberAuth, personId: string, options: ImpactOptions = {}): Promise<MyWorkEntry[] | null> {
   const rows = await loadImpactRows(auth)
   return buildTeammateWork({ userId: auth.userId, orgId: auth.orgId, role: auth.role }, rows, personId, options)
+}
+
+/** The people a non-guest may open a list for, by name, A to Z. Empty for a guest, who sees no one else. */
+export async function loadTeammates(auth: MemberAuth): Promise<Teammate[]> {
+  const ids = teammateIdsOf({ userId: auth.userId, orgId: auth.orgId, role: auth.role }, await loadImpactRows(auth)) ?? [];
+  if (ids.length === 0) return [];
+  const names = await db.select({ id: profiles.id, fullName: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
+  const byId = new Map(names.map(person => [person.id, person.fullName]));
+  return ids.map(id => ({ id, name: byId.get(id) ?? FORMER_MEMBER })).sort((a, b) => a.name.localeCompare(b.name));
 }

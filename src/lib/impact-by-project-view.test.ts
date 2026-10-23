@@ -63,6 +63,18 @@ describe("By project view: a Project with measured results", () => {
     expect(search.emptyMessage).toBeNull();
   });
 
+  it("gives each measured line the same chart Whole org draws for it, and none for a Verified result", () => {
+    const check = plan({ key: "check", unit: "count", current: null, target: null });
+    const [search] = sectionsOf([
+      row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Search", status: "done", releaseState: releaseState(RELEASE_AUG), outcomeClosure: measured(plan(), RELEASE_AUG, 46, "Export") }),
+      row({ id: "b", requestNumber: 2, projectId: "p1", projectName: "Search", status: "done", releaseState: releaseState(RELEASE_AUG), expectedImpact: check, outcomeClosure: measured(check, RELEASE_AUG, 0, "Check", true) }),
+    ]);
+    const [chartLine, verifiedLine] = search.measured;
+    expect(chartLine.chart).toMatchObject({ metric: "Conversion rate", unit: "%", scaleMax: 50 });
+    expect(chartLine.chart?.groups).toHaveLength(1);
+    expect(verifiedLine.chart).toBeNull();
+  });
+
   it("lists the Project's Requests beneath, each with its actual value", () => {
     const [search] = sectionsOf([
       row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Search", status: "done", releaseState: releaseState(RELEASE_AUG), outcomeClosure: measured(plan(), RELEASE_AUG, 46, "Export") }),

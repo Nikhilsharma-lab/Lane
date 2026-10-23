@@ -5,6 +5,7 @@
  */
 import type { ProjectView, Prediction, RequestEntry, ResultLine, ResultView } from "./impact-read-model";
 import { requestCodeOrNull } from "./request-code";
+import { metricChart, type MetricChart } from "./impact-chart-view";
 
 export const UNASSIGNED_HEADING = "Requests without a Project";
 
@@ -23,6 +24,8 @@ export type MeasuredLine = {
   summary: string;
   total: string | null;
   cells: MetricCells | null;
+  /** The same chart the Whole org view draws for this metric (#159); null for a Verified result. */
+  chart: MetricChart | null;
   results: MeasuredResultRow[];
 };
 
@@ -105,6 +108,7 @@ function measuredLineOf(line: ResultLine): MeasuredLine {
     summary,
     total,
     cells: numeric && count === 1 ? cellsOf(line.results[0]) : null,
+    chart: metricChart(line),
     results: line.results.map(result => ({ requestId: result.requestId, requestNumber: result.requestNumber, title: result.title, cells: cellsOf(result) })),
   };
 }

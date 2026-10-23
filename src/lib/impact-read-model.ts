@@ -380,6 +380,24 @@ export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], perso
   return workOf(visibleTo(viewer, rows), personId, options.now ?? new Date());
 }
 
+/** A person a non-guest may open a list for, by name. */
+export type Teammate = { id: string; name: string };
+
+/**
+ * The people a viewer may open a list for (spec story 12): everyone who requested or picked up a Request the viewer
+ * can see, except the viewer. Null for a guest, who has no view of anyone else. Sorted and without repeats.
+ */
+export function teammateIdsOf(viewer: ImpactViewer, rows: ImpactRow[]): string[] | null {
+  if (viewer.role === "guest") return null;
+  const people = new Set<string>();
+  for (const row of visibleTo(viewer, rows)) {
+    people.add(requesterOf(row));
+    if (row.assignedTo) people.add(row.assignedTo);
+  }
+  people.delete(viewer.userId);
+  return [...people].sort();
+}
+
 export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
   const now = options.now ?? new Date();
   const period = options.period ?? null;
@@ -433,11 +451,13 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
     wholeOrg: {
       period,
       lines,
-      emptyMessage: lines.length === 0 ? (period ? "Nothing measured this period yet" : "Nothing measured yet") : null,
+      emptyMessage: lines.length === 0 ? "Nothing measured this period yet" : null,
       operational: byRequestNumber(entries.flatMap(({ row }) => row.noMeasurableImpactReason ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reason: row.noMeasurableImpactReason }] : [])),
       closedWithoutResult: byRequestNumber(entries.flatMap(({ row }) => row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason }] : [])),
       timeline,
-      unreleased: byRequestNumber(entries.flatMap(({ row }) => journeyStatus(row).status === "done" && !row.releaseState?.release ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }] : [])),
+      // Spec #151 (US32, decisions): a Request with no release date is never in a period, whether Done or still open.
+      // Operational work and closed-without-result Requests already sit in their own excluded sections.
+      unreleased: byRequestNumber(entries.flatMap(({ row, entry }) => entry.releaseDate === null && !row.noMeasurableImpactReason && !row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }] : [])),
       projectStacks,
     },
   };

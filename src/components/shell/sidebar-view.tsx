@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { Rows3 } from "lucide-react";
+import { ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
@@ -145,7 +145,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
   const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
-  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : null;
+  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : null;
   // Plan item 2.0: the ancestors the topbar used to show. Each page's strip adds
   // its own name as the current crumb. Memoised, so typing in the list filter
   // does not re-render the strips (plan item 1.14).
@@ -159,6 +159,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const groups = [
     { id: "workspace", name: workspaceName, items: [
       { id: "requests", name: role === "guest" ? "My Requests" : "All Requests", href: "/", icon: <Rows3 strokeWidth={1.75} /> },
+      // #159: the impact Dashboard, for every role (a guest sees only their own Requests on it).
+      { id: "/impact", name: "Impact", href: "/impact", icon: <ChartColumn strokeWidth={1.75} /> },
     ] },
   ];
   // Settings has its own Arc navigation and search. Preserve all workspace state

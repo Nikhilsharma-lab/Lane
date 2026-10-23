@@ -3,6 +3,7 @@ import { Badge } from "@/components/arc/badge/badge"
 import type { ProjectView } from "@/lib/impact-read-model"
 import { byProjectSections, type MetricCells, type MeasuredLine, type PredictionLine, type ProjectSection, type RequestLine } from "@/lib/impact-by-project-view"
 import { requestDetailHref } from "@/lib/request-workspace"
+import { MetricChart } from "./metric-chart"
 import styles from "./by-project-tab.module.css"
 
 // The "By project" tab (#156). Renders the read model's Project views; every number and every total comes from the read model.
@@ -25,6 +26,7 @@ function MeasuredEntry({ line }: { line: MeasuredLine }) {
       <span className={styles.muted}>{line.summary}</span>
       {line.total && <span className={styles.metric}>{line.total}</span>}
     </div>
+    {line.chart && <MetricChart chart={line.chart} />}
     {line.cells ? <Cells cells={line.cells} /> : <ul className={styles.nested}>
       {line.results.map(result => <li key={result.requestId} className={styles.nestedRow}>
         <Link href={requestDetailHref(result.requestId, "all")} className={styles.link}>{result.title}</Link>
