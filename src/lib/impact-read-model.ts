@@ -392,7 +392,8 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
       predictions,
       stillDueCount: entries.filter(entry => entry.stillDue).length,
       requests: entries,
-      emptyMessage: measured.length === 0 ? (period ? "Nothing measured this period yet" : "Nothing measured yet") : null,
+      // Spec #151 (US35): a Project with nothing measured says so in the same words, whatever the period.
+      emptyMessage: measured.length === 0 ? "Nothing measured this period yet" : null,
     };
   }).sort((a, b) => (a.projectId === null) !== (b.projectId === null) ? (a.projectId === null ? 1 : -1) : a.name.localeCompare(b.name));
 
