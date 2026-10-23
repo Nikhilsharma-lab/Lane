@@ -1,9 +1,11 @@
 import "server-only";
+import { seeable } from "@/lib/request-access"
 
 import { and, count, desc, eq, exists, isNull, or } from "drizzle-orm";
 
 import { db, notifications, profiles, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
+import { writeDueReminders } from "./bell-reminders";
 
 /**
  * Shared by notification reads and mutations so a historical delivery never
@@ -17,8 +19,7 @@ export function notificationVisibility(auth: MemberAuth) {
       .where(
         and(
           eq(requests.id, notifications.requestId),
-          eq(requests.orgId, auth.orgId),
-          auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined
+          seeable(auth)
         )
       )
   );
@@ -37,9 +38,14 @@ export function notificationVisibility(auth: MemberAuth) {
 /**
  * Plan item 1.8: the unread count the (app) layout hands to the bell as a
  * promise, so it streams in behind the first paint instead of being fetched
- * from the client after hydration. One statement.
+ * from the client after hydration. #136: first writes any bell reminders the
+ * member is owed today, so both the layout stream and GET /api/notifications/unread
+ * count them. A failed reminder write is logged and never blocks the count.
  */
 export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
+  await writeDueReminders(auth).catch((error) => {
+    console.error("[notifications] reminder write failed", { kind: error instanceof Error ? error.name : "UnknownError" });
+  });
   const [row] = await db
     .select({ value: count() })
     .from(notifications)
@@ -54,7 +60,8 @@ export type NotificationRow = {
   id: string;
   type: string;
   requestId: string | null;
-  actorId: string;
+  /** Null for a reminder, which Lane writes itself. */
+  actorId: string | null;
   readAt: Date | null;
   createdAt: Date;
   actorName: string | null;

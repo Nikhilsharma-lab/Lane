@@ -1,10 +1,115 @@
 # Shared Claude / Codex handoff
 
+## October 23 — recovery fixes merged and deployed to production
+
+PR #163 is merged at `03728f3372a6d6b76938493e5e7ff052f8a64629`: expired-session
+return to the exact Intake review, current browser selectors, inspected row/selection
+baselines, and the local E2E app using transaction pooling. Production and staging
+already have migrations through 0034; no new migration was required for this release.
+The production backup and verified 0033/0034 receipt were inspected at
+`/Users/nikhilsharma/Documents/Work/Lane/backups/production-0033-0034-2026-10-23/`;
+the backup contains all three 0020 attachment columns and the discard constraint.
+The earlier claim that production still needed 0033/0034 was stale.
+
+- Staging runtime pooling uses 6543 (`prepare: false` already in the app). Missing
+  staging 0020 was repaired after verified pg_dump, rolled-back dry run and
+  ON_ERROR_STOP application; original values in six table snapshots were preserved.
+  Receipt: `backups/staging-0020-repair-2026-10-23/` in the recovery checkout.
+- Deployed the exact release source to staging:
+  `dpl_2J1tdPVER9gy14auAamMMSoXoBe5`, `lane-staging.vercel.app`.
+- Production is live on `dpl_7vH2yBcnjesmQ3bYBkXSJtXEH7bd` at
+  `https://app.uselane.app`, source `03728f3` (same tree as release archive `9e84f7d`).
+  Signed-in Requests list, saved Request detail and loaded Journey were visually
+  verified with correct styling. Anonymous login returns 200; Intake redirects to
+  login while preserving its full return URL. No production Request was mutated.
+- First candidate `dpl_8ZxU5ZE9Tb6ccUNV2icko2YrhDSm` loaded data but rendered broken
+  component styles. It was immediately rolled back to `dpl_GWNv4i7n6ixdJuDbdrNBQ5q3V33H`.
+  Rebuilding the identical source with `--force` and without `--with-cache` resolved
+  the rendering failure; the replacement was visually checked before promotion.
+  Old build cache is the suspected cause, not a proven root-cause diagnosis.
+- All PR CI checks passed: typecheck, lint, design checks, build/bundle and tests.
+  Local unit run: 1,541 passed / one skipped. Local browser recovery passed desktop
+  and mobile in light/dark, including save and draft clearing. Focused attachment
+  permissions, comment recovery, isolation, row identity and selection checks passed.
+- Hosted signup and expired-session Intake recovery passed on the new staging
+  deployment (desktop/mobile, light/dark, exact draft restoration, save and clear).
+  Command-palette hosted E2E failed an input-focus assertion; the dialog opened but
+  its input did not retain focus. It is not a fully green browser suite.
+- Synthetic staging LAN-31 and LAN-33 remain In progress from pickup verification;
+  LAN-34 remains Open. No production Request was changed by recovery checks.
+- Manual failed-upload/Retry/Leave-page and Show it acceptance remain incomplete.
+  The earlier browser extension file permission blocked manual uploads; automated
+  real private upload/download and access rejection passed.
+
+Release work is isolated in `codex/production-recovery-2026-10-23` at
+`/Users/nikhilsharma/.codex/worktrees/lane-recovery-20261023`. The original research
+checkout was preserved. Deployment input is a clean Git archive (913 files, about
+6 MB); no environment files, backups, traces or local build output were uploaded.
+
+## October 23 — production 0033 + 0034 applied; #127 deployed (user-approved)
+
+**Production (`tcfwabpoiydvfqxhtkur`) and Lane Staging both have 0013 → 0034. Next migration: 0035.** Production
+ran from `backups/production-0033-0034-2026-10-23/` (`run.sh` → `migrate.cjs`): verified backup (3 Requests, 1 file,
+1 Project), rehearsal on a local restore, then 0033 and 0034; verify: every migration present, nothing lost, every
+Request unchanged (incl. `updated_at`), `done_at` on exactly the Done Requests. The connection string came from
+Supabase via the clipboard (Vercel's production `DATABASE_URL` is Sensitive and cannot be pulled) and was deleted
+after. The owner then reset the production database password, updated Vercel's production `DATABASE_URL`, and
+deployed `main` (PR #139); the live journey was checked by the owner.
+
+## October 22 — staging 0033 + 0034 applied; journey e2e passes (user-approved)
+
+With the user's explicit approval: verified backup and a local-restore rehearsal in ignored
+`backups/journey-0033-0034-2026-10-22/` (22 Requests), then 0033 (drop `request_review_state`) and 0034
+(reminders, `done_at`, `picked_up_at`) applied to **Lane Staging**. Verify: all checks true; every Request row
+unchanged (incl. `updated_at`), nothing lost, `done_at` on exactly the 8 Done Requests. _Production got 0033 + 0034 on
+October 23; see the entry above._ The journey e2e
+(`request-release`, `request-outcome`, `request-reviewers`, `reliable-request-lifecycle-actions`) then passed on
+staging, one worker (parallel runs hit Clerk's "Too Many Requests"). `command-palette.spec.ts` fails in its guest
+fixture (Clerk Not Found creating an `org:guest` membership): pre-existing, unrelated to #127.
+
+## October 22 — #137 journey e2e authored, awaiting a hosted run (branch `journey-127`)
+
+The e2e for the #127 journey is updated but **not run**: Lane Staging has 0031 and 0032, and these specs also need
+main's 0033 and #127's `0034_reminders_and_done_time.sql` (renamed from 0033 when `main` was merged in; applying
+them is a separate approved step with a verified backup and dry run). Run them on staging after that.
+Typecheck and lint pass.
+
+- `e2e/request-release.spec.ts`: Mark Done → "Is it live?" → "Yes, record release" records today's release in
+  the prompt (Undo Done ends); with a 7-day agreed window (the plan's shortest) the Measuring step shows
+  "Due in 7 days" and the list row carries no due tag and is not under `/?status=due`; then correction and handover. 1440/390,
+  light/dark.
+- `e2e/request-outcome.spec.ts`: Mark Done → "Not yet" brings Undo back; release from the timeline's Done step;
+  closing without a result shows the Closed step. 1440/390, light/dark.
+- `e2e/reliable-request-lifecycle-actions.spec.ts` answers "Not yet" after Mark Done (and reads the phone state
+  line's name); `e2e/perf.spec.ts` (LANE_PERF_MUTATE=1) answers "Not yet" before Undo.
+- Shared helpers: `e2e/helpers/journey.ts`; `createRequestThroughIntake` takes `windowDays` (7/14/30/90).
+
+## October 22 — architecture review work merged; staging has 0031 and 0032
+
+The architecture-review candidates are merged to `main` (#80–#125; W4 keyboard shortcuts waits for #109, the
+command palette). Database: **Lane Staging (`jznepeqghjixcrpuddym`) has 0031 and 0032.** 0031 was found already
+applied and complete on 2026-10-22 (no record of who applied it); another session applied 0032 that day from
+`backups/staging-0032-2026-10-22/`. Both were checked against the verified backup in
+`backups/reviewers-0031-0032-2026-10-22/` taken just before 0032: 14 Requests, every Request row unchanged, no
+comment or file lost, `notify` and the reset trigger match `0032`. Migration `0033` (drop the unused
+`request_review_state`) is written and passes locally; not applied anywhere.
+
+**Production (`tcfwabpoiydvfqxhtkur`) has 0028 → 0032, applied 2026-10-22 under the owner's explicit approval.**
+Verified backup and row snapshots in `backups/production-0028-0032-2026-10-22/` (3 Requests, 1 file, 1 Project);
+the backup was restored into a local database and 0028–0032 rehearsed there first; afterwards every check passed
+(all five migrations present, no Request, comment, file, notification or Project lost, Request content, status
+and priority unchanged). The pulled credentials were deleted. The production database password was reset by the
+owner the same day, so Vercel's production `DATABASE_URL` must hold the new password before the site connects.
+Production deploys are manual (GitHub shows only Preview deployments); `main` can be deployed once 0033 has run
+on staging and then production, or before 0033, which only drops an unused function.
+
+Other notes: each worktree's test suite now resets its own `lane_test_<copy>` (#122); `pnpm bundle:check`
+baseline reset with a written waiver (#128).
+
 ## October 21 — #74 optional reviewers built: #75–#78 (branch `lifecycle-simplify`)
 
 Spec [#74](https://github.com/Nikhilsharma-lab/Lane/issues/74) is built on `lifecycle-simplify`. Migration
-`0031_simple_request_agreement.sql` holds all of it and is still unapplied anywhere (staging stops at 0030);
-applying it is a separate approved step with a backup and dry run.
+`0031_simple_request_agreement.sql` holds all of it. _Applied to staging by 2026-10-22; see the entry above._
 
 - **#75 reviewers replace the PM/Designer/Developer agreement.** `0031` stores an ordered reviewer list; filled
   seats convert (agree → Looks good, request changes → concern, withdraw → unanswered), the requester's own seat
@@ -14,15 +119,15 @@ applying it is a separate approved step with a backup and dry run.
   once accepted and verified), `readReviews` (profile role, departed reviewers greyed out), `loadReviewerPeople`.
   Pickup never checks reviews; nothing changes after pickup. Release no longer checks agreement (earliest exposure
   = creation date). Follow-ups copy reviewers unanswered, minus the follow-up's creator, and ask each of them
-  (`review_requested`) in the same transaction. The Reviewers panel (`request-reviewers-panel.tsx`)
+  (`review_requested`) in the same transaction. The Reviewers list (`request-reviews.tsx`, in the journey timeline's Open step since #134)
   replaces the three-seat picker. Seat conversion is checked from `src/test/agreement-seat-fixtures.sql`.
 - **#76 edits reset reviews; notifications; optional question.** A `0031` trigger resets every answer when the
   content of an Open Request changes (not priority), bumps the revision and notifies reviewers who had answered
   (`review_reset`); edit actions call `nameReviewResetActor` (sets `lane.actor_id`) so the editor is named. Adding notifies each reviewer
   (`review_requested`, with the optional question in `notifications.detail`); answers notify whoever added the
   reviewer (`review_looks_good` / `review_concern` with the reason). No self-notifications; bell only.
-- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gives list and detail loaders
-  the open concerns and unanswered count. One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
+- **#77 pickup confirmation and list marker.** `request_review_state` (in `0031`) gave list and detail loaders
+  the open concerns and unanswered count (_replaced 2026-10-22 by `reviewStatesOf` in the app, #111; 0033 drops it_). One shared "Pick up anyway?" dialog (`pickup-confirmation.tsx`) serves
   the detail button, status control, row menu and bulk bar (one combined dialog). The reviewers panel reports
   what it last read to the dialog, which prefers it over the loaded copy, so a reviewer just added, removed or
   answered (page or preview) is never skipped. "N concern(s)" marker on Open rows only.
@@ -40,7 +145,7 @@ applying it is a separate approved step with a backup and dry run.
 Review fixes (2026-10-21): agreement-era code names were renamed to reviewer names (code only; DB tables,
 columns, migration 0031 and the stored `nominee` JSON key are unchanged): `reviewer-actions.ts`,
 `request-reviewer-rules.ts` (was `request-agreement.ts`), `workspace-roster.ts`, `request-change-store.ts`
-(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviewersPanel`, `ReviewerIdentity`.
+(`mutateReviewers`, `RequestChangeError`), `request-progress.ts`, `RequestReviews`, `ReviewerIdentity`.
 
 Verified locally: typecheck, lint and the vitest suite. Server-action tests: `reviewer-actions.test.ts` and
 `src/app/(app)/intake/create-reviewers-actions.test.ts`. The hosted Playwright spec `e2e/request-reviewers.spec.ts`

@@ -19,14 +19,15 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
 
-import { db, queryCounter, comments, notifications, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db";
+import { db, queryCounter, comments, notifications, organizations, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { REQUEST_PRIORITIES } from "@/lib/request-constants";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
 import { loadProjects } from "./projects";
 import { loadUnreadCount } from "./notifications";
-import { DONE_PAGE_SIZE, loadOlderDoneRequests, loadRequestDetail, loadRequestList } from "./requests";
+import { DONE_PAGE_SIZE, loadOlderFinishedRequests, loadRequestDetail, loadRequestList } from "./requests";
+import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview";
 
 const ORG = "org_test_a", OTHER_ORG = "org_test_b";
 const ADMIN = "user_test_admin_a", MEMBER = "user_test_member_a", OTHER_ADMIN = "user_test_admin_b";
@@ -49,6 +50,16 @@ const reviewer = (userId: string, name: string, decision: { kind: "looks_good" |
 const doneRequests = Array.from({ length: DONE_PAGE_SIZE + 2 }, () => randomUUID());
 const foreignDone = randomUUID();
 const guestDone = [randomUUID(), randomUUID()];
+// #133: Requests along the whole journey, all older than the newest Done one, so a
+// status view's database page reaches them from that cursor.
+const JOURNEY_ORG = "org_loaders_journey";
+const journeyMember: MemberAuth = { userId: MEMBER, orgId: JOURNEY_ORG, role: "member" };
+const fingerprint = "a".repeat(64);
+const releaseFact = (dueDate: string) => ({ exposureDate: "2026-10-01", audience: "All shoppers", evidence: "Rollout log", dueDate, startDate: "2026-10-01", windowKind: "relative" as const });
+const released = (dueDate: string) => ({ version: 1 as const, ownerId: MEMBER, release: releaseFact(dueDate), history: [{ operationId: randomUUID(), fingerprint, actorId: MEMBER, at: "2026-10-02T00:00:00Z", input: { kind: "release" as const, exposureDate: "2026-10-01", evidence: "Rollout log", audienceConfirmed: true as const }, previousRelease: null, release: releaseFact(dueDate), previousOwnerId: MEMBER, ownerId: MEMBER, revision: 1 }] });
+const noResult = { version: 1, kind: "exception", reasonCode: "rolled_back", reason: "Rolled back", actorId: MEMBER, ownerId: MEMBER, closedAt: "2026-10-03T00:00:00Z", operationId: randomUUID(), fingerprint, release: null, revision: 1 } as const;
+const journeyNow = new Date("2026-10-28T12:00:00Z");
+const journeyRequests = { open: randomUUID(), newestDone: randomUUID(), measuringLater: randomUUID(), dueSoon: randomUUID(), overdue: randomUUID(), closedInProgress: randomUUID(), olderDone: randomUUID() };
 const uploadedAttachment = randomUUID(), pendingAttachment = randomUUID();
 const notificationIds = Array.from({ length: 7 }, () => randomUUID());
 
@@ -68,6 +79,19 @@ beforeAll(async () => {
     ...doneRequests.map((id, index) => ({ id, orgId: ORG, title: `Loader Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: MEMBER, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1, 0, 0, index)) })),
     { id: foreignDone, orgId: OTHER_ORG, title: "Loader foreign Done", description: "Seeded by loaders.test.ts", createdBy: OTHER_ADMIN, status: "done" as const, createdAt: new Date(Date.UTC(2099, 0, 1)) },
     ...guestDone.map((id, index) => ({ id, orgId: ORG, title: `Loader guest Done ${index}`, description: "Seeded by loaders.test.ts", createdBy: GUEST, status: "done" as const, createdAt: new Date(Date.UTC(2080, 0, index + 1)) })),
+  ]);
+  // Released and closed Requests can never be deleted (0029, 0030), so they live in their own
+  // workspace, which the test database reset removes.
+  await db.insert(organizations).values({ id: JOURNEY_ORG, name: "Loaders journey", slug: "loaders-journey" });
+  const journeyRow = (id: string, title: string, at: number, facts: Partial<typeof requests.$inferInsert>) => ({ id, orgId: JOURNEY_ORG, title, description: "Seeded by loaders.test.ts", createdBy: MEMBER, status: "done" as const, createdAt: new Date(Date.UTC(2098, 0, at)), ...facts });
+  await db.insert(requests).values([
+    journeyRow(journeyRequests.open, "Loader journey Open", 1, { status: "open" }),
+    journeyRow(journeyRequests.newestDone, "Loader journey newest Done", 9, {}),
+    journeyRow(journeyRequests.measuringLater, "Loader Measuring, due in 10 days", 8, { releaseState: released("2026-11-07") }),
+    journeyRow(journeyRequests.dueSoon, "Loader Measuring, due in 2 days", 7, { releaseState: released("2026-10-30") }),
+    journeyRow(journeyRequests.overdue, "Loader Measuring, overdue", 6, { releaseState: released("2026-10-20") }),
+    journeyRow(journeyRequests.closedInProgress, "Loader closed without a result", 5, { status: "in_progress", assignedTo: MEMBER, exceptionClosure: noResult }),
+    journeyRow(journeyRequests.olderDone, "Loader journey older Done", 4, {}),
   ]);
   await db.insert(requestAgreements).values({ requestId: reviewedRequest, orgId: ORG, reviewers: [
     reviewer(ADMIN, "Test Admin", { kind: "concern", reason: "The API cannot page this yet." }),
@@ -138,9 +162,11 @@ describe("loadProjects", () => {
 });
 
 describe("loadUnreadCount", () => {
-  it("counts unread notifications in the workspace in one statement", async () => {
+  // #136: one read for reminders owed (the bell writes them, no scheduled job), then the count.
+  // An insert is added only on a load where a reminder is actually due.
+  it("counts unread notifications in the workspace in two statements when no reminder is due", async () => {
     const { result, statements } = await queryCounter.measure(() => loadUnreadCount(admin));
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(2);
     expect(result).toBe(2);
   });
 
@@ -180,42 +206,81 @@ describe("loadRequestList", () => {
   });
 
   it("loads every active status but only the latest page of Done, leaving status and Project to the browser (plan item 1.7)", async () => {
-    const { rows, activeCapped, hasOlderDone } = await loadRequestList(member);
+    const { rows, activeCapped, hasOlderFinished } = await loadRequestList(member);
     const done = rows.filter(row => row.status === "done").map(row => row.id);
     expect(done).toHaveLength(DONE_PAGE_SIZE);
     expect(done).toEqual(expect.arrayContaining(doneRequests.slice(2)));
     expect(done).not.toContain(doneRequests[0]);
     expect(done).not.toContain(foreignDone);
-    expect(hasOlderDone).toBe(true);
+    expect(hasOlderFinished).toBe(true);
     expect(activeCapped).toBe(false);
     expect(rows.map(row => row.status)).toEqual(expect.arrayContaining(["open", "in_progress", "done"]));
     expect(rows.map(row => row.projectId)).toEqual(expect.arrayContaining([memberProject, null]));
   });
 
   it("pages older Done Requests from the oldest one shown, in one statement and inside the workspace", async () => {
-    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(member, doneRequests[2]));
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(member, doneRequests[2]));
     expect(statements).toBeLessThanOrEqual(1);
     expect(result.rows.map(row => row.id).slice(0, 2)).toEqual([doneRequests[1], doneRequests[0]]);
     expect(result.rows.every(row => row.status === "done")).toBe(true);
-    expect(result.hasOlderDone).toBe(false);
+    expect(result.hasOlderFinished).toBe(false);
     // Another workspace's cursor, a guest's view and a malformed id read nothing.
-    expect((await loadOlderDoneRequests(admin, foreignDone)).rows).toEqual([]);
-    expect((await loadOlderDoneRequests(guest, doneRequests[2])).rows).toEqual([]);
-    const malformed = await queryCounter.measure(() => loadOlderDoneRequests(member, "not-a-uuid"));
+    expect((await loadOlderFinishedRequests(admin, foreignDone)).rows).toEqual([]);
+    expect((await loadOlderFinishedRequests(guest, doneRequests[2])).rows).toEqual([]);
+    const malformed = await queryCounter.measure(() => loadOlderFinishedRequests(member, "not-a-uuid"));
     expect(malformed.statements).toBe(0);
-    expect(malformed.result).toEqual({ rows: [], hasOlderDone: false });
+    expect(malformed.result).toEqual({ rows: [], hasOlderFinished: false });
   });
 
   it("does not use a hidden Request as a guest pagination cursor", async () => {
     // Both guest rows predate the hidden member cursor. Without cursor visibility,
     // the hidden UUID reveals itself by returning these otherwise authorized rows.
     for (const cursorId of [doneRequests[2], foreignDone, randomUUID()]) {
-      expect(await loadOlderDoneRequests(guest, cursorId)).toEqual({ rows: [], hasOlderDone: false });
+      expect(await loadOlderFinishedRequests(guest, cursorId)).toEqual({ rows: [], hasOlderFinished: false });
     }
-    const { result, statements } = await queryCounter.measure(() => loadOlderDoneRequests(guest, guestDone[1]));
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(guest, guestDone[1]));
     expect(statements).toBeLessThanOrEqual(1);
     expect(result.rows.map(row => row.id)).toEqual([guestDone[0]]);
-    expect(result.hasOlderDone).toBe(false);
+    expect(result.hasOlderFinished).toBe(false);
+  });
+});
+
+describe("status views in the database (#133)", () => {
+  const journeyOf = (rows: OverviewRequest[]) => rows.map(row => rowJourney(row).label);
+  const ids = (rows: { id: string }[]) => rows.map(row => row.id);
+
+  const page = async (view: Parameters<typeof loadOlderFinishedRequests>[2]) => {
+    const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(journeyMember, journeyRequests.newestDone, view, journeyNow));
+    expect(statements).toBeLessThanOrEqual(1);
+    return result.rows.map(row => ({ ...row, createdAt: row.createdAt.toISOString() }));
+  };
+
+  it("gives every list row the facts its one journey status reads from", async () => {
+    const { rows } = await loadRequestList(journeyMember);
+    const read = Object.fromEntries(rows.map(row => [row.id, rowJourney({ ...row, createdAt: row.createdAt.toISOString() }).label]));
+    expect(read).toEqual({
+      [journeyRequests.open]: "Open", [journeyRequests.newestDone]: "Done", [journeyRequests.measuringLater]: "Measuring",
+      [journeyRequests.dueSoon]: "Measuring", [journeyRequests.overdue]: "Measuring",
+      [journeyRequests.closedInProgress]: "Closed without a result", [journeyRequests.olderDone]: "Done",
+    });
+  });
+
+  it("returns exactly each status view's Requests from the database", async () => {
+    expect(ids(await page("done"))).toEqual([journeyRequests.olderDone]);
+    expect(ids(await page("measuring"))).toEqual([journeyRequests.measuringLater, journeyRequests.dueSoon, journeyRequests.overdue]);
+    expect(ids(await page("closed"))).toEqual([journeyRequests.closedInProgress]);
+    expect(journeyOf(await page("closed"))).toEqual(["Closed without a result"]);
+    const due = await page("due");
+    expect(ids(due)).toEqual([journeyRequests.dueSoon, journeyRequests.overdue]);
+    expect(due.map(row => rowDue(row, journeyNow))).toMatchObject([{ label: "Due in 2 days" }, { label: "Overdue 8 days" }]);
+    expect(ids(await page("all"))).toEqual([journeyRequests.measuringLater, journeyRequests.dueSoon, journeyRequests.overdue, journeyRequests.closedInProgress, journeyRequests.olderDone]);
+  });
+
+  it("keeps the guest guard on every status view", async () => {
+    for (const view of ["done", "measuring", "closed", "due"] as const) {
+      const { rows } = await loadOlderFinishedRequests(guest, guestDone[1], view, journeyNow);
+      expect(ids(rows).every(id => id === guestDone[0])).toBe(true);
+    }
   });
 });
 

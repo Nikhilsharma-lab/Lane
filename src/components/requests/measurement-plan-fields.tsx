@@ -6,7 +6,7 @@ import { Button } from "@/components/arc/button/button"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Input } from "@/components/arc/input/input"
 import { Textarea } from "@/components/arc/textarea/textarea"
-import { IMPACT_SOURCE_MAX, IMPACT_RESULT_MAX, guardrailSchema, expectedImpactDraftSchema, type ExpectedImpactDraft } from "@/lib/request-impact"
+import { IMPACT_SOURCE_MAX, IMPACT_RESULT_MAX, guardrailSchema, expectedImpactDraftSchema, type PlanImpactDraft } from "@/lib/request-impact"
 import { Select } from "@/components/arc/select/select"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { MeasurementDateDialog } from "./measurement-date-dialog"
@@ -122,7 +122,7 @@ function SectionHeader({ title, action, optional }: { title: string; action?: Re
 }
 
 /** All saved formats use this one renderer and its controls. */
-export function MeasurementPlanFields<T extends ExpectedImpactDraft>({ value, onChange, ...props }: {
+export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChange, ...props }: {
   value: T; onChange: (value: T) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean
 }) {

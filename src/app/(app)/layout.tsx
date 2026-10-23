@@ -1,13 +1,17 @@
+import { auth } from "@clerk/nextjs/server";
 import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
+import { loadLabels } from "@/lib/data/labels";
 import { loadUnreadCount } from "@/lib/data/notifications";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
+import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
+import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
@@ -23,14 +27,14 @@ export default async function AppLayout({
   // Identity and permission come from Clerk claims, so the reads below can
   // start before any database round trip (plan item 1.8).
   const member = await getMember();
-  if (!member) redirect("/login");
+  if (!member) return (await auth()).redirectToSignIn();
 
   // The unread count is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
   const unreadCount = loadUnreadCount(member).catch(() => 0);
-  const [result, projects] = await Promise.all([getWorkspace(), loadProjects(member)]);
-  if (!result) redirect("/login");
+  const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
+  if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
 
   return (
@@ -40,8 +44,12 @@ export default async function AppLayout({
       <PendingMutationsProvider key={`${result.orgId}:${result.userId}`}>
       {/* #77: one "Pick up anyway?" confirmation for every pickup entry point. */}
       <PickupConfirmationProvider>
+      {/* #103: clears the palette's Undo Mark Done when the toast queue shrinks. */}
+      <MarkDoneUndoWatcher />
+      {/* #135: one "Is it live?" prompt for every single-Request Mark Done. */}
+      <IsItLiveProvider orgId={result.orgId}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
-        <WorkspaceLabelsProvider orgId={result.orgId}>
+        <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
         <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
           <Sidebar
             workspaceName={result.workspaceName}
@@ -49,6 +57,7 @@ export default async function AppLayout({
             email={result.email}
             role={result.role}
             orgId={result.orgId}
+            userId={result.userId}
             unreadCount={unreadCount}
           >
             {children}
@@ -56,6 +65,7 @@ export default async function AppLayout({
         </NewRequestProvider>
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
+      </IsItLiveProvider>
       </PickupConfirmationProvider>
       </PendingMutationsProvider>
     </RequestListViewProvider>

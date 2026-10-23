@@ -1,6 +1,6 @@
-import { labelKeysSchema, labelRequestType } from "./request-labels";
+import { labelKeysSchema, sourceRequestType } from "./request-labels";
 import { z } from "zod";
-import { requiredExpectedImpactSchema } from "./request-impact";
+import { newRequestImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { measurementRequestTypeIssue } from "./request-measurement";
 
@@ -62,9 +62,9 @@ export const requestSchema = z.object({
   observedEvidence: optionalContextSchema,
   uncertainty: optionalContextSchema,
   usefulLink: usefulLinkSchema,
-  expectedImpact: requiredExpectedImpactSchema,
+  expectedImpact: newRequestImpactSchema,
 }).superRefine((value, context) => {
-  const issue = measurementRequestTypeIssue(value.expectedImpact, value.labelKeys ? labelRequestType(value.labelKeys) : value.requestType);
+  const issue = measurementRequestTypeIssue(value.expectedImpact, sourceRequestType(value));
   if (issue) context.addIssue({ code: "custom", path: ["expectedImpact", "primary", "noBaseline"], message: issue });
 });
 
@@ -89,3 +89,27 @@ export const problemFramingSchema = z
   );
 
 export const editedProblemSchema = problemFramingSchema.nullable();
+
+/** A Request's optional context, in the order the composer and detail show it. */
+export const REQUEST_CONTEXT_FIELDS = ["affectedPeople", "desiredChange", "observedEvidence", "uncertainty", "usefulLink"] as const;
+export type RequestContextField = (typeof REQUEST_CONTEXT_FIELDS)[number];
+
+/** Every field a person writes when composing a Request (requestSchema). */
+export const REQUEST_SOURCE_FIELDS = ["expectedImpact", "projectId", "requestType", "priority", "title", "description", ...REQUEST_CONTEXT_FIELDS] as const;
+export type RequestSourceField = (typeof REQUEST_SOURCE_FIELDS)[number];
+
+/** The source field a validation issue belongs to, so the composer can focus it. */
+export function sourceFieldOf(path: readonly PropertyKey[]): RequestSourceField | undefined {
+  const [first] = path;
+  return REQUEST_SOURCE_FIELDS.find((field) => field === first);
+}
+
+/** Context as it is saved: an empty field is stored as null. */
+export function storedContext(source: Partial<Record<RequestContextField, string | null>>): Record<RequestContextField, string | null> {
+  return Object.fromEntries(REQUEST_CONTEXT_FIELDS.map((field) => [field, source[field] || null])) as Record<RequestContextField, string | null>;
+}
+
+/** Context as the composer edits it: a missing value is an empty field. */
+export function formContext(row: Partial<Record<RequestContextField, string | null>>): Record<RequestContextField, string> {
+  return Object.fromEntries(REQUEST_CONTEXT_FIELDS.map((field) => [field, row[field] ?? ""])) as Record<RequestContextField, string>;
+}

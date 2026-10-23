@@ -1,4 +1,5 @@
 import { createElement, type ReactElement } from "react"
+import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
@@ -10,6 +11,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), prefet
 // Plan item 1.8: the workspace reads through src/lib/data (server-only). Vitest cannot resolve Next's
 // "server-only" marker, and the page now derives identity from claims (getMember) before it queries.
 vi.mock("server-only", () => ({}))
+// Every reviewer below is still in the workspace, so each answer counts.
+vi.mock("@/lib/workspace-roster", () => ({ workspaceRoster: async () => [{ nominee: { kind: "member", userId: "user-priya" } }, { nominee: { kind: "member", userId: "user-sam" } }], pendingInvitations: async () => [] }))
 vi.mock("@/lib/ensure-workspace", () => ({
   getMember: async () => ({ userId: "user_test", orgId: "org_test", role: state.role }),
   getWorkspace: async () => ({ needsOnboarding: false, role: state.role, profileRole: "pm", orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
@@ -25,16 +28,16 @@ vi.mock("@/db", async () => {
 vi.mock("./requests/[id]/comment-form", () => ({ CommentForm: () => null }))
 vi.mock("./requests/[id]/attachment-download", () => ({ AttachmentDownload: () => null }))
 vi.mock("./requests/[id]/lifecycle-buttons", () => ({ LifecycleButtons: () => null }))
-vi.mock("./request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
+vi.mock("@/components/requests/request-workspace-keyboard", () => ({ RequestWorkspaceKeyboard: () => null }))
 // Deep-link rendering includes this unrelated client filter; the overview uses its real toolbar.
 
 import { RequestsWorkspace } from "./requests-workspace"
 import { RequestDetailWorkspace } from "./request-detail-workspace"
-import { RequestListViewProvider } from "@/components/requests/list-view-state"
 
 // The root layout always supplies the toast stack that row actions report errors through,
 // and the (app) layout the list view state.
-const wrap = (page: ReactElement) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null, page)))
+// The (app) layout's providers, as the page always has them.
+const wrap = (page: ReactElement) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, null, page)))
 const render = async (search = "") => {
   state.search = search
   return wrap(await RequestsWorkspace())
@@ -110,12 +113,16 @@ describe("Requests first-use landing", () => {
     expect(html).toContain("Back to Requests")
   })
 
+  const reviewer = (userId: string, name: string, decision: { kind: "concern"; reason: string } | null) => ({
+    id: `reviewer-${userId}`, nominee: { kind: "member", userId }, displayNameAtSelection: name, addedBy: "user-alex", note: "",
+    decision: decision && { ...decision, actorId: userId, at: "2026-10-22T00:00:00Z" },
+  })
   it("marks a row with open concerns, and only those rows (#77)", async () => {
     state.role = "member"
     const base = { reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }
     state.rows = [
-      { ...base, id: "request-concern", title: "Has a concern", reviewState: { concerns: [{ name: "Priya", reason: "No API yet." }], unanswered: 0 } },
-      { ...base, id: "request-unanswered", title: "Only unanswered", reviewState: { concerns: [], unanswered: 2 } },
+      { ...base, id: "request-concern", title: "Has a concern", reviewers: [reviewer("user-priya", "Priya", { kind: "concern", reason: "No API yet." })] },
+      { ...base, id: "request-unanswered", title: "Only unanswered", reviewers: [reviewer("user-priya", "Priya", null), reviewer("user-sam", "Sam", null)] },
     ]
     const html = await render()
     expect(html.match(/data-row-property="concerns"/g)).toHaveLength(1)

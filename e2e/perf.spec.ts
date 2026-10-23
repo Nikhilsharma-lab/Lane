@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type CDPSession, type Page, type Request, type Route } from "@playwright/test"
+import { answerIsItLive } from "./helpers/journey"
 
 /**
  * Plan item 1.15b: the §2.2 performance budgets, measured against a running
@@ -142,7 +143,7 @@ test("status view switch responds in the next frame with zero network", async ({
 
   const durations: number[] = []
   for (let run = 0; run < RUNS; run++) {
-    for (const label of ["Open", "In Progress", "Done", "All"]) {
+    for (const label of ["Open", "In progress", "Done", "All"]) {
       const chip = statusChip(page, label)
       if (!(await chip.isVisible())) continue // folded into "N more" at narrow widths
       const since = await now(page)
@@ -325,11 +326,12 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
     expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
     expect(sequence.filter(status => status !== "gone"), "The row must go to Done once and stay there").toEqual(["in_progress", "done"])
 
-    // Put the Request back.
+    // Put the Request back. #135: the confirmed Done asks "Is it live?" first; Not yet brings back the Undo.
+    await answerIsItLive(page, "not yet")
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(glyph).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
-  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
 })
@@ -427,10 +429,11 @@ test("Mark Done on Request detail shows Done in the next frame with Undo, and ne
     timings.push(onScreen)
     expect(undoWithDone, "Undo must be on screen in the frame that shows Done").toBe(true)
     expect(sequence.filter(value => value !== "gone"), "Detail must go to Done once and stay there").toEqual(["in_progress", "done"])
+    await answerIsItLive(page, "not yet")
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
-  test.skip(timings.length === 0, "No In Progress Request to mark Done in this workspace.")
+  test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done on detail, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
 })

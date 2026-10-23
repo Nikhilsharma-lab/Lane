@@ -1,9 +1,11 @@
 "use client"
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
-import { formatRequestCode } from "@/lib/request-code"
+import { requestCodeOrNull } from "@/lib/request-code"
+import { canEditRequest } from "@/lib/request-lifecycle"
+import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
-import { useDetailSession, useSetDetailSession } from "./list-view-state"
+import { useDetailSession, usePublishOpenRequest, useSetDetailSession } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { settleSequence } from "./request-sequence"
 
@@ -15,6 +17,8 @@ export type DetailRequestValue = {
   viewer: DetailViewer
   orgId: string
   isGuest: boolean
+  /** Shown in the list's peek rather than as the full Request page. */
+  peek: boolean
   /** The saved code (LAN-12), or null for an unnumbered Request. */
   code: string | null
   /** What toasts and the polite region call this Request: its code, else its title. */
@@ -28,11 +32,6 @@ export type DetailRequestValue = {
 
 const DetailRequestContext = createContext<DetailRequestValue | null>(null)
 DetailRequestContext.displayName = "DetailRequest"
-
-/** The saved code, or null where formatRequestCode would throw (an unnumbered Request, column default 0). */
-export function requestCodeOrNull(requestNumber: number | undefined) {
-  try { return requestNumber ? formatRequestCode(requestNumber) : null } catch { return null }
-}
 
 /**
  * On arrival (this page mounts once; it is keyed by Request id): when the
@@ -98,8 +97,20 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
     ;(target ?? document.getElementById("request-title"))?.focus({ preventScroll: true })
   }, arrival)
 
-  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm }),
-    [request, viewer, orgId, isGuest, code, name, submittedAgo, formsOpen, reportForm])
+  // #103: the shell's current Request, with the same edit and pickup rules as the panel and the strip's button.
+  const { id, status, priority, createdBy, agreementBlocked, reviewState, pickupBlockedReason } = request
+  const source = arrival ? "page" : "peek"
+  const current = useMemo<CurrentRequest>(() => ({
+    id, code, name, status, priority, source,
+    canEdit: canEditRequest({ status, createdBy }, viewer),
+    agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
+    pickupBlockedReason: pickupBlockedReason ?? null,
+  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, pickupBlockedReason])
+  usePublishOpenRequest(current)
+
+  const peek = !arrival
+  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm }),
+    [request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm])
   return <DetailRequestContext.Provider value={value}>{children}</DetailRequestContext.Provider>
 }
 

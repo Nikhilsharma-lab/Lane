@@ -1,6 +1,7 @@
 import "server-only";
+import { seeable } from "@/lib/request-access";
 
-import { and, asc, count, desc, eq, gte, inArray, lt, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lt, or, sql, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, projects, requests } from "@/db";
@@ -8,6 +9,7 @@ import type { MemberAuth } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { parseRequestCode } from "@/lib/request-code";
 import { MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel } from "@/lib/request-measurement";
+import { closedWithoutResultCondition, journeyStatusColumn, journeyStatusCondition } from "@/lib/request-journey-sql";
 import {
   WORKSPACE_SEARCH_PAGE_SIZE,
   WORKSPACE_SEARCH_QUERY_MAX,
@@ -27,7 +29,8 @@ export const workspaceSearchInputSchema = z.object({
   query: z.string().trim().max(WORKSPACE_SEARCH_QUERY_MAX).refine((value) => !value.includes("\0")),
   requestsPage: pageSchema,
   projectsPage: pageSchema,
-  statuses: z.array(z.enum(["open", "in_progress", "done"])).max(3).optional(),
+  // #133: the five journey statuses, filtered and counted with the journey module's conditions.
+  statuses: z.array(z.enum(["open", "in_progress", "done", "measuring", "closed"])).max(5).optional(),
   types: z.array(z.union([z.enum(["bug", "improvement", "new_feature", "none"]), z.uuid()])).max(21).optional(),
   sort: z.enum(["relevance", "newest", "title"]).optional(),
   // Plan item 2.8: the viewer's local days, as the instants they start and end (inclusive, exclusive).
@@ -86,8 +89,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
 
   const requestNumber = parseRequestCode(query);
   const requestBase = and(
-    eq(requests.orgId, auth.orgId),
-    auth.role === "guest" ? eq(requests.createdBy, auth.userId) : undefined,
+    seeable(auth),
     or(requestNumber === null ? undefined : eq(requests.requestNumber, requestNumber), measurementMatches(query), ...[
       requests.title, requests.description, requests.reframedProblem,
       requests.extractedSolution, requests.affectedPeople, requests.desiredChange,
@@ -101,7 +103,7 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
   const from = input.createdSince ? new Date(input.createdSince) : undefined;
   const until = input.createdBefore ? new Date(input.createdBefore) : undefined;
   const dates = (field: typeof requests.createdAt | typeof projects.createdAt) => and(from ? gte(field, from) : undefined, until ? lt(field, until) : undefined);
-  const statusFilter = input.statuses?.length ? inArray(requests.status, input.statuses) : undefined;
+  const statusFilter = input.statuses?.length ? or(...input.statuses.map(journeyStatusCondition)) : undefined;
   const typed = input.types?.filter(type => type !== "none") ?? [];
   const typeFilter = input.types?.length ? or(typed.length ? sql`${requests.labelKeys} && ARRAY[${sql.join(typed.map(key => sql`${key}`), sql`, `)}]::text[]` : undefined, input.types.includes("none") ? sql`cardinality(${requests.labelKeys}) = 0` : undefined) : undefined;
   const requestWhere = and(requestBase, dates(requests.createdAt), statusFilter, typeFilter);
@@ -127,13 +129,14 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       requestNumber: requests.requestNumber,
       title: requests.title,
       reframedProblem: requests.reframedProblem,
-      status: requests.status,
+      status: journeyStatusColumn,
       projectId: requests.projectId,
       projectName: projects.name,
       requestType: requests.requestType,
       labelKeys: requests.labelKeys,
       createdAt: requests.createdAt,
       description: requests.description,
+      withoutResult: sql<boolean>`${closedWithoutResultCondition}`,
     }).from(requests)
       .leftJoin(projects, and(eq(projects.id, requests.projectId), eq(projects.orgId, auth.orgId)))
       .where(requestWhere).orderBy(...requestOrder)
@@ -144,15 +147,15 @@ export async function loadWorkspaceSearch(auth: MemberAuth, input: WorkspaceSear
       .limit(WORKSPACE_SEARCH_PAGE_SIZE).offset(projectsPage * WORKSPACE_SEARCH_PAGE_SIZE),
     db.select({ total: count() }).from(projects).where(projectWhere),
     // Disjunctive facet counts: omit only this group's filter, never tenant or guest guards.
-    db.select({ value: requests.status, total: count() }).from(requests)
-      .where(and(requestBase, dates(requests.createdAt), typeFilter)).groupBy(requests.status),
+    db.select({ value: journeyStatusColumn, total: count() }).from(requests)
+      .where(and(requestBase, dates(requests.createdAt), typeFilter)).groupBy(sql`1`),
     db.select({ value: sql<string>`unnest(case when cardinality(${requests.labelKeys}) = 0 then array['none']::text[] else ${requests.labelKeys} end)`, total: count() }).from(requests)
       .where(and(requestBase, dates(requests.createdAt), statusFilter)).groupBy(sql`1`),
   ]);
   return {
     success: true,
     query,
-    requests: resultPage(requestRows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })), requestCounts[0]?.total ?? 0, requestsPage),
+    requests: resultPage(requestRows.map(({ withoutResult, ...row }) => ({ ...row, ...(withoutResult ? { withoutResult } : {}), createdAt: row.createdAt.toISOString() })), requestCounts[0]?.total ?? 0, requestsPage),
     projects: resultPage(projectRows.map(row => ({ ...row, createdAt: row.createdAt.toISOString() })), projectCounts[0]?.total ?? 0, projectsPage),
     facets: {
       statuses: Object.fromEntries(statusCounts.map(row => [row.value, row.total])),

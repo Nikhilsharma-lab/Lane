@@ -17,7 +17,7 @@ import { projects } from "./projects";
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact";
 import type { ReleaseState } from "@/lib/request-release";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome";
-import type { DesignReview } from "@/lib/request-review";
+import type { SavedDesignReview } from "@/lib/request-design-link";
 
 export const requestTypeEnum = pgEnum("request_type", ["bug", "improvement", "new_feature"]);
 
@@ -56,7 +56,9 @@ export const requests = pgTable(
     priority: requestPriorityEnum("priority").notNull().default("none"),
     expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
     measurementDraft: jsonb("measurement_draft").$type<IncompleteMeasurement>(),
-    designReviews: jsonb("design_reviews").$type<DesignReview[]>().notNull().default([]),
+    /** The "No measurable impact" choice and its reason; set only with no measured plan (migration 0036). */
+    noMeasurableImpactReason: text("no_measurable_impact_reason"),
+    designReviews: jsonb("design_reviews").$type<SavedDesignReview[]>().notNull().default([]),
     designReviewVersion: integer("design_review_version").notNull().default(0),
     title: text("title").notNull(),
     description: text("description").notNull(),
@@ -79,9 +81,15 @@ export const requests = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** When the work was marked Done; set and cleared by the stamp_done_at trigger (0034). Who marked it is not kept. */
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    /** When the work was picked up; set and cleared by the stamp_picked_up_at trigger (0034). Unknown (null) for work picked up before it. */
+    pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
   },
   (table) => ({
     requestNumberCheck: check("requests_request_number_check", sql`${table.requestNumber} > 0`),
+    doneAtCheck: check("requests_done_at_check", sql`(${table.status} = 'done') = (${table.doneAt} IS NOT NULL)`),
+    pickedUpAtCheck: check("requests_picked_up_at_check", sql`${table.status} <> 'open' OR ${table.pickedUpAt} IS NULL`),
     designReviewsCheck: check("requests_design_reviews_check", sql`jsonb_typeof(${table.designReviews}) = 'array'`),
     designReviewVersionCheck: check("requests_design_review_version_check", sql`${table.designReviewVersion} >= 0`),
     orgIdUnique: unique("requests_org_id_id_unique").on(table.orgId, table.id),

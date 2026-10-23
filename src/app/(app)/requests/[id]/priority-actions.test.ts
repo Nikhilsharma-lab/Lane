@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +19,7 @@ const saved = async () => (await connection`select priority::text as priority, s
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
   const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Priority tests require local lane_test");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Priority tests require local lane_test");
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Priority actions','priority-actions-a'),(${FOREIGN_ORG},'Other workspace','priority-actions-b')`;
   for (const id of [MEMBER, GUEST, FOREIGN]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
@@ -51,13 +52,13 @@ describe("setRequestPriority", () => {
     expect((await saved()).priority).toBe("none");
   });
 
-  it("denies guests, members of other workspaces and a forged workspace context", async () => {
+  it("denies a guest on someone else's Request, members of other workspaces and a forged workspace context", async () => {
     const { setRequestPriority } = await api();
-    // Plan item 1.4: a failed membership check (guest, or a workspace context
-    // that is not the session's) names the permission; "Not found" is kept
-    // for a Request that is missing or belongs to another workspace.
+    // A guest sets priority only on a Request they created (request-access.ts),
+    // so someone else's reads as missing. A workspace context that is not the
+    // session's names the permission.
     actAs(GUEST, "org:guest");
-    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
+    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "Request not found" });
     actAs(FOREIGN, "org:member", FOREIGN_ORG);
     expect(await setRequestPriority(requestId, "urgent", { orgId: FOREIGN_ORG })).toEqual({ error: "Request not found" });
     expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });

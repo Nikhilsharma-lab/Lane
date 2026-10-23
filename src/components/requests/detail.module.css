@@ -61,6 +61,8 @@
 .propertyRow > dt, .propertyRow > dd { min-height: var(--property-row); padding-block: calc((var(--property-row) - var(--property-line)) / 2); font-size: var(--text-sm); line-height: var(--leading-body); }
 .propertyRow > dt { color: var(--text-secondary); }
 .propertyRow > dd { display: flex; min-width: 0; margin: 0; align-items: flex-start; color: var(--foreground); }
+/* #133: Status with its due tag beside it, wrapping under it when the panel is narrow. */
+.propertyRow > dd[data-detail-status] { flex-wrap: wrap; column-gap: var(--space-2); }
 .propertyValue { display: inline-flex; min-width: 0; align-items: flex-start; gap: var(--space-2); }
 .propertyIcon { display: inline-flex; height: var(--property-line); flex: none; align-items: center; }
 .propertyText { min-width: 0; overflow-wrap: anywhere; }
@@ -97,10 +99,6 @@
   .editIcon { display: block; }
   .editLabel { display: none; }
 }
-
-/* Match the compact empty review action while its chunk loads. */
-.reviewFallback { display: grid; }
-.reviewFallbackHeader { display: flex; height: var(--control-height-md); align-items: center; }
 
 /* The skeleton draws the loaded page's boxes. */
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }

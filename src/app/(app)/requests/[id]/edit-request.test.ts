@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createTriageToken } from "@/lib/triage-token";
@@ -8,20 +9,20 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
 let sql: ReturnType<typeof postgres>, id: string;
 const plan = { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 75, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 14 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [{ key: "support" as const, name: "", unit: "percent" as const, current: 4, noBaseline: false as const, operator: "at_most" as const, limit: 6 }] };
-const input = () => ({ title: "Delivery costs appear late", description: "Customers leave when delivery costs appear at payment.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement" as const, priority: "high" as const, expectedImpact: structuredClone(plan), reframedProblem: null, extractedSolution: null });
+const input = () => ({ title: "Delivery costs appear late", description: "Customers leave when delivery costs appear at payment.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement" as const, priority: "high" as const, expectedImpact: structuredClone(plan), reframedProblem: null as string | null, extractedSolution: null as string | null });
 const base = () => requestEditSnapshot(input());
 const save = async (changes: ReturnType<typeof input>, token?: string, snapshot = base()) => (await import("./edit-actions")).saveRequestEdits(id, { snapshot, changes, token }, { orgId: "org-edit" });
 beforeAll(async () => {
     const u = new URL(process.env.DATABASE_URL!);
-    if (u.pathname !== "/lane_test" || !["localhost", "127.0.0.1"].includes(u.hostname))
+    if (!TEST_DATABASE_PATH.test(u.pathname) || !["localhost", "127.0.0.1"].includes(u.hostname))
         throw Error("Local test DB only");
     sql = postgres(u.toString(), { max: 2 });
     await sql `insert into organizations(id,name,slug) values ('org-edit','Edit','edit-test')`;
-    await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test')`;
+    await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test'), ('edit-admin','Admin','edit-admin@example.test')`;
     vi.stubEnv("TRIAGE_TOKEN_SECRET", "edit-test-secret".repeat(4));
 });
 beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; session.orgRole = "org:member"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
-afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id='edit-owner'`; await sql.end(); vi.unstubAllEnvs(); });
+afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id in ('edit-owner','edit-admin')`; await sql.end(); vi.unstubAllEnvs(); });
 it("saves guardrail definitions, target and supporting context without AI review", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 8; x.expectedImpact.primary.target = 80; x.usefulLink = "https://example.com/research"; expect(await save(x)).toMatchObject({ success: true }); const [row] = await sql `select expected_impact,useful_link,status::text from requests where id=${id}`; expect(row).toMatchObject({ expected_impact: x.expectedImpact, useful_link: x.usefulLink, status: "open" }); });
 it.each(["other-user", "other-workspace", "in_progress", "done"])("rejects %s edits", async (kind) => { if (kind === "other-user")
     session.userId = "someone-else";
@@ -29,8 +30,8 @@ else if (kind === "other-workspace")
     session.orgId = "other-org";
 else
     await sql `update requests set status=${kind}::request_status where id=${id}`; expect(await save(input())).toHaveProperty("error"); });
-it("requires a matching signed review when source content changes", async () => { const x = input(); x.title = "Customers leave checkout early"; expect(await save(x)).toHaveProperty("error"); const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }); expect(await save(x, token)).toMatchObject({ success: true }); });
-it("rejects a review for different content", async () => { const x = input(); x.title = "Changed title without review"; const token = createTriageToken(input(), { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }); expect(await save(x, token)).toHaveProperty("error"); });
+it("requires a matching signed review when source content changes", async () => { const x = input(); x.title = "Customers leave checkout early"; expect(await save(x)).toHaveProperty("error"); const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toMatchObject({ success: true }); });
+it("rejects a review for different content", async () => { const x = input(); x.title = "Changed title without review"; const token = createTriageToken(input(), { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toHaveProperty("error"); });
 it("rejects stale edits instead of overwriting another save", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 9; expect(await save(x)).toMatchObject({ success: true }); expect(await save(input())).toHaveProperty("error"); });
 it("rejects invalid guardrail values", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 101; expect(await save(x)).toHaveProperty("error"); });
 it("preserves the Request-type constraint for no baseline", async () => {
@@ -41,7 +42,7 @@ it("preserves the Request-type constraint for no baseline", async () => {
 it("requires confirmed framing for a hybrid review", async () => {
     const x = input();
     x.title = "Make delivery costs visible earlier";
-    const token = createTriageToken(x, { classification: "hybrid", reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." }, { orgId: "org-edit", userId: "edit-owner" });
+    const token = createTriageToken(x, { classification: "hybrid", reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." }, { orgId: "org-edit", userId: "edit-owner" }, id);
     expect(await save(x, token)).toHaveProperty("error");
 });
 it.each([
@@ -126,4 +127,47 @@ it.each(["in_progress","done"])("admin cannot edit %s Requests",async(status)=>{
  session.userId="edit-admin";session.orgRole="org:admin";
  await sql`update requests set status=${status}::request_status where id=${id}`;
  expect(await save(input())).toHaveProperty("error");
+});
+
+const reviewer = { orgId: "org-edit", userId: "edit-owner" };
+const hybrid = { reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." };
+const storeFraming = async (classification: string, framing: { reframedProblem: string | null; extractedSolution: string | null }) => {
+    await sql`update requests set classification=${classification}::classification, reframed_problem=${framing.reframedProblem}, extracted_solution=${framing.extractedSolution} where id=${id}`;
+    return requestEditSnapshot({ ...input(), ...framing });
+};
+const framingRow = async () => (await sql`select classification::text, reframed_problem, extracted_solution from requests where id=${id}`)[0];
+
+it("refuses a new-Request review for an edit", async () => {
+    const x = input(); x.title = "Customers leave checkout early";
+    const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, reviewer);
+    expect(await save(x, token)).toEqual({ error: "Review the changed title and description before saving." });
+});
+it("saves the reviewed suggested change, not one the browser sends", async () => {
+    const x = { ...input(), title: "Make delivery costs visible earlier", reframedProblem: hybrid.reframedProblem, extractedSolution: "Something the review never saw." };
+    const token = createTriageToken(x, { classification: "hybrid", ...hybrid }, reviewer, id);
+    expect(await save(x, token)).toMatchObject({ success: true });
+    expect(await framingRow()).toEqual({ classification: "hybrid", reframed_problem: hybrid.reframedProblem, extracted_solution: hybrid.extractedSolution });
+});
+it("drops framing a problem review doesn't carry", async () => {
+    const x = { ...input(), title: "Customers leave checkout early", ...hybrid };
+    const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, reviewer, id);
+    expect(await save(x, token)).toMatchObject({ success: true });
+    expect(await framingRow()).toEqual({ classification: "problem", reframed_problem: null, extracted_solution: null });
+});
+it("lets unchanged wording keep its judgement while its framing is reworded", async () => {
+    const snapshot = await storeFraming("hybrid", hybrid);
+    const reworded = { reframedProblem: "Customers abandon checkout when delivery costs surprise them.", extractedSolution: "Show delivery costs on the basket." };
+    expect(await save({ ...input(), ...reworded }, undefined, snapshot)).toMatchObject({ success: true });
+    expect(await framingRow()).toEqual({ classification: "hybrid", reframed_problem: reworded.reframedProblem, extracted_solution: reworded.extractedSolution });
+});
+it("never empties the framing of unchanged wording", async () => {
+    const snapshot = await storeFraming("hybrid", hybrid);
+    expect(await save({ ...input(), ...hybrid, extractedSolution: "   " }, undefined, snapshot)).toEqual({ error: "Keep the suggested change, or change the title or description and review again." });
+    expect(await save({ ...input(), ...hybrid, reframedProblem: null }, undefined, snapshot)).toEqual({ error: "Keep the problem to solve, or change the title or description and review again." });
+    expect(await framingRow()).toEqual({ classification: "hybrid", reframed_problem: hybrid.reframedProblem, extracted_solution: hybrid.extractedSolution });
+});
+it("adds no framing to a problem whose wording is unchanged", async () => {
+    const snapshot = await storeFraming("problem", { reframedProblem: null, extractedSolution: null });
+    expect(await save({ ...input(), ...hybrid }, undefined, snapshot)).toMatchObject({ success: true });
+    expect(await framingRow()).toEqual({ classification: "problem", reframed_problem: null, extracted_solution: null });
 });

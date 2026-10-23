@@ -1,22 +1,23 @@
 import { REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
-import type { OverviewRequest } from "@/lib/request-overview"
+import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { concernMarker } from "@/lib/request-reviewer-rules"
-
-const STATUS_LABELS = { open: "Open", in_progress: "In Progress", done: "Done" } as const
 
 /**
  * Plan item 2.4: the accessible name of a Request row, the list's one tab stop,
  * so every value the row shows is read without a stop per pill. For example
- * "LAN-12, Signup drops at the phone step. In Progress, High priority, Website,
+ * "LAN-12, Signup drops at the phone step. In progress, High priority, Website,
  * Bug, Assignee Sam Lee". Dates are left out: they need the viewer's time zone,
- * which the first render does not know.
+ * which the first render does not know. A Measuring row's due tag is read after
+ * its status ("Measuring, Due in 3 days"), on `now`'s UTC date (#133).
  */
-export function requestRowLabel(request: OverviewRequest, identity?: { code: string; priority: RequestPriority } | null, labelNames?: string[]) {
+export function requestRowLabel(request: OverviewRequest, identity?: { code: string; priority: RequestPriority } | null, labelNames?: string[], now: Date = new Date()) {
   const code = identity?.code || ""
   const title = request.reframedProblem ?? request.title
   const priority = identity?.priority ?? request.priority ?? "none"
+  const due = rowDue(request, now)
   const facts = [
-    STATUS_LABELS[request.status],
+    rowJourney(request).label,
+    ...(due.kind === "none" ? [] : [due.label]),
     priority === "none" ? REQUEST_PRIORITY_LABELS.none : `${REQUEST_PRIORITY_LABELS[priority]} priority`,
     request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"),
     ...(labelNames ?? (request.requestType ? [REQUEST_TYPE_LABELS[request.requestType]] : [])),

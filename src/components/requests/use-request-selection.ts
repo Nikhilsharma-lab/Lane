@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState }
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { markDoneMany, pickUpRequests, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { allowedMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, pickupBlockedMessage, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import { moveTarget } from "./request-moves"
 import { useOptimisticAction, useOptimisticBatch, useServerRefresh } from "./use-optimistic-action"
@@ -14,6 +14,8 @@ import { isShown, restoreRequestFocus } from "./list-focus"
 
 type SelectionState = {
   scope: string; ids: string[]; error: string; failedCount: number; message: string
+  /** Every failure was a Request not ready to pick up: nothing to retry until its plan is complete. */
+  notReadyOnly?: boolean
   pending: { kind: "pick-up" | "done" | "copy"; count: number } | null
 }
 const emptySelection = (scope: string): SelectionState => ({ scope, ids: [], error: "", failedCount: 0, message: "", pending: null })
@@ -115,7 +117,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   }
 
   // The bulk bar offers a move only when every selected row allows the same one (plan item 2.4).
-  const moves = context ? selected.map(row => allowedMove(row, { isGuest })?.move ?? null) : []
+  const moves = context ? selected.map(row => availableMove(row, { isGuest })?.move ?? null) : []
   const availableAction: LifecycleMove | null = moves.length && moves.every(move => move !== null && move === moves[0]) ? moves[0] : null
   const action = current.pending && current.pending.kind !== "copy" ? current.pending.kind : availableAction
 
@@ -125,14 +127,26 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (!availableAction || !context || running.current) return
     const operation = Symbol()
     running.current = operation
-    // #77: one "Pick up anyway?" for every selected Request with an open concern or an unanswered review.
+    // A Request that isn't ready to pick up stays selected with its reason; only the rest are sent.
+    const notReady = availableAction === "pick-up" ? selected.flatMap(row => {
+      const reason = availableMove(row, { isGuest })?.blockedReason
+      return reason ? [{ id: row.id, error: `${moveTarget(row).name}: ${pickupBlockedMessage(reason, row.canEdit ? null : row.creatorName || "the Requester")}` }] : []
+    }) : []
+    const ready = selected.filter(row => !notReady.some(item => item.id === row.id))
+    if (!ready.length) {
+      running.current = null
+      restoreAfterCommit.current = true
+      setState({ scope, ids: notReady.map(item => item.id), pending: null, failedCount: notReady.length, notReadyOnly: true, error: notReady.map(item => item.error).join(" "), message: "" })
+      return
+    }
+    // #77: one "Pick up anyway?" for every Request being picked up with an open concern or an unanswered review.
     if (availableAction === "pick-up") {
-      const confirmed = await confirmPickup(selected.map(moveTarget))
+      const confirmed = await confirmPickup(ready.map(moveTarget))
       // A view change while the confirmation was open already let go of this operation.
       if (running.current !== operation) return
       if (!confirmed) { running.current = null; return }
     }
-    const ids = selected.map(row => row.id)
+    const ids = ready.map(row => row.id)
     setState(previous => ({ ...previous, pending: { kind: availableAction, count: ids.length }, error: "", failedCount: 0, message: "" }))
     announce(`Working on ${ids.length} selected ${ids.length === 1 ? "Request" : "Requests"}.`, { key: "selection" })
     const outcome = await optimisticBatch({
@@ -144,16 +158,18 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (activeScope.current !== scope || running.current !== operation) return
     running.current = null
     restoreAfterCommit.current = true
-    const failed = outcome.status === "success" ? outcome.failed.map(item => item.id) : ids
-    const reasons = new Set(outcome.status === "success" ? outcome.failed.map(item => item.error) : outcome.thrown ? [] : [outcome.error])
+    const serverFailed = outcome.status === "success" ? outcome.failed.map(item => item.id) : ids
+    const failed = [...serverFailed, ...notReady.map(item => item.id)]
+    const reasons = new Set([...(outcome.status === "success" ? outcome.failed.map(item => item.error) : outcome.thrown ? [] : [outcome.error]), ...notReady.map(item => item.error)])
     const succeeded = outcome.status === "success" ? outcome.moved : []
-    setState({ scope, ids: failed, pending: null, failedCount: failed.length,
+    const pickedUp = availableAction === "pick-up" && succeeded.length ? `${requestCount(succeeded.length)} picked up.` : ""
+    setState({ scope, ids: failed, pending: null, failedCount: failed.length, notReadyOnly: !serverFailed.length && notReady.length > 0,
       error: [...reasons].join(" "),
       // Done confirms through the toast, which also carries the way back.
-      message: failed.length || availableAction === "done" ? "" : `${requestCount(ids.length)} picked up.`,
+      message: pickedUp,
     })
-    // Done confirms through its toast and a failure through the bar's alert; a clean pick up speaks here.
-    if (!failed.length && availableAction === "pick-up") announce(`${requestCount(ids.length)} picked up.`, { key: "selection" })
+    // Done confirms through its toast and a failure through the bar's alert; a pick up speaks here.
+    if (pickedUp && !failed.length) announce(pickedUp, { key: "selection" })
     if (availableAction === "done" && succeeded.length) confirmDone(succeeded, context)
   }
 
@@ -165,7 +181,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
 
   // Every row moves back in the same tick; each Undo is its own guarded action.
   async function undoDone(toastId: string, ids: string[], noun: string, scopeContext: { orgId: string }) {
-    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In Progress.`, action: undefined })
+    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In progress.`, action: undefined })
     const outcomes = await Promise.all(ids.map(id => optimistic({
       id,
       patch: { kind: "undo", status: "in_progress" },
@@ -181,7 +197,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     if (failed) refresh()
     // The result reuses the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
     if (failed) toast({ id: toastId, type: "error", title: `${failed} of ${ids.length} could not be undone`, description: "Those stay Done. Refresh to see their current state." })
-    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back In Progress`, description: undefined })
+    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back to In progress`, description: undefined })
   }
 
   async function copyLinks() {
@@ -201,7 +217,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   }
 
   const failure = current.failedCount
-  const error = failure ? `${failure} ${failure === 1 ? "Request could not be updated." : "Requests could not be updated."} ${selected.length === failure ? `${failure === 1 ? "It is" : "They are"} still selected. Try again.` : "Some Requests have left this view. Refresh to see their current state."}${current.error ? ` ${current.error}` : ""}` : current.error
+  const error = failure && current.notReadyOnly
+    ? `${current.message ? `${current.message} ` : ""}${failure} ${failure === 1 ? "Request wasn’t picked up." : "Requests weren’t picked up."} ${current.error}`
+    : failure ? `${failure} ${failure === 1 ? "Request could not be updated." : "Requests could not be updated."} ${selected.length === failure ? `${failure === 1 ? "It is" : "They are"} still selected. Try again.` : "Some Requests have left this view. Refresh to see their current state."}${current.error ? ` ${current.error}` : ""}` : current.error
   // The bulk bar is memoised, so a J or a pointer focus on a row does not re-render it (plan item 2.4).
   // It calls these stable wrappers, which run the latest commit's actions.
   const run = useRef({ selectPage, clear, update, copyLinks })

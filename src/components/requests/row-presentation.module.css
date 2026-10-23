@@ -7,3 +7,5 @@
 .status[data-status="open"] { color: var(--text-muted); }
 .status[data-status="in_progress"] { color: var(--state-warning-icon); }
 .status[data-status="done"] { color: var(--state-success-icon); }
+.status[data-status="measuring"] { color: var(--state-info-icon); }
+.status[data-status="closed"] { color: var(--state-success-icon); }

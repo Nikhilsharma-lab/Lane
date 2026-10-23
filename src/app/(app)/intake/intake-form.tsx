@@ -1,7 +1,8 @@
 "use client";
 
 import pickerLayout from "@/components/requests/request-picker-layout.module.css";
-import { RequestLabelsPicker, RequestLabels } from "@/components/requests/request-labels";
+import { RequestLabels } from "@/components/requests/request-labels";
+import { RequestLabelsPicker } from "@/components/requests/request-labels-picker";
 import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,6 +34,8 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
@@ -59,13 +62,13 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
-import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUpload, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { RequestReviewersPicker, reviewerSummary, type ReviewerChoice } from "@/components/requests/request-reviewers-picker";
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
-import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, requiredExpectedImpactSchema, type ExpectedImpactDraft } from "@/lib/request-impact";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, NO_MEASURABLE_IMPACT_REASON_MAX, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -90,8 +93,10 @@ import {
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
+import { composerDraft, restoredComposer, settleLostUploads as settleInterruptedUploads } from "./intake-session";
+import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
-import { refreshClerkToken } from "@/components/requests/use-optimistic-action";
+import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 
 type Stage =
@@ -108,14 +113,6 @@ type Stage =
 /** Files a reload interrupted after the Request was created (plan item 2.3, S3). */
 type LostUploads = { requestId: string; files: { key: string; name: string }[] };
 
-type QueuedAttachment = {
-  key: string;
-  file: File;
-  status: "queued" | "uploading" | "uploaded" | "failed";
-  progress: number;
-  attachmentId: string | null;
-  error: string | null;
-};
 
 const reveal =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out";
@@ -204,33 +201,6 @@ const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, 
     "Lane’s AI suggested a problem to solve from your description. Your suggested change will also be saved.",
 };
 
-function uploadToSignedUrl(
-  signedUrl: string,
-  file: File,
-  onProgress: (progress: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const body = new FormData();
-    body.append("cacheControl", "0");
-    body.append("", file);
-
-    xhr.open("PUT", signedUrl);
-    xhr.setRequestHeader("x-upsert", "false");
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed with status ${xhr.status}`));
-    });
-    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
-    xhr.send(body);
-  });
-}
 
 function IntakeNotice({
   error = false,
@@ -287,10 +257,13 @@ export default function RequestEditor({
     : emptyRequest);
   const [savedProblem, setSavedProblem] = useState(original?.reframedProblem ?? null);
   const [savedSolution, setSavedSolution] = useState(original?.extractedSolution ?? null);
+  const [framingError, setFramingError] = useState<{ field: "reframedProblem" | "extractedSolution"; message: string } | null>(null);
+  const problemFieldRef = useRef<HTMLTextAreaElement>(null);
+  const solutionFieldRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToastStack();
   const [stage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
-  const projects = useWorkspaceProjects(context.orgId, active);
+  const projects = useWorkspaceProjects();
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [source, setSource] = useState<RequestInput | null>(null);
@@ -349,6 +322,24 @@ export default function RequestEditor({
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId) + (editing ? `:edit:${editing.request.id}` : "");
+  // The created Request's files: reserve, store, finalise, recover (intake-uploads.ts).
+  // All of its state lives in the refs above, so each handler builds it afresh
+  // with the current render's values, as the handlers themselves did before.
+  const uploads = () => createUploadSession({
+    refs: { operationInFlight, leftUploadScreen, unmounted, uploadsRequest, reservations },
+    prepare: (input) => callAction(() => prepareAttachmentUpload(input, context)),
+    finalize: (input) => callAction(() => finalizeAttachmentUpload(input, context)),
+    discard: (input) => callAction(() => discardAttachmentUpload(input, context)),
+    put: uploadToSignedUrl,
+    record: {
+      read: () => readUnfinishedUploads(window.sessionStorage, draftScope),
+      write: (record) => { writeUnfinishedUploads(window.sessionStorage, draftScope, record); },
+      clear: () => clearUnfinishedUploads(window.sessionStorage, draftScope),
+    },
+    setAttachments,
+    setBusy: (busy) => { setMutationBusy(busy); onBusyChange?.(busy); },
+    finish: (requestId) => finishCreatedRequest(requestId),
+  });
 
   const {
     control,
@@ -382,6 +373,19 @@ export default function RequestEditor({
     draftEdited.current = true;
     setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted });
   }, [isSubmitted, setValue]);
+  // Choosing "No measurable impact" keeps the measured plan typed so far; switching back restores it (#153).
+  const measuredPlanBeforeChoice = useRef<ExpectedImpactDraft | null>(null);
+  const chooseImpact = useCallback((choice: "measure" | "none") => {
+    const current = getValues("expectedImpact");
+    if (choice === "none") {
+      if (current?.kind === "no_measurable_impact") return;
+      if (current) measuredPlanBeforeChoice.current = parseExpectedImpact(current);
+      changeExpectedImpact({ kind: "no_measurable_impact", reason: "" });
+      return;
+    }
+    if (current?.kind !== "no_measurable_impact") return;
+    changeExpectedImpact(measuredPlanBeforeChoice.current ?? createEmptyMeasurementPlan());
+  }, [changeExpectedImpact, getValues]);
   const currentValues = useMemo(
     () => ({
       affectedPeople: affectedPeople ?? "",
@@ -414,18 +418,8 @@ export default function RequestEditor({
   // lost and the flow ends as a creation does.
   const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
     const check = ++lostCheck.current;
-    const settled = await Promise.all(lost.files.map(async (file): Promise<UnfinishedUpload | null> => {
-      if (!file.attachmentId) return file;
-      try {
-        const result = await discardAttachmentUpload({ requestId: lost.requestId, attachmentId: file.attachmentId }, context);
-        if (result.success && result.alreadyUploaded) return null;
-        return result.success ? { ...file, attachmentId: null } : file;
-      } catch {
-        return file;
-      }
-    }));
+    const kept = await settleInterruptedUploads(lost, (input) => callAction(() => discardAttachmentUpload(input, context)));
     if (check !== lostCheck.current) return;
-    const kept = settled.filter((file): file is UnfinishedUpload => file !== null);
     if (!kept.length) {
       finishCreatedRequest(lost.requestId);
       return;
@@ -456,30 +450,25 @@ export default function RequestEditor({
         setStage("uploads_checking");
         void settleLostUploads(lost);
       } else if (draft) {
-        reset(draft.source);
-        setSource(draft.source);
-        setReviewers(draft.reviewers?.people ?? []);
-        setReviewQuestion(draft.reviewers?.question ?? "");
+        // intake-session.ts decides what a draft restores.
+        const restored = restoredComposer(draft);
+        reset(restored.source);
+        setSource(restored.source);
+        setReviewers(restored.reviewers);
+        setReviewQuestion(restored.reviewQuestion);
         setFailure(null);
         setProblemError(null);
         setRestoredDraft(true);
-        setPreviousProblem(draft.previousProblem || draft.review?.editedProblem || "");
-        // A stored review knows which text produced its framing. Older compose
-        // drafts may retain wording without an origin; show it, but never
-        // silently attach it to a different Request.
-        setPreviousProblemSource(draft.review?.triage.classification !== "problem" && draft.review
-          ? { title: draft.source.title, description: draft.source.description }
-          : draft.previousProblemSource ?? null);
-
-        if (draft.review && requiredExpectedImpactSchema.safeParse(draft.source.expectedImpact).success) {
-          setTriage(draft.review.triage);
-          setToken(draft.review.token);
-          setEditedProblem(draft.review.editedProblem);
+        setPreviousProblem(restored.previousProblem);
+        setPreviousProblemSource(restored.previousProblemSource);
+        if (restored.review) {
+          setTriage(restored.review.triage);
+          setToken(restored.review.token);
+          setEditedProblem(restored.review.editedProblem);
           setStage("framing");
         } else {
           setStage("compose");
         }
-
       }
 
       setDraftReady(true);
@@ -505,20 +494,12 @@ export default function RequestEditor({
 
   // #78: reviewer picks and their question are restored with the draft, like Project, Labels and Priority.
   const reviewersDraft = offerReviewers ? { people: reviewers, question: reviewQuestion } : undefined;
+  /** The draft for the composer as it stands (intake-session.ts). */
+  const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft });
   const persistDraft = useEffectEvent(() => {
     if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
-    const review =
-      (stage === "framing" || stage === "creating") && triage && token
-        ? { triage, token, editedProblem }
-        : null;
     try {
-      return writeIntakeDraft(window.sessionStorage, draftScope, {
-        source: review && source ? source : getValues(),
-        review,
-        previousProblem: editedProblem || previousProblem,
-        previousProblemSource,
-        reviewers: reviewersDraft,
-      });
+      return writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
     } catch { return false; }
   });
 
@@ -626,31 +607,7 @@ export default function RequestEditor({
             ? "Uploading Request files."
             : "";
 
-  function updateAttachment(key: string, update: Partial<QueuedAttachment>) {
-    // After unmount nothing renders. The record follows the uploads instead,
-    // so a reload before they end names only the files that weren't added.
-    if (unmounted.current) {
-      followUnmountedUpload(key, update);
-      return;
-    }
-    setAttachments((current) =>
-      current.map((attachment) =>
-        attachment.key === key ? { ...attachment, ...update } : attachment,
-      ),
-    );
-  }
 
-  function followUnmountedUpload(key: string, update: Partial<QueuedAttachment>) {
-    if (update.status !== "uploaded" && update.attachmentId === undefined) return;
-    const record = readUnfinishedUploads(window.sessionStorage, draftScope);
-    if (!record || record.requestId !== uploadsRequest.current) return;
-    writeUnfinishedUploads(window.sessionStorage, draftScope, {
-      ...record,
-      files: update.status === "uploaded"
-        ? record.files.filter((file) => file.key !== key)
-        : record.files.map((file) => file.key === key ? { ...file, attachmentId: update.attachmentId ?? null } : file),
-    });
-  }
 
   function addFiles(files: File[]) {
     setFileFailure(null);
@@ -727,16 +684,10 @@ export default function RequestEditor({
     onCancelCheckChange?.(cancelCheck);
 
     try {
-      let result: TriageResponse = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
+      // callAction refreshes a lapsed session first and retries an ended one
+      // once, so "session_expired" here means the person must sign in again.
+      const result: TriageResponse = await callAction(() => editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
       if (abandoned()) return;
-      if (!result.success && result.error.code === "session_expired") {
-        // A tab left hidden is the likely cause: ask Clerk for a fresh token and
-        // check once more before asking the person to sign in.
-        await refreshClerkToken().catch(() => undefined);
-        if (abandoned()) return;
-        result = await (editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
-        if (abandoned()) return;
-      }
       if (!result.success) {
         if (result.error.code === "validation" && result.error.field) {
           if (result.error.field === "editedProblemText" || result.error.field === "reviewers") {
@@ -794,128 +745,7 @@ export default function RequestEditor({
     }
   }
 
-  async function discardFailedAttachment(
-    attachment: QueuedAttachment,
-    requestId: string,
-  ): Promise<"discarded" | "uploaded" | "failed"> {
-    if (!attachment.attachmentId) return "discarded";
 
-    try {
-      const result = await discardAttachmentUpload(
-        { requestId, attachmentId: attachment.attachmentId },
-        context,
-      );
-      if (!result.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: result.error.message,
-        });
-        return "failed";
-      }
-      reservations.current.delete(attachment.key);
-      if (result.alreadyUploaded) {
-        updateAttachment(attachment.key, {
-          status: "uploaded",
-          progress: 100,
-          error: null,
-        });
-        return "uploaded";
-      }
-      updateAttachment(attachment.key, { attachmentId: null, error: null });
-      return "discarded";
-    } catch {
-      // Keep the reservation ID until the server confirms cleanup. Retrying
-      // must not reserve another slot or hide a file that still needs attention.
-      updateAttachment(attachment.key, {
-        status: "failed",
-        error:
-          "Lane could not clear this upload. Your Request is saved. Try again.",
-      });
-      return "failed";
-    }
-  }
-
-  async function uploadAttachment(
-    attachment: QueuedAttachment,
-    requestId: string,
-  ): Promise<boolean> {
-    updateAttachment(attachment.key, {
-      status: "uploading",
-      progress: 0,
-      error: null,
-    });
-
-    let attachmentId: string | null = null;
-    try {
-      const prepared = await prepareAttachmentUpload(
-        {
-          requestId,
-          fileName: attachment.file.name,
-          mimeType: attachment.file.type,
-          sizeBytes: attachment.file.size,
-        },
-        context,
-      );
-      if (!prepared.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: prepared.error.message,
-        });
-        return false;
-      }
-
-      attachmentId = prepared.attachmentId;
-      reservations.current.set(attachment.key, attachmentId);
-      updateAttachment(attachment.key, { attachmentId });
-      const uploadFile =
-        attachment.file.type === prepared.mimeType
-          ? attachment.file
-          : new File([attachment.file], attachment.file.name, {
-              type: prepared.mimeType,
-              lastModified: attachment.file.lastModified,
-            });
-
-      await uploadToSignedUrl(prepared.signedUrl, uploadFile, (progress) =>
-        updateAttachment(attachment.key, { progress }),
-      );
-
-      const finalized = await finalizeAttachmentUpload(
-        { requestId, attachmentId },
-        context,
-      );
-      if (!finalized.success) {
-        updateAttachment(attachment.key, {
-          status: "failed",
-          error: finalized.error.message,
-        });
-        return false;
-      }
-
-      reservations.current.delete(attachment.key);
-      updateAttachment(attachment.key, {
-        status: "uploaded",
-        progress: 100,
-        error: null,
-      });
-      return true;
-    } catch {
-      if (attachmentId) {
-        const cleanup = await discardFailedAttachment(
-          { ...attachment, attachmentId },
-          requestId,
-        );
-        if (cleanup === "uploaded") return true;
-        if (cleanup === "failed") return false;
-      }
-      updateAttachment(attachment.key, {
-        status: "failed",
-        attachmentId: null,
-        error:
-          "The file did not finish uploading. Your Request was created. Retry the upload.",
-      });
-      return false;
-    }
-  }
 
   /** The saved row joins the list's Open group through the overlay at once,
    * before any upload (plan item 2.3). No router refresh: the
@@ -947,43 +777,9 @@ export default function RequestEditor({
     router.push(`/requests/${requestId}`);
   }
 
-  /** Nobody sees the upload screen any more: Leave page was chosen, or the composer unmounted. */
-  function uploadsUnattended() {
-    return leftUploadScreen.current || unmounted.current;
-  }
-
-  /** Plan item 2.3 (S3): a created Request's files that nobody attends end in
-   * this document. Once no upload loop runs, open reservations are cleared and
-   * so is the record: no reload happened, so no later reload may report them. */
-  function settleLeftUploads() {
-    const requestId = uploadsRequest.current;
-    if (!uploadsUnattended() || operationInFlight.current || !requestId) return;
-    uploadsRequest.current = null;
-    const open = [...reservations.current.values()];
-    reservations.current.clear();
-    void Promise.allSettled(open.map((attachmentId) => discardAttachmentUpload({ requestId, attachmentId }, context))).then(() => {
-      if (readUnfinishedUploads(window.sessionStorage, draftScope)?.requestId === requestId) clearUnfinishedUploads(window.sessionStorage, draftScope);
-    });
-  }
-
-  /** Leave page in the navigation guard, whose copy says files not yet uploaded
-   * won't be added. A running loop finishes its file in flight and starts no other. */
-  function leaveUploadScreen() {
-    leftUploadScreen.current = true;
-    settleLeftUploads();
-  }
-
-  /** The composer's host unmounting (the layout leaves, or a workspace switch
-   * re-keys it) cancels nothing: the upload loops go on in the background,
-   * render nothing, and settle when they end. */
-  function leaveOnUnmount() {
-    unmounted.current = true;
-    settleLeftUploads();
-  }
-
   const onUnmount = useEffectEvent(() => {
     lostCheck.current += 1;
-    leaveOnUnmount();
+    uploads().unmount();
   });
   useEffect(() => {
     unmounted.current = false;
@@ -1034,12 +830,12 @@ export default function RequestEditor({
         editedProblemText:
           triage?.classification === "problem" ? null : editedProblem,
       };
-      // Saving is idempotent by the review's requestId, so an ended session
-      // gets one silent retry with a fresh Clerk token, as the gate does.
+      // Saving is idempotent by the review's requestId, so callAction's one
+      // retry after an ended session can never create the Request twice.
       const result: SaveResponse = editing && original
         ? await (async (): Promise<SaveResponse> => {
           const changes = { ...savingSource,
-            expectedImpact: original.expectedImpact === null && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
+            expectedImpact: original.expectedImpact === null && !editing.request.noMeasurableImpactReason && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
             reframedProblem: unchangedSource ? savedProblem : triage?.classification === "problem" ? null : editedProblem,
             extractedSolution: unchangedSource ? savedSolution : triage?.extractedSolution ?? null,
           };
@@ -1055,10 +851,7 @@ export default function RequestEditor({
         : await (async () => {
           // #78: the picks travel beside the signed review and are checked on their own.
           const picks = offerReviewers && reviewers.length ? { nominees: reviewers.map((person) => person.nominee), note: reviewQuestion } : undefined;
-          const first = await saveRequest(payload, context, picks);
-          if (first.success || first.error.code !== "session_expired") return first;
-          await refreshClerkToken().catch(() => undefined);
-          return saveRequest(payload, context, picks);
+          return callAction(() => saveRequest(payload, context, picks));
         })();
 
       if (!result.success) {
@@ -1101,37 +894,16 @@ export default function RequestEditor({
       // nothing. The row is in the list; no toast or navigation pulls the
       // person from where they went.
       if (attachments.length === 0) {
-        if (!uploadsUnattended()) finishCreatedRequest(result.requestId);
+        if (!uploads().unattended()) finishCreatedRequest(result.requestId);
         return;
       }
 
       setStage("uploading");
-      uploadsRequest.current = result.requestId;
-      // The upload screen's effect keeps this record, but a composer unmounted
-      // during the save never renders it. Start the record before any upload,
-      // so a reload mid-upload still names the files.
-      if (!leftUploadScreen.current) {
-        writeUnfinishedUploads(window.sessionStorage, draftScope, {
-          requestId: result.requestId,
-          title: savingSource.title,
-          files: attachments
-            .filter((attachment) => attachment.status !== "uploaded")
-            .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
-        });
-      }
-      const results: boolean[] = [];
-      for (const attachment of attachments) {
-        // Only Leave page stops the uploads; an unmounted composer's go on.
-        if (leftUploadScreen.current) break;
-        results.push(await uploadAttachment(attachment, result.requestId));
-      }
-
-      if (uploadsUnattended()) return;
-      if (results.every(Boolean)) {
-        finishCreatedRequest(result.requestId);
-      } else {
-        setStage("attachment_recovery");
-      }
+      // The upload screen's effect keeps the record too, but a composer
+      // unmounted during the save never renders it, so uploadSaved starts it.
+      const uploaded = await uploads().uploadSaved(result.requestId, savingSource.title, attachments);
+      if (uploaded === "uploaded") finishCreatedRequest(result.requestId);
+      else if (uploaded === "recovery") setStage("attachment_recovery");
     } catch {
       setFailure({
         code: "save_failed",
@@ -1143,128 +915,31 @@ export default function RequestEditor({
       operationInFlight.current = false;
       // A composer mounted since then owns the busy flag.
       if (!unmounted.current) onBusyChange?.(false);
-      settleLeftUploads();
+      uploads().settleLeft();
     }
   }
 
+
   async function retryAttachments(failed: QueuedAttachment[]) {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-    const uploadedKeys = new Set<string>();
-
-    try {
-      for (const attachment of failed) {
-        // Only Leave page stops the retries; an unmounted composer's go on.
-        if (leftUploadScreen.current) break;
-        const cleanup = await discardFailedAttachment(
-          attachment,
-          createdRequestId,
-        );
-        if (cleanup === "failed") continue;
-        if (cleanup === "uploaded") {
-          uploadedKeys.add(attachment.key);
-          continue;
-        }
-        if (await uploadAttachment(attachment, createdRequestId)) {
-          uploadedKeys.add(attachment.key);
-        }
-      }
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
-
-    if (uploadsUnattended()) return;
-    // A per-file retry must not abandon another failed file. Use the retry
-    // outcomes as well as the render snapshot; React state updates may lag.
-    if (
-      attachments.every(
-        (attachment) =>
-          attachment.status === "uploaded" || uploadedKeys.has(attachment.key),
-      )
-    ) {
-      finishCreatedRequest(createdRequestId);
-    }
+    if (createdRequestId) await uploads().retry(failed, attachments, createdRequestId);
   }
 
   async function retryFailedFiles() {
-    await retryAttachments(
-      attachments.filter((attachment) => attachment.status === "failed"),
-    );
+    await retryAttachments(attachments.filter((attachment) => attachment.status === "failed"));
   }
 
   async function removeFailedFile(attachment: QueuedAttachment) {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-    try {
-      if (
-        (await discardFailedAttachment(attachment, createdRequestId)) !==
-          "discarded" ||
-        unmounted.current
-      )
-        return;
-      setAttachments((current) =>
-        current.filter((item) => item.key !== attachment.key),
-      );
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
+    if (createdRequestId) await uploads().remove(attachment, createdRequestId);
   }
 
   async function continueWithoutFailedFiles() {
-    if (!createdRequestId || operationInFlight.current) return;
-    operationInFlight.current = true;
-    setMutationBusy(true);
-    onBusyChange?.(true);
-
-    try {
-      const unfinished = attachments.filter(
-        (attachment) =>
-          attachment.status !== "uploaded" && attachment.attachmentId,
-      );
-      const discarded = await Promise.all(
-        unfinished.map((attachment) =>
-          discardFailedAttachment(attachment, createdRequestId),
-        ),
-      );
-      if (!uploadsUnattended() && discarded.every((result) => result !== "failed"))
-        finishCreatedRequest(createdRequestId);
-    } finally {
-      operationInFlight.current = false;
-      if (!unmounted.current) {
-        setMutationBusy(false);
-        onBusyChange?.(false);
-      }
-      settleLeftUploads();
-    }
+    if (createdRequestId) await uploads().continueWithout(attachments, createdRequestId);
   }
 
-  function preserveDraftForSignIn() {
-    const review =
-      (stage === "framing" || stage === "creating") && triage && token
-        ? { triage, token, editedProblem }
-        : null;
 
-    writeIntakeDraft(window.sessionStorage, draftScope, {
-      source: review && source ? source : getValues(),
-      review,
-      previousProblem: editedProblem || previousProblem,
-      previousProblemSource,
-      reviewers: reviewersDraft,
-    });
+
+  function preserveDraftForSignIn() {
+    writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
   }
 
   // One handler for both steps: Cmd/Ctrl+Enter is the primary action wherever
@@ -1326,7 +1001,15 @@ export default function RequestEditor({
     }
     onBusyChange?.(true);
     void handleSubmit(data => {
-      if (original && data.title.trim() === original.title && data.description.trim() === original.description) {
+      if (original && editing && data.title.trim() === original.title && data.description.trim() === original.description) {
+        // Unchanged wording keeps its judgement, so its framing can be reworded but not emptied.
+        const framing = savedFraming(storedShape({ classification: editing.request.classification, reframedProblem: original.reframedProblem, extractedSolution: original.extractedSolution }), { reframedProblem: savedProblem, extractedSolution: savedSolution });
+        if (!framing.ok) {
+          onBusyChange?.(false);
+          setFramingError(framing);
+          (framing.field === "reframedProblem" ? problemFieldRef : solutionFieldRef).current?.focus();
+          return;
+        }
         void onConfirm(data);
       } else void checkFraming(data);
     }, (fieldErrors) => {
@@ -1346,7 +1029,7 @@ export default function RequestEditor({
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard creating={creating} onLeave={leaveUploadScreen} />
+        <IntakeNavigationGuard creating={creating} onLeave={() => uploads().leave()} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}
@@ -1468,21 +1151,43 @@ export default function RequestEditor({
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
             {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
             {currentValues.expectedImpact && <>
-              {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
-                <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
-              )}
-              {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
-                <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
-              )}
-              <PlanFields
-              value={currentValues.expectedImpact}
-              onChange={changeExpectedImpact}
-              requestType={currentValues.requestType ?? null}
-              disabled={checking}
-              submitted={isSubmitted}
-            /></>}
-            {editing && savedProblem !== null && <Textarea label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedProblem(event.target.value)} />}
-            {editing && savedSolution !== null && <Textarea label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} onChange={event => setSavedSolution(event.target.value)} />}
+              <RadioGroup
+                label="Expected impact"
+                name="expected-impact-choice"
+                value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
+                onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
+                options={[
+                  { value: "measure", label: "Measure a result" },
+                  { value: "none", label: "No measurable impact", description: "Operational work. Its reason is kept, and it is left out of every total." },
+                ]}
+              />
+              {currentValues.expectedImpact.kind === "no_measurable_impact" ? (
+                <Textarea
+                  label="Why there is no measurable impact"
+                  value={currentValues.expectedImpact.reason}
+                  maxLength={NO_MEASURABLE_IMPACT_REASON_MAX}
+                  disabled={checking}
+                  error={isSubmitted && !currentValues.expectedImpact.reason.trim() ? "Say why this Request has no measurable impact" : undefined}
+                  onChange={(event) => changeExpectedImpact({ kind: "no_measurable_impact", reason: event.target.value })}
+                />
+              ) : <>
+                {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
+                  <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
+                )}
+                {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
+                  <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
+                )}
+                <PlanFields
+                  value={currentValues.expectedImpact}
+                  onChange={changeExpectedImpact}
+                  requestType={currentValues.requestType ?? null}
+                  disabled={checking}
+                  submitted={isSubmitted}
+                />
+              </>}
+            </>}
+            {editing && savedProblem !== null && <Textarea ref={problemFieldRef} label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "reframedProblem" ? framingError.message : undefined} onChange={event => { setSavedProblem(event.target.value); setFramingError(null); }} />}
+            {editing && savedSolution !== null && <Textarea ref={solutionFieldRef} label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "extractedSolution" ? framingError.message : undefined} onChange={event => { setSavedSolution(event.target.value); setFramingError(null); }} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
             {previousProblem && <section aria-label="Problem from your earlier review" className="space-y-2 border-t pt-4">
               <h2 className="text-sm font-medium">Problem from your earlier review</h2>

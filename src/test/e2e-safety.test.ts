@@ -135,8 +135,10 @@ describe("E2E mutation boundary", () => {
     const { default: config } = await import("../../playwright.config");
     expect(config.webServer).toMatchObject({
       reuseExistingServer: false,
-      env: { LANE_ENV_FILE: "/dev/null", DATABASE_URL: process.env.DATABASE_URL },
+      env: { LANE_ENV_FILE: "/dev/null", DATABASE_URL: "postgresql://postgres.jznepeqghjixcrpuddym:secret@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres" },
     });
+    // Fixture mutations retain the validated session connection.
+    expect(new URL(process.env.DATABASE_URL!).port).toBe("5432");
     expect(config.webServer).toHaveProperty("command", expect.stringContaining("LANE_ENV_FILE=/dev/null"));
   });
 });

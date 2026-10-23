@@ -8,6 +8,14 @@ export const IMPACT_SOURCE_MAX = 1000;
 export const IMPACT_RESULT_MAX = 2000;
 export const IMPACT_REVIEW_DAYS_MAX = 3650;
 export const DEFAULT_IMPACT_UNIT = "%";
+export const NO_MEASURABLE_IMPACT_REASON_MAX = 1000;
+
+/** The "No measurable impact" choice: operational work, saved with its reason instead of a measured plan (#153). */
+export const noMeasurableImpactSchema = z.object({
+  kind: z.literal("no_measurable_impact"),
+  reason: z.string().trim().min(1, "Say why this Request has no measurable impact").max(NO_MEASURABLE_IMPACT_REASON_MAX),
+});
+export type NoMeasurableImpact = z.infer<typeof noMeasurableImpactSchema>;
 
 const metricName = z.string().trim().min(1, "Name the metric you expect to change").max(IMPACT_METRIC_MAX);
 const unit = z.string().trim().min(1, "Add the unit for this metric").max(IMPACT_UNIT_MAX);
@@ -79,12 +87,15 @@ export const expectedImpactDraftSchema = z.discriminatedUnion("kind", [
   measurementPlanDraftSchema,
   z.object({ kind: z.literal("metric"), metric: z.string().max(IMPACT_METRIC_MAX).default(""), baseline: z.number().nullable().default(null), target: z.number().nullable().default(null), unit: z.string().max(IMPACT_UNIT_MAX).default(DEFAULT_IMPACT_UNIT), source: z.string().max(IMPACT_SOURCE_MAX).default(""), reviewAfterDays: z.number().nullable().default(null), guardrail: guardrailDraftSchema.optional(), guardrailEdit: guardrailEditSchema.optional(), ...draftExtras }),
   z.object({ kind: z.literal("verification"), result: z.string().max(IMPACT_RESULT_MAX).default(""), source: z.string().max(IMPACT_SOURCE_MAX).default(""), reviewAfterDays: z.number().nullable().default(null), guardrail: guardrailDraftSchema.optional(), guardrailEdit: guardrailEditSchema.optional(), ...draftExtras }),
+  z.object({ kind: z.literal("no_measurable_impact"), reason: z.string().max(NO_MEASURABLE_IMPACT_REASON_MAX).default("") }),
 ]).nullish().transform((value) => value ?? null);
 export type ExpectedImpactDraft = Exclude<z.output<typeof expectedImpactDraftSchema>, null>;
+/** The saved-format drafts the measurement editor edits; the "No measurable impact" choice is edited on its own. */
+export type PlanImpactDraft = Exclude<ExpectedImpactDraft, { kind: "no_measurable_impact" }>;
 export const EMPTY_METRIC_IMPACT: Extract<ExpectedImpactDraft, { kind: "metric" }> = { kind: "metric", metric: "", baseline: null, target: null, unit: DEFAULT_IMPACT_UNIT, source: "", reviewAfterDays: null };
 
 export function hasGuardrailEdits(impact: z.input<typeof expectedImpactDraftSchema>): boolean {
-  if (impact?.kind === "measurement") return false;
+  if (impact?.kind === "measurement" || impact?.kind === "no_measurable_impact") return false;
   return Boolean(impact?.guardrailEdit || (impact?.guardrail && !guardrailSchema.safeParse(impact.guardrail).success));
 }
 
@@ -101,6 +112,7 @@ export function hasImpactWork(impact: z.input<typeof expectedImpactDraftSchema>)
       measurement.windowDays !== 30 || measurement.exactDates ||
       Boolean(measurement.startDate || measurement.endDate);
   }
+  if (impact?.kind === "no_measurable_impact") return true;
   return impact != null && (
     impact.guardrailEdit !== undefined ||
     impact.guardrail !== undefined ||
@@ -122,6 +134,12 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
     for (const issue of parsed.error.issues) context.addIssue({ code: "custom", path: issue.path, message: issue.message });
     return z.NEVER;
   }
+  if (draft.kind === "no_measurable_impact") {
+    const parsed = noMeasurableImpactSchema.safeParse(draft);
+    if (parsed.success) return parsed.data;
+    for (const issue of parsed.error.issues) context.addIssue({ code: "custom", path: ["reason"], message: issue.message });
+    return z.NEVER;
+  }
   if (draft.guardrailEdit !== undefined) {
     context.addIssue({ code: "custom", path: ["guardrailEdit"], message: "Add or cancel the guardrail before reviewing" });
   }
@@ -132,6 +150,16 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
   }
   if (draft.guardrailEdit !== undefined) return z.NEVER;
   return parsed.data;
+});
+
+/**
+ * Expected impact for a new Request: a complete measurement plan only. The
+ * Metric and Verified result kinds remain readable and editable on the older
+ * Requests that saved them; nothing creates them any more (architecture
+ * review I5, 2026-10-22).
+ */
+export const newRequestImpactSchema = requiredExpectedImpactSchema.superRefine((impact, context) => {
+  if (impact.kind !== "measurement" && impact.kind !== "no_measurable_impact") context.addIssue({ code: "custom", message: "Choose what to measure for this Request" });
 });
 
 /** How much of the Expected impact draft is filled in, for the composer's
@@ -165,4 +193,32 @@ export function impactSummaryLines(impact: Exclude<ExpectedImpact, { kind: "meas
   const source = impact.source.trim();
   const check = source ? `${source}, ${days} after launch` : `Check in ${days}`;
   return impact.guardrail ? [first, check, formatGuardrail(impact.guardrail)] : [first, check];
+}
+
+/**
+ * What a Request's expected impact is, derived from its two stored columns (#153, spec #151 review). The database keeps
+ * `expected_impact` and `no_measurable_impact_reason` as they are; every reader and writer of the pair goes through here.
+ */
+export type ImpactState<Plan = ExpectedImpact> =
+  | { kind: "measured"; plan: Plan }
+  | { kind: "operational"; reason: string }
+  | { kind: "none" };
+
+export function impactStateOf<Plan>(stored: { expectedImpact: Plan | null; noMeasurableImpactReason: string | null }): ImpactState<Plan> {
+  if (stored.expectedImpact) return { kind: "measured", plan: stored.expectedImpact };
+  if (stored.noMeasurableImpactReason) return { kind: "operational", reason: stored.noMeasurableImpactReason };
+  return { kind: "none" };
+}
+
+/** The state a saved choice (a measured plan, or "No measurable impact" with its reason) stands for. */
+export function impactStateOfChoice(choice: ExpectedImpact | NoMeasurableImpact | null | undefined): ImpactState {
+  if (!choice) return { kind: "none" };
+  return choice.kind === "no_measurable_impact" ? { kind: "operational", reason: choice.reason } : { kind: "measured", plan: choice };
+}
+
+/** The two columns a state is saved as. The only place the pair's values are written. */
+export function impactColumnsOf<Plan>(state: ImpactState<Plan>): { expectedImpact: Plan | null; noMeasurableImpactReason: string | null } {
+  if (state.kind === "measured") return { expectedImpact: state.plan, noMeasurableImpactReason: null };
+  if (state.kind === "operational") return { expectedImpact: null, noMeasurableImpactReason: state.reason };
+  return { expectedImpact: null, noMeasurableImpactReason: null };
 }

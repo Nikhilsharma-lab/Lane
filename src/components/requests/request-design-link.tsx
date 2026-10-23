@@ -1,5 +1,5 @@
 import { ExternalLink, Link as LinkIcon } from "lucide-react"
-import type { DesignReview } from "@/lib/request-review"
+import type { SavedDesignReview } from "@/lib/request-design-link"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 
@@ -17,7 +17,7 @@ export function isFigmaLink(value: string | null | undefined): boolean {
 }
 
 /** Reviews stay in Figma. Retain the most recent saved design reference without presenting old review activity. */
-export function RequestDesignLink({ relatedLink, reviews = [] }: { relatedLink?: string | null; reviews?: readonly DesignReview[] }) {
+export function RequestDesignLink({ relatedLink, reviews = [] }: { relatedLink?: string | null; reviews?: readonly SavedDesignReview[] }) {
   const designUrl = isFigmaLink(relatedLink) ? relatedLink! : reviews.findLast(review => safeDesignUrl(review.designUrl))?.designUrl
   if (!designUrl) return null
   const figma = isFigmaLink(designUrl)

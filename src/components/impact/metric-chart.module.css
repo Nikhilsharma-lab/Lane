@@ -1,0 +1,22 @@
+/* The metric chart (#158). Theme-file tokens only: series colours, sizes and motion are read from the theme, not written here. */
+.chart { display: grid; gap: var(--space-2); margin: 0; min-width: 0; }
+.plot { display: block; width: 100%; aspect-ratio: 3 / 1; overflow: visible; }
+.bar { animation: grow var(--duration-considered) var(--ease-enter) both; transform-box: fill-box; transform-origin: bottom; }
+.bar[data-series="baseline"] { fill: var(--series-1); }
+.bar[data-series="actual"] { fill: var(--series-2); }
+.bar[data-series="predicted"] { fill: var(--series-3); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--text-muted); }
+.legendItem { display: inline-flex; align-items: center; gap: var(--space-1); }
+.swatch { display: inline-block; width: var(--space-2); height: var(--space-2); border-radius: var(--corner-sm); }
+.swatch[data-series="baseline"] { background: var(--series-1); }
+.swatch[data-series="actual"] { background: var(--series-2); }
+.swatch[data-series="predicted"] { background: var(--series-3); }
+.empty { margin: 0; font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--text-muted); }
+
+@keyframes grow {
+  from { transform: scaleY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; }
+}

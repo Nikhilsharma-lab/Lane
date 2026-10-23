@@ -8,8 +8,8 @@ Each item: what · why deferred · source review.
 
 **Authority update — 2026-09-28:** the confirmed Request pipeline and alignment-first planning decision live
 in `REQUIREMENTS.md` §§4–5/15 and `lane-roadmap.md` §3. This ledger preserves historical evidence and conditional
-work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item grants an
-alignment bypass, reopens a Closed outcome, or proves the current production cutover. Pipeline approval does
+work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item reopens a
+Closed outcome, or proves the current production cutover. Pipeline approval does
 not authorize implementing these unrelated deferrals.
 
 ---
@@ -163,8 +163,7 @@ not authorize implementing these unrelated deferrals.
 - **Demoting an assigned member to guest leaves in-progress assignments dangling.** The guest cannot pick up
   or mark Done, but an assignment may remain. The older claim of a shipped Owner reassignment action was not
   verified and must not be used as a recovery guarantee. The confirmed target allows attributable admin
-  reassignment, replacement alignment and preserved concerns; this is not implemented yet. Specify recovery
-  in the relevant alignment/assignment plan; automatic unassignment remains a separately scoped choice.
+  reassignment; this is not implemented yet. Specify recovery in an assignment plan; automatic unassignment remains a separately scoped choice.
   — Guest role-change increment.
 
 ## GUEST INTAKE — invited shipped; public / anonymous deferred
@@ -301,6 +300,15 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   is sufficient for MVP. Plane ref: Plane's deploy board / intake with status filtering
   (`issue_intake__status__in=[0, 2, -2]` in notification views). Trigger: decision to accept
   non-invited submissions.
+
+## COMMAND PALETTE BUTTON — when phone or mouse users need the palette
+
+- **A visible "Jump to… ⌘K" button.** What: a button in the shell (the sidebar header or the page strip)
+  that opens the ⌘K command palette, with its key hint, so people on a phone or using only a mouse can reach
+  it. Why deferred: spec #101 (Q14) adds no new button. Everything the palette offers stays reachable through
+  the sidebar, the Request buttons and the row menus, and phones have no ⌘K. Trigger: usability rounds or
+  support show people looking for one place to type what they want on a phone or with a mouse, or the shell
+  is redesigned. — spec #101 (Q14), recorded by #107, 2026-10-22.
 
 ## LOW PRIORITY / maybe never
 

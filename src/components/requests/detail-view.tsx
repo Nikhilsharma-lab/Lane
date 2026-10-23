@@ -6,7 +6,7 @@ import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import type { RequestPriority, RequestType } from "@/lib/request-constants"
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact"
-import type { DesignReview } from "@/lib/request-review"
+import type { SavedDesignReview } from "@/lib/request-design-link"
 import { RequestDesignLink, isFigmaLink } from "./request-design-link"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { relativeTime } from "@/lib/relative-time"
@@ -24,12 +24,15 @@ export type RequestStatus = "open" | "in_progress" | "done"
 export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
+  /** Why it can't be picked up yet (measurementReadiness), from the loader. */
+  pickupBlockedReason?: string | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
-  designReviews?: DesignReview[]
-  designReviewVersion?: number
+  /** The release record: with the closures, what the one journey status reads from (#133). */
+  releaseState?: import("@/lib/request-release").ReleaseState | null
+  designReviews?: SavedDesignReview[]
   id: string
   /** Saved workspace-local number (LAN-n). NOT NULL, CHECK > 0 in the schema. */
   requestNumber: number
@@ -44,6 +47,8 @@ export type RequestDetail = {
   usefulLink: string | null
   expectedImpact?: ExpectedImpact | null
   measurementDraft?: IncompleteMeasurement | null
+  /** The "No measurable impact" choice and its reason (#153); set only with no measured plan. */
+  noMeasurableImpactReason?: string | null
   reframedProblem: string | null
   extractedSolution: string | null
   classification: "problem" | "solution" | "hybrid" | null
@@ -135,6 +140,10 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
 
             </section>
             {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
+            {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
+              <h2 id="no-measurable-impact-heading">No measurable impact</h2>
+              <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>
+            </section>}
             {currentValues}
             {requestPanels}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>

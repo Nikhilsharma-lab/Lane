@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import type { ExpectedImpact } from './request-impact';
+import { agreedResult } from './request-outcome';
+import { utcDay } from './utc-day';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
-const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true) };
+/** The measured value just before release, in the agreed metric's unit (#151 decision 3). Required for a measured plan. */
+export const valueBeforeReleaseSchema = z.object({ value: z.number(), unit: z.string().trim().min(1).max(40) }).strict();
+const facts = { exposureDate: releaseDateSchema, evidence: text, audienceConfirmed: z.literal(true), valueBeforeRelease: valueBeforeReleaseSchema.optional() };
 export const releaseChangeSchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('release'), ...facts }).strict(),
     z.object({ kind: z.literal('correct'), ...facts, reason: text }).strict(),
@@ -36,13 +40,8 @@ export type ReleaseState = {
     release: ReleaseFact | null;
     history: ReleaseEvent[];
 };
-/** Shared owner contract for release and ticket #60 closure. Authorship never changes. */
-export function releaseOwner(request: {
-    createdBy: string;
-    releaseState?: ReleaseState | null;
-}) {
-    return request.releaseState?.ownerId ?? request.createdBy;
-}
+// The zod-free reads live apart so the list, the shell and the journey module load without zod (#133).
+export { dueWords, releaseMeasurement, requesterOf } from './request-release-facts';
 export function releaseWindow(impact: ExpectedImpact | null, exposureDate: string): Pick<ReleaseFact, 'dueDate' | 'startDate' | 'windowKind'> {
     if (!impact)
         throw new Error('A complete agreed measurement window is required.');
@@ -54,16 +53,21 @@ export function releaseWindow(impact: ExpectedImpact | null, exposureDate: strin
         throw new Error('A complete agreed measurement window is required.');
     const date = new Date(exposureDate + 'T00:00:00.000Z');
     date.setUTCDate(date.getUTCDate() + days);
-    return { startDate: exposureDate, dueDate: date.toISOString().slice(0, 10), windowKind: 'relative' };
+    return { startDate: exposureDate, dueDate: utcDay(date), windowKind: 'relative' };
 }
-export function releaseMeasurement(release: ReleaseFact | null, now: Date) {
-    if (!release)
-        return null;
-    const today = now.toISOString().slice(0, 10);
-    const days = Math.round((Date.parse(release.dueDate + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
-    return { due: days <= 0, days, label: days === 0 ? 'Due today' : days > 0 ? `${days} day${days === 1 ? '' : 's'} remaining` : `${-days} day${days === -1 ? '' : 's'} overdue` };
+/**
+ * Whether a release must record the value before release: a numeric result whose plan has a planning baseline.
+ * A Verified check, a new capability and an unknown baseline never take one (#151 decision 3).
+ */
+export function valueBeforeReleaseOf(impact: ExpectedImpact | null): { required: true; unit: string } | { required: false; unit: null } {
+    if (!impact) return { required: false, unit: null };
+    const agreed = agreedResult(impact);
+    if (agreed.form !== 'numeric') return { required: false, unit: null };
+    const planned = impact.kind === 'measurement' ? !impact.primary.noBaseline && impact.primary.current !== null : impact.kind === 'metric' && impact.noBaseline !== true && agreed.baseline !== null;
+    return planned ? { required: true, unit: agreed.unit } : { required: false, unit: null };
 }
+
 /** Exposure cannot predate the Request itself (UTC date). */
 export function earliestExposure(request: { createdAt: Date }) {
-    return request.createdAt.toISOString().slice(0, 10);
+    return utcDay(request.createdAt);
 }

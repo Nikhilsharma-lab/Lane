@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/action-call";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 
@@ -68,7 +69,7 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
     }
 
     setError(null);
-    const outcome = await run(() => saveOnboardingRole({ role }));
+    const outcome = await run(() => callAction(() => saveOnboardingRole({ role })));
     if (outcome.status === "blocked") return;
     // The one navigation: saveOnboardingRole revalidates and redirects to /, so
     // its response carries / and the router is already on its way there. No

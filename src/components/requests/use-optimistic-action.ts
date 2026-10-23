@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { callAction, clerkActionSession, isSessionFailure, type ActionSession } from "@/lib/action-call"
 import { usePendingMutationWriter, type PendingMutations, type RequestPatch } from "./pending-mutations-provider"
 
 /** What every Request action returns: `{ error }` on a refusal, anything else on success. */
@@ -40,37 +41,22 @@ export type OptimisticDeps = {
   overlay: OverlayWriter | null
   /** Re-syncs the page with the server. Only failure paths call it. */
   refresh: () => void
-  /** Asks Clerk for a fresh session token before the one retry. */
-  refreshToken: () => Promise<void>
+  /** The session token every call refreshes first (`callAction`). */
+  session: ActionSession
   /** The default failure feedback. */
   notifyError: (message: string) => void
 }
 
 export const FAILURE_TITLE = "Could not update this Request"
 const CONNECTION_ERROR = "Check your connection and try again."
-// actions.ts is a "use server" module and can only export async functions, so
-// the guard's refusal copy (CANNOT_CHANGE_REQUESTS there) is matched here.
-const AUTH_REFUSAL = /can't change Requests in this workspace/i
-const AUTH_THROW = /\b(401|403)\b|unauthori[sz]ed|unauthenticated|forbidden|signed out|sign in/i
 
 const errorOf = (result: unknown) =>
   result && typeof result === "object" && "error" in result && typeof result.error === "string" && result.error ? result.error : null
 
-const authShaped = (failure: { error: string } | { thrown: unknown }) =>
-  "error" in failure ? AUTH_REFUSAL.test(failure.error) : failure.thrown instanceof Error && AUTH_THROW.test(`${failure.thrown.name} ${failure.thrown.message}`)
-
-/** Runs an action and, when the failure looks like an expired session (a tab
- * left hidden is the likely cause), refreshes the Clerk token and retries once. */
-async function withAuthRetry<R>(run: () => Promise<R>, refreshToken: () => Promise<void>): Promise<{ value: R } | { thrown: unknown }> {
-  for (let attempt = 0; ; attempt++) {
-    let outcome: { value: R } | { thrown: unknown }
-    try { outcome = { value: await run() } }
-    catch (thrown) { outcome = { thrown } }
-    const error = "value" in outcome ? errorOf(outcome.value) : null
-    const retry = attempt === 0 && ("thrown" in outcome ? authShaped(outcome) : error !== null && authShaped({ error }))
-    if (!retry) return outcome
-    await refreshToken().catch(() => undefined)
-  }
+/** `callAction`, settled: the action's result or what it threw. */
+async function attempt<R>(run: () => Promise<R>, session: ActionSession): Promise<{ value: R } | { thrown: unknown }> {
+  try { return { value: await callAction(run, session) } }
+  catch (thrown) { return { thrown } }
 }
 
 /**
@@ -94,7 +80,7 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
     return { status: "skipped" }
   }
 
-  const outcome = await withAuthRetry(options.run, deps.refreshToken)
+  const outcome = await attempt(options.run, deps.session)
   const error = "thrown" in outcome ? CONNECTION_ERROR : errorOf(outcome.value)
   if (error === null && "value" in outcome) {
     if (token !== null) overlay?.confirm(options.id, token)
@@ -106,7 +92,7 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
   const message = error ?? CONNECTION_ERROR
   rollback()
   finish(false)
-  if (options.onError) options.onError(message, { thrown, auth: "thrown" in outcome ? authShaped(outcome) : authShaped({ error: message }) })
+  if (options.onError) options.onError(message, { thrown, auth: isSessionFailure(outcome) })
   else deps.notifyError(message)
   if (options.refreshOnError !== false) deps.refresh()
   return { status: "error", error: message, thrown }
@@ -133,7 +119,7 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
     finishers.get(id)?.(succeeded)
   }
 
-  const outcome = await withAuthRetry(options.run, deps.refreshToken)
+  const outcome = await attempt(options.run, deps.session)
   const error = "thrown" in outcome ? CONNECTION_ERROR : errorOf(outcome.value)
   if (error !== null || !("value" in outcome)) {
     for (const id of options.ids) settle(id, false)
@@ -152,14 +138,6 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
   return { status: "success", moved: [...moved], failed }
 }
 
-type ClerkGlobal = { Clerk?: { session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null } }
-
-/** Reads the Clerk instance ClerkProvider installs, so stories and fixtures
- * without a ClerkProvider still render; there the retry simply runs again. */
-export async function refreshClerkToken() {
-  await (globalThis as ClerkGlobal).Clerk?.session?.getToken({ skipCache: true })
-}
-
 /** The router refresh for failure paths and the explicit Refresh control. It
  * lives here so the ESLint ban on router.refresh() has a single exception. */
 export function useServerRefresh() {
@@ -176,7 +154,7 @@ function useOptimisticDeps(): OptimisticDeps {
   return useMemo(() => ({
     overlay,
     refresh,
-    refreshToken: refreshClerkToken,
+    session: clerkActionSession,
     notifyError: (message: string) => { toast({ type: "error", title: FAILURE_TITLE, description: message }) },
   }), [overlay, refresh, toast])
 }

@@ -1,6 +1,7 @@
 "use server";
+import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
-import { labelRequestType } from "@/lib/request-labels";
+import { sourceRequestType } from "@/lib/request-labels";
 
 import type { OverviewRequest } from "@/lib/request-overview";
 
@@ -11,8 +12,6 @@ import { revalidatePath } from "next/cache";
 
 import { db, requests, requestAgreements } from "@/db";
 import {
-  classifyTriageFailure,
-  triageFailureStatus,
   triageRequest,
   type TriageFailureKind,
   type TriageResult,
@@ -21,7 +20,9 @@ import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
 import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { editedProblemSchema, requestSchema, type RequestInput } from "@/lib/request-schema";
+import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
+import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
+import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -43,17 +44,7 @@ export type IntakeFailure = {
   code: IntakeFailureCode;
   message: string;
   field?:
-    | "expectedImpact"
-    | "projectId"
-    | "requestType"
-    | "priority"
-    | "title"
-    | "description"
-    | "affectedPeople"
-    | "desiredChange"
-    | "observedEvidence"
-    | "uncertainty"
-    | "usefulLink"
+    | RequestSourceField
     | "editedProblemText"
     | "reviewers";
   retryAfterSeconds?: number;
@@ -149,10 +140,9 @@ export async function runTriage(
     if (!z.uuid().safeParse(existingRequestId).success) return { success: false, error: { code: "validation", message: "Request unavailable." } };
     try {
       const [owned] = await db.select({ id: requests.id }).from(requests).where(and(
-        eq(requests.id, existingRequestId), eq(requests.orgId, auth.orgId),
-        auth.role === "admin" ? undefined : eq(requests.createdBy, auth.userId), eq(requests.status, "open"),
+        eq(requests.id, existingRequestId), changeable(auth), eq(requests.status, "open"),
       )).limit(1);
-      if (!owned) return { success: false, error: { code: "validation", message: "Only the creator or a workspace admin can edit an Open Request." } };
+      if (!owned) return { success: false, error: { code: "validation", message: "Only the Requester or a workspace admin can edit an Open Request." } };
     } catch {
       return { success: false, error: { code: "network", message: "Could not check this Request. Your draft is kept." } };
     }
@@ -160,23 +150,7 @@ export async function runTriage(
   const parsed = (existingRequestId ? requestEditSourceSchema : requestSchema).safeParse(formData);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    const field =
-      typeof issue.path[0] === "string" &&
-      [
-        "expectedImpact",
-        "projectId",
-        "requestType",
-        "priority",
-        "title",
-        "description",
-        "affectedPeople",
-        "desiredChange",
-        "observedEvidence",
-        "uncertainty",
-        "usefulLink",
-      ].includes(issue.path[0])
-        ? (issue.path[0] as IntakeFailure["field"])
-        : undefined;
+    const field = sourceFieldOf(issue.path);
 
     return {
       success: false,
@@ -217,21 +191,24 @@ export async function runTriage(
     };
   }
 
+  const outcome = await triageRequest({
+    title: parsed.data.title,
+    description: parsed.data.description,
+  });
+  if (!outcome.ok) {
+    console.error("[intake] triage failed:", { kind: outcome.kind, statusCode: outcome.status, error: outcome.error });
+    return { success: false, error: TRIAGE_FAILURES[outcome.kind] };
+  }
   try {
-    const triage = await triageRequest({
-      title: parsed.data.title,
-      description: parsed.data.description,
-    });
-    const token = createTriageToken(parsed.data, triage, {
+    const token = createTriageToken(parsed.data, outcome.triage, {
       orgId: auth.orgId,
       userId: auth.userId,
     }, existingRequestId);
-
-    return { success: true, triage, token };
+    return { success: true, triage: outcome.triage, token };
   } catch (error) {
-    const kind = classifyTriageFailure(error);
-    console.error("[intake] triage failed:", { kind, statusCode: triageFailureStatus(error), error });
-    return { success: false, error: TRIAGE_FAILURES[kind] };
+    // Signing failed (a missing secret): the review can't finish, as for a provider failure.
+    console.error("[intake] triage token failed:", error);
+    return { success: false, error: TRIAGE_FAILURES.provider };
   }
 }
 
@@ -294,31 +271,19 @@ export async function saveRequest(
   }
 
   const payload = verification.payload;
-  const parsedEdit = editedProblemSchema.safeParse(data.editedProblemText);
-  if (!parsedEdit.success) {
+  // The classification and suggested change come from the signed review; only
+  // the problem to solve is the person's own words.
+  const saved = savedFraming(framingShape(payload.classification), {
+    reframedProblem: data.editedProblemText,
+    extractedSolution: payload.extractedSolution,
+  }, "Describe the problem before creating this Request.");
+  if (!saved.ok) {
     return {
       success: false,
-      error: {
-        code: "validation",
-        message: parsedEdit.error.issues[0].message,
-        field: "editedProblemText",
-      },
+      error: { code: "validation", message: saved.message, field: "editedProblemText" },
     };
   }
-
-  if (payload.classification !== "problem" && parsedEdit.data === null) {
-    return {
-      success: false,
-      error: {
-        code: "validation",
-        message: "Describe the problem before creating this Request.",
-        field: "editedProblemText",
-      },
-    };
-  }
-
-  const reframedProblem =
-    payload.classification === "problem" ? null : parsedEdit.data;
+  const { reframedProblem, extractedSolution } = saved.framing;
 
   const review = await reviewersForNewRequest(reviewerInput, auth);
   if ("code" in review) return { success: false, error: review };
@@ -334,20 +299,17 @@ export async function saveRequest(
         id: payload.requestId,
         orgId: auth.orgId,
         projectId: payload.projectId,
-        requestType: payload.labelKeys ? labelRequestType(payload.labelKeys) : payload.requestType,
+        requestType: sourceRequestType(payload),
         labelKeys: payload.labelKeys,
         priority: payload.priority,
-        expectedImpact: payload.expectedImpact,
+        // The choice is saved as its reason; a measured plan is saved as before (#153).
+        ...impactColumnsOf(impactStateOfChoice(payload.expectedImpact)),
         title: payload.title,
         description: payload.description,
-        affectedPeople: payload.affectedPeople || null,
-        desiredChange: payload.desiredChange || null,
-        observedEvidence: payload.observedEvidence || null,
-        uncertainty: payload.uncertainty || null,
-        usefulLink: payload.usefulLink || null,
+        ...storedContext(payload),
         classification: payload.classification,
         reframedProblem,
-        extractedSolution: payload.extractedSolution,
+        extractedSolution,
         status: "open",
         assignedTo: null,
         createdBy: auth.userId,

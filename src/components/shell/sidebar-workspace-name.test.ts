@@ -1,10 +1,12 @@
 import { createElement } from "react";
+import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const clerk = vi.hoisted(() => ({
   pathname: "/",
   status: "all" as string | null,
+  project: null as string | null,
   resource: {
     isLoaded: true,
     organization: { id: "org_active", name: "Renamed workspace" } as { id: string; name: string } | null | undefined,
@@ -17,11 +19,13 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => clerk.pathname,
-  useSearchParams: () => new URLSearchParams(clerk.status === null ? {} : { status: clerk.status }),
+  useSearchParams: () => new URLSearchParams({ ...(clerk.status === null ? {} : { status: clerk.status }), ...(clerk.project ? { project: clerk.project } : {}) }),
   useRouter: () => ({ push: vi.fn() }),
 }));
 // Notifications have their own database boundary and are unrelated to the label.
 vi.mock("./notification-bell", () => ({ NotificationBell: () => null }));
+// The palette is its own chunk with its own tests.
+vi.mock("./command-palette-lazy", () => ({ CommandPaletteHost: () => null }));
 vi.mock("./use-workspace-switcher", () => ({ useWorkspaceSwitcher: () => undefined }));
 
 import { Sidebar } from "./sidebar";
@@ -30,17 +34,20 @@ import { SidebarView } from "./sidebar-view";
 beforeEach(() => {
   clerk.pathname = "/";
   clerk.status = "all";
+  clerk.project = null;
   clerk.resource = { isLoaded: true, organization: { id: "org_active", name: "Renamed workspace" } };
 });
 
-function renderSidebar(role = "member") {
-  return renderToStaticMarkup(createElement(Sidebar, {
+function renderSidebar(role: "admin" | "member" | "guest" = "member") {
+  // The (app) layout always provides the workspace's Projects.
+  return renderToStaticMarkup(createElement(AppProviders, { orgId: "org_active" }, createElement(Sidebar, {
     workspaceName: "Saved workspace name",
     fullName: "Test Member",
     email: "member@example.test",
     role,
     orgId: "org_active",
-  }));
+    userId: "user_1",
+  })));
 }
 
 // Locate the labelled group without depending on library classes or slots.
@@ -131,7 +138,7 @@ describe("approved Requests navigation", () => {
     ["guest", "My Requests", "All Requests"],
     ["member", "All Requests", "My Requests"],
     ["admin", "All Requests", "My Requests"],
-  ])("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
+  ] as const)("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
     const html = renderSidebar(role);
     expect(html).toContain(label);
     expect(html).not.toContain(otherLabel);
@@ -139,15 +146,24 @@ describe("approved Requests navigation", () => {
 });
 
 it("links accessible Projects and retains the Project selection within a Request detail", () => {
-  const html = renderToStaticMarkup(createElement(SidebarView, {
+  clerk.status = "in_progress"; clerk.project = "11111111-1111-4111-8111-111111111111";
+  const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
     workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test",
-    role: "member", pathname: "/requests/example", statusFilter: "in_progress",
-    projectFilter: "11111111-1111-4111-8111-111111111111",
+    role: "member", pathname: "/requests/example",
     projects: [{ id: "11111111-1111-4111-8111-111111111111", name: "Website", description: null }],
     notifications: null,
-  }));
+  })));
   expect(html).toContain('aria-label="Projects"');
   expect(html).toMatch(/<a(?=[^>]*href="\/\?status=in_progress&amp;project=11111111-1111-4111-8111-111111111111")(?=[^>]*aria-current="page")[^>]*>/);
   expect(html).toContain("Website");
   expect(html).toContain('href="/?status=in_progress&amp;project=none"');
+});
+
+// #159: the Impact Dashboard is one entry in the workspace navigation, for every role (a guest sees only their own work on it).
+describe("Impact Dashboard navigation (#159)", () => {
+  it.each(["admin", "member", "guest"] as const)("lists the Impact screen in the workspace navigation for Clerk %s", (role) => {
+    const html = renderSidebar(role);
+    expect(html).toMatch(/<a(?=[^>]*href="\/impact")[^>]*>/);
+    expect(html).toContain("Impact");
+  });
 });

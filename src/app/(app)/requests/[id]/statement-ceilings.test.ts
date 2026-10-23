@@ -1,4 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
+import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +25,7 @@ const measure = queryCounter.measure;
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
   const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/lane_test") throw new Error("Statement ceiling tests require local lane_test");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Statement ceiling tests require local lane_test");
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Statement ceilings','statement-ceilings')`;
   for (const id of [MEMBER, REQUESTER]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
@@ -118,7 +119,7 @@ describe("statement ceilings per Request mutation", () => {
   it("a markDone on an Open Request fails within the transaction budget", async () => {
     const { markDone } = await api();
     const { result, statements } = await measure(() => markDone(requestId, { orgId: ORG }));
-    expect(result).toEqual({ error: "This Request is no longer In Progress. Refresh to see its current state." });
+    expect(result).toEqual({ error: "This Request is no longer In progress. Refresh to see its current state." });
     expect(statements).toBeLessThanOrEqual(7);
   });
 });
@@ -162,7 +163,7 @@ describe("statement ceilings per bulk Request mutation", () => {
     expect([...result.moved].sort()).toEqual(ids.slice(0, 2).sort());
     expect(result.failed).toEqual([
       { id: "not-a-uuid", error: "Not found" },
-      { id: ids[2], error: "This Request is no longer In Progress. Refresh to see its current state." },
+      { id: ids[2], error: "This Request is no longer In progress. Refresh to see its current state." },
     ]);
     expect(statements).toBeLessThanOrEqual(7);
   });

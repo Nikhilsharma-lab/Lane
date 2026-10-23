@@ -1,4 +1,4 @@
-import type { ExpectedImpactDraft } from "./request-impact"
+import type { PlanImpactDraft } from "./request-impact"
 import { createEmptyMeasurementPlan, createMeasurementPrimary, createMeasurementGuardrail, MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel, measurementUnitOptions, type MeasurementPlanDraft, type MeasurementPrimaryDraft, type MeasurementGuardrailDraft } from "./request-measurement"
 
 export type EditorPrimary = Omit<MeasurementPrimaryDraft, "unit"> & { unit: string }
@@ -25,7 +25,7 @@ const viewUnit = (unit: string) => unit === "%" ? "percent" : unit
 const savedUnit = (unit: string) => unit === "percent" ? "%" : unit
 
 /** Presentation adapter only. Opening an older record never migrates or writes it. */
-export function measurementEditorValue(impact: ExpectedImpactDraft): EditorPlan {
+export function measurementEditorValue(impact: PlanImpactDraft): EditorPlan {
   if (impact.kind === "measurement") return impact
   const plan: EditorPlan = createEmptyMeasurementPlan()
   plan.measurement = { ...plan.measurement, audience: "", platform: "", ...impact.measurement, windowDays: impact.reviewAfterDays }
@@ -41,7 +41,7 @@ export function measurementEditorValue(impact: ExpectedImpactDraft): EditorPlan 
 
 /** Write back into the saved format, keeping exact custom names and units.
  * Scope and guardrail baselines absent from old records are never persisted as defaults. */
-export function measurementEditorChanges(next: EditorPlan, original: ExpectedImpactDraft): ExpectedImpactDraft {
+export function measurementEditorChanges(next: EditorPlan, original: PlanImpactDraft): PlanImpactDraft {
   if (original.kind === "measurement") return next as MeasurementPlanDraft
   const previous = measurementEditorValue(original)
   const metricName = (metric: EditorMetric, before: EditorMetric | undefined, saved: string | undefined) =>
