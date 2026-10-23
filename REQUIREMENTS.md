@@ -15,7 +15,7 @@
 > from measured-impact totals. This strengthens the target; it does not claim those capabilities are live.
 > **2026-10-06 implementation status:** Expected impact creation (Metric or Verified result), signed review
 > and read-only saved detail are implemented and locally verified. Named trio agreement, launch,
-> actual-result closure and quarterly/yearly totals remain target only.
+> actual-result closure remains target only. Quarterly/yearly totals are approved (2026-10-23, #151) and built on the integration branch, not yet shipped.
 > **2026-10-21 #58 approval:** Named agreement and its persistence contract are approved for local
 > implementation/testing. Migration `0028` is prepared; hosted backup, staging acceptance and promotion
 > are separate gates. See `docs/superpowers/plans/2026-10-21-request-agreement-persistence.md`.
@@ -341,7 +341,7 @@ The compact form implements Metric or Verified result and a “Check in [X] days
 optional unknown numeric baseline. Source/method is no longer requested at creation (2026-10-12);
 existing source details remain preserved. The same snapshot is preserved through signed review and shown read-only
 on saved detail. This bounded code is implemented and locally verified. Launch, actual-result
-collection/closure and period totals remain target only.
+collection/closure remain target only; period totals are approved (2026-10-23, #151) and built on the integration branch, not yet shipped.
 
 Every delivery commitment has **one primary success criterion**. Secondary metrics are optional. Capture
 the initial expectation and complete the measurement contract before pickup:
