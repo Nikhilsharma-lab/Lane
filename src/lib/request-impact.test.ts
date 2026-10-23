@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyMeasurementPlan, createMeasurementPrimary } from "./request-measurement";
-import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, formatGuardrail, hasGuardrailEdits, hasImpactWork, impactDraftState, impactSummaryLines, requiredExpectedImpactSchema } from "./request-impact";
+import { EMPTY_GUARDRAIL, EMPTY_METRIC_IMPACT, expectedImpactDraftSchema, expectedImpactSchema, formatGuardrail, hasGuardrailEdits, hasImpactWork, impactDraftState, impactSummaryLines, newRequestImpactSchema, requiredExpectedImpactSchema } from "./request-impact";
 
 const metric = { kind: "metric", metric: "Signup completion", baseline: null, target: 65, unit: "%", source: "Signup completed / signup started events", reviewAfterDays: 30 };
 const verification = { kind: "verification", result: "Keyboard users can complete signup without a mouse", source: "Keyboard-only acceptance check on the released experience", reviewAfterDays: 7 };
@@ -266,5 +266,34 @@ describe("measurement draft work detection", () => {
     ]) {
       expect(hasImpactWork({ ...empty, measurement: { ...empty.measurement, ...update } })).toBe(true);
     }
+  });
+});
+
+describe("No measurable impact choice", () => {
+  const choice = { kind: "no_measurable_impact", reason: "Design-system token rename with no user-facing change" };
+
+  it("requires a non-empty reason and trims it", () => {
+    expect(requiredExpectedImpactSchema.parse({ ...choice, reason: "  Token rename  " })).toEqual({ kind: "no_measurable_impact", reason: "Token rename" });
+    const blank = requiredExpectedImpactSchema.safeParse({ ...choice, reason: "   " });
+    expect(blank.success).toBe(false);
+    expect(blank.error?.issues[0]?.message).toBe("Say why this Request has no measurable impact");
+  });
+
+  it("is accepted for a new Request, while metric and verification stay refused", () => {
+    expect(newRequestImpactSchema.parse(choice)).toEqual(choice);
+    expect(newRequestImpactSchema.safeParse(metric).success).toBe(false);
+  });
+
+  it("is never a stored measured impact, so the saved snapshot schema refuses it", () => {
+    expect(expectedImpactSchema.safeParse(choice).success).toBe(false);
+  });
+
+  it("is a draft the form can hold while the reason is still empty", () => {
+    expect(expectedImpactDraftSchema.parse({ kind: "no_measurable_impact", reason: "" })).toEqual({ kind: "no_measurable_impact", reason: "" });
+  });
+
+  it("counts as the submitter's work in the composer, complete only with a reason", () => {
+    expect(impactDraftState({ kind: "no_measurable_impact", reason: "" } as never)).toBe("partial");
+    expect(impactDraftState(choice as never)).toBe("complete");
   });
 });

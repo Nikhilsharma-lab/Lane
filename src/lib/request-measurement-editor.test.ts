@@ -1,11 +1,11 @@
 import { expect, it } from "vitest"
 import { measurementEditorChanges, measurementEditorValue } from "./request-measurement-editor"
 import { createEmptyMeasurementPlan } from "./request-measurement"
-import type { ExpectedImpactDraft } from "./request-impact"
+import type { PlanImpactDraft } from "./request-impact"
 
-const metric: ExpectedImpactDraft = { kind: "metric", metric: "Revenue per visit", baseline: 0, target: 12.5, unit: "USD / visit", source: "Saved report", reviewAfterDays: 45,
+const metric: PlanImpactDraft = { kind: "metric", metric: "Revenue per visit", baseline: 0, target: 12.5, unit: "USD / visit", source: "Saved report", reviewAfterDays: 45,
   guardrail: { metric: "Refund cost", operator: "at_most", limit: 3.5, unit: "USD" } }
-it.each<ExpectedImpactDraft>([
+it.each<PlanImpactDraft>([
   metric,
   { ...metric, baseline: null, unit: "%", target: 90 },
   { ...metric, baseline: -5, target: -1 },

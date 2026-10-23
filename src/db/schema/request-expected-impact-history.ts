@@ -11,7 +11,9 @@ export const requestExpectedImpactRevisions = pgTable(
     orgId: text("org_id").notNull(),
     requestId: uuid("request_id").notNull(),
     revision: integer("revision").notNull(),
-    expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>().notNull(),
+    /** Exactly one of a measured plan or the "No measurable impact" choice (migration 0036). */
+    expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
+    noMeasurableImpactReason: text("no_measurable_impact_reason"),
     authorId: text("author_id").notNull().references(() => profiles.id),
     recordedAs: text("recorded_as").$type<"created" | "revised" | "backfilled">().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

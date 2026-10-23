@@ -301,7 +301,9 @@ export async function saveRequest(
         requestType: sourceRequestType(payload),
         labelKeys: payload.labelKeys,
         priority: payload.priority,
-        expectedImpact: payload.expectedImpact,
+        // The choice is saved as its reason; a measured plan is saved as before (#153).
+        expectedImpact: payload.expectedImpact?.kind === "no_measurable_impact" ? null : payload.expectedImpact,
+        noMeasurableImpactReason: payload.expectedImpact?.kind === "no_measurable_impact" ? payload.expectedImpact.reason : null,
         title: payload.title,
         description: payload.description,
         ...storedContext(payload),

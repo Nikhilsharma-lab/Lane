@@ -47,6 +47,8 @@ export type RequestDetail = {
   usefulLink: string | null
   expectedImpact?: ExpectedImpact | null
   measurementDraft?: IncompleteMeasurement | null
+  /** The "No measurable impact" choice and its reason (#153); set only with no measured plan. */
+  noMeasurableImpactReason?: string | null
   reframedProblem: string | null
   extractedSolution: string | null
   classification: "problem" | "solution" | "hybrid" | null
@@ -138,6 +140,10 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
 
             </section>
             {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
+            {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
+              <h2 id="no-measurable-impact-heading">No measurable impact</h2>
+              <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>
+            </section>}
             {currentValues}
             {requestPanels}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>

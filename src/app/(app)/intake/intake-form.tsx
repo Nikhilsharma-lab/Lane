@@ -34,6 +34,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
@@ -67,7 +68,7 @@ import { requestCreatedToast } from "@/components/requests/request-created-toast
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { RequestReviewersPicker, reviewerSummary, type ReviewerChoice } from "@/components/requests/request-reviewers-picker";
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants";
-import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, type ExpectedImpactDraft } from "@/lib/request-impact";
+import { expectedImpactDraftSchema, expectedImpactSchema, hasGuardrailEdits, NO_MEASURABLE_IMPACT_REASON_MAX, type ExpectedImpactDraft } from "@/lib/request-impact";
 import { createEmptyMeasurementPlan } from "@/lib/request-measurement";
 import { MeasurementPlanFields } from "@/components/requests/measurement-plan-fields";
 import { ExpectedImpactSummary } from "@/components/requests/expected-impact-summary";
@@ -372,6 +373,19 @@ export default function RequestEditor({
     draftEdited.current = true;
     setValue("expectedImpact", value, { shouldDirty: true, shouldValidate: isSubmitted });
   }, [isSubmitted, setValue]);
+  // Choosing "No measurable impact" keeps the measured plan typed so far; switching back restores it (#153).
+  const measuredPlanBeforeChoice = useRef<ExpectedImpactDraft | null>(null);
+  const chooseImpact = useCallback((choice: "measure" | "none") => {
+    const current = getValues("expectedImpact");
+    if (choice === "none") {
+      if (current?.kind === "no_measurable_impact") return;
+      if (current) measuredPlanBeforeChoice.current = parseExpectedImpact(current);
+      changeExpectedImpact({ kind: "no_measurable_impact", reason: "" });
+      return;
+    }
+    if (current?.kind !== "no_measurable_impact") return;
+    changeExpectedImpact(measuredPlanBeforeChoice.current ?? createEmptyMeasurementPlan());
+  }, [changeExpectedImpact, getValues]);
   const currentValues = useMemo(
     () => ({
       affectedPeople: affectedPeople ?? "",
@@ -821,7 +835,7 @@ export default function RequestEditor({
       const result: SaveResponse = editing && original
         ? await (async (): Promise<SaveResponse> => {
           const changes = { ...savingSource,
-            expectedImpact: original.expectedImpact === null && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
+            expectedImpact: original.expectedImpact === null && !editing.request.noMeasurableImpactReason && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
             reframedProblem: unchangedSource ? savedProblem : triage?.classification === "problem" ? null : editedProblem,
             extractedSolution: unchangedSource ? savedSolution : triage?.extractedSolution ?? null,
           };
@@ -1137,19 +1151,41 @@ export default function RequestEditor({
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
             {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
             {currentValues.expectedImpact && <>
-              {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
-                <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
-              )}
-              {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
-                <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
-              )}
-              <PlanFields
-              value={currentValues.expectedImpact}
-              onChange={changeExpectedImpact}
-              requestType={currentValues.requestType ?? null}
-              disabled={checking}
-              submitted={isSubmitted}
-            /></>}
+              <RadioGroup
+                label="Expected impact"
+                name="expected-impact-choice"
+                value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
+                onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
+                options={[
+                  { value: "measure", label: "Measure a result" },
+                  { value: "none", label: "No measurable impact", description: "Operational work. Its reason is kept, and it is left out of every total." },
+                ]}
+              />
+              {currentValues.expectedImpact.kind === "no_measurable_impact" ? (
+                <Textarea
+                  label="Why there is no measurable impact"
+                  value={currentValues.expectedImpact.reason}
+                  maxLength={NO_MEASURABLE_IMPACT_REASON_MAX}
+                  disabled={checking}
+                  error={isSubmitted && !currentValues.expectedImpact.reason.trim() ? "Say why this Request has no measurable impact" : undefined}
+                  onChange={(event) => changeExpectedImpact({ kind: "no_measurable_impact", reason: event.target.value })}
+                />
+              ) : <>
+                {errors.expectedImpact?.type === "server" && errors.expectedImpact.message && (
+                  <Alert tone="danger" title="Check measurement">{errors.expectedImpact.message}</Alert>
+                )}
+                {!editing && currentValues.expectedImpact.kind !== "measurement" && errors.expectedImpact && errors.expectedImpact.type !== "server" && (
+                  <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
+                )}
+                <PlanFields
+                  value={currentValues.expectedImpact}
+                  onChange={changeExpectedImpact}
+                  requestType={currentValues.requestType ?? null}
+                  disabled={checking}
+                  submitted={isSubmitted}
+                />
+              </>}
+            </>}
             {editing && savedProblem !== null && <Textarea ref={problemFieldRef} label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "reframedProblem" ? framingError.message : undefined} onChange={event => { setSavedProblem(event.target.value); setFramingError(null); }} />}
             {editing && savedSolution !== null && <Textarea ref={solutionFieldRef} label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "extractedSolution" ? framingError.message : undefined} onChange={event => { setSavedSolution(event.target.value); setFramingError(null); }} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
