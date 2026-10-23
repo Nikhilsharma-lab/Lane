@@ -194,3 +194,31 @@ export function impactSummaryLines(impact: Exclude<ExpectedImpact, { kind: "meas
   const check = source ? `${source}, ${days} after launch` : `Check in ${days}`;
   return impact.guardrail ? [first, check, formatGuardrail(impact.guardrail)] : [first, check];
 }
+
+/**
+ * What a Request's expected impact is, derived from its two stored columns (#153, spec #151 review). The database keeps
+ * `expected_impact` and `no_measurable_impact_reason` as they are; every reader and writer of the pair goes through here.
+ */
+export type ImpactState<Plan = ExpectedImpact> =
+  | { kind: "measured"; plan: Plan }
+  | { kind: "operational"; reason: string }
+  | { kind: "none" };
+
+export function impactStateOf<Plan>(stored: { expectedImpact: Plan | null; noMeasurableImpactReason: string | null }): ImpactState<Plan> {
+  if (stored.expectedImpact) return { kind: "measured", plan: stored.expectedImpact };
+  if (stored.noMeasurableImpactReason) return { kind: "operational", reason: stored.noMeasurableImpactReason };
+  return { kind: "none" };
+}
+
+/** The state a saved choice (a measured plan, or "No measurable impact" with its reason) stands for. */
+export function impactStateOfChoice(choice: ExpectedImpact | NoMeasurableImpact | null | undefined): ImpactState {
+  if (!choice) return { kind: "none" };
+  return choice.kind === "no_measurable_impact" ? { kind: "operational", reason: choice.reason } : { kind: "measured", plan: choice };
+}
+
+/** The two columns a state is saved as. The only place the pair's values are written. */
+export function impactColumnsOf<Plan>(state: ImpactState<Plan>): { expectedImpact: Plan | null; noMeasurableImpactReason: string | null } {
+  if (state.kind === "measured") return { expectedImpact: state.plan, noMeasurableImpactReason: null };
+  if (state.kind === "operational") return { expectedImpact: null, noMeasurableImpactReason: state.reason };
+  return { expectedImpact: null, noMeasurableImpactReason: null };
+}

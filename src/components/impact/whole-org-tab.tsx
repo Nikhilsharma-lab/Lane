@@ -3,6 +3,7 @@
 import type { ImpactPeriod, OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { Select } from "@/components/arc/select/select"
 import { metricChart } from "@/lib/impact-chart-view"
+import { actualText, changeText, NOTHING_MEASURED, totalText, valueText } from "@/lib/impact-presenter"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel } from "./impact-period"
 import { MetricChart } from "./metric-chart"
 import styles from "./whole-org-tab.module.css"
@@ -10,11 +11,9 @@ import styles from "./whole-org-tab.module.css"
 // The Whole org tab (#157). It renders the read model's OrgView and computes no totals of its own: every number
 // shown here is one the read model returned. Guests get no OrgView, so this tab renders nothing for them.
 
-const signed = (value: number) => `${value > 0 ? "+" : ""}${value}`
-
 function baselineText(result: ResultView): string {
-  if (result.baselineState === "known") return `Baseline ${result.baseline} ${result.unit}`
-  if (result.baselineState === "new_capability") return `New capability, target ${result.predictedTarget ?? "not set"} ${result.unit}, no change`
+  if (result.baselineState === "known" && result.baseline !== null) return `Baseline ${valueText(result.baseline, result.unit)}`
+  if (result.baselineState === "new_capability") return `New capability, target ${result.predictedTarget !== null ? valueText(result.predictedTarget, result.unit) : "not set"}, no change`
   if (result.baselineState === "unknown") return "Baseline unknown"
   return ""
 }
@@ -25,30 +24,32 @@ function ResultDetail({ result }: { result: ResultView }) {
     <p className={styles.resultTitle}>Request #{result.requestNumber} {result.title}</p>
     <p className={styles.resultFacts}>
       {result.form === "pass_fail"
-        ? <span>{result.verdict === "good" ? "Good" : result.verdict === "bad" ? "Bad" : "No verdict"}</span>
+        ? <span>{actualText(result)}</span>
         : <>
           {baselineText(result) && <span>{baselineText(result)}</span>}
-          {result.actual !== null && <span>Actual {result.actual} {result.unit}</span>}
-          {result.change !== null && result.changeUnit && <span>Change {signed(result.change)} {result.changeUnit}</span>}
-          {result.predictedChange !== null && result.changeUnit && <span>Predicted {signed(result.predictedChange)} {result.changeUnit}</span>}
+          {result.actual !== null && <span>Actual {valueText(result.actual, result.unit)}</span>}
+          {result.change !== null && <span>Change {changeText(result.change, result.unit, result.changeUnit)}</span>}
+          {result.predictedChange !== null && <span>Predicted {changeText(result.predictedChange, result.unit, result.changeUnit)}</span>}
         </>}
       <span>Window: {result.window}</span>
     </p>
+    {result.evidence && <p className={styles.note}>Evidence: {result.evidence}</p>}
     {result.corrections.map(correction => <p key={`${correction.field}-${correction.at}`} className={styles.note}>Corrected {correction.field}: {correction.correction} ({correction.reason})</p>)}
     {sharedWith.length > 0 && <p className={styles.note}>Counted once, shared with {sharedWith.map(request => `Request #${request.requestNumber}`).join(", ")}</p>}
   </li>
 }
 
 function MeasuredLine({ line }: { line: ResultLine }) {
+  const chart = metricChart(line)
   return <article className={styles.line} aria-label={`${line.metric}, ${line.unit}, ${line.window}`}>
     <header className={styles.lineHead}>
       <h3 className={styles.lineTitle}>{line.metric}</h3>
       <p className={styles.lineMeta}>Unit: {line.unit} · Window: {line.window} · {line.count} {line.count === 1 ? "result" : "results"}</p>
     </header>
-    {metricChart(line) && <MetricChart chart={metricChart(line)} />}
-    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>Total change {signed(line.summed.change)} {line.changeUnit ?? line.unit} from {line.summed.count} {line.summed.count === 1 ? "result" : "results"}</p>}
+    {chart && <MetricChart chart={chart} />}
+    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.changeUnit)} from {line.summed.count} {line.summed.count === 1 ? "result" : "results"}</p>}
     {line.unit === "%" && <p className={styles.note}>Changes are in percentage points. They are never added together or averaged.</p>}
-    {line.verdicts && <p className={styles.total}>Verified: {line.verdicts.good} good, {line.verdicts.neutral} neutral, {line.verdicts.bad} bad. Counted, not summed.</p>}
+    {line.verdicts && <p className={styles.total}>Verified: {line.verdicts.good} good, {line.verdicts.bad} bad. Counted, not summed.</p>}
     <ul className={styles.results}>{line.results.map(result => <ResultDetail key={`${result.requestId}-${result.requestNumber}`} result={result} />)}</ul>
   </article>
 }
@@ -70,7 +71,7 @@ export function WholeOrgTab({ view, period, year = new Date().getUTCFullYear(), 
     <section className={styles.block} data-section="measured" aria-labelledby="org-measured-heading">
       <h2 id="org-measured-heading" className={styles.heading}>Measured results</h2>
       {view.lines.length === 0
-        ? <p className={styles.empty}>{view.emptyMessage ?? "Nothing measured this period yet"}</p>
+        ? <p className={styles.empty}>{view.emptyMessage ?? NOTHING_MEASURED}</p>
         : view.lines.map(line => <MeasuredLine key={`${line.metric}|${line.unit}|${line.audience}|${line.platform}|${line.window}`} line={line} />)}
     </section>
 

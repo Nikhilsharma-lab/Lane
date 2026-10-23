@@ -16,7 +16,8 @@
  */
 import { agreedResult, guardrailHeld, type ClosureCorrection, type OutcomeClosure, type OutcomeException } from "./request-outcome";
 import { measurementAudienceLabel, measurementPlatformLabel } from "./request-measurement";
-import type { ExpectedImpact } from "./request-impact";
+import { impactStateOf, type ExpectedImpact } from "./request-impact";
+import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
 import { releaseMeasurement } from "./request-release-facts";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -108,7 +109,8 @@ export type ResultLine = {
   results: ResultView[];
   count: number;
   summed: { count: number; change: number | null } | null;
-  verdicts: { good: number; neutral: number; bad: number } | null;
+  /** Verified results tallied as good or bad. Never summed as numbers, and never a neutral count (neutral is not produced). */
+  verdicts: { good: number; bad: number } | null;
 };
 
 export type DueItem = {
@@ -138,6 +140,8 @@ export type RequestEntry = {
   corrections: CorrectionView[];
   releaseDate: string | null;
   followUpOf: string | null;
+  /** The follow-up Requests linked to this one that the viewer may see (spec US7). */
+  followUps: RequestRef[];
 };
 
 export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both" };
@@ -212,11 +216,11 @@ function changeUnitOf(form: "numeric" | "pass_fail", unit: string): string | nul
   return unit === "%" ? "percentage points" : unit;
 }
 
-const DAYS = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
 function windowOfRelease(release: ReleaseFact): string {
   if (release.windowKind === "fixed") return `${release.startDate} to ${release.dueDate}`;
-  return `${DAYS(release.startDate, release.dueDate)} days after release`;
+  return `${daysBetween(release.startDate, release.dueDate)} days after release`;
 }
 
 function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
@@ -265,7 +269,8 @@ function releaseDateOf(row: ImpactRow): string | null {
 function dueItemOf(row: ImpactRow, now: Date): DueItem | null {
   const release = row.releaseState?.release;
   if (!release || row.outcomeClosure || row.exceptionClosure || journeyStatus(row).status !== "measuring") return null;
-  const predicted = row.expectedImpact ? predictionOf(row.expectedImpact) : null;
+  const state = impactStateOf(row);
+  const predicted = state.kind === "measured" ? predictionOf(state.plan) : null;
   if (!predicted) return null;
   return {
     requestId: row.id,
@@ -279,9 +284,11 @@ function dueItemOf(row: ImpactRow, now: Date): DueItem | null {
   };
 }
 
-function entryOf(row: ImpactRow, now: Date): RequestEntry {
+/** One Request's entry. `visible` is the viewer's Requests, so a follow-up the viewer cannot see is never listed. */
+function entryOf(row: ImpactRow, now: Date, visible: ImpactRow[]): RequestEntry {
   const measured = row.outcomeClosure ? measuredResult(row, row.outcomeClosure) : null;
-  const source = row.outcomeClosure?.expected ?? row.expectedImpact;
+  const state = impactStateOf(row);
+  const source = row.outcomeClosure?.expected ?? (state.kind === "measured" ? state.plan : null);
   return {
     requestId: row.id,
     requestNumber: row.requestNumber,
@@ -289,7 +296,7 @@ function entryOf(row: ImpactRow, now: Date): RequestEntry {
     projectId: row.projectId,
     projectName: row.projectName,
     journey: journeyStatus(row).label,
-    operationalReason: row.noMeasurableImpactReason,
+    operationalReason: state.kind === "operational" ? state.reason : null,
     predicted: source ? predictionOf(source) : null,
     result: measured,
     stillDue: dueItemOf(row, now),
@@ -297,6 +304,7 @@ function entryOf(row: ImpactRow, now: Date): RequestEntry {
     corrections: correctionsOf(row),
     releaseDate: releaseDateOf(row),
     followUpOf: row.followUpOf,
+    followUps: byRequestNumber(visible.filter(other => other.followUpOf === row.id).map(({ id, requestNumber, title }) => ({ requestId: id, requestNumber, title }))),
   };
 }
 
@@ -314,6 +322,11 @@ function sharedKey(result: ResultView): string {
 }
 
 /** Exact matches only: one line per metric, unit, audience, platform and window. */
+/** Percentages are labelled as percentage points and are never summed or averaged (spec US24). */
+function isPercentage(unit: string): boolean {
+  return ["%", "percent", "percentage", "percentage points", "percentage point"].includes(unit.trim().toLowerCase());
+}
+
 function linesOf(results: ResultView[]): ResultLine[] {
   const shared = new Map<string, ResultView[]>();
   for (const result of [...results].sort((a, b) => a.requestNumber - b.requestNumber)) {
@@ -330,7 +343,9 @@ function linesOf(results: ResultView[]): ResultLine[] {
 
   return [...byLine.values()].map(group => {
     const first = group[0];
-    const summable = first.form === "numeric" && first.unit === "count";
+    // Only an exact-match line of a non-percentage unit is summed, and only when every result on it has a known change:
+    // an unknown baseline or a new capability (no change) keeps the count but never a partial total (spec US37).
+    const summable = first.form === "numeric" && !isPercentage(first.unit);
     const changes = group.flatMap(result => result.change === null ? [] : [result.change]);
     return {
       metric: first.metric,
@@ -342,10 +357,9 @@ function linesOf(results: ResultView[]): ResultLine[] {
       window: first.window,
       results: group,
       count: group.length,
-      summed: summable ? { count: group.length, change: changes.length ? changes.reduce((sum, change) => sum + change, 0) : null } : null,
+      summed: summable ? { count: group.length, change: changes.length === group.length ? changes.reduce((sum, change) => sum + change, 0) : null } : null,
       verdicts: first.form === "pass_fail" ? {
         good: group.filter(result => result.verdict === "good").length,
-        neutral: 0,
         bad: group.filter(result => result.verdict === "bad").length,
       } : null,
     };
@@ -361,13 +375,13 @@ function byRequestNumber<T extends { requestNumber: number }>(items: T[]): T[] {
 }
 
 /** The Requests one person requested or picked up, from the rows a viewer may see, marked by the role they had. */
-function workOf(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[] {
+function entriesForPerson(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[] {
   return byRequestNumber(visible.flatMap(row => {
     const requester = requesterOf(row) === personId;
     const picker = row.assignedTo === personId;
     if (!requester && !picker) return [];
     const role: MyWorkEntry["role"] = requester && picker ? "both" : requester ? "requester" : "picker";
-    return [{ ...entryOf(row, now), role }];
+    return [{ ...entryOf(row, now, visible), role }];
   }));
 }
 
@@ -377,7 +391,7 @@ function workOf(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[
  */
 export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions = {}): MyWorkEntry[] | null {
   if (viewer.role === "guest") return null;
-  return workOf(visibleTo(viewer, rows), personId, options.now ?? new Date());
+  return entriesForPerson(visibleTo(viewer, rows), personId, options.now ?? new Date());
 }
 
 /** A person a non-guest may open a list for, by name. */
@@ -403,7 +417,7 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
   const period = options.period ?? null;
   const visible = visibleTo(viewer, rows);
 
-  const myWork = workOf(visible, viewer.userId, now);
+  const myWork = entriesForPerson(visible, viewer.userId, now);
 
   const projectKey = (row: ImpactRow) => row.projectId ?? "";
   const projectGroups = new Map<string, ImpactRow[]>();
@@ -411,12 +425,13 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
   const projectName = (rowsInProject: ImpactRow[]) => rowsInProject[0].projectName ?? NO_PROJECT;
 
   const byProject: ProjectView[] = [...projectGroups.values()].map(rowsInProject => {
-    const entries = byRequestNumber(rowsInProject.map(row => entryOf(row, now)));
+    const entries = byRequestNumber(rowsInProject.map(row => entryOf(row, now, visible)));
     const measured = linesOf(entries.flatMap(entry => entry.result && inPeriod(entry.releaseDate, period) ? [entry.result] : []));
     // Predictions with nothing measured yet: open or released-and-waiting work, not closed and not operational.
-    const predictions = entries.flatMap(entry => entry.predicted && !entry.result && !entry.stillDue && !entry.closedWithoutResult && !entry.operationalReason
-      ? [{ requestId: entry.requestId, requestNumber: entry.requestNumber, title: entry.title, predicted: entry.predicted }]
-      : []);
+    const predictions = entries.flatMap(entry => {
+      const kind = entryKindOf(entry);
+      return kind.kind === "predicted" ? [{ requestId: entry.requestId, requestNumber: entry.requestNumber, title: entry.title, predicted: kind.predicted }] : [];
+    });
     return {
       projectId: rowsInProject[0].projectId,
       name: projectName(rowsInProject),
@@ -425,13 +440,13 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
       stillDueCount: entries.filter(entry => entry.stillDue).length,
       requests: entries,
       // Spec #151 (US35): a Project with nothing measured says so in the same words, whatever the period.
-      emptyMessage: measured.length === 0 ? "Nothing measured this period yet" : null,
+      emptyMessage: measured.length === 0 ? NOTHING_MEASURED : null,
     };
   }).sort((a, b) => (a.projectId === null) !== (b.projectId === null) ? (a.projectId === null ? 1 : -1) : a.name.localeCompare(b.name));
 
   if (viewer.role === "guest") return { myWork: { requests: myWork }, byProject, wholeOrg: null };
 
-  const entries = visible.map(row => ({ row, entry: entryOf(row, now) }));
+  const entries = visible.map(row => ({ row, entry: entryOf(row, now, visible) }));
   const measuredResults = entries.flatMap(({ entry }) => entry.result && inPeriod(entry.releaseDate, period) ? [entry.result] : []);
   const lines = linesOf(measuredResults);
   const timeline = entries.flatMap(({ entry }) => entry.stillDue ? [entry.stillDue] : []).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.requestNumber - b.requestNumber);
@@ -451,13 +466,16 @@ export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], op
     wholeOrg: {
       period,
       lines,
-      emptyMessage: lines.length === 0 ? "Nothing measured this period yet" : null,
-      operational: byRequestNumber(entries.flatMap(({ row }) => row.noMeasurableImpactReason ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reason: row.noMeasurableImpactReason }] : [])),
+      emptyMessage: lines.length === 0 ? NOTHING_MEASURED : null,
+      operational: byRequestNumber(entries.flatMap(({ row }) => {
+        const state = impactStateOf(row);
+        return state.kind === "operational" ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reason: state.reason }] : [];
+      })),
       closedWithoutResult: byRequestNumber(entries.flatMap(({ row }) => row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason }] : [])),
       timeline,
       // Spec #151 (US32, decisions): a Request with no release date is never in a period, whether Done or still open.
       // Operational work and closed-without-result Requests already sit in their own excluded sections.
-      unreleased: byRequestNumber(entries.flatMap(({ row, entry }) => entry.releaseDate === null && !row.noMeasurableImpactReason && !row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }] : [])),
+      unreleased: byRequestNumber(entries.flatMap(({ row, entry }) => entry.releaseDate === null && impactStateOf(row).kind !== "operational" && !row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }] : [])),
       projectStacks,
     },
   };

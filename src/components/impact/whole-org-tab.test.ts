@@ -92,7 +92,7 @@ describe("Whole org tab: totals and labels (#157)", () => {
     const body = text(html(orgOf(measuredRows())))
     expect(body).toContain("Conversion rate")
     expect(body).toContain("Users who adopted")
-    expect(body).toContain("Total change +30")
+    expect(body).toContain("+30 in total")
     expect(body).not.toMatch(/Total change[^.]*Conversion/)
   })
 
@@ -112,11 +112,25 @@ describe("Whole org tab: totals and labels (#157)", () => {
     const body = text(html(orgOf(rows)))
     expect(body).toContain("1 good")
     expect(body).toContain("1 bad")
+    expect(body).not.toContain("neutral")
     expect(body).not.toContain("Total change")
   })
 })
 
 describe("Whole org tab: operational work, exceptions and due dates (#157)", () => {
+  it("shows the evidence text under each measured result", () => {
+    const rows = [row({ id: "a", requestNumber: 1, releaseState: releaseState(RELEASE_AUG), outcomeClosure: closure(plan(), RELEASE_AUG, 46, "Warehouse export, 14 Sep") })]
+    expect(text(html(orgOf(rows)))).toContain("Evidence: Warehouse export, 14 Sep")
+  })
+
+  it("never shows a neutral count for a Verified line, only good and bad", () => {
+    const check = plan({ key: "check", unit: "count", current: 0, target: 1 })
+    const rows = [row({ id: "a", requestNumber: 1, releaseState: releaseState(RELEASE_AUG), expectedImpact: check, outcomeClosure: { ...closure(check, RELEASE_AUG, 0, "p1"), primary: { kind: "pass_fail", passed: true } } as OutcomeClosure })]
+    const body = text(html(orgOf(rows)))
+    expect(body).toContain("Verified: 1 good, 0 bad")
+    expect(body).not.toContain("neutral")
+  })
+
   it("shows operational work and closed-without-result in their own sections, outside measured results", () => {
     const exception: OutcomeException = { version: 1, kind: "exception", reasonCode: "cannot_measure", reason: "No event data for this release", actorId: MEMBER_ID, ownerId: MEMBER_ID, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-x", fingerprint: "fp", release: RELEASE_AUG, revision: 1 }
     const rows = [

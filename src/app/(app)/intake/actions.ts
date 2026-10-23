@@ -21,6 +21,7 @@ import type { RequestType } from "@/lib/request-properties";
 import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
+import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
 import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
@@ -302,8 +303,7 @@ export async function saveRequest(
         labelKeys: payload.labelKeys,
         priority: payload.priority,
         // The choice is saved as its reason; a measured plan is saved as before (#153).
-        expectedImpact: payload.expectedImpact?.kind === "no_measurable_impact" ? null : payload.expectedImpact,
-        noMeasurableImpactReason: payload.expectedImpact?.kind === "no_measurable_impact" ? payload.expectedImpact.reason : null,
+        ...impactColumnsOf(impactStateOfChoice(payload.expectedImpact)),
         title: payload.title,
         description: payload.description,
         ...storedContext(payload),

@@ -87,6 +87,19 @@ describe("My work rows (#155)", () => {
     expect(out).toContain("Window 30 days after release")
   })
 
+  it("shows the evidence text beside a measured result, as text only", () => {
+    const rows = [row({ id: "r1", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
+    const html = renderToStaticMarkup(createElement(MyWorkTab, { entries: myEntries(rows) }))
+    expect(text(html)).toContain("Evidence Dashboard export")
+    expect(html).not.toContain("attachment")
+  })
+
+  it("lists the follow-up Requests linked to a Request, beside it", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME }), row({ id: "b", requestNumber: 2, createdBy: ME, followUpOf: "a" })]
+    const html = renderToStaticMarkup(createElement(MyWorkTab, { entries: myEntries(rows) }))
+    expect(text(html)).toContain("Follow-up Requests: LAN-2 Request 2")
+  })
+
   it("shows a still-due Request with its due date and no actual", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_OCT) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))

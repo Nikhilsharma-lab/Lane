@@ -9,7 +9,7 @@ import { db, requests } from "@/db";
 import { requireActiveMember, refusal } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
-import { expectedImpactSchema, incompleteMeasurementSchema, noMeasurableImpactSchema } from "@/lib/request-impact";
+import { expectedImpactSchema, impactColumnsOf, impactStateOf, impactStateOfChoice, incompleteMeasurementSchema, noMeasurableImpactSchema } from "@/lib/request-impact";
 import { verifyTriageToken } from "@/lib/triage-token";
 import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
@@ -48,16 +48,14 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const choice = noMeasurableImpactSchema.safeParse(changes.expectedImpact);
             const complete = expectedImpactSchema.safeParse(changes.expectedImpact);
             // A null impact never clears a stored choice: only the choice's own reason can change it.
-            if (!complete.success && !choice.success && (stored.expectedImpact !== null || stored.noMeasurableImpactReason !== null))
-                return { error: stored.expectedImpact === null ? "Keep the reason for no measurable impact, or choose a measured result." : "Keep a complete measurement plan for this Request." };
+            const storedImpact = impactStateOf(stored);
+            if (!complete.success && !choice.success && storedImpact.kind !== "none")
+                return { error: storedImpact.kind === "operational" ? "Keep the reason for no measurable impact, or choose a measured result." : "Keep a complete measurement plan for this Request." };
             const partial = changes.expectedImpact === null || choice.success ? null : incompleteMeasurementSchema.safeParse(changes.expectedImpact);
             if (!complete.success && !choice.success && partial && !partial.success)
                 return { error: partial.error.issues[0].message };
-            const impactStorage = choice.success
-                ? { expectedImpact: null, measurementDraft: null, noMeasurableImpactReason: choice.data.reason }
-                : complete.success
-                    ? { expectedImpact: complete.data, measurementDraft: null, noMeasurableImpactReason: null }
-                    : { expectedImpact: null, measurementDraft: partial?.success ? partial.data : null, noMeasurableImpactReason: null };
+            const nextState = choice.success ? impactStateOfChoice(choice.data) : complete.success ? { kind: "measured" as const, plan: complete.data } : { kind: "none" as const };
+            const impactStorage = { ...impactColumnsOf(nextState), measurementDraft: choice.success || complete.success ? null : partial?.success ? partial.data : null };
             // Changed wording needs a fresh review of this Request, which sets the
             // classification and the suggested change. Unchanged wording keeps the
             // stored judgement; its framing is the person's to reword, never to drop.
@@ -88,13 +86,11 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: sourceRequestType(changes), ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
             // A changed agreed impact (a measured plan or the choice with its reason) is a new revision, kept with its editor and time.
-            const nextImpact = impactStorage.expectedImpact;
-            const nextReason = impactStorage.noMeasurableImpactReason;
-            const impactChanged = !isDeepStrictEqual(stored.expectedImpact, JSON.parse(JSON.stringify(nextImpact))) || stored.noMeasurableImpactReason !== nextReason;
-            if (impactChanged && nextImpact)
-                await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, expectedImpact: nextImpact, authorId: auth.userId });
-            else if (impactChanged && nextReason)
-                await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, noMeasurableImpactReason: nextReason, authorId: auth.userId });
+            const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
+            if (impactChanged && nextState.kind === "measured")
+                await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, expectedImpact: nextState.plan, authorId: auth.userId });
+            else if (impactChanged && nextState.kind === "operational")
+                await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, noMeasurableImpactReason: nextState.reason, authorId: auth.userId });
             return { success: true as const };
         });
         // The shared editor closes and announces success before refreshing.

@@ -3,17 +3,16 @@
  * strings and groupings the screen shows. It adds no totals: a sum that appears here is one the read model
  * already made (ResultLine.summed), and every value is formatted from a field the read model returned.
  */
-import type { ProjectView, Prediction, RequestEntry, ResultLine, ResultView } from "./impact-read-model";
+import type { ProjectView, ResultLine, ResultView } from "./impact-read-model";
 import { requestCodeOrNull } from "./request-code";
 import { metricChart, type MetricChart } from "./impact-chart-view";
+import { actualText, changeText, NOT_APPLICABLE, noteOf, predictedText, totalText, valueText } from "./impact-presenter";
 
 export const UNASSIGNED_HEADING = "Requests without a Project";
 
-const NOT_APPLICABLE = "Not applicable";
-
 export type MetricCells = { baseline: string; actual: string; change: string; predicted: string };
 
-export type MeasuredResultRow = { requestId: string; requestNumber: number; title: string; cells: MetricCells };
+export type MeasuredResultRow = { requestId: string; requestNumber: number; title: string; cells: MetricCells; evidence: string };
 
 /** One metric: one line. `cells` is set only when a single Request holds the result, else the Requests sit beneath. */
 export type MeasuredLine = {
@@ -24,6 +23,8 @@ export type MeasuredLine = {
   summary: string;
   total: string | null;
   cells: MetricCells | null;
+  /** The evidence text of a single-Request result; null when the Requests sit beneath, each with its own. */
+  evidence: string | null;
   /** The same chart the Whole org view draws for this metric (#159); null for a Verified result. */
   chart: MetricChart | null;
   results: MeasuredResultRow[];
@@ -43,47 +44,21 @@ export type ProjectSection = {
   requests: RequestLine[];
 };
 
-function valueText(value: number, unit: string): string {
-  if (unit === "%") return `${value}%`;
-  if (unit === "count") return `${value}`;
-  return `${value} ${unit}`;
-}
-
-/** A signed change in its own unit. Counts carry no unit word; percentages say "percentage points". */
-function signedText(value: number, unit: string, changeUnit: string | null): string {
-  if (value === 0) return "No change";
-  const suffix = unit === "count" || !changeUnit ? "" : ` ${changeUnit}`;
-  return `${value > 0 ? "+" : "-"}${Math.abs(value)}${suffix}`;
-}
-
-function predictedText(prediction: Pick<Prediction, "form" | "unit" | "changeUnit" | "predictedChange" | "target">): string {
-  if (prediction.form === "pass_fail") return NOT_APPLICABLE;
-  if (prediction.predictedChange !== null) return signedText(prediction.predictedChange, prediction.unit, prediction.changeUnit);
-  if (prediction.target !== null) return `Target ${valueText(prediction.target, prediction.unit)}`;
-  return "Not predicted";
-}
-
 function cellsOf(result: ResultView): MetricCells {
   if (result.form === "pass_fail") {
-    const actual = result.verdict === "good" ? "Good" : result.verdict === "bad" ? "Bad" : "Not recorded";
-    return { baseline: NOT_APPLICABLE, actual, change: NOT_APPLICABLE, predicted: NOT_APPLICABLE };
+    return { baseline: NOT_APPLICABLE, actual: actualText(result), change: NOT_APPLICABLE, predicted: NOT_APPLICABLE };
   }
   const baseline = result.baselineState === "unknown" ? "Baseline unknown"
     : result.baselineState === "new_capability" ? "New capability"
     : result.baseline !== null ? valueText(result.baseline, result.unit)
     : NOT_APPLICABLE;
-  const change = result.change !== null ? signedText(result.change, result.unit, result.changeUnit) : "Not shown";
+  const change = result.change !== null ? changeText(result.change, result.unit, result.changeUnit) : "Not shown";
   return {
     baseline,
-    actual: result.actual !== null ? valueText(result.actual, result.unit) : "Not recorded",
+    actual: actualText(result),
     change,
     predicted: predictedText({ form: result.form, unit: result.unit, changeUnit: result.changeUnit, predictedChange: result.predictedChange, target: result.predictedTarget }),
   };
-}
-
-function resultActualText(result: ResultView): string {
-  if (result.form === "pass_fail") return result.verdict === "good" ? "Good" : result.verdict === "bad" ? "Bad" : "Not recorded";
-  return result.actual !== null ? valueText(result.actual, result.unit) : "Not recorded";
 }
 
 function contextOf(audience: string, platform: string): string {
@@ -98,7 +73,7 @@ function measuredLineOf(line: ResultLine): MeasuredLine {
     : count === 1 ? "1 Request" : `${count} Requests`;
   // A total exists only where the read model summed a count across two or more Requests.
   const total = numeric && line.summed && count > 1 && line.summed.change !== null
-    ? `${signedText(line.summed.change, line.unit, line.changeUnit)} in total`
+    ? totalText(line.summed.change, line.unit, line.changeUnit)
     : null;
   return {
     key: [line.metric, line.form, line.unit, line.audience, line.platform, line.window].join("|"),
@@ -108,17 +83,10 @@ function measuredLineOf(line: ResultLine): MeasuredLine {
     summary,
     total,
     cells: numeric && count === 1 ? cellsOf(line.results[0]) : null,
+    evidence: count === 1 ? line.results[0].evidence : null,
     chart: metricChart(line),
-    results: line.results.map(result => ({ requestId: result.requestId, requestNumber: result.requestNumber, title: result.title, cells: cellsOf(result) })),
+    results: line.results.map(result => ({ requestId: result.requestId, requestNumber: result.requestNumber, title: result.title, cells: cellsOf(result), evidence: result.evidence })),
   };
-}
-
-function noteOf(entry: RequestEntry): string | null {
-  if (entry.result) return `Actual ${resultActualText(entry.result)}`;
-  if (entry.stillDue) return `Still due ${entry.stillDue.dueLabel}`;
-  if (entry.closedWithoutResult) return `Closed without a result: ${entry.closedWithoutResult.reason}`;
-  if (entry.operationalReason) return `Operational work: ${entry.operationalReason}`;
-  return null;
 }
 
 function sectionOf(project: ProjectView): ProjectSection {

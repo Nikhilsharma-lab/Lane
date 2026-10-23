@@ -1,4 +1,5 @@
 import type { MetricChart as MetricChartView, Series } from "@/lib/impact-chart-view"
+import { NOTHING_MEASURED } from "@/lib/impact-presenter"
 import styles from "./metric-chart.module.css"
 
 // One metric's chart (#158). It draws the values its MetricChartView carries on that metric's own scale, and says the
@@ -13,7 +14,7 @@ const LEGEND: { series: Series; label: string }[] = [
 ]
 
 export function MetricChart({ chart }: { chart: MetricChartView | null }) {
-  if (!chart || chart.groups.length === 0) return <p className={styles.empty}>Nothing measured yet</p>
+  if (!chart || chart.groups.length === 0) return <p className={styles.empty}>{NOTHING_MEASURED}</p>
 
   const groupWidth = 100 / chart.groups.length
   const slot = groupWidth / SERIES_ORDER.length
