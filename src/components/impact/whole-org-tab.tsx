@@ -2,7 +2,9 @@
 
 import type { ImpactPeriod, OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { Select } from "@/components/arc/select/select"
+import { metricChart } from "@/lib/impact-chart-view"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel } from "./impact-period"
+import { MetricChart } from "./metric-chart"
 import styles from "./whole-org-tab.module.css"
 
 // The Whole org tab (#157). It renders the read model's OrgView and computes no totals of its own: every number
@@ -43,6 +45,7 @@ function MeasuredLine({ line }: { line: ResultLine }) {
       <h3 className={styles.lineTitle}>{line.metric}</h3>
       <p className={styles.lineMeta}>Unit: {line.unit} · Window: {line.window} · {line.count} {line.count === 1 ? "result" : "results"}</p>
     </header>
+    {metricChart(line) && <MetricChart chart={metricChart(line)} />}
     {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>Total change {signed(line.summed.change)} {line.changeUnit ?? line.unit} from {line.summed.count} {line.summed.count === 1 ? "result" : "results"}</p>}
     {line.unit === "%" && <p className={styles.note}>Changes are in percentage points. They are never added together or averaged.</p>}
     {line.verdicts && <p className={styles.total}>Verified: {line.verdicts.good} good, {line.verdicts.neutral} neutral, {line.verdicts.bad} bad. Counted, not summed.</p>}
