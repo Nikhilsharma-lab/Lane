@@ -1,0 +1,19 @@
+/* The My work rows (#155) and a teammate's list. Theme tokens only: no design literals (pnpm design:check). */
+.list { display: grid; margin: 0; padding: 0; list-style: none; }
+.item { border-bottom: var(--border-width) solid var(--border-subtle); }
+.row {
+  display: grid; gap: var(--space-2); min-width: 0; padding-block: var(--space-3);
+  border-radius: var(--radius-control); color: var(--foreground); text-decoration: none;
+}
+.row:hover { background: var(--surface-muted); }
+.row:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline); outline-offset: var(--focus-outline-offset); }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.code { color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.title { min-width: 0; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.result { display: grid; gap: var(--space-2); min-width: 0; }
+.metric { margin: 0; color: var(--foreground); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-1) * 30), 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
+.facts > div { display: grid; min-width: 0; gap: var(--space-1); }
+.facts dt { color: var(--text-secondary); font-size: var(--text-xs); }
+.facts dd { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); overflow-wrap: anywhere; }

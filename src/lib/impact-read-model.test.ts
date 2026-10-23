@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildImpactDashboard, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildImpactDashboard, buildTeammateWork, type ImpactRow, type ImpactViewer } from "./impact-read-model";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -342,5 +342,40 @@ describe("impact read model: output rules", () => {
       const keys = keysOf(dashboard).filter(key => /total|average|score|rank|mean/i.test(key));
       expect(keys).toEqual([]);
     }
+  });
+});
+
+describe("impact read model: a teammate's list (#155, spec story 12)", () => {
+  it("lists the Requests a teammate requested or picked up, with their role, for a non-guest viewer", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: ADMIN }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, assignedTo: MEMBER }),
+      row({ id: "c", requestNumber: 3, createdBy: ADMIN }),
+    ];
+    const theirs = buildTeammateWork(ADMIN_VIEWER, rows, MEMBER, { now: NOW });
+    expect(theirs?.map(entry => [entry.requestNumber, entry.role])).toEqual([[1, "requester"], [2, "both"]]);
+    const seenByLeader = buildTeammateWork(LEADER_VIEWER, rows, ADMIN, { now: NOW });
+    expect(seenByLeader?.map(entry => [entry.requestNumber, entry.role])).toEqual([[1, "picker"], [3, "requester"]]);
+  });
+
+  it("shows a teammate's results in the same entry shape as My work, with no totals, averages, scores or rankings", () => {
+    const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: ADMIN, projectId: "p1", projectName: "Search", status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: adoption, outcomeClosure: measuredClosure(adoption, RELEASE_AUG, 130) }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT) }),
+    ];
+    const theirs = buildTeammateWork(MEMBER_VIEWER, rows, ADMIN, { now: NOW })!;
+    expect(theirs[0].result).toMatchObject({ actual: 130, predictedTarget: 150, window: "30 days after release" });
+    expect(keysOf(theirs).filter(key => /total|average|score|rank|mean|count/i.test(key))).toEqual([]);
+  });
+
+  it("gives a guest no teammate list, and hides other people's Requests from a guest who asks for one", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, assignedTo: GUEST })];
+    expect(buildTeammateWork(GUEST_VIEWER, rows, MEMBER, { now: NOW })).toBeNull();
+  });
+
+  it("keeps a teammate's list inside the viewer's workspace", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, orgId: "org_other" })];
+    expect(buildTeammateWork(MEMBER_VIEWER, rows, MEMBER, { now: NOW })).toEqual([]);
   });
 });

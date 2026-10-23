@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm"
 
 import { db, projects, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { buildImpactDashboard, type ImpactDashboard, type ImpactOptions, type ImpactRow } from "@/lib/impact-read-model"
+import { buildImpactDashboard, buildTeammateWork, type ImpactDashboard, type ImpactOptions, type ImpactRow, type MyWorkEntry } from "@/lib/impact-read-model"
 
 // Loads the Requests the viewer may see (every Request in the workspace, or only the guest's own) and hands
 // them to the impact read model. Identity and workspace come from the guard's session-derived `auth`, never
@@ -42,4 +42,10 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
     .where(seeable(auth))
 
   return rows.map(row => ({ ...row, projectName: row.projectName ?? null }))
+}
+
+/** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */
+export async function loadTeammateWork(auth: MemberAuth, personId: string, options: ImpactOptions = {}): Promise<MyWorkEntry[] | null> {
+  const rows = await loadImpactRows(auth)
+  return buildTeammateWork({ userId: auth.userId, orgId: auth.orgId, role: auth.role }, rows, personId, options)
 }
