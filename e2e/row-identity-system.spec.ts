@@ -43,23 +43,20 @@ async function applySurface(
   }
 }
 
-async function expectFixedLanes(row: Locator) {
-  const leading = row.locator('[data-slot="row-leading"]');
-  const content = row.locator('[data-slot="row-content"]');
-  const actions = row.locator('[data-slot="row-actions"]');
-
-  await expect(leading).toHaveCSS("width", "32px");
-  await expect(content).toHaveCSS("min-width", "0px");
-  await expect(actions).toHaveCSS("flex-shrink", "0");
-
-  const boxes = await Promise.all([
-    leading.boundingBox(),
-    content.boundingBox(),
-    actions.boundingBox(),
-  ]);
-  expect(boxes.every(Boolean)).toBe(true);
-  expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
-  expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+async function expectRequestLanes(row: Locator) {
+  // Production rows use the Requests grid, not the retired Arc Row slots.
+  const cells = row.getByRole("gridcell");
+  await expect(cells).toHaveCount(2);
+  await expect(cells.nth(0).getByRole("checkbox")).toHaveCount(1);
+  await expect(cells.nth(1).getByRole("link")).toBeVisible();
+  // Compact rows hide the code visually, while keeping it in the row's name.
+  await expect(cells.nth(1).locator("[data-request-code]")).toHaveText(/^LAN-\d+$/);
+  await expect(row).toHaveAccessibleName(/^LAN-\d+, /);
+  const geometry = await row.evaluate(element => ({
+    width: element.clientWidth,
+    contentWidth: element.scrollWidth,
+  }));
+  expect(geometry.contentWidth).toBeLessThanOrEqual(geometry.width);
 }
 
 /**
@@ -89,7 +86,8 @@ async function expectNotificationLanes(row: Locator) {
 
 async function hidePreviewChrome(page: Page) {
   await page.addStyleTag({
-    content: "nextjs-portal { display: none !important; }",
+    // Keep timestamp geometry while removing time-dependent snapshot text.
+    content: "nextjs-portal { display: none !important; } time { visibility: hidden !important; }",
   });
 }
 
@@ -110,26 +108,24 @@ test("rows and identities keep one contract on every surface", async ({
       await applySurface(page, surface);
       await page.goto("/");
       await hidePreviewChrome(page);
-      const requestRow = page.locator('[data-slot="row"]').filter({
-        hasText: "Help customers understand why their Requests changed",
+      const requestRow = page.getByRole("row", {
+        name: /Help customers understand why their Requests changed/,
       });
       await expect(requestRow).toBeVisible();
-      await expectFixedLanes(requestRow);
+      await expectRequestLanes(requestRow);
       await expect(requestRow).toHaveScreenshot(
         `request-row-${surface.slug}.png`,
+        // Dates vary between runs; keep their layout but omit their painted text.
         { animations: "disabled" }
       );
 
       await page.goto(`/requests/${requestId}`);
       await hidePreviewChrome(page);
-      const commentGroup = page.locator(
-        '[data-slot="row-group"][aria-label="Request comments"]'
-      );
+      const commentGroup = page.getByRole("list", { name: "Request comments", exact: true });
       await expect(commentGroup).toBeVisible();
-      await expectFixedLanes(commentGroup.locator('[data-slot="row"]').first());
-      await expect(
-        commentGroup.locator('[data-slot="identity-mark"]').first()
-      ).toContainText("RI");
+      const comment = commentGroup.getByRole("listitem").first();
+      await expect(comment).toContainText("Row Identity Test");
+      await expect(comment.getByRole("img", { name: "Row Identity Test", includeHidden: true })).toContainText("RI");
       await expect(commentGroup).toHaveScreenshot(
         `comment-row-${surface.slug}.png`,
         { animations: "disabled" }
@@ -140,6 +136,9 @@ test("rows and identities keep one contract on every surface", async ({
       const notifications = page.getByRole("button", {
         name: /^Notifications/,
       });
+      if (surface.viewport.width < 640) {
+        await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
+      }
       await notifications.click();
       const notificationRow = page.locator("[data-notification-row]").first();
       await expect(notificationRow).toBeVisible();
@@ -160,6 +159,7 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
       await page.keyboard.press("Escape");
+      if (surface.viewport.width < 640) await page.keyboard.press("Escape");
     }
   } finally {
     await cleanupTestWorkspace(user.id);

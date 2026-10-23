@@ -89,14 +89,18 @@ test("private attachments survive Clerk upload and download but reject anonymous
     let prepareAction: CapturedAction | null = null;
     let finalizeAction: CapturedAction | null = null;
     let downloadAction: CapturedAction | null = null;
+    let uploadedAttachmentId: string | null = null;
     pageA.on("request", (request) => {
       const action = captureAction(request);
       if (action) {
         const input = action.args[0];
         if (input && typeof input === "object") {
           if ("fileName" in input && "sizeBytes" in input) prepareAction = action;
-          else if ("attachmentId" in input && "requestId" in input) finalizeAction = action;
-        } else if (typeof input === "string" && action.args.length === 2) {
+          else if ("attachmentId" in input && "requestId" in input) {
+            finalizeAction = action;
+            if (typeof input.attachmentId === "string") uploadedAttachmentId = input.attachmentId;
+          }
+        } else if (typeof input === "string" && input === uploadedAttachmentId && action.args.length === 2) {
           downloadAction = action;
         }
       }
@@ -109,11 +113,14 @@ test("private attachments survive Clerk upload and download but reject anonymous
     });
 
     await pageA.goto("/intake");
-    await pageA.getByRole("textbox", { name: "Short title" }).fill(
+    await pageA.getByRole("link", { name: "Create Request", exact: true }).click();
+    await pageA.getByRole("textbox", { name: "Request title", exact: true }).fill(
       "Customers cannot find saved drafts after returning to their workspace"
     );
-    await pageA.getByRole("textbox", { name: "What happened?" }).fill(contents);
-    await pageA.getByRole("button", { name: "Continue", exact: true }).click();
+    await pageA.getByRole("textbox", { name: "Description", exact: true }).fill(contents);
+    await pageA.getByRole("combobox", { name: "Metric", exact: true }).click();
+    await pageA.getByRole("option", { name: "Conversion rate", exact: true }).click();
+    await pageA.getByRole("spinbutton", { name: "Current value", exact: true }).fill("62");
     await pageA.locator('input[type="file"]').setInputFiles({
       name: filename,
       mimeType: "text/plain",
@@ -121,7 +128,6 @@ test("private attachments survive Clerk upload and download but reject anonymous
     });
     await expect(pageA.getByRole("list", { name: "Files ready to upload" })).toContainText(filename);
     await pageA.getByRole("button", { name: "Review Request", exact: true }).click();
-    await pageA.getByRole("button", { name: "Check Request", exact: true }).click();
     // The existing Intake gate runs normally; the auth/storage paths are never mocked.
     await expect(pageA.getByRole("button", { name: "Create Request", exact: true })).toBeVisible({ timeout: 45_000 });
     await pageA.getByRole("button", { name: "Create Request", exact: true }).click();
@@ -165,7 +171,8 @@ test("private attachments survive Clerk upload and download but reject anonymous
         expect(body).not.toContain('"signedUrl"');
       }
       const body = await replayAction(caller.context, downloadAction!, caller.orgId);
-      expect(body).toContain("File not found");
+      expect(body).toContain(caller.context === anonymous ? "Your session ended." : "File not found");
+      expect(body).not.toContain('"success":true');
       expect(body).not.toContain("/storage/v1/object/sign/");
     }
 

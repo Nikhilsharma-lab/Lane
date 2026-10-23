@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { IntakeLauncher } from "@/components/requests/intake-launcher";
@@ -6,7 +7,7 @@ import { PageStrip } from "@/components/shell/page-strip";
 export default async function IntakePage() {
   const result = await getWorkspace();
 
-  if (!result) redirect("/login");
+  if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
 
   // Every page owns one 44px strip (plan item 2.0). The strip is the page's h1 and

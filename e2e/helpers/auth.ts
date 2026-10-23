@@ -18,6 +18,8 @@ export async function provisionAndSignIn(
     ...options,
   });
   await signInTestUser(page, user, orgId);
-  await page.goto("/");
+  // External Clerk resources can keep the load event pending after Lane renders.
+  // Individual journeys wait for the actual controls they need.
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   return orgId;
 }

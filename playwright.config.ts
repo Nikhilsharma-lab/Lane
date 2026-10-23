@@ -42,6 +42,10 @@ const perfConfig = perfBaseURL ? defineConfig({
 // round trips. Workspace isolation took 57s; leave room for provider variance.
 function e2eConfig() {
   const target = assertE2ETarget();
+  // Fixtures keep their verified session connection; the app matches hosted
+  // serverless runtime pooling without changing the pinned staging identity.
+  const runtimeDatabaseUrl = new URL(target.databaseUrl);
+  if (runtimeDatabaseUrl.hostname.endsWith(".pooler.supabase.com")) runtimeDatabaseUrl.port = "6543";
   return defineConfig({
     testDir: "./e2e",
     timeout: 120_000,
@@ -75,12 +79,14 @@ function e2eConfig() {
             ...process.env,
             LANE_ENV_FILE: "/dev/null",
             NEXT_DIST_DIR: ".next-e2e",
-            DATABASE_URL: process.env.DATABASE_URL!,
+            DATABASE_URL: runtimeDatabaseUrl.toString(),
             PORT: "3100",
           },
           url: target.baseURL,
           reuseExistingServer: false,
-          timeout: 30_000,
+          // A fresh checkout compiles both the app entry and Clerk sign-in before
+          // Playwright's readiness request completes.
+          timeout: 120_000,
         },
   });
 }
