@@ -17,7 +17,7 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
   test.setTimeout(180_000);
   // This exercise creates and removes only one disposable staging identity.
   // Never use test OTPs or the cleanup helpers against production services.
-  expect(new URL(baseURL!).hostname).toBe("lane-staging.vercel.app");
+  test.skip(new URL(baseURL!).hostname !== "lane-staging.vercel.app", "Real signup runs only on deployed Lane Staging.");
   await safeClerkClient();
   const email = testEmail("ui-signup");
   const workspaceName = `Lane E2E UI Signup ${Date.now()}`;

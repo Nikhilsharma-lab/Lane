@@ -8,7 +8,8 @@ import {
   TaskResetPassword,
   useSession,
 } from "@clerk/nextjs";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { clerkEmbeddedAppearance } from "./clerk-appearance";
 import { AuthCardSkeleton } from "./auth-card-skeleton";
@@ -16,11 +17,18 @@ import { ClerkUnavailable } from "./clerk-unavailable";
 export { clerkEmbeddedAppearance } from "./clerk-appearance";
 
 export function ClerkHashSignIn() {
+  return <Suspense fallback={<AuthCardSkeleton label="Loading sign in" />}><HashSignInWithReturn /></Suspense>;
+}
+
+function HashSignInWithReturn() {
+  // Server redirects use the outer query; Clerk's hash router reads its fragment.
+  // Pass the outer destination through Clerk's validated fallback URL as well.
+  const returnUrl = useSearchParams().get("redirect_url") || "/";
   return (
     <SignIn
       routing="hash"
       signUpUrl="/signup"
-      fallbackRedirectUrl="/"
+      fallbackRedirectUrl={returnUrl}
       appearance={clerkEmbeddedAppearance}
       fallback={<><ClerkLoading><AuthCardSkeleton label="Loading sign in" /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign in is unavailable right now" href="/login" /></ClerkFailed></>}
     />
