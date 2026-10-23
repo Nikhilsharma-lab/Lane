@@ -6,11 +6,14 @@ import type { ExpectedImpact } from "@/lib/request-impact";
 /**
  * Keeps an agreed Expected impact revision after a change to a Request's impact.
  * Call it inside the same transaction as the update, with the editor's identity from the guard.
- * Creation is recorded by the database (migration 0035), not here.
+ * A revision holds exactly one of a measured plan or the "No measurable impact" choice with its reason (#153).
+ * Creation is recorded by the database (migrations 0035 and 0036), not here.
  */
 export async function recordExpectedImpactRevision(
   tx: RequestTx,
-  change: { orgId: string; requestId: string; expectedImpact: ExpectedImpact; authorId: string },
+  change: { orgId: string; requestId: string; authorId: string } & (
+    { expectedImpact: ExpectedImpact; noMeasurableImpactReason?: null } | { expectedImpact?: null; noMeasurableImpactReason: string }
+  ),
 ) {
   const [latest] = await tx
     .select({ revision: max(requestExpectedImpactRevisions.revision) })
@@ -20,7 +23,8 @@ export async function recordExpectedImpactRevision(
     orgId: change.orgId,
     requestId: change.requestId,
     revision: Number(latest?.revision ?? 0) + 1,
-    expectedImpact: change.expectedImpact,
+    expectedImpact: change.expectedImpact ?? null,
+    noMeasurableImpactReason: change.noMeasurableImpactReason ?? null,
     authorId: change.authorId,
     recordedAs: "revised",
   });

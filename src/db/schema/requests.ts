@@ -56,6 +56,8 @@ export const requests = pgTable(
     priority: requestPriorityEnum("priority").notNull().default("none"),
     expectedImpact: jsonb("expected_impact").$type<ExpectedImpact>(),
     measurementDraft: jsonb("measurement_draft").$type<IncompleteMeasurement>(),
+    /** The "No measurable impact" choice and its reason; set only with no measured plan (migration 0036). */
+    noMeasurableImpactReason: text("no_measurable_impact_reason"),
     designReviews: jsonb("design_reviews").$type<SavedDesignReview[]>().notNull().default([]),
     designReviewVersion: integer("design_review_version").notNull().default(0),
     title: text("title").notNull(),

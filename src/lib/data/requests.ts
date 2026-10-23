@@ -200,6 +200,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         usefulLink: requests.usefulLink,
         expectedImpact: requests.expectedImpact,
         measurementDraft: requests.measurementDraft,
+        noMeasurableImpactReason: requests.noMeasurableImpactReason,
         designReviews: requests.designReviews,
         reframedProblem: requests.reframedProblem,
         extractedSolution: requests.extractedSolution,

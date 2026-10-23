@@ -1,7 +1,7 @@
 import { labelKeysSchema, sourceRequestType } from "./request-labels";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { expectedImpactSchema } from "./request-impact";
+import { expectedImpactSchema, noMeasurableImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { measurementRequestTypeIssue } from "./request-measurement";
 
@@ -23,12 +23,15 @@ import {
  * request ID makes a repeated save idempotent.
  */
 
+/** A reviewed impact: a measured plan, or the "No measurable impact" choice with its reason (#153). */
+const reviewedImpactSchema = z.union([expectedImpactSchema, noMeasurableImpactSchema]);
+
 const tokenPayloadSchema = z.object({
   requestId: z.string().uuid(),
   purpose: z.enum(["create", "edit"]).default("create"),
   orgId: z.string().min(1),
   userId: z.string().min(1),
-  expectedImpact: expectedImpactSchema.nullable().default(null),
+  expectedImpact: reviewedImpactSchema.nullable().default(null),
   projectId: projectIdSchema,
   requestType: requestTypeSchema,
   labelKeys: labelKeysSchema,
@@ -88,7 +91,7 @@ export function createTriageToken(
     purpose: existingRequestId ? "edit" : "create",
     orgId: context.orgId,
     userId: context.userId,
-    expectedImpact: existingRequestId ? expectedImpactSchema.safeParse(input.expectedImpact).data ?? null : expectedImpactSchema.parse(input.expectedImpact),
+    expectedImpact: existingRequestId ? reviewedImpactSchema.safeParse(input.expectedImpact).data ?? null : reviewedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
     requestType: sourceRequestType(input),
     labelKeys: input.labelKeys,
