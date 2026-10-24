@@ -33,7 +33,7 @@ export function AttachmentDownload({
         context
       ))
       if (!("success" in result) || !result.success || !result.url) {
-        setError(result.error ?? "Couldn’t prepare the download. Try again.")
+        setError("error" in result ? result.error : "Couldn’t prepare the download. Try again.")
         return
       }
 

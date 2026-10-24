@@ -27,7 +27,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth-guard", () => ({
-  requireActiveMember: async () => ({ userId: "user-test", orgId: "org-test", role: "member" }),
+  guardActiveMember: async () => ({ userId: "user-test", orgId: "org-test", role: "member" }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => {

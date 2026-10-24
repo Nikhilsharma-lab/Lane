@@ -1,5 +1,6 @@
 "use client"
 
+import { callAction } from "@/lib/action-call"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/arc/button/button"
 import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
@@ -19,7 +20,7 @@ export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request
   const [read, setRead] = useState<ReleaseRead | null>(null)
   useEffect(() => {
     let active = true
-    readRequestRelease(request.id, { orgId })
+    callAction(() => readRequestRelease(request.id, { orgId }))
       .then(next => { if (active) setRead(next) })
       .catch(() => { if (active) setRead({ error: "Could not load release. Try again." }) })
     return () => { active = false }

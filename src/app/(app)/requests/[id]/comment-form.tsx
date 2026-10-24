@@ -95,7 +95,7 @@ export function CommentForm({
     try {
       const result = await callAction(() => addComment(requestId, formData, context));
 
-      if ("error" in result && result.error) {
+      if ("error" in result) {
         fail(result.error);
         return;
       }

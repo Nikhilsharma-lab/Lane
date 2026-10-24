@@ -2,7 +2,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, requests } from '@/db';
-import { requireActiveMember } from '@/lib/auth-guard';
+import { guardActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
@@ -73,8 +73,8 @@ export async function readRequestRelease(requestId: string, context: {
 }) {
     try {
         insist(z.uuid().safeParse(requestId).success, 'Request unavailable.');
-        const auth = await requireActiveMember(context.orgId);
-        insist(auth, 'Request unavailable.');
+        const auth = await guardActiveMember(context.orgId, 'Could not load release. Try again.');
+        if ('error' in auth) return auth;
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
         insist(request, 'Request unavailable.');
         const requesterId = requesterOf(request);

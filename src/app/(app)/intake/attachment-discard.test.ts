@@ -20,8 +20,8 @@ const state = vi.hoisted(() => ({
   removed: [] as string[], deletedRows: 0,
 }));
 vi.mock("@/lib/auth-guard", () => ({
-  requireActiveMember: async () => state.authorized
-    ? { userId: "user-test", orgId: "org-test", role: "member" } : null,
+  guardActiveMember: async () => state.authorized
+    ? { userId: "user-test", orgId: "org-test", role: "member" } : { error: "Session ended", sessionExpired: true },
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => {

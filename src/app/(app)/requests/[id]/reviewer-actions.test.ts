@@ -259,7 +259,8 @@ it("a reviewer who left no longer counts: the list, detail and panel agree nothi
   const listed = async () => (await loadRequestList(auth)).rows.find((row) => row.id === id)?.reviewState;
   const panel = async () => {
     const view = await api.readReviews(id, { orgId });
-    return reviewStateOf((view.reviewers ?? []).map((r) => ({ ...r, counts: r.active })));
+    if ("error" in view) throw new Error(view.error);
+    return reviewStateOf(view.reviewers.map((r) => ({ ...r, counts: r.active })));
   };
   expect(await listed()).toEqual({ concerns: [{ name: "agreement_design", reason: "No API yet." }], unanswered: 1 });
   roster.delete(designer);

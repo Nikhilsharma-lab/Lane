@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { db, requests, requestAgreements, requestAgreementEvents } from '@/db';
-import { requireActiveMember } from '@/lib/auth-guard';
+import { guardActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
@@ -107,8 +107,8 @@ export async function readRequestOutcome(requestId: string, context: {
 }) {
     try {
         insist(z.uuid().safeParse(requestId).success, 'Request unavailable.');
-        const auth = await requireActiveMember(context.orgId);
-        insist(auth, 'Request unavailable.');
+        const auth = await guardActiveMember(context.orgId, 'Could not load the outcome. Try again.');
+        if ('error' in auth) return auth;
         const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
         insist(request, 'Request unavailable.');
         const expected = request.status === 'open' ? null : expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;

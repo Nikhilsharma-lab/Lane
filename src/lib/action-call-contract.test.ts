@@ -14,7 +14,7 @@ const PASSED_ON: Record<string, string> = {
 function isServerModule(file: string, specifier: string): boolean {
   const base = specifier.startsWith("@/") ? join(ROOT, specifier.slice(2)) : specifier.startsWith(".") ? join(dirname(file), specifier) : null
   const path = base && [".ts", ".tsx"].map((extension) => base + extension).find((candidate) => existsSync(candidate))
-  return !path || readFileSync(path, "utf8").trimStart().startsWith('"use server"')
+  return !path || /^['"]use server['"]/.test(readFileSync(path, "utf8").trimStart())
 }
 
 function sources(dir: string): string[] {
@@ -27,13 +27,13 @@ function sources(dir: string): string[] {
 
 /** Every call of an imported server action, with its line. */
 function actionCalls(file: string, source: string) {
-  const names = [...source.matchAll(/import\s+\{([^}]*)\}\s+from\s+"([^"]*actions)"/g)]
+  const names = [...source.matchAll(/import\s+\{([^}]*)\}\s+from\s+["']([^"']*actions)["']/g)]
     .filter((match) => isServerModule(file, match[2]))
     .flatMap((match) => match[1].split(","))
     .map((name) => name.trim())
     .filter((name) => name && !name.startsWith("type "))
     .map((name) => name.split(" as ").at(-1)!.trim())
-  const namespaces = [...source.matchAll(/import\s+\*\s+as\s+(\w+)\s+from\s+"([^"]*actions)"/g)].filter((match) => isServerModule(file, match[2])).map((match) => `${match[1]}\\.\\w+`)
+  const namespaces = [...source.matchAll(/import\s+\*\s+as\s+(\w+)\s+from\s+["']([^"']*actions)["']/g)].filter((match) => isServerModule(file, match[2])).map((match) => `${match[1]}\\.\\w+`)
   const lines = source.split("\n")
   return [...names, ...namespaces].flatMap((name) =>
     lines.flatMap((line, index) => new RegExp(`(?<![\\w.])${name}\\(`).test(line) && !/^\s*import\b/.test(line) ? [{ line: index + 1, text: line.trim() }] : []))
@@ -44,9 +44,9 @@ describe("server action calls", () => {
     const direct = sources(ROOT).flatMap((path) => {
       const source = readFileSync(path, "utf8")
       const file = relative(ROOT, path)
-      if (source.trimStart().startsWith('"use server"') || PASSED_ON[file]) return []
+      if (/^['"]use server['"]/.test(source.trimStart()) || PASSED_ON[file]) return []
       return actionCalls(path, source)
-        .filter(({ text }) => !text.includes("callAction(() =>") && !text.includes("run: () =>"))
+        .filter(({ text }) => !text.includes("callAction(() =>") && !text.includes("run: () =>") && !(source.includes("useJourneyChange(") && text.includes("context =>")))
         .map(({ line, text }) => `${file}:${line}: ${text}`)
     })
     expect(direct).toEqual([])
