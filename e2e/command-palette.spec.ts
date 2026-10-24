@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { commandPalette as palette, paletteOption as option, runPaletteCommand as run } from "./helpers/command-palette";
 
 // Issue #107 (spec #101, Testing Decisions): ⌘K and Ctrl+K on the list, a
 // Request and Settings, for a member, at desktop 1440/light and phone
@@ -22,12 +23,6 @@ async function applySurface(page: Page, surface: Surface) {
   await page.setViewportSize({ width: surface.width, height: surface.height });
   await page.emulateMedia({ colorScheme: surface.colorScheme, reducedMotion: surface.reducedMotion });
 }
-
-const palette = (page: Page) => page.getByRole("dialog", { name: "Command palette", exact: true });
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** An entry by its label; places also carry their kind ("Requests", "Project", "Settings") in the name. */
-const optionName = (name: string, detail?: string) => new RegExp(`^${escape(name)}${detail ? `\\s*${escape(detail)}` : ""}$`);
-const option = (page: Page, name: string, detail?: string) => palette(page).getByRole("option", { name: optionName(name, detail) });
 
 /** Records the dialog's and its overlay's opacity on the first frame they exist, before any fade could run. */
 async function watchFirstFrame(page: Page) {
@@ -74,23 +69,6 @@ async function openAndClose(page: Page, surface: Surface, key: (typeof KEYS)[num
   await page.keyboard.press(key);
   await expect(palette(page)).toBeHidden();
   await expect(main).toBeFocused();
-}
-
-/** Opens the palette from the page, filters to `name`, moves to it with the arrows and runs it with Enter. */
-async function run(page: Page, name: string, detail?: string) {
-  await page.locator("#lane-main").focus();
-  await page.keyboard.press("Meta+k");
-  const field = palette(page).getByRole("combobox", { name: "Find an action or place" });
-  await expect(field).toBeFocused();
-  await field.fill(name);
-  const target = option(page, name, detail);
-  await expect(target).toHaveCount(1);
-  const options = palette(page).getByRole("option");
-  for (let step = 0; (await options.nth(step).getAttribute("id")) !== (await target.getAttribute("id")); step++) await page.keyboard.press("ArrowDown");
-  await expect(target).toHaveAttribute("aria-selected", "true");
-  await expect(field).toHaveAttribute("aria-activedescendant", (await target.getAttribute("id"))!);
-  await page.keyboard.press("Enter");
-  await expect(palette(page)).toBeHidden();
 }
 
 test("⌘K and Ctrl+K open the palette on the list, a Request and Settings, for a member", async ({ page, context }, testInfo) => {
