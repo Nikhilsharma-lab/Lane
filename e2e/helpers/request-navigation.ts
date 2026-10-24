@@ -197,6 +197,21 @@ export async function verifyNativeNavigation(page: Page, fixture: NavigationFixt
   await open.press("Enter");
   await expect(page).toHaveURL(url => url.pathname === `/requests/${target.id}`);
   await expect(page.locator("#request-title")).toBeFocused();
+
+  // Search's Project result has its own all-status href. Open it by the
+  // documented result-list shortcut, then return through the sidebar.
+  await runPaletteCommand(page, "Search workspace");
+  await search(page).fill(fixture.project.name);
+  await search(page).press("Enter");
+  await expect(matches.getByRole("option", { name: `${fixture.project.name}, Project`, exact: true })).toBeVisible();
+  await search(page).press("ArrowDown");
+  await expect(matches).toBeFocused();
+  await matches.press("Control+Enter");
+  await expect(page).toHaveURL(url => url.pathname === "/" && url.searchParams.get("project") === fixture.project.id);
+  await expect(search(page)).toBeHidden();
+  await capture("search-project-arrival");
+  await chooseSidebarProject(page, "No Project");
+  await expectKeptControls(page, fixture);
 }
 
 /** Hold delivery of one real response; never synthesize its data or status. */
