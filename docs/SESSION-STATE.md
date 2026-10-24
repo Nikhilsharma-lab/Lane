@@ -1,5 +1,23 @@
 # Shared Claude / Codex handoff
 
+## #172 review correction — browser recheck pending
+
+Initial review of `9c56494` found zero Standards findings and one Spec P2,
+confirmed in the actual app: a held successful Project creation preserved newer
+Search/URL and saved catalogue data but restored New Project focus. The existing
+Arc Composer now invalidates async success/error and open-frame focus when another
+control takes focus, history changes or it unmounts. Ordinary completion/cancel
+focus remains; disabled-submit body focus does not revoke ownership. Official Arc
+source/API was re-read and the existing local adaptation/hash documented; no props,
+copy, layout or motion changed.
+
+Fresh UI 601, typecheck, lint, design 42 plus Arc/brand and production build passed.
+Bundle and final browser-helper static receipts are in the external evidence file.
+Browser helper `305568e` adds actual transport-abort failure/cancel coverage without
+saving another record. The successful-create recheck is authorized to create one
+additional normal-UI Project; exact receipts are retained and the original Project
+remains for navigation. Browser acceptance and final delta review are pending.
+
 ## #172 ready for review — browser acceptance pending
 
 Ticket [#172](https://github.com/Nikhilsharma-lab/Lane/issues/172) is implemented in
