@@ -85,14 +85,15 @@ export async function verifyProjectCreateFailure(page: Page, project: { id: stri
   let count = 0;
   let finished = false;
   const abort = Promise.withResolvers<void>();
+  const pattern = `${new URL(page.url()).origin}/**`;
   const handler = async (route: Route) => {
-    if (!isProjectCreate(route.request(), project.name, orgId)) return route.continue();
+    if (!isProjectCreate(route.request(), project.name, orgId)) return route.fallback();
     count++;
     await abort.promise;
     await route.abort("failed");
     finished = true;
   };
-  await page.route("**/*", handler);
+  await page.route(pattern, handler);
   try {
     await page.getByRole("button", { name: "Create Project", exact: true }).press("Enter");
     await expect.poll(() => count).toBe(1);
@@ -121,7 +122,7 @@ export async function verifyProjectCreateFailure(page: Page, project: { id: stri
       await capture("failed-create-escape-recovery");
     }
     return { projectId: project.id, outgoingCreateActions: count, abortedBeforeServerDispatch: true, syntheticResponse: false, superseded: supersede };
-  } finally { abort.resolve(); await page.unroute("**/*", handler); }
+  } finally { abort.resolve(); await page.unroute(pattern, handler); }
 }
 
 async function setDisplay(page: Page) {
@@ -299,8 +300,11 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
   let error: unknown;
   let finished = false;
   const delivery = Promise.withResolvers<void>();
+  // Keep Clerk's context-level testing-token route intact. A broad page
+  // route with continue() would skip that existing handler on auth requests.
+  const pattern = `${new URL(page.url()).origin}/**`;
   const handler = async (route: Route) => {
-    if (claimed || !match(route.request())) return route.continue();
+    if (claimed || !match(route.request())) return route.fallback();
     claimed = route.request();
     try {
       response = await route.fetch();
@@ -309,7 +313,7 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
     } catch (failure) { error = failure; }
     finally { finished = true; }
   };
-  await page.route("**/*", handler);
+  await page.route(pattern, handler);
   return {
     async received() {
       await expect.poll(() => Boolean(response) || Boolean(error), { timeout: 30_000 }).toBe(true);
@@ -323,7 +327,7 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
       if (error && !(allowCanceled && claimed?.failure())) throw error;
       await page.waitForTimeout(300);
     },
-    async stop() { delivery.resolve(); await page.unroute("**/*", handler); },
+    async stop() { delivery.resolve(); await page.unroute(pattern, handler); },
   };
 }
 
