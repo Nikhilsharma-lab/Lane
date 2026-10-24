@@ -51,6 +51,10 @@
 > and keeps its design link; it does not collect review requests, design feedback or reviewer decisions.
 > Saved historical review data is retained. This does not introduce Figma integration or change the
 > separately planned named alignment contract.
+> **2026-10-24 product vision spec (Nikhil, supersedes the journey parts of the 2026-10-06 foundation):**
+> Nikhil approved `docs/product-vision-spec.md`, the ranked list of what Lane builds before and after launch.
+> Journeys are design work and stay in design tools: Lane links to them and never maintains a journey record.
+> Each spec item still needs its own build plan and approval before any code.
 
 This is the product-behaviour master, not a monolithic implementation plan. `AGENTS.md` remains the primary
 repository instruction file. `lane-roadmap.md` controls sequence, `DESIGN.md` controls the visual system,
@@ -67,10 +71,9 @@ what happened after release.
 
 **Two foundations, confirmed 2026-10-06:**
 
-1. **One source of truth for the product and its journeys.** Requests, agreed decisions, current journey
-   context, design/development references, release history and outcomes must connect in a shared record.
-   A disconnected list of Requests does not fulfil this principle. The maintained journey representation
-   and linking model still need a bounded design decision (§7).
+1. **One source of truth for the product.** Requests, agreed decisions, design/development references,
+   release history and outcomes must connect in a shared record. A disconnected list of Requests does not
+   fulfil this principle. Journeys stay in design tools and are linked, never maintained in Lane (2026-10-24).
 2. **Expected impact compared with actual results.** Capture predicted impact when creating a Request,
    keep it with the Request as work advances, measure after launch over the decided window, and retain the comparison
    and learning. Show Request-level results and cumulative quarterly/yearly product results (§9).
@@ -612,6 +615,9 @@ separate Requests. Lane must not introduce initiatives, epics, or a project hier
 **2026-10-05 exception:** the explicitly approved flat Projects in §4.1 group Requests by ongoing work area.
 They currently add no initiative/epic hierarchy, project lifecycle or outcome rollup. The 2026-10-06 target
 adds product/Project-level period summaries (§9); it does not authorize a hierarchy or new Project route.
+
+**2026-10-24:** superseded. Journeys stay in design tools; Lane links to them and keeps no journey record
+(`docs/product-vision-spec.md`). The note below is history.
 
 **2026-10-06 foundation:** Lane must be the shared product/journey record, showing how Requests and their
 decisions/results relate to the experience people use. The current journey and its change history must be

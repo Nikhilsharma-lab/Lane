@@ -84,6 +84,20 @@ _Avoid_: Edit, amendment
 A new Request linked to a released one, for further work. It starts again at Open, and reviewers answer it again.
 _Avoid_: Reopen, child Request
 
+## Linking Requests
+
+**Same problem link**:
+A link a Member or Admin makes by hand to say two Requests tackle the same problem. Linked Requests form one
+group: joining any Request in it joins them all. It can be added at any status and never changes a closed record.
+Guests never see it.
+_Avoid_: Related link, duplicate, parent
+
+**Iteration**:
+One Request in a Same problem group, numbered in the order the Requests were created, such as "3rd iteration".
+A Follow-up Request is not an iteration unless it is also linked as Same problem. Design rounds inside Figma are
+not iterations in Lane.
+_Avoid_: Attempt, try, version, round
+
 ## Reviewing a Request
 
 **Reviewer** (detail):
@@ -140,6 +154,24 @@ _Avoid_: Retro, lesson, notes
 **Quarter note**:
 An optional short note an admin writes for one quarter, shown at the end of that quarter's Outcome report.
 _Avoid_: Summary, commentary
+
+## Metrics
+
+**Metrics library**:
+The workspace's shared list of Metric definitions. Every metric on a prediction or guardrail is picked from it.
+It never holds numbers.
+_Avoid_: Metric catalogue, KPI list
+
+**Metric definition**:
+One entry in the Metrics library: a name, a unit, a link to where the metric lives, and an optional line on
+how it is counted. Results add up only when they share a Metric definition, audience and window. A change in
+what is counted makes a new Metric definition, not an edit.
+_Avoid_: Custom metric, KPI
+
+**Pass/fail check**:
+A yes-or-no outcome on a prediction, such as "keyboard users can finish checkout". It is not a Metric
+definition and never adds up.
+_Avoid_: Metric, test
 
 ## Retired words
 
