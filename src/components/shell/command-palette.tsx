@@ -1,16 +1,15 @@
 "use client"
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
-import { useRouter } from "next/navigation"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { useListAnnouncer } from "@/components/requests/list-announcer"
-import { useCurrentRequest, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { useCurrentRequest } from "@/components/requests/list-view-state"
 import { useUndoableMarkDone } from "@/components/requests/mark-done-undo"
 import { useRequestMoves } from "@/components/requests/request-moves"
 import { showSettingsSection } from "@/components/settings/settings-catalog"
 import { isShown } from "@/lib/keyboard-guards"
-import { changesListInPlace, requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { useRequestNavigation } from "@/components/requests/request-navigation"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
 import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
@@ -80,14 +79,12 @@ type BodyProps = CommandPaletteWorkspace & {
 /** Mounted only while the palette shows, so the current Request and the Undo pointer are read only then. */
 function PaletteBody({ orgId, role, viewer, projects, input, step, query, active, onStep, onQuery, onActive, onRun }: BodyProps) {
   const uid = useId()
-  const router = useRouter()
+  const navigation = useRequestNavigation()
   const list = useRef<HTMLDivElement>(null)
   const current = useCurrentRequest()
   const undo = useUndoableMarkDone()
   const announce = useListAnnouncer()
   const moves = useRequestMoves({ orgId, announce })
-  const listContext = useRequestListContext()
-  const setListView = useSetRequestListView()
   // useCurrentRequest keeps one object until the Request or its pending changes change.
   const request = current
   const undoId = undo?.requestId
@@ -108,13 +105,6 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     else if (item.offsetTop + item.offsetHeight > node.scrollTop + node.clientHeight) node.scrollTop = item.offsetTop + item.offsetHeight - node.clientHeight
   }, [activeIndex])
 
-  function goToList(next: Partial<RequestListContext>) {
-    // The sidebar's rule: on "/" the list changes in place; elsewhere it navigates there.
-    const href = requestListHref(next.status ?? listContext?.status ?? "all", next.project ?? listContext?.project ?? "all")
-    setListView(view => withListContext(view, next))
-    if (!changesListInPlace(window.location.pathname, href)) router.push(href)
-  }
-
   function back() {
     onStep("entries"); onQuery("")
     onActive(Math.max(0, entries.findIndex(entry => entry.action.kind === "priority")))
@@ -132,11 +122,12 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     const deps: PaletteActionDeps = {
       request: current, viewer, undo, moves,
       open: surface => { openShellSurface(surface, { returnFocus: returnTo }) },
-      view: filter => goToList({ status: filter }),
-      project: projectId => goToList({ project: projectId }),
+      view: filter => navigation.selectList({ status: filter }),
+      project: projectId => navigation.selectList({ project: projectId }),
       settings: (section, href) => {
-        if (!window.location.pathname.startsWith("/settings/")) { router.push(href); return }
+        if (!window.location.pathname.startsWith("/settings/")) { navigation.open(href); return }
         // Already on Settings: the section changes in place, as from the frame's own sidebar.
+        navigation.invalidate()
         showSettingsSection(section)
         requestAnimationFrame(() => document.getElementById(`settings-${section}`)?.focus({ preventScroll: true }))
       },

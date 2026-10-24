@@ -3,8 +3,8 @@
 import { callAction } from "@/lib/action-call";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { requestListHref } from "@/lib/request-workspace";
+import { usePathname } from "next/navigation";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { NotificationBell } from "./notification-bell";
@@ -36,7 +36,7 @@ export function Sidebar({
   unreadCount?: Promise<number>;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const projectState = useSharedWorkspaceProjects();
   const { isLoaded, organization } = useOrganization();
   const { signOut } = useClerk();
@@ -64,10 +64,11 @@ export function Sidebar({
       projectsError={projectState.error}
       onRetryProjects={() => projectState.reload()}
       onCreateProject={async name => {
+        const stillCurrent = navigation.continuation();
         const result = await callAction(() => createProject({ name }, { orgId }));
         if (!result.success) throw new Error(result.error.message);
         projectState.addProject(result.project);
-        router.push(requestListHref("all", result.project.id));
+        if (stillCurrent()) navigation.selectList({ status: "all", project: result.project.id });
         return result.project;
       }}
       notifications={<NotificationBell orgId={orgId} unreadCount={unreadCount} />}

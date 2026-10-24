@@ -1,5 +1,28 @@
 # Shared Claude / Codex handoff
 
+## #172 ready for review — browser acceptance pending
+
+Ticket [#172](https://github.com/Nikhilsharma-lab/Lane/issues/172) is implemented in
+`/private/tmp/lane-spec-172`, branch `codex/spec-167-172`, based on integration
+`8726760`. One workspace-owned navigation boundary now handles sidebar, palette,
+search and Project context-menu navigation. Current-Project reselection resets
+only pagination; native links, URL pending-write hold, list context and J/K
+replacement history are retained. Shared generation and Request-targeted arrival
+reject stale search, navigation and focus work. Project creation keeps the committed
+catalogue item while suppressing superseded navigation. Contract:
+`docs/testing/request-navigation.md`.
+
+Verification so far: no-reset bootstrap 52; meaningful page-3/page-0 regression
+red then green; production navigation/provider and affected tests 64; application
+1,870 passed/one skipped; UI 601; typecheck, full lint, design 42 plus Arc/brand,
+production build and bundle passed. Detailed receipts are recorded in
+`/private/tmp/lane-spec-172-evidence.md`. Browser authoring tip `35fbc42` is merged;
+actual-app acceptance is pending. It uses the exact previously verified staging
+team, normal signed-in UI and unchanged ownership guards. No deployment or
+production verification is claimed. The parent agent owns review and integration;
+#167 is still in progress.
+
+
 ## #171 reviewed and integrated — #172 next
 
 Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is merged at
