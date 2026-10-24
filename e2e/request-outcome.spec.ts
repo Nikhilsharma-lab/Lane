@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { answerIsItLive, journey, journeyStep } from './helpers/journey';
+import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
 // Fixtures are retained with receipts by createReviewTeam, never silently erased.
@@ -32,6 +33,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
   await release.getByRole('button', { name: 'Mark as released' }).click();
   await expect(release.getByText(/· Due in 14 days$/)).toBeVisible();
+  await expect(release.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
   return path;
 }
 test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up and handover survive reloads', async ({ browser, page }, testInfo) => {
@@ -52,7 +54,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await page.waitForURL(url => !url.pathname.endsWith(path));
       await expect(page.getByRole('region', { name: 'Journey', exact: true })).toContainText('Follow-up of');
       await expect(page.getByRole('button', { name: 'Pick up', exact: true })).toBeVisible();
-      await page.goto(path);
+      const reads = await observeJourneyReads(page, path.split('/').at(-1)!, team.orgId);
+      await reads.focusRefresh();
       await expect(outcome.getByText(/· Due in 14 days$/)).toBeVisible();
       await expect(outcome.getByRole('link', { name: /outcome acceptance/ })).toHaveCount(1);
       // Closing without a result by keyboard, early, with a reason and no invented numbers.
@@ -60,9 +63,12 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await outcome.getByRole('combobox', { name: 'Why' }).click();
       await page.getByRole('option', { name: 'Rolled back' }).click();
       await outcome.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
-      await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
+      await expectOpenFormSurvivesReturn(page, reads, outcome.getByLabel('Details (optional)'), 'Acceptance: rolled back after payment errors');
+      await outcome.getByRole('button', { name: 'Close without a result', exact: true }).press('Enter');
       // Wait for the saved closure before reloading; reloading earlier can cancel the save.
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible({ timeout: 20_000 });
+      await expect(outcome.getByLabel('Details (optional)')).toHaveCount(0);
+      await expect(outcome.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
       await page.reload();
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
       await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests never reopen.');
@@ -73,8 +79,12 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await page.getByRole('option', { name: 'Reason', exact: true }).click();
       await outcome.getByLabel('Correction', { exact: true }).fill('Rolled back after checkout timeouts');
       await outcome.getByLabel('Correction reason').fill('Acceptance: wrong cause recorded');
-      await outcome.getByRole('button', { name: 'Save correction' }).click();
+      await expectOpenFormSurvivesReturn(page, reads, outcome.getByLabel('Correction', { exact: true }), 'Rolled back after checkout timeouts');
+      await outcome.getByRole('button', { name: 'Save correction' }).press('Enter');
       await expect(outcome.getByText('Reason: Rolled back after checkout timeouts')).toBeVisible({ timeout: 20_000 });
+      await expect(outcome.getByLabel('Correction', { exact: true })).toHaveCount(0);
+      await expect(outcome.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
+      reads.stop();
       await page.reload();
       await expect(outcome.getByText('Acceptance: rolled back after payment errors', { exact: true })).toBeVisible();
       await expect(outcome.getByText('Reason: Rolled back after checkout timeouts')).toBeVisible();
