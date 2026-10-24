@@ -1,9 +1,11 @@
 # Shared Claude / Codex handoff
 
-## #170 implementation ready for review; browser acceptance pending
+## #170 reviewed and integrated — scoped browser acceptance passed
 
-Ticket [#170](https://github.com/Nikhilsharma-lab/Lane/issues/170) is implemented in
-`/private/tmp/lane-spec-170` on `codex/spec-167-170`, based on integration `7d6da2b`.
+Ticket [#170](https://github.com/Nikhilsharma-lab/Lane/issues/170) is merged at
+`2d052a5` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `b5855d1`; Standards and
+Spec reviews have no actionable findings.
 The timeline now loads one shared Request/viewer/roster/names/clock projection and
 uses one refresh lifetime for revision, retry, save, focus and UTC-midnight reads.
 Open forms retain drafts, stale responses cannot replace newer views, and saved
@@ -12,14 +14,25 @@ writes still recheck permissions/revisions. Details: `docs/testing/request-journ
 
 Local verification: bootstrap 52; application 1,833 passed and one skipped;
 UI 568; typecheck, lint, design 42 plus Arc/brand, production build and bundle
-checks passed with Node 24. Evidence: `/private/tmp/lane-spec-170-evidence.md`. The original browser
-suite stopped during Intake setup and then hit Clerk's development user quota.
-A separate bounded verification uses only the exact three accounts and empty
-workspace identified by read-only inspection, through normal sign-in/app actions.
-Intake and initial Release form/focus checks passed; full browser acceptance and
-independent reviews are pending. A repeated-navigation observer race was fixed in
-the test helper. No fixture ownership guard, authentication policy, schema,
-dependency, product route or deployment changed. #167 remains in progress.
+checks passed with Node 24. Evidence: `/private/tmp/lane-spec-170-evidence.md`.
+Scoped actual-app acceptance passed at 1440/390 in light/dark: Release and Outcome
+forms preserve draft/focus on window return; keyboard save restores heading focus;
+saved facts survive reload; no horizontal overflow. The actual held two-tab response
+is rejected while editing. A real transport failure preserves saved facts, and
+keyboard Retry succeeds. The controlled timer fires once and defers while editing;
+it does not prove actual server UTC rollover, covered by controlled-server-clock tests.
+
+Browser receipt: `/private/tmp/lane-spec-170-owned-browser-evidence.md`; exact logs
+and results: `/private/tmp/lane-spec-170-acceptance/run2/` and `run3/`.
+Run2 completed desktop light/race/timer before a later temporary clock-harness
+failure; fresh-context run3 passed all four tests (setup and remaining surfaces).
+The original legacy suite did not pass: Intake showed session-ended copy, then
+Clerk provisioning hit the development quota. The historical missing-user cause
+is unproven; scoped acceptance completes the changed flows without claiming that
+whole suite passed. Exact verified fixture reuse used normal sign-in/app actions,
+retained all history, and preserved ownership guards. This is local app code using
+pinned staging fixtures, not deployed staging or production proof. No deployment,
+authentication-policy, schema, dependency or product-route change. #167 is ongoing.
 
 ## #169 reviewed and integrated — #170 next
 
