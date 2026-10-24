@@ -178,7 +178,7 @@ export async function verifyNativeNavigation(page: Page, fixture: NavigationFixt
     // The page beneath a phone drawer is inert, but its saved pagination stays intact.
     await expect(page.locator('[aria-label="Request pages"] [aria-label="Page 2"]')).toHaveAttribute("aria-current", "page");
   });
-  const close = page.getByRole("button", { name: "Close navigation", exact: true });
+  const close = page.getByRole("button", { name: "Close sidebar", exact: true });
   if (await close.isVisible()) await close.click();
   await runPaletteCommand(page, "Search workspace");
   const target = fixture.requests[0];
