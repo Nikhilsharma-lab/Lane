@@ -62,6 +62,7 @@ export default defineConfig({
       "src/components/shell/command-palette-acknowledgement.test.ts",
       "src/lib/external-store.test.ts",
       "src/components/requests/request-timeline-model.test.ts",
+      "src/components/requests/journey-refresh.test.ts",
       "src/components/requests/is-it-live.test.ts",
     ],
   },

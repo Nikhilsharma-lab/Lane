@@ -6,6 +6,7 @@ import { prepareAttachmentUpload, finalizeAttachmentUpload, discardAttachmentUpl
 import { listProjects, createProject } from "@/app/(app)/intake/project-actions";
 import { listLabels, createLabel } from "@/app/(app)/intake/label-actions";
 import { markNotificationRead, markNotificationUnread, markAllNotificationsRead } from "@/app/(app)/notifications/actions";
+import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions";
 import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions";
 import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions";
 import { readReviews, loadReviewerPeople } from "@/app/(app)/requests/[id]/reviewer-actions";
@@ -33,6 +34,7 @@ const actions: [string, () => Promise<unknown>][] = [
   ["read notification", () => markNotificationRead(id, context)],
   ["unread notification", () => markNotificationUnread(id, context)],
   ["read all notifications", () => markAllNotificationsRead(context)],
+  ["Journey read", () => readRequestJourney(id, context)],
   ["Release read", () => readRequestRelease(id, context)],
   ["Outcome read", () => readRequestOutcome(id, context)],
   ["Reviews read", () => readReviews(id, context)],

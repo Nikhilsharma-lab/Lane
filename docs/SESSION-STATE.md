@@ -1,5 +1,26 @@
 # Shared Claude / Codex handoff
 
+## #170 implementation ready for review; browser acceptance pending
+
+Ticket [#170](https://github.com/Nikhilsharma-lab/Lane/issues/170) is implemented in
+`/private/tmp/lane-spec-170` on `codex/spec-167-170`, based on integration `7d6da2b`.
+The timeline now loads one shared Request/viewer/roster/names/clock projection and
+uses one refresh lifetime for revision, retry, save, focus and UTC-midnight reads.
+Open forms retain drafts, stale responses cannot replace newer views, and saved
+focus survives revision revalidation. Standalone Release avoids Outcome queries;
+writes still recheck permissions/revisions. Details: `docs/testing/request-journey.md`.
+
+Local verification: bootstrap 52; application 1,833 passed and one skipped;
+UI 568; typecheck, lint, design 42 plus Arc/brand, production build and bundle
+checks passed with Node 24. Evidence: `/private/tmp/lane-spec-170-evidence.md`. The original browser
+suite stopped during Intake setup and then hit Clerk's development user quota.
+A separate bounded verification uses only the exact three accounts and empty
+workspace identified by read-only inspection, through normal sign-in/app actions.
+Intake and initial Release form/focus checks passed; full browser acceptance and
+independent reviews are pending. A repeated-navigation observer race was fixed in
+the test helper. No fixture ownership guard, authentication policy, schema,
+dependency, product route or deployment changed. #167 remains in progress.
+
 ## #169 reviewed and integrated — #170 next
 
 Ticket [#169](https://github.com/Nikhilsharma-lab/Lane/issues/169) is merged at

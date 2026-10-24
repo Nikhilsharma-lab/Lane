@@ -12,6 +12,9 @@ function hasJourneyArguments(request: Request, requestId: string, orgId: string)
 
 /** Discover the compiled read from a real response, never a checked-in action ID. */
 export async function observeJourneyReads(page: Page, requestId: string, orgId: string) {
+  // Finish leaving the previous document before listening: a same-URL reload
+  // can otherwise capture its in-flight read, whose CDP response body is gone.
+  await page.goto("about:blank");
   const initial = page.waitForResponse(response => hasJourneyArguments(response.request(), requestId, orgId));
   await page.goto(`/requests/${requestId}`);
   const response = await initial;

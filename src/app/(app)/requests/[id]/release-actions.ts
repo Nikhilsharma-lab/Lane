@@ -1,20 +1,13 @@
 'use server';
-import { and, eq } from 'drizzle-orm';
-import { z } from 'zod';
-import { db, requests } from '@/db';
-import { guardActiveMember } from '@/lib/auth-guard';
-import { workspaceRoster } from '@/lib/workspace-roster';
+import { loadRequestRelease } from '@/lib/data/request-journey';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
-import { seeable } from '@/lib/request-access';
 import { expectedImpactSchema } from '@/lib/request-impact';
-import { releaseChangeSchema, releaseWindow, releaseMeasurement, earliestExposure, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
-import { journeyStatus, requesterOf } from '@/lib/request-journey';
-import { valueBeforeReleaseFor } from '@/lib/request-release-facts';
-import { allow, journeyActionsFor, peopleNames, personName, rosterMember } from '@/lib/request-journey-access';
+import { releaseChangeSchema, releaseWindow, earliestExposure, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
+import { requesterOf } from '@/lib/request-journey';
+import { agreedAudience } from '@/lib/request-release-facts';
+import { allow, journeyActionsFor, personName, rosterMember } from '@/lib/request-journey-access';
 import { utcDay } from '@/lib/utc-day';
-/** The Request is what was agreed, so its "Users" are the agreed audience. */
-const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 /** Each release change and the journey action that allows it. */
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
@@ -68,45 +61,6 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
         },
     });
 }
-export async function readRequestRelease(requestId: string, context: {
-    orgId: string;
-}) {
-    try {
-        insist(z.uuid().safeParse(requestId).success, 'Request unavailable.');
-        const auth = await guardActiveMember(context.orgId, 'Could not load release. Try again.');
-        if ('error' in auth) return auth;
-        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
-        insist(request, 'Request unavailable.');
-        const requesterId = requesterOf(request);
-        // Null when it can't be read (or for guests, who get no roster): saved facts stay readable, actions don't.
-        let roster: Awaited<ReturnType<typeof workspaceRoster>> | null = null;
-        if (auth.role !== 'guest') {
-            try {
-                roster = await workspaceRoster(auth.orgId);
-            }
-            catch { /* Saved facts remain readable during provider outages. */ }
-        }
-        const people = roster ?? [];
-        const release = request.releaseState?.release ?? null;
-        const history = request.releaseState?.history ?? [];
-        // Saved profile names cover departed Requesters and guests, who receive no fresh roster.
-        const names = await peopleNames(db, roster, [requesterId, ...history.flatMap(e => [e.actorId, e.previousOwnerId, e.ownerId])]);
-        const now = new Date();
-        // Every journey action with its reason, from the same rules the actions refuse with.
-        const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
-        return {
-            requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
-            journey: journeyStatus(request), actions, workStatus: request.status, pickedUpAt: request.pickedUpAt?.toISOString() ?? null, doneAt: request.doneAt?.toISOString() ?? null,
-            release, measurement: releaseMeasurement(release, now), today: utcDay(now),
-            valueBefore: valueBeforeReleaseOf(expectedImpactSchema.safeParse(request.expectedImpact).data ?? null),
-            recordedValueBefore: valueBeforeReleaseFor(request.releaseState, release),
-            audience: agreedAudience(request),
-            earliestExposure: earliestExposure(request),
-            people: auth.role === 'admin' ? people.flatMap(p => p.nominee.kind === 'member' ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
-            history: history.map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),
-        };
-    }
-    catch {
-        return { error: 'Could not load release. Try again.' };
-    }
+export async function readRequestRelease(requestId: string, context: { orgId: string }) {
+    return loadRequestRelease(requestId, context);
 }
