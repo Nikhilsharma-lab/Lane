@@ -17,11 +17,16 @@ production build and bundle. The actual-page regression failed on three Request
 reads before the fix; the midnight regression failed on inconsistent due words.
 Both now pass. Evidence: `/private/tmp/lane-spec-171-evidence.md`.
 
-Scoped actual-app browser verification and independent reviews remain pending.
-The browser agent owns runtime verification against the exact already verified
-staging team, using normal sign-in/app UI and retained history. An external local
-DB socket failure will exercise the existing error/retry boundary without provider
-or data mutations. No production verification, deployment, schema, dependency or
+Initial independent Spec review has no findings; the Standards test-coupling
+finding is corrected in `fa3dbf9`. Actual-page normal, empty and selected-person
+checks passed on all four surfaces. A real local DB transport fault then exposed
+an existing shared error-boundary defect: Next's `reset` does not refetch server
+content, so Try again stayed on the error screen after service recovery. The button
+now uses the installed Next `retry` callback, affecting all pages under the shared
+(app) boundary. Its focused browser recovery recheck and delta review are pending.
+The browser agent owns that verification against the exact already verified
+staging team, using normal sign-in/app UI and retained history; the external socket
+fault changes no provider or data state. No production verification, deployment, schema, dependency or
 product-route change. Query reduction is not a latency claim; #160 remains separate,
 and #167 is ongoing.
 

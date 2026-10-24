@@ -14,7 +14,10 @@ must be on that list. Invalid selections are ignored, and guests receive no
 teammate list. Names are queried once only when permitted IDs exist. A successful
 query without a saved name uses Former member. Request or name-query failures
 reject the page load and reach the existing page error/retry boundary; they never
-become empty or partial results.
+become empty or partial results. The shared authenticated-app error boundary's
+Try again button uses Next's `retry` callback, which refetches server content;
+`reset` alone only clears the error and cannot recover a failed database read.
+This callback also applies to other pages under that shared error boundary.
 
 The pure Impact builders and rendered views are unchanged. Request lists retain
 all periods, while measured Project and Whole org results use the selected release
