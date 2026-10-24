@@ -4,6 +4,7 @@ import { signInTestUser } from "./helpers/test-user";
 import {
   createNavigationProject, navigationSurfaces, verifyDetailHistoryAndSearch,
   verifyNativeNavigation, verifyPendingNavigation, verifyProjectReselection, verifySupersededSearch,
+  verifyProjectCreateFailure,
   type NavigationRequest,
 } from "./helpers/request-navigation";
 
@@ -16,6 +17,12 @@ test("Requests navigation preserves list context, native links, history and the 
   try {
     const project = await createNavigationProject(page, "Navigation acceptance Project", team.orgId);
     await testInfo.attach("navigation-project", { body: JSON.stringify(project), contentType: "application/json" });
+    for (const supersede of [false, true]) {
+      const receipt = await verifyProjectCreateFailure(page, project, team.orgId, supersede, async name => {
+        await testInfo.attach(name, { body: await page.screenshot(), contentType: "image/png" });
+      });
+      await testInfo.attach(`project-create-abort-${supersede}`, { body: JSON.stringify(receipt), contentType: "application/json" });
+    }
     const requests: NavigationRequest[] = [];
     const filter = "navigation owned";
     for (let index = 1; index <= 26; index++) {

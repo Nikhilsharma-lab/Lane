@@ -15,6 +15,13 @@ const rows = (page: Page) => page.locator('[role="row"][data-request-id]:visible
 const requestRow = (page: Page, id: string) => rows(page).filter({ has: page.locator(`a[href^="/requests/${id}"]`) });
 const pages = (page: Page) => page.getByRole("navigation", { name: "Request pages", exact: true });
 const search = (page: Page) => page.getByRole("combobox", { name: "Search workspace", exact: true });
+function isProjectCreate(request: Request, name: string, orgId: string) {
+  if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
+  try {
+    const args: unknown = JSON.parse(request.postData() ?? "null");
+    return Array.isArray(args) && args.length === 2 && args[0]?.name === name && args[1]?.orgId === orgId;
+  } catch { return false; }
+}
 
 export async function openNavigation(page: Page) {
   const open = page.getByRole("button", { name: "Open navigation", exact: true });
@@ -38,13 +45,7 @@ export async function createNavigationProject(page: Page, name: string, orgId?: 
   await openNavigation(page);
   await page.getByRole("button", { name: "New Project", exact: true }).click();
   await page.getByRole("textbox", { name: "Project name", exact: true }).fill(name);
-  const hold = orgId ? await holdResponse(page, request => {
-    if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
-    try {
-      const args: unknown = JSON.parse(request.postData() ?? "null");
-      return Array.isArray(args) && args.length === 2 && args[0]?.name === name && args[1]?.orgId === orgId;
-    } catch { return false; }
-  }) : undefined;
+  const hold = orgId ? await holdResponse(page, request => isProjectCreate(request, name, orgId)) : undefined;
   try {
     await page.getByRole("button", { name: "Create Project", exact: true }).press("Enter");
     if (hold) {
@@ -72,6 +73,55 @@ export async function createNavigationProject(page: Page, name: string, orgId?: 
     }
     return project;
   } finally { await hold?.stop(); }
+}
+
+/** Abort the real outgoing action before dispatch. No fake error response or saved record. */
+export async function verifyProjectCreateFailure(page: Page, project: { id: string; name: string }, orgId: string, supersede: boolean, capture: Capture) {
+  await page.goto("/");
+  await openNavigation(page);
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const field = page.getByRole("textbox", { name: "Project name", exact: true });
+  await field.fill(project.name);
+  let count = 0;
+  let finished = false;
+  const abort = Promise.withResolvers<void>();
+  const handler = async (route: Route) => {
+    if (!isProjectCreate(route.request(), project.name, orgId)) return route.continue();
+    count++;
+    await abort.promise;
+    await route.abort("failed");
+    finished = true;
+  };
+  await page.route("**/*", handler);
+  try {
+    await page.getByRole("button", { name: "Create Project", exact: true }).press("Enter");
+    await expect.poll(() => count).toBe(1);
+    if (supersede) {
+      await chooseSidebarProject(page, "No Project");
+      await runPaletteCommand(page, "Search workspace");
+      await search(page).fill("Keep newer focus after failed create");
+      await expect(search(page)).toBeFocused();
+    }
+    abort.resolve();
+    await expect.poll(() => finished).toBe(true);
+    await expect(field).toHaveValue(project.name);
+    await expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(count, "Transport failure must not automatically retry the uncertain action").toBe(1);
+    if (supersede) {
+      await expect(page).toHaveURL(url => url.pathname === "/" && url.searchParams.get("project") === "none");
+      await expect(search(page)).toHaveValue("Keep newer focus after failed create");
+      await expect(search(page)).toBeFocused();
+      await capture("failed-create-preserves-newer-focus");
+    } else {
+      await expect(field).toBeFocused();
+      await capture("failed-create-retains-draft");
+      await field.press("Escape");
+      await expect(field).toBeHidden();
+      await expect(page.getByRole("button", { name: "New Project", exact: true })).toBeFocused();
+      await capture("failed-create-escape-recovery");
+    }
+    return { projectId: project.id, outgoingCreateActions: count, abortedBeforeServerDispatch: true, syntheticResponse: false, superseded: supersede };
+  } finally { abort.resolve(); await page.unroute("**/*", handler); }
 }
 
 async function setDisplay(page: Page) {
