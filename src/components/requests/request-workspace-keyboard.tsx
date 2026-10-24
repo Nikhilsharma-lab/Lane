@@ -109,11 +109,11 @@ export function RequestWorkspaceKeyboard({
 
     window.addEventListener("keydown", handleKeyDown)
     document.addEventListener("click", handleReturnClick, true)
-    window.addEventListener("popstate", handleBrowserBack)
+    const stopRemembering = navigation.onHistoryReturn(handleBrowserBack)
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       document.removeEventListener("click", handleReturnClick, true)
-      window.removeEventListener("popstate", handleBrowserBack)
+      stopRemembering()
     }
   }, [returnHref, router, selectedRequestId, navigation])
 

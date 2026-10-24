@@ -1,5 +1,23 @@
 # Shared Claude / Codex handoff
 
+## #172 browser Back correction — remaining navigation acceptance pending
+
+The actual app passed successful Project-create focus, both transport-failure
+focus/cancel cases, and current-Project reselection. Back after row Enter and J/K
+restored the correct list page but left focus on body. Native-event tracing showed
+Next restoring the route and removing detail's late popstate listener before it
+could record the return row. A capture-phase experiment did not fix this and was
+discarded. The current detail now registers its existing return-marker callback
+with the workspace's earlier shared history listener; identity-checked cleanup
+protects a newer detail registration. The row-focus algorithm/storage are unchanged.
+
+The same actual-app trace now records marker write, list consumption, row focus and
+marker removal, with focus retained after settling. UI603, typecheck/lint,
+design checks, production build and bundle pass; remaining uninstrumented
+four-surface navigation checks are pending. Exact receipts and rejected-experiment evidence:
+`/private/tmp/lane-spec-172-back-focus-diagnosis.md` and the main external evidence.
+All26 Request fixtures already exist; no further fixture creation is authorized.
+
 ## #172 review correction — browser recheck pending
 
 Initial review of `9c56494` found zero Standards findings and one Spec P2,

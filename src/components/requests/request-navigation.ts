@@ -31,6 +31,7 @@ export function createRequestNavigation(state: NavigationState) {
   let pendingPath: string | null = null
   let arrival: { id: string; sequence: DetailSequence | null; button: "previous" | "next" | null } | null = null
   let cancelFocus: (() => void) | null = null
+  let rememberHistoryReturn: (() => void) | null = null
   function invalidate() {
     generation += 1
     cancelFocus?.(); cancelFocus = null
@@ -62,9 +63,16 @@ export function createRequestNavigation(state: NavigationState) {
   }
   return {
     invalidate, prepareDetail, selectList,
+    onHistoryReturn(remember: () => void) {
+      rememberHistoryReturn = remember
+      return () => { if (rememberHistoryReturn === remember) rememberHistoryReturn = null }
+    },
     listenForHistory(target: Pick<Window, "addEventListener" | "removeEventListener">) {
-      target.addEventListener("popstate", invalidate)
-      return () => { target.removeEventListener("popstate", invalidate); invalidate() }
+      // This workspace listener precedes the router's restore listener. A
+      // detail's later listener can be unmounted before dispatch reaches it.
+      const restore = () => { rememberHistoryReturn?.(); invalidate() }
+      target.addEventListener("popstate", restore)
+      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; invalidate() }
     },
     continuation() { const started = generation; return () => generation === started },
     deferFocus(focus: () => void) {
@@ -107,6 +115,7 @@ type RequestNavigation = ReturnType<typeof createRequestNavigation>
 export function bindRequestNavigation(controller: RequestNavigation, browser: NavigationBrowser) {
   return {
     invalidate: controller.invalidate, continuation: controller.continuation, deferFocus: controller.deferFocus,
+    onHistoryReturn: controller.onHistoryReturn,
     prepareDetail: controller.prepareDetail, arrive: controller.arrive,
     selectList: (next: Partial<RequestListContext>) => controller.selectList(next, browser),
     open: (href: string) => controller.open(href, browser),

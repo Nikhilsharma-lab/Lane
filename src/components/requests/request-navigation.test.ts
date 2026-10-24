@@ -171,4 +171,40 @@ describe("workspace Requests navigation", () => {
     expect(beforeUnmount()).toBe(false)
     expect(app.sidebar.arrive("a", vi.fn())).toBe(false)
   })
+
+  it("records the current detail return before route restoration removes its registration", () => {
+    const events = new EventTarget(), app = workspace()
+    const cleanup = app.controller.listenForHistory(events)
+    const order: string[] = []
+    const stale = app.sidebar.continuation()
+    const stopRemembering = app.sidebar.onHistoryReturn(() => order.push("remember row"))
+    events.addEventListener("popstate", () => {
+      order.push("restore route")
+      stopRemembering()
+      expect(stale()).toBe(false)
+    })
+    events.dispatchEvent(new Event("popstate"))
+    expect(order).toEqual(["remember row", "restore route"])
+    order.length = 0
+    events.dispatchEvent(new Event("popstate"))
+    expect(order).toEqual(["restore route"])
+    cleanup()
+  })
+
+  it("keeps only the latest detail's history return and clears it with the workspace", () => {
+    const events = new EventTarget(), app = workspace()
+    const cleanup = app.controller.listenForHistory(events)
+    const old = vi.fn(), current = vi.fn()
+    const stopOld = app.sidebar.onHistoryReturn(old)
+    app.palette.onHistoryReturn(current)
+    stopOld()
+    events.dispatchEvent(new Event("popstate"))
+    expect(old).not.toHaveBeenCalled()
+    expect(current).toHaveBeenCalledOnce()
+    cleanup()
+    const unmount = app.controller.listenForHistory(events)
+    events.dispatchEvent(new Event("popstate"))
+    expect(current).toHaveBeenCalledOnce()
+    unmount()
+  })
 })
