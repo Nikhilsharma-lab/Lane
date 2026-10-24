@@ -33,17 +33,45 @@ export async function chooseSidebarProject(page: Page, name: string) {
   await link.press("Enter");
 }
 
-export async function createNavigationProject(page: Page, name: string) {
+export async function createNavigationProject(page: Page, name: string, orgId?: string, confirmed?: (project: { id: string; name: string }) => Promise<void>) {
   await page.goto("/");
   await openNavigation(page);
   await page.getByRole("button", { name: "New Project", exact: true }).click();
   await page.getByRole("textbox", { name: "Project name", exact: true }).fill(name);
-  await page.getByRole("button", { name: "Create Project", exact: true }).press("Enter");
-  const link = page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name, exact: true });
-  await expect(link).toBeVisible();
-  const id = new URL((await link.getAttribute("href"))!, page.url()).searchParams.get("project");
-  expect(id).toMatch(/^[\da-f-]{36}$/);
-  return { id: id!, name };
+  const hold = orgId ? await holdResponse(page, request => {
+    if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
+    try {
+      const args: unknown = JSON.parse(request.postData() ?? "null");
+      return Array.isArray(args) && args.length === 2 && args[0]?.name === name && args[1]?.orgId === orgId;
+    } catch { return false; }
+  }) : undefined;
+  try {
+    await page.getByRole("button", { name: "Create Project", exact: true }).press("Enter");
+    if (hold) {
+      const body = await hold.received();
+      expect(body).toContain('"success":true');
+      expect(body).toContain('"project":');
+      await chooseSidebarProject(page, "No Project");
+      await expect(page).toHaveURL(url => url.pathname === "/" && url.searchParams.get("project") === "none");
+      await runPaletteCommand(page, "Search workspace");
+      await search(page).fill("Keep this newer search focused");
+      await expect(search(page)).toBeFocused();
+      await hold.deliver();
+    }
+    const link = page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name, exact: true });
+    await expect(link).toBeVisible();
+    const id = new URL((await link.getAttribute("href"))!, page.url()).searchParams.get("project");
+    expect(id).toMatch(/^[\da-f-]{36}$/);
+    const project = { id: id!, name };
+    // Preserve confirmed fixture identity even if a later UI assertion fails.
+    await confirmed?.(project);
+    if (hold) {
+      await expect(page).toHaveURL(url => url.pathname === "/" && url.searchParams.get("project") === "none");
+      await expect(search(page)).toHaveValue("Keep this newer search focused");
+      await expect(search(page)).toBeFocused();
+    }
+    return project;
+  } finally { await hold?.stop(); }
 }
 
 async function setDisplay(page: Page) {

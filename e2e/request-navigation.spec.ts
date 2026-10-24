@@ -14,7 +14,7 @@ test("Requests navigation preserves list context, native links, history and the 
   test.setTimeout(1_200_000);
   const team = await createReviewTeam(browser, page);
   try {
-    const project = await createNavigationProject(page, "Navigation acceptance Project");
+    const project = await createNavigationProject(page, "Navigation acceptance Project", team.orgId);
     await testInfo.attach("navigation-project", { body: JSON.stringify(project), contentType: "application/json" });
     const requests: NavigationRequest[] = [];
     const filter = "navigation owned";
