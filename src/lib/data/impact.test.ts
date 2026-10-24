@@ -48,13 +48,18 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-it("renders the page and selected teammate from one visible Request snapshot", async () => {
-  const page = await ImpactPage({ searchParams: Promise.resolve({ period: "2026-q4", person: "teammate" }) });
-  const screen = page.props.children[1].props;
+it("loads the selected-person page with one visible Request read", async () => {
+  await ImpactPage({ searchParams: Promise.resolve({ period: "2026-q4", person: "teammate" }) });
   expect(boundary.reads).toBe(1);
-  expect(screen.dashboard.myWork.requests).toMatchObject([{ requestId: "request-1", title: "Saved snapshot 1" }]);
-  expect(screen.person).toMatchObject({ id: "teammate", name: "Avery", entries: [{ requestId: "request-1", title: "Saved snapshot 1" }] });
-  expect(screen.period).toEqual({ kind: "quarter", year: 2026, quarter: 4 });
+  expect(boundary.queries).toHaveLength(2);
+});
+
+it("derives the dashboard and selected teammate from one visible Request snapshot", async () => {
+  const result = await loadImpactPage(member, { period: { kind: "quarter", year: 2026, quarter: 4 }, personId: "teammate" });
+  expect(boundary.reads).toBe(1);
+  expect(result.dashboard.myWork.requests).toMatchObject([{ requestId: "request-1", title: "Saved snapshot 1" }]);
+  expect(result.person).toMatchObject({ id: "teammate", name: "Avery", entries: [{ requestId: "request-1", title: "Saved snapshot 1" }] });
+  expect(result.dashboard.wholeOrg?.period).toEqual({ kind: "quarter", year: 2026, quarter: 4 });
   expect(boundary.queries).toHaveLength(2);
 });
 
