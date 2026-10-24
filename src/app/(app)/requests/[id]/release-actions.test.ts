@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, afterEach, expect, it, vi } from 'vitest';
@@ -8,7 +9,7 @@ vi.mock('@clerk/nextjs/server', () => ({
     auth: async () => ({ ...session }),
     clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: roster.ids.length, data: roster.ids.map(userId => ({ organization: { id: 'org_release' }, role: userId === 'release_admin' ? 'org:admin' : 'org:member', publicUserData: { userId, firstName: userId, identifier: userId + '@example.test' } })) }) } }),
 }));
-const connection = postgres(process.env.DATABASE_URL!, { max: 6, prepare: false });
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 6, prepare: false });
 const orgId = 'org_release';
 beforeAll(async () => {
     await connection `insert into organizations(id,name,slug) values (${orgId},'Release tests','release-tests')`;

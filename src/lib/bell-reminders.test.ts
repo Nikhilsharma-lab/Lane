@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 /**
  * #136: bell reminders are written when the bell count loads (no scheduled job). Proven through the bell's
  * own reads (GET /api/notifications/unread and GET /api/notifications) on a controlled clock.
@@ -13,7 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 const session = vi.hoisted(() => ({ current: { userId: "", orgId: "", orgRole: "" } }))
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn(async () => session.current) }))
 
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false })
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 1, prepare: false })
 const orgId = "org_bell_reminders"
 const otherOrg = "org_bell_reminders_other"
 const requester = "bell_requester"

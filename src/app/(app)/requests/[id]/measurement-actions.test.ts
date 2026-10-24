@@ -1,5 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,8 +25,7 @@ const setPlan = async (value: ReturnType<typeof plan>, type: "improvement" | "ne
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Measurement actions require local lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 4, prepare: false });
   await connection`insert into organizations(id,name,slug) values (${ORG},'Measurement actions','measurement-actions'),(${OTHER_ORG},'Other measurement workspace','other-measurement-actions')`;
   for (const id of [OWNER, MEMBER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`;

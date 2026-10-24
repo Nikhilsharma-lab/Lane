@@ -1,6 +1,7 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, expect, it } from "vitest";
-const connection = postgres(process.env.DATABASE_URL!, {
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, {
   max: 2,
   prepare: false,
 });

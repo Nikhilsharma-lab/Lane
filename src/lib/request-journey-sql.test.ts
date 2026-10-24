@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { and, eq } from "drizzle-orm"
@@ -7,7 +8,7 @@ import { JOURNEY_STATUSES, dueSignal, journeyStatus, requesterOf } from "./reque
 import { closedWithoutResultCondition, dueSoonOrOverdueCondition, journeyStatusColumn, journeyStatusCondition, requesterColumn } from "./request-journey-sql"
 import type { ReleaseFact } from "./request-release"
 
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false })
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 1, prepare: false })
 const orgId = "org_journey_sql"
 const person = "journey_requester"
 const fingerprint = "a".repeat(64)

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createTriageToken } from "@/lib/triage-token";
@@ -33,7 +33,7 @@ let id: string;
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 2 });
   await sql`insert into organizations(id,name,slug) values (${ORG},'No measurable impact','nmi-test')`;
   await sql`insert into profiles(id,full_name,email) values (${CREATOR},'Creator','nmi-creator@example.test')`;

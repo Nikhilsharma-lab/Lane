@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
@@ -75,7 +76,7 @@ vi.mock("@clerk/nextjs/server", () => ({
     },
   }),
 }));
-const connection = postgres(process.env.DATABASE_URL!, {
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, {
   max: 6,
   prepare: false,
 });

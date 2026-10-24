@@ -1,12 +1,12 @@
 import postgres from "postgres"
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, expect, it } from "vitest"
 
 let connection: ReturnType<typeof postgres>
 const org = "org_review_schema", person = "user_review_schema"
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!)
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Require exact local lane_test")
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.href, { max: 1, prepare: false })
   await connection`insert into organizations(id,name,slug) values(${org},'Review schema','review-schema')`
   await connection`insert into profiles(id,full_name,email) values(${person},'Review schema','review-schema@example.test')`

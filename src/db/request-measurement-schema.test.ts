@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const ORG = "org_measurement_schema";
@@ -13,7 +13,7 @@ const plan = {
 let connection: ReturnType<typeof postgres>;
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Measurement schema tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Measurement','measurement-schema')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Measurement','measurement@example.test')`;
