@@ -14,6 +14,37 @@ _Avoid_: Owner, release and outcome owner, creator (when meaning who closes)
 A teammate asked for an optional "Looks good" or "Raise a concern" before the work is picked up. Their answer never blocks pickup. See Reviewing a Request.
 _Avoid_: Approver, agreement
 
+## Workspace roles
+
+Every person in a workspace has exactly one of these four roles. Roles never mix: someone who needs to see
+everything and also file Requests is a Member.
+
+**Admin**:
+A Member who also manages the workspace's people and settings. Takes a paid seat.
+
+**Member**:
+A person who files and works Requests: picks them up, reviews them, records Releases and closes them. Takes a
+paid seat.
+_Avoid_: User, seat (when meaning the person)
+
+**Guest**:
+A free person who files Requests and sees only their own. A Member takes each submission on as its Requester.
+_Avoid_: Submitter, external requester, contributor
+
+**Viewer**:
+A free person who sees everything a Member sees, except managing people, and changes nothing: no filing,
+commenting or reviewing. Nothing ever needs a Viewer.
+_Avoid_: View-only member, observer, read-only member, stakeholder
+
+**Paid seat**:
+What each Admin and Member takes. Guests and Viewers are free and unlimited.
+_Avoid_: License, creator, maker
+
+**Free Requests**:
+The first four Requests every workspace gets before it pays, with no time limit. Deleting one does not give
+it back.
+_Avoid_: Trial, free plan, credits
+
 ## Request status
 
 A Request has one status line that is shown everywhere:
@@ -56,8 +87,8 @@ _Avoid_: Reopen, child Request
 ## Reviewing a Request
 
 **Reviewer** (detail):
-A workspace member or admin, or an invited email address, asked to look at a Request before work starts.
-Optional; a Request may have none.
+A workspace member or admin on a paid seat, asked to look at a Request before work starts. Guests and
+email addresses without a seat cannot be Reviewers. Optional; a Request may have none.
 _Avoid_: approver, agreement seat, participant
 
 **Review answer**:
@@ -78,6 +109,37 @@ _Avoid_: gate, block
 
 **Design link**:
 The saved link to a Request's design, normally in Figma. Design discussion and decisions happen in Figma.
+
+## Inbox
+
+**Inbox**:
+A person's own list of what needs them and what happened to their work in Lane.
+_Avoid_: Notifications, feed, activity
+
+**Needs you**:
+An Inbox item only you can act on: a review asked of you, a concern on your Request, a Release to record,
+or a result due. It clears itself once the thing is done, and it never repeats.
+_Avoid_: Reminder, task, to-do
+
+**For your information**:
+An Inbox item about something that happened to your work. It clears when you read it.
+_Avoid_: Notification, update
+
+## Reporting
+
+**Outcome report**:
+The shared page showing everything Released in a month, quarter or year, with each Request's prediction and
+its result once known, grouped by Project. It is built from Request records, kept up to date as results
+arrive, and never shows people.
+_Avoid_: What we shipped, dashboard, impact summary, scorecard
+
+**What we learned**:
+The optional one line a Requester adds when closing a Request. It shows on the Request and in the Outcome report.
+_Avoid_: Retro, lesson, notes
+
+**Quarter note**:
+An optional short note an admin writes for one quarter, shown at the end of that quarter's Outcome report.
+_Avoid_: Summary, commentary
 
 ## Retired words
 
