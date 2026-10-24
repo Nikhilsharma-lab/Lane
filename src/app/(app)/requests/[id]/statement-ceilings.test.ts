@@ -1,5 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,8 +24,7 @@ const measure = queryCounter.measure;
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Statement ceiling tests require local lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Statement ceilings','statement-ceilings')`;
   for (const id of [MEMBER, REQUESTER]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
@@ -85,7 +84,8 @@ describe("statement ceilings per Request mutation", () => {
     const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
     expect(result).toMatchObject({ success: true, comment: { id: expect.any(String), createdAt: expect.any(Date) } });
     expect(statements).toBeLessThanOrEqual(1);
-    const id = result.comment?.id ?? "";
+    if ("error" in result) throw new Error(result.error);
+    const id = result.comment.id;
     expect(await connection`select body from comments where id = ${id}`).toEqual([{ body: "A ceiling comment" }]);
     const notified = await connection`select user_id, actor_id from notifications where request_id = ${requestId} and type = 'comment_added'`;
     expect(notified).toEqual([{ user_id: REQUESTER, actor_id: MEMBER }]);

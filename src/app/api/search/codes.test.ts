@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 import type { WorkspaceSearchResponse } from "@/lib/workspace-search";
@@ -24,10 +24,7 @@ async function search(query: string) {
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) {
-    throw new Error("Code search integration tests require local lane_test");
-  }
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 1, prepare: false });
   await connection`insert into profiles (id,full_name,email) values
     (${MEMBER},'Member','member-code@example.test'), (${GUEST},'Guest','guest-code@example.test')`;

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createTriageToken } from "@/lib/triage-token";
@@ -14,8 +14,7 @@ const base = () => requestEditSnapshot(input());
 const save = async (changes: ReturnType<typeof input>, token?: string, snapshot = base()) => (await import("./edit-actions")).saveRequestEdits(id, { snapshot, changes, token }, { orgId: "org-edit" });
 beforeAll(async () => {
     const u = new URL(process.env.DATABASE_URL!);
-    if (!TEST_DATABASE_PATH.test(u.pathname) || !["localhost", "127.0.0.1"].includes(u.hostname))
-        throw Error("Local test DB only");
+    requireTestDatabase(process.env.DATABASE_URL);
     sql = postgres(u.toString(), { max: 2 });
     await sql `insert into organizations(id,name,slug) values ('org-edit','Edit','edit-test')`;
     await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test'), ('edit-admin','Admin','edit-admin@example.test')`;

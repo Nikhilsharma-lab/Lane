@@ -1,6 +1,6 @@
 /** Opt-in audit of a private staging export. All writes go to guarded lane_test. */
 import { readFileSync } from "node:fs";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -17,7 +17,7 @@ let sql: ReturnType<typeof postgres>;
 describe.skipIf(!path)("older Request snapshot save/reopen audit (local copies only)", () => {
   beforeAll(async () => {
     const url = new URL(process.env.DATABASE_URL!);
-    if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw Error("Local lane_test only");
+    requireTestDatabase(process.env.DATABASE_URL);
     sql = postgres(url.toString(), { max: 1 });
     await sql`insert into organizations(id,name,slug) values ('org-snapshot-audit','Audit','snapshot-audit')`;
     await sql`insert into profiles(id,full_name,email) values ('snapshot-audit-owner','Audit','snapshot-audit@example.test')`;

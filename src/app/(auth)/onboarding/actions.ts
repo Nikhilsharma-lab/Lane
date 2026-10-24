@@ -22,7 +22,7 @@ export async function saveOnboardingRole(data: { role: string }) {
   if (!parsed.success) return { error: "Choose a valid role." };
 
   const { userId, orgId, orgRole } = await auth();
-  if (!userId) return { error: "Sign in to continue." };
+  if (!userId) return { error: "Sign in to continue.", sessionExpired: true as const };
   if (!orgId || !clerkWorkspacePermission(orgRole)) {
     return { error: "Create or join a workspace before choosing your role." };
   }

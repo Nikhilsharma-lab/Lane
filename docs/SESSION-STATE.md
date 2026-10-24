@@ -1,5 +1,140 @@
 # Shared Claude / Codex handoff
 
+## #171 reviewed and integrated — #172 next
+
+Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is merged at
+`01bb743` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `5d12b2b`; final Standards
+and Spec delta reviews have no remaining findings. Impact now derives its dashboard,
+permitted teammates and selected Request list from one visible Request read and one
+clock. Visibility, name/error handling, periods and pure calculations are preserved.
+The existing shared authenticated-app error boundary now uses Next's `retry` to
+refetch server content; this fixes Try again after a failed load for all pages under
+that boundary. Contract: `docs/testing/impact-loading.md`.
+
+Verification receipts: `/private/tmp/lane-spec-171-evidence.md` records bootstrap 52,
+application 1,849 passed/one skipped, UI 568, corrected focused Impact 113, typecheck,
+lint, design 42 plus Arc/brand, production build and bundle checks. The callback
+repair separately passed the affected 17 frame tests and static/design/build checks.
+Browser evidence: `/private/tmp/lane-spec-171-browser-evidence.md`, with safe results
+and exact recipes preserved in `/private/tmp/lane-spec-171-acceptance/run1/` and
+`run2/`. Run1 passed setup and all eight normal/empty/selected-person cases at
+1440/390 in light/dark, including keyboard navigation and filters, then exposed
+the real DB transport/Retry failure. After the callback repair, run2 passed both
+setup and recovery with zero retries: keyboard Try again fetched an actual complete
+200 RSC response and restored the five selected Requests. Run1's failure remains
+recorded; no claim is made that its entire run or the standard provisioning suite passed.
+
+These are local-app checks against exact verified staging fixtures, using normal
+sign-in/UI, retained history and unchanged fixture-ownership guards. No deployment,
+production verification, provider/data mutation, new schema, dependency or product
+route. Query reduction is not a latency claim; separate Impact acceptance #160
+remains open. Continue with #172; the full #167 spec remains in progress.
+
+## #171 ready for review — browser acceptance pending
+
+Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is implemented on
+`codex/spec-167-171` in `/private/tmp/lane-spec-171`, based on reviewed integration
+`c8f4b0f`. The existing Impact page now obtains dashboard, permitted teammates and
+an optional selected person's Request list from one visible Request read and one
+captured clock. Names load only when needed; invalid selections are ignored and
+guests have no teammate view. Query failures still reach the existing page error
+boundary. Pure calculations and rendering are unchanged. Contract and tests:
+`docs/testing/impact-loading.md`.
+
+Local checks passed with Node 24: bootstrap 52; focused Impact 112; application
+1,849 passed and one skipped; UI 568; typecheck, lint, design 42 plus Arc/brand,
+production build and bundle. The actual-page regression failed on three Request
+reads before the fix; the midnight regression failed on inconsistent due words.
+Both now pass. Evidence: `/private/tmp/lane-spec-171-evidence.md`.
+
+Initial independent Spec review has no findings; the Standards test-coupling
+finding is corrected in `fa3dbf9`. Actual-page normal, empty and selected-person
+checks passed on all four surfaces. A real local DB transport fault then exposed
+an existing shared error-boundary defect: Next's `reset` does not refetch server
+content, so Try again stayed on the error screen after service recovery. The button
+now uses the installed Next `retry` callback, affecting all pages under the shared
+(app) boundary. Its focused browser recovery recheck and delta review are pending.
+The browser agent owns that verification against the exact already verified
+staging team, using normal sign-in/app UI and retained history; the external socket
+fault changes no provider or data state. No production verification, deployment, schema, dependency or
+product-route change. Query reduction is not a latency claim; #160 remains separate,
+and #167 is ongoing.
+
+## #170 reviewed and integrated — scoped browser acceptance passed
+
+Ticket [#170](https://github.com/Nikhilsharma-lab/Lane/issues/170) is merged at
+`2d052a5` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `b5855d1`; Standards and
+Spec reviews have no actionable findings.
+The timeline now loads one shared Request/viewer/roster/names/clock projection and
+uses one refresh lifetime for revision, retry, save, focus and UTC-midnight reads.
+Open forms retain drafts, stale responses cannot replace newer views, and saved
+focus survives revision revalidation. Standalone Release avoids Outcome queries;
+writes still recheck permissions/revisions. Details: `docs/testing/request-journey.md`.
+
+Local verification: bootstrap 52; application 1,833 passed and one skipped;
+UI 568; typecheck, lint, design 42 plus Arc/brand, production build and bundle
+checks passed with Node 24. Evidence: `/private/tmp/lane-spec-170-evidence.md`.
+Scoped actual-app acceptance passed at 1440/390 in light/dark: Release and Outcome
+forms preserve draft/focus on window return; keyboard save restores heading focus;
+saved facts survive reload; no horizontal overflow. The actual held two-tab response
+is rejected while editing. A real transport failure preserves saved facts, and
+keyboard Retry succeeds. The controlled timer fires once and defers while editing;
+it does not prove actual server UTC rollover, covered by controlled-server-clock tests.
+
+Browser receipt: `/private/tmp/lane-spec-170-owned-browser-evidence.md`; exact logs
+and results: `/private/tmp/lane-spec-170-acceptance/run2/` and `run3/`.
+Run2 completed desktop light/race/timer before a later temporary clock-harness
+failure; fresh-context run3 passed all four tests (setup and remaining surfaces).
+The original legacy suite did not pass: Intake showed session-ended copy, then
+Clerk provisioning hit the development quota. The historical missing-user cause
+is unproven; scoped acceptance completes the changed flows without claiming that
+whole suite passed. Exact verified fixture reuse used normal sign-in/app actions,
+retained all history, and preserved ownership guards. This is local app code using
+pinned staging fixtures, not deployed staging or production proof. No deployment,
+authentication-policy, schema, dependency or product-route change. #167 is ongoing.
+
+## #169 reviewed and integrated — #170 next
+
+Ticket [#169](https://github.com/Nikhilsharma-lab/Lane/issues/169) is merged at
+`5771c29` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `4994871`.
+Actions now replay only on an explicit pre-write expiry result after a usable
+Clerk renewal, at most once. Workspace/role denials and all throws are excluded.
+All action producers and callers migrated together; HTTP read guards retain null
+failures, Intake retains its structured signal, and retries keep the original
+workspace/operation ID while deriving identity afresh. Protocol and caller map:
+`docs/testing/action-session-recovery.md`.
+
+Evidence: `/private/tmp/lane-spec-169-evidence.md`. Bootstrap 52, full app 1,814
+passed/one skipped, UI 560, typecheck, lint, design, production build and bundle
+checks passed. Browser checks against
+the pinned staging fixtures passed: aborted-save manual retry, actual pre-write
+expiry followed by exactly one renewed replay, and revoked-session Intake draft
+continuity on desktop/mobile in both themes. Fixtures were owned and cleaned by
+the existing guard; no production mutation, migration, AI call or deployment.
+Build/browser verification uses installed Node 24; Node 26 exposed a local Next
+module-resolution failure. The product and dependency configuration are unchanged.
+Standards and Spec reviews have no unresolved findings; the redundant test
+assertions identified by Standards were removed in `4994871`. Continue with #170.
+This does not complete the full #167 spec.
+
+## #167 integration underway — #168 integrated; #169 next
+
+Spec [#167](https://github.com/Nikhilsharma-lab/Lane/issues/167) is in progress on
+`codex/spec-167-integration` at `/private/tmp/lane-spec-167`. Ticket #168 is merged
+at `f7fa801` after updating to `origin/main` (`d2491bc`). Its disposable test
+database naming, validated connections and run ownership changes include the
+review fix `ee3a824`; the merged tree exactly matches that reviewed implementation.
+
+Implementer verification: bootstrap 52 passed; application 1,735 passed / one
+skipped; UI 560 passed; typecheck and lint passed. Standards review has no findings;
+the Spec review's port-routing finding is resolved. Evidence and review records:
+`/private/tmp/lane-spec-168-evidence.md` and `/private/tmp/lane-spec-168-review-*.md`.
+These are local checks only. No hosted database, staging or production changes
+were made for #168. Continue with #169; the full #167 spec is not yet complete.
+
 ## October 23 — recovery fixes merged and deployed to production
 
 PR #163 is merged at `03728f3372a6d6b76938493e5e7ff052f8a64629`: expired-session

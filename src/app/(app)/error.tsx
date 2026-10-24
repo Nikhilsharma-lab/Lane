@@ -8,10 +8,10 @@ import { PageStrip } from "@/components/shell/page-strip";
 // Plan item 2.0: the frame keeps the page strip, so the shell's trail and the
 // expand control stay in place; the alert covers only the message.
 export default function AppError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <div className="flex min-h-full flex-col">
@@ -24,7 +24,7 @@ export default function AppError({
           icon={<CircleAlert aria-hidden="true" />}
           action={
             <>
-              <Button variant="secondary" onClick={reset}>Try again</Button>
+              <Button variant="secondary" onClick={retry}>Try again</Button>
               <Button variant="ghost" onClick={() => window.location.reload()}>Reload</Button>
             </>
           }

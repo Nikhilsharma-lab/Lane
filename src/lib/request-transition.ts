@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, requests } from "@/db";
 import { notify } from "@/lib/notify";
-import { requireMemberOrAbove, refusal } from "@/lib/auth-guard";
+import { guardMemberOrAbove } from "@/lib/auth-guard";
 import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle";
 import { measurementReadiness } from "@/lib/request-measurement";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -21,6 +21,7 @@ const BULK_LIMIT = 50;
 
 export type TransitionOutcome = {
   error?: string;
+  sessionExpired?: true;
   /** Ids the statement moved; their notifications were written with them. */
   moved: string[];
   /** Ids it did not move, each with the reason a person can act on. */
@@ -45,10 +46,9 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
   const unique = [...new Set((Array.isArray(requestIds) ? requestIds : []).filter((id): id is string => typeof id === "string"))];
   const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
   const invalid = unique.filter((id) => !valid.includes(id)).map((id) => ({ id, error: "Not found" }));
-  const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) {
-    const error = await refusal(CANNOT_CHANGE_REQUESTS);
-    return { error, moved: [], failed: unique.map((id) => ({ id, error })) };
+  const auth = await guardMemberOrAbove(context.orgId, CANNOT_CHANGE_REQUESTS);
+  if ("error" in auth) {
+    return { ...auth, moved: [], failed: unique.map((id) => ({ id, error: auth.error })) };
   }
   if (!valid.length) return { moved: [], failed: invalid };
 
