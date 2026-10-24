@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, realpathSync, renameSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import postgres from "postgres";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import * as targets from "./test-database";
 
@@ -82,4 +83,52 @@ it("assigns a new target after a checkout moves", () => {
   const before = targets.resolveTestDatabase("postgresql://tester@localhost/lane_test", original).database;
   renameSync(original, moved);
   expect(targets.resolveTestDatabase("postgresql://tester@localhost/lane_test", moved).database).not.toBe(before);
+});
+
+it.each([
+  ["postgresql://tester@localhost/lane_test", 5432],
+  ["postgresql://tester@localhost:5437/lane_test", 5437],
+])("pins driver routing to the validated target for %s", async (databaseUrl, port) => {
+  vi.stubEnv("PGPORT", "65432");
+  vi.stubEnv("PGHOST", "remote.invalid");
+  vi.stubEnv("PGDATABASE", "production");
+  vi.stubEnv("PGUSER", "other-user");
+  vi.stubEnv("PGUSERNAME", "other-user");
+  const target = targets.resolveTestDatabase(databaseUrl, main);
+  // Postgres.js is lazy: reading options and ending an unused client never connects.
+  const client = postgres(target.url);
+  try {
+    expect(client.options.port).toEqual([port]);
+    expect(client.options.host).toEqual(["localhost"]);
+    expect(client.options.database).toBe(target.database);
+    expect(client.options.user).toBe("tester");
+    expect(target.port).toBe(String(port));
+    expect(new URL(target.url).port).toBe(String(port));
+  } finally {
+    await client.end();
+  }
+});
+
+it("removes inherited PostgreSQL client overrides before publishing worker configuration", async () => {
+  vi.stubEnv("DATABASE_URL", "postgresql://tester@localhost/lane_test");
+  const inherited = {
+    PGPORT: "65432", PGHOST: "remote.invalid", PGHOSTADDR: "203.0.113.1",
+    PGDATABASE: "production", PGUSER: "other-user", PGUSERNAME: "other-user",
+    PGPASSWORD: "inherited-password", PGSERVICE: "production", PGOPTIONS: "-c search_path=private",
+    PGSSL: "require", PGTARGETSESSIONATTRS: "read-only",
+  };
+  for (const [key, value] of Object.entries(inherited)) vi.stubEnv(key, value);
+  vi.resetModules();
+  await import("../../vitest.config");
+  const target = targets.requireTestDatabase(process.env.DATABASE_URL);
+  const client = postgres(process.env.DATABASE_URL!);
+  try {
+    expect(client.options).toMatchObject({
+      host: ["localhost"], port: [5432], database: target.database, user: "tester",
+      pass: "", ssl: false,
+    });
+    for (const key of Object.keys(inherited)) expect(process.env[key], key).toBeUndefined();
+  } finally {
+    await client.end();
+  }
 });

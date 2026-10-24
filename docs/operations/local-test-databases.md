@@ -10,15 +10,18 @@ worktree locations are not special. Unknown checkout identity fails closed.
 
 Keep local server credentials in the ignored `.env.test`. `DATABASE_URL` must use
 `postgres:` or `postgresql:`, an explicit user, `localhost` or `127.0.0.1`, and a
-valid port (omitting the port means 5432). Query strings and fragments are refused,
-including empty `?` and `#`. Never use a hosted or production URL.
+valid port (omitting the port publishes an explicit `:5432` in the resolved URL).
+Query strings and fragments are refused, including empty `?` and `#`. Never use a
+hosted or production URL.
 
 The pathname `/lane_test` is a configuration placeholder. Vitest replaces it with
 this checkout's assigned database before setup or workers start. An explicit
 pathname is accepted only if it exactly matches that assigned name; another
 checkout's database is an error. Database tests and reset both use the same
 validator and require the resolved URL, rather than accepting a prefix match.
-Reset strips inherited `PG*` routing and uses `psql -X -v ON_ERROR_STOP=1`.
+Vitest clears inherited `PG*` client options before workers start so they cannot
+change routing, credentials or connection settings. Reset independently strips
+these overrides and uses `psql -X -v ON_ERROR_STOP=1`.
 
 Bootstrap before running any reset-capable suite:
 

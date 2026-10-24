@@ -7,6 +7,11 @@ dotenv.config({ path: ".env.test" });
 
 // Resolve the checkout-owned target once before any worker or global reset starts.
 process.env.DATABASE_URL = resolveTestDatabase(process.env.DATABASE_URL).url;
+// Workers and reset use only the validated URL, including intentional empty
+// credentials. Postgres.js otherwise falls back to inherited PG* options.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("PG")) delete process.env[key];
+}
 
 export default defineConfig({
   test: {

@@ -44,7 +44,10 @@ export function resolveTestDatabase(databaseUrl: string | undefined, cwd = proce
       (url.port && (Number(url.port) < 1 || Number(url.port) > 65535)) ||
       url.pathname !== `/${database}`) throw new Error();
     decodeURIComponent(url.password);
-    return { checkoutRoot, database, url: url.toString(), host: url.hostname, port: url.port || "5432" };
+    // An omitted port lets Postgres.js inherit PGPORT, unlike reset and locks.
+    // Publish the same explicit default in every consumer's connection URL.
+    url.port ||= "5432";
+    return { checkoutRoot, database, url: url.toString(), host: url.hostname, port: url.port };
   } catch {
     throw new Error(`[test-target] Refusing database access: require loopback PostgreSQL, an explicit user, a valid port, no query/fragment, and this checkout's database ${database} (or the /lane_test configuration placeholder).`);
   }
