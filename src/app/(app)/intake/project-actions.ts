@@ -2,7 +2,7 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db, projects } from "@/db";
-import { requireActiveMember } from "@/lib/auth-guard";
+import { guardActiveMember } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { projectInputSchema, type ProjectOption } from "@/lib/request-properties";
 
@@ -18,8 +18,8 @@ const projectSelection = { id: projects.id, name: projects.name, description: pr
 const sessionError: ProjectFailure = { code: "session_expired", message: "Your session ended. Sign in again to use Projects." };
 
 export async function listProjects(context: { orgId: string }): Promise<ListProjectsResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionError };
+  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionError : { code: "validation", message: auth.error } };
   try {
     const rows = await db.select(projectSelection).from(projects)
       .where(accessibleProjectsWhere(auth)).orderBy(asc(projects.name));
@@ -34,8 +34,8 @@ export async function createProject(
   input: { name: string; description?: string | null },
   context: { orgId: string },
 ): Promise<CreateProjectResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionError };
+  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionError : { code: "validation", message: auth.error } };
   const parsed = projectInputSchema.safeParse(input);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];

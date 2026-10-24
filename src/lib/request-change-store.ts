@@ -1,4 +1,5 @@
 import "server-only";
+import type { ActionFailure } from "./action-session-failure";
 import { revalidatePath } from "next/cache";
 import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
@@ -7,7 +8,7 @@ import {
   workspaceRoster,
   type WorkspacePerson,
 } from "./workspace-roster";
-import { requireMemberOrAbove, type MemberAuth, refusal } from "./auth-guard";
+import { guardMemberOrAbove, type MemberAuth } from "./auth-guard";
 import {
   requestChangeContextSchema,
   type RequestChangeContext,
@@ -68,11 +69,11 @@ export type RequestChange<Extra> = {
 export async function changeRequest<Extra extends object = object>(
   context: RequestChangeContext,
   change: RequestChange<Extra>,
-): Promise<ChangeResult<Extra> | { error: string }> {
+): Promise<ChangeResult<Extra> | ActionFailure> {
   try {
     insist(requestChangeContextSchema.safeParse(context).success, change.messages.invalid);
-    const auth = await requireMemberOrAbove(context.orgId);
-    insist(auth, await refusal(change.messages.forbidden));
+    const auth = await guardMemberOrAbove(context.orgId, change.messages.forbidden);
+    if ("error" in auth) return auth;
     // Fetched before locking; Clerk and Postgres cannot share a transaction.
     const roster = await workspaceRoster(auth.orgId);
     insist(

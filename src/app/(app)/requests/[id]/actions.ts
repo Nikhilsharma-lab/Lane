@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
-import { requireActiveMember, requireMemberOrAbove, refusal } from "@/lib/auth-guard";
+import { guardActiveMember, guardMemberOrAbove } from "@/lib/auth-guard";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { removeObjects, signDownload } from "@/lib/attachment-storage";
 
@@ -19,10 +19,10 @@ async function transitionOne(
   move: "pick-up" | "done",
   requestId: string,
   context: { orgId: string }
-): Promise<{success?: boolean; error?: string}> {
+): Promise<{success?: boolean; error?: string; sessionExpired?: true}> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const outcome = await transitionRequests(move, [requestId], context);
-  if (outcome.error) return { error: outcome.error };
+  if (outcome.error) return { error: outcome.error, ...(outcome.sessionExpired ? { sessionExpired: true as const } : {}) };
   return outcome.moved.length ? { success: true } : { error: outcome.failed[0]?.error ?? "Not found" };
 }
 
@@ -71,8 +71,8 @@ export async function undoMarkDone(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireMemberOrAbove(context.orgId);
-  if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
+  const auth = await guardMemberOrAbove(context.orgId, CANNOT_CHANGE_REQUESTS);
+  if ("error" in auth) return auth;
 
   // One CTE: the conditional UPDATE and the DELETE of the Done notification
   // commit or fail together, and the DELETE only runs when the UPDATE matched.
@@ -142,8 +142,8 @@ export async function addComment(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("Not found") };
+  const auth = await guardActiveMember(context.orgId, "Not found");
+  if ("error" in auth) return auth;
 
   const parsed = commentSchema.safeParse({ body: formData.get("body") });
   if (!parsed.success) {
@@ -187,8 +187,8 @@ export async function getAttachmentDownloadUrl(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(attachmentId)) return { error: "File not found" };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("File not found") };
+  const auth = await guardActiveMember(context.orgId, "File not found");
+  if ("error" in auth) return auth;
 
   const [attachment] = await db
     .select({
@@ -228,8 +228,8 @@ export async function setRequestPriority(
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const parsed = requestPrioritySchema.safeParse(priority);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
+  const auth = await guardActiveMember(context.orgId, CANNOT_CHANGE_REQUESTS);
+  if ("error" in auth) return auth;
 
   const [updated] = await db
     .update(requests)
@@ -250,10 +250,10 @@ export async function setRequestPriority(
 export async function deleteRequest(
   requestId: string,
   context: { orgId: string }
-): Promise<{ success: true } | { error: string }> {
+): Promise<{ success: true } | { error: string; sessionExpired?: true }> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("Not found") };
+  const auth = await guardActiveMember(context.orgId, "Not found");
+  if ("error" in auth) return auth;
 
   const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
     const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })

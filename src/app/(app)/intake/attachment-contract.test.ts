@@ -30,7 +30,7 @@ describe("Private Request attachment contract", () => {
   });
 
   it("derives identity from the session and scopes every reservation", () => {
-    expect(ACTIONS).toContain("requireActiveMember(context.orgId)");
+    expect(ACTIONS).toContain("guardActiveMember(context.orgId,");
     expect(ACTIONS).toContain("eq(requests.orgId, orgId)");
     expect(ACTIONS).toContain("eq(requests.createdBy, userId)");
     expect(ACTIONS).toContain("uploadedBy: auth.userId");
@@ -50,7 +50,7 @@ describe("Private Request attachment contract", () => {
   });
 
   it("mints a short-lived, filename-preserving download after access checks", () => {
-    expect(DOWNLOADS).toContain("requireActiveMember(context.orgId)");
+    expect(DOWNLOADS).toContain("guardActiveMember(context.orgId,");
     // Visibility is part of the lookup itself (request-access.ts).
     expect(DOWNLOADS).toContain("seeable(auth),");
     expect(DOWNLOADS).toContain("signDownload(attachment.storagePath, attachment.fileName)");

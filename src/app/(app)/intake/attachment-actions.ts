@@ -6,7 +6,7 @@ import { and, count, eq, gt, isNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, requestAttachments, requests } from "@/db";
-import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import {
   MAX_ATTACHMENT_FILES,
   MAX_ATTACHMENTS_TOTAL_BYTES,
@@ -149,8 +149,8 @@ export async function prepareAttachmentUpload(
   },
   context: { orgId: string }
 ): Promise<PrepareAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await guardActiveMember(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = prepareUploadSchema.safeParse(input);
   if (!parsed.success) {
@@ -305,8 +305,8 @@ export async function finalizeAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<FinalizeAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await guardActiveMember(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {
@@ -382,8 +382,8 @@ export async function discardAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<DiscardAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await guardActiveMember(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {

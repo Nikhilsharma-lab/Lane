@@ -1,3 +1,5 @@
+import { callAction } from "@/lib/action-call";
+import { queryCounter } from "@/db";
 import { fixtureClerkClient } from "@/test/member-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -229,4 +231,39 @@ describe("Request visibility in rejected actions", () => {
     expect(await db.select({ authorId: comments.authorId, body: comments.body }).from(comments).where(eq(comments.requestId, GUEST_REQUEST_ID)))
       .toEqual([{ authorId: SECOND_MEMBER_ID, body: "Visibility regression comment" }]);
   });
+});
+
+it("forwards pre-write expiry through both the single and bulk adapters", async () => {
+  sessionQueue = [];
+  const { markDone, markDoneMany } = await import("./actions");
+  for (const action of [() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }), () => markDoneMany([REQUEST_ID], { orgId: WORKSPACE_ID })]) {
+    const run = vi.fn(action);
+    const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew: async () => "renewed" }));
+    expect(observed.result).toMatchObject({ sessionExpired: true });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(observed.statements).toBe(0);
+  }
+});
+it("never retries a real role denial containing the former matched phrase", async () => {
+  sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:guest" }];
+  const { markDone } = await import("./actions");
+  const run = vi.fn(() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }));
+  const renew = vi.fn(async () => "renewed");
+  const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew }));
+  expect(observed.result).toEqual({ error: "You can't change Requests in this workspace." });
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(renew).not.toHaveBeenCalled();
+  expect(observed.statements).toBe(0);
+});
+it("never marks or replays a batch with a committed move and a refused row", async () => {
+  const [row] = await db.insert(requests).values({ orgId: WORKSPACE_ID, title: "Partial recovery", description: "Batch boundary", createdBy: REQUESTER_ID, status: "in_progress" }).returning({ id: requests.id });
+  sessionQueue = [{ userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" }];
+  const { markDoneMany } = await import("./actions");
+  const run = vi.fn(() => markDoneMany([row.id, MISSING_REQUEST_ID], { orgId: WORKSPACE_ID }));
+  const renew = vi.fn(async () => "renewed");
+  const result = await callAction(run, { current: async () => "old", renew });
+  expect(result).toEqual({ moved: [row.id], failed: [{ id: MISSING_REQUEST_ID, error: "Not found" }] });
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(renew).not.toHaveBeenCalled();
+  expect(await db.select({ status: requests.status }).from(requests).where(eq(requests.id, row.id))).toEqual([{ status: "done" }]);
 });

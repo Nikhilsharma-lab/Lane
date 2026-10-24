@@ -1,3 +1,4 @@
+import { callAction } from "@/lib/action-call";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
@@ -333,4 +334,24 @@ it('does not ask for a value before release on a verified check', async () => {
     const [row] = await connection `select release_state from requests where id=${id}`;
     expect(row.release_state.history[0].input.valueBeforeRelease ?? null).toBeNull();
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ recordedValueBefore: null });
+});
+
+it('retains the operation id and workspace while a real expired release action renews once', async () => {
+    const api = await import('./release-actions');
+    const id = await fixture();
+    const ctx = context(id);
+    const attempts: typeof ctx[] = [];
+    session.userId = '';
+    const result = await callAction(async () => {
+        attempts.push({ ...ctx });
+        return api.changeRequestRelease(ctx, release);
+    }, { current: async () => 'old', renew: async () => { session.userId = 'release_pm'; return 'renewed'; } });
+    expect(result).toEqual({ success: true, revision: 1 });
+    expect(attempts).toEqual([ctx, ctx]);
+    const [row] = await connection`select release_state, agreement_revision from requests where id=${id}`;
+    expect(row.agreement_revision).toBe(1);
+    expect(row.release_state.history).toHaveLength(1);
+    expect(row.release_state.history[0]).toMatchObject({ operationId: ctx.operationId, actorId: 'release_pm' });
+    // An explicit manual retry of the same operation remains idempotent defense.
+    expect(await api.changeRequestRelease(ctx, release)).toEqual(result);
 });

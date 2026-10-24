@@ -141,9 +141,9 @@ describe("a signed-out caller", () => {
     const { SESSION_ENDED } = await import("./auth-guard");
     Object.assign(session, { userId: "", orgId: "", orgRole: "" });
     const form = new FormData(); form.set("body", "A comment");
-    expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
-    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
-    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+    expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
+    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
+    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
   });
 });
 

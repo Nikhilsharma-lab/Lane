@@ -1,5 +1,28 @@
 # Shared Claude / Codex handoff
 
+## #169 implementation awaiting review
+
+Ticket [#169](https://github.com/Nikhilsharma-lab/Lane/issues/169) is implemented on
+`codex/spec-167-169` in `/private/tmp/lane-spec-169`, based on integration `a44c73a`.
+Actions now replay only on an explicit pre-write expiry result after a usable
+Clerk renewal, at most once. Workspace/role denials and all throws are excluded.
+All action producers and callers migrated together; HTTP read guards retain null
+failures, Intake retains its structured signal, and retries keep the original
+workspace/operation ID while deriving identity afresh. Protocol and caller map:
+`docs/testing/action-session-recovery.md`.
+
+Evidence: `/private/tmp/lane-spec-169-evidence.md`. Bootstrap 52, full app 1,814
+passed/one skipped, UI 560, typecheck, lint, design, production build and bundle
+checks passed. Browser checks against
+the pinned staging fixtures passed: aborted-save manual retry, actual pre-write
+expiry followed by exactly one renewed replay, and revoked-session Intake draft
+continuity on desktop/mobile in both themes. Fixtures were owned and cleaned by
+the existing guard; no production mutation, migration, AI call or deployment.
+Build/browser verification uses installed Node 24; Node 26 exposed a local Next
+module-resolution failure. The product and dependency configuration are unchanged.
+Integration/review remains with the parent session; continue #170 only after #169
+review and merge. This does not complete the full #167 spec.
+
 ## #167 integration underway — #168 integrated; #169 next
 
 Spec [#167](https://github.com/Nikhilsharma-lab/Lane/issues/167) is in progress on

@@ -18,7 +18,7 @@ import {
 } from "@/lib/ai/triage";
 import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
-import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
@@ -133,8 +133,8 @@ export async function runTriage(
   context: { orgId: string },
   existingRequestId?: string
 ): Promise<TriageResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "validation", message: auth.error } };
 
   if (existingRequestId !== undefined) {
     if (!z.uuid().safeParse(existingRequestId).success) return { success: false, error: { code: "validation", message: "Request unavailable." } };
@@ -249,8 +249,8 @@ export async function saveRequest(
   context: { orgId: string },
   reviewerInput?: unknown
 ): Promise<SaveResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "validation", message: auth.error } };
 
   const verification = verifyTriageToken(data.token, {
     orgId: auth.orgId,

@@ -84,7 +84,8 @@ describe("statement ceilings per Request mutation", () => {
     const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
     expect(result).toMatchObject({ success: true, comment: { id: expect.any(String), createdAt: expect.any(Date) } });
     expect(statements).toBeLessThanOrEqual(1);
-    const id = result.comment?.id ?? "";
+    if ("error" in result) throw new Error(result.error);
+    const id = result.comment.id;
     expect(await connection`select body from comments where id = ${id}`).toEqual([{ body: "A ceiling comment" }]);
     const notified = await connection`select user_id, actor_id from notifications where request_id = ${requestId} and type = 'comment_added'`;
     expect(notified).toEqual([{ user_id: REQUESTER, actor_id: MEMBER }]);

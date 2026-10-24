@@ -25,7 +25,7 @@ beforeEach(() => {
 describe("Project actions", () => {
   it("rejects a different active workspace without querying", async () => {
     const { listProjects, createProject } = await import("./project-actions");
-    expect(await listProjects({ orgId: "org_b" })).toMatchObject({ success: false, error: { code: "session_expired" } });
+    expect(await listProjects({ orgId: "org_b" })).toMatchObject({ success: false, error: { code: "validation" } });
     expect(await createProject({ name: "Website" }, { orgId: "org_b" })).toMatchObject({ success: false });
     expect(boundary.queries).toHaveLength(0);
   });
