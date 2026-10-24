@@ -1,5 +1,36 @@
 # Shared Claude / Codex handoff
 
+## #171 reviewed and integrated — #172 next
+
+Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is merged at
+`01bb743` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `5d12b2b`; final Standards
+and Spec delta reviews have no remaining findings. Impact now derives its dashboard,
+permitted teammates and selected Request list from one visible Request read and one
+clock. Visibility, name/error handling, periods and pure calculations are preserved.
+The existing shared authenticated-app error boundary now uses Next's `retry` to
+refetch server content; this fixes Try again after a failed load for all pages under
+that boundary. Contract: `docs/testing/impact-loading.md`.
+
+Verification receipts: `/private/tmp/lane-spec-171-evidence.md` records bootstrap 52,
+application 1,849 passed/one skipped, UI 568, corrected focused Impact 113, typecheck,
+lint, design 42 plus Arc/brand, production build and bundle checks. The callback
+repair separately passed the affected 17 frame tests and static/design/build checks.
+Browser evidence: `/private/tmp/lane-spec-171-browser-evidence.md`, with safe results
+and exact recipes preserved in `/private/tmp/lane-spec-171-acceptance/run1/` and
+`run2/`. Run1 passed setup and all eight normal/empty/selected-person cases at
+1440/390 in light/dark, including keyboard navigation and filters, then exposed
+the real DB transport/Retry failure. After the callback repair, run2 passed both
+setup and recovery with zero retries: keyboard Try again fetched an actual complete
+200 RSC response and restored the five selected Requests. Run1's failure remains
+recorded; no claim is made that its entire run or the standard provisioning suite passed.
+
+These are local-app checks against exact verified staging fixtures, using normal
+sign-in/UI, retained history and unchanged fixture-ownership guards. No deployment,
+production verification, provider/data mutation, new schema, dependency or product
+route. Query reduction is not a latency claim; separate Impact acceptance #160
+remains open. Continue with #172; the full #167 spec remains in progress.
+
 ## #171 ready for review — browser acceptance pending
 
 Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is implemented on
