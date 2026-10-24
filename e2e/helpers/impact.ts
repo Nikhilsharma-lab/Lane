@@ -25,7 +25,8 @@ async function expectImpact(page: Page) {
   await expect(page.getByRole("heading", { name: "Impact", exact: true })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Impact views" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "My work", exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  // Next's route announcer is itself an alert; check the app failure heading.
+  await expect(page.getByRole("heading", { name: "This page couldn’t load", exact: true })).toHaveCount(0);
 }
 
 export async function verifyImpactMyWork(page: Page, requests: ImpactRequest[], capture: Capture) {
