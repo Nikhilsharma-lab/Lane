@@ -1,5 +1,20 @@
 # Shared Claude / Codex handoff
 
+## #167 integration underway — #168 integrated; #169 next
+
+Spec [#167](https://github.com/Nikhilsharma-lab/Lane/issues/167) is in progress on
+`codex/spec-167-integration` at `/private/tmp/lane-spec-167`. Ticket #168 is merged
+at `f7fa801` after updating to `origin/main` (`d2491bc`). Its disposable test
+database naming, validated connections and run ownership changes include the
+review fix `ee3a824`; the merged tree exactly matches that reviewed implementation.
+
+Implementer verification: bootstrap 52 passed; application 1,735 passed / one
+skipped; UI 560 passed; typecheck and lint passed. Standards review has no findings;
+the Spec review's port-routing finding is resolved. Evidence and review records:
+`/private/tmp/lane-spec-168-evidence.md` and `/private/tmp/lane-spec-168-review-*.md`.
+These are local checks only. No hosted database, staging or production changes
+were made for #168. Continue with #169; the full #167 spec is not yet complete.
+
 ## October 23 — recovery fixes merged and deployed to production
 
 PR #163 is merged at `03728f3372a6d6b76938493e5e7ff052f8a64629`: expired-session
