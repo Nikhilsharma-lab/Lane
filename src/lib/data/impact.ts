@@ -17,13 +17,29 @@ function viewerOf(auth: MemberAuth): ImpactViewer {
   return { userId: auth.userId, orgId: auth.orgId, role: auth.role }
 }
 
-/** The impact dashboard for the signed-in viewer. Screens render this and compute nothing themselves. */
-export async function loadImpactDashboard(auth: MemberAuth, options: ImpactOptions = {}): Promise<ImpactDashboard> {
+/** One visible Request snapshot supplies the dashboard, people and optional teammate list. */
+export async function loadImpactPage(auth: MemberAuth, options: ImpactOptions & { personId?: string } = {}): Promise<{
+  dashboard: ImpactDashboard;
+  teammates: Teammate[];
+  person: { id: string; name: string; entries: MyWorkEntry[] } | null;
+}> {
+  const sharedOptions = { ...options, now: options.now ?? new Date() }
+  const viewer = viewerOf(auth)
   const rows = await loadImpactRows(auth)
-  return buildImpactDashboard(viewerOf(auth), rows, options)
+  const dashboard = buildImpactDashboard(viewer, rows, sharedOptions)
+  const ids = teammateIdsOf(viewer, rows) ?? []
+  const names = ids.length > 0
+    ? await db.select({ id: profiles.id, fullName: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids))
+    : []
+  const byId = new Map(names.map(person => [person.id, person.fullName]))
+  const teammates = ids.map(id => ({ id, name: byId.get(id) ?? FORMER_MEMBER })).sort((a, b) => a.name.localeCompare(b.name))
+  // URL identity is untrusted. Only people on this viewer's visible Request list are selectable.
+  const chosen = teammates.find(person => person.id === options.personId)
+  const entries = chosen ? buildTeammateWork(viewer, rows, chosen.id, sharedOptions) : null
+  return { dashboard, teammates, person: chosen && entries ? { ...chosen, entries } : null }
 }
 
-export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
+async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
   const rows = await db
     .select({
       id: requests.id,
@@ -48,19 +64,4 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
     .where(seeable(auth))
 
   return rows.map(row => ({ ...row, projectName: row.projectName ?? null }))
-}
-
-/** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */
-export async function loadTeammateWork(auth: MemberAuth, personId: string, options: ImpactOptions = {}): Promise<MyWorkEntry[] | null> {
-  const rows = await loadImpactRows(auth)
-  return buildTeammateWork(viewerOf(auth), rows, personId, options)
-}
-
-/** The people a non-guest may open a list for, by name, A to Z. Empty for a guest, who sees no one else. */
-export async function loadTeammates(auth: MemberAuth): Promise<Teammate[]> {
-  const ids = teammateIdsOf(viewerOf(auth), await loadImpactRows(auth)) ?? [];
-  if (ids.length === 0) return [];
-  const names = await db.select({ id: profiles.id, fullName: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
-  const byId = new Map(names.map(person => [person.id, person.fullName]));
-  return ids.map(id => ({ id, name: byId.get(id) ?? FORMER_MEMBER })).sort((a, b) => a.name.localeCompare(b.name));
 }

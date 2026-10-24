@@ -1,5 +1,30 @@
 # Shared Claude / Codex handoff
 
+## #171 ready for review — browser acceptance pending
+
+Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is implemented on
+`codex/spec-167-171` in `/private/tmp/lane-spec-171`, based on reviewed integration
+`c8f4b0f`. The existing Impact page now obtains dashboard, permitted teammates and
+an optional selected person's Request list from one visible Request read and one
+captured clock. Names load only when needed; invalid selections are ignored and
+guests have no teammate view. Query failures still reach the existing page error
+boundary. Pure calculations and rendering are unchanged. Contract and tests:
+`docs/testing/impact-loading.md`.
+
+Local checks passed with Node 24: bootstrap 52; focused Impact 112; application
+1,849 passed and one skipped; UI 568; typecheck, lint, design 42 plus Arc/brand,
+production build and bundle. The actual-page regression failed on three Request
+reads before the fix; the midnight regression failed on inconsistent due words.
+Both now pass. Evidence: `/private/tmp/lane-spec-171-evidence.md`.
+
+Scoped actual-app browser verification and independent reviews remain pending.
+The browser agent owns runtime verification against the exact already verified
+staging team, using normal sign-in/app UI and retained history. An external local
+DB socket failure will exercise the existing error/retry boundary without provider
+or data mutations. No production verification, deployment, schema, dependency or
+product-route change. Query reduction is not a latency claim; #160 remains separate,
+and #167 is ongoing.
+
 ## #170 reviewed and integrated — scoped browser acceptance passed
 
 Ticket [#170](https://github.com/Nikhilsharma-lab/Lane/issues/170) is merged at
