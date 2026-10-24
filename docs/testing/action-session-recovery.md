@@ -27,7 +27,7 @@ refuses the original operation; it cannot redirect it to another workspace.
 | Projects and Labels list/create | Providers and pickers use `callAction`; signed-in workspace/role denials use non-expiry failures |
 | Request moves, Undo, priority, edits, comments, deletion and downloads | Single/bulk optimistic runners or direct `callAction`; the single move adapter forwards the marker |
 | Reviewer changes; Release, Outcome and follow-up changes | `changeRequest` returns guard failure before roster/transaction work; optimistic callbacks preserve operation IDs |
-| Reviewer reads/people; Release and Outcome reads | Direct reads use `callAction`, including the timeline and Is it live Release loader |
+| Reviewer reads/people; combined Journey, standalone Release and Outcome reads | Direct reads use `callAction`; the timeline uses one combined Journey action, while Is it live retains the standalone Release loader |
 | Notifications, Profile and onboarding | Existing optimistic/direct wrappers; onboarding emits expiry before profile access or writes |
 
 Batch expiry is possible only at the initial total refusal. A result containing

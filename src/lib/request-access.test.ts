@@ -86,15 +86,19 @@ describe("seeing a Request", () => {
     as(OUTSIDER);
     expect(await api.getAttachmentDownloadUrl(memberFile, { orgId: OTHER })).toEqual({ error: "File not found" });
   });
-  it("reads reviews, release and outcome only where the Request is visible", async () => {
+  it("reads reviews, release, outcome and the combined journey only where the Request is visible", async () => {
     const { readReviews } = await import("@/app/(app)/requests/[id]/reviewer-actions");
     const { readRequestRelease } = await import("@/app/(app)/requests/[id]/release-actions");
     const { readRequestOutcome } = await import("@/app/(app)/requests/[id]/outcome-actions");
+    const { readRequestJourney } = await import("@/app/(app)/requests/[id]/journey-actions");
     as(GUEST);
-    for (const read of [readReviews, readRequestRelease, readRequestOutcome]) {
+    for (const read of [readReviews, readRequestRelease, readRequestOutcome, readRequestJourney]) {
       expect(await read(memberRequest, { orgId: ORG })).toHaveProperty("error");
       expect(await read(guestRequest, { orgId: ORG })).not.toHaveProperty("error");
     }
+    as(OUTSIDER);
+    expect(await readRequestJourney(memberRequest, { orgId: OTHER })).toHaveProperty("error");
+    expect(await readRequestJourney(memberRequest, { orgId: ORG })).toHaveProperty("error");
   });
 });
 
