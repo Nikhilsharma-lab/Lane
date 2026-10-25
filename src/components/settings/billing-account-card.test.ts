@@ -33,6 +33,12 @@ describe("the seats and invoices card", () => {
     expect(text(render({ planState: "free", account: { nextBill: null, invoices: [] } }))).toContain("None until this workspace pays.");
   });
 
+  it("never shows a next bill for a plan that ends or has lapsed, whatever the provider previews", () => {
+    expect(text(render({ endsOn: "25 Oct 2027" }))).toContain("None. The plan ends on 25 Oct 2027.");
+    expect(text(render({ planState: "lapsed" }))).toContain("None while the plan has lapsed.");
+    expect(text(render({ planState: "lapsed" }))).not.toContain("$90.00 on");
+  });
+
   it("lists invoices with their date, number, amount and state, each opening on the provider's page", () => {
     const html = render({ account: { nextBill: null, invoices: [invoice(2, { status: "open" }), invoice(1)] } });
     expect(html).toContain('aria-label="Invoices"');

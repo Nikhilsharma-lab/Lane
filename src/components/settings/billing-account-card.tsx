@@ -29,11 +29,11 @@ const ABOUT_SEATS = `Admins and Members, at least ${PAID_SEAT_MINIMUM}. Guests a
 const FAILED = "Couldn’t load the next bill and invoices from the payment provider. Reload the page to try again.";
 
 function nextBillText(props: BillingAccountCardProps, nextBill: { amount: string; on: string } | null): string {
-  if (nextBill) return `${nextBill.amount} on ${nextBill.on}`;
+  // Lane's own plan state comes first: a provider's preview of a cancelled or lapsed plan isn't a bill to expect.
   if (props.endsOn) return `None. The plan ends on ${props.endsOn}.`;
   if (props.planState === "lapsed") return "None while the plan has lapsed.";
   if (props.planState === "free") return "None until this workspace pays.";
-  return "None";
+  return nextBill ? `${nextBill.amount} on ${nextBill.on}` : "None";
 }
 
 /**

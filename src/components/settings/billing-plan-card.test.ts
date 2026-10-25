@@ -98,6 +98,11 @@ describe("changing the plan on the provider's pages (#216)", () => {
     expect(html).toContain("Update card");
     expect(html).not.toContain("Pay monthly");
     expect(html).not.toContain("Cancel plan");
+    // Its own plan and price, not a founding price it isn't paying.
+    const offered = text(render({ planState: "lapsed", period: "monthly", pages: { card: true, plan: true }, founding: { offered: true, endsOn: null } }));
+    expect(offered).toContain("This workspace’s plan is billed monthly.");
+    expect(offered).toMatch(/Price \$36 per seat per month/);
+    expect(offered).not.toContain("The first 50 workspaces to pay");
   });
 
   it("lets a workspace whose plan ended pay again, and still update its card", () => {

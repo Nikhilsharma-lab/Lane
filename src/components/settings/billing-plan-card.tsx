@@ -65,10 +65,11 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const paying = planState === "paying";
-  const foundingPrice = founding.offered && (!paying || founding.endsOn !== null);
   const open = typeof pages === "object" ? pages : null;
   // A lapsed plan that hasn't ended is paid by updating the card; a checkout would start a second plan.
   const waiting = planState === "lapsed" && open?.plan === true;
+  // A plan already running shows its own price: the founding one only if it was paid with it.
+  const foundingPrice = founding.offered && (!(paying || waiting) || founding.endsOn !== null);
   const flows: PortalFlow[] = !open ? [] : [
     ...(paying && open.plan ? [endsOn ? "renew" as const : "change_period" as const] : []),
     ...(open.card ? ["update_card" as const] : []),
@@ -97,6 +98,7 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
 
   const description = paying
     ? `This workspace pays for Lane, billed ${period ?? "yearly"}.`
+    : waiting ? `This workspace’s plan is billed ${period ?? "yearly"}.`
     : "One plan with all of Lane. You pay for each Admin and Member, with at least 3 seats. Guests and Viewers are free.";
   const back = result === "cancelled" ? "Checkout was cancelled. Nothing was charged."
     : result === "done" ? paying ? "Thanks. This workspace now pays for Lane." : "Thanks. Your payment is being confirmed; this page shows your plan once it is."
@@ -118,7 +120,7 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
       {back && <Alert role="status" tone={result === "cancelled" ? "warning" : "success"} title={back} />}
       {founding.endsOn
         ? founding.offered && <p className={styles.note}>Founding discount: {FOUNDING_DISCOUNT.percentOff}% off until {founding.endsOn}.</p>
-        : !paying && founding.offered && <p className={styles.note}>The first {FOUNDING_DISCOUNT.workspaces} workspaces to pay get {FOUNDING_DISCOUNT.percentOff}% off for two years.</p>}
+        : !paying && !waiting && founding.offered && <p className={styles.note}>The first {FOUNDING_DISCOUNT.workspaces} workspaces to pay get {FOUNDING_DISCOUNT.percentOff}% off for two years.</p>}
       {paying || waiting
         ? <div className={styles.rows}><div className={styles.row}><strong>Price</strong><div className={styles.value}><Price period={period ?? "yearly"} founding={foundingPrice} /></div></div></div>
         : <ul className={plan.periods} aria-label="Billing periods">
