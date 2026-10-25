@@ -86,6 +86,19 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env, vercelEnv: "preview" }).warnings).toEqual([]);
   });
 
+  it("warns, by name only, when Inbox email is switched on without what it needs (#206)", () => {
+    const env = { ...completeEnv(), LANE_EMAIL_DELIVERY: "1" };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["RESEND_API_KEY", "LANE_EMAIL_FROM", "CRON_SECRET"]) expect(warnings[0]).toContain(name);
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+
+    const complete = { ...env, RESEND_API_KEY: SENTINEL, LANE_EMAIL_FROM: SENTINEL, CRON_SECRET: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+    // Off by default: nothing to warn about.
+    expect(checkServerEnv({ env: completeEnv(), vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
   it("reads VERCEL_ENV from the env when not given explicitly", () => {
     const env = completeEnv();
     env.VERCEL_ENV = "production";
