@@ -2,6 +2,7 @@ import { expect, type APIResponse, type Page, type Request, type Route } from "@
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
 import { isItLivePrompt, isItLiveRelease } from "./journey";
 import { pauseInNativeBackground } from "./native-visibility";
+import { compiledUndoAction, flightResultShape } from "./server-action-identity";
 
 export type UndoRequest = { id: string; code: string; title: string };
 export type UndoMove = "pick-up" | "done" | "undo" | "release";
@@ -9,6 +10,7 @@ export type UndoRecorder = {
   intent: (request: UndoRequest, move: UndoMove) => Promise<string>;
   result: (operation: string, result: { outcome: "success" | "refused" | "aborted-before-dispatch" | "skipped-before-dispatch"; response?: Record<string, unknown> }) => Promise<void>;
   delivered?: (operation: string) => Promise<void>;
+  transport?: (operation: string, metadata: { stage: "intercepted" | "response"; actionId: string; exportedName: string; filename: string; manifestSha256: string; method: string; status?: number; resultShape?: ReturnType<typeof flightResultShape> }) => Promise<void>;
 };
 export const undoSurfaces = [
   { width: 1440, colorScheme: "light", reducedMotion: "no-preference", ending: "expiry" },
@@ -40,14 +42,12 @@ function actionResult(body: string): Record<string, unknown> {
 
 /** Records real action results before delivering them, leaving all app/server behavior intact. */
 export async function undoDriver(page: Page, orgId: string, request: UndoRequest, recorder: UndoRecorder, navigate = () => page.goto(new URL(`/requests/${request.id}`, page.url()).href).then(() => undefined)) {
-  const read = page.waitForResponse(async response => argsFor(response.request(), orgId, request.id) && (await response.text()).includes('"rosterUnavailable":'));
   await navigate();
-  const initial = await read;
-  const readId = initial.request().headers()["next-action"];
   await expect(page.locator("#request-title")).toBeVisible();
-  const matches = (candidate: Request, move: UndoMove) => argsFor(candidate, orgId, request.id, move === "release") && candidate.headers()["next-action"] !== readId;
+  const matches = (candidate: Request, move: UndoMove, id: string) => candidate.headers()["next-action"] === id && argsFor(candidate, orgId, request.id, move === "release");
 
   async function begin(move: UndoMove, trigger: () => Promise<void>, mode: "normal" | "hold" | "abort" | "hold-abort" = "normal") {
+    const identity = await compiledUndoAction(move);
     const operation = await recorder.intent(request, move);
     const received = Promise.withResolvers<Record<string, unknown>>();
     const finished = Promise.withResolvers<void>();
@@ -55,11 +55,13 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     let claimed = false, count = 0;
     const pattern = `${new URL(page.url()).origin}/**`;
     const handler = async (route: Route) => {
-      if (!matches(route.request(), move)) return route.fallback();
+      if (!matches(route.request(), move, identity.id)) return route.fallback();
       count++;
       if (claimed) return route.fallback();
       claimed = true;
       try {
+        const metadata = { actionId: identity.id, exportedName: identity.exportedName, filename: identity.filename, manifestSha256: identity.manifestSha256, method: route.request().method() };
+        await recorder.transport?.(operation, { stage: "intercepted", ...metadata });
         if (mode === "abort" || mode === "hold-abort") {
           if (mode === "hold-abort") await delivery.promise;
           await route.abort("failed");
@@ -67,7 +69,9 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
           received.resolve({ abortedBeforeDispatch: true });
         } else {
           const response: APIResponse = await route.fetch({ maxRetries: 0 });
-          const result = actionResult(await response.text());
+          const body = await response.text();
+          await recorder.transport?.(operation, { stage: "response", ...metadata, status: response.status(), resultShape: flightResultShape(body) });
+          const result = actionResult(body);
           await recorder.result(operation, { outcome: result.success === true ? "success" : "refused", response: result });
           received.resolve(result);
           if (mode === "hold") await delivery.promise;
@@ -100,9 +104,10 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
   }
   async function skippedUndo(trigger: () => Promise<void>, settleEarlier: () => Promise<void>) {
+    const identity = await compiledUndoAction("undo");
     const operation = await recorder.intent(request, "undo");
     let outgoingUndo = 0;
-    const observe = (candidate: Request) => { if (matches(candidate, "undo")) outgoingUndo++; };
+    const observe = (candidate: Request) => { if (matches(candidate, "undo", identity.id)) outgoingUndo++; };
     page.on("request", observe);
     try {
       await trigger(); await expect(toastRegion(page)).toContainText("Undoing");

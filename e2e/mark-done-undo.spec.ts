@@ -5,6 +5,7 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createRequestThroughIntake, type ReviewTeam } from "./helpers/reviewers";
 import { assertE2ETarget } from "./helpers/safety";
 import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
+import { assertLocalUndoTarget } from "./helpers/server-action-identity";
 import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifyPendingReleaseSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
 
 // This standard suite provisions one owned account and seven normal-UI Requests.
@@ -12,6 +13,7 @@ import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, v
 // History-bearing fixtures are retained, never deleted or reset by this test.
 test("actual toast lifetime and palette agree across keyboard, touch, real time and native visibility", async ({ browser }, testInfo) => {
   test.setTimeout(900_000);
+  assertLocalUndoTarget();
   const user = await createTestUser("undo-lifetime");
   const setup = await browser.newContext();
   const page = await setup.newPage();
@@ -40,6 +42,7 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
       const id = `${++sequence}-${request.code}-${move}`;
       await testInfo.attach(`intent-${id}`, { body: JSON.stringify({ id, request, move, at: new Date().toISOString() }), contentType: "application/json" }); return id;
     },
+    async transport(operation, metadata) { await testInfo.attach(`transport-${operation}-${metadata.stage}`, { body: JSON.stringify(metadata), contentType: "application/json" }); },
     async result(operation, result) { await testInfo.attach(`result-${operation}`, { body: JSON.stringify(result), contentType: "application/json" }); },
   };
   await withNativeVisibility(async native => {
