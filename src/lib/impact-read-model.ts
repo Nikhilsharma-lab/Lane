@@ -20,6 +20,7 @@
 import { agreedResult, guardrailHeld, type ClosureCorrection, type OutcomeClosure, type OutcomeException } from "./request-outcome";
 import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
 import type { MetricUnit } from "./metric-definition-rules";
+import type { GuardrailOperator } from "./guardrail-comparison";
 import { impactStateOf, type ExpectedImpact } from "./request-impact";
 import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
@@ -512,7 +513,7 @@ export type DefinitionGuardrailUse = RequestRef & {
   position: number;
   /** The Request's main metric, which the guardrail protected. */
   mainMetric: string;
-  limit: { operator: GuardrailView["operator"]; limit: number; unit: string };
+  limit: { operator: GuardrailOperator; limit: number; unit: string };
   outcome: DefinitionUseOutcome<{ actual: number | null; held: boolean | null }>;
 };
 

@@ -3,9 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkMembersProfile, ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { DefinitionUsesList } from "@/components/metrics/definition-uses";
 import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-history";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { loadDefinitionUses } from "@/lib/data/impact";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
@@ -29,6 +31,11 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
+  // #203: a merged definition's Requests count under the one it was merged into, so they are listed there.
+  const [uses, mergedInto] = await Promise.all([
+    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id),
+    merged ? readMetricDefinition(library, definition.mergedIntoId!) : null,
+  ]);
 
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
@@ -39,6 +46,13 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     {workspace.role === "admin" && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
       description={archived ? "Restoring offers it for new predictions again." : "Archiving stops it being offered for new predictions. Requests that already use it keep it, and their results still add up."}
       action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
+    <SettingsCard title="Requests that used it"
+      description={merged ? undefined : "Grouped by Project, with what each predicted beside what happened. Uses as the main metric and as a guardrail are listed apart."}>
+      {uses && <DefinitionUsesList uses={uses} />}
+      {merged && <p className={styles.note}>Its Requests now count under {mergedInto
+        ? <Link href={`/settings/metrics/${mergedInto.id}`} className={styles.inlineLink}>{mergedInto.name}</Link>
+        : "the metric it was merged into"}, and are listed there.</p>}
+    </SettingsCard>
     <SettingsCard title="History">
       <MetricDefinitionHistory entries={history.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() }))} />
     </SettingsCard>
