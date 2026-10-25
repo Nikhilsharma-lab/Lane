@@ -63,7 +63,7 @@ export async function openCatalogueDraft(page: Page, orgId: string) {
     const clerk = window.Clerk;
     return Boolean(clerk?.loaded && clerk.user && clerk.session?.status === "active" && clerk.organization?.id === expectedOrg);
   }, orgId), { timeout: 30_000 }).toBe(true);
-  const start = page.getByRole("button", { name: "Create Request", exact: true });
+  const start = page.getByRole("link", { name: "Create Request", exact: true });
   await expect(composer(page).or(start)).toBeVisible();
   if (!await composer(page).isVisible()) await start.click();
   await composer(page).getByRole("textbox", { name: "Request title", exact: true }).fill(draftTitle);
