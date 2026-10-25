@@ -19,13 +19,13 @@ import {
 import { eq } from "drizzle-orm";
 import { GET as notificationList } from "@/app/api/notifications/route";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
-import type { NotificationRow } from "@/lib/data/notifications";
+import type { ForYourInformationItem } from "@/lib/inbox-read-model";
 
-type ReadNotification = Omit<NotificationRow, "createdAt" | "readAt"> & { createdAt: string; readAt: string | null };
+type ReadNotification = Omit<ForYourInformationItem, "createdAt" | "readAt"> & { createdAt: string; readAt: string | null };
 async function readNotifications(context: { orgId: string }) {
   const response = await notificationList(new Request(`http://lane.test/api/notifications?${new URLSearchParams({ org: context.orgId })}`));
   expect(response.status).toBe(200);
-  return await response.json() as { notifications: ReadNotification[] };
+  return await response.json() as { forYourInformation: ReadNotification[] };
 }
 async function readUnreadCount(context: { orgId: string }) {
   const response = await unreadCount(new Request(`http://lane.test/api/notifications/unread?${new URLSearchParams({ org: context.orgId })}`));
@@ -103,29 +103,29 @@ describe("GET /api/notifications — own-scoped reads", () => {
   it("user A sees only their own notifications", async () => {
     mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
     const result = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
-    expect(result.notifications).toHaveLength(2);
-    expect(result.notifications.every((n) => n.actorName === "User B")).toBe(true);
-    expect(result.notifications[0].requestTitle).toBe("Read test request");
+    if (!result.forYourInformation) throw new Error("missing Inbox items");
+    expect(result.forYourInformation).toHaveLength(2);
+    expect(result.forYourInformation.every((n) => n.actorName === "User B")).toBe(true);
+    expect(result.forYourInformation[0].requestTitle).toBe("Read test request");
     // Plan item 2.7: the saved code and the reframed problem ride the same join.
-    expect(result.notifications[0].requestNumber).toBeGreaterThan(0);
-    expect(result.notifications[0].reframedProblem).toBe("Readers cannot tell which Request a notification is about");
+    expect(result.forYourInformation[0].requestNumber).toBeGreaterThan(0);
+    expect(result.forYourInformation[0].reframedProblem).toBe("Readers cannot tell which Request a notification is about");
   });
 
   it("user B sees only their own notifications", async () => {
     mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
     const result = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
-    expect(result.notifications).toHaveLength(1);
-    expect(result.notifications[0].actorName).toBe("User A");
+    if (!result.forYourInformation) throw new Error("missing Inbox items");
+    expect(result.forYourInformation).toHaveLength(1);
+    expect(result.forYourInformation[0].actorName).toBe("User A");
   });
 
   it("guest sees only own-request notifications", async () => {
     mockSession = { userId: GUEST_USER, orgId: WS_ID, orgRole: "org:guest" };
     const result = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
-    expect(result.notifications).toHaveLength(1);
-    expect(result.notifications[0].requestTitle).toBe("Guest request");
+    if (!result.forYourInformation) throw new Error("missing Inbox items");
+    expect(result.forYourInformation).toHaveLength(1);
+    expect(result.forYourInformation[0].requestTitle).toBe("Guest request");
   });
 });
 
@@ -154,6 +154,8 @@ describe("markNotificationRead — own-scoped writes", () => {
     const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(1);
+    // #204: a read item clears from the Inbox.
+    expect((await readNotifications({ orgId: WS_ID })).forYourInformation.map((item) => item.id)).toEqual([NOTIF_A2]);
   });
 
   it("user A CANNOT mark user B's notification as read (security boundary)", async () => {
@@ -180,6 +182,7 @@ describe("markAllNotificationsRead", () => {
     const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(0);
+    expect((await readNotifications({ orgId: WS_ID })).forYourInformation).toEqual([]);
   });
 
   it("markAll did NOT touch user B's notification", async () => {
@@ -222,6 +225,8 @@ describe("markNotificationUnread — own-scoped writes", () => {
     const count = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in count)) throw new Error("missing count");
     expect(count.count).toBe(1);
+    // #204: marked unread, it is back in the Inbox.
+    expect((await readNotifications({ orgId: WS_ID })).forYourInformation.map((item) => item.id)).toEqual([NOTIF_A1]);
   });
 
   it("user A CANNOT mark user B's notification as unread (security boundary)", async () => {
@@ -290,8 +295,8 @@ describe("notification visibility after a member becomes a guest", () => {
   it("members retain workspace notifications but cannot read a cross-workspace Request title", async () => {
     mockSession.orgRole = "org:member";
     const result = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in result) || !result.notifications) throw new Error("missing notifications");
-    expect(result.notifications.map((row) => row.id).sort()).toEqual(
+    if (!result.forYourInformation) throw new Error("missing Inbox items");
+    expect(result.forYourInformation.map((row) => row.id).sort()).toEqual(
       [ownNotification, otherRequestNotification, workspaceNotification].sort()
     );
     expect(await readUnreadCount({ orgId: WS_ID })).toEqual({ count: 3 });
@@ -300,13 +305,11 @@ describe("notification visibility after a member becomes a guest", () => {
   it("a downgrade immediately hides previous notifications about other Requests and non-Request events", async () => {
     mockSession.orgRole = "org:member";
     const before = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in before) || !before.notifications) throw new Error("missing notifications");
-    expect(before.notifications.some((row) => row.id === otherRequestNotification)).toBe(true);
+    expect(before.forYourInformation.some((row) => row.id === otherRequestNotification)).toBe(true);
 
     mockSession.orgRole = "org:guest";
     const after = await readNotifications({ orgId: WS_ID });
-    if (!("notifications" in after) || !after.notifications) throw new Error("missing notifications");
-    expect(after.notifications.map((row) => ({ id: row.id, title: row.requestTitle }))).toEqual([
+    expect(after.forYourInformation.map((row) => ({ id: row.id, title: row.requestTitle }))).toEqual([
       { id: ownNotification, title: "Still visible" },
     ]);
   });
@@ -343,18 +346,18 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 });
 
-describe("reminders in the bell", () => {
+describe("reminders in the Inbox (#204)", () => {
   const REMINDER = "00000000-0000-4000-b000-00000000f205";
   afterAll(async () => {
     await db.delete(notifications).where(eq(notifications.id, REMINDER));
   });
 
-  it("loads and counts a reminder that has no actor", async () => {
+  it("a stored reminder is not For your information: it is neither listed nor counted", async () => {
     mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
     const before = (await readUnreadCount({ orgId: WS_ID })).count;
     await db.insert(notifications).values({ id: REMINDER, userId: USER_B, orgId: WS_ID, type: "result_due", requestId: REQ_ID, actorId: null });
-    const { notifications: rows } = await readNotifications({ orgId: WS_ID });
-    expect(rows.find((n) => n.id === REMINDER)).toMatchObject({ type: "result_due", actorId: null, actorName: null, requestTitle: "Read test request" });
-    expect((await readUnreadCount({ orgId: WS_ID })).count).toBe(before + 1);
+    const { forYourInformation: rows } = await readNotifications({ orgId: WS_ID });
+    expect(rows.some((n) => n.id === REMINDER)).toBe(false);
+    expect((await readUnreadCount({ orgId: WS_ID })).count).toBe(before);
   });
 });

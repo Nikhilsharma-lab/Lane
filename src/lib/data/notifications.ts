@@ -1,10 +1,11 @@
 import "server-only";
 import { seeable } from "@/lib/request-access"
 
-import { and, count, desc, eq, exists, isNull, or } from "drizzle-orm";
+import { and, count, eq, exists, inArray, isNull, or } from "drizzle-orm";
 
-import { db, notifications, profiles, requests } from "@/db";
+import { db, notifications, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
+import { FOR_YOUR_INFORMATION_KINDS } from "@/lib/inbox-read-model";
 import { writeDueReminders } from "./bell-reminders";
 
 /**
@@ -41,6 +42,8 @@ export function notificationVisibility(auth: MemberAuth) {
  * from the client after hydration. #136: first writes any bell reminders the
  * member is owed today, so both the layout stream and GET /api/notifications/unread
  * count them. A failed reminder write is logged and never blocks the count.
+ * #204: the count is the Inbox's unread For-your-information items, so the badge and the page agree
+ * (#205 makes it count Needs-you items instead).
  */
 export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
   await writeDueReminders(auth).catch((error) => {
@@ -49,54 +52,7 @@ export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(notifications)
-    .where(and(notificationVisibility(auth), isNull(notifications.readAt)));
+    .where(and(notificationVisibility(auth), isNull(notifications.readAt), inArray(notifications.type, [...FOR_YOUR_INFORMATION_KINDS])));
 
   return row?.value ?? 0;
-}
-
-const NOTIFICATIONS_LIMIT = 30;
-
-export type NotificationRow = {
-  id: string;
-  type: string;
-  requestId: string | null;
-  /** Null for a reminder, which Lane writes itself. */
-  actorId: string | null;
-  readAt: Date | null;
-  createdAt: Date;
-  actorName: string | null;
-  requestTitle: string | null;
-  /** Null for an invite (no Request); 0 before allocation, which the row copy renders as "Request" (plan item 2.7). */
-  requestNumber: number | null;
-  reframedProblem: string | null;
-  /** A reviewer's question, or the reason for a concern. */
-  detail: string | null;
-};
-
-/**
- * The notification list for the bell. src/app/api/read-routes.test.ts covers its org and
- * guest scoping through GET /api/notifications. Plan item 2.7: the row reads
- * "LAN-12 · reframed problem", so the join it already has gives the code and the problem.
- */
-export async function loadNotifications(auth: MemberAuth): Promise<NotificationRow[]> {
-  return db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      requestId: notifications.requestId,
-      actorId: notifications.actorId,
-      readAt: notifications.readAt,
-      createdAt: notifications.createdAt,
-      actorName: profiles.fullName,
-      requestTitle: requests.title,
-      requestNumber: requests.requestNumber,
-      reframedProblem: requests.reframedProblem,
-      detail: notifications.detail,
-    })
-    .from(notifications)
-    .leftJoin(profiles, eq(notifications.actorId, profiles.id))
-    .leftJoin(requests, eq(notifications.requestId, requests.id))
-    .where(notificationVisibility(auth))
-    .orderBy(desc(notifications.createdAt))
-    .limit(NOTIFICATIONS_LIMIT);
 }

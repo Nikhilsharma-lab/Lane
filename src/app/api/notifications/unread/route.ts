@@ -11,6 +11,6 @@ export async function GET(request: Request) {
     return json({ count: await loadUnreadCount(access.auth) });
   } catch (error) {
     console.error("[api/notifications/unread] count failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return json({ error: "Notifications could not be loaded. Try again." }, { status: 500 });
+    return json({ error: "Your Inbox could not be loaded. Try again." }, { status: 500 });
   }
 }

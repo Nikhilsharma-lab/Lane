@@ -1,6 +1,8 @@
 /**
  * #136: bell reminders are written when the bell count loads (no scheduled job). Proven through the bell's
  * own reads (GET /api/notifications/unread and GET /api/notifications) on a controlled clock.
+ * #204: reminders are not For your information, so the Inbox neither lists nor counts them; the writer still
+ * runs on each count load until #205 removes it, and these tests pin what it writes.
  */
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
@@ -52,8 +54,8 @@ async function count() {
 async function reminders() {
   const response = await notificationList(new Request(`http://lane.test/api/notifications?org=${orgId}`))
   expect(response.status).toBe(200)
-  const { notifications } = (await response.json()) as { notifications: { type: string; requestTitle: string; actorId: string | null }[] }
-  return notifications.filter(n => n.actorId === null).map(n => `${n.type}: ${n.requestTitle}`).sort()
+  const { forYourInformation } = (await response.json()) as { forYourInformation: { type: string; requestTitle: string; actorId: string | null }[] }
+  return forYourInformation.filter(n => n.actorId === null).map(n => `${n.type}: ${n.requestTitle}`).sort()
 }
 const written = async () => (await connection`select user_id, type, r.title from notifications n join requests r on r.id = n.request_id where n.org_id in (${orgId}, ${otherOrg}) and actor_id is null order by 1, 2, 3`).map(r => `${r.user_id} ${r.type}: ${r.title}`)
 
@@ -74,20 +76,20 @@ afterEach(async () => {
 afterAll(() => connection.end())
 const at = (date: Date) => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(date) }
 
-it("the Requester's bell writes each due result reminder once, however often it loads that day, and counts them", async () => {
+it("the Requester's bell writes each due result reminder once, however often it loads that day, and never counts them", async () => {
   at(today)
   as(requester)
-  expect(await count()).toBe(2)
+  expect(await count()).toBe(0)
   vi.setSystemTime(new Date("2026-10-28T23:59:00Z"))
-  expect(await count()).toBe(2)
-  expect(await reminders()).toEqual(["result_due: Measuring, due today", "result_overdue: Measuring, handed over, overdue"])
+  expect(await count()).toBe(0)
+  expect(await reminders()).toEqual([])
   expect(await written()).toEqual([`${requester} result_due: Measuring, due today`, `${requester} result_overdue: Measuring, handed over, overdue`])
 })
 
 it("two bell loads at once write each reminder once", async () => {
   at(today)
   as(assignee)
-  expect(await Promise.all([count(), count(), count()])).toEqual([2, 2, 2])
+  expect(await Promise.all([count(), count(), count()])).toEqual([0, 0, 0])
   expect(await written()).toEqual([`${assignee} release_reminder: Done five days ago`, `${assignee} release_reminder: Done, release voided`])
 })
 
@@ -102,7 +104,7 @@ it("a weekly reminder is written once for its week, then again a week later", as
   expect(await handedOverReminders()).toHaveLength(1)
   at(new Date("2026-11-04T08:00:00Z"))
   // Due today, due 28 Oct, became overdue on the 29th; the handed-over one is owed again.
-  expect(await count()).toBe(4)
+  await count()
   expect(await handedOverReminders()).toHaveLength(2)
 })
 
