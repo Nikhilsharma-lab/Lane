@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect } from "react"
 import { Badge } from "@/components/arc/badge/badge"
+import { Button } from "@/components/arc/button/button"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { Select } from "@/components/arc/select/select"
@@ -9,12 +11,14 @@ import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardra
 import { metricChart } from "@/lib/impact-chart-view"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
-import type { CorrectedValue, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
+import type { CorrectedValue, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { journeyDate } from "@/lib/request-journey"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel, periodOfKind, type PeriodKind } from "./impact-period"
 import { MetricChart } from "./metric-chart"
+import { printInLight } from "./print-in-light"
+import { QuarterNotes, type QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./outcome-report.module.css"
 
 // The Outcome report tab (#208): what was Released in a month, quarter or year, and what it did. It words what the
@@ -41,6 +45,15 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 function Corrected({ value }: { value: CorrectedValue }) {
   return <p className={styles.note}>{value.label}: {value.value} <Badge size="sm" tone="warning">Corrected</Badge></p>
+}
+
+/** What we learned (#209): the current wording, marked Corrected when a Correction changed it. */
+function Learned({ learned }: { learned: LearnedLine | null }) {
+  if (!learned) return null
+  return <div className={styles.group}>
+    <h5 className={styles.subheading}>What we learned</h5>
+    <p className={styles.problem}>{learned.text}{learned.corrected && <> <Badge size="sm" tone="warning">Corrected</Badge></>}</p>
+  </div>
 }
 
 function PeriodPicker({ period, now, onPeriodChange }: { period: ImpactPeriod; now: Date; onPeriodChange?: (period: ImpactPeriod) => void }) {
@@ -136,6 +149,7 @@ function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
         {outcome.kind === "operational" && <Fact label="Not measured">Operational work: {outcome.reason}</Fact>}
       </dl>
       {entry.corrected.map(value => <Corrected key={value.field} value={value} />)}
+      <Learned learned={entry.learned} />
       <Guardrails guardrails={entry.guardrails} />
       {entry.followUps.length > 0 && <div className={styles.group}>
         <h5 className={styles.subheading}>Follow-up Requests</h5>
@@ -169,17 +183,29 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
             {item.reason && <Fact label="Reason">{item.reason}</Fact>}
           </dl>
           {item.corrected.map(value => <Corrected key={value.field} value={value} />)}
+          <Learned learned={item.learned} />
         </li>)}</ul>
       </section>)}
     </>}
   </section>
 }
 
-export function OutcomeReportView({ report, onPeriodChange }: { report: OutcomeReport; onPeriodChange?: (period: ImpactPeriod) => void }) {
+/**
+ * The report as a reader sees it. `quarterNoteEditor` is set only for an Admin (the page decides from the session);
+ * the server refuses anyone else's Quarter note edits anyway. Printing or saving as PDF keeps the report, its period
+ * and the as-of date, and leaves out the controls (outcome-report.module.css).
+ */
+export function OutcomeReportView({ report, onPeriodChange, quarterNoteEditor = null }: { report: OutcomeReport; onPeriodChange?: (period: ImpactPeriod) => void; quarterNoteEditor?: QuarterNoteEditorTarget }) {
   const now = new Date(`${report.asOf}T00:00:00.000Z`)
+  // Paper is light: a dark theme prints as light while the print dialog is open.
+  useEffect(() => printInLight(window), [])
   return <div className={styles.report}>
     <header className={styles.toolbar}>
-      <PeriodPicker period={report.period} now={now} onPeriodChange={onPeriodChange} />
+      <p className={styles.printTitle} aria-hidden="true">Outcome report</p>
+      <div className={styles.toolbarRow}>
+        <PeriodPicker period={report.period} now={now} onPeriodChange={onPeriodChange} />
+        <div className={styles.print}><Button variant="secondary" size="sm" onClick={() => window.print()}>Print or save as PDF</Button></div>
+      </div>
       <p className={styles.asOf} data-report-as-of>
         <span className={styles.periodName}>{periodLabel(report.period)}</span> · Up to date as of <time dateTime={report.asOf}>{journeyDate(report.asOf)}</time>. Work appears in the period it was Released (UTC).
       </p>
@@ -196,5 +222,6 @@ export function OutcomeReportView({ report, onPeriodChange }: { report: OutcomeR
         </section>}
         <ClosedWithoutResult groups={report.closedWithoutResult} />
       </>}
+    <QuarterNotes slots={report.quarterNotes} editor={quarterNoteEditor} asOf={report.asOf} />
   </div>
 }

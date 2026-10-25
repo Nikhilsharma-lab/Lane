@@ -35,3 +35,8 @@
 @media (max-width: 880px) {
   :global([data-linear-preview-auto-collapse]) .expandSlot:empty { display: flex; width: var(--size-inner-medium); height: var(--size-inner-medium); }
 }
+/* Print and save as PDF (#209): the strip prints once at the top, not over every page. */
+@media print {
+  .strip { position: static; padding-inline: 0; }
+  .end, .expandSlot { display: none; }
+}

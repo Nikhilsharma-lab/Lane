@@ -8,7 +8,7 @@ import { Button } from "@/components/arc/button/button"
 import { changeRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { changeRequestOutcome, createFollowUpRequest } from "@/app/(app)/requests/[id]/outcome-actions"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
-import { correctableFields, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, type agreedResult, type OutcomeChange } from "@/lib/request-outcome"
+import { correctableFields, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, LEARNED_MAX_LENGTH, type agreedResult, type OutcomeChange } from "@/lib/request-outcome"
 import type { ReleaseFact } from "@/lib/request-release"
 import { utcDay } from "@/lib/utc-day"
 import { useJourneyChange } from "./use-journey-change"
@@ -22,6 +22,12 @@ type AgreedResult = ReturnType<typeof agreedResult>
 export const resultValue = (n: number | null, unit: string) => n === null ? "No baseline" : unit === "%" ? `${n}%` : `${n} ${unit}`.trim()
 const RELEASE_FAILED = "Could not save release. Your input is preserved; try again."
 const OUTCOME_FAILED = "Could not save the outcome. Your input is preserved; try again."
+
+/** What we learned (#209): one optional line, stored with the closure. Afterwards only a Correction changes it. */
+function LearnedField({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled: boolean }) {
+  return <Input label="What we learned (optional)" maxLength={LEARNED_MAX_LENGTH} value={value} onChange={e => onChange(e.target.value)} disabled={disabled}
+    description="One line for the Outcome report. After closing, only a Correction can change it." />
+}
 
 function Controls({ busy, error, submit, disabled, onCancel }: { busy: boolean; error: string; submit: string; disabled?: boolean; onCancel: () => void }) {
   return <>
@@ -75,9 +81,10 @@ export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCance
   const [evidence, setEvidence] = useState("")
   const [from, setFrom] = useState(release?.startDate ?? "")
   const [to, setTo] = useState(release && release.dueDate < today ? release.dueDate : today)
+  const [learned, setLearned] = useState("")
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
     e.preventDefault()
-    const input: OutcomeChange = { kind: "measured", primary: agreed.form === "numeric" ? { kind: "numeric", actual: Number(actual) } : { kind: "pass_fail", passed: passed === "passed" }, guardrails: guardrails.map(Number), evidence, observedFrom: from, observedTo: to }
+    const input: OutcomeChange = { kind: "measured", primary: agreed.form === "numeric" ? { kind: "numeric", actual: Number(actual) } : { kind: "pass_fail", passed: passed === "passed" }, guardrails: guardrails.map(Number), evidence, observedFrom: from, observedTo: to, learned }
     void save(input, revision, context => changeRequestOutcome(context, input)).then(saved => { if (saved) onSaved() })
   }}>
     <p>Record what happened. Below-target and neutral results close too; success is not required.</p>
@@ -90,6 +97,7 @@ export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCance
       <Input label="Observed from (UTC)" type="date" required value={from} onChange={e => setFrom(e.target.value)} disabled={busy} />
       <Input label="Observed to (UTC)" type="date" required max={today} value={to} onChange={e => setTo(e.target.value)} disabled={busy} />
     </div>
+    <LearnedField value={learned} onChange={setLearned} disabled={busy} />
     <Controls busy={busy} error={error} submit={busy ? "Closing…" : "Close with measured result"} disabled={agreed.form === "pass_fail" && !passed} onCancel={onCancel} />
   </form>
 }
@@ -98,14 +106,16 @@ export function CloseWithoutResultForm({ requestId, orgId, revision, onSaved, on
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: OUTCOME_FAILED })
   const [reasonCode, setReasonCode] = useState("")
   const [reason, setReason] = useState("")
+  const [learned, setLearned] = useState("")
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
     e.preventDefault()
-    const input = { kind: "exception" as const, reasonCode: reasonCode as typeof EXCEPTION_REASON_OPTIONS[number]["value"], reason }
+    const input = { kind: "exception" as const, reasonCode: reasonCode as typeof EXCEPTION_REASON_OPTIONS[number]["value"], reason, learned }
     void save(input, revision, context => changeRequestOutcome(context, input)).then(saved => { if (saved) onSaved() })
   }}>
     <p className={styles.muted}>Ends this Request without a measured result. It stays on record and never counts as measured impact.</p>
     <Select label="Why" options={EXCEPTION_REASON_OPTIONS} value={reasonCode} onValueChange={setReasonCode} disabled={busy} />
     <Textarea label={reasonCode === "other" ? "Reason" : "Details (optional)"} required={reasonCode === "other"} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} />
+    <LearnedField value={learned} onChange={setLearned} disabled={busy} />
     <Controls busy={busy} error={error} submit={busy ? "Closing…" : "Close without a result"} disabled={!reasonCode || (reasonCode === "other" && !reason.trim())} onCancel={onCancel} />
   </form>
 }
@@ -122,7 +132,9 @@ export function ClosureCorrectionForm({ requestId, orgId, revision, onSaved, onC
   }}>
     <p>Corrections appear beside the original closure. They never change its result, evidence or target.</p>
     <Select label="What needs correcting" options={CORRECTION_FIELD_OPTIONS.filter(o => correctableFields(closureKind).includes(o.value))} value={field} onValueChange={setField} disabled={busy} />
-    <Textarea label="Correction" required maxLength={4000} value={text} onChange={e => setText(e.target.value)} disabled={busy} />
+    {field === "learned"
+      ? <Input label="Correction" required maxLength={LEARNED_MAX_LENGTH} value={text} onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))} disabled={busy} description="The new What we learned line. The original stays on the Request." />
+      : <Textarea label="Correction" required maxLength={4000} value={text} onChange={e => setText(e.target.value)} disabled={busy} />}
     <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} />
     <Controls busy={busy} error={error} submit={busy ? "Saving…" : "Save correction"} disabled={!field} onCancel={onCancel} />
   </form>

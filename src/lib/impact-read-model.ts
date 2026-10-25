@@ -27,11 +27,19 @@ import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey
 import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-facts";
 import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS, utcDay } from "./utc-day";
-import { inPeriod, periodLabel, quarterOf, type ImpactPeriod, type Month } from "./impact-period";
+import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Month, type Quarter } from "./impact-period";
 
 export type ImpactViewer = { userId: string; orgId: string; role: "admin" | "member" | "guest" };
 export type { ImpactPeriod, Month };
-export type ImpactOptions = { now?: Date; period?: ImpactPeriod | null };
+export type ImpactOptions = {
+  now?: Date;
+  period?: ImpactPeriod | null;
+  /** The workspace's Quarter notes (#209), each with its last editor's name. The loader reads only the period's quarters. */
+  quarterNotes?: QuarterNote[];
+};
+
+/** A workspace's Quarter note as the loader gives it: plain text, who last edited it (by name) and when. */
+export type QuarterNote = { year: number; quarter: Quarter; text: string; editorName: string; editedAt: string };
 
 /** One Request, as the read model needs it. Load it from the database with src/lib/data/impact.ts. */
 export type ImpactRow = {
@@ -592,9 +600,17 @@ export type OutcomeReportEntry = RequestRef & {
   outcome: ReportOutcome;
   guardrails: ReportGuardrail[];
   corrected: CorrectedValue[];
+  /** What we learned (#209), or null when it wasn't given. */
+  learned: LearnedLine | null;
   /** The Follow-up Requests linked to this one that the viewer may see. */
   followUps: RequestRef[];
 };
+
+/**
+ * What we learned (#209): the line given at closing, or its latest Correction marked corrected. The Request page keeps
+ * the original beside every Correction; the report shows the current wording.
+ */
+export type LearnedLine = { text: string; corrected: boolean };
 
 /**
  * A closed record's value as its latest Correction states it, shown marked "corrected". The record itself never changes
@@ -603,7 +619,10 @@ export type OutcomeReportEntry = RequestRef & {
 export type CorrectedValue = { field: ClosureCorrection["field"]; label: string; value: string; at: string };
 
 /** A Request Released in the period and then closed without a result. */
-export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[] };
+export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null };
+
+/** One quarter's place for its Quarter note at the end of the report (#209): the note, or null when none is written. */
+export type QuarterNoteSlot = { year: number; quarter: Quarter; label: string; note: Omit<QuarterNote, "year" | "quarter"> | null };
 
 /** Closed without a result, one group per reason that has any, in the closing form's order. */
 export type ReportClosedGroup = { reasonCode: ExceptionReason; label: string; requests: ReportClosedItem[] };
@@ -624,6 +643,8 @@ export type OutcomeReport = {
   closedWithoutResult: ReportClosedGroup[];
   /** Set only when nothing was Released in the period. */
   emptyMessage: string | null;
+  /** The Quarter notes the report ends with: the quarter's own, all four of a year's (empty ones included), none for a month. */
+  quarterNotes: QuarterNoteSlot[];
 };
 
 /** A Request's guardrails: as measured once its result is recorded, else the limits it agreed, under each definition's current name. */
@@ -665,13 +686,28 @@ function reportEntryOf(row: ImpactRow, releaseDate: string, now: Date, visible: 
     outcome,
     guardrails: reportGuardrails(row, source),
     corrected: correctedValues(row),
+    learned: learnedOf(row),
     followUps: followUpsOf(row, visible),
   };
 }
 
-/** The latest Correction of each corrected field, in the Correction form's field order. */
+function learnedOf(row: ImpactRow): LearnedLine | null {
+  const latest = row.closureCorrections.filter(correction => correction.field === "learned").sort((a, b) => a.revision - b.revision).at(-1);
+  if (latest) return { text: latest.correction, corrected: true };
+  const original = row.outcomeClosure?.learned ?? row.exceptionClosure?.learned;
+  return original ? { text: original, corrected: false } : null;
+}
+
+function quarterNoteSlots(period: ImpactPeriod, notes: QuarterNote[]): QuarterNoteSlot[] {
+  return quartersOf(period).map(({ year, quarter }) => {
+    const found = notes.find(note => note.year === year && note.quarter === quarter);
+    return { year, quarter, label: periodLabel({ kind: "quarter", year, quarter }), note: found ? { text: found.text, editorName: found.editorName, editedAt: found.editedAt } : null };
+  });
+}
+
+/** The latest Correction of each corrected field, in the Correction form's field order. What we learned has its own line (`learnedOf`). */
 function correctedValues(row: ImpactRow): CorrectedValue[] {
-  return CORRECTION_FIELD_OPTIONS.flatMap(({ value: field, label }) => {
+  return CORRECTION_FIELD_OPTIONS.filter(({ value }) => value !== "learned").flatMap(({ value: field, label }) => {
     const latest = row.closureCorrections.filter(correction => correction.field === field).sort((a, b) => a.revision - b.revision).at(-1);
     return latest ? [{ field, label, value: latest.correction, at: latest.at }] : [];
   });
@@ -688,6 +724,7 @@ function closedGroups(released: { row: ImpactRow; releaseDate: string }[]): Repo
       releaseDate,
       reason: row.exceptionClosure.reason,
       corrected: correctedValues(row),
+      learned: learnedOf(row),
     }] : []));
     return requests.length > 0 ? [{ reasonCode, label, requests }] : [];
   });
@@ -726,5 +763,6 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     projects,
     closedWithoutResult: closedGroups(released),
     emptyMessage: released.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
+    quarterNotes: quarterNoteSlots(period, options.quarterNotes ?? []),
   };
 }

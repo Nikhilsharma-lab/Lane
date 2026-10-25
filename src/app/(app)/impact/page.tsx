@@ -26,6 +26,7 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
       teammates={teammates}
       person={chosen && entries ? { id: chosen.id, name: chosen.name, entries } : null}
       initialTab={period && !chosen ? "outcome-report" : "my-work"}
+      quarterNoteEditor={member.role === "admin" ? { orgId: member.orgId } : null}
     />
   </>;
 }

@@ -8,7 +8,7 @@ import { loadImpactDashboard } from "./impact";
 // Metrics library: a renamed definition shows its current name, an archived one still adds up, a merged one adds up
 // with the one it was merged into, and two definitions with the same name never add up.
 // Closed Requests can never be deleted, so each test has its own workspace and the rows stay until the next reset.
-const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b", "org_impact_definitions_c", "org_impact_definitions_d"];
+const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b", "org_impact_definitions_c", "org_impact_definitions_d", "org_impact_definitions_e"];
 const USER = "user_impact_definitions";
 const NOW = new Date("2026-10-23T12:00:00.000Z");
 let ORG = ORGS[0];
@@ -113,5 +113,24 @@ describe("Outcome report through the Impact loader (#208)", () => {
     ]);
     expect(report.totals).toBeNull();
     expect((await loadImpactDashboard({ ...auth(), role: "guest" }, { now: NOW })).outcomeReport).toBeNull();
+  });
+});
+
+describe("Quarter notes through the Impact loader (#209)", () => {
+  it("ends the report with the workspace's own notes and the last editor's name", async () => {
+    ORG = ORGS[4];
+    const note = (org: string, quarter: number, body: string) => connection`insert into quarter_notes (org_id,year,quarter,body,edited_by,edited_at) values (${org},2026,${quarter},${body},${USER},'2026-09-30T10:00:00Z')`;
+    await note(ORG, 1, "Winter");
+    await note(ORG, 3, "Checkout rebuilt");
+    await note(ORGS[0], 2, "Another workspace's note");
+    const year = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "year", year: 2026 } })).outcomeReport!;
+    expect(year.quarterNotes.map(slot => [slot.label, slot.note])).toEqual([
+      ["Q1 2026", { text: "Winter", editorName: "Impact", editedAt: "2026-09-30T10:00:00.000Z" }],
+      ["Q2 2026", null],
+      ["Q3 2026", { text: "Checkout rebuilt", editorName: "Impact", editedAt: "2026-09-30T10:00:00.000Z" }],
+      ["Q4 2026", null],
+    ]);
+    const quarter = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } })).outcomeReport!;
+    expect(quarter.quarterNotes.map(slot => slot.note?.text)).toEqual(["Checkout rebuilt"]);
   });
 });

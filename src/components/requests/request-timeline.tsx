@@ -151,6 +151,8 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
         <p className={styles.muted}>Observed {journeyDate(closure.observedFrom)} to {journeyDate(closure.observedTo)} (UTC).</p>
       </>}
       {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
+      {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
+      {closure.learned && <p>What we learned: {closure.learned}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.correction}</p>
         <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>

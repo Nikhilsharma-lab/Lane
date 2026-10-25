@@ -35,3 +35,23 @@
 .fact dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .group { display: grid; gap: var(--space-1); min-width: 0; }
 .subheading { margin: 0; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium); }
+/* #209: the toolbar row, What we learned and the Quarter notes. */
+.toolbarRow { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-3) var(--space-4); min-width: 0; }
+.print { display: flex; flex: none; }
+.printTitle { display: none; }
+.quarterNote { display: grid; gap: var(--space-2); min-width: 0; }
+.block > .quarterNote { margin-block-start: var(--space-3); }
+.noteBody { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-line; overflow-wrap: anywhere; }
+.noteLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
+.noteForm { display: grid; gap: var(--space-3); min-width: 0; }
+.noteControls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Print and save as PDF (#209): the report alone, with its title, period and as-of date; no controls. */
+@media print {
+  .report { gap: var(--space-6); }
+  .printTitle { display: block; margin: 0; color: var(--foreground); font-size: var(--text-xl); font-weight: var(--weight-medium); }
+  .picker, .print, .noteControls, .noteForm { display: none; }
+  .asOf { color: var(--foreground); }
+  .glanceItem, .line, .entry, .quarterNote { break-inside: avoid; }
+  .heading, .projectHeading, .lineTitle { break-after: avoid; }
+}

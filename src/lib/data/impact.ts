@@ -3,9 +3,10 @@ import "server-only"
 import { seeable } from "@/lib/request-access"
 import { and, eq, inArray } from "drizzle-orm"
 
-import { db, profiles, projects, requests } from "@/db"
+import { db, profiles, projects, quarterNotes, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
+import { quarterOf, quartersOf, type ImpactPeriod, type Quarter } from "@/lib/impact-period"
+import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type QuarterNote, type Teammate } from "@/lib/impact-read-model"
 import { resolveSavedMetrics, type ResolvedSavedMetric } from "@/lib/metrics-library"
 import { FORMER_MEMBER } from "@/lib/request-journey"
 
@@ -20,8 +21,23 @@ function viewerOf(auth: MemberAuth): ImpactViewer {
 
 /** The Impact page for the signed-in viewer: My work and the Outcome report (#208). Screens render this and compute nothing themselves. */
 export async function loadImpactDashboard(auth: MemberAuth, options: ImpactOptions = {}): Promise<ImpactDashboard> {
-  const rows = await loadImpactRows(auth)
-  return buildImpactDashboard(viewerOf(auth), rows, options)
+  const period = options.period ?? quarterOf(options.now ?? new Date())
+  const [rows, notes] = await Promise.all([loadImpactRows(auth), loadQuarterNotes(auth, period)])
+  return buildImpactDashboard(viewerOf(auth), rows, { ...options, period, quarterNotes: notes })
+}
+
+/**
+ * The Quarter notes a period's report ends with (#209), each with its last editor's name. None for a guest, who gets
+ * no Outcome report, and none for a month.
+ */
+async function loadQuarterNotes(auth: MemberAuth, period: ImpactPeriod): Promise<QuarterNote[]> {
+  if (auth.role === "guest" || quartersOf(period).length === 0) return []
+  const notes = await db
+    .select({ year: quarterNotes.year, quarter: quarterNotes.quarter, text: quarterNotes.body, editorName: profiles.fullName, editedAt: quarterNotes.editedAt })
+    .from(quarterNotes)
+    .leftJoin(profiles, eq(profiles.id, quarterNotes.editedBy))
+    .where(and(eq(quarterNotes.orgId, auth.orgId), eq(quarterNotes.year, period.year)))
+  return notes.map(note => ({ ...note, quarter: note.quarter as Quarter, editorName: note.editorName || FORMER_MEMBER, editedAt: note.editedAt.toISOString() }))
 }
 
 export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {

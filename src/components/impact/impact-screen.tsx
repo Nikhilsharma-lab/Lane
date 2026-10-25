@@ -7,6 +7,7 @@ import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-m
 import { impactHref } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
 import { OutcomeReportView } from "./outcome-report"
+import type { QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./impact-screen.module.css"
 
 // The Impact screen (#159, #208): My work and the Outcome report for a non-guest, My work alone for a guest. It
@@ -39,9 +40,11 @@ export type ImpactScreenProps = {
   onPeriodChange?: (period: ImpactPeriod) => void;
   /** The tab open first. The page opens the Outcome report when the address names a period and no teammate. */
   initialTab?: TabId;
+  /** Set for an Admin only (#209): where Quarter note edits go. The server refuses anyone else. */
+  quarterNoteEditor?: QuarterNoteEditorTarget;
 };
 
-export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange, initialTab = "my-work" }: ImpactScreenProps) {
+export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange, initialTab = "my-work", quarterNoteEditor = null }: ImpactScreenProps) {
   const [selected, setSelected] = useState<TabId>(initialTab);
   const tabs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   // The read model returns no Outcome report for a guest, so a guest sees My work alone, with no tabs.
@@ -79,7 +82,7 @@ export function ImpactScreen({ dashboard, period, teammates, person, onPeriodCha
 
   const panels: Record<TabId, React.ReactNode> = {
     "my-work": <>{myWork}{teammateLists}</>,
-    "outcome-report": <OutcomeReportView report={report} onPeriodChange={onPeriodChange} />,
+    "outcome-report": <OutcomeReportView report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />,
   };
 
   return <div className={styles.screen}>

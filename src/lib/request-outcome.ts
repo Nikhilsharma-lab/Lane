@@ -13,12 +13,18 @@ export const EXCEPTION_REASON_OPTIONS: { value: ExceptionReason; label: string }
     { value: 'cannot_measure', label: 'Can’t be measured' },
     { value: 'other', label: 'Other' },
 ];
-export const CORRECTION_FIELDS = ['actual', 'guardrails', 'evidence', 'observation', 'reason'] as const;
+export const CORRECTION_FIELDS = ['actual', 'guardrails', 'evidence', 'observation', 'reason', 'learned'] as const;
 export const CORRECTION_FIELD_OPTIONS: { value: typeof CORRECTION_FIELDS[number]; label: string }[] = [
     { value: 'actual', label: 'Actual result' }, { value: 'guardrails', label: 'Guardrails' },
     { value: 'evidence', label: 'Evidence' }, { value: 'observation', label: 'Observation period' },
     { value: 'reason', label: 'Reason' },
+    { value: 'learned', label: 'What we learned' },
 ];
+/** What we learned (#209): one line, at most this long. The database refuses anything else (migration 0043). */
+export const LEARNED_MAX_LENGTH = 280;
+const ONE_LINE = /^[^\r\n]*$/;
+/** Optional on closing: trimmed, one line; left blank, nothing is stored. */
+const learnedLine = z.string().trim().max(LEARNED_MAX_LENGTH).regex(ONE_LINE).optional().transform(value => value || undefined);
 export const outcomeChangeSchema = z.discriminatedUnion('kind', [
     z.object({
         kind: z.literal('measured'),
@@ -29,15 +35,19 @@ export const outcomeChangeSchema = z.discriminatedUnion('kind', [
         // Actual values in the agreed guardrail order; every agreed guardrail needs one.
         guardrails: z.array(z.number().finite()).max(20),
         evidence: text, observedFrom: date, observedTo: date,
+        learned: learnedLine,
     }).strict(),
-    z.object({ kind: z.literal('exception'), reasonCode: z.enum(EXCEPTION_REASONS), reason: z.string().trim().max(4000) }).strict(),
-    z.object({ kind: z.literal('correction'), field: z.enum(CORRECTION_FIELDS), correction: text, reason: text }).strict(),
+    z.object({ kind: z.literal('exception'), reasonCode: z.enum(EXCEPTION_REASONS), reason: z.string().trim().max(4000), learned: learnedLine }).strict(),
+    z.object({ kind: z.literal('correction'), field: z.enum(CORRECTION_FIELDS), correction: text, reason: text }).strict()
+        // A Correction of What we learned is one line, like the original.
+        .refine(change => change.field !== 'learned' || (change.correction.length <= LEARNED_MAX_LENGTH && ONE_LINE.test(change.correction))),
 ]);
 /** Each closure kind only has its own parts to correct. */
 export function correctableFields(kind: 'measured' | 'exception'): readonly typeof CORRECTION_FIELDS[number][] {
-    return kind === 'measured' ? ['actual', 'guardrails', 'evidence', 'observation'] : ['reason'];
+    return kind === 'measured' ? ['actual', 'guardrails', 'evidence', 'observation', 'learned'] : ['reason', 'learned'];
 }
-export type OutcomeChange = z.infer<typeof outcomeChangeSchema>;
+/** A closure change as a form sends it (before trimming). */
+export type OutcomeChange = z.input<typeof outcomeChangeSchema>;
 export type AgreedGuardrail = { metric: string; operator: GuardrailOperator; limit: number; unit: string };
 export type OutcomeClosure = {
     version: 1;
@@ -54,6 +64,8 @@ export type OutcomeClosure = {
     evidence: string;
     observedFrom: string;
     observedTo: string;
+    /** What we learned (#209), when the Requester gave one. Never rewritten; a Correction changes it. */
+    learned?: string;
     revision: number;
 };
 export type OutcomeException = {
@@ -67,6 +79,8 @@ export type OutcomeException = {
     operationId: string;
     fingerprint: string;
     release: ReleaseFact | null;
+    /** What we learned (#209), when the Requester gave one. Never rewritten; a Correction changes it. */
+    learned?: string;
     revision: number;
 };
 export type ClosureCorrection = {
