@@ -26,8 +26,8 @@ describe("migrationPlan", () => {
     ]);
   });
   it("includes a new migration without editing the reset", () => {
-    const plan = names(migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036_next_change.sql"])));
-    expect(plan.at(-1)).toBe("db/migrations/0036_next_change.sql");
+    const plan = names(migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036_m36.sql", "0037_m37.sql", "0038_saved_metrics_into_library.sql", "0039_next_change.sql"])));
+    expect(plan.at(-1)).toBe("db/migrations/0039_next_change.sql");
     expect(plan[0]).toBe("db/migrations/0013_m13.sql");
   });
   it("stops at a gap, a repeated number or a misnamed file", () => {
