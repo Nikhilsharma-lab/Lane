@@ -60,7 +60,7 @@ export function InboxDeliveryForm({ initialChoice, email, onSave }: { initialCho
 
   return <div className={styles.card}>
     <div className={styles.cardBody}>
-      <h3>Email</h3>
+      <h3>Needs-you items</h3>
       <p>A review asked of you, a Concern on your Request, Record the release and Result due. Each arrives once, on its own, with a link to the Request. For your information items stay in Lane.</p>
       <RadioGroup label="Deliver Needs-you items" value={choice} onValueChange={value => { void change(value); }} options={options} />
       {error && <Alert role="alert" tone="danger" title={error} />}
