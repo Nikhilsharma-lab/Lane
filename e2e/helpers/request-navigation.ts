@@ -369,8 +369,10 @@ export async function verifyPendingNavigation(page: Page, fixture: NavigationFix
 }
 
 export async function verifySupersededSearch(page: Page, fixture: NavigationFixture, capture: Capture) {
-  await page.goto("/?project=none");
-  await expect(rows(page).first()).toBeVisible();
+  // A loaded exact code opens synchronously. Start a fresh detail document so
+  // this different code exercises the real server-search navigation path.
+  await page.goto(`/requests/${fixture.requests[1].id}`);
+  await expect(page.locator("#request-title")).toContainText(fixture.requests[1].title);
   await runPaletteCommand(page, "Search workspace");
   const target = fixture.requests[0];
   const hold = await holdResponse(page, request => {
