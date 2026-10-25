@@ -5,7 +5,7 @@ import { and, eq, inArray } from "drizzle-orm"
 
 import { db, profiles, projects, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
+import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
 import { resolveSavedMetrics, type ResolvedSavedMetric } from "@/lib/metrics-library"
 import { FORMER_MEMBER } from "@/lib/request-journey"
 
@@ -56,6 +56,15 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
 
 function definitionsOf(metrics: ResolvedSavedMetric[]): ImpactDefinition[] {
   return metrics.flatMap(({ position, definition }) => definition ? [{ position, id: definition.id, name: definition.name, unit: definition.unit }] : [])
+}
+
+/**
+ * Every Request the viewer may see that used one Metric definition (#203), for its page in the Metrics library.
+ * Null for a guest. The same rows and rules as the Impact page, so visibility and results never differ.
+ */
+export async function loadDefinitionUses(auth: MemberAuth, definitionId: string, options: ImpactOptions = {}): Promise<DefinitionUses | null> {
+  if (auth.role === "guest") return null
+  return buildDefinitionUses(viewerOf(auth), await loadImpactRows(auth), definitionId, options)
 }
 
 /** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */

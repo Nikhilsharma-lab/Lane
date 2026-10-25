@@ -3,9 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkMembersProfile, ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { DefinitionUsesList } from "@/components/metrics/definition-uses";
 import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-history";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { loadDefinitionUses } from "@/lib/data/impact";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
@@ -32,9 +34,11 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const merged = !!definition.mergedIntoId;
   const isAdmin = workspace.role === "admin";
   // A merge needs another definition in the same unit that hasn't itself been merged away; archived ones count.
-  const [keptDefinition, everyDefinition] = await Promise.all([
+  // #203: a merged definition's Requests count under the one it was merged into, so they are listed there, not here.
+  const [keptDefinition, everyDefinition, uses] = await Promise.all([
     definition.mergedIntoId ? readMetricDefinition(library, definition.mergedIntoId) : null,
     isAdmin && !merged ? listMetricDefinitions(library, { includeArchived: true }) : [],
+    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id),
   ]);
   const candidates = everyDefinition.filter(other => other.id !== definition.id && !other.mergedIntoId && other.unit === definition.unit)
     .map(other => ({ id: other.id, name: other.name, archived: !!other.archivedAt }));
@@ -56,6 +60,10 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
       {candidates.length
         ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
         : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there&apos;s nothing to merge it with.</p>}
+    </SettingsCard>}
+    {uses && <SettingsCard title="Requests that used it"
+      description="Grouped by Project, with what each predicted beside what happened. Uses as the main metric and as a guardrail are listed apart.">
+      <DefinitionUsesList uses={uses} />
     </SettingsCard>}
     <SettingsCard title="History">
       <MetricDefinitionHistory entries={history.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() }))} />

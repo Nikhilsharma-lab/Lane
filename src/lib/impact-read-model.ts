@@ -20,6 +20,7 @@
 import { agreedResult, guardrailHeld, type ClosureCorrection, type OutcomeClosure, type OutcomeException } from "./request-outcome";
 import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
 import type { MetricUnit } from "./metric-definition-rules";
+import type { GuardrailOperator } from "./guardrail-comparison";
 import { impactStateOf, type ExpectedImpact } from "./request-impact";
 import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
@@ -490,6 +491,99 @@ export function teammateIdsOf(viewer: ImpactViewer, rows: ImpactRow[]): string[]
   }
   people.delete(viewer.userId);
   return [...people].sort();
+}
+
+/** How a use of a Metric definition stands: measured, still due (never zero), or closed without a result. */
+export type DefinitionUseOutcome<Measured> =
+  | ({ kind: "measured" } & Measured)
+  | { kind: "still_due"; due: { dueDate: string; dueLabel: string } | null }
+  | { kind: "closed_without_result"; reason: string };
+
+/** A Request whose main metric counts under the definition: what it predicted beside what happened. */
+export type DefinitionMainUse = RequestRef & {
+  journey: JourneyLabel;
+  predicted: Prediction;
+  outcome: DefinitionUseOutcome<{ result: ResultView }>;
+};
+
+/** A Request with a guardrail that counts under the definition: the limit it agreed beside what was measured. */
+export type DefinitionGuardrailUse = RequestRef & {
+  journey: JourneyLabel;
+  /** The guardrail's saved position (guardrails count from 1), so one Request's two guardrails stay apart. */
+  position: number;
+  /** The Request's main metric, which the guardrail protected. */
+  mainMetric: string;
+  limit: { operator: GuardrailOperator; limit: number; unit: string };
+  outcome: DefinitionUseOutcome<{ actual: number | null; held: boolean | null }>;
+};
+
+/** Requests that used a definition in one Project ("No Project" last). */
+export type DefinitionUseGroup<Use> = { projectId: string | null; name: string; uses: Use[] };
+
+/** Every Request that used one Metric definition (#203), main-metric uses apart from guardrail uses. Nothing by person. */
+export type DefinitionUses = {
+  definitionId: string;
+  main: DefinitionUseGroup<DefinitionMainUse>[];
+  guardrails: DefinitionUseGroup<DefinitionGuardrailUse>[];
+};
+
+/** A use with no measured result: closed without one, else still due (from its release's due date, once released). */
+function waitingOutcome(row: ImpactRow, now: Date): Exclude<DefinitionUseOutcome<object>, { kind: "measured" }> {
+  if (row.exceptionClosure) return { kind: "closed_without_result", reason: row.exceptionClosure.reason };
+  const release = row.releaseState?.release ?? null;
+  const due = releaseMeasurement(release, now);
+  return { kind: "still_due", due: release && due ? { dueDate: release.dueDate, dueLabel: due.label } : null };
+}
+
+function byProjectGroups<Use extends RequestRef>(items: { row: ImpactRow; use: Use }[]): DefinitionUseGroup<Use>[] {
+  const groups = new Map<string, { row: ImpactRow; use: Use }[]>();
+  for (const item of items) groups.set(item.row.projectId ?? "", [...(groups.get(item.row.projectId ?? "") ?? []), item]);
+  return [...groups.values()].map(group => ({
+    projectId: group[0].row.projectId,
+    name: group[0].row.projectName ?? NO_PROJECT,
+    uses: byRequestNumber(group.map(item => item.use)),
+  })).sort((a, b) => (a.projectId === null) !== (b.projectId === null) ? (a.projectId === null ? 1 : -1) : a.name.localeCompare(b.name));
+}
+
+/**
+ * Every Request the viewer may see that predicted one Metric definition (#203, spec stories 38–43), grouped by Project.
+ * Uses follow the definitions each Request resolves to now, so a definition merged into this one brings its Requests.
+ * Null for a guest, who can't open the Metrics library.
+ */
+export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], definitionId: string, options: ImpactOptions = {}): DefinitionUses | null {
+  if (viewer.role === "guest") return null;
+  const now = options.now ?? new Date();
+  const visible = visibleTo(viewer, rows);
+  const main = visible.flatMap(row => {
+    if (definitionAt(row.definitions, 0)?.id !== definitionId) return [];
+    const entry = entryOf(row, now, visible);
+    if (!entry.predicted || entry.predicted.definitionId !== definitionId) return [];
+    const outcome: DefinitionMainUse["outcome"] = entry.result ? { kind: "measured", result: entry.result } : waitingOutcome(row, now);
+    return [{ row, use: { requestId: row.id, requestNumber: row.requestNumber, title: row.title, journey: entry.journey, predicted: entry.predicted, outcome } }];
+  });
+  const guardrails = visible.flatMap(row => {
+    const state = impactStateOf(row);
+    const source = row.outcomeClosure?.expected ?? (state.kind === "measured" ? state.plan : null);
+    if (!source) return [];
+    const positions = guardrailPositions(source);
+    return agreedResult(source).guardrails.flatMap((guardrail, index) => {
+      const definition = definitionAt(row.definitions, positions[index] ?? -1);
+      if (!definition || definition.id !== definitionId) return [];
+      const entry = entryOf(row, now, visible);
+      const measured = row.outcomeClosure?.guardrails[index] ?? null;
+      const outcome: DefinitionGuardrailUse["outcome"] = row.outcomeClosure
+        ? { kind: "measured", actual: measured?.actual ?? null, held: measured ? guardrailHeld(measured) : null }
+        : waitingOutcome(row, now);
+      const use: DefinitionGuardrailUse = {
+        requestId: row.id, requestNumber: row.requestNumber, title: row.title, journey: entry.journey, position: positions[index],
+        mainMetric: entry.predicted?.metric ?? "",
+        limit: { operator: guardrail.operator, limit: guardrail.limit, unit: measurementUnitLabel(definition.unit) },
+        outcome,
+      };
+      return [{ row, use }];
+    });
+  });
+  return { definitionId, main: byProjectGroups(main), guardrails: byProjectGroups(guardrails) };
 }
 
 export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
