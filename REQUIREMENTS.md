@@ -800,6 +800,18 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   reminders (#127: due soon, weekly overdue, weekly release reminder) are retired with the stored reminder types,
   and the reminder writer that ran when the bell was checked is removed: checking the bell writes nothing
   (migration 0040 deletes the stored reminder rows and refuses those types).
+- **Inbox delivery (#195 item 2, #206, 2026-10-25, on the integration branch):** Needs-you items reach people outside
+  Lane, one plain-text email per item with one link to the Request, never bundled, each at most once (the delivery
+  log, migration 0041, holds each person's item once). A review asked (on a Request, at Intake, carried to a
+  follow-up, or asked again by an edit that resets answers) and a Concern raised are sent right after the action; an
+  item that has already cleared is never sent. Record the release and Result due are sent by the one daily job
+  (`GET /api/inbox/daily`); running it twice sends nothing twice. Each Admin and Member chooses per workspace in
+  Settings → Inbox delivery: Email (the default) or Off; Slack DM is offered once Slack is connected (#207). Off holds
+  everything except Result due. For-your-information items are never emailed; Guests and Viewers get no Needs-you
+  email. The email service is Resend. **Nothing is sent until Nikhil switches it on:** while `LANE_EMAIL_DELIVERY`
+  is not `1` the messenger is a recording stand-in and the log records "would send"; while `CRON_SECRET` is unset
+  the daily job refuses every call, and its `vercel.json` cron entry is added only in the change that switches
+  email on. Items logged as "would send" before the switch are not sent again afterwards.
 
 ### Profile and theme
 

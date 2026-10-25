@@ -21,7 +21,7 @@ Lane's foundations are **one source of truth for the product/journeys** and **pr
 4. **Requests** — one workspace-wide board everyone sees, grouped by the five Request statuses (Open / In progress / Done / Measuring / Closed), with an optional `?status=` filter. Same view for every role. The workspace search pane (`/`) belongs to this screen: Requests and Projects by saved code, title, description and Expected impact text, with status, type and created-date filters, recent searches and a result preview; Enter on an exact saved code opens that Request. Whitelisted 2026-10-10; this scope approved 2026-10-20.
 5. **Request detail** — current problem/context, saved Expected impact, pickup, Done and comments; confirmed alignment/readiness/outcome additions need scoped implementation approval. Profile labels never gate actions; named Request responsibilities may.
 6. **Inbox** — one page of a person's updates, the list beside the Request preview; the sidebar bell leads to it (approved in #195, 2026-10-25, on the integration branch).
-7. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role; includes browser-local theme preference) + **Settings → Metrics** (the workspace's Metrics library; Members and Admins; approved in #195, 2026-10-25, on the integration branch). Nothing else under settings.
+7. **Settings → Members** (invite teammates) + **Settings → Profile** (change your role; includes browser-local theme preference) + **Settings → Metrics** (the workspace's Metrics library; Members and Admins; approved in #195, 2026-10-25, on the integration branch) + **Settings → Inbox delivery** (Email or Off per workspace; #206, same approval). Nothing else under settings.
 
 Settings → Profile is shipped. Guest enforcement is implemented: a Clerk `org:guest` sees and comments on only their own Requests, and cannot pick up work or access Members. Clerk production custom roles require Enhanced B2B; until that plan is approved, production invitations are Admin or Member only. Public / anonymous Intake is separate and deferred.
 
@@ -70,7 +70,7 @@ For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/ag
 
 ## Do NOT build (these sank v1 — they are banned until there is a paying customer asking)
 
-Figma integration · morning briefings · weekly digests · any cron job · radar · stickies · initiatives ·
+Figma integration · morning briefings · weekly digests · any cron job (the one exception: #195's daily Inbox delivery job, `GET /api/inbox/daily`, switched off until Nikhil approves email) · radar · stickies · initiatives ·
 reflections · insights / design-ROI · prediction-confidence · handoff briefs ·
 iteration summaries · PM calibration · multi-workspace · published views · the Year-2 PM and Year-3 Research roadmap ·
 the 5 design stages (Sense/Frame/Diverge/Converge/Prove) and all phase/kanban/track enums · the `user_functional_tags` table (role lives on `profiles.role`).

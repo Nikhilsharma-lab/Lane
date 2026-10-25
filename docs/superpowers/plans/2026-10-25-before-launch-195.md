@@ -37,6 +37,11 @@ is on only when its value is `"1"` (like `LANE_ALLOW_HOSTED_DB`). One module, `s
 There is no transactional email in the repo today: `package.json` has no SDK, and Clerk sends auth and invitation email. Resend was used as SMTP
 in the Supabase era (`DEFERRED.md`), so the Email adapter targets Resend's API.
 
+As built in #206: the Email adapter calls Resend's `POST /emails` with `fetch` (no SDK added), and the one daily job is
+`GET /api/inbox/daily`. Both are built under decision 3 and send nothing until Nikhil approves switching them on:
+`src/lib/feature-switches.ts` reads `LANE_EMAIL_DELIVERY`, `RESEND_API_KEY`, `LANE_EMAIL_FROM` and `CRON_SECRET`, and the
+`vercel.json` cron entry is left for the change that switches email on (`DEFERRED.md`, "Switching Inbox email on").
+
 ## Per item
 
 | # | Tickets | New tables (migrations from 0037, one per ticket) | Routes | Job / external |

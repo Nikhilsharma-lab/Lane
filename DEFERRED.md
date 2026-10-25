@@ -236,16 +236,20 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   assignee/commenter) proves insufficient for real teams. The bar is "people are missing things they
   need to act on," not "people want to watch everything."
 
-- **Email notifications beyond authentication and workspace invitations.** What: transactional email alongside
-  in-app notifications for request activity. Why: Resend is configured for auth and invitation delivery, but
-  broader notification email is not part of the current MVP and would add preference/noise concerns.
-  Plane ref: `EmailNotificationLog` model, email sending in `notification_task.py`. Trigger: real pilot users
-  repeatedly miss request activity that the in-app surface should have made actionable.
+- ~~**Email notifications beyond authentication and workspace invitations.**~~ BUILT for Needs-you items only
+  (#195 item 2, #206, 2026-10-25, on the integration branch): one email per item, once, through Resend, switched
+  off until approved (`LANE_EMAIL_DELIVERY`, `CRON_SECRET`; see REQUIREMENTS.md "Inbox delivery"). Still deferred:
+  email for For-your-information activity (comments, pickup, Done), which stays inside Lane by design.
+  Trigger for that remainder: real pilot users repeatedly miss activity the Inbox should have made actionable.
 
-- **Notification preferences.** What: per-user booleans controlling which notification types generate
-  email. Why: meaningless without request-activity email notifications. Plane ref: `UserNotificationPreference` model
-  (`property_change`, `state_change`, `comment`, `mention`, `issue_completed` booleans).
-  Trigger: email notifications exist.
+- ~~**Notification preferences.**~~ BUILT as one choice per person per workspace (#206): Email (default) or Off,
+  with Slack DM once Slack exists (#207). Per-type toggles stay deferred; trigger: people ask to keep one kind of
+  Needs-you email and stop another.
+
+- **Switching Inbox email on.** What: set `LANE_EMAIL_DELIVERY=1`, `RESEND_API_KEY`, `LANE_EMAIL_FROM` (a domain
+  verified in Resend) and `CRON_SECRET`, and add `"crons": [{ "path": "/api/inbox/daily", "schedule": "0 7 * * *" }]`
+  to `vercel.json` in the same change. Why: built behind the switch so nothing is sent before approval. Trigger:
+  Nikhil approves the email service and migration 0041 is on the target database.
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,
