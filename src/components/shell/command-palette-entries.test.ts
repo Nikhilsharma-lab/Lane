@@ -11,7 +11,7 @@ describe("paletteEntries", () => {
       "new-request", "search",
       "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
       "project:p1", "project:p2", "project:none",
-      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:coming-soon",
+      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
       "notifications",
       "shortcuts",
     ])
@@ -21,6 +21,11 @@ describe("paletteEntries", () => {
     const entries = paletteEntries({ ...base, role: "guest" })
     expect(entries.find(entry => entry.id === "view:all")?.label).toBe("My Requests")
     expect(entries.filter(entry => entry.detail === "Settings").map(entry => entry.label)).toEqual(["Profile", "Preferences", "Security & access", "Coming soon"])
+  })
+
+  it("opens the Metrics page at its own address", () => {
+    expect(paletteEntries(base).find(entry => entry.id === "settings:metrics")?.action).toEqual({ kind: "settings", section: "metrics", href: "/settings/metrics" })
+    expect(paletteEntries(base).find(entry => entry.id === "settings:members")?.action).toEqual({ kind: "settings", section: "members", href: "/settings/profile?section=members" })
   })
 
   it("gives an admin the same places as a member", () => {

@@ -1,5 +1,5 @@
 import type { CurrentRequest } from "@/components/requests/current-request"
-import { settingsNavigation } from "@/components/settings/settings-catalog"
+import { settingsHref, settingsNavigation } from "@/components/settings/settings-catalog"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
@@ -88,7 +88,7 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
     id: `project:${project.id}`, label: project.name, group: "Go to", detail: "Project", keys: [], action: { kind: "project", projectId: project.id },
   }))
   const settings = settingsNavigation(role).map((entry): PaletteEntry => ({
-    id: `settings:${entry.id}`, label: entry.label, group: "Go to", detail: "Settings", keys: [], action: { kind: "settings", section: entry.id, href: `/settings/profile?section=${entry.id}` },
+    id: `settings:${entry.id}`, label: entry.label, group: "Go to", detail: "Settings", keys: [], action: { kind: "settings", section: entry.id, href: settingsHref(entry.id) },
   }))
   return [
     ...requestEntries(request, undo, role),
