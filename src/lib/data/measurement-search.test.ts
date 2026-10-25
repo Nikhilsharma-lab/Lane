@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { listMetricDefinitions } from "@/lib/metrics-library";
 import { loadWorkspaceSearch } from "./search";
 
 const ORG = "org_measurement_search", OTHER = "org_measurement_search_other";
@@ -38,7 +39,16 @@ beforeAll(async () => {
     ids.push(row.id);
   }
   await connection`insert into requests(org_id,title,description,created_by,expected_impact) values(${OTHER},'Request','Plain description',${OWNER},${connection.json(base)})`;
+  // #201: the workspace's library, as migration 0038 left it: the starter metrics, plus a definition for each older
+  // metric that isn't a starter in its unit (here the count variant of Conversion rate and one typed metric).
+  await listMetricDefinitions({ orgId: ORG });
+  const alias = async (definitionId: string, builtinKey: string | null, typedName: string | null, unit: string) =>
+    connection`insert into metric_definition_aliases(org_id,definition_id,builtin_key,typed_name,unit) values(${ORG},${definitionId},${builtinKey},${typedName},${unit})`;
+  await alias(await definition("Conversions", "count"), "conversion", null, "count");
+  await alias(await definition("Orders completed", "count"), null, "completed orders", "count");
+  defined = (name) => connection`update metric_definitions set name = ${name.to} where org_id = ${ORG} and name = ${name.from}`;
 });
+let defined: (name: { from: string; to: string }) => Promise<unknown>;
 afterAll(async () => {
   if (!connection) return;
   await connection`delete from organizations where id in (${ORG},${OTHER})`;
@@ -49,7 +59,7 @@ async function search(query: string, guest = false) {
   return loadWorkspaceSearch({ userId: guest ? GUEST : OWNER, orgId: ORG, role: guest ? "guest" : "member" }, { query, requestsPage: 0, projectsPage: 0 });
 }
 describe("measurement search on saved Request data", () => {
-  it.each([["conversion rate", 0], ["completed orders", 1], ["support contact rate", 1], ["failed payments", 1], ['payments "card"', 1], ["keyboard navigation", 2], ["legacy outcome", 3], ["conversions", 4], ["trial starts", 5], ["refund requests", 5]])("finds %s within the active workspace", async (query, index) => {
+  it.each([["conversion rate", 0], ["completed orders", 1], ["orders completed", 1],["support contact rate", 1], ["failed payments", 1], ['payments "card"', 1], ["keyboard navigation", 2], ["legacy outcome", 3], ["conversions", 4], ["trial starts", 5], ["refund requests", 5]])("finds %s within the active workspace", async (query, index) => {
     const result = await search(String(query));
     expect(result.requests.total).toBe(1);
     expect(result.requests.items.map(item => item.id)).toEqual([ids[Number(index)]]);
@@ -60,5 +70,33 @@ describe("measurement search on saved Request data", () => {
   });
   it("keeps SQL-looking and wildcard query text literal", async () => {
     expect((await search("%' OR 1=1 --")).requests.total).toBe(0);
+  });
+});
+
+describe("search by Metric definition names (#201)", () => {
+  const found = async (query: string) => (await search(query)).requests.items.map(item => ids.indexOf(item.id));
+
+  it("finds Requests by their definitions' current names, not the names they saved or the built-in labels", async () => {
+    await defined({ from: "Trial starts", to: "Trials started" });
+    await defined({ from: "Conversion rate", to: "Checkout conversion" });
+    expect(await found("trials started")).toEqual([5]);
+    expect(await found("trial starts")).toEqual([]);
+    expect(await found("checkout conversion")).toEqual([0]);
+    expect(await found("conversion rate")).toEqual([]);
+  });
+
+  it("finds a Request by the definition its metric was merged into, and by an archived definition's name", async () => {
+    const [refunds] = await connection`insert into metric_definitions(org_id,name,unit,created_by) values(${ORG},'Refunds','count',${OWNER}) returning id`;
+    await connection`update metric_definitions set merged_into_id = ${refunds.id}, archived_at = now() where org_id = ${ORG} and name = 'Refund requests'`;
+    await connection`update metric_definitions set archived_at = now() where org_id = ${ORG} and name = 'Orders completed'`;
+    expect(await found("refunds")).toEqual([5]);
+    expect(await found("refund requests")).toEqual([]);
+    expect(await found("orders completed")).toEqual([1]);
+  });
+
+  it("never matches through another workspace's definitions", async () => {
+    const [zebra] = await connection`insert into metric_definitions(org_id,name,unit,created_by) values(${OTHER},'Zebra metric','percent',${OWNER}) returning id`;
+    await connection`insert into metric_definition_aliases(org_id,definition_id,builtin_key,unit) values(${OTHER},${zebra.id},'conversion','percent')`;
+    expect(await found("zebra metric")).toEqual([]);
   });
 });
