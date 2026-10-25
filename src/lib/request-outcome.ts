@@ -46,7 +46,8 @@ export const outcomeChangeSchema = z.discriminatedUnion('kind', [
 export function correctableFields(kind: 'measured' | 'exception'): readonly typeof CORRECTION_FIELDS[number][] {
     return kind === 'measured' ? ['actual', 'guardrails', 'evidence', 'observation', 'learned'] : ['reason', 'learned'];
 }
-export type OutcomeChange = z.infer<typeof outcomeChangeSchema>;
+/** A closure change as a form sends it (before trimming). */
+export type OutcomeChange = z.input<typeof outcomeChangeSchema>;
 export type AgreedGuardrail = { metric: string; operator: GuardrailOperator; limit: number; unit: string };
 export type OutcomeClosure = {
     version: 1;
