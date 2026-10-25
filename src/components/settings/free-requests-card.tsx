@@ -15,7 +15,7 @@ const ABOUT = `Every workspace gets ${FREE_REQUESTS} Free Requests with all of L
 /**
  * #213 Settings → Billing, for Admins: the workspace's Free Requests left. When there are none it says why (used
  * here, or by another workspace from the creator's company domain) and, while billing is enforced, that an Admin
- * needs to pay. Read-only: there is no payment yet (#214).
+ * needs to pay. Paying is the Lane plan card beside it (#214).
  */
 export function FreeRequestsCard({ planState, free, enforced }: FreeRequestsCardProps) {
   if (planState === "paying") return <SettingsCard title="Free Requests" description="This workspace pays for Lane, so creating Requests has no limit." />;

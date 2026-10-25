@@ -887,8 +887,28 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   The refusal comes before the AI review and again, under the workspace lock, when saving.
 - Settings → Billing (Admins only) shows Free Requests left and why there are none. **All enforcement sits behind
   `LANE_BILLING_ENFORCED`, off by default:** while it is not `1`, Free Requests are counted and shown but no
-  workspace is ever blocked, and Billing says Lane isn't charging yet. Payment (#214) is not built; switching
-  enforcement on waits for it and for Nikhil's approval.
+  workspace is ever blocked, and Billing says Lane isn't charging yet. Switching enforcement on waits for Nikhil's
+  approval (below).
+
+### Paying for Lane (#195 item 5, #214, 2026-10-25, on the integration branch)
+
+- One plan with all of Lane, priced per paid seat (Admins and Members, at least 3; Guests and Viewers are free).
+  Settings → Billing shows yearly first, $30 per seat per month billed yearly, with monthly beside it at $36, and
+  Enterprise as "Talk to us" (an email to Lane's support address). These prices are a starting point, checked again
+  at launch.
+- An Admin pays by card on the payment provider's hosted checkout page (Stripe Checkout) and comes back to Billing.
+  The provider tells Lane by a signed event (`POST /api/billing/webhook`); only then is the workspace paying, and a
+  paying workspace creates Requests beyond its Free Requests. Nobody but an Admin can start a checkout.
+- **Founding discount:** the first 50 workspaces to pay get 40% off for two years from their first payment, shown
+  against the list price. A workspace holds one of the 50 places while its checkout is open (up to 3 days after the
+  page closes, so a late event from the provider still finds it) and for good once it pays with it; the database
+  refuses a 51st. A founding workspace that pays again later gets only what is left of its two years.
+- **Nothing can be paid until billing is switched on:** checkout is offered only while `LANE_BILLING_ENFORCED` is `1`
+  and the Stripe names are set (`.env.example`). Until then Billing shows the prices and says Lane isn't charging yet,
+  or that paying by card isn't available yet. Before switching on: ask about 10 target teams what they'd pay, move to
+  Supabase Pro and Vercel Pro, and approve Stripe as an external service (`DEFERRED.md`).
+- Seat changes after paying (#215) and the plan's details, changing period or card, cancelling and lapsed plans
+  (#216) come next.
 
 ### Profile and theme
 

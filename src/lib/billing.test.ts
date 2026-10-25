@@ -1,7 +1,7 @@
 /**
  * #213 (spec #195, seam 5: billing). The billing module against the real test database, with Clerk (the only outside
- * service it asks, for a workspace's creator) as a stand-in. There is no payment provider yet (#214), so a paying or
- * lapsed plan is written straight into the module's table.
+ * service it asks, for a workspace's creator) as a stand-in. Paying through the payment provider is
+ * `billing-payment.test.ts` (#214); here a paying or lapsed plan is written straight into the module's table.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
