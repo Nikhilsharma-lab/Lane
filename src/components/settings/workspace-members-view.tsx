@@ -1,10 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog";
 import { Input } from "@/components/arc/input/input";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { Select } from "@/components/arc/select/select";
@@ -12,11 +12,13 @@ import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { callAction } from "@/lib/action-call";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import {
-  addsPaidSeat, PAID_SEAT_CONFIRMATION, PAID_SEAT_DETAIL, paidSeatSummary, ROLE_DESCRIPTIONS,
-  type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
+  addsPaidSeat, ROLE_DESCRIPTIONS, type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
+
+/** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
+const PaidSeatDialog = dynamic(() => import("./paid-seat-dialog").then(module => module.PaidSeatDialog));
 
 type Answer = { success?: true; error?: string };
 type Card = "invite" | "people" | "invitations";
@@ -168,15 +170,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       </div>
     </section>}
 
-    {seat && <Dialog open={seatOpen} onOpenChange={setSeatOpen}>
-      <DialogContent title={PAID_SEAT_CONFIRMATION} description={PAID_SEAT_DETAIL}
-        onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLElement>(`[data-seat-return="${CSS.escape(seat.returnTo)}"]`)?.focus(); }}>
-        <p>{paidSeatSummary(seat.change)}</p>
-        <div className={styles.dialogActions}>
-          <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-          <Button onClick={() => { setSeatOpen(false); seat.add(); }}>Add paid seat</Button>
-        </div>
-      </DialogContent>
-    </Dialog>}
+    {seat && <PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo={seat.returnTo}
+      onConfirm={() => { setSeatOpen(false); seat.add(); }} />}
   </>;
 }
