@@ -2,13 +2,13 @@ import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { cache } from "react";
 
 import { db, workspaces } from "@/db";
-import { clerkWorkspacePermission, type MemberAuth } from "@/lib/auth-guard";
+import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
 
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
-  role: "admin" | "member" | "guest";
+  role: WorkspacePermission;
   /** The functional label chosen at onboarding; Settings → Profile edits it. */
   profileRole: "pm" | "designer" | "developer";
   fullName: string;

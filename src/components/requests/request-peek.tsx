@@ -9,7 +9,8 @@ import type { OverviewRequest } from "@/lib/request-overview"
 import styles from "./request-peek.module.css"
 
 /** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
-export type PeekViewer = { id: string; name: string; isAdmin: boolean }
+/** Who is reading the preview. `readOnly` is a Viewer (#210), offered nothing that changes the Request. */
+export type PeekViewer = { id: string; name: string; isAdmin: boolean; readOnly?: boolean }
 
 /** Plan item 2.12: the content, the Request detail pane and its islands, is its own chunk, fetched
  * once a row takes focus so the first Space rarely waits. The panel itself loads with the list. */

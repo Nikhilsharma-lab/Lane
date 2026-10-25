@@ -127,12 +127,23 @@ actions, or collaboration rights.
 - **Admin:** Clerk organization administration and membership control.
 - **Member:** participates in the shared Request workflow.
 - **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members.
+- **Viewer** (#195 item 4, #210, on the integration branch): free and read-only. Sees everything a Member
+  sees (Requests, Impact with the Outcome report, the Metrics library) except Members management, and changes
+  nothing: no filing, commenting, reviewing, picking up, Releases, links, labels, Projects, closing or editing
+  definitions. Controls they can't use are hidden and every change is refused on the server, even on a Request
+  they filed before becoming a Viewer. Viewers get no Needs-you items and no emails; they keep their own profile
+  label and read state.
+
+Admins and Members are paid seats; Guests and Viewers are free. In Settings → Members an Admin invites people
+as, and changes anyone else's role to, Admin, Member, Guest or Viewer; Lane asks Clerk and stores nothing, and
+removing someone stays in Clerk. Guest and Viewer are offered (and accepted by the server) only while
+`LANE_CUSTOM_ROLES` is on, which waits for Clerk Enhanced B2B in production.
 
 Clerk is the sole authority for users, sessions, organizations, memberships, roles, and invitations. Identity,
 active organization, and organization role are always derived from the Clerk session; client-supplied user
 identifiers are never trusted. Lane does not duplicate Clerk membership or invitation state in Postgres.
-Every read and write is constrained to the active Clerk organization. Guest remains conditional on a Clerk
-plan that exposes a production `org:guest` custom role.
+Every read and write is constrained to the active Clerk organization. Guest and Viewer remain conditional on a
+Clerk plan that exposes production `org:guest` and `org:viewer` custom roles (Enhanced B2B).
 
 ### Responsibility versus permission
 
@@ -816,7 +827,7 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   - one Result due from the measurement due date (UTC), until the Request is Closed.
   "Your Request" means you are its current Requester, so a handover moves these items to the new Requester and out
   of the former one's Inbox. Record the release now goes to the Requester, not whoever picked the work up. Only
-  Admins and Members get Needs-you items; Guests (and Viewers, when that role lands) get none. The repeated
+  Admins and Members get Needs-you items; Guests and Viewers get none. The repeated
   reminders (#127: due soon, weekly overdue, weekly release reminder) are retired with the stored reminder types,
   and the reminder writer that ran when the bell was checked is removed: checking the bell writes nothing
   (migration 0040 deletes the stored reminder rows and refuses those types).

@@ -17,7 +17,7 @@ export const rosterMember = (roster: readonly WorkspacePerson[] | null, id: stri
  * so every action is refused rather than guessed.
  */
 export function journeyViewer(auth: MemberAuth, roster: readonly WorkspacePerson[] | null): JourneyViewer {
-  if (auth.role === "guest") return { id: auth.userId, role: "guest", active: false }
+  if (auth.role === "guest" || auth.role === "viewer") return { id: auth.userId, role: auth.role, active: false }
   const entry = rosterMember(roster, auth.userId)
   return { id: auth.userId, role: auth.role === "admin" && entry?.role === "org:admin" ? "admin" : "member", active: Boolean(entry) }
 }

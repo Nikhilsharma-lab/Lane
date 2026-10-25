@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
-import { ClerkMembersProfile, ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { canChangeThings } from "@/lib/role-rules";
+import { membersPanel } from "../members/members-panel";
 import { MetricDefinitionList } from "@/components/metrics/metric-definition-list";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
@@ -27,12 +29,14 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   const view = show === "archived" ? "archived" : "active";
   const all = await listMetricDefinitions({ orgId: workspace.orgId }, { includeArchived: view === "archived" });
   const definitions = view === "archived" ? all.filter(definition => definition.archivedAt && !definition.mergedIntoId) : all;
+  // #210: a Viewer reads the library and adds or edits nothing.
+  const canEdit = canChangeThings(workspace.role);
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={<SettingsCard title="Metric definitions" footer="Pass/fail checks are chosen on each Request and aren't part of the library.">
-      <div className={styles.toolbar}><MetricLibraryFilter show={view} /><AddMetricDialog orgId={workspace.orgId} /></div>
-      <MetricDefinitionList definitions={definitions} view={view} />
+      <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
+      <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
     </SettingsCard>}
-    members={<ClerkMembersProfile />} workspaceManagement={<ClerkWorkspaceProfile />}
+    members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} />;

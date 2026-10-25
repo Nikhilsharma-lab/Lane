@@ -105,7 +105,7 @@ export function dueSignal(facts: JourneyFacts, now: Date): DueSignal {
 /** Who is looking. Take `role` and `active` from the live workspace roster, never from the client. */
 export type JourneyViewer = {
   id: string
-  role: "admin" | "member" | "guest"
+  role: "admin" | "member" | "guest" | "viewer"
   /** An active member of the workspace right now. False when access ended (or the roster can't be read). */
   active: boolean
 }
@@ -164,6 +164,7 @@ export function journeyActions(facts: JourneyFacts & { createdBy: string }, view
     handover: refuse(reason), followUp: refuse(reason),
   })
   if (viewer.role === "guest") return everything("Guests can follow this Request but can’t change it.")
+  if (viewer.role === "viewer") return everything("Viewers can read this Request but can’t change it.")
   if (!viewer.active) return everything("Your workspace membership is no longer active.")
 
   const { status } = journeyStatus(facts)

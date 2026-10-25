@@ -6,7 +6,7 @@ import { sourceRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, requests } from "@/db";
-import { requireActiveMember, refusal } from "@/lib/auth-guard";
+import { requireCanContribute, refusal } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, impactColumnsOf, impactStateOf, impactStateOfChoice, incompleteMeasurementSchema, noMeasurableImpactSchema } from "@/lib/request-impact";
@@ -27,7 +27,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
 }> {
     if (!z.uuid().safeParse(requestId).success)
         return { error: "Request unavailable." };
-    const auth = await requireActiveMember(context.orgId);
+    const auth = await requireCanContribute(context.orgId);
     if (!auth)
         return { error: await refusal("Request unavailable.") };
     const parsed = editSchema.safeParse(input);

@@ -2,13 +2,14 @@
 import type { SettingDefinition, Result } from "@/components/arc/blocks/settings-command/settings-command";
 
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
-export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; href?: string };
+/** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
+export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; changersOnly?: boolean; href?: string };
 export const settingsCatalog: SettingsEntry[] = [
   { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
   { id: "preferences", section: "preferences", group: "Personal", label: "Preferences", description: "Make Lane feel right for you." },
   { id: "theme", section: "preferences", group: "Personal", label: "Theme", description: "System, Light, or Dark for this browser.", target: "theme", keywords: ["appearance", "dark mode", "light mode"] },
-  { id: "inbox-delivery", section: "inbox-delivery", group: "Personal", label: "Inbox delivery", description: "How items that need you reach you outside Lane, in this workspace.", membersOnly: true, keywords: ["inbox", "notifications", "email", "alerts", "needs you", "off"] },
+  { id: "inbox-delivery", section: "inbox-delivery", group: "Personal", label: "Inbox delivery", description: "How items that need you reach you outside Lane, in this workspace.", membersOnly: true, changersOnly: true, keywords: ["inbox", "notifications", "email", "alerts", "needs you", "off"] },
   { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "Manage sign-in methods and active sessions.", keywords: ["password", "sessions", "sign in"] },
   { id: "connections", section: "connections", group: "Personal", label: "Personal integrations", description: "Connect external work tools to your personal Lane account. Sign-in connections are already managed in Profile.", soon: true, keywords: ["connected accounts", "slack", "calendar"] },
   { id: "sign-in-connections", section: "profile", group: "Personal", label: "Connected accounts", description: "Manage accounts used to sign in through Clerk.", target: "connected-accounts", keywords: ["google", "login"] },
@@ -19,7 +20,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "project-labels", section: "project-labels", group: "Projects", label: "Labels", description: "Organize Projects with shared labels.", soon: true },
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
   { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership.", membersOnly: true },
-  { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", membersOnly: true, keywords: ["invite", "teammates"] },
+  { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", membersOnly: true, changersOnly: true, keywords: ["invite", "teammates"] },
   { id: "metrics", section: "metrics", group: "Workspace", label: "Metrics", description: "What your workspace measures, and how each metric is counted.", membersOnly: true, href: "/settings/metrics", keywords: ["metrics library", "metric definitions", "units", "conversion rate", "adoption", "customer satisfaction"] },
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
   { id: "security", section: "security", group: "Workspace", label: "Security", description: "Additional workspace access policies.", soon: true, adminOnly: true },
@@ -32,7 +33,7 @@ export const settingsCatalog: SettingsEntry[] = [
 ];
 
 export function availableSettings(role: string) {
-  return settingsCatalog.filter(entry => (!entry.adminOnly || role === "admin") && (!entry.membersOnly || role !== "guest"));
+  return settingsCatalog.filter(entry => (!entry.adminOnly || role === "admin") && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || role === "admin" || role === "member"));
 }
 
 /** Arc SettingsCommand's word matching and ranking, with Lane availability ordering. */

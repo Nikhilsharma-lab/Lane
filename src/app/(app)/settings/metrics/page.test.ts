@@ -19,6 +19,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/auth/clerk-members-profile", () => ({ ClerkMembersProfile: () => null, ClerkWorkspaceProfile: () => null }));
+vi.mock("@/components/settings/workspace-members-loader", () => ({ WorkspaceMembersLoader: () => null }));
 vi.mock("@/components/settings/account-profile", () => ({ AccountProfile: () => null, AccountSecurity: () => null }));
 vi.mock("../profile/profile-form", () => ({ ProfileForm: () => null }));
 vi.mock("../profile/theme-preference", () => ({ ThemePreference: () => null }));
@@ -101,6 +102,19 @@ describe("Settings → Metrics", () => {
     const html = await openArchived();
     expect(html).toContain("No archived metrics");
     await connection`delete from organizations where id = 'org_metrics_page_empty'`;
+  });
+
+  // #210: a Viewer reads the Metrics library and changes nothing in it.
+  it("shows a Viewer every definition with nothing to add or edit, and no Members section", async () => {
+    session.workspace = as("viewer");
+    const html = await open();
+    expect(visibleSections(html)).toEqual(["metrics"]);
+    expect(html).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Conversion rate<\/a><\/h4>/);
+    expect(html).not.toMatch(/<button[^>]*>[\s\S]*?Add metric[\s\S]*?<\/button>/);
+    expect(html).not.toContain("Add where this lives");
+    expect(html.match(/Not added yet/g)).toHaveLength(html.match(/<h4/g)!.length);
+    expect(html).not.toContain('id="settings-members"');
+    expect(html).not.toContain('id="settings-inbox-delivery"');
   });
 
   it("keeps a guest out", async () => {

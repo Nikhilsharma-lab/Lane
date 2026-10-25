@@ -38,6 +38,8 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
+  /** Lane #210: false hides the New Request control for someone who can't file (a Viewer). */
+  canCompose?: boolean;
   onSignOut?: () => void | Promise<unknown>;
   projects: WorkspaceProject[];
   groups: WorkspaceNavigationGroup[];
@@ -348,7 +350,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -530,7 +532,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
         </div>
           <div className={styles.identityActions}>
             <RailTip label="Search workspace" shortcut="/" side={rail ? "right" : "bottom"}><button type="button" className={styles.headerAction} aria-label="Search workspace" aria-keyshortcuts="/" aria-pressed={searchActive} onClick={() => { if (phone) closeDrawer(); onSearch?.(); }}><Search strokeWidth={1.75} aria-hidden="true" /></button></RailTip>
-            <RailTip label="New Request" shortcut="C" side={rail ? "right" : "bottom"}><NavigationLink renderLink={renderLink} href="/intake" className={styles.headerAction} aria-label="New Request" aria-keyshortcuts="C" onClick={event => { if (isPlainClick(event)) select("/intake", "New Request"); }}><SquarePen strokeWidth={1.75} aria-hidden="true" /></NavigationLink></RailTip>
+            {canCompose && <RailTip label="New Request" shortcut="C" side={rail ? "right" : "bottom"}><NavigationLink renderLink={renderLink} href="/intake" className={styles.headerAction} aria-label="New Request" aria-keyshortcuts="C" onClick={event => { if (isPlainClick(event)) select("/intake", "New Request"); }}><SquarePen strokeWidth={1.75} aria-hidden="true" /></NavigationLink></RailTip>}
             {phone
               ? <button ref={toggleRef} type="button" className={styles.headerAction} aria-label="Close sidebar" onClick={() => closeDrawer()}><X data-icon-size="lg" strokeWidth={1.75} aria-hidden="true" /></button>
               : !layoutManaged && <RailTip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} shortcut="[" side={rail ? "right" : "bottom"}><button ref={toggleRef} type="button" className={styles.headerAction} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-keyshortcuts="[" onClick={() => setRail(!collapsed)}><PanelGlyph collapsed={collapsed} reduce={reduce} /></button></RailTip>}

@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, requests } from "@/db";
 import { notify } from "@/lib/notify";
-import { requireMemberOrAbove, refusal } from "@/lib/auth-guard";
+import { requireCanChange, refusal } from "@/lib/auth-guard";
 import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle";
 import { measurementReadiness } from "@/lib/request-measurement";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -45,7 +45,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
   const unique = [...new Set((Array.isArray(requestIds) ? requestIds : []).filter((id): id is string => typeof id === "string"))];
   const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
   const invalid = unique.filter((id) => !valid.includes(id)).map((id) => ({ id, error: "Not found" }));
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) {
     const error = await refusal(CANNOT_CHANGE_REQUESTS);
     return { error, moved: [], failed: unique.map((id) => ({ id, error })) };

@@ -56,3 +56,13 @@ export function slackDelivery(env: Env = process.env): SlackDelivery {
 export function appOrigin(env: Env = process.env): string {
   return (env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "")
 }
+
+/**
+ * #210 `LANE_CUSTOM_ROLES`. Guest and Viewer are Clerk custom roles; in production they need Clerk's Enhanced B2B
+ * plan, which isn't approved yet. Off, Lane's own invite and role controls offer Admin and Member only, and the
+ * server refuses the other two. Turn it on for staging and local work once the Clerk instance defines
+ * `org:guest` and `org:viewer`.
+ */
+export function customRoles(env: Env = process.env): boolean {
+  return env.LANE_CUSTOM_ROLES === "1"
+}

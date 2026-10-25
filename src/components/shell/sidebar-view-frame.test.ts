@@ -63,3 +63,15 @@ describe("SidebarView frame", () => {
     expect(html.match(/data-test-palette/g)).toHaveLength(1);
   });
 });
+
+// #210: a Viewer files nothing, so the sidebar has no New Request control for them.
+describe("SidebarView for a Viewer", () => {
+  const as = (role: string) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+    workspaceName: "Lane Studio", fullName: "Test Viewer", email: "viewer@example.test", role, pathname: "/", projects: [], notifications: null,
+  })));
+  it("leaves out New Request, and keeps it for a Member", () => {
+    expect(as("member")).toContain('aria-label="New Request"');
+    expect(as("viewer")).not.toContain('aria-label="New Request"');
+    expect(as("viewer")).toContain("All Requests");
+  });
+});

@@ -9,6 +9,8 @@ export default async function IntakePage() {
 
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
+  // #210: a Viewer reads everything and files nothing.
+  if (result.role === "viewer") redirect("/");
 
   // Every page owns one 44px strip (plan item 2.0). The strip is the page's h1 and
   // names it "New Request" (decision 8.10); the composer opens over it as a

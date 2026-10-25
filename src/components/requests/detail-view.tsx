@@ -115,7 +115,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
   const timed: ConversationComment[] = comments.map(comment => ({ ...comment, timeLabel: relativeTime(comment.createdAt) }))
   const Title = peekStrip ? "h2" : "h1"
-  const action = isGuest ? undefined : lifecycleActions
+  const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
   return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)} arrival={!peekStrip}>
     <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
       {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}

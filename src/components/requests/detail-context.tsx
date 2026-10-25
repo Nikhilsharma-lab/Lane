@@ -9,7 +9,8 @@ import { useDetailSession, usePublishOpenRequest, useSetDetailSession } from "./
 import { usePendingMutations } from "./pending-mutations-provider"
 import { settleSequence } from "./request-sequence"
 
-export type DetailViewer = { id: string; name: string; isAdmin?: boolean }
+/** Who is reading. `readOnly` is a Viewer (#210): they read everything and are offered nothing that changes it. */
+export type DetailViewer = { id: string; name: string; isAdmin?: boolean; readOnly?: boolean }
 
 export type DetailRequestValue = {
   /** The server row through the pending-mutation overlay: a move or a priority shows in the same frame. */

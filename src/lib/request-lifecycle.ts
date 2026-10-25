@@ -4,16 +4,18 @@ export type LifecycleMove = "pick-up" | "done"
 export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; label: "Pick up" | "Mark Done" }
 /** An offered move, and why it can't be made yet when it can't. */
 export type AvailableMove = AllowedMove & { blockedReason: string | null }
-/** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does today. */
-export type MoveViewer = { isGuest: boolean }
+/** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does: a Guest and a Viewer
+ * (`readOnly`, #210) make no lifecycle move. */
+export type MoveViewer = { isGuest: boolean; readOnly?: boolean }
 
 /**
  * The edit rule (priority and the Request's own fields): Open, and the viewer can change it
  * (`canChange`: an admin or its creator, a guest's own Request included). The row menu, the detail panel
  * and the ⌘K palette share it; lib/data/requests.ts computes the same for list rows as `canEdit`.
  */
-export function canEditRequest(request: { status: RequestStatus; createdBy: string | null }, viewer: { id: string; isAdmin?: boolean }): boolean {
-  return request.status === "open" && canChange({ userId: viewer.id, role: viewer.isAdmin ? "admin" : "member" }, { createdBy: request.createdBy ?? "" })
+export function canEditRequest(request: { status: RequestStatus; createdBy: string | null }, viewer: { id: string; isAdmin?: boolean; readOnly?: boolean }): boolean {
+  const role = viewer.readOnly ? "viewer" : viewer.isAdmin ? "admin" : "member"
+  return request.status === "open" && canChange({ userId: viewer.id, role }, { createdBy: request.createdBy ?? "" })
 }
 
 /** What a surface knows about a Request to decide its move. `pickupBlockedReason`
@@ -41,7 +43,7 @@ const offered = (move: LifecycleMove): AllowedMove => ({ move, to: MOVES[move].t
  * (`moveRefusal`).
  */
 export function availableMove(request: LifecycleRequest, viewer: MoveViewer): AvailableMove | null {
-  if (request.agreementBlocked || viewer.isGuest) return null
+  if (request.agreementBlocked || viewer.isGuest || viewer.readOnly) return null
   if (request.status === "open") return { ...offered("pick-up"), blockedReason: request.pickupBlockedReason ?? null }
   if (request.status === "in_progress") return { ...offered("done"), blockedReason: null }
   return null

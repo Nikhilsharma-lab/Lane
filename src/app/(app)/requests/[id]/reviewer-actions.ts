@@ -3,7 +3,8 @@ import { canChange, seeable } from "@/lib/request-access";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
-import { requireActiveMember, requireMemberOrAbove, type MemberAuth, refusal } from "@/lib/auth-guard";
+import { requireActiveMember, requireCanChange, type MemberAuth, refusal } from "@/lib/auth-guard";
+import { canChangeThings } from "@/lib/role-rules";
 import {
   addReviewersSchema,
   removeReviewerSchema,
@@ -239,7 +240,7 @@ export async function readReviews(
       requestId,
       revision: request.agreementRevision,
       open,
-      canAdd: open && auth.role !== "guest",
+      canAdd: open && canChangeThings(auth.role),
       canInvite: open && auth.role === "admin",
       canRemove: open && canChange(auth, request),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
@@ -262,7 +263,7 @@ export async function readReviews(
 
 /** Members to choose from, plus pending invitations for admins. */
 export async function loadReviewerPeople(context: { orgId: string }) {
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal("Workspace unavailable.") };
   try {
     return {

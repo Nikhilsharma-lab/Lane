@@ -52,7 +52,7 @@ function historyLine(event: Pick<ReleaseEvent, "input">) {
  * when and who; the current step says what's next and who does it, with its actions, or why one isn't
  * available. Reviews sit in Open; the countdown only in Measuring. Guests see it without actions.
  */
-export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request: RequestDetail; orgId: string; isAdmin: boolean; isGuest: boolean }) {
+export function RequestTimeline({ request, orgId, isAdmin, isGuest, readOnly = false }: { request: RequestDetail; orgId: string; isAdmin: boolean; isGuest: boolean; readOnly?: boolean }) {
   const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
@@ -103,7 +103,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
   const names = { ...release.names, ...outcome.names }
   const name = (id: string) => names[id] ?? FORMER_MEMBER
   const steps = timelineSteps({
-    journey: release.journey, workStatus: release.workStatus, isGuest, audience: release.audience,
+    journey: release.journey, workStatus: release.workStatus, isGuest, readOnly, audience: release.audience,
     requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
     assigneeName: request.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
     closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),

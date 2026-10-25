@@ -80,9 +80,11 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
   return { rows, view, showMore: Boolean(context && view && hasMore(view)), pending: older.pending !== null, error: older.error, loadMore: () => { if (view) void load(view) } }
 }
 
-export function RequestsOverview({ requests, isGuest, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer }: {
   requests: OverviewRequest[]
   isGuest: boolean
+  /** A Viewer (#210): the whole workspace's list, with no New Request and no moves. */
+  readOnly?: boolean
   /** The empty workspace's welcome offers Invite teammates (admins only). */
   canInvite?: boolean
   context?: { orgId: string }
@@ -124,7 +126,7 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
 
   // Plan item 2.1: the table shows this only while the whole workspace, with
   // composer inserts applied, has no Requests; filters never bring it back.
-  const welcome = <RequestsWelcome canInvite={canInvite} isGuest={isGuest} />
+  const welcome = <RequestsWelcome canInvite={canInvite} isGuest={isGuest} readOnly={readOnly} />
 
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
@@ -133,13 +135,13 @@ export function RequestsOverview({ requests, isGuest, context, activeCapped = fa
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
-        action={<Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
+        action={readOnly ? undefined : <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>
         {context
-          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} /></RequestRowActions>
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest} readOnly={readOnly}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} /></RequestRowActions>
           : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
       </ListAnnouncerProvider>
     </div>

@@ -13,6 +13,7 @@ import { PickupConfirmationProvider } from "@/components/requests/pickup-confirm
 import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
+import { canChangeThings, canContribute } from "@/lib/role-rules";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -38,6 +39,20 @@ export default async function AppLayout({
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
 
+  const shell = (
+    <Sidebar
+      workspaceName={result.workspaceName}
+      fullName={result.fullName}
+      email={result.email}
+      role={result.role}
+      orgId={result.orgId}
+      userId={result.userId}
+      needsYouCount={needsYouCount}
+    >
+      {children}
+    </Sidebar>
+  );
+
   return (
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation
@@ -51,19 +66,10 @@ export default async function AppLayout({
       <IsItLiveProvider orgId={result.orgId}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
-        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
-          <Sidebar
-            workspaceName={result.workspaceName}
-            fullName={result.fullName}
-            email={result.email}
-            role={result.role}
-            orgId={result.orgId}
-            userId={result.userId}
-            needsYouCount={needsYouCount}
-          >
-            {children}
-          </Sidebar>
-        </NewRequestProvider>
+        {/* #210: a Viewer files nothing, so no composer, no C shortcut and no palette entry open one. */}
+        {canContribute(member.role)
+          ? <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={canChangeThings(member.role)}>{shell}</NewRequestProvider>
+          : shell}
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
       </IsItLiveProvider>

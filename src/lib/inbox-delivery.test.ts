@@ -196,6 +196,22 @@ describe("time-caused items: the daily job", () => {
     expect(theirs[0].subject).toContain("Result due")
   })
 
+  // #210: a Viewer is never asked to act, even about Requests they filed or were asked to review as a Member.
+  it("sends nothing to a Viewer, by action or by the daily job", async () => {
+    roster.set(SECOND_REQUESTER, "org:viewer")
+    await request({ title: "Viewer's Done work", createdBy: SECOND_REQUESTER, status: "done", doneAt: "2026-10-01T09:00:00Z" })
+    await request({ title: "Viewer's due result", createdBy: SECOND_REQUESTER, status: "done", doneAt: "2026-10-01T09:00:00Z", releaseState: released("2026-10-27", SECOND_REQUESTER) })
+    const asked = await request({ title: "Asked as a Member", reviewers: [review(SECOND_REQUESTER)] })
+    const messenger = recordingMessenger()
+    await sendFor(asked, messenger)
+    await daily(messenger)
+    expect(messenger.messages.filter(m => m.to === `${SECOND_REQUESTER}@example.test`)).toEqual([])
+    const { loadInbox, countNeedsYou } = await import("./data/inbox")
+    const viewer = { userId: SECOND_REQUESTER, orgId: ORG, role: "viewer" as const }
+    expect((await loadInbox(viewer, new Date("2026-10-28T12:00:00Z"))).needsYou).toEqual([])
+    expect(await countNeedsYou(viewer, new Date("2026-10-28T12:00:00Z"))).toBe(0)
+  })
+
   it("sends nothing to a Guest Requester or to a workspace with no members on the roster", async () => {
     await request({ title: "Guest's own", createdBy: GUEST, status: "done", doneAt: "2026-10-01T09:00:00Z" })
     await request({ title: "Quiet workspace", org: OTHER_ORG, status: "done", doneAt: "2026-10-01T09:00:00Z" })

@@ -4,7 +4,7 @@
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { SESSION_ENDED } from "@/lib/auth-guard";
+import { SESSION_ENDED, VIEWER_REFUSAL } from "@/lib/auth-guard";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
 
 const ORG = "org_quarter_note_actions";
@@ -101,7 +101,8 @@ describe("Quarter note", () => {
     const refused = { error: "Only Admins can write the Quarter note." };
     for (const role of ["org:member", "org:guest", "org:viewer"]) {
       as(MEMBER, role);
-      expect(await saveQuarterNote(note, { orgId: ORG })).toEqual(refused);
+      // #210: a Viewer is told they are read-only, whatever the change.
+      expect(await saveQuarterNote(note, { orgId: ORG })).toEqual(role === "org:viewer" ? { error: VIEWER_REFUSAL } : refused);
     }
     as(ADMIN, "org:admin");
     expect(await saveQuarterNote(note, { orgId: OTHER })).toEqual(refused);

@@ -924,6 +924,14 @@ describe("Outcome report (#208): who sees it, and empty periods", () => {
     expect(buildOutcomeReport(LEADER_VIEWER, rows, { now: NOW, period: Q3 })).toEqual(admin);
   });
 
+  it("gives a Viewer (#210) the same report and teammate lists a Member gets", () => {
+    const reader = viewer("user_company_leader", "viewer");
+    expect(buildOutcomeReport(reader, rows, { now: NOW, period: Q3 })).toEqual(buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 }));
+    expect(teammateIdsOf(reader, rows)).toEqual(expect.arrayContaining([ADMIN, MEMBER]));
+    expect(buildTeammateWork(reader, rows, MEMBER, { now: NOW })).toEqual(buildTeammateWork(ADMIN_VIEWER, rows, MEMBER, { now: NOW }));
+    expect(buildDefinitionUses(reader, rows, ADOPTERS.id, { now: NOW })).toEqual(buildDefinitionUses(MEMBER_VIEWER, rows, ADOPTERS.id, { now: NOW }));
+  });
+
   it("gives a guest no Outcome report on the Impact page", () => {
     expect(buildImpactDashboard(GUEST_VIEWER, rows, { now: NOW, period: Q3 }).outcomeReport).toBeNull();
     expect(buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW, period: Q3 }).outcomeReport).toEqual(buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 }));

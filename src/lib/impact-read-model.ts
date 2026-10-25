@@ -27,9 +27,11 @@ import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey
 import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-facts";
 import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS, utcDay } from "./utc-day";
+import type { WorkspacePermission } from "./auth-guard";
 import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Month, type Quarter } from "./impact-period";
 
-export type ImpactViewer = { userId: string; orgId: string; role: "admin" | "member" | "guest" };
+/** A Viewer (#210) reads exactly what a Member reads; only a Guest is narrowed to their own Requests. */
+export type ImpactViewer = { userId: string; orgId: string; role: WorkspacePermission };
 export type { ImpactPeriod, Month };
 export type ImpactOptions = {
   now?: Date;
