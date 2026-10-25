@@ -27,7 +27,7 @@ function closure(actual: number): OutcomeClosure {
   return { version: 1, kind: "measured", actorId: MEMBER, ownerId: MEMBER, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-1", fingerprint: "fp", expected: plan(), release: RELEASE_AUG, primary: { kind: "numeric", actual, unit: "%" }, guardrails: [], evidence: "Export", observedFrom: RELEASE_AUG.startDate, observedTo: RELEASE_AUG.dueDate, revision: 1 } as OutcomeClosure
 }
 
-const row: ImpactRow = { id: "a", orgId: ORG, requestNumber: 1, title: "Export", createdBy: MEMBER, assignedTo: null, projectId: "p1", projectName: "Search", status: "done", releaseState: released(), outcomeClosure: closure(46), exceptionClosure: null, closureCorrections: [], expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null }
+const row: ImpactRow = { id: "a", orgId: ORG, requestNumber: 1, title: "Export", createdBy: MEMBER, assignedTo: null, projectId: "p1", projectName: "Search", status: "done", releaseState: released(), outcomeClosure: closure(46), exceptionClosure: null, closureCorrections: [], expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, definitions: [] }
 
 function markup(rows: ImpactRow[]) {
   return renderToStaticMarkup(createElement(ByProjectTab, { projects: buildImpactDashboard(ADMIN, rows, { now: NOW }).byProject }))

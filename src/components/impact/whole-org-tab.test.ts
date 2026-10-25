@@ -50,7 +50,7 @@ function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber">)
   return {
     orgId: ORG, title: `Request ${over.requestNumber}`, createdBy: MEMBER_ID, assignedTo: null, projectId: null, projectName: null,
     status: "done", releaseState: null, outcomeClosure: null, exceptionClosure: null, closureCorrections: [],
-    expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, ...over,
+    expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, definitions: [], ...over,
   }
 }
 
