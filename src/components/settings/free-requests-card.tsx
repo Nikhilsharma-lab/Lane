@@ -23,7 +23,7 @@ export function FreeRequestsCard({ planState, free, enforced }: FreeRequestsCard
   const note = block ?? (free.usedElsewhere ? freeRequestsUsedReason(free) : null);
   return <SettingsCard title="Free Requests" description={ABOUT}
     footer={enforced
-      ? "Only creating Requests and taking on Guest submissions wait for payment. Everything already filed keeps working."
+      ? "After these, only creating Requests and taking on Guest submissions wait for payment."
       : "Lane isn’t charging yet, so creating Requests stays open after these are used."}>
     {note && <Alert role="status" tone={block ? "warning" : "info"} title={note} />}
     <div className={styles.rows}>
