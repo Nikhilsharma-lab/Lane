@@ -783,9 +783,23 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   holds. For-your-information items are the stored notifications for picked up, Done, comments, Looks good and invite
   accepted; they clear when read (opening one reads it), and Mark all read clears everything. An item read during a
   visit stays in place, read, until the next visit. Guests see only items about their own submissions. The bell stays
-  in the sidebar, leads to the Inbox and, until Needs-you items land (#205), counts the unread For-your-information
-  items. Comments notify the people on the Request as before, with no @mentions. Review asks, Concerns, resets and
-  the stored reminders are not For your information; #205 works out Needs-you items from Request state instead.
+  in the sidebar and leads to the Inbox. Comments notify the people on the Request as before, with no @mentions.
+  Review asks, Concerns and resets are not For your information.
+- **Needs you (#195 item 2, #205, 2026-10-25, on the integration branch):** the Inbox lists what needs the person
+  above For your information, and the bell counts only these ("Inbox, 2 need you"). They are worked out from Request
+  state at read time and never stored, so each clears itself and none repeats:
+  - a review waiting on you, while the Request is Open and you haven't answered (an edit that resets answers asks again);
+  - an open Concern on your Request, while it is Open; it clears when you edit (which resets the answer), the
+    Reviewer changes their answer, or the work is picked up;
+  - one "Record the release" exactly 3 days after Done (3 days after the latest void if a Release was voided),
+    until the Release is recorded or the Request is closed;
+  - one Result due from the measurement due date (UTC), until the Request is Closed.
+  "Your Request" means you are its current Requester, so a handover moves these items to the new Requester and out
+  of the former one's Inbox. Record the release now goes to the Requester, not whoever picked the work up. Only
+  Admins and Members get Needs-you items; Guests (and Viewers, when that role lands) get none. The repeated
+  reminders (#127: due soon, weekly overdue, weekly release reminder) are retired with the stored reminder types,
+  and the reminder writer that ran when the bell was checked is removed: checking the bell writes nothing
+  (migration 0040 deletes the stored reminder rows and refuses those types).
 
 ### Profile and theme
 
