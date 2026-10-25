@@ -2,10 +2,12 @@
  * #197: one Metric definition's page under Settings → Metrics, as the server renders it, with the library
  * read from the real test database. The session's workspace and role are faked; Clerk's widgets are stubbed.
  */
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 
 const ORG = "org_metric_definition_page", OTHER = "org_metric_definition_other";
@@ -28,7 +30,8 @@ vi.mock("../../profile/theme-preference", () => ({ ThemePreference: () => null }
 const as = (role: WorkspaceContext["role"]): WorkspaceContext => ({ userId: PAT, orgId: ORG, role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Metric page" });
 const open = async (id: string) => {
   const { default: MetricDefinitionPage } = await import("./page");
-  return renderToStaticMarkup(await MetricDefinitionPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) }));
+  // The app's root layout provides the toast stack.
+  return renderToStaticMarkup(createElement(ToastStackProvider, null, await MetricDefinitionPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) })));
 };
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, "\"").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 const historyOf = (html: string) => /<ol[^>]*aria-label="Changes to this metric"[^>]*>([\s\S]*?)<\/ol>/.exec(html)?.[1] ?? "";
@@ -99,6 +102,48 @@ describe("A Metric definition's page", () => {
     } finally {
       await restoreMetricDefinition({ orgId: ORG }, PAT, trials);
     }
+  });
+
+  it("hides merging from a Member", async () => {
+    const html = text(await open(trials));
+    expect(html).not.toContain("Merge with");
+    expect(html).not.toContain("Review merge");
+  });
+
+  it("offers an Admin a merge with any other metric in the same unit, and the choice of which is kept", async () => {
+    session.workspace = as("admin");
+    const html = await open(trials);
+    expect(text(html)).toContain("If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.");
+    // The Select lists same-unit metrics only (a count starter, not a percentage one); its options render when it opens.
+    expect(html).toMatch(/<label for="[^"]+">Merge with<\/label>/);
+    expect(text(html)).toContain("Review merge");
+    expect(text(html)).toContain("Choose the metric to merge with, then which one to keep.");
+  });
+
+  it("tells an Admin when no other metric shares the unit", async () => {
+    session.workspace = as("admin");
+    const added = await (await library()).addMetricDefinition({ orgId: ORG }, PAT, { name: "Time on task", unit: "minutes", link: null, howCounted: null });
+    if (!("id" in added)) throw new Error(added.error);
+    const html = text(await open(added.id));
+    expect(html).toContain("No other metric is counted in minutes, so there's nothing to merge it with.");
+    expect(html).not.toContain("Review merge");
+  });
+
+  it("shows a merged-away definition as merged into the kept one, with a link to it, and offers nothing to change", async () => {
+    session.workspace = as("admin");
+    const { addMetricDefinition, mergeMetricDefinitions } = await library();
+    const kept = await addMetricDefinition({ orgId: ORG }, PAT, { name: "Demo bookings", unit: "count", link: null, howCounted: null });
+    const merged = await addMetricDefinition({ orgId: ORG }, PAT, { name: "Demos booked", unit: "count", link: null, howCounted: null });
+    if (!("id" in kept) || !("id" in merged)) throw new Error("add refused");
+    expect(await mergeMetricDefinitions({ orgId: ORG }, SAM, { keptId: kept.id, mergedId: merged.id })).toEqual({ changed: true });
+
+    const away = await open(merged.id);
+    expect(text(away)).toMatch(/Merged into Demo bookings ?\. Requests that used it now count under that one\./);
+    expect(away).toContain(`href="/settings/metrics/${kept.id}"`);
+    for (const offer of ["Save changes", "Archive metric", "Review merge"]) expect(text(away)).not.toContain(offer);
+    expect(text(historyOf(away))).toMatch(/^Merged into Demo bookings by Sam Ortiz /);
+
+    expect(text(historyOf(await open(kept.id)))).toMatch(/^Demos booked merged into this one by Sam Ortiz /);
   });
 
   it("says a starter metric was added by Lane", async () => {

@@ -7,15 +7,16 @@ import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { getWorkspace } from "@/lib/ensure-workspace";
-import { metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
+import { metricUnitName } from "@/lib/metric-definition-rules";
+import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
-import { ArchiveMetricControl, EditMetricForm } from "../metric-controls";
+import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
 
 /**
- * One Metric definition under Settings → Metrics (#197): edit it, archive or restore it (Admins), and
- * read its history. Members and Admins only.
+ * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
+ * and read its history. Members and Admins only.
  */
 export default async function MetricDefinitionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ section?: string }> }) {
   const workspace = await getWorkspace();
@@ -29,16 +30,33 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
+  const isAdmin = workspace.role === "admin";
+  // A merge needs another definition in the same unit that hasn't itself been merged away; archived ones count.
+  const [keptDefinition, everyDefinition] = await Promise.all([
+    definition.mergedIntoId ? readMetricDefinition(library, definition.mergedIntoId) : null,
+    isAdmin && !merged ? listMetricDefinitions(library, { includeArchived: true }) : [],
+  ]);
+  const candidates = everyDefinition.filter(other => other.id !== definition.id && !other.mergedIntoId && other.unit === definition.unit)
+    .map(other => ({ id: other.id, name: other.name, archived: !!other.archivedAt }));
 
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsCard title={definition.name}
-      description={merged ? "Merged into another metric. Requests that used it now count under that one." : archived ? "Archived. It isn't offered for new predictions, and stays on the Requests that already use it." : undefined}>
+      description={merged ? undefined : archived ? "Archived. It isn't offered for new predictions, and stays on the Requests that already use it." : undefined}>
+      {merged && <p className={styles.note}>
+        Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
+      </p>}
       {!merged && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
     </SettingsCard>
-    {workspace.role === "admin" && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
+    {isAdmin && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
       description={archived ? "Restoring offers it for new predictions again." : "Archiving stops it being offered for new predictions. Requests that already use it keep it, and their results still add up."}
       action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
+    {isAdmin && !merged && <SettingsCard title="Merge"
+      description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.">
+      {candidates.length
+        ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
+        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there&apos;s nothing to merge it with.</p>}
+    </SettingsCard>}
     <SettingsCard title="History">
       <MetricDefinitionHistory entries={history.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() }))} />
     </SettingsCard>

@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import { Select } from "@/components/arc/select/select";
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
 import { callAction } from "@/lib/action-call";
-import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, restoreMetricDefinition } from "./actions";
+import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, mergeMetricDefinitions, restoreMetricDefinition } from "./actions";
 import styles from "./metrics.module.css";
 
 /** Settings → Metrics controls (#197) that save through the library's actions. */
@@ -64,6 +67,71 @@ export function ArchiveMetricControl({ orgId, id, archived }: { orgId: string; i
   return <div className={styles.archive}>
     <Button variant="secondary" loading={pending} onClick={toggle}>{archived ? "Restore metric" : "Archive metric"}</Button>
     {error && <p className={styles.error} role="alert">{error}</p>}
+  </div>;
+}
+
+export type MergeCandidate = { id: string; name: string; archived: boolean };
+
+/**
+ * Merging (#202), for Admins only (the page doesn't render it for anyone else; the server refuses them too). Choose
+ * another metric in the same unit and which of the two is kept, then confirm: merging can't be undone.
+ */
+export function MergeMetricControl({ orgId, current, candidates }: { orgId: string; current: { id: string; name: string }; candidates: MergeCandidate[] }) {
+  const { toast } = useToastStack();
+  const [otherId, setOtherId] = useState("");
+  const [keep, setKeep] = useState<"this" | "other">("this");
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const other = candidates.find(candidate => candidate.id === otherId);
+  const kept = keep === "this" || !other ? current : other;
+  const merged = keep === "this" ? other : current;
+
+  function review(next: boolean) {
+    if (pending) return;
+    if (next && !other) { setError("Choose the metric to merge with."); return; }
+    setError(null);
+    setOpen(next);
+  }
+  async function confirm() {
+    if (!merged) return;
+    setPending(true); setError(null);
+    try {
+      const result = await callAction(() => mergeMetricDefinitions({ keptId: kept.id, mergedId: merged.id }, { orgId }));
+      if ("error" in result) { setError(result.error); return; }
+      setOpen(false);
+      setOtherId(""); setKeep("this");
+      toast({ type: "success", title: `Merged ${merged.name} into ${kept.name}` });
+    } catch {
+      setError("We couldn't merge these metrics. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return <div className={styles.merge}>
+    <Select label="Merge with" placeholder="Choose a metric" value={otherId}
+      options={candidates.map(candidate => ({ value: candidate.id, label: candidate.archived ? `${candidate.name} (archived)` : candidate.name }))}
+      onValueChange={value => { setOtherId(value); setError(null); }} />
+    {other && <RadioGroup label="Keep" value={keep} onValueChange={value => setKeep(value === "other" ? "other" : "this")} options={[
+      { value: "this", label: current.name, description: `${other.name} is merged into it.` },
+      { value: "other", label: other.name, description: `${current.name} is merged into it.` },
+    ]} />}
+    <p className={styles.note}>{other && merged
+      ? `${merged.name} leaves the picker and the metric list, and the Requests that used it count under ${kept.name}. ${kept.name} stays as it is.`
+      : "Choose the metric to merge with, then which one to keep."}</p>
+    {error && !open && <p className={styles.error} role="alert">{error}</p>}
+    <Dialog open={open} onOpenChange={review}>
+      <DialogTrigger asChild><Button variant="secondary" className={styles.mergeButton}>Review merge</Button></DialogTrigger>
+      {merged && <DialogContent title={`Merge ${merged.name} into ${kept.name}?`}
+        description={`${merged.name} will leave the picker and the metric list. Requests that used it will count under ${kept.name} from now on, and their results add up together. No Request is changed. This can't be undone.`}>
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        <div className={styles.dialogActions}>
+          <DialogClose asChild><Button variant="ghost" disabled={pending}>Cancel</Button></DialogClose>
+          <Button loading={pending} onClick={() => void confirm()}>Merge metrics</Button>
+        </div>
+      </DialogContent>}
+    </Dialog>
   </div>;
 }
 
