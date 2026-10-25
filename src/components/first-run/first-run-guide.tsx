@@ -10,7 +10,7 @@ import { callAction } from "@/lib/action-call";
 import type { WorkspaceFreeRequests } from "@/lib/billing";
 import { FIRST_REQUEST_STEPS, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
-import { FirstRunGuideView } from "./first-run-guide-view";
+import { FirstRunGuideView, STEP_TITLES } from "./first-run-guide-view";
 import type { FirstRunInviteRole } from "./first-run-invite-form";
 import { clearHelpHash, consumeFocusRequest, useFirstRunHelp } from "./first-run-help";
 
@@ -39,6 +39,7 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
   const [step, setStep] = useState<FirstRequestStep>(view.guide === "first_request" ? view.step : "framing");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSteps, setShowSteps] = useState(false);
   const announce = useListAnnouncer();
   const { toast } = useToastStack();
   const root = useRef<HTMLDivElement>(null);
@@ -73,13 +74,22 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
     document.getElementById("lane-main")?.focus({ preventScroll: true });
   };
 
+  const moved = useRef(false);
   const move = (to: FirstRequestStep) => {
     // Moving on means this step was read; going back saves nothing.
     if (FIRST_REQUEST_STEPS.indexOf(to) > FIRST_REQUEST_STEPS.indexOf(step)) inBackground(save({ change: "step", step }));
+    moved.current = true;
     setStep(to);
-    // The new step's heading is the next thing to read; focus stays on the control that moved.
-    announce(`Step ${FIRST_REQUEST_STEPS.indexOf(to) + 1} of ${FIRST_REQUEST_STEPS.length}`);
+    announce(`Step ${FIRST_REQUEST_STEPS.indexOf(to) + 1} of ${FIRST_REQUEST_STEPS.length}: ${STEP_TITLES[to]}`);
   };
+  // Focus stays on the control that moved; when that control is gone (Next on the last step, Back on the first),
+  // the new step's heading takes it, so focus never drops to the page.
+  useEffect(() => {
+    if (!moved.current) return;
+    moved.current = false;
+    if (!root.current?.contains(document.activeElement)) root.current?.querySelector<HTMLElement>("[data-first-run-step] h3")?.focus({ preventScroll: true });
+  }, [step, showSteps]);
+  const showAgain = () => { moved.current = true; setStep(FIRST_REQUEST_STEPS[0]); setShowSteps(true); };
 
   const inviteForm = invite && step === "reviewers"
     ? <FirstRunInviteForm roles={invite.roles} confirmPaidSeats={invite.confirmPaidSeats}
@@ -88,7 +98,7 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
 
   return <div ref={root} id="first-run">
     <FirstRunGuideView view={view} step={step} workspaceName={workspaceName} free={free} inviteForm={inviteForm} readsNeedsYou={readsNeedsYou}
-      placement={placement} busy={busy} error={error} onStep={move}
+      placement={placement} busy={busy} error={error} showSteps={showSteps} onShowSteps={showAgain} onStep={move}
       onSkip={() => { void close("skip"); }} onFinish={() => { void close("finish"); }}
       // Opening the Inbox is the joined guide's one step, so it finishes the guide on the way there.
       onOpenInbox={() => inBackground(save({ change: "step", step: "inbox" }).then(failed => failed ?? save({ change: "finish" })))}

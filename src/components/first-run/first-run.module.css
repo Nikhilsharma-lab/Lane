@@ -27,3 +27,5 @@
   .spacer { display: none; }
 }
 .error { padding: 0 var(--space-5) var(--space-4); }
+/* Above the list the guide lines up with the list's left edge. */
+.slot .guide { margin-inline: 0; }

@@ -87,6 +87,16 @@ describe("the first Request guide (#217)", () => {
     expect(html).not.toContain("Step 1 of 5")
   })
 
+  it("lets someone who already filed read the steps again, about filing any Request", () => {
+    const filed = { guide: "first_request" as const, step: "framing" as const, read: [], filed: true }
+    expect(render({ view: filed })).toContain(">See the steps again<")
+    const html = render({ view: filed, showSteps: true })
+    expect(html).toMatch(/<h2[^>]*>How a Request goes<\/h2>/)
+    expect(html).toContain(">File a Request</a>")
+    expect(html).toContain(">Finish the guide<")
+    expect(html).not.toContain(">Skip the guide<")
+  })
+
   it("keeps a long workspace name whole", () => {
     const html = render({ view: { guide: "joined" }, workspaceName: "A workspace with a very long name that keeps going well past the width of a phone" })
     expect(html).toContain("A workspace with a very long name")

@@ -12,7 +12,7 @@ import { FIRST_REQUEST_STEPS, freeRequestsNote, type FirstRequestStep, type Firs
 import { FREE_REQUESTS } from "@/lib/free-request-rules";
 import styles from "./first-run.module.css";
 
-const STEP_TITLES: Record<FirstRequestStep, string> = {
+export const STEP_TITLES: Record<FirstRequestStep, string> = {
   framing: "Start with the problem",
   prediction: "Predict the result",
   reviewers: "Ask Reviewers",
@@ -37,7 +37,10 @@ export type FirstRunGuideViewProps = {
   busy?: boolean;
   /** Why skipping or finishing didn't save. */
   error?: string | null;
+  /** After the first Request is filed, the steps are shown again only on request. */
+  showSteps?: boolean;
   onStep: (step: FirstRequestStep) => void;
+  onShowSteps?: () => void;
   onSkip: () => void;
   onFinish: () => void;
   onOpenInbox: () => void;
@@ -75,7 +78,7 @@ function StepBody({ step, free, inviteForm }: { step: FirstRequestStep; free: Wo
  * Result due), then told what happens next. People who join later get a short first run that shows their Inbox.
  * Either can be skipped and found again from help ("First-run guide" in the account menu).
  */
-export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm, readsNeedsYou, placement, busy = false, error = null, onStep, onSkip, onFinish, onOpenInbox, onFile }: FirstRunGuideViewProps) {
+export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm, readsNeedsYou, placement, busy = false, error = null, showSteps = false, onStep, onShowSteps = () => {}, onSkip, onFinish, onOpenInbox, onFile }: FirstRunGuideViewProps) {
   const failure = error ? <div className={styles.error}><Alert role="alert" tone="danger" title={error} /></div> : null;
   if (view.guide === "joined") return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="joined">
     <div className={styles.body}>
@@ -91,7 +94,7 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
     </div>
   </section>;
 
-  if (view.filed) return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request" data-first-run-filed="">
+  if (view.filed && !showSteps) return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request" data-first-run-filed="">
     <div className={styles.body}>
       <h2 id="first-run-heading" tabIndex={-1}>Your first Request is filed</h2>
       {free && <p className={styles.free}>{freeRequestsNote(free.planState, free.free)}</p>}
@@ -99,6 +102,7 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
     </div>
     {failure}
     <div className={styles.actions}>
+      <Button variant="ghost" size="sm" onClick={onShowSteps}>See the steps again</Button>
       <Button size="sm" onClick={onFinish} loading={busy}>Finish the guide</Button>
     </div>
   </section>;
@@ -107,25 +111,28 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
   const previous = FIRST_REQUEST_STEPS[index - 1];
   const next = FIRST_REQUEST_STEPS[index + 1];
   const position = `Step ${index + 1} of ${FIRST_REQUEST_STEPS.length}`;
+  // Read again after the first Request is filed, the steps explain filing any Request, and closing them finishes the guide.
   return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request">
     <div className={styles.body}>
-      <h2 id="first-run-heading" tabIndex={-1}>File your first Request</h2>
+      <h2 id="first-run-heading" tabIndex={-1}>{view.filed ? "How a Request goes" : "File your first Request"}</h2>
       <div className={styles.position}>
         <span aria-hidden="true">{position}</span>
         <Progress className={styles.progress} value={index + 1} max={FIRST_REQUEST_STEPS.length} aria-label={`${position}: ${STEP_TITLES[step]}`} />
       </div>
       <div className={styles.step} data-first-run-step={step}>
-        <h3>{STEP_TITLES[step]}</h3>
+        <h3 tabIndex={-1}>{STEP_TITLES[step]}</h3>
         <StepBody step={step} free={free} inviteForm={inviteForm} />
       </div>
     </div>
     {failure}
     <div className={styles.actions}>
-      <Button variant="ghost" size="sm" onClick={onSkip} disabled={busy}>Skip the guide</Button>
+      {view.filed
+        ? <Button variant="ghost" size="sm" onClick={onFinish} disabled={busy}>Finish the guide</Button>
+        : <Button variant="ghost" size="sm" onClick={onSkip} disabled={busy}>Skip the guide</Button>}
       <span className={styles.spacer} />
       {previous && <Button variant="ghost" size="sm" onClick={() => onStep(previous)}>Back</Button>}
       {next && <Button variant="secondary" size="sm" onClick={() => onStep(next)}>Next step</Button>}
-      {placement === "list" && <NewRequestLink guided onClick={onFile} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`}>File your first Request</NewRequestLink>}
+      {placement === "list" && <NewRequestLink guided onClick={onFile} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`}>{view.filed ? "File a Request" : "File your first Request"}</NewRequestLink>}
     </div>
   </section>;
 }
