@@ -176,6 +176,8 @@ export async function verifyPause(driver: UndoDriver, kind: "hover" | "focus" | 
   let native: unknown;
   if (kind === "hidden") {
     await page.mouse.move(0, 0); await page.locator("#lane-main").focus();
+    await expect(stack).toHaveAttribute("data-expanded", "false");
+    await expect.poll(() => toastRegion(page).evaluate(region => region.contains(document.activeElement))).toBe(false);
     native = await pauseInNativeBackground(page, 11_000);
   } else {
     if (kind === "hover") await doneToast(page, request).hover();
