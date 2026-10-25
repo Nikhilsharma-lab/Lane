@@ -89,6 +89,14 @@ describe("adding a metric inline", () => {
 });
 
 describe("who can add inline", () => {
+  it("tells the prediction form that Members and Admins can add, and Guests can't", async () => {
+    const { listPredictionMetrics } = await import("./metric-actions");
+    const canAdd = async (orgRole: string) => { as(orgRole); return (await listPredictionMetrics({ impact: null }, { orgId: ORG }) as { canAddMetrics?: boolean }).canAddMetrics; };
+    expect(await canAdd("org:admin")).toBe(true);
+    expect(await canAdd("org:member")).toBe(true);
+    expect(await canAdd("org:guest")).toBe(false);
+  });
+
   it("refuses Guests and adds nothing", async () => {
     as("org:guest");
     expect(await add({ name: "Guest metric", unit: "count" })).toEqual({ error: "Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it." });

@@ -6,7 +6,11 @@ import { inlineMetricInputSchema, metricDefinitionFieldErrors, type MetricChoice
 import { addOrOfferMetricDefinition, predictionMetricChoices } from "@/lib/metrics-library";
 
 export type PredictionMetricsResult =
-  | { metrics: MetricChoice[]; saved: (MetricChoice | null)[]; /** Whether the Metrics page is open to this person (not to Guests). */ canOpenLibrary: boolean }
+  | {
+    metrics: MetricChoice[]; saved: (MetricChoice | null)[]
+    /** Whether the Metrics page is open to this person (not to Guests). */ canOpenLibrary: boolean
+    /** Whether this person can add a metric from the prediction form (#199; not Guests). */ canAddMetrics: boolean
+  }
   | { error: string };
 
 /**
@@ -19,7 +23,8 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { error: await refusal("You can't use the Metrics library in this workspace.") };
   try {
-    return { ...await predictionMetricChoices({ orgId: auth.orgId }, input?.impact ?? null), canOpenLibrary: auth.role !== "guest" };
+    const member = auth.role !== "guest";
+    return { ...await predictionMetricChoices({ orgId: auth.orgId }, input?.impact ?? null), canOpenLibrary: member, canAddMetrics: member };
   } catch (error) {
     console.error("[intake] Metrics library read failed:", error);
     return { error: "The Metrics library could not be loaded. Try again." };
