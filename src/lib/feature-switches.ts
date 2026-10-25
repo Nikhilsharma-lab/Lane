@@ -26,6 +26,32 @@ export function cronSecret(env: Env = process.env): string | null {
   return env.CRON_SECRET?.trim() || null
 }
 
+export type SlackDelivery =
+  | { on: true; clientId: string; clientSecret: string; tokenKey: Buffer }
+  | { on: false; reason: "switched_off" | "missing_credentials" }
+
+/** A 32-byte key written as 64 hex characters or as base64; anything else is no key. */
+function tokenKeyOf(text: string | undefined): Buffer | null {
+  const value = text?.trim()
+  if (!value) return null
+  const key = /^[0-9a-f]{64}$/i.test(value) ? Buffer.from(value, "hex") : /^[A-Za-z0-9+/_-]+={0,2}$/.test(value) ? Buffer.from(value, "base64") : null
+  return key?.length === 32 ? key : null
+}
+
+/**
+ * #207 `LANE_SLACK_DELIVERY` + `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `LANE_SLACK_TOKEN_KEY`. Off (or on without
+ * all three) means no Slack at all: no connect button, no Slack DM choice, no Slack traffic, and anyone who chose
+ * Slack DM gets Email. Lane receives no requests from Slack (no events, no buttons), so it needs no signing secret.
+ */
+export function slackDelivery(env: Env = process.env): SlackDelivery {
+  if (env.LANE_SLACK_DELIVERY !== "1") return { on: false, reason: "switched_off" }
+  const clientId = env.SLACK_CLIENT_ID?.trim()
+  const clientSecret = env.SLACK_CLIENT_SECRET?.trim()
+  const tokenKey = tokenKeyOf(env.LANE_SLACK_TOKEN_KEY)
+  if (!clientId || !clientSecret || !tokenKey) return { on: false, reason: "missing_credentials" }
+  return { on: true, clientId, clientSecret, tokenKey }
+}
+
 /** Where delivered links point: the app's own origin, without a trailing slash. */
 export function appOrigin(env: Env = process.env): string {
   return (env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "")
