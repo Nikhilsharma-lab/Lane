@@ -1,5 +1,23 @@
 # Shared Claude / Codex handoff
 
+## #172 late list arrival correction — browser remainder pending
+
+Actual keyboard search of a Project followed by immediate sidebar No Project
+selection changed the selected sidebar item during loading, but the late list
+URL mirror then restored the older Project. The browser trace recorded the URL
+changing to No Project and back before the old Project list settled. The shared
+navigation boundary now protects the explicit list choice until the router query
+and address bar both acknowledge it. Native history clears that ownership; opening
+Search cancels delayed focus while retaining the choice. The existing URL writer
+and pending-action hold remain.
+
+The production-seam regression first failed by adopting the old Project; the
+focused actual-app regression passed after the correction. Full UI 606, typecheck,
+lint, design, production build and bundle checks pass (largest growth 1.9 KB,
+within the unchanged 2 KB budget). Remaining four-surface browser acceptance
+is still pending. See external
+`/private/tmp/lane-spec-172-evidence.md` for exact receipts.
+
 ## #172 browser Back correction — remaining navigation acceptance pending
 
 The actual app passed successful Project-create focus, both transport-failure

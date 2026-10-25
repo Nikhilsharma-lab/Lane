@@ -58,6 +58,51 @@ describe("workspace Requests navigation", () => {
     expect(app.replace).not.toHaveBeenCalled()
   })
 
+  it("keeps a newer Project choice when the earlier list route arrives late", () => {
+    const app = workspace("/requests/a")
+    app.sidebar.open("/?project=named")
+    const list = bindRequestNavigation(app.controller, {
+      location: () => ({ pathname: "/", search: "?project=named" }), push: app.push, replace: app.replace,
+    })
+    list.selectList({ project: "none" })
+    const input = { search: "project=named", seen: null, written: null, hold: false, pathname: "/", locationSearch: "?project=named" }
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", write: "/?project=none" })
+    expect(app.view()).toMatchObject({ status: "all", project: "none", pagination: { pageIndex: 0, pageSize: 50 } })
+    expect(app.push).toHaveBeenCalledExactlyOnceWith("/?project=named")
+    expect(app.replace).not.toHaveBeenCalled()
+  })
+
+  it("holds a newer choice through loading and delayed router-query updates", () => {
+    const app = workspace()
+    app.sidebar.selectList({ status: "all", project: "all" })
+    app.sidebar.invalidate() // Opening Search cancels delayed focus, not the chosen list context.
+    const input = { seen: null, written: null, pathname: "/", hold: true, search: "", locationSearch: "?project=named" }
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "" })
+    // The router can deliver the older query after the newer choice, and
+    // acknowledge the eventual mirror write after the address bar does.
+    expect(app.controller.planListUrl({ ...input, search: "project=named" })).toEqual({ seen: "project=named" })
+    expect(app.controller.planListUrl({ ...input, search: "project=named", hold: false })).toEqual({ seen: "project=named", write: "/" })
+    expect(app.controller.planListUrl({ ...input, search: "project=named", locationSearch: "", hold: false })).toEqual({ seen: "project=named" })
+    expect(app.view().project).toBe("all")
+    expect(app.push).not.toHaveBeenCalled()
+    expect(app.replace).not.toHaveBeenCalled()
+  })
+
+  it("accepts external list context after acknowledgement and browser history", () => {
+    const app = workspace()
+    const input = { seen: null, written: null, pathname: "/", hold: false, search: "status=open", locationSearch: "?status=open" }
+    app.sidebar.selectList({ project: "all" })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "status=open" })
+    const external = { ...input, search: "project=named", locationSearch: "?project=named" }
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    app.sidebar.selectList({ project: "none" })
+    const events = new EventTarget()
+    const cleanup = app.controller.listenForHistory(events)
+    events.dispatchEvent(new Event("popstate"))
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    cleanup()
+  })
+
   it("pushes off-list selection once with the retained context", () => {
     const app = workspace("/requests/a")
     app.palette.selectList({ project: "all" })

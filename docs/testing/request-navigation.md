@@ -6,6 +6,8 @@ Explicit Project selection resets the page index even when the Project is alread
 
 Ordinary in-place selection makes no router/history call. `useRequestListUrlSync` remains the URL writer and waits for pending mutations. Off-list selection pushes once; J/K replaces with `scroll:false`. If a previously dispatched detail route has not committed and the location still shows the list, a newer selection replaces the current URL to cancel that transition without adding history or writing the selected context ahead of the mirror. Back/Forward still use the existing URL adoption and return-focus behavior.
 
+An explicit list selection stays authoritative while an earlier route is still loading. The shared boundary lets the URL mirror adopt external context only after both the router query and address bar acknowledge the current selection, or browser history cancels it. Opening Search cancels delayed focus without discarding the chosen Project. The mirror still alone writes in-place URLs and still waits for pending mutations.
+
 The current detail registers its return-marker callback with the workspace's existing history listener. That listener records the row before Next restores the route and removes the detail. The list then consumes the existing marker and focuses the row; no new storage is added. Cleanup can remove only its own registration, and workspace cleanup clears it.
 
 Real links keep their native modifier, middle-click, non-self-target, download and prevented-event behavior. These gestures make no original-tab state or surface changes. Cmd/Ctrl+Enter inside search remains an explicit same-tab command. Project context-menu Open uses the shared command once; Open in new tab stays native.

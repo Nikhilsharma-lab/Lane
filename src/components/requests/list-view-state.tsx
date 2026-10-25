@@ -245,6 +245,8 @@ export type ListUrlSyncInput = {
   /** The query this page last wrote, or null. */
   written: string | null
   current: RequestListContext
+  /** A newer explicit selection has not reached the router and address bar yet. */
+  localSelectionPending?: boolean
   hold: boolean
   pathname: string
   /** window.location.search, with its leading "?". */
@@ -257,8 +259,8 @@ export type ListUrlSyncInput = {
  * "/" URL. A bare "/" keeps the current context, so returning from a Request
  * keeps the Project filter. Nothing is written while `hold` is true.
  */
-export function planListUrlSync({ search, seen, written, current, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
-  if (search !== seen && search !== written) {
+export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
+  if (!localSelectionPending && search !== seen && search !== written) {
     const params = new URLSearchParams(search)
     if (hasRequestListContext(params)) {
       const next = parseRequestListContext(params)
@@ -279,10 +281,11 @@ export function planListUrlSync({ search, seen, written, current, hold, pathname
 export function useRequestListUrlSync({ status, project }: RequestListContext, setView: SetListView, hold: boolean) {
   const searchParams = useSearchParams()
   const search = searchParams?.toString() ?? ""
+  const navigation = required(useContext(RequestNavigationContext), "useRequestListUrlSync")
   const seen = useRef<string | null>(null)
   const written = useRef<string | null>(null)
   useLayoutEffect(() => {
-    const plan = planListUrlSync({ search, seen: seen.current, written: written.current, current: { status, project }, hold, pathname: window.location.pathname, locationSearch: window.location.search })
+    const plan = navigation.planListUrl({ search, seen: seen.current, written: written.current, hold, pathname: window.location.pathname, locationSearch: window.location.search })
     seen.current = plan.seen
     if (plan.adopt) {
       const next = plan.adopt
@@ -291,5 +294,5 @@ export function useRequestListUrlSync({ status, project }: RequestListContext, s
       written.current = new URL(plan.write, window.location.origin).searchParams.toString()
       window.history.replaceState(null, "", plan.write)
     }
-  }, [search, status, project, hold, setView])
+  }, [search, status, project, hold, setView, navigation])
 }

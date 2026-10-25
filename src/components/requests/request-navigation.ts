@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { requestListContextFromHref, requestListHref, type RequestListContext } from "@/lib/request-workspace"
-import { withListContext, type DetailSessionPatch, type ListViewState, type SetListView } from "./list-view-state"
+import { planListUrlSync, withListContext, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
 import { settleSequence, type DetailSequence } from "./request-sequence"
 
 type NavigationState = { getView: () => ListViewState; setView: SetListView; setDetailSession: (patch: DetailSessionPatch) => void }
@@ -29,6 +29,7 @@ export function isSameTabRequestLink(event: LinkActivation): boolean {
 export function createRequestNavigation(state: NavigationState) {
   let generation = 0
   let pendingPath: string | null = null
+  let listSelectionPending = false
   let arrival: { id: string; sequence: DetailSequence | null; button: "previous" | "next" | null } | null = null
   let cancelFocus: (() => void) | null = null
   let rememberHistoryReturn: (() => void) | null = null
@@ -40,6 +41,7 @@ export function createRequestNavigation(state: NavigationState) {
   }
   function prepareDetail(id: string, intent: DetailIntent = {}) {
     invalidate()
+    listSelectionPending = false
     const { sequence = null, button = null } = intent
     arrival = { id, sequence, button }
     pendingPath = `/requests/${id}`
@@ -49,6 +51,7 @@ export function createRequestNavigation(state: NavigationState) {
     const location = browser.location()
     const supersedesRoute = pendingPath !== null && pendingPath !== location.pathname
     invalidate()
+    listSelectionPending = true
     const selected = withListContext(state.getView(), next)
     state.setView(next.project !== undefined && selected.pagination.pageIndex !== 0
       ? { ...selected, pagination: { ...selected.pagination, pageIndex: 0 } } : selected)
@@ -63,6 +66,15 @@ export function createRequestNavigation(state: NavigationState) {
   }
   return {
     invalidate, prepareDetail, selectList,
+    planListUrl(input: Omit<ListUrlSyncInput, "current" | "localSelectionPending">) {
+      const current = state.getView()
+      const href = requestListHref(current.status, current.project)
+      // Both router state and the address bar must acknowledge the selection:
+      // either can still show the previous route while its list is loading.
+      if (input.pathname === "/" && href === `/${input.search ? `?${input.search}` : ""}`
+        && href === `/${input.locationSearch}`) listSelectionPending = false
+      return planListUrlSync({ ...input, current, localSelectionPending: listSelectionPending })
+    },
     onHistoryReturn(remember: () => void) {
       rememberHistoryReturn = remember
       return () => { if (rememberHistoryReturn === remember) rememberHistoryReturn = null }
@@ -70,9 +82,9 @@ export function createRequestNavigation(state: NavigationState) {
     listenForHistory(target: Pick<Window, "addEventListener" | "removeEventListener">) {
       // This workspace listener precedes the router's restore listener. A
       // detail's later listener can be unmounted before dispatch reaches it.
-      const restore = () => { rememberHistoryReturn?.(); invalidate() }
+      const restore = () => { rememberHistoryReturn?.(); listSelectionPending = false; invalidate() }
       target.addEventListener("popstate", restore)
-      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; invalidate() }
+      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; listSelectionPending = false; invalidate() }
     },
     continuation() { const started = generation; return () => generation === started },
     deferFocus(focus: () => void) {
@@ -99,7 +111,7 @@ export function createRequestNavigation(state: NavigationState) {
       if (href === location.pathname && !pendingPath) { invalidate(); return false }
       const request = /^\/requests\/([^/?#]+)(?:\?[^#]*)?$/.exec(href)
       if (request) prepareDetail(request[1])
-      else { invalidate(); pendingPath = href.split("?")[0] }
+      else { invalidate(); listSelectionPending = false; pendingPath = href.split("?")[0] }
       browser.push(href)
       return true
     },
