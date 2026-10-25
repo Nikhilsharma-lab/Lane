@@ -89,6 +89,7 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   await recorder.aborted("project", name);
   await expect(projects(page).getByRole("alert")).toBeVisible();
   await expect(field).toHaveAccessibleDescription("Project could not be created. Try again; your Request is still here.");
+  await expect(field).toHaveAttribute("aria-invalid", "true");
   await expect(field).toHaveValue(name);
   await expect(field).toBeFocused();
   await expect(composer(page).getByRole("textbox", { name: "Request title", exact: true })).toHaveValue(draftTitle);
