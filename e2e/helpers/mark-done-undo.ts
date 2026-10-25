@@ -265,14 +265,17 @@ async function failedReleaseForm(driver: UndoDriver, capture: Capture) {
   await expect(form.getByLabel("Release evidence", { exact: true })).toHaveValue("174 retained fixture: actual browser release acceptance");
   await expect(form.getByRole("checkbox", { name: "The agreed audience received this work", exact: true })).toBeChecked();
   await expect(page.locator('[aria-label^="Messages"]')).not.toContainText("Release recorded");
-  await expect(page.locator('[aria-label^="Messages"] li').filter({ hasText: `${driver.request.code} is now Done.` }).getByRole("button", { name: "Undo", exact: true, includeHidden: true })).toHaveCount(1);
   await capture("release-failure-preserves-prompt-and-input");
-  return { form, submit };
+  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await expect(doneToast(page, driver.request).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  await undoFromToast(driver, capture);
+  await capture("release-failure-restored-undo-saved-in-progress");
 }
 /** A successful old Release must end only its own Undo after a newer Done opens another prompt. */
 export async function verifyReleaseFailureThenNewerPrompt(driver: UndoDriver, orgId: string, newer: UndoRequest, recorder: UndoRecorder, capture: Capture) {
   const { page, request } = driver;
-  const { form, submit } = await failedReleaseForm(driver, capture);
+  await failedReleaseForm(driver, capture);
+  const { form, submit } = await prepareReleaseForm(driver);
   const release = await driver.begin("release", submit, "hold");
   expect((await release.received()).success).toBe(true); // Receipt and saved-state reconciliation precede newer mutations.
   await capture("old-release-saved-delivery-held", { operation: release.operation, savedResponseConfirmed: true, deliveryStillHeld: true });
