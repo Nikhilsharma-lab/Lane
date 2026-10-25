@@ -1,6 +1,6 @@
 /**
  * #206 seam 1: the delivery preference. Each person chooses, per workspace, whether Needs-you items reach them
- * by Email (the default) or not at all; Slack DM arrives with Slack (#207). Identity and role come from the
+ * by Email (the default) or not at all; Slack DM is covered with Slack (#207, slack-actions.test.ts). Identity and role come from the
  * session through the shared guards. Real database, mocked Clerk session.
  */
 import postgres from "postgres";
@@ -53,9 +53,9 @@ describe("choosing how Needs-you items reach you", () => {
     await choose("email");
   });
 
-  it("does not offer Slack DM before Slack exists, nor anything else", async () => {
-    expect(await choose("slack")).toEqual({ error: "Choose Email or Off." });
-    expect(await choose("sms")).toEqual({ error: "Choose Email or Off." });
+  it("does not offer Slack DM while Slack isn't connected, nor anything else", async () => {
+    expect(await choose("slack")).toEqual({ error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." });
+    expect(await choose("sms")).toEqual({ error: "Choose Email, Slack DM or Off." });
     expect(await choiceIn(ORG)).toBe("email");
   });
 
