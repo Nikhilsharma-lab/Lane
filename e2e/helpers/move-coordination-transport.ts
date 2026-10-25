@@ -26,7 +26,7 @@ async function compiled(kind: keyof typeof actionExports) {
   const id = matches[0][0]; expect(id).toMatch(/^[a-f0-9]+$/);
   return { id, filename, exportedName, manifestSha256: createHash("sha256").update(source).digest("hex") };
 }
-export type CoordinationTransport = Awaited<ReturnType<typeof compiled>> & { method: string; stage: "intercepted" | "response"; status?: number; shape?: ReturnType<typeof flightResultShape>; requestIds: string[] };
+export type CoordinationTransport = Awaited<ReturnType<typeof compiled>> & { method: string; stage: "intercepted" | "response" | "refused"; refusal?: "unexpected-arguments" | "duplicate-write"; status?: number; shape?: ReturnType<typeof flightResultShape>; requestIds: string[] };
 export type CoordinationRecorder = {
   intent: (kind: CoordinatedChange, ids: string[]) => Promise<string>;
   transport: (operation: string, metadata: CoordinationTransport) => Promise<void>;
@@ -80,11 +80,21 @@ export async function beginCoordinatedChange(page: Page, orgId: string, kind: Co
   const pattern = `${new URL(page.url()).origin}/**`;
   const handler = async (route: Route) => {
     const request = route.request();
-    if (request.method() !== "POST" || request.headers()["next-action"] !== identity.id) return route.fallback();
-    const targetIds = requestIds(request, kind, orgId, ids); if (!targetIds) return route.fallback();
+    if (request.headers()["next-action"] !== identity.id) return route.fallback();
     calls++;
+    const targetIds = request.method() === "POST" ? requestIds(request, kind, orgId, ids) : null;
+    const refuse = async (reason: "unexpected-arguments" | "duplicate-write") => {
+      const failure = new Error(`Coordinated write refused before dispatch: ${reason}. Preserve the pending intent for diagnosis.`);
+      try {
+        // No unvalidated arguments, target IDs or headers enter the receipt.
+        await recorder.transport(operation, { ...identity, method: request.method(), stage: "refused", refusal: reason, requestIds: targetIds ?? [] });
+      } finally {
+        try { await route.abort("failed"); } finally { received.reject(failure); delivered.reject(failure); }
+      }
+    };
+    if (!targetIds) return refuse("unexpected-arguments");
     const key = [...targetIds].sort().join(",");
-    if (seen.has(key)) { await route.abort("failed"); received.reject(new Error("Duplicate coordinated write was blocked before dispatch.")); return; }
+    if (seen.has(key)) return refuse("duplicate-write");
     seen.add(key);
     try {
       const metadata = { ...identity, method: request.method(), requestIds: targetIds };
