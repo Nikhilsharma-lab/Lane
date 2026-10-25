@@ -32,7 +32,7 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, r
   const pickupRequester = changes ? null : request.creatorName || "the Requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin, readOnly }} peekStrip={peekStrip}
-    requestPanels={<RequestTimeline key={request.id} request={request} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} readOnly={readOnly} />}
+    requestPanels={<RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} />}
     lifecycleActions={request.agreementBlocked ? <a href="#journey">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
     editRequest={request.status === "open" && changes ? <><EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} /><DeleteRequest requestId={request.id} title={request.title} orgId={orgId} /></> : undefined}
     commentForm={readOnly ? null : <CommentForm requestId={request.id} context={{ orgId }} />}

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/arc/textarea/textarea";
 import { MAX_REVIEWERS, reviewerKey, REVIEW_NOTE_MAX } from "@/lib/request-reviewer-rules";
 import { loadReviewerPeople } from "@/app/(app)/requests/[id]/reviewer-actions";
 import { PickerOptions, focusOnOpen, pickerPopoverProps, searchListKeyDown } from "./request-property-pickers";
+import { ReviewerInviteHint } from "./reviewer-invite-hint";
 import labelStyles from "./request-labels.module.css";
 import pickerStyles from "./request-property-pickers.module.css";
 
@@ -23,16 +24,15 @@ export const REVIEW_QUESTION = {
   placeholder: "Can we build this with the current API?",
 } as const;
 
-/** Shown after a person who is invited but has not joined yet. */
-export const INVITATION_PENDING = " · Invitation pending";
-
 /**
  * The people a reviewer can be chosen from, for the creation picker and for
- * adding on Request detail: members, plus pending invitations for admins.
+ * adding on Request detail: the workspace's Admins and Members only (#211).
+ * `canInvite` is whether this person is an Admin who can invite someone.
  * Nothing is fetched until `load` is called; `load` again retries.
  */
 export function useReviewerPeople(orgId: string) {
   const [people, setPeople] = useState<ReviewerChoice[] | null>(null);
+  const [canInvite, setCanInvite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -47,14 +47,17 @@ export function useReviewerPeople(orgId: string) {
       const result = await callAction(() => loadReviewerPeople({ orgId }));
       if (!mounted.current) return;
       if ("error" in result) setError(result.error ?? "Could not load people. Try again.");
-      else setPeople(result.people);
+      else {
+        setPeople(result.people);
+        setCanInvite(result.canInvite);
+      }
     } catch {
       if (mounted.current) setError("Could not load people. Try again.");
     } finally {
       if (mounted.current) setLoading(false);
     }
   }, [orgId]);
-  return { people, loading, error, load };
+  return { people, canInvite, loading, error, load };
 }
 
 /** "Reviewers", one name, or "3 reviewers". */
@@ -65,7 +68,7 @@ export function reviewerSummary(chosen: { name: string }[]) {
 /**
  * #78: the Reviewers property on the compose step, beside Project, Labels and
  * Priority. The people come from the same loader as adding from Request
- * detail (members, plus pending invitations for admins), fetched once when the
+ * detail (Admins and Members only), fetched once when the
  * popover first opens and filtered locally. The requester is left out; the
  * server checks every rule again when the Request is created. Once someone is
  * chosen, the same optional question as on detail is offered; every chosen
@@ -83,7 +86,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const { people, loading, error: loadError, load } = useReviewerPeople(orgId);
+  const { people, canInvite, loading, error: loadError, load } = useReviewerPeople(orgId);
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -121,8 +124,9 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
       <p className={labelStyles.caption}>{REVIEWERS_SUBTEXT}</p>
       {people && <PickerOptions items={options} label="People" optionRefs={optionRefs} searchRef={searchRef} keyOf={(person) => reviewerKey(person.nominee)}
         isSelected={isSelected} isInert={(person) => full && !isSelected(person)} onChoose={toggle} multiselectable morph="plain"
-        render={(person) => <span>{person.name}{person.nominee.kind === "invitation" && <span className={labelStyles.scopeHint}>{INVITATION_PENDING}</span>}</span>}
-        emptyText={needle ? "No matching people" : "Nobody else to ask yet"} />}
+        render={(person) => <span>{person.name}</span>}
+        emptyText={needle ? "No Admin or Member matches" : "Nobody else to ask yet"} />}
+      {people && <ReviewerInviteHint canInvite={canInvite} linked={false} className={labelStyles.caption} />}
       {loading && <p role="status" className={labelStyles.caption}>Loading people…</p>}
       {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}

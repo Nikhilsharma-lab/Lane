@@ -4,15 +4,8 @@ import { inArray, sql } from "drizzle-orm";
 import { db, profiles } from "@/db";
 import { notify } from "./notify";
 import type { MemberAuth } from "./auth-guard";
-import { MAX_REVIEWERS, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
-import {
-  pendingInvitations,
-  workspaceRoster,
-  distinctPeople,
-  invitationState,
-  resolveInvitedMember,
-  type WorkspacePerson,
-} from "./workspace-roster";
+import { MAX_REVIEWERS, PAID_SEATS_ONLY, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
+import { workspaceRoster, type WorkspacePerson } from "./workspace-roster";
 import { insist, type RequestTx } from "./request-change-store";
 import { canChangeThings } from "./role-rules";
 
@@ -24,10 +17,10 @@ export type ReviewNotification = {
 
 /**
  * The rules for asking people to review, shared by adding from Request detail
- * and adding while creating a Request: no guests (they are not on the roster),
- * not yourself, not the requester, no repeats, at most twenty, and only admins
- * invite by email. Throws an RequestChangeError with the reason; returns the new
- * list and the "asked you to review" notification for each member added.
+ * and adding while creating a Request: only Admins and Members (the paid
+ * seats on the roster, #211), not yourself, not the requester, no repeats and
+ * at most twenty. Throws an RequestChangeError with the reason; returns the
+ * new list and the "asked you to review" notification for each person added.
  */
 export async function appendReviewers({
   existing,
@@ -44,31 +37,21 @@ export async function appendReviewers({
   requesterId: string;
   roster: WorkspacePerson[];
 }): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] }> {
-  const inviting = nominees.some((n) => n.kind === "invitation");
-  insist(
-    !inviting || auth.role === "admin",
-    "Only an admin can invite someone by email.",
-  );
-  const people = inviting
-    ? [...roster, ...(await pendingInvitations(auth.orgId))]
-    : roster;
   const reviewers = [...existing];
   const asked: ReviewNotification[] = [];
   for (const nominee of nominees) {
-    const person = people.find(
+    const person = roster.find(
       (p) => reviewerKey(p.nominee) === reviewerKey(nominee),
     );
-    insist(person, "A selected person is no longer available.");
-    if (nominee.kind === "member") {
-      insist(
-        nominee.userId !== auth.userId,
-        "You can’t add yourself as a reviewer.",
-      );
-      insist(
-        nominee.userId !== requesterId,
-        "The Requester can’t review their own Request.",
-      );
-    }
+    insist(person, PAID_SEATS_ONLY);
+    insist(
+      nominee.userId !== auth.userId,
+      "You can’t add yourself as a reviewer.",
+    );
+    insist(
+      nominee.userId !== requesterId,
+      "The Requester can’t review their own Request.",
+    );
     insist(
       !reviewers.some((r) => reviewerKey(r.nominee) === reviewerKey(nominee)),
       `${person.name} is already a reviewer.`,
@@ -81,25 +64,12 @@ export async function appendReviewers({
       note,
       decision: null,
     });
-    if (person.nominee.kind === "member")
-      asked.push({ userId: person.nominee.userId, type: "review_requested", detail: note });
+    asked.push({ userId: person.nominee.userId, type: "review_requested", detail: note });
   }
   insist(
     reviewers.length <= MAX_REVIEWERS,
     `A Request can have at most ${MAX_REVIEWERS} reviewers.`,
   );
-  // An invitation may target the verified email of someone already reviewing.
-  if (reviewers.some((r) => r.nominee.kind === "invitation"))
-    insist(
-      await distinctPeople(
-        reviewers.map((r) => ({
-          nominee: r.nominee,
-          name: r.displayNameAtSelection,
-          email: r.nominee.kind === "invitation" ? r.nominee.email : "",
-        })),
-      ),
-      "That invitation is for someone who is already a reviewer.",
-    );
   return { reviewers, asked };
 }
 
@@ -133,50 +103,24 @@ export async function notifyReviewers(
 }
 
 /**
- * Whether each saved reviewer still counts: a member still in the workspace,
- * or an invitation still pending or accepted. A reviewer who left stays
+ * Whether each saved reviewer still counts: an Admin or Member still in the
+ * workspace. A reviewer who left, or is no longer on a paid seat, stays
  * listed, greyed out, and their answer no longer counts (REQUIREMENTS §4.4).
  * The list, the reviewers panel and pickup confirmation all read this.
  * Worked out at read time from the identity provider; if it is unreachable,
- * everyone counts and nobody is greyed out. Asks the provider only when some
- * reviewer is an invitation or a member.
+ * everyone counts and nobody is greyed out. Asks the provider only when there
+ * is a reviewer.
  */
 export async function reviewerStanding(orgId: string, reviewers: Reviewer[]) {
-  const members = reviewers.some((r) => r.nominee.kind === "member");
-  const invitations = reviewers.flatMap((r) => (r.nominee.kind === "invitation" ? [r.nominee] : []));
   let active: Set<string> | null = null;
-  if (members)
+  if (reviewers.length)
     try {
-      active = new Set((await workspaceRoster(orgId)).flatMap((p) => (p.nominee.kind === "member" ? [p.nominee.userId] : [])));
+      active = new Set((await workspaceRoster(orgId)).map((p) => p.nominee.userId));
     } catch {
       active = null;
     }
-  const states = new Map<string, string>();
-  if (invitations.length) {
-    let pending: Set<string> | null = null;
-    try {
-      pending = new Set((await pendingInvitations(orgId)).flatMap((p) => (p.nominee.kind === "invitation" ? [p.nominee.invitationId] : [])));
-    } catch {
-      pending = null;
-    }
-    for (const nominee of invitations) {
-      if (pending?.has(nominee.invitationId)) states.set(nominee.invitationId, "pending");
-      else if (pending)
-        try {
-          states.set(nominee.invitationId, (await invitationState(orgId, nominee)) ?? "unavailable");
-        } catch {
-          /* Unknown: it counts, like an unreachable roster. */
-        }
-    }
-  }
   return {
-    /** The invitation's provider state, when it could be read. */
-    invitation: (r: Reviewer) => (r.nominee.kind === "invitation" ? states.get(r.nominee.invitationId) ?? null : null),
-    counts: (r: Reviewer) => {
-      if (r.nominee.kind === "member") return !active || active.has(r.nominee.userId);
-      const state = states.get(r.nominee.invitationId);
-      return state === undefined || state === "pending" || state === "accepted";
-    },
+    counts: (r: Reviewer) => !active || active.has(r.nominee.userId),
   };
 }
 
@@ -198,46 +142,24 @@ export async function reviewStatesOf(orgId: string, rows: { id: string; reviewer
  */
 export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: boolean) {
   const standing = await reviewerStanding(auth.orgId, saved);
-  const memberIds = saved.flatMap((r) =>
-    r.nominee.kind === "member" ? [r.nominee.userId] : [],
-  );
+  const memberIds = saved.map((r) => r.nominee.userId);
   const roles = memberIds.length
     ? await db
         .select({ id: profiles.id, role: profiles.role })
         .from(profiles)
         .where(inArray(profiles.id, memberIds))
     : [];
-  return Promise.all(
-    saved.map(async (r) => {
-      const view = {
-        id: r.id,
-        name: r.displayNameAtSelection,
-        note: r.note,
-        decision: r.decision,
-        active: standing.counts(r),
-      };
-      if (r.nominee.kind === "member") {
-        const userId = r.nominee.userId;
-        const role = roles.find((p) => p.id === userId)?.role;
-        return {
-          ...view,
-          role: role ? PROFILE_ROLE_LABELS[role] : null,
-          invitation: null,
-          canAnswer: open && canChangeThings(auth.role) && userId === auth.userId,
-        };
-      }
-      const state = standing.invitation(r) ?? "unavailable";
-      let canAnswer = false;
-      try {
-        canAnswer =
-          open &&
-          canChangeThings(auth.role) &&
-          state === "accepted" &&
-          (await resolveInvitedMember(auth.orgId, r.nominee, auth.userId));
-      } catch {
-        canAnswer = false;
-      }
-      return { ...view, role: null, invitation: state, canAnswer };
-    }),
-  );
+  return saved.map((r) => {
+    const userId = r.nominee.userId;
+    const role = roles.find((p) => p.id === userId)?.role;
+    return {
+      id: r.id,
+      name: r.displayNameAtSelection,
+      note: r.note,
+      decision: r.decision,
+      active: standing.counts(r),
+      role: role ? PROFILE_ROLE_LABELS[role] : null,
+      canAnswer: open && canChangeThings(auth.role) && userId === auth.userId,
+    };
+  });
 }

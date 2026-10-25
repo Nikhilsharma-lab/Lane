@@ -215,7 +215,7 @@ describe("Intake draft recovery", () => {
     const reviewers = {
       people: [
         { nominee: { kind: "member" as const, userId: "user_sam" }, name: "Sam Lee", email: "sam@example.test", role: "org:member" },
-        { nominee: { kind: "invitation" as const, invitationId: "inv_1", email: "new@example.test" }, name: "new@example.test", email: "new@example.test" },
+        { nominee: { kind: "member" as const, userId: "user_ana" }, name: "Ana Diaz", email: "ana@example.test", role: "org:admin" },
       ],
       question: "Can we build this with the current API?",
     };
@@ -235,6 +235,10 @@ describe("Intake draft recovery", () => {
     const draft = readIntakeDraft(storage, SCOPE, NOW);
     expect(draft?.source).toMatchObject({ title: "Kept" });
     expect(draft?.reviewers).toBeUndefined();
+    // #211: a draft saved while pending invitations could review drops those picks too.
+    const invited = { nominee: { kind: "invitation", invitationId: "inv_1", email: "new@example.test" }, name: "new@example.test", email: "new@example.test" };
+    storage.setItem(intakeDraftStorageKey(SCOPE), JSON.stringify({ version: 2, savedAt: NOW, source: source("Kept", "Still here"), review: null, reviewers: { people: [invited], question: "" } }));
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.reviewers).toBeUndefined();
   });
 
   it("restores old drafts with unset properties", () => {

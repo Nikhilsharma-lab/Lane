@@ -24,7 +24,7 @@ import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type Re
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
 import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
-import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rules";
+import { createReviewersSchema, reviewerPickRefusal, type Reviewer } from "@/lib/request-reviewer-rules";
 import { workspaceRoster } from "@/lib/workspace-roster";
 import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
@@ -243,7 +243,8 @@ async function reviewersForNewRequest(
   const failure = (message: string): IntakeFailure => ({ code: "validation", field: "reviewers", message });
   const parsed = createReviewersSchema.safeParse(input);
   if (!parsed.success)
-    return failure(parsed.error.issues.find((issue) => issue.path[0] === "note")?.message ?? "Choose people to review.");
+    return failure(parsed.error.issues.find((issue) => issue.path[0] === "note")?.message
+      ?? reviewerPickRefusal((input as { nominees?: unknown } | null)?.nominees));
   const { nominees, note } = parsed.data ?? { nominees: [], note: "" };
   if (!nominees.length) return { reviewers: [], asked: [] };
   try {

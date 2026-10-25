@@ -349,8 +349,16 @@ Supersedes the named PM/Designer/Developer agreement gate. Workspace membership 
   work starts. Optional." Any number up to 20, including none.
 - Before pickup, the requester and any member may add reviewers, with an optional short question (for
   example a designer asking a developer whether it can be built). Only the requester or an admin removes one.
-- Reviewers are active members or admins, or (admin only) a pending email invitation. Guests, the person
-  adding, and the requester cannot be reviewers. Each row shows the person's profile role as information only.
+- Reviewers are Admins and Members only: the paid seats (#195 item 4, #211, on the integration branch).
+  Guests, Viewers, email addresses, pending invitations, the person adding, and the requester cannot be
+  reviewers; the server refuses them. The picker lists only Admins and Members and says "Only Admins and
+  Members can review. Not listed? Ask an admin to invite them." (an Admin gets a link to invite them as a
+  Member instead). Each row shows the person's profile role as information only. A reviewer who stops being
+  an Admin or Member stays listed, greyed out, like one who left.
+
+**Reviewer supersession — 2026-10-25 (#195, approved by Nikhil):** email-address (pending-invitation)
+reviewers, which an admin could add before, are retired. Migration 0044 removes the ones saved so far
+(test data) and the database accepts member reviewers only.
 - A reviewer answers **Looks good** or **Raise a concern** with a reason. A concern clears only when that
   reviewer changes their answer or the Request is edited.
 - Editing what the Request says (content, Expected impact, type, Project, labels) resets every answer and
