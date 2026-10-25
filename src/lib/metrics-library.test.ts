@@ -5,7 +5,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
-import { listMetricDefinitions, readMetricDefinitionHistory } from "./metrics-library";
+import { listMetricDefinitions, readMetricDefinitionHistory, resolveSavedMetrics } from "./metrics-library";
 
 const PREFIX = "org_metrics_library_";
 const MAKER = "user_metrics_library_maker";
@@ -88,6 +88,62 @@ describe("The Metrics library of a workspace", () => {
     await connection`insert into metric_definitions (org_id,name,unit,link,how_counted,created_by) values (${workspace.orgId},'Trial starts','count','https://analytics.example.test/trials','Trials started per week.',${MAKER})`;
     const trial = (await listMetricDefinitions(workspace)).find(definition => definition.name === "Trial starts");
     expect(trial).toMatchObject({ unit: "count", link: "https://analytics.example.test/trials", howCounted: "Trials started per week.", createdBy: MAKER });
+  });
+});
+
+describe("Resolving metrics saved on Requests (#200)", () => {
+  const plan = (primary: Record<string, unknown>, guardrails: Record<string, unknown>[] = []) => ({
+    kind: "measurement", version: 4,
+    primary: { name: "", current: 1, target: 2, noBaseline: false, check: "", ...primary },
+    measurement: { audience: "all", platform: "all", windowDays: 30, exactDates: false, startDate: "", endDate: "" },
+    guardrails: guardrails.map((guardrail) => ({ name: "", current: null, noBaseline: false, operator: "at_most", limit: 5, ...guardrail })),
+  });
+  async function typedDefinition(orgId: string, name: string, unit: string, typed = name) {
+    const [definition] = await connection`insert into metric_definitions (org_id,name,unit,created_by) values (${orgId},${name},${unit},${MAKER}) returning id`;
+    await connection`insert into metric_definition_aliases (org_id,definition_id,typed_name,unit) values (${orgId},${definition.id},public.metric_alias_name(${typed}),public.metric_alias_unit(${unit}))`;
+    return definition.id as string;
+  }
+
+  it("resolves a built-in metric in its starter unit to the starter metric, even in a workspace the migration never saw", async () => {
+    const workspace = await newWorkspace();
+    const [[main, guardrail]] = await resolveSavedMetrics(workspace, [plan({ key: "duration", unit: "seconds" }, [{ key: "events", unit: "count" }])]);
+    expect(main).toMatchObject({ role: "primary", position: 0, savedName: "Median time to convert", definition: { name: "Median time to convert", unit: "seconds" } });
+    expect(guardrail).toMatchObject({ role: "guardrail", position: 1, savedName: "Action count", definition: { name: "Action count", unit: "count" } });
+  });
+
+  it("resolves typed names whatever their case and spacing, and older units by their meaning", async () => {
+    const workspace = await newWorkspace();
+    await typedDefinition(workspace.orgId, "Trial starts", "percent");
+    const legacy = { kind: "metric", metric: "  trial   STARTS ", baseline: 1, target: 2, unit: "%", source: "", reviewAfterDays: 30 };
+    const [[metric]] = await resolveSavedMetrics(workspace, [legacy]);
+    expect(metric).toMatchObject({ savedName: "trial   STARTS", definition: { name: "Trial starts", unit: "percent" } });
+  });
+
+  it("follows a merge to the kept definition and still resolves an archived one", async () => {
+    const workspace = await newWorkspace();
+    const kept = await typedDefinition(workspace.orgId, "Orders", "count");
+    const merged = await typedDefinition(workspace.orgId, "Purchases", "count");
+    const archived = await typedDefinition(workspace.orgId, "Refunds", "count");
+    await connection`update metric_definitions set merged_into_id = ${kept} where id = ${merged}`;
+    await connection`update metric_definitions set archived_at = now() where id = ${archived}`;
+    const [[purchases, refunds]] = await resolveSavedMetrics(workspace, [plan({ key: "custom", name: "Purchases", unit: "count" }, [{ key: "custom", name: "Refunds", unit: "count" }])]);
+    expect(purchases.definition).toMatchObject({ id: kept, name: "Orders" });
+    expect(refunds.definition?.id).toBe(archived);
+    expect(refunds.definition?.archivedAt).toBeInstanceOf(Date);
+  });
+
+  it("resolves nothing from another workspace's mapping, and nothing for a metric it has no mapping for", async () => {
+    const mine = await newWorkspace();
+    const theirs = await newWorkspace();
+    await typedDefinition(theirs.orgId, "Orders", "count");
+    const [[orders, conversions], [check]] = await resolveSavedMetrics(mine, [
+      plan({ key: "custom", name: "Orders", unit: "count" }, [{ key: "conversion", unit: "count" }]),
+      plan({ key: "check", unit: "", current: null, target: null, check: "keyboard" }),
+    ]);
+    expect(orders.definition).toBeNull();
+    expect(conversions).toMatchObject({ savedName: "Conversions", definition: null });
+    expect(check).toBeUndefined();
+    expect(await resolveSavedMetrics(mine, [null, { kind: "no_measurable_impact", reason: "Ops" }])).toEqual([[], []]);
   });
 });
 
