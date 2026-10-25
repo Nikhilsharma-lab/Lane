@@ -36,7 +36,7 @@ function row(id: string, requestNumber: number, over: Partial<ImpactRow> = {}): 
   return {
     id, orgId: ORG, requestNumber, title: `Request ${requestNumber}`, problem: `Problem ${requestNumber}`, createdBy: ME, takenOnBy: null, assignedTo: null, projectId: null, projectName: null, status: "open",
     releaseState: null, outcomeClosure: null, exceptionClosure: null, closureCorrections: [], expectedImpact: plan(), noMeasurableImpactReason: null,
-    followUpOf: null, definitions: [TRIALS], ...over,
+    followUpOf: null, definitions: [TRIALS], createdAt: new Date(Date.UTC(2026, 0, requestNumber)), sameProblemGroup: null, ...over,
   };
 }
 const render = (rows: ImpactRow[]) => renderToStaticMarkup(createElement(DefinitionUsesList, { uses: buildDefinitionUses({ userId: ME, orgId: ORG, role: "member" }, rows, TRIALS.id, { now: NOW })! }));

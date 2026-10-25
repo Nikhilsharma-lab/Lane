@@ -1,9 +1,9 @@
 import "server-only"
 
 import { seeable } from "@/lib/request-access"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, type SQL } from "drizzle-orm"
 
-import { db, profiles, projects, quarterNotes, requests } from "@/db"
+import { db, profiles, projects, quarterNotes, requests, sameProblemMembers } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
 import { quarterOf, quartersOf, type ImpactPeriod, type Quarter } from "@/lib/impact-period"
 import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type QuarterNote, type Teammate } from "@/lib/impact-read-model"
@@ -40,7 +40,8 @@ async function loadQuarterNotes(auth: MemberAuth, period: ImpactPeriod): Promise
   return notes.map(note => ({ ...note, quarter: note.quarter as Quarter, editorName: note.editorName || FORMER_MEMBER, editedAt: note.editedAt.toISOString() }))
 }
 
-export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
+/** The rows the read model is given. `where` narrows them further (one Same problem group, #218); visibility always applies. */
+export async function loadImpactRows(auth: MemberAuth, where?: SQL): Promise<ImpactRow[]> {
   const rows = await db
     .select({
       id: requests.id,
@@ -62,10 +63,13 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
       expectedImpact: requests.expectedImpact,
       noMeasurableImpactReason: requests.noMeasurableImpactReason,
       followUpOf: requests.followUpOf,
+      createdAt: requests.createdAt,
+      sameProblemGroup: sameProblemMembers.groupId,
     })
     .from(requests)
     .leftJoin(projects, and(eq(requests.projectId, projects.id), eq(projects.orgId, auth.orgId)))
-    .where(seeable(auth))
+    .leftJoin(sameProblemMembers, and(eq(sameProblemMembers.requestId, requests.id), eq(sameProblemMembers.orgId, auth.orgId)))
+    .where(where ? and(seeable(auth), where) : seeable(auth))
 
   // #201: totals and names follow the Metric definitions each Request's metrics resolve to now, through the Metrics
   // library. A closed result is judged against its frozen expectation; anything else against its Expected impact.
