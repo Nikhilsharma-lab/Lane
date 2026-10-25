@@ -3,10 +3,12 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
-import { customRoles } from "@/lib/feature-switches";
+import { followSeatChanges } from "@/lib/billing";
+import { billingEnforced, customRoles } from "@/lib/feature-switches";
 import {
-  clerkRoleOf, inviteInputSchema, revokeInvitationInputSchema, roleChangeInputSchema, rolesOffered,
+  addsPaidSeat, clerkRoleOf, CONFIRM_PAID_SEAT, inviteInputSchema, revokeInvitationInputSchema, roleChangeInputSchema, rolesOffered,
 } from "@/lib/member-role-rules";
+import { clerkWorkspacePermission } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 
 /**
@@ -15,6 +17,9 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
  * nothing. The workspace comes from the page; the Admin, and their role, only from the session. Guest and Viewer
  * are Clerk custom roles that production can't have until Clerk Enhanced B2B is approved, so they are refused
  * while the `LANE_CUSTOM_ROLES` switch is off.
+ *
+ * #215: Admins and Members are paid seats. While billing is enforced, adding one needs the Admin's "This adds a paid
+ * seat" confirmation (`confirmedPaidSeat`), and a paying workspace's billed seats follow each role change.
  */
 
 type Result = { success: true } | { error: string };
@@ -23,6 +28,8 @@ const ROLES_UNAVAILABLE = "Guest and Viewer aren't available in this workspace y
 const CHANGE_UNAVAILABLE = "Guest and Viewer aren't available in this workspace yet. Choose Admin or Member.";
 
 const offered = (role: WorkspacePermission) => rolesOffered(customRoles()).includes(role);
+/** A paid seat added while billing is enforced needs the Admin's confirmation. */
+const unconfirmedSeat = (from: WorkspacePermission | null, to: WorkspacePermission, confirmed?: boolean) => billingEnforced() && addsPaidSeat(from, to) && !confirmed;
 const firstIssue = (error: { issues: { message: string }[] }) => error.issues[0]?.message ?? "Check the form.";
 
 /** Clerk's error code, when Clerk refused the request. */
@@ -36,8 +43,9 @@ export async function inviteToWorkspace(data: { email: string; role: string }, c
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   const auth = await requireOwnerOrAdmin(context.orgId);
   if (!auth) return { error: await refusal("Only Admins can invite people to this workspace.") };
-  const { email, role } = parsed.data;
+  const { email, role, confirmedPaidSeat } = parsed.data;
   if (!offered(role)) return { error: ROLES_UNAVAILABLE };
+  if (unconfirmedSeat(null, role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
 
   try {
     const client = await clerkClient();
@@ -60,7 +68,7 @@ export async function changeMemberRole(data: { userId: string; role: string }, c
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   const auth = await requireOwnerOrAdmin(context.orgId);
   if (!auth) return { error: await refusal("Only Admins can change people's roles.") };
-  const { userId, role } = parsed.data;
+  const { userId, role, confirmedPaidSeat } = parsed.data;
   // An Admin can't demote themselves, so a workspace always keeps the Admin who could undo a change.
   if (userId === auth.userId) return { error: "You can't change your own role. Ask another Admin to do it." };
   if (!offered(role)) return { error: CHANGE_UNAVAILABLE };
@@ -68,13 +76,16 @@ export async function changeMemberRole(data: { userId: string; role: string }, c
   try {
     const client = await clerkClient();
     const { data: memberships } = await client.organizations.getOrganizationMembershipList({ organizationId: auth.orgId, userId: [userId] });
-    if (!memberships.some((m) => m.organization.id === auth.orgId && m.publicUserData?.userId === userId))
-      return { error: "That person isn't in this workspace any more. Reload to see who is." };
+    const membership = memberships.find((m) => m.organization.id === auth.orgId && m.publicUserData?.userId === userId);
+    if (!membership) return { error: "That person isn't in this workspace any more. Reload to see who is." };
+    if (unconfirmedSeat(clerkWorkspacePermission(membership.role), role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
     await client.organizations.updateOrganizationMembership({ organizationId: auth.orgId, userId, role: clerkRoleOf(role) });
   } catch (error) {
     console.error("[members] role change failed", { code: clerkCode(error) });
     return { error: "The role couldn't be changed. Try again." };
   }
+  // The role is changed in Clerk either way; a seat change the provider missed is made by the next check.
+  await followSeatChanges({ orgId: auth.orgId });
   revalidatePath("/settings/members");
   return { success: true };
 }

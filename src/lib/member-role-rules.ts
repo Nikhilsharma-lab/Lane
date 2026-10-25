@@ -26,16 +26,29 @@ export function clerkRoleOf(role: WorkspacePermission): `org:${WorkspacePermissi
   return `org:${role}`
 }
 
+/** #215: Admins and Members are the paid seats; Guests and Viewers are free. */
+export const isPaidSeat = (role: WorkspacePermission | null): boolean => role === "admin" || role === "member"
+
+/** Whether giving someone `to` (who has `from` now, or nothing yet) adds a paid seat: a Guest or Viewer made a Member or Admin, or a new one. */
+export const addsPaidSeat = (from: WorkspacePermission | null, to: WorkspacePermission): boolean => isPaidSeat(to) && !isPaidSeat(from)
+
+/** What an Admin confirms before adding a paid seat while billing is enforced (#215), and the server's refusal without it. */
+export const PAID_SEAT_CONFIRMATION = "This adds a paid seat"
+export const PAID_SEAT_DETAIL = "Admins and Members are paid seats, at least 3. Once this workspace pays, an added seat is charged part-month from the day it’s added, and removing one or making them a Viewer lowers the next bill."
+export const CONFIRM_PAID_SEAT = "Confirm that this adds a paid seat."
+
 const roleSchema = z.enum(WORKSPACE_ROLES, { error: "Choose Admin, Member, Guest or Viewer." })
 
 export const inviteInputSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email({ error: "Enter an email address." }).max(320, "Enter an email address.")),
   role: roleSchema,
+  confirmedPaidSeat: z.boolean().optional(),
 }).strict()
 
 export const roleChangeInputSchema = z.object({
   userId: z.string().trim().min(1).max(200),
   role: roleSchema,
+  confirmedPaidSeat: z.boolean().optional(),
 }).strict()
 
 export const revokeInvitationInputSchema = z.object({
