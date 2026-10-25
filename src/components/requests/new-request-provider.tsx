@@ -60,12 +60,14 @@ const intakeLauncher = () => document.querySelector<HTMLElement>("[data-intake-l
 const LAUNCHER = "intake-launcher";
 
 /** Lives with the authenticated workspace, so closing a composer does not discard File objects. */
-export function NewRequestProvider({ children, context, draftOwnerId, canAddReviewers = false }: {
+export function NewRequestProvider({ children, context, draftOwnerId, canAddReviewers = false, withoutPrediction = false }: {
   children: ReactNode;
   context: { orgId: string };
   draftOwnerId: string;
   /** #78: guests create Requests but can't ask for reviews. */
   canAddReviewers?: boolean;
+  /** #212: a Guest files without a prediction; the Member who takes it on writes it. */
+  withoutPrediction?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToastStack();
@@ -230,7 +232,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {

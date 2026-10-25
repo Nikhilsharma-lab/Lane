@@ -106,11 +106,13 @@ export function RequestUnavailable({ returnHref }: { returnHref: string }) {
  * times are phrased here so the client islands never disagree with the
  * server about "3h ago".
  */
-export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, peekStrip }: {
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, guestSubmission, peekStrip }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
   /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
   viewer: DetailViewer; orgId: string; returnHref?: string;
   lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode; requestPanels?: ReactNode;
+  /** #212: the Guest submission notice, after the problem. */
+  guestSubmission?: ReactNode;
   /** Plan item 2.12: the list's peek. Its strip replaces the page's, the title is the panel's h2 (the list keeps the page's h1), and arrival moves no focus. */
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
@@ -145,6 +147,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
 
             </section>
+            {guestSubmission}
             {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} metricNames={request.metricNames} />}
             {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
               <h2 id="no-measurable-impact-heading">No measurable impact</h2>

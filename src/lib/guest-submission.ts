@@ -32,6 +32,32 @@ export function guestPickupRefusal(request: { guestSubmission: GuestSubmissionSt
   return null
 }
 
+/** Who reads the notice: their id and Clerk role. */
+export type GuestNoticeReader = { userId: string; role: "admin" | "member" | "guest" | "viewer" }
+
+/**
+ * What Request detail says about a Guest submission to this reader, and the one thing it offers them: Admins and
+ * Members take a waiting one on; whoever took it on is asked for the prediction until it's written. The Guest and a
+ * Viewer are only told where it stands.
+ */
+export function guestSubmissionNotice(view: GuestSubmissionView, reader: GuestNoticeReader, hasPrediction: boolean): { text: string; action: "take_on" | "write_prediction" | null } {
+  const submitter = view.submitterName?.trim() || "A Guest"
+  const taker = view.takenOnByName?.trim() || "A Member"
+  const ownSubmission = reader.role === "guest"
+  if (view.state === "waiting") {
+    if (ownSubmission) return { text: "Waiting for a Member to take this on. They’ll write its prediction, and you’ll get an email when they do.", action: null }
+    if (reader.role === "viewer") return { text: `${submitter} filed this as a Guest. It’s waiting for a Member to take it on.`, action: null }
+    return { text: `${submitter} filed this as a Guest, without a prediction. Take it on to become its Requester and write the prediction.`, action: "take_on" }
+  }
+  if (ownSubmission) return { text: `${taker} took this on and is its Requester. You can still follow it and comment.`, action: null }
+  if (view.takenOnBy === reader.userId && reader.role !== "viewer") {
+    return hasPrediction
+      ? { text: `${submitter} filed this as a Guest. You took it on and are its Requester.`, action: null }
+      : { text: `${submitter} filed this as a Guest. You took it on, so write its prediction before the work is picked up.`, action: "write_prediction" }
+  }
+  return { text: `${submitter} filed this as a Guest. ${taker} took it on and is its Requester.`, action: null }
+}
+
 /** What Request detail shows about a Guest submission. Names come from saved profiles. */
 export type GuestSubmissionView = {
   state: GuestSubmissionState

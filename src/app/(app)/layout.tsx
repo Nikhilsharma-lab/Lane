@@ -68,7 +68,7 @@ export default async function AppLayout({
         <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
         {/* #210: a Viewer files nothing, so no composer, no C shortcut and no palette entry open one. */}
         {canContribute(member.role)
-          ? <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={canChangeThings(member.role)}>{shell}</NewRequestProvider>
+          ? <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={canChangeThings(member.role)} withoutPrediction={member.role === "guest"}>{shell}</NewRequestProvider>
           : shell}
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
