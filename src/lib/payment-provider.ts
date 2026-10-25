@@ -6,7 +6,7 @@
  * recording stand-in, which sends nothing anywhere.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { FOUNDING_DISCOUNT, type BillingPeriod } from "./billing-plan-rules";
+import { FOUNDING_DISCOUNT, PAID_SEAT_MINIMUM, type BillingPeriod } from "./billing-plan-rules";
 import { stripeBilling, type StripeBilling } from "./feature-switches";
 
 export type CheckoutRequest = {
@@ -35,27 +35,41 @@ export type PaymentEvent = {
   subscriptionId: string;
   period: BillingPeriod;
   foundingDiscount: boolean;
+  /** The paid seats the checkout was for (#215), when the provider says. */
+  seats?: number;
 };
 
 /** `event: null` is a genuine event Lane has no use for; `ok: false` is one that isn't from the provider. */
 export type EventReading = { ok: true; event: PaymentEvent | null } | { ok: false };
 
+/**
+ * #215: a paying workspace's paid seats changed. `seats` is the new number billed (at least 3). An added seat is
+ * charged part-month from `at`, straight away (`part_month_now`); a removed one only lowers the next bill
+ * (`next_bill`), with nothing charged or refunded now.
+ */
+export type SeatChange = { subscriptionId: string; seats: number; charge: "part_month_now" | "next_bill"; at: Date };
+export type SeatsChanged = { ok: true } | { ok: false; reason: string };
+
 export type PaymentProvider = {
   startCheckout(request: CheckoutRequest): Promise<CheckoutStarted>;
   readEvent(body: string, headers: Headers, now: Date): Promise<EventReading>;
+  changeSeats(change: SeatChange): Promise<SeatsChanged>;
 };
 
 const STAND_IN_SIGNATURE = "lane-stand-in-signature";
 
 /**
  * The stand-in: records every checkout and answers with a made-up hosted page. `complete` gives the signed event
- * body the provider would send once that checkout is paid, and `headers` the signature it would carry.
+ * body the provider would send once that checkout is paid, and `headers` the signature it would carry. Seat
+ * changes are recorded in `seatChanges` (#215).
  */
-export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = {}) {
+export function recordingPaymentProvider({ fail = false, failSeatChanges = false }: { fail?: boolean; failSeatChanges?: boolean } = {}) {
   const checkouts: CheckoutRequest[] = [];
+  const seatChanges: SeatChange[] = [];
   const secret = "stand-in-webhook-secret";
-  const provider: PaymentProvider & { checkouts: CheckoutRequest[]; headers(): Headers; complete(index?: number, ids?: { customerId?: string; subscriptionId?: string }): string } = {
+  const provider: PaymentProvider & { checkouts: CheckoutRequest[]; seatChanges: SeatChange[]; headers(): Headers; complete(index?: number, ids?: { customerId?: string; subscriptionId?: string }): string } = {
     checkouts,
+    seatChanges,
     headers: () => new Headers({ [STAND_IN_SIGNATURE]: secret }),
     complete(index = checkouts.length - 1, ids: { customerId?: string; subscriptionId?: string } = {}): string {
       const checkout = checkouts[index];
@@ -68,6 +82,7 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
         subscriptionId: ids.subscriptionId ?? `stand_in_subscription_${name}`,
         period: checkout.period,
         foundingDiscount: checkout.foundingDiscount !== null,
+        seats: checkout.seats,
       };
       return JSON.stringify(event);
     },
@@ -79,6 +94,11 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
     async readEvent(body: string, headers: Headers): Promise<EventReading> {
       if (headers.get(STAND_IN_SIGNATURE) !== secret) return { ok: false };
       return { ok: true, event: JSON.parse(body) as PaymentEvent };
+    },
+    async changeSeats(change: SeatChange): Promise<SeatsChanged> {
+      if (failSeatChanges) return { ok: false, reason: "stand_in_failed" };
+      seatChanges.push(change);
+      return { ok: true };
     },
   };
   return provider;
@@ -92,16 +112,19 @@ type Fetch = typeof fetch;
 
 /**
  * The Stripe adapter: Stripe Checkout (a hosted page) in subscription mode, with the yearly or monthly Price per
- * seat, and the founding coupon. Events are checked against the webhook signing secret. Failures come back as
- * reasons (never thrown) carrying no key, address or card detail.
+ * seat, and the founding coupon. Events are checked against the webhook signing secret. Seat changes (#215) set the
+ * subscription's quantity: an added seat prorated and invoiced at once, a removed one with no proration, so only the
+ * next bill is lower. Failures come back as reasons (never thrown) carrying no key, address or card detail.
  */
 export function stripePaymentProvider(config: Extract<StripeBilling, { on: true }>, { fetch: send = fetch }: { fetch?: Fetch } = {}): PaymentProvider {
-  async function post(path: string, form: URLSearchParams): Promise<{ ok: true; answer: Record<string, unknown> } | { ok: false; status: number; code?: string }> {
+  type Answer = { ok: true; answer: Record<string, unknown> } | { ok: false; status: number; code?: string };
+  const post = (path: string, form: URLSearchParams) => call(path, form);
+  async function call(path: string, form?: URLSearchParams): Promise<Answer> {
     try {
       const response = await send(`${STRIPE_API}${path}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${config.secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: form.toString(),
+        method: form ? "POST" : "GET",
+        headers: { Authorization: `Bearer ${config.secretKey}`, ...(form && { "Content-Type": "application/x-www-form-urlencoded" }) },
+        body: form?.toString(),
         signal: AbortSignal.timeout(10_000),
       });
       const answer = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -136,6 +159,7 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
         "metadata[org_id]": request.orgId,
         "metadata[period]": request.period,
         "metadata[founding]": request.foundingDiscount ? "1" : "0",
+        "metadata[seats]": String(request.seats),
         "subscription_data[metadata][org_id]": request.orgId,
       });
       if ("id" in request.customer) form.set("customer", request.customer.id);
@@ -167,7 +191,28 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
       const orgId = metadata.org_id ?? (session.client_reference_id as string | undefined);
       const period = metadata.period;
       if (!orgId || !customerId || !subscriptionId || (period !== "yearly" && period !== "monthly")) return { ok: true, event: null };
-      return { ok: true, event: { kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1" } };
+      const seats = Number(metadata.seats);
+      return { ok: true, event: {
+        kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1",
+        ...(Number.isInteger(seats) && seats >= PAID_SEAT_MINIMUM && { seats }),
+      } };
+    },
+
+    async changeSeats({ subscriptionId, seats, charge, at }) {
+      const failed = (answer: { status: number }) => ({ ok: false as const, reason: answer.status ? `stripe_${answer.status}` : "stripe_unreachable" });
+      const path = `/subscriptions/${encodeURIComponent(subscriptionId)}`;
+      const found = await call(path);
+      if (!found.ok) return failed(found);
+      // Lane's subscriptions have one item: the seat price, with the seats as its quantity.
+      const item = (found.answer.items as { data?: { id?: string }[] } | undefined)?.data?.[0]?.id;
+      if (!item) return { ok: false, reason: "stripe_no_item" };
+      const form = new URLSearchParams({ "items[0][id]": item, "items[0][quantity]": String(seats) });
+      if (charge === "part_month_now") {
+        form.set("proration_behavior", "always_invoice");
+        form.set("proration_date", String(Math.floor(at.getTime() / 1000)));
+      } else form.set("proration_behavior", "none");
+      const changed = await post(path, form);
+      return changed.ok ? { ok: true } : failed(changed);
     },
   };
 }

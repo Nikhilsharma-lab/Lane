@@ -14,6 +14,7 @@ import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 import { canChangeThings, canContribute } from "@/lib/role-rules";
+import { followSeatChangesAfterResponse } from "@/lib/billing";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -38,6 +39,8 @@ export default async function AppLayout({
   const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
+  // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
+  followSeatChangesAfterResponse({ orgId: result.orgId });
 
   const shell = (
     <Sidebar
