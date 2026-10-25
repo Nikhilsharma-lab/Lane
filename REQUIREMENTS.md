@@ -230,6 +230,12 @@ predicted beside actual (a guardrail's limit beside what was measured). A result
 its due date once released, never as zero; a Request closed without a result shows its reason. A definition merged into
 this one brings its Requests; a merged-away definition's page points to the one they now count under. Nothing is grouped,
 totalled or ranked by person.
+Merging (#202): on a definition's page an Admin merges it with another definition in the same unit and chooses which one
+is kept; different units are refused, and Members and Guests are refused on the server and see no merge controls. The kept
+definition is unchanged; the other is marked "merged into" it, leaves the picker and the main list, and links to the kept
+one. Both histories record the merge. Requests are not rewritten: their metrics resolve through the link, so Impact totals
+combine at once. There is no unmerge, and a merged-away definition can't be merged again. An archived definition can be
+merged away or kept.
 
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where

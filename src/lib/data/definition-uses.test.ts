@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { mergeMetricDefinitions } from "@/lib/metrics-library";
 import { loadDefinitionUses } from "./impact";
 
 // #203: a Metric definition's page lists every Request that used it, from the Impact read model. The Requests come
@@ -64,7 +65,8 @@ describe("Requests that used a Metric definition", () => {
     await request("Guarded", v5(metric(conversion, "Orders", "count"), [metric(kept, "Trials started", "count")]), { projectId: growth.id, actual: 50, guardrailActual: 25 });
     await request("Waiting", v5(metric(kept, "Trials started", "count"), [metric(errors, "Errors", "count")]));
     await request("Other workspace", v5(metric(elsewhere, "Trials started", "count")), { org: OTHER, actual: 120 });
-    await connection`update metric_definitions set merged_into_id = ${kept}, archived_at = now() where id = ${duplicate}`;
+    const merging = await mergeMetricDefinitions({ orgId: ORG }, USER, { keptId: kept, mergedId: duplicate });
+    expect(merging).toEqual({ changed: true });
 
     const uses = (await loadDefinitionUses(member, kept, { now: NOW }))!;
     expect(uses.main.map(group => [group.name, group.uses.map(use => [use.title, use.outcome.kind])])).toEqual([

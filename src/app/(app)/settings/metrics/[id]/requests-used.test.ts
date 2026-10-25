@@ -2,7 +2,9 @@
  * #203: a Metric definition's page lists the Requests that used it, as the server renders it, with the Requests read
  * from the real test database. The session's workspace and role are faked; Clerk's own profile widgets are stubbed.
  */
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
@@ -28,7 +30,8 @@ vi.mock("../../profile/theme-preference", () => ({ ThemePreference: () => null }
 const as = (role: WorkspaceContext["role"]): WorkspaceContext => ({ userId: USER, orgId: ORG, role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Metric page" });
 const open = async (id: string) => {
   const { default: MetricDefinitionPage } = await import("./page");
-  return renderToStaticMarkup(await MetricDefinitionPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) }));
+  // The app's root layout provides the toast stack.
+  return renderToStaticMarkup(createElement(ToastStackProvider, null, await MetricDefinitionPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) })));
 };
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 
@@ -52,7 +55,9 @@ beforeAll(async () => {
   await connection`insert into requests (org_id,title,description,created_by,project_id,expected_impact) values
     (${ORG},'Shorter trial form','Fixture',${USER},${growth.id},${connection.json(v5(kept, "Trials started") as never)}),
     (${ORG},'Trial reminder email','Fixture',${USER},null,${connection.json(v5(merged, "Trial starts") as never)})`;
-  await connection`update metric_definitions set merged_into_id = ${kept}, archived_at = now() where id = ${merged}`;
+  const { mergeMetricDefinitions } = await import("@/lib/metrics-library");
+  const merging = await mergeMetricDefinitions({ orgId: ORG }, USER, { keptId: kept, mergedId: merged });
+  if (!("changed" in merging)) throw new Error(merging.error);
 });
 afterAll(async () => {
   if (!connection) return;
@@ -74,11 +79,12 @@ describe("A Metric definition's page: Requests that used it", () => {
     expect(text(html)).toContain("Actual Still due (not released yet)");
   });
 
-  it("points a merged definition's readers to the metric its Requests now count under", async () => {
+  it("lists nothing on a merged definition's page, which links to the metric its Requests now count under", async () => {
     const html = await open(merged);
-    expect(text(html)).toContain("Its Requests now count under Trials started");
+    expect(text(html)).toMatch(/Merged into Trials started ?\. Requests that used it now count under that one\./);
     expect(html).toMatch(new RegExp(`<a[^>]*href="/settings/metrics/${kept}"[^>]*>Trials started</a>`));
-    expect(html).not.toContain("Shorter trial form");
+    expect(html).not.toContain("Requests that used it</h3>");
+    expect(html).not.toContain("Trial reminder email");
   });
 
   it("says so when no Request has used it yet", async () => {

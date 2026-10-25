@@ -3,6 +3,11 @@
 .backLink { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: start; color: var(--text-secondary); font-size: var(--text-sm); text-decoration: none; border-radius: var(--corner-sm); }
 .backLink:hover { color: var(--foreground); }
 .archive { display: grid; justify-items: end; gap: var(--space-2); }
-.note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.inlineLink { color: var(--link-ink); border-radius: var(--corner-sm); }
 .error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }
+/* Merging (#202): the chooser stacks in one column at every width. */
+.merge { display: grid; gap: var(--space-4); min-width: 0; }
+.merge > * { min-width: 0; }
+.mergeButton { justify-self: start; }
+.note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.dialogActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-block-start: var(--space-4); }
+.keptLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
