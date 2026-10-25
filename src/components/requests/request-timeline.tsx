@@ -68,8 +68,9 @@ function JourneyTimeline({ request, orgId, isAdmin, isGuest }: Props) {
     refresh.activate()
     return () => refresh.dispose()
   }, [refresh])
-  // Initial, revision, retry, save and background reads all use this lifetime.
-  useEffect(() => { void refresh.refresh() }, [refresh, revision])
+  // Saved pickup/Done/Undo changes status without changing the journey revision.
+  // Keep those reads in the same lifetime, including deferral while a form is open.
+  useEffect(() => { void refresh.refresh() }, [refresh, revision, request.status])
   const today = views?.release.today
   useEffect(() => {
     if (today) return watchJourneyDate(today, () => { void refresh.refresh() })

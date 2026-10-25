@@ -14,6 +14,17 @@ The unit fixture renders the actual `ToastStackProvider` and captures its comman
 
 These state tests do not prove mounted timers, Arc's action runner or native gestures. Actual-app browser checks cover those separately: dismissal/Escape/swipe, expiry and pauses, keyboard palette agreement, retained loading/result toast, Release failure/success and desktop/mobile themes. A fake visibility property is not hidden-tab evidence. See the session handoff and #174 evidence for completed commands, pinned non-production target and remaining gaps.
 
+The retained run6 browser regression also exposed stale Journey presentation after
+saved pickup and Done: LAN10 remained Open in Journey while the property panel and
+saved row were Done. Its agreement revision stayed zero through both transitions.
+The Timeline previously refreshed only for that revision; this omission predates
+the #170 refresh coordinator. It now also observes the saved Request status passed
+directly from the detail loader, using the same coordinator for form deferral,
+newest-response ownership and focus. It does not observe speculative overlay state
+or poll. The existing running-app regression is the failing boundary; a fresh,
+guarded replay must establish rendered recovery. Coordinator tests alone do not
+prove that integration.
+
 The isolated local application suite requires the non-resetting architecture bootstrap first. No hosted database reset, new schema, route, dependency, account, role or membership change is part of this increment. The initial #174 build passed the original #167 cumulative budget at maximum +2,018 bytes, withdrawing the #173 proposal. Required review fixes now measure Requests at +2,073 bytes, 25 above the unchanged 2,048-byte limit; all other routes remain within it. This is recorded as a separate measured baseline proposal, pending approval by merging. Keep comparing cumulatively against the original baseline through #176; earlier measurements remain historical evidence.
 
 
@@ -25,8 +36,10 @@ supersedes the initial #174 within-budget receipt; it does not revive or approve
 allows a measured baseline refresh with a written PR waiver. Tolerance remains
 2,048 bytes, and no release or main-merge approval is claimed.
 
-Final product source `e7f296118fcbd7ec68e7a0ce7a7d50d42a144018`, Node 24.22.0,
-Next 16.3.8, compared with the original #167 baseline:
+The proposal originated at product source
+`e7f296118fcbd7ec68e7a0ce7a7d50d42a144018`. The subsequent saved-status Journey
+refresh adds 3 gzip bytes to Request detail only. Current Node 24.22.0/Next 16.3.8
+measurement against the original #167 baseline:
 
 | Route | Original gzip bytes | Current gzip bytes | Cumulative growth | Above 2,048 |
 | --- | ---: | ---: | ---: | ---: |
@@ -35,7 +48,7 @@ Next 16.3.8, compared with the original #167 baseline:
 | `/intake` | 448011 | 450053 | 2042 | 0 |
 | `/settings/members` | 478292 | 480332 | 2040 | 0 |
 | `/settings/profile` | 478292 | 480332 | 2040 | 0 |
-| `/requests/[id]` | 508554 | 510578 | 2024 | 0 |
+| `/requests/[id]` | 508554 | 510581 | 2027 | 0 |
 
 The initial #174 implementation removed DOM/count/timer choreography and measured
 maximum +2,018 bytes, naturally recovering the original budget. Required review
@@ -45,9 +58,11 @@ newer prompt. These correctness protections remain readable; no byte-oriented
 rewrite was made to recover the final 25 bytes. Public routes shrink 37 bytes and
 onboarding shrinks 160; no new route or dependency is involved.
 
-The generated refresh uses this same final build without a rebuild or product
-change. Its check passes; the original cumulative check still fails only `/`.
-Exact measurements and failure evidence remain in
+The generated proposal retains the earlier review-fix build; the subsequent
+Journey correction passes that unchanged baseline with 3 bytes of growth on detail.
+The original cumulative check still fails only `/`. Current measurements and failure
+evidence are `/private/tmp/lane-spec-174-timeline-bundle-bytes.json` and
+`/private/tmp/lane-spec-174-timeline-original-bundle.log`. Earlier receipts remain in
 `/private/tmp/lane-spec-174-final-review-bundle-bytes.json` and
 `/private/tmp/lane-spec-174-final-review-bundle.log`. Preserve
 `/private/tmp/lane-spec-167-original-bundle-baseline.json` for the final cumulative

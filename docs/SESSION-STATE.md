@@ -1,5 +1,27 @@
 # Shared Claude / Codex handoff
 
+## #174 Journey reconciliation correction — browser replay pending
+
+Actual-app run6 on `5749d4c` passed the four theme/size surfaces and the older
+Release/newer prompt case; the native hidden-document run5 receipt remains valid.
+LAN10 then correctly reported a skipped Undo with no server submission, but the
+Journey stayed Open while the saved row and property panel were Done. Saved
+pickup/Done left agreement revision at zero. The Timeline observed only revision;
+this omission also exists before #170. Its refresh effect now observes saved
+`request.status`, passed directly from the detail loader, through the same
+form-safe/newest-response coordinator. No polling, overlay inference or remount.
+
+Focused Journey/Undo 72 tests, full UI 663, full typecheck/lint/design pass.
+Run6 is the retained actual-app failing regression. Root controls the fresh
+guarded replay and exact Journey-read transport evidence; no rendered-green claim
+is made from these source checks. Production build passed after a sandboxed compile
+stalled and was stopped. Current proposed-baseline check passes; original cumulative
+comparison remains Requests +2,073 bytes (25 over), detail now +2,027 (3 more), all
+other routes unchanged. No further baseline refresh; the existing proposal still
+awaits approval by main merge. Independent delta review and browser replay remain
+pending. No database reset or hosted mutation by the product implementer.
+Evidence: `/private/tmp/lane-spec-174-evidence.md`.
+
 ## #174 review fixes implemented — final review and browser acceptance pending
 
 Product source `e7f296118fcbd7ec68e7a0ce7a7d50d42a144018` includes the independent
