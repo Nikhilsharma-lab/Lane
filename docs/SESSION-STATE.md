@@ -1,5 +1,42 @@
 # Shared Claude / Codex handoff
 
+## #173 implemented — review and actual-app acceptance pending
+
+The Project and Label providers now share a small in-process catalogue owner.
+Only the latest read in the active subscription lifetime publishes data, permission
+metadata, loading or errors. Confirmed creations survive missing-ID reads until
+current server acknowledgement retires protection; the server record then wins.
+Workspace-keyed providers and final-unsubscribe cleanup invalidate pending reads
+and captured add/reload callbacks, including cleanup/setup replay. Domain ordering,
+Label scope/permissions, server authorization and explicit #169 action recovery stay
+in the existing adapters. Contract: `docs/testing/workspace-catalogues.md`.
+
+Actual-adapter regressions were observed red before each behavior correction.
+Final UI: 646 tests across 62 files; guarded application suite: 1,914 passed/one
+skipped; bootstrap: 52. Typecheck, full lint, design checks and production build
+passed. The application suite predates the final client-only subscription
+consolidation; the complete UI suite covers that final implementation.
+
+The unchanged cumulative client budget currently fails: Requests is +2,051 bytes
+(3 above 2,048); Impact, Intake and both Settings routes are +2,120 bytes
+(72 above). Request detail is +1,977 bytes and passes. Exact Node 24 measurements
+and all earlier failed checks are in `/private/tmp/lane-spec-173-evidence.md`.
+A separate generated baseline refresh and written **proposed** waiver now retain
+those original measurements for review, pending Nikhil's approval by merging.
+The check passes against the proposed baseline, whose tolerance remains 2,048.
+It does not pass the original cumulative budget. The original baseline is retained
+for full-PR comparison through #176; this is not an approved release waiver.
+See the exact proposal in `docs/testing/workspace-catalogues.md` and the page-quality
+ledger. Product source remains `fbe0185`; this refresh does not rebuild or alter it.
+
+Browser helper commit `4961451` covers real pre-dispatch creation failure, explicit
+UI retry and three minimum catalogue entries, scope and keyboard checks on four
+surfaces. Actual-app execution and independent review are pending. The authorized
+admin/member team has no permitted route to catalogue reload errors; that contract
+is covered through the real production adapters rather than private-state injection.
+No new Requests, AI calls, product routes, tables or dependencies are introduced.
+Tickets #168–#172 remain integrated; #173 is not yet complete.
+
 ## #172 reviewed and integrated — five of nine complete; #173 next
 
 Ticket [#172](https://github.com/Nikhilsharma-lab/Lane/issues/172) is merged at
