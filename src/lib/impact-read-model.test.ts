@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactRow, type ImpactViewer } from "./impact-read-model";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -523,6 +523,102 @@ describe("impact read model: totals by Metric definition (#201)", () => {
     const rows = [closedRow("a", 1, guarded, 46, [definedAs({ id: "def-tickets", name: "Help tickets per user", unit: "percent" }, 1)], { outcomeClosure: closure })];
     const [result] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines[0].results;
     expect(result.guardrails).toEqual([{ definitionId: "def-tickets", metric: "Help tickets per user", operator: "at_most", limit: 5, unit: "%", actual: 3, held: true }]);
+  });
+});
+
+describe("impact read model: Requests that used a Metric definition (#203)", () => {
+  const TRIALS = { id: "def-trials", name: "Trials started", unit: "count" as const };
+  const trials = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+
+  it("groups the Requests that predicted it by Project, with predicted and actual side by side", () => {
+    const rows = [
+      closedRow("a", 1, trials, 130, [definedAs(TRIALS)], { projectId: "p2", projectName: "Onboarding" }),
+      closedRow("b", 2, trials, 120, [definedAs(TRIALS)], { projectId: "p1", projectName: "Growth" }),
+      closedRow("c", 3, trials, 110, [definedAs(TRIALS)]),
+      closedRow("d", 4, trials, 140, [definedAs(TRIALS)], { projectId: "p1", projectName: "Growth" }),
+      closedRow("e", 5, trials, 100, [definedAs(ADOPTERS)], { projectId: "p1", projectName: "Growth" }),
+    ];
+    const uses = buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })!;
+    expect(uses.main.map(group => [group.name, group.uses.map(use => use.requestNumber)])).toEqual([["Growth", [2, 4]], ["Onboarding", [1]], ["No Project", [3]]]);
+    const [first] = uses.main[0].uses;
+    expect(first.predicted).toMatchObject({ definitionId: TRIALS.id, metric: "Trials started", unit: "count", baseline: 100, target: 150, predictedChange: 50 });
+    expect(first.outcome).toMatchObject({ kind: "measured", result: { actual: 120, change: 20 } });
+  });
+
+  it("shows a Request still waiting for its result as still due, with its due date once released, never as zero", () => {
+    const exception: OutcomeException = {
+      version: 1, kind: "exception", reasonCode: "rolled_back", reason: "Rolled back after a day",
+      actorId: MEMBER, ownerId: MEMBER, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-x", fingerprint: "fp",
+      release: RELEASE_AUG, revision: 1,
+    };
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT), expectedImpact: trials, definitions: [definedAs(TRIALS)] }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "open", expectedImpact: trials, definitions: [definedAs(TRIALS)] }),
+      row({ id: "c", requestNumber: 3, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: trials, exceptionClosure: exception, definitions: [definedAs(TRIALS)] }),
+    ];
+    const [group] = buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })!.main;
+    expect(group.uses.map(use => use.outcome)).toEqual([
+      { kind: "still_due", due: { dueDate: "2026-10-31", dueLabel: "Due in 8 days" } },
+      { kind: "still_due", due: null },
+      { kind: "closed_without_result", reason: "Rolled back after a day" },
+    ]);
+    expect(group.uses[0].predicted).toMatchObject({ metric: "Trials started", target: 150 });
+  });
+
+  it("lists guardrail uses apart from main-metric uses, each limit beside what was measured", () => {
+    const guardedBy = (limit: number): ExpectedImpact => ({ ...plan(), guardrails: [
+      { key: "events", definitionId: null, name: "", unit: "count", current: 10, noBaseline: false, operator: "at_most", limit },
+    ] } as ExpectedImpact);
+    const closure = { ...measuredClosure(guardedBy(200), RELEASE_AUG, 46), guardrails: [{ metric: "Action count", operator: "at_most" as const, limit: 200, unit: "count", actual: 240 }] };
+    const conversion = definedAs({ id: "def-conversion", name: "Checkout conversion", unit: "percent" });
+    const rows = [
+      closedRow("a", 1, trials, 130, [definedAs(TRIALS)]),
+      closedRow("b", 2, guardedBy(200), 46, [conversion, definedAs(TRIALS, 1)], { outcomeClosure: closure, projectId: "p1", projectName: "Growth" }),
+      row({ id: "c", requestNumber: 3, createdBy: MEMBER, status: "open", expectedImpact: guardedBy(300), definitions: [conversion, definedAs(TRIALS, 1)] }),
+    ];
+    const uses = buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })!;
+    expect(uses.main.flatMap(group => group.uses.map(use => use.requestNumber))).toEqual([1]);
+    expect(uses.guardrails.map(group => [group.name, group.uses.map(use => use.requestNumber)])).toEqual([["Growth", [2]], ["No Project", [3]]]);
+    expect(uses.guardrails[0].uses[0]).toMatchObject({
+      mainMetric: "Checkout conversion",
+      limit: { operator: "at_most", limit: 200, unit: "count" },
+      outcome: { kind: "measured", actual: 240, held: false },
+    });
+    expect(uses.guardrails[1].uses[0]).toMatchObject({ limit: { limit: 300 }, outcome: { kind: "still_due", due: null } });
+  });
+
+  it("gives every non-guest the same list, keeps it inside the workspace, and gives a guest none", () => {
+    const rows = [
+      closedRow("a", 1, trials, 130, [definedAs(TRIALS)], { createdBy: ADMIN, assignedTo: MEMBER }),
+      closedRow("b", 2, trials, 120, [definedAs(TRIALS)], { createdBy: GUEST }),
+      closedRow("c", 3, trials, 120, [definedAs(TRIALS)], { orgId: "org_other" }),
+    ];
+    const admin = buildDefinitionUses(ADMIN_VIEWER, rows, TRIALS.id, { now: NOW })!;
+    expect(admin.main.flatMap(group => group.uses.map(use => use.requestNumber))).toEqual([1, 2]);
+    expect(buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })).toEqual(admin);
+    expect(buildDefinitionUses(LEADER_VIEWER, rows, TRIALS.id, { now: NOW })).toEqual(admin);
+    expect(buildDefinitionUses(GUEST_VIEWER, rows, TRIALS.id, { now: NOW })).toBeNull();
+  });
+
+  it("names, groups and totals nobody", () => {
+    const rows = [
+      closedRow("a", 1, trials, 130, [definedAs(TRIALS)], { createdBy: ADMIN, assignedTo: MEMBER, projectId: "p1", projectName: "Growth" }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, assignedTo: ADMIN, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT), expectedImpact: trials, definitions: [definedAs(TRIALS)] }),
+    ];
+    const uses = buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })!;
+    expect(keysOf(uses).filter(key => /total|average|score|rank|mean|sum|person|people|user|createdBy|assignedTo|owner|actor|role/i.test(key))).toEqual([]);
+    expect(JSON.stringify(uses)).not.toMatch(new RegExp([ADMIN, MEMBER, "user_requester"].join("|")));
+  });
+
+  it("includes Requests whose metric now counts under it after a merge, under its current name", () => {
+    // The Metrics library resolves a merged-away definition to the one it was merged into, so that one lists both.
+    const typed: ExpectedImpact = { kind: "metric", metric: "Trial signups", unit: "count", baseline: 100, target: 150, source: "Analytics", reviewAfterDays: 30 } as ExpectedImpact;
+    const rows = [
+      closedRow("a", 1, trials, 130, [definedAs(TRIALS)]),
+      closedRow("b", 2, typed, 125, [definedAs(TRIALS)]),
+    ];
+    const [group] = buildDefinitionUses(MEMBER_VIEWER, rows, TRIALS.id, { now: NOW })!.main;
+    expect(group.uses.map(use => [use.requestNumber, use.predicted.metric])).toEqual([[1, "Trials started"], [2, "Trials started"]]);
   });
 });
 
