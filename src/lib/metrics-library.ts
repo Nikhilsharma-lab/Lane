@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq, isNull, max, ne, sql } from "drizzle-orm";
 
-import { db, metricDefinitionHistory, metricDefinitions, type MetricDefinitionHistoryKind } from "@/db";
+import { db, metricDefinitionHistory, metricDefinitions, profiles, type MetricDefinitionHistoryKind } from "@/db";
 import { STARTER_METRIC_KEYS, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
 
 /**
@@ -35,6 +35,8 @@ export type MetricDefinitionHistoryEntry = {
   after: Record<string, unknown>;
   /** Null only for a starter metric's creation. */
   authorId: string | null;
+  /** The author's profile name; null for a starter metric's creation (or a profile without a name). */
+  authorName: string | null;
   createdAt: Date;
 };
 
@@ -117,7 +119,19 @@ export async function listMetricDefinitions(workspace: MetricsWorkspace, options
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** A definition's history, oldest first. Empty for an id that isn't one of this workspace's definitions. */
+/** One of the workspace's definitions, archived and merged ones included; null for any other id. */
+export async function readMetricDefinition(workspace: MetricsWorkspace, definitionId: string): Promise<MetricDefinition | null> {
+  if (!UUID.test(definitionId)) return null;
+  const [row] = await db.select(definitionColumns).from(metricDefinitions)
+    .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, definitionId)));
+  if (!row) return null;
+  return {
+    id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archivedAt: row.archivedAt,
+    mergedIntoId: row.mergedIntoId, createdBy: row.createdBy, createdAt: row.createdAt, updatedAt: row.updatedAt,
+  };
+}
+
+/** A definition's history, oldest first, with each author's profile name. Empty for an id that isn't one of this workspace's definitions. */
 export async function readMetricDefinitionHistory(workspace: MetricsWorkspace, definitionId: string): Promise<MetricDefinitionHistoryEntry[]> {
   if (!UUID.test(definitionId)) return [];
   return db.select({
@@ -126,8 +140,10 @@ export async function readMetricDefinitionHistory(workspace: MetricsWorkspace, d
     before: metricDefinitionHistory.before,
     after: metricDefinitionHistory.after,
     authorId: metricDefinitionHistory.authorId,
+    authorName: profiles.fullName,
     createdAt: metricDefinitionHistory.createdAt,
   }).from(metricDefinitionHistory)
+    .leftJoin(profiles, eq(profiles.id, metricDefinitionHistory.authorId))
     .where(and(eq(metricDefinitionHistory.orgId, workspace.orgId), eq(metricDefinitionHistory.definitionId, definitionId)))
     .orderBy(asc(metricDefinitionHistory.revision));
 }
