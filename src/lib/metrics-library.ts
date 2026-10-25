@@ -2,8 +2,8 @@ import "server-only";
 
 import { and, asc, eq, isNull, max, ne, sql } from "drizzle-orm";
 
-import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, type MetricDefinitionHistoryKind } from "@/db";
-import { STARTER_METRIC_KEYS, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
+import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, requestExpectedImpactRevisions, requests, type MetricDefinitionHistoryKind } from "@/db";
+import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
 import { savedMetricsOf, type SavedMetric } from "@/lib/saved-metrics";
 
 /**
@@ -141,12 +141,19 @@ export type ResolvedSavedMetric = SavedMetric & {
  * (only in a browser draft) resolves to null.
  */
 export async function resolveSavedMetrics(workspace: MetricsWorkspace, impacts: readonly unknown[]): Promise<ResolvedSavedMetric[][]> {
+  return (await resolveWith(workspace, impacts)).resolved;
+}
+
+type DefinitionRow = Awaited<ReturnType<typeof allDefinitions>>[number];
+
+/** resolveSavedMetrics, also handing back the workspace's definitions it read (filled with the starters). */
+async function resolveWith(workspace: MetricsWorkspace, impacts: readonly unknown[], rowsRead?: Promise<DefinitionRow[]>): Promise<{ resolved: ResolvedSavedMetric[][]; rows: DefinitionRow[] }> {
   const found = impacts.map(savedMetricsOf);
   const refs = found.flat().map((metric) => metric.ref);
-  if (!refs.length) return found.map(() => []);
+  if (!refs.length) return { resolved: found.map(() => []), rows: rowsRead ? await rowsRead : [] };
   const lookups = refs.map((ref, index) => ({ i: index, builtin_key: ref.kind === "builtin" ? ref.key : null, typed_name: ref.kind === "typed" ? ref.name : null, unit: ref.unit }));
   const [rows, aliases] = await Promise.all([
-    workspaceDefinitions(workspace.orgId),
+    rowsRead ?? workspaceDefinitions(workspace.orgId),
     db.execute<{ i: number; definition_id: string }>(sql`
       select r.i, a.definition_id from jsonb_to_recordset(${JSON.stringify(lookups)}::jsonb) as r(i int, builtin_key text, typed_name text, unit text)
       join ${metricDefinitionAliases} a on a.org_id = ${workspace.orgId} and a.unit = public.metric_alias_unit(r.unit)
@@ -160,11 +167,138 @@ export async function resolveSavedMetrics(workspace: MetricsWorkspace, impacts: 
     return row ? definitionOf(row) : null;
   };
   let index = 0;
-  return found.map((metrics) => metrics.map((metric) => {
+  const resolved = found.map((metrics) => metrics.map((metric) => {
     const ref = metric.ref;
+    // A v5 reference (#198) names its definition; only this workspace's resolve.
+    if (ref.kind === "definition") { index++; return { ...metric, definition: current(ref.id) }; }
     const starter = ref.kind === "builtin" && ref.unit === STARTER_METRICS[ref.key].unit ? rows.find((row) => row.starterKey === ref.key)?.id : undefined;
     return { ...metric, definition: current(mapped.get(index++) ?? starter) };
   }));
+  return { resolved, rows };
+}
+
+const isActive = (row: Pick<DefinitionRow, "archivedAt" | "mergedIntoId">) => !row.archivedAt && !row.mergedIntoId;
+const choiceOf = (row: Pick<DefinitionRow, "id" | "name" | "unit" | "link" | "howCounted" | "archivedAt" | "mergedIntoId">): MetricChoice =>
+  ({ id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archived: !isActive(row) });
+
+/** The v5 definition references in a saved prediction, with their positions (0 the main metric, then guardrails). */
+function definitionRefs(impact: unknown) {
+  return savedMetricsOf(impact).flatMap((metric) => metric.ref.kind === "definition" ? [{ ...metric, id: metric.ref.id, unit: metric.ref.unit }] : []);
+}
+
+const idArray = (ids: string[]) => sql`array[${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)}]`;
+
+/**
+ * What the prediction picker offers (#198): the workspace's active definitions, by name, plus any definition the
+ * given saved prediction (the Request being edited, or a recovered draft) already names, even if archived or merged
+ * since (marked `archived`). `saved` is, by position (0 the main metric, then guardrails), the definition each of its
+ * metrics resolves to now, so an older plan can move onto v5 when it is edited.
+ */
+export async function predictionMetricChoices(workspace: MetricsWorkspace, impact: unknown): Promise<{ metrics: MetricChoice[]; saved: (MetricChoice | null)[] }> {
+  const { resolved: [metrics], rows } = await resolveWith(workspace, [impact], workspaceDefinitions(workspace.orgId));
+  const named = new Set(definitionRefs(impact).map((ref) => ref.id));
+  const saved: (MetricChoice | null)[] = [];
+  for (const metric of metrics) saved[metric.position] = metric.definition ? choiceOf(metric.definition) : null;
+  return {
+    metrics: rows.filter((row) => isActive(row) || named.has(row.id) || metrics.some((metric) => metric.definition?.id === row.id)).map(choiceOf),
+    saved: Array.from({ length: saved.length }, (_, position) => saved[position] ?? null),
+  };
+}
+
+/**
+ * The current name of every definition the saved predictions name (v5), after any merge, keyed by the reference
+ * saved on the Request. Request pages show these; Request history keeps the copy saved with the prediction.
+ * One statement, and none when nothing is named.
+ */
+export async function currentMetricNames(workspace: MetricsWorkspace, impacts: readonly unknown[]): Promise<Record<string, string>> {
+  const ids = [...new Set(impacts.flatMap((impact) => definitionRefs(impact).map((ref) => ref.id)))].filter((id) => UUID.test(id));
+  if (!ids.length) return {};
+  const rows = await db.execute<{ id: string; name: string }>(sql`
+    with recursive chain(id, at, hops) as (
+      select d.id, d.id, 0 from ${metricDefinitions} d where d.org_id = ${workspace.orgId} and d.id = any(${idArray(ids)})
+      union all
+      select c.id, d.merged_into_id, c.hops + 1 from chain c join ${metricDefinitions} d on d.org_id = ${workspace.orgId} and d.id = c.at
+      where d.merged_into_id is not null and c.hops < 100
+    )
+    select distinct on (c.id) c.id, d.name from chain c join ${metricDefinitions} d on d.org_id = ${workspace.orgId} and d.id = c.at
+    order by c.id, c.hops desc`);
+  return Object.fromEntries(rows.map((row) => [row.id, row.name]));
+}
+
+/** A prediction the library refuses to save, with the sentence to show; or the prediction to save. */
+export type PredictionCheck = { impact: unknown } | MetricsLibraryRefusal;
+
+const NOT_PICKABLE = "A metric on this prediction isn't in this workspace's Metrics library. Pick it again.";
+
+/**
+ * Checks the metrics of a prediction about to be saved (#198). Every definition it names must be one of the workspace's,
+ * in the unit the prediction was entered in, and active, unless `stored` (the Request's saved prediction, when editing)
+ * already names it. Typed metrics are refused unless the Request already saved that exact one. Returns the prediction
+ * with each definition's name copied as it is now, or as the Request saved it before, so the copy is the library's.
+ */
+export async function checkPredictionMetrics(workspace: MetricsWorkspace, impact: unknown, stored: unknown = null): Promise<PredictionCheck> {
+  const typedBefore = new Set(savedMetricsOf(stored).flatMap(({ ref }) => ref.kind === "typed" ? [JSON.stringify([ref.name, ref.unit])] : []));
+  const typedNow = savedMetricsOf(impact).flatMap(({ ref }) => ref.kind === "typed" && !typedBefore.has(JSON.stringify([ref.name, ref.unit])) ? [ref] : []);
+  if (typedNow.length) {
+    // The older Metric and Verified result formats save the name of a metric picked from the library, not a reference.
+    const legacy = typeof impact === "object" && impact !== null && ["metric", "verification"].includes(String((impact as { kind?: unknown }).kind));
+    const active = legacy ? (await workspaceDefinitions(workspace.orgId)).filter(isActive) : [];
+    const sameName = (a: string, b: string) => a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
+    const unitKey = (unit: string) => unit.trim() === "%" ? "percent" : unit.trim().toLowerCase();
+    if (!typedNow.every((ref) => active.some((row) => sameName(row.name, ref.name) && row.unit === unitKey(ref.unit))))
+      return { error: "Pick each metric from the Metrics library." };
+  }
+  const refs = definitionRefs(impact);
+  if (!refs.length) return { impact };
+  if (refs.some((ref) => !UUID.test(ref.id))) return { error: NOT_PICKABLE };
+  const rows = await db.select(definitionColumns).from(metricDefinitions)
+    .where(and(eq(metricDefinitions.orgId, workspace.orgId), sql`${metricDefinitions.id} = any(${idArray(refs.map((ref) => ref.id))})`));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const savedNames = new Map(definitionRefs(stored).map((ref) => [ref.id, ref.savedName]));
+  for (const ref of refs) {
+    const row = byId.get(ref.id);
+    if (!row) return { error: NOT_PICKABLE };
+    if (!isActive(row) && !savedNames.has(row.id)) return { error: row.mergedIntoId
+      ? `“${row.name}” was merged into another metric, so it can't be picked for a new prediction. Pick that one instead.`
+      : `“${row.name}” is archived, so it can't be picked for a new prediction. Pick another metric.` };
+    if (row.unit !== ref.unit) return { error: `“${row.name}” is counted in ${metricUnitName(row.unit).toLowerCase()} now. Pick it again and enter the numbers in that unit.` };
+  }
+  const copy = (metric: unknown) => {
+    if (!metric || typeof metric !== "object" || (metric as { key?: unknown }).key !== "definition") return metric;
+    const id = String((metric as { definitionId?: unknown }).definitionId);
+    return { ...metric, name: savedNames.get(id) || byId.get(id)!.name };
+  };
+  const plan = impact as { primary: unknown; guardrails: unknown[] };
+  return { impact: { ...plan, primary: copy(plan.primary), guardrails: plan.guardrails.map(copy) } };
+}
+
+/**
+ * Whether any Request uses the definition (or one merged into it): a prediction or older revision naming it, a closed
+ * result's prediction, a metric the move into the library (0038) mapped to it, or, for a starter metric, an older plan
+ * saving its built-in key in its unit. Once one does, the unit is locked.
+ */
+async function definitionInUse(executor: Pick<typeof db, "execute">, orgId: string, id: string): Promise<boolean> {
+  const [row] = await executor.execute<{ used: boolean }>(sql`
+    with recursive family(id) as (
+      select ${id}::uuid
+      union select d.id from ${metricDefinitions} d join family f on d.merged_into_id = f.id where d.org_id = ${orgId}
+    ), ids as (select array_agg(id::text) as ids from family)
+    select exists (select 1 from ${metricDefinitionAliases} a where a.org_id = ${orgId} and a.definition_id in (select id from family))
+      or exists (select 1 from ${requests} r, ids where r.org_id = ${orgId}
+        and (public.prediction_definition_ids(r.expected_impact) && ids.ids or public.prediction_definition_ids(r.outcome_closure -> 'expected') && ids.ids))
+      or exists (select 1 from ${requestExpectedImpactRevisions} h, ids where h.org_id = ${orgId} and public.prediction_definition_ids(h.expected_impact) && ids.ids)
+      or exists (select 1 from ${metricDefinitions} s join ${requests} r on r.org_id = s.org_id
+        where s.org_id = ${orgId} and s.id in (select id from family) and s.starter_key is not null
+          and r.expected_impact ->> 'kind' = 'measurement' and r.expected_impact ->> 'version' in ('2', '3', '4')
+          and jsonb_path_exists(r.expected_impact, '$.** ? (@.key == $k && @.unit == $u)', jsonb_build_object('k', s.starter_key, 'u', s.unit)))
+      as used`);
+  return Boolean(row?.used);
+}
+
+/** Whether a definition's unit is locked because a Request uses it (#198). The Metrics page says so beside the unit. */
+export async function metricDefinitionUnitLocked(workspace: MetricsWorkspace, id: string): Promise<boolean> {
+  if (!UUID.test(id)) return false;
+  return definitionInUse(db, workspace.orgId, id);
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -210,10 +344,10 @@ async function recordHistory(tx: LibraryTx, entry: {
 }
 
 /** A change the library refuses, with the sentence to show the person. Nothing was saved. */
-export type MetricsLibraryRefusal = { error: string; /** The field the refusal is about, when there is one. */ field?: "name" };
+export type MetricsLibraryRefusal = { error: string; /** The field the refusal is about, when there is one. */ field?: "name" | "unit" };
 
 class Refused extends Error {
-  constructor(message: string, readonly field?: "name") { super(message); }
+  constructor(message: string, readonly field?: "name" | "unit") { super(message); }
 }
 
 const nameTaken = (name: string) => new Refused(`A metric called “${name}” already exists. Use that one, or choose another name.`, "name");
@@ -258,6 +392,8 @@ export async function addMetricDefinition(workspace: MetricsWorkspace, authorId:
 }
 
 const NOT_HERE = "That metric isn't in this workspace.";
+/** Why a definition's unit can't change (#198). */
+export const UNIT_LOCKED = "The unit can't change because a Request uses this metric. A metric in another unit needs a new definition.";
 const MERGED = "This metric was merged into another one, so it can't be changed.";
 
 /** The definition, locked for the rest of the transaction; refuses an id that isn't one of this workspace's. */
@@ -273,7 +409,7 @@ const sameSnapshot = (a: Snapshot, b: Snapshot) => JSON.stringify(a) === JSON.st
 
 /**
  * Changes a definition's name, unit, link and how-it's-counted line, recorded with the before and after.
- * A change that changes nothing records nothing. (The unit lock once a Request uses it arrives with #198.)
+ * A change that changes nothing records nothing. The unit is locked once any Request uses the definition (#198).
  */
 export async function editMetricDefinition(workspace: MetricsWorkspace, authorId: string, id: string, input: MetricDefinitionInput): Promise<{ changed: boolean } | MetricsLibraryRefusal> {
   return change(input.name, async (tx) => {
@@ -281,6 +417,7 @@ export async function editMetricDefinition(workspace: MetricsWorkspace, authorId
     if (current.mergedIntoId) throw new Refused(MERGED);
     const before = snapshotOf(current);
     if (sameSnapshot(before, snapshotOf({ ...current, ...input }))) return { changed: false };
+    if (input.unit !== current.unit && await definitionInUse(tx, workspace.orgId, id)) throw new Refused(UNIT_LOCKED, "unit");
     if (!current.archivedAt) {
       const taken = await activeNamed(tx, workspace.orgId, input.name, id);
       if (taken) throw nameTaken(taken.name);

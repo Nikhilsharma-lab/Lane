@@ -82,7 +82,8 @@ export function upgradePlanMetrics<P extends EditorPlan>(plan: P, resolved: read
   if (plan.version >= CURRENT_MEASUREMENT_VERSION) return { plan, unresolved: [] }
   const unresolved: string[] = []
   function upgrade<M extends EditorMetric>(metric: M, position: number, empty: M): M {
-    if (metric.key === "check" || metric.key === "" || metric.key === "definition") return { ...metric, definitionId: null }
+    if (metric.key === "definition") return metric
+    if (metric.key === "check" || metric.key === "") return { ...metric, definitionId: null }
     const definition = resolved[position]
     if (definition && definition.unit === metric.unit) return pickDefinition(metric, definition) as M
     unresolved.push(editorMetricLabel(metric))

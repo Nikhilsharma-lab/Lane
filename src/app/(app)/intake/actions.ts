@@ -28,6 +28,7 @@ import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rul
 import { workspaceRoster } from "@/lib/workspace-roster";
 import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
+import { checkPredictionMetrics } from "@/lib/metrics-library";
 
 export type IntakeFailureCode =
   | "validation"
@@ -136,13 +137,16 @@ export async function runTriage(
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { success: false, error: sessionFailure() };
 
+  // The Request's saved prediction when editing: the definitions it already names may stay (#198).
+  let storedImpact: unknown = null;
   if (existingRequestId !== undefined) {
     if (!z.uuid().safeParse(existingRequestId).success) return { success: false, error: { code: "validation", message: "Request unavailable." } };
     try {
-      const [owned] = await db.select({ id: requests.id }).from(requests).where(and(
+      const [owned] = await db.select({ id: requests.id, expectedImpact: requests.expectedImpact }).from(requests).where(and(
         eq(requests.id, existingRequestId), changeable(auth), eq(requests.status, "open"),
       )).limit(1);
       if (!owned) return { success: false, error: { code: "validation", message: "Only the Requester or a workspace admin can edit an Open Request." } };
+      storedImpact = owned.expectedImpact;
     } catch {
       return { success: false, error: { code: "network", message: "Could not check this Request. Your draft is kept." } };
     }
@@ -171,6 +175,18 @@ export async function runTriage(
     console.error("[intake] Project validation failed:", error);
     return { success: false, error: { code: "network", field: "projectId", message: "Lane could not check this Project. Try again." } };
   }
+  // Every metric comes from this workspace's Metrics library, checked before any review is spent (#198).
+  let reviewed = parsed.data;
+  if (reviewed.expectedImpact?.kind === "measurement") {
+    try {
+      const checked = await checkPredictionMetrics({ orgId: auth.orgId }, reviewed.expectedImpact, storedImpact);
+      if ("error" in checked) return { success: false, error: { code: "validation", field: "expectedImpact", message: checked.error } };
+      reviewed = { ...reviewed, expectedImpact: checked.impact as typeof reviewed.expectedImpact };
+    } catch (error) {
+      console.error("[intake] Metrics library check failed:", error);
+      return { success: false, error: { code: "network", field: "expectedImpact", message: "Lane could not check the metrics. Try again." } };
+    }
+  }
 
   const rateCheck = await checkAiRateLimit(auth.userId);
   if (!rateCheck.allowed) {
@@ -192,15 +208,15 @@ export async function runTriage(
   }
 
   const outcome = await triageRequest({
-    title: parsed.data.title,
-    description: parsed.data.description,
+    title: reviewed.title,
+    description: reviewed.description,
   });
   if (!outcome.ok) {
     console.error("[intake] triage failed:", { kind: outcome.kind, statusCode: outcome.status, error: outcome.error });
     return { success: false, error: TRIAGE_FAILURES[outcome.kind] };
   }
   try {
-    const token = createTriageToken(parsed.data, outcome.triage, {
+    const token = createTriageToken(reviewed, outcome.triage, {
       orgId: auth.orgId,
       userId: auth.userId,
     }, existingRequestId);
@@ -270,7 +286,7 @@ export async function saveRequest(
     };
   }
 
-  const payload = verification.payload;
+  let payload = verification.payload;
   // The classification and suggested change come from the signed review; only
   // the problem to solve is the person's own words.
   const saved = savedFraming(framingShape(payload.classification), {
@@ -292,6 +308,12 @@ export async function saveRequest(
     if (!await canUseLabels(payload.labelKeys, auth.orgId, payload.projectId ?? null)) return {success:false,error:{code:"validation",field:"requestType",message:"A selected label belongs to a different Project or is unavailable. Remove it or restore its Project."}};
     if (!(await canUseProject(payload.projectId, auth))) {
       return { success: false, error: { code: "validation", field: "projectId", message: "This Project is unavailable. Return to your Request and choose another Project or clear the selection." } };
+    }
+    // A definition archived (or moved) since the review can't be newly picked (#198).
+    if (payload.expectedImpact?.kind === "measurement") {
+      const checked = await checkPredictionMetrics({ orgId: auth.orgId }, payload.expectedImpact);
+      if ("error" in checked) return { success: false, error: { code: "validation", field: "expectedImpact", message: checked.error } };
+      payload = { ...payload, expectedImpact: checked.impact as typeof payload.expectedImpact };
     }
     const insertRequest = (exec: typeof db | RequestTx) => exec
       .insert(requests)

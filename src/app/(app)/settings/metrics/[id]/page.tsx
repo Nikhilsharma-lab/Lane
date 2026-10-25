@@ -7,7 +7,7 @@ import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { getWorkspace } from "@/lib/ensure-workspace";
-import { readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
+import { metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
 import { ArchiveMetricControl, EditMetricForm } from "../metric-controls";
@@ -25,7 +25,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
   const library = { orgId: workspace.orgId };
-  const [definition, history] = await Promise.all([readMetricDefinition(library, id), readMetricDefinitionHistory(library, id)]);
+  const [definition, history, unitLocked] = await Promise.all([readMetricDefinition(library, id), readMetricDefinitionHistory(library, id), metricDefinitionUnitLocked(library, id)]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
@@ -34,7 +34,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsCard title={definition.name}
       description={merged ? "Merged into another metric. Requests that used it now count under that one." : archived ? "Archived. It isn't offered for new predictions, and stays on the Requests that already use it." : undefined}>
-      {!merged && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} />}
+      {!merged && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
     </SettingsCard>
     {workspace.role === "admin" && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
       description={archived ? "Restoring offers it for new predictions again." : "Archiving stops it being offered for new predictions. Requests that already use it keep it, and their results still add up."}
