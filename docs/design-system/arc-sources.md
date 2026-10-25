@@ -424,3 +424,8 @@ Nothing in Lane imported these installed Arc sources, so they were deleted with 
 ### 2026-10-21 — unavailable menu items say why
 
 `src/components/arc/context-menu/context-menu.tsx` adds an optional item `description`. A disabled item with a description shows it under its label and stays focusable with `aria-disabled` and `aria-describedby`, so arrow keys and screen readers reach the reason; selecting it does nothing. Items without a description keep upstream's native `disabled`. `src/components/arc/context-menu/context-menu.module.css` dims only that item's icon and label, keeps the reason in secondary text, and wraps it at a fixed measure. The Request row menu uses it for a Pick up that isn't ready yet.
+
+
+### 2026-10-24 Project composer completion focus (#172)
+
+Re-read the licensed official `workspace-sidebar` source and its keyboard/API guidance through authenticated Arc MCP. The existing Lane asynchronous composer in `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now keeps focus ownership across submission, success restoration and delayed error/open focus. Focus moving to another control or browser history invalidates the old work; disabling submit and temporarily leaving body active does not. Cleanup cancels its animation frame, so a remount cannot revive it. Ordinary successful completion and Escape cancellation still restore New Project; a failed create still retains its draft and inline error. No public props, copy, visual values, layout or motion changed. The adaptation follows the actual local-app held-response regression where a saved Project moved focus away from a newer Search field; the upstream source hash is retained and only the local hash is updated.

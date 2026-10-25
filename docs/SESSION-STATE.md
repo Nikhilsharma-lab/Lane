@@ -1,5 +1,82 @@
 # Shared Claude / Codex handoff
 
+## #172 late list arrival correction — browser remainder pending
+
+Actual keyboard search of a Project followed by immediate sidebar No Project
+selection changed the selected sidebar item during loading, but the late list
+URL mirror then restored the older Project. The browser trace recorded the URL
+changing to No Project and back before the old Project list settled. The shared
+navigation boundary now protects the explicit list choice until the router query
+and address bar both acknowledge it. Native history clears that ownership; opening
+Search cancels delayed focus while retaining the choice. The existing URL writer
+and pending-action hold remain.
+
+The production-seam regression first failed by adopting the old Project; the
+focused actual-app regression passed after the correction. Full UI 606, typecheck,
+lint, design, production build and bundle checks pass (largest growth 1.9 KB,
+within the unchanged 2 KB budget). Remaining four-surface browser acceptance
+is still pending. See external
+`/private/tmp/lane-spec-172-evidence.md` for exact receipts.
+
+## #172 browser Back correction — remaining navigation acceptance pending
+
+The actual app passed successful Project-create focus, both transport-failure
+focus/cancel cases, and current-Project reselection. Back after row Enter and J/K
+restored the correct list page but left focus on body. Native-event tracing showed
+Next restoring the route and removing detail's late popstate listener before it
+could record the return row. A capture-phase experiment did not fix this and was
+discarded. The current detail now registers its existing return-marker callback
+with the workspace's earlier shared history listener; identity-checked cleanup
+protects a newer detail registration. The row-focus algorithm/storage are unchanged.
+
+The same actual-app trace now records marker write, list consumption, row focus and
+marker removal, with focus retained after settling. UI603, typecheck/lint,
+design checks, production build and bundle pass; remaining uninstrumented
+four-surface navigation checks are pending. Exact receipts and rejected-experiment evidence:
+`/private/tmp/lane-spec-172-back-focus-diagnosis.md` and the main external evidence.
+All26 Request fixtures already exist; no further fixture creation is authorized.
+
+## #172 review correction — browser recheck pending
+
+Initial review of `9c56494` found zero Standards findings and one Spec P2,
+confirmed in the actual app: a held successful Project creation preserved newer
+Search/URL and saved catalogue data but restored New Project focus. The existing
+Arc Composer now invalidates async success/error and open-frame focus when another
+control takes focus, history changes or it unmounts. Ordinary completion/cancel
+focus remains; disabled-submit body focus does not revoke ownership. Official Arc
+source/API was re-read and the existing local adaptation/hash documented; no props,
+copy, layout or motion changed.
+
+Fresh UI 601, typecheck, lint, design 42 plus Arc/brand and production build passed.
+Bundle and final browser-helper static receipts are in the external evidence file.
+Browser helper `305568e` adds actual transport-abort failure/cancel coverage without
+saving another record. The successful-create recheck is authorized to create one
+additional normal-UI Project; exact receipts are retained and the original Project
+remains for navigation. Browser acceptance and final delta review are pending.
+
+## #172 ready for review — browser acceptance pending
+
+Ticket [#172](https://github.com/Nikhilsharma-lab/Lane/issues/172) is implemented in
+`/private/tmp/lane-spec-172`, branch `codex/spec-167-172`, based on integration
+`8726760`. One workspace-owned navigation boundary now handles sidebar, palette,
+search and Project context-menu navigation. Current-Project reselection resets
+only pagination; native links, URL pending-write hold, list context and J/K
+replacement history are retained. Shared generation and Request-targeted arrival
+reject stale search, navigation and focus work. Project creation keeps the committed
+catalogue item while suppressing superseded navigation. Contract:
+`docs/testing/request-navigation.md`.
+
+Verification so far: no-reset bootstrap 52; meaningful page-3/page-0 regression
+red then green; production navigation/provider and affected tests 64; application
+1,870 passed/one skipped; UI 601; typecheck, full lint, design 42 plus Arc/brand,
+production build and bundle passed. Detailed receipts are recorded in
+`/private/tmp/lane-spec-172-evidence.md`. Browser authoring tip `35fbc42` is merged;
+actual-app acceptance is pending. It uses the exact previously verified staging
+team, normal signed-in UI and unchanged ownership guards. No deployment or
+production verification is claimed. The parent agent owns review and integration;
+#167 is still in progress.
+
+
 ## #171 reviewed and integrated — #172 next
 
 Ticket [#171](https://github.com/Nikhilsharma-lab/Lane/issues/171) is merged at

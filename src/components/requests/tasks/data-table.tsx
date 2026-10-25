@@ -9,7 +9,7 @@ import { Select } from "@/components/arc/select/select"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, useSetDetailSession, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
+import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
@@ -27,6 +27,7 @@ import { useRequestGrid } from "../use-request-grid"
 import { gridKeysFor, requestIdOf } from "../request-grid-keys"
 import { focusRowWhenShown, restoreRequestFocus } from "../list-focus"
 import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "../request-peek"
+import { isSameTabRequestLink, useRequestNavigation } from "../request-navigation"
 import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
@@ -172,12 +173,12 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // Plan item 2.5: opening a Request from the list records the order it shows,
   // across every page, so detail can offer previous and next. The row menu's
   // "Open Request" and Enter both click the title link, so one capture covers all three.
-  const setDetailSession = useSetDetailSession()
+  const navigation = useRequestNavigation()
   const captureOpen = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     const link = event.target instanceof Element ? event.target.closest("a[data-request-title]") : null
     const openedId = link?.closest<HTMLElement>("[data-request-id]")?.dataset.requestId
-    if (!openedId) return
+    if (!openedId || (link instanceof HTMLAnchorElement && link.target && link.target !== "_self")) return
     // Plan item 2.12 (Nikhil, 2026-10-21): on desktop a click on a row previews it beside the list.
     // Only a pointer click (detail > 0): Enter and the row menu's "Open Request" click the title in
     // code and still open the page, as do modifier and middle clicks (a new tab) and every phone tap.
@@ -189,8 +190,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
       openPeek(openedId)
       return
     }
-    setDetailSession({ sequence: captureSequence(matching.map(row => row.id), openedId), focusTitleOnArrival: true })
-  }, [matching, setDetailSession, peekAvailable, focusGridKey, openPeek])
+    navigation.prepareDetail(openedId, { sequence: captureSequence(matching.map(row => row.id), openedId) })
+  }, [matching, navigation, peekAvailable, focusGridKey, openPeek])
   const setFilter = useCallback((id: string, value: string) => {
     if (id === "project") {
       setView(previous => withListContext(previous, { project: value || "all" }))
@@ -214,9 +215,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // Open full page from the preview records the list's order, as Enter on the row does (captureOpen).
   const openPeekFullPage = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
     // A new tab or window leaves this tab's detail session alone, as on the row (captureOpen).
-    if (!peekId || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    setDetailSession({ sequence: captureSequence(matching.map(row => row.id), peekId), focusTitleOnArrival: true })
-  }, [matching, peekId, setDetailSession])
+    if (!peekId || !isSameTabRequestLink(event)) return
+    navigation.prepareDetail(peekId, { sequence: captureSequence(matching.map(row => row.id), peekId) })
+  }, [matching, peekId, navigation])
   const restoreRequest = useCallback((id: string) => {
     const index = matching.findIndex(row => row.id === id)
     const group = groups.find(item => item.rows.some(row => row.id === id))

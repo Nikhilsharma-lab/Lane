@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
+import { isSameTabRequestLink, useRequestNavigation } from "@/components/requests/request-navigation";
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
-import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
-import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
+import { useLoadedRequests, useRequestListContext } from "@/components/requests/list-view-state";
+import { requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
@@ -45,7 +45,6 @@ export interface SidebarViewProps {
 
 const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
-const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 // Plan item 2.0: each page's strip carries the expand control, so phones keep a way into navigation.
 const expandButton = <SidebarExpandButton />;
 
@@ -65,23 +64,20 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // view state (the URL only mirrors it on "/"), and the sidebar subscribes to
   // that context and the setter only, so typing in the list filter does not
   // re-render it. Fixtures without the provider fall back to the props.
-  const setListView = useSetRequestListView();
-  const setDetailSession = useSetDetailSession();
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const listContext = useRequestListContext();
   const { status: filter, project: projectFilter } = listContext;
-  // Already on "/", a plain click on a Requests list link (All Requests, a
-  // Project, No Project) changes the view in place with no request; the URL
-  // follows through history.replaceState. onNavigate has already set the
-  // context. Modified clicks and every other route keep navigating.
+  // Real hrefs preserve native gestures; only ordinary activation enters the shared boundary.
   const renderLink = useCallback(({ href, onClick, ...props }: WorkspaceLinkProps) => {
-    if (href === "/intake") return <NewRequestLink {...props} onClick={onClick} />;
-    return <Link href={href} {...props} onClick={event => {
-      onClick?.(event);
-      if (event.defaultPrevented || !isPlainClick(event) || typeof href !== "string" || !changesListInPlace(pathname, href)) return;
-      event.preventDefault();
+    if (href === "/intake") return <NewRequestLink {...props} onClick={event => {
+      if (!isSameTabRequestLink(event)) return;
+      navigation.invalidate(); onClick?.(event);
     }} />;
-  }, [pathname]);
+    return <Link href={href} {...props} onClick={event => {
+      if (typeof href !== "string" || !navigation.followLink(event, href, href === "/" ? { project: "all" } : undefined)) return;
+      onClick?.(event);
+    }} />;
+  }, [navigation]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchVisited, setSearchVisited] = useState(false);
@@ -95,6 +91,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     return () => window.cancelIdleCallback(idle);
   }, []);
   function openSearch() {
+    navigation.invalidate();
     preloadWorkspaceSearch();
     dismissPeek();
     setSearchVisited(true); setSearchOpen(true);
@@ -102,26 +99,17 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   }
   function closeSearch(restoreFocus = true) {
     setSearchOpen(false);
-    if (restoreFocus) requestAnimationFrame(() => {
+    if (restoreFocus) navigation.deferFocus(() => {
       const selector = phone ? '[aria-label="Open navigation"]' : collapsed ? '[aria-label="Expand sidebar"]' : '[aria-label="Search workspace"]';
       document.querySelector<HTMLButtonElement>(`button${selector}`)?.focus({ preventScroll: true });
     });
   }
-  function navigateFromSearch(href: string) {
-    closeSearch(false);
-    const target = requestListContextFromHref(href);
-    if (target) setListView(current => withListContext(current, target));
-    // Plan item 2.8: a Request opened from search lands as one opened from the list, with its title focused.
-    else if (href.startsWith("/requests/")) setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
-  }
-  // Plan item 2.8: Enter on an exact saved code, or Cmd or Ctrl+Enter on a result.
+  // Preview links and keyboard commands share one routing owner.
   function openFromSearch(href: string) {
-    if (href === pathname) { closeSearch(); return; }
-    navigateFromSearch(href);
-    // On "/", a Project or No Project view changes in place with no request, as in the sidebar.
-    if (changesListInPlace(pathname, href)) return;
-    router.push(href);
+    const moved = navigation.open(href);
+    closeSearch(!moved);
   }
+  useEffect(() => () => navigation.invalidate(), [navigation]);
   // Plan item 2.8: the loaded Requests and the sidebar's Projects, read on each keystroke for instant matches.
   const loadedRequests = useLoadedRequests();
   const loadedProjects = useRef(projects);
@@ -175,7 +163,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     {switchingWorkspace && <span className="sr-only" role="status">Switching workspace…</span>}
     <a href="#lane-main" className={styles.skip}>Skip to content</a>
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
-      <div className={styles.sidebarPanel} data-sidebar-panel="" onClickCapture={event => { if (isPlainClick(event) && event.target instanceof Element && event.target.closest("a[href]")) dismissPeek(); }}>
+      <div className={styles.sidebarPanel} data-sidebar-panel="">
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
         user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "guest" ? undefined : "/settings/members"} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
@@ -183,21 +171,14 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
         onSearch={openSearch} searchActive={searchOpen}
         workspaces={workspaceSwitcher ?? { items: [{ id: "current", name: workspaceName }], currentId: "current", onSelect: () => {} }}
         onCreateProject={onCreateProject ? async name => { const created = await onCreateProject(name); return { ...created, href: requestListHref("all", created.id) }; } : undefined}
-        onNavigate={({ id }) => {
-          dismissPeek();
-          closeSearch(false);
-          if (id === "requests" || id === "none" || projects.some(item => item.id === id)) {
-            // A new Project moves to the first page; choosing the current one also returns there.
-            setListView(current => { const next = withListContext(current, { project: id === "requests" ? "all" : id }); return next !== current || !current.pagination.pageIndex ? next : { ...current, pagination: { ...current.pagination, pageIndex: 0 } }; });
-          }
-        }}
+        onNavigate={() => { dismissPeek(); closeSearch(false); }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
       </div>
     </aside>
     <div {...separator} className={styles.resizeHandle} />
     <main id="lane-main" tabIndex={-1} className={styles.main} inert={mobileOpen || switchingWorkspace} aria-busy={switchingWorkspace || undefined} onPointerDownCapture={() => { if (peeking) dismissPeek(); }}>
       <PageStripProvider value={frame}><div className={styles.content} hidden={searchOpen}>{children}</div></PageStripProvider>
-      {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onNavigate={navigateFromSearch} onOpen={openFromSearch} getLoaded={getLoaded} />}
+      {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onOpen={openFromSearch} getLoaded={getLoaded} />}
     </main>
     {/* Plan item 2.4: `?` lists the shortcuts on every authenticated page. */}
     <KeyboardShortcuts />

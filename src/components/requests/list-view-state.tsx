@@ -1,14 +1,16 @@
 "use client"
 
 import { listFiltersOf } from "./list-view-model"
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
+import { createExternalStore } from "@/lib/external-store"
 import { usePendingMutations } from "./pending-mutations-provider"
 import type { DetailSequence } from "./request-sequence"
+import { createRequestNavigation, RequestNavigationContext } from "./request-navigation"
 
 export type ListViewState = RequestListContext & {
   columnVisibility: ColumnVisibilityState
@@ -94,16 +96,23 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
     columnVisibility: { ...initialView.columnVisibility, ...initialColumnVisibility },
   }))
   const listContext = useMemo<RequestListContext>(() => ({ status: state.status, project: state.project }), [state.status, state.project])
-  const latest = useRef(state)
-  useLayoutEffect(() => { latest.current = state }, [state])
-  const snapshot = useCallback(() => latest.current, [])
+  const [viewStore] = useState(() => createExternalStore(state))
+  const snapshot = viewStore.get
+  // Navigation reads at event time, including changes queued earlier in the same event.
+  const setView = useCallback<SetListView>(next => {
+    const value = typeof next === "function" ? next(viewStore.get()) : next
+    viewStore.set(value)
+    setState(value)
+  }, [viewStore])
   const [drafts] = useState(() => new Map<string, string>())
   const [session, setSession] = useState<Omit<DetailSession, "commentDrafts">>(() => ({ sequence: null, focusTitleOnArrival: false, focusOnArrival: null, ...initialDetailSession }))
   const detailSession = useMemo<DetailSession>(() => ({ ...session, commentDrafts: drafts }), [session, drafts])
   const setDetailSession = useCallback<SetDetailSession>(patch => setSession(current => ({ ...current, ...patch })), [])
   const [loadedRequests] = useState(createLoadedRequestsStore)
   const [currentRequest] = useState(createCurrentRequestStore)
-  return <CurrentRequestContext.Provider value={currentRequest}><LoadedRequestsContext.Provider value={loadedRequests}><ListViewSetterContext.Provider value={setState}>
+  const [navigation] = useState(() => createRequestNavigation({ getView: snapshot, setView, setDetailSession }))
+  useEffect(() => navigation.listenForHistory(window), [navigation])
+  return <RequestNavigationContext.Provider value={navigation}><CurrentRequestContext.Provider value={currentRequest}><LoadedRequestsContext.Provider value={loadedRequests}><ListViewSetterContext.Provider value={setView}>
     <ListViewSnapshotContext.Provider value={snapshot}>
       <ListContextContext.Provider value={listContext}>
         <DetailSessionSetterContext.Provider value={setDetailSession}>
@@ -113,7 +122,7 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
         </DetailSessionSetterContext.Provider>
       </ListContextContext.Provider>
     </ListViewSnapshotContext.Provider>
-  </ListViewSetterContext.Provider></LoadedRequestsContext.Provider></CurrentRequestContext.Provider>
+  </ListViewSetterContext.Provider></LoadedRequestsContext.Provider></CurrentRequestContext.Provider></RequestNavigationContext.Provider>
 }
 
 /** Plan item 2.8: the Requests list records the rows it loaded; nothing re-renders. They stay after leaving the list, until the layout's key changes. */
@@ -236,6 +245,8 @@ export type ListUrlSyncInput = {
   /** The query this page last wrote, or null. */
   written: string | null
   current: RequestListContext
+  /** A newer explicit selection has not reached the router and address bar yet. */
+  localSelectionPending?: boolean
   hold: boolean
   pathname: string
   /** window.location.search, with its leading "?". */
@@ -248,8 +259,8 @@ export type ListUrlSyncInput = {
  * "/" URL. A bare "/" keeps the current context, so returning from a Request
  * keeps the Project filter. Nothing is written while `hold` is true.
  */
-export function planListUrlSync({ search, seen, written, current, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
-  if (search !== seen && search !== written) {
+export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
+  if (!localSelectionPending && search !== seen && search !== written) {
     const params = new URLSearchParams(search)
     if (hasRequestListContext(params)) {
       const next = parseRequestListContext(params)
@@ -270,10 +281,11 @@ export function planListUrlSync({ search, seen, written, current, hold, pathname
 export function useRequestListUrlSync({ status, project }: RequestListContext, setView: SetListView, hold: boolean) {
   const searchParams = useSearchParams()
   const search = searchParams?.toString() ?? ""
+  const navigation = required(useContext(RequestNavigationContext), "useRequestListUrlSync")
   const seen = useRef<string | null>(null)
   const written = useRef<string | null>(null)
   useLayoutEffect(() => {
-    const plan = planListUrlSync({ search, seen: seen.current, written: written.current, current: { status, project }, hold, pathname: window.location.pathname, locationSearch: window.location.search })
+    const plan = navigation.planListUrl({ search, seen: seen.current, written: written.current, hold, pathname: window.location.pathname, locationSearch: window.location.search })
     seen.current = plan.seen
     if (plan.adopt) {
       const next = plan.adopt
@@ -282,5 +294,5 @@ export function useRequestListUrlSync({ status, project }: RequestListContext, s
       written.current = new URL(plan.write, window.location.origin).searchParams.toString()
       window.history.replaceState(null, "", plan.write)
     }
-  }, [search, status, project, hold, setView])
+  }, [search, status, project, hold, setView, navigation])
 }

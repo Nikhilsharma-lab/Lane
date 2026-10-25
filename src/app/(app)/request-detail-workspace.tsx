@@ -59,7 +59,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
             isGuest={member.role === "guest"}
           />
         </ListAnnouncerProvider>
-      ) : <RequestUnavailable returnHref={returnHref} />}
+      ) : <RequestUnavailable key={selectedRequestId} returnHref={returnHref} requestId={selectedRequestId} />}
     </div>
   )
 }
