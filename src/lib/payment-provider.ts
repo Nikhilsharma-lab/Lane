@@ -6,7 +6,7 @@
  * recording stand-in, which sends nothing anywhere.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { FOUNDING_DISCOUNT, type BillingPeriod } from "./billing-plan-rules";
+import { FOUNDING_DISCOUNT, PAID_SEAT_MINIMUM, type BillingPeriod } from "./billing-plan-rules";
 import { stripeBilling, type StripeBilling } from "./feature-switches";
 
 export type CheckoutRequest = {
@@ -112,16 +112,19 @@ type Fetch = typeof fetch;
 
 /**
  * The Stripe adapter: Stripe Checkout (a hosted page) in subscription mode, with the yearly or monthly Price per
- * seat, and the founding coupon. Events are checked against the webhook signing secret. Failures come back as
- * reasons (never thrown) carrying no key, address or card detail.
+ * seat, and the founding coupon. Events are checked against the webhook signing secret. Seat changes (#215) set the
+ * subscription's quantity: an added seat prorated and invoiced at once, a removed one with no proration, so only the
+ * next bill is lower. Failures come back as reasons (never thrown) carrying no key, address or card detail.
  */
 export function stripePaymentProvider(config: Extract<StripeBilling, { on: true }>, { fetch: send = fetch }: { fetch?: Fetch } = {}): PaymentProvider {
-  async function post(path: string, form: URLSearchParams): Promise<{ ok: true; answer: Record<string, unknown> } | { ok: false; status: number; code?: string }> {
+  type Answer = { ok: true; answer: Record<string, unknown> } | { ok: false; status: number; code?: string };
+  const post = (path: string, form: URLSearchParams) => call(path, form);
+  async function call(path: string, form?: URLSearchParams): Promise<Answer> {
     try {
       const response = await send(`${STRIPE_API}${path}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${config.secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: form.toString(),
+        method: form ? "POST" : "GET",
+        headers: { Authorization: `Bearer ${config.secretKey}`, ...(form && { "Content-Type": "application/x-www-form-urlencoded" }) },
+        body: form?.toString(),
         signal: AbortSignal.timeout(10_000),
       });
       const answer = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -156,6 +159,7 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
         "metadata[org_id]": request.orgId,
         "metadata[period]": request.period,
         "metadata[founding]": request.foundingDiscount ? "1" : "0",
+        "metadata[seats]": String(request.seats),
         "subscription_data[metadata][org_id]": request.orgId,
       });
       if ("id" in request.customer) form.set("customer", request.customer.id);
@@ -187,7 +191,28 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
       const orgId = metadata.org_id ?? (session.client_reference_id as string | undefined);
       const period = metadata.period;
       if (!orgId || !customerId || !subscriptionId || (period !== "yearly" && period !== "monthly")) return { ok: true, event: null };
-      return { ok: true, event: { kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1" } };
+      const seats = Number(metadata.seats);
+      return { ok: true, event: {
+        kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1",
+        ...(Number.isInteger(seats) && seats >= PAID_SEAT_MINIMUM && { seats }),
+      } };
+    },
+
+    async changeSeats({ subscriptionId, seats, charge, at }) {
+      const failed = (answer: { status: number }) => ({ ok: false as const, reason: answer.status ? `stripe_${answer.status}` : "stripe_unreachable" });
+      const path = `/subscriptions/${encodeURIComponent(subscriptionId)}`;
+      const found = await call(path);
+      if (!found.ok) return failed(found);
+      // Lane's subscriptions have one item: the seat price, with the seats as its quantity.
+      const item = (found.answer.items as { data?: { id?: string }[] } | undefined)?.data?.[0]?.id;
+      if (!item) return { ok: false, reason: "stripe_no_item" };
+      const form = new URLSearchParams({ "items[0][id]": item, "items[0][quantity]": String(seats) });
+      if (charge === "part_month_now") {
+        form.set("proration_behavior", "always_invoice");
+        form.set("proration_date", String(Math.floor(at.getTime() / 1000)));
+      } else form.set("proration_behavior", "none");
+      const changed = await post(path, form);
+      return changed.ok ? { ok: true } : failed(changed);
     },
   };
 }
