@@ -224,6 +224,12 @@ Inline add (#199) supersedes the 2026-10-20 inline "Create metric" with no name 
 metric with the typed name, Members and Admins add one from the picker with a name and a unit only. It is added to the
 library with a history entry and selected on the main metric or guardrail. An active definition with that name is offered
 instead. Guests can't add.
+Each definition's page (#203) lists every Request that used it, from the Impact read model (`buildDefinitionUses`), so
+visibility and result rules match the Impact page: main-metric uses and guardrail uses apart, each grouped by Project, with
+predicted beside actual (a guardrail's limit beside what was measured). A result still waiting shows as still due, with
+its due date once released, never as zero; a Request closed without a result shows its reason. A definition merged into
+this one brings its Requests; a merged-away definition's page points to the one they now count under. Nothing is grouped,
+totalled or ranked by person.
 
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where
