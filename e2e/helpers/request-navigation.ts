@@ -279,6 +279,7 @@ export async function verifyNativeNavigation(page: Page, fixture: NavigationFixt
   await open.press("Enter");
   await expect(page).toHaveURL(url => url.pathname === `/requests/${target.id}`);
   await expect(page.locator("#request-title")).toBeFocused();
+  await expect(page.getByRole("dialog", { name: "Result preview", exact: true })).toBeHidden();
 
   await verifySearchProjectReturn(page, fixture, capture);
 }
