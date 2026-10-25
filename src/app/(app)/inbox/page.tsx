@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { InboxScreen } from "@/components/inbox/inbox-screen";
-import { toInboxItem } from "@/components/inbox/inbox-item";
+import { toInboxItem, toNeedsYouItem } from "@/components/inbox/inbox-item";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadInbox } from "@/lib/data/inbox";
+import { getsNeedsYou } from "@/lib/inbox-read-model";
 import { countInboxUnread } from "@/lib/data/notifications";
 
-// #204: the Inbox, one page of a person's updates. Identity, workspace and role come from the Clerk session
+// #204 / #205: the Inbox, one page of what needs a person and their updates. Identity, workspace and role come from the Clerk session
 // through getMember; the read model decides what the Inbox holds (a Guest sees only their own submissions).
 export default async function InboxPage() {
   const member = await getMember();
@@ -17,6 +18,8 @@ export default async function InboxPage() {
 
   return <InboxScreen
     orgId={member.orgId}
+    initialNeedsYou={inbox.needsYou.map(toNeedsYouItem)}
+    showNeedsYou={getsNeedsYou(member)}
     initialItems={items}
     initialUnread={Math.max(unread, items.length)}
     isGuest={member.role === "guest"}

@@ -19,6 +19,7 @@ export const FIXTURES_BEFORE: Record<string, string[]> = {
   "0034_reminders_and_done_time.sql": ["done-time-fixtures.sql"],
   "0035_expected_impact_history.sql": ["expected-impact-history-fixtures.sql"],
   "0038_saved_metrics_into_library.sql": ["metrics-migration-fixtures.sql"],
+  "0040_retire_reminder_types.sql": ["retired-reminders-fixtures.sql"],
 };
 
 const MIGRATION_FILE = /^\d{4}_[a-z0-9_]+\.sql$/;

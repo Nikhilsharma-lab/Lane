@@ -68,6 +68,7 @@ export default defineConfig({
       "src/lib/prediction-metrics.test.ts",
       "src/lib/inbox-read-model.test.ts",
       "src/components/inbox/*.test.ts",
+      "src/components/shell/inbox-bell.test.ts",
     ],
   },
   resolve: {

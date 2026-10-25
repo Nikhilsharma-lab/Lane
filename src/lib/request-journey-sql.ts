@@ -1,6 +1,6 @@
 /**
  * The journey module's database half: the SQL condition for each journey status and for "Due soon or overdue",
- * plus the Requester and "Closed without a result" reads, so list filters, search and bell reminders run in the database. These are the only status conditions in Lane; never write another.
+ * plus the Requester and "Closed without a result" reads, so list filters, search and the Inbox's reads run in the database. These are the only status conditions in Lane; never write another.
  * `request-journey-sql.test.ts` proves each one selects exactly the Requests `journeyStatus` / `dueSignal`
  * put there. Server-only (it pulls in the Drizzle schema); the pure mapping is `request-journey.ts`.
  *
