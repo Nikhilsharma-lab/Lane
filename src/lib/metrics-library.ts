@@ -391,6 +391,33 @@ export async function addMetricDefinition(workspace: MetricsWorkspace, authorId:
   });
 }
 
+/**
+ * The active definition with this name, ignoring case and extra spaces, as the picker offers it. Reads through the
+ * workspace's definitions, so a starter metric the library hasn't been filled with yet still counts.
+ */
+async function activeChoiceNamed(orgId: string, name: string): Promise<MetricChoice | null> {
+  const plain = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+  const row = (await workspaceDefinitions(orgId)).find((definition) => isActive(definition) && plain(definition.name) === plain(name));
+  return row ? choiceOf(row) : null;
+}
+
+/**
+ * Adds a definition from the prediction form (#199): a name and a unit only, recorded in history like any other
+ * add. If an active definition already has that name (ignoring case and extra spaces), nothing is added and that
+ * one comes back as `existing`, to be offered instead.
+ */
+export async function addOrOfferMetricDefinition(workspace: MetricsWorkspace, authorId: string, input: { name: string; unit: MetricUnit }): Promise<{ metric: MetricChoice; existing: boolean }> {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  const offered = await activeChoiceNamed(workspace.orgId, name);
+  if (offered) return { metric: offered, existing: true };
+  const added = await addMetricDefinition(workspace, authorId, { name, unit: input.unit, link: null, howCounted: null });
+  if ("id" in added) return { metric: { id: added.id, name, unit: input.unit, link: null, howCounted: null, archived: false }, existing: false };
+  // Someone added the same name a moment ago.
+  const raced = await activeChoiceNamed(workspace.orgId, name);
+  if (raced) return { metric: raced, existing: true };
+  throw new Error(added.error);
+}
+
 const NOT_HERE = "That metric isn't in this workspace.";
 /** Why a definition's unit can't change (#198). */
 export const UNIT_LOCKED = "The unit can't change because a Request uses this metric. A metric in another unit needs a new definition.";
