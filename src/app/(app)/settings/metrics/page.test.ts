@@ -28,6 +28,10 @@ const open = async (section?: string) => {
   const { default: MetricsPage } = await import("./page");
   return renderToStaticMarkup(await MetricsPage({ searchParams: Promise.resolve(section ? { section } : {}) }));
 };
+const openArchived = async () => {
+  const { default: MetricsPage } = await import("./page");
+  return renderToStaticMarkup(await MetricsPage({ searchParams: Promise.resolve({ show: "archived" }) }));
+};
 const visibleSections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].filter(match => !match[2].includes("hidden")).map(match => match[1]);
 
 let connection: ReturnType<typeof postgres>;
@@ -40,6 +44,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!connection) return;
   await connection`delete from organizations where id = ${ORG}`;
+  await connection`delete from profiles where id = 'user_metrics_page_archiver'`;
   await connection.end();
 });
 beforeEach(() => { session.workspace = as("member"); });
@@ -49,7 +54,7 @@ describe("Settings → Metrics", () => {
     session.workspace = as(role);
     const html = await open();
     expect(visibleSections(html)).toEqual(["metrics"]);
-    const names = [...html.matchAll(/<h4[^>]*>([^<]*)<\/h4>/g)].map(match => match[1]);
+    const names = [...html.matchAll(/<h4[^>]*><a[^>]*>([^<]*)<\/a><\/h4>/g)].map(match => match[1]);
     expect(names).toEqual(["Action count", "Conversion rate", "Customer satisfaction", "Feature adoption rate", "Median time to convert", "Support contact rate", "User error rate"]);
     expect(html).toContain("<dd>Percentage</dd>");
     expect(html).toContain("<dd>Seconds</dd>");
@@ -61,11 +66,41 @@ describe("Settings → Metrics", () => {
   it("doesn't add the starter metrics again on a second visit", async () => {
     await open();
     const html = await open();
-    expect(html.match(/<h4[^>]*>Conversion rate<\/h4>/g)).toHaveLength(1);
+    expect(html.match(/<h4[^>]*><a[^>]*>Conversion rate<\/a><\/h4>/g)).toHaveLength(1);
   });
 
   it("follows a section in the address, as the other Settings pages do", async () => {
     expect(visibleSections(await open("profile"))).toEqual(["profile"]);
+  });
+
+  it.each(["member", "admin"] as const)("offers a %s 'Add metric', and opens each definition from its name (#197)", async (role) => {
+    session.workspace = as(role);
+    const html = await open();
+    expect(html).toMatch(/<button[^>]*>[\s\S]*?Add metric[\s\S]*?<\/button>/);
+    expect(html).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Conversion rate<\/a><\/h4>/);
+    expect(html).toMatch(/<a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Add where this lives<\/a>/);
+  });
+
+  it("keeps archived definitions behind the Archived filter (#197)", async () => {
+    const { listMetricDefinitions, archiveMetricDefinition } = await import("@/lib/metrics-library");
+    await connection`insert into profiles (id,full_name,email) values ('user_metrics_page_archiver','Archiver','archiver@example.test') on conflict do nothing`;
+    const action = (await listMetricDefinitions({ orgId: ORG })).find(definition => definition.name === "Action count")!;
+    await archiveMetricDefinition({ orgId: ORG }, "user_metrics_page_archiver", action.id);
+    const names = (html: string) => [...html.matchAll(/<h4[^>]*>(?:<a[^>]*>)?([^<]*)/g)].map(match => match[1]);
+    const shown = await open();
+    expect(names(shown)).not.toContain("Action count");
+    expect(names(shown)).toContain("Conversion rate");
+    expect(shown).toContain('aria-label="Show metrics"');
+    const archived = await openArchived();
+    expect(names(archived)).toEqual(["Action count"]);
+  });
+
+  it("explains an empty Archived view (#197)", async () => {
+    await connection`insert into organizations (id,name,slug) values ('org_metrics_page_empty','Empty','metrics-page-empty') on conflict do nothing`;
+    session.workspace = { ...as("member"), orgId: "org_metrics_page_empty" };
+    const html = await openArchived();
+    expect(html).toContain("No archived metrics");
+    await connection`delete from organizations where id = 'org_metrics_page_empty'`;
   });
 
   it("keeps a guest out", async () => {

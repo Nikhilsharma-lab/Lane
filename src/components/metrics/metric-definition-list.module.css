@@ -11,6 +11,9 @@
 .fact dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .missing { color: var(--text-muted); }
 .link { color: var(--link-ink); border-radius: var(--corner-sm); }
+.open { color: inherit; text-decoration: none; border-radius: var(--corner-sm); }
+.open:hover { text-decoration: underline; }
+.add { color: var(--link-ink); border-radius: var(--corner-sm); }
 @media (max-width: 480px) {
   .fact { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }

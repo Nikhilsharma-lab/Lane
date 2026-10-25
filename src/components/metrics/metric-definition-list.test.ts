@@ -15,15 +15,21 @@ describe("The Metrics page list", () => {
     const html = render([conversion]);
     expect(html).toContain('aria-label="Metric definitions"');
     const [item] = items(html);
-    expect(item).toMatch(/<h4[^>]*>Conversion rate<\/h4>/);
+    expect(item).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/d1"[^>]*>Conversion rate<\/a><\/h4>/);
     expect(text(item)).toContain("Unit Percentage");
     expect(text(item)).toContain("How it's counted Share of people who start the step and finish it.");
   });
 
-  it("shows 'Add where this lives' when a definition has no link", () => {
+  it("shows 'Add where this lives' when a definition has no link, leading to where it is edited (#197)", () => {
     const [item] = items(render([conversion]));
     expect(text(item)).toContain("Where it lives Add where this lives");
-    expect(item).not.toContain("<a ");
+    expect(item).toMatch(/<a[^>]*href="\/settings\/metrics\/d1"[^>]*>Add where this lives<\/a>/);
+    expect(item).not.toContain('target="_blank"');
+  });
+
+  it("explains an empty Archived view (#197)", () => {
+    const html = renderToStaticMarkup(createElement(MetricDefinitionList, { definitions: [], view: "archived" }));
+    expect(text(html)).toContain("No archived metrics");
   });
 
   it("links to where a definition lives, in a new tab that says so", () => {
@@ -42,7 +48,7 @@ describe("The Metrics page list", () => {
 
   it("keeps the order it is given", () => {
     const html = render([trials, conversion]);
-    expect(items(html).map(item => /<h4[^>]*>([^<]*)<\/h4>/.exec(item)?.[1])).toEqual(["Trial starts", "Conversion rate"]);
+    expect(items(html).map(item => /<h4[^>]*><a[^>]*>([^<]*)<\/a><\/h4>/.exec(item)?.[1])).toEqual(["Trial starts", "Conversion rate"]);
   });
 
   it("explains an empty library", () => {
