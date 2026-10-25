@@ -1,5 +1,52 @@
 # Shared Claude / Codex handoff
 
+## #174 reviewed and integrated — seven of nine complete; #175 next
+
+Ticket [#174](https://github.com/Nikhilsharma-lab/Lane/issues/174) is merged at
+`7a7919c` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+Before this handoff edit, its tree exactly matched reviewed source
+`65d5e5bfd899040d22300635d6a052b44eae0211`. Final Standards and Spec reviews have
+zero remaining findings. Toast and palette consume one eligible Undo operation;
+older restoration preserves the latest pointer, failed/skipped Undo terminates
+accurately, and late Release completion affects only its initiating operation.
+The existing Journey refresh now observes saved status as well as revision.
+
+Recorded local checks: bootstrap 52; guarded application 1,925 passed/one skipped
+before the final client-only corrections; final focused Journey/Undo 72 and full
+UI 663. Full typecheck/lint/design and production build passed; merged helper
+typecheck/lint also passed. No tests or runtime were rerun for this merge/handoff.
+Source evidence: `/private/tmp/lane-spec-174-evidence.md`.
+
+Actual-browser acceptance is complete across retained runs, not a relabelled
+single green run: run5 native hidden-tab pause; run6 Release failure/restored Undo,
+old Release/newer prompt, and all four 1440/390 light/dark surfaces; run7 saved
+Pickup/Done Journey reconciliation at unchanged revision without reload; run8
+direct Undo transport failure/no reoffer. The final two cases ran on `65d5e5b`.
+Native real-time pauses, keyboard, expiry/dismiss/swipe, same-toast loading/result
+and early Undo are covered. Exact matrix and visual limits:
+`/private/tmp/lane-spec-174-acceptance/acceptance-matrix.md`. Previous failed runs,
+including the actual stale Journey, remain evidence. Transition screenshots and
+functional acceptance are not a whole-app visual all-clear.
+
+Final exact original-team/profile/inventory check passed with pending[]. External
+membership contention was resolved through unchanged exact checks, repeated before
+every lifecycle intent; no guard relaxation or ownership adoption. All 26 Requests,
+three Projects and two custom Labels remain. Authorized LAN6–15 retain saved Done;
+LAN14 has Release/UI Measuring, the other nine have no Release. Other 16 Requests
+and catalogues are unchanged. Future fixture authority starts with
+`/private/tmp/lane-spec-174-acceptance/final-retained-state.json` and its canonical
+operation manifest, then fresh exact checks. No new accounts/entries, Clerk authority
+changes, direct database writes/deletion, production operation or deployment.
+This is local-app Chromium against pinned staging services, not deployed-staging
+or production acceptance; standard fresh-user provisioning remains unrun under quota.
+
+Original cumulative bundle still fails Requests at +2,073 bytes (25 above 2,048);
+Impact/Intake +2,042, Settings +2,040 and detail +2,027 remain within it. The measured
+baseline refresh is a proposal pending Nikhil's main-merge approval; this integration
+merge does not approve the waiver. Preserve original comparison through #175–#176.
+Tickets #168–#174 are integrated; #175 is next, then #176 and final review. PR remains
+draft. Preserve all implementer and unrelated worktrees until all nine are complete.
+
 ## #174 Journey reconciliation correction — browser replay pending
 
 Actual-app run6 on `5749d4c` passed the four theme/size surfaces and the older
