@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine } from "lucide-react";
+import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail } from "lucide-react";
 import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Result } from "@/components/arc/blocks/settings-command/settings-command";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
@@ -34,10 +34,12 @@ export type SettingsCommandAdapterProps = {
   account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
+  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
+  delivery?: ReactNode;
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership), [membership]);
   const nav = useMemo(() => settingsNavigation(membership), [membership]);
@@ -45,7 +47,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
-  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "coming-soon": Clock };
+  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "inbox-delivery": Mail, "coming-soon": Clock };
   const uid = useId();
   const reduce = !!useReducedMotion();
   const frame = useRef<HTMLDivElement>(null);
@@ -112,6 +114,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{membership === "admin" ? "Admin" : membership === "guest" ? "Guest" : "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
     members,
     metrics,
+    "inbox-delivery": delivery,
     "coming-soon": <FutureSettings entries={entries.filter(entry => entry.soon)} />,
   };
 

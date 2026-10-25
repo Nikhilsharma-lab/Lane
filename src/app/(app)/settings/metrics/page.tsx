@@ -8,6 +8,7 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
 import { ProfileForm } from "../profile/profile-form";
 import { ThemePreference } from "../profile/theme-preference";
+import { InboxDelivery } from "../profile/inbox-delivery";
 import { AddMetricDialog, MetricLibraryFilter } from "./metric-controls";
 import styles from "./metrics.module.css";
 
@@ -32,5 +33,6 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
     </SettingsCard>}
     members={<ClerkMembersProfile />} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
-    security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />} />;
+    security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
+    delivery={<InboxDelivery workspace={workspace} />} />;
 }

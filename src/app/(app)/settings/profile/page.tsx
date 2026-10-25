@@ -5,6 +5,7 @@ import { AccountProfile, AccountSecurity } from "@/components/settings/account-p
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
+import { InboxDelivery } from "./inbox-delivery";
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const workspace = await getWorkspace();
@@ -22,6 +23,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference compact />}
+        delivery={workspace.role !== "guest" ? <InboxDelivery workspace={workspace} /> : undefined}
       />
   );
 }
