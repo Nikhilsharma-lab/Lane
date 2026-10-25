@@ -5,9 +5,9 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createRequestThroughIntake, type ReviewTeam } from "./helpers/reviewers";
 import { assertE2ETarget } from "./helpers/safety";
 import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
-import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifyReleaseFailureThenSave, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
+import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifyPendingReleaseSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
 
-// This standard suite provisions one owned account and six normal-UI Requests.
+// This standard suite provisions one owned account and seven normal-UI Requests.
 // Quota-bound acceptance uses the same helpers with separately verified retained identities.
 // History-bearing fixtures are retained, never deleted or reset by this test.
 test("actual toast lifetime and palette agree across keyboard, touch, real time and native visibility", async ({ browser }, testInfo) => {
@@ -19,7 +19,7 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
   const team: ReviewTeam = { users: [user], orgId, pages: [page], close: async () => { await setup.close(); } };
   const fixtures: UndoRequest[] = [];
   try {
-    for (let index = 0; index < 6; index++) {
+    for (let index = 0; index < 7; index++) {
       const title = `Undo lifetime retained Request ${index + 1}`;
       const saved = await createRequestThroughIntake(team, title, { windowDays: 7 });
       await testInfo.attach(`saved-request-${index}`, { body: JSON.stringify(saved), contentType: "application/json" });
@@ -48,6 +48,12 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
     const driver = await undoDriver(native, orgId, fixtures[0], recorder); await driver.pickUp();
     await verifyPause(driver, "hidden", capture(testInfo, native, "native"));
   });
+  const releaseContext = await browser.newContext();
+  try {
+    const view = await releaseContext.newPage(); await signInTestUser(view, user, orgId);
+    const driver = await undoDriver(view, orgId, fixtures[6], recorder); await driver.pickUp();
+    await verifyReleaseFailureThenNewerPrompt(driver, orgId, fixtures[1], recorder, capture(testInfo, view, "release"));
+  } finally { await releaseContext.close(); }
   for (const [index, surface] of undoSurfaces.entries()) {
     const context = await browser.newContext({ viewport: { width: surface.width, height: 900 }, colorScheme: surface.colorScheme, reducedMotion: surface.reducedMotion, hasTouch: surface.width === 390 });
     const view = await context.newPage();
@@ -66,7 +72,7 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
       await verifyEnding(driver, surface.ending, record);
     } finally { await context.close(); }
   }
-  for (const [index, verify] of [[4, verifyReleaseFailureThenSave], [5, verifyUndoFailure]] as const) {
+  for (const [index, verify] of [[4, verifyPendingReleaseSkippedUndo], [5, verifyUndoFailure]] as const) {
     const context = await browser.newContext(); const view = await context.newPage();
     try {
       await signInTestUser(view, user, orgId);

@@ -7,7 +7,8 @@ export type UndoRequest = { id: string; code: string; title: string };
 export type UndoMove = "pick-up" | "done" | "undo" | "release";
 export type UndoRecorder = {
   intent: (request: UndoRequest, move: UndoMove) => Promise<string>;
-  result: (operation: string, result: { outcome: "success" | "refused" | "aborted-before-dispatch"; response?: Record<string, unknown> }) => Promise<void>;
+  result: (operation: string, result: { outcome: "success" | "refused" | "aborted-before-dispatch" | "skipped-before-dispatch"; response?: Record<string, unknown> }) => Promise<void>;
+  delivered?: (operation: string) => Promise<void>;
 };
 export const undoSurfaces = [
   { width: 1440, colorScheme: "light", reducedMotion: "no-preference", ending: "expiry" },
@@ -46,7 +47,7 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
   await expect(page.locator("#request-title")).toBeVisible();
   const matches = (candidate: Request, move: UndoMove) => argsFor(candidate, orgId, request.id, move === "release") && candidate.headers()["next-action"] !== readId;
 
-  async function begin(move: UndoMove, trigger: () => Promise<void>, mode: "normal" | "hold" | "abort" = "normal") {
+  async function begin(move: UndoMove, trigger: () => Promise<void>, mode: "normal" | "hold" | "abort" | "hold-abort" = "normal") {
     const operation = await recorder.intent(request, move);
     const received = Promise.withResolvers<Record<string, unknown>>();
     const finished = Promise.withResolvers<void>();
@@ -59,7 +60,8 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
       if (claimed) return route.fallback();
       claimed = true;
       try {
-        if (mode === "abort") {
+        if (mode === "abort" || mode === "hold-abort") {
+          if (mode === "hold-abort") await delivery.promise;
           await route.abort("failed");
           await recorder.result(operation, { outcome: "aborted-before-dispatch" });
           received.resolve({ abortedBeforeDispatch: true });
@@ -70,6 +72,7 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
           received.resolve(result);
           if (mode === "hold") await delivery.promise;
           await route.fulfill({ response });
+          await recorder.delivered?.(operation);
         }
         finished.resolve();
       } catch (error) { received.reject(error); finished.reject(error); }
@@ -77,6 +80,8 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     await page.route(pattern, handler);
     await trigger();
     return {
+      operation,
+      intercepted: () => expect.poll(() => claimed).toBe(true),
       received: () => received.promise,
       async finish() {
         delivery.resolve();
@@ -94,7 +99,21 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     if (await pickup.isVisible()) await move("pick-up", () => pickup.press("Enter"));
     await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
   }
-  return { page, request, begin, move, pickUp };
+  async function skippedUndo(trigger: () => Promise<void>, settleEarlier: () => Promise<void>) {
+    const operation = await recorder.intent(request, "undo");
+    let outgoingUndo = 0;
+    const observe = (candidate: Request) => { if (matches(candidate, "undo")) outgoingUndo++; };
+    page.on("request", observe);
+    try {
+      await trigger(); await expect(toastRegion(page)).toContainText("Undoing");
+      await settleEarlier();
+      await expect(toastRegion(page)).toContainText("Could not undo");
+      await expect(toastRegion(page)).toContainText("An earlier change failed. Check this Request and try again.");
+      expect(outgoingUndo).toBe(0);
+      await recorder.result(operation, { outcome: "skipped-before-dispatch", response: { publicFeedback: "Could not undo", detail: "An earlier change failed. Check this Request and try again.", observedUndoRequests: outgoingUndo } });
+    } finally { page.off("request", observe); }
+  }
+  return { page, request, begin, move, pickUp, skippedUndo };
 }
 export type UndoDriver = Awaited<ReturnType<typeof undoDriver>>;
 
@@ -162,6 +181,7 @@ export async function verifyPause(driver: UndoDriver, kind: "hover" | "focus" | 
     if (kind === "hover") await doneToast(page, request).hover();
     if (kind === "focus") { await page.mouse.move(0, 0); await page.keyboard.press("Alt+t"); }
     if (kind === "touch") {
+      await doneToast(page, request).click({ trial: true, position: { x: 30, y: 25 } });
       const rect = await doneToast(page, request).boundingBox(); expect(rect).not.toBeNull();
       await page.touchscreen.tap(rect!.x + 30, rect!.y + 25);
     }
@@ -182,6 +202,7 @@ export async function verifyEnding(driver: UndoDriver, ending: (typeof undoSurfa
   if (ending === "dismiss") await toast.getByRole("button", { name: "Dismiss notification", exact: true }).press("Enter");
   if (ending === "escape") { await toast.getByRole("button", { name: "Undo", exact: true }).focus(); await page.keyboard.press("Escape"); }
   if (ending === "swipe") {
+    await toast.click({ trial: true, position: { x: 20, y: 25 } });
     const rect = await toast.boundingBox(); expect(rect).not.toBeNull();
     const session = await page.context().newCDPSession(page);
     const x = rect!.x + 20, y = rect!.y + 25;
@@ -212,7 +233,7 @@ export async function verifyUndoFailure(driver: UndoDriver, capture: Capture) {
   await expectPaletteUndo(driver.page, false); await expect(isItLivePrompt(driver.page)).toHaveCount(0);
   await capture("same-toast-undo-failure-no-reoffer");
 }
-export async function verifyReleaseFailureThenSave(driver: UndoDriver, capture: Capture) {
+async function prepareReleaseForm(driver: UndoDriver) {
   const { page } = driver;
   await markDone(driver, false);
   await isItLivePrompt(page).getByRole("button", { name: "Yes, record release", exact: true }).press("Enter");
@@ -223,6 +244,11 @@ export async function verifyReleaseFailureThenSave(driver: UndoDriver, capture: 
   await form.getByLabel("Release evidence", { exact: true }).fill("174 retained fixture: actual browser release acceptance");
   await form.getByRole("checkbox", { name: "The agreed audience received this work", exact: true }).check();
   const submit = () => form.getByRole("button", { name: "Mark as released", exact: true }).press("Enter");
+  return { form, submit };
+}
+async function failedReleaseForm(driver: UndoDriver, capture: Capture) {
+  const { page } = driver;
+  const { form, submit } = await prepareReleaseForm(driver);
   await driver.move("release", submit, true);
   await expect(form.getByRole("alert")).toBeVisible();
   await expect(form.getByLabel("Release evidence", { exact: true })).toHaveValue("174 retained fixture: actual browser release acceptance");
@@ -230,10 +256,48 @@ export async function verifyReleaseFailureThenSave(driver: UndoDriver, capture: 
   await expect(page.locator('[aria-label^="Messages"]')).not.toContainText("Release recorded");
   await expect(page.locator('[aria-label^="Messages"] li').filter({ hasText: `${driver.request.code} is now Done.` }).getByRole("button", { name: "Undo", exact: true, includeHidden: true })).toHaveCount(1);
   await capture("release-failure-preserves-prompt-and-input");
-  await driver.move("release", submit);
-  await expect(form).toBeHidden(); await expect(toastRegion(page)).toContainText("Release recorded");
+  return { form, submit };
+}
+/** A successful old Release must end only its own Undo after a newer Done opens another prompt. */
+export async function verifyReleaseFailureThenNewerPrompt(driver: UndoDriver, orgId: string, newer: UndoRequest, recorder: UndoRecorder, capture: Capture) {
+  const { page, request } = driver;
+  const { form, submit } = await failedReleaseForm(driver, capture);
+  const release = await driver.begin("release", submit, "hold");
+  expect((await release.received()).success).toBe(true); // Receipt and saved-state reconciliation precede newer mutations.
+  await capture("old-release-saved-delivery-held", { operation: release.operation, savedResponseConfirmed: true, deliveryStillHeld: true });
+  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await doneToast(page, request).hover();
+  const second = await undoDriver(page, orgId, newer, recorder, async () => {
+    await page.getByRole("link", { name: "All Requests", exact: true }).press("Enter");
+    await page.locator(`a[href^="/requests/${newer.id}"]`).first().press("Enter");
+  });
+  await second.pickUp(); await markDone(second, false);
+  await expect(isItLivePrompt(page)).toContainText(`${newer.code} is Done.`);
+  await release.finish();
+  await expect(isItLivePrompt(page)).toBeVisible();
+  await expect(isItLivePrompt(page)).toContainText(`${newer.code} is Done.`);
+  const oldToast = page.locator('[aria-label^="Messages"] li').filter({ hasText: `${request.code} is now Measuring.` });
+  await expect(oldToast).toContainText("Release recorded");
+  await expect(oldToast.getByRole("button", { name: "Undo", exact: true, includeHidden: true })).toHaveCount(0);
+  await capture("old-release-delivered-newer-prompt-preserved", { operation: release.operation, deliveryComplete: true });
+  await isItLivePrompt(page).getByRole("button", { name: "Not yet", exact: true }).press("Enter");
+  await expect(isItLivePrompt(page)).toBeHidden();
+  await expectPaletteUndo(page, true); await undoFromPalette(second); await page.mouse.move(0, 0);
+}
+
+/** Hold the real Release before dispatch; Escape and Undo remain ordinary UI actions. */
+export async function verifyPendingReleaseSkippedUndo(driver: UndoDriver, capture: Capture) {
+  const { page, request } = driver;
+  const { form, submit } = await prepareReleaseForm(driver);
+  const release = await driver.begin("release", submit, "hold-abort");
+  await release.intercepted();
+  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await expect(doneToast(page, request).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  await driver.skippedUndo(() => doneToast(page, request).getByRole("button", { name: "Undo", exact: true }).press("Enter"), () => release.finish());
   await expect(toastRegion(page).getByRole("button", { name: "Undo", exact: true })).toHaveCount(0);
-  await expectPaletteUndo(page, false); await capture("saved-release-ends-undo");
+  await expectPaletteUndo(page, false);
+  await expect(page.getByRole("region", { name: "Journey", exact: true }).getByRole("button", { name: "Record release", exact: true })).toBeVisible();
+  await capture("failed-earlier-release-skips-undo-with-terminal-feedback");
 }
 
 export async function verifyLatestPair(first: UndoDriver, orgId: string, secondRequest: UndoRequest, recorder: UndoRecorder, capture: Capture) {
