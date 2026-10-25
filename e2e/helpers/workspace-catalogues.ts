@@ -87,7 +87,8 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   await recorder.pending("project", name, null);
   const failure = await abortCreate(page, request => matchesCreate(request, orgId, name), submit);
   await recorder.aborted("project", name);
-  await expect(projects(page).getByText("Project could not be created. Try again; your Request is still here.", { exact: true })).toBeVisible();
+  await expect(projects(page).getByRole("alert")).toBeVisible();
+  await expect(field).toHaveAccessibleDescription("Project could not be created. Try again; your Request is still here.");
   await expect(field).toHaveValue(name);
   await expect(field).toBeFocused();
   await expect(composer(page).getByRole("textbox", { name: "Request title", exact: true })).toHaveValue(draftTitle);
