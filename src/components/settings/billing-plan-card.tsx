@@ -34,7 +34,7 @@ const ENTERPRISE = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Lane E
 function Price({ period, founding }: { period: BillingPeriod; founding: boolean }) {
   const price = seatPrice(period, founding);
   return <p className={plan.price}>
-    {price.discounted && <><span className="sr-only">List price </span><s>{price.list}</s>{" "}<span className="sr-only">, now </span></>}
+    {price.discounted && <><span className="sr-only">List price </span><s>{price.list}</s><span className="sr-only">, now</span>{" "}</>}
     <strong>{price.price}</strong> per seat per month
   </p>;
 }
