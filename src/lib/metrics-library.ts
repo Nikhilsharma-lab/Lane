@@ -109,7 +109,10 @@ export async function listMetricDefinitions(workspace: MetricsWorkspace, options
   }
   return rows
     .filter((row) => options.includeArchived || (!row.archivedAt && !row.mergedIntoId))
-    .map(({ starterKey: _starterKey, ...definition }) => definition);
+    .map((row): MetricDefinition => ({
+      id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archivedAt: row.archivedAt,
+      mergedIntoId: row.mergedIntoId, createdBy: row.createdBy, createdAt: row.createdAt, updatedAt: row.updatedAt,
+    }));
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
