@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 // #196: every part of Lane reads Metric definitions only through the metrics library module.
 const ROOT = join(process.cwd(), "src")
-const TABLES = /\b(metricDefinitions|metricDefinitionHistory|metric_definitions|metric_definition_history)\b/
+const TABLES = /\b(metricDefinitions|metricDefinitionHistory|metricDefinitionAliases|metric_definitions|metric_definition_history|metric_definition_aliases)\b/
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
