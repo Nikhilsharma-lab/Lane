@@ -12,7 +12,7 @@ export function assertLocalUndoTarget() {
   }
 }
 
-export async function compiledUndoAction(kind: "pick-up" | "done" | "undo" | "release") {
+async function compiledRequestAction(kind: "pick-up" | "done" | "undo" | "release" | "journey") {
   assertLocalUndoTarget();
   // The original Playwright config launches Next dev with .next-e2e in this same cwd,
   // refuses an already-running server, and compiles the route before this is read.
@@ -24,6 +24,7 @@ export async function compiledUndoAction(kind: "pick-up" | "done" | "undo" | "re
     done: ["src/app/(app)/requests/[id]/actions.ts", "markDone"],
     undo: ["src/app/(app)/requests/[id]/actions.ts", "undoMarkDone"],
     release: ["src/app/(app)/requests/[id]/release-actions.ts", "changeRequestRelease"],
+    journey: ["src/app/(app)/requests/[id]/journey-actions.ts", "readRequestJourney"],
   } as const;
   const resolveExport = (kind: keyof typeof exports) => {
     const [filename, exportedName] = exports[kind];
@@ -34,6 +35,9 @@ export async function compiledUndoAction(kind: "pick-up" | "done" | "undo" | "re
   };
   return resolveExport(kind);
 }
+
+export const compiledUndoAction = (kind: "pick-up" | "done" | "undo" | "release") => compiledRequestAction(kind);
+export const compiledJourneyRead = () => compiledRequestAction("journey");
 
 /** Keys/types only. Never emit raw Flight text, request headers, URLs or value-bearing model data. */
 export function flightResultShape(body: string) {
