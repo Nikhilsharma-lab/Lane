@@ -25,7 +25,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
   { id: "security", section: "security", group: "Workspace", label: "Security", description: "Additional workspace access policies.", soon: true, adminOnly: true },
   { id: "applications", section: "applications", group: "Workspace", label: "Applications", description: "Review applications connected to your workspace.", soon: true, adminOnly: true },
-  { id: "billing", section: "billing", group: "Billing", label: "Billing", description: "Plans and invoices are not available yet. Future billing will be managed by workspace admins.", soon: true, membersOnly: true },
+  { id: "billing", section: "billing", group: "Workspace", label: "Billing", description: "Free Requests left in this workspace.", adminOnly: true, keywords: ["free requests", "plan", "pay", "payment", "subscription", "pricing", "invoices"] },
   { id: "usage", section: "usage", group: "Workspace", label: "Usage & limits", description: "Workspace-level capacity and limits.", soon: true, adminOnly: true },
   { id: "import-export", section: "import-export", group: "Workspace", label: "Import & export", description: "Bring your data into Lane or take a copy with you.", soon: true, adminOnly: true },
   { id: "integrations", section: "integrations", group: "Integrations", label: "Integrations", description: "Workspace integrations are not available yet. No external tools are connected here.", soon: true, membersOnly: true },

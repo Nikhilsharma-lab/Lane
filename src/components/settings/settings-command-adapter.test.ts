@@ -80,3 +80,20 @@ describe("Settings → Slack (#207)", () => {
     }
   });
 });
+
+describe("Settings → Billing (#213)", () => {
+  const sections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].map(match => ({ id: match[1], hidden: match[2].includes("hidden") }));
+  it("is a Workspace section for Admins, showing the page's Billing panel", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", workspaceName: "Lane Studio", initialSection: "billing", billing: createElement("p", null, "Free Requests left") }));
+    expect(html).toMatch(/<a[^>]*href="\/settings\/profile\?section=billing"[^>]*>(?:(?!<\/a>)[\s\S])*<span>Billing<\/span><\/a>/);
+    expect(sections(html).filter(section => !section.hidden).map(section => section.id)).toEqual(["billing"]);
+    expect(html).toMatch(/<section id="settings-billing"[^>]*>(?:(?!<\/section>)[\s\S])*Free Requests left/);
+  });
+  it("is not offered to a Member, a Guest or a Viewer", () => {
+    for (const membership of ["member", "guest", "viewer"]) {
+      const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership, workspaceName: "Lane Studio", initialSection: "billing" }));
+      expect(html).not.toContain("section=billing");
+      expect(sections(html).map(section => section.id)).not.toContain("billing");
+    }
+  });
+});

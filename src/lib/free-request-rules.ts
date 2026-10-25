@@ -52,9 +52,13 @@ export function freeRequestsUsedReason(free: FreeRequests): string {
  * billing isn't enforced (`LANE_BILLING_ENFORCED`, off by default).
  */
 export function creationBlock(state: FreeRequestsState, { enforced }: { enforced: boolean }): string | null {
-  if (!enforced || state.planState === "paying") return null;
-  if (state.planState === "lapsed") return `This workspace’s plan has lapsed. ${ADMIN_NEEDS_TO_PAY}`;
-  const free = freeRequestsOf(state);
+  return freeRequestsBlock(state.planState, freeRequestsOf(state), { enforced });
+}
+
+/** `creationBlock` for a workspace's plan state and Free Requests, as Settings → Billing reads them. */
+export function freeRequestsBlock(planState: PlanState, free: FreeRequests, { enforced }: { enforced: boolean }): string | null {
+  if (!enforced || planState === "paying") return null;
+  if (planState === "lapsed") return `This workspace’s plan has lapsed. ${ADMIN_NEEDS_TO_PAY}`;
   return free.left > 0 ? null : `${freeRequestsUsedReason(free)} ${ADMIN_NEEDS_TO_PAY}`;
 }
 

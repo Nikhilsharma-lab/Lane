@@ -15,8 +15,8 @@ describe("Settings search availability", () => {
     expect(searchSettings(settingsEntries("member"), "dark mode")[0].def.target).toBe("theme");
   });
   it("keeps future settings discoverable with their availability and destination", () => {
-    const result = searchSettings(settingsEntries("admin"), "billing")[0];
-    expect(result.def).toMatchObject({ soon: true, section: "coming-soon", target: "future-billing" });
+    const result = searchSettings(settingsEntries("admin"), "usage")[0];
+    expect(result.def).toMatchObject({ soon: true, section: "coming-soon", target: "future-usage" });
   });
   it("distinguishes identically named Request and Project settings", () => {
     expect(searchSettings(settingsEntries("member"), "project labels").map(r => r.def.id)).toEqual(["project-labels"]);
@@ -29,6 +29,15 @@ describe("Settings → Slack (#207)", () => {
     for (const role of ["member", "guest"]) expect(settingsNavigation(role).map(entry => entry.id)).not.toContain("slack");
     expect(searchSettings(settingsEntries("admin"), "slack")[0].def.id).toBe("slack");
     expect(searchSettings(settingsEntries("member"), "slack").map(r => r.def.id)).not.toContain("slack");
+  });
+});
+
+describe("Settings → Billing (#213)", () => {
+  it("is an Admin-only Workspace section, found by search", () => {
+    expect(settingsNavigation("admin").find(entry => entry.id === "billing")).toMatchObject({ group: "Workspace", label: "Billing" });
+    for (const role of ["member", "guest", "viewer"]) expect(settingsNavigation(role).map(entry => entry.id)).not.toContain("billing");
+    for (const query of ["billing", "free requests", "plan"]) expect(searchSettings(settingsEntries("admin"), query)[0].def.id).toBe("billing");
+    expect(searchSettings(settingsEntries("member"), "free requests")).toEqual([]);
   });
 });
 
