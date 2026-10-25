@@ -95,6 +95,11 @@ export function showsSettingsInPlace(href: string, pathname: string): boolean {
   return path === "/settings/profile" || path === pathname;
 }
 
+/** The section whose own page (or a page under it, like one Metric definition's) is at `pathname`; null for any other path. */
+export function settingsSectionAt(pathname: string): string | null {
+  return settingsCatalog.find(entry => entry.href && (pathname === entry.href || pathname.startsWith(`${entry.href}/`)))?.id ?? null;
+}
+
 /** The event the Settings frame follows, besides popstate, to show the section in the URL. */
 export const SETTINGS_SECTION_EVENT = "lane-settings-navigation"
 

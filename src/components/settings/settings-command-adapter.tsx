@@ -10,7 +10,7 @@ import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Res
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsCatalog, settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace } from "./settings-catalog";
+import { settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace, settingsSectionAt } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
 import styles from "./settings.module.css";
@@ -21,7 +21,7 @@ function subscribe(listener: () => void) {
   return () => { window.removeEventListener("popstate", listener); window.removeEventListener(sectionEvent, listener); };
 }
 const snapshot = () => new URLSearchParams(window.location.search).get("section")
-  || settingsCatalog.find(entry => entry.href === window.location.pathname)?.id
+  || settingsSectionAt(window.location.pathname)
   || (window.location.pathname === "/settings/members" ? "members" : "profile");
 
 /** / opens Settings search; ⌘K and Ctrl K are left to the app's command palette (issue #101). */
