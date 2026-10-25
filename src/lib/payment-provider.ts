@@ -35,27 +35,41 @@ export type PaymentEvent = {
   subscriptionId: string;
   period: BillingPeriod;
   foundingDiscount: boolean;
+  /** The paid seats the checkout was for (#215), when the provider says. */
+  seats?: number;
 };
 
 /** `event: null` is a genuine event Lane has no use for; `ok: false` is one that isn't from the provider. */
 export type EventReading = { ok: true; event: PaymentEvent | null } | { ok: false };
 
+/**
+ * #215: a paying workspace's paid seats changed. `seats` is the new number billed (at least 3). An added seat is
+ * charged part-month from `at`, straight away (`part_month_now`); a removed one only lowers the next bill
+ * (`next_bill`), with nothing charged or refunded now.
+ */
+export type SeatChange = { subscriptionId: string; seats: number; charge: "part_month_now" | "next_bill"; at: Date };
+export type SeatsChanged = { ok: true } | { ok: false; reason: string };
+
 export type PaymentProvider = {
   startCheckout(request: CheckoutRequest): Promise<CheckoutStarted>;
   readEvent(body: string, headers: Headers, now: Date): Promise<EventReading>;
+  changeSeats(change: SeatChange): Promise<SeatsChanged>;
 };
 
 const STAND_IN_SIGNATURE = "lane-stand-in-signature";
 
 /**
  * The stand-in: records every checkout and answers with a made-up hosted page. `complete` gives the signed event
- * body the provider would send once that checkout is paid, and `headers` the signature it would carry.
+ * body the provider would send once that checkout is paid, and `headers` the signature it would carry. Seat
+ * changes are recorded in `seatChanges` (#215).
  */
-export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = {}) {
+export function recordingPaymentProvider({ fail = false, failSeatChanges = false }: { fail?: boolean; failSeatChanges?: boolean } = {}) {
   const checkouts: CheckoutRequest[] = [];
+  const seatChanges: SeatChange[] = [];
   const secret = "stand-in-webhook-secret";
-  const provider: PaymentProvider & { checkouts: CheckoutRequest[]; headers(): Headers; complete(index?: number, ids?: { customerId?: string; subscriptionId?: string }): string } = {
+  const provider: PaymentProvider & { checkouts: CheckoutRequest[]; seatChanges: SeatChange[]; headers(): Headers; complete(index?: number, ids?: { customerId?: string; subscriptionId?: string }): string } = {
     checkouts,
+    seatChanges,
     headers: () => new Headers({ [STAND_IN_SIGNATURE]: secret }),
     complete(index = checkouts.length - 1, ids: { customerId?: string; subscriptionId?: string } = {}): string {
       const checkout = checkouts[index];
@@ -68,6 +82,7 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
         subscriptionId: ids.subscriptionId ?? `stand_in_subscription_${name}`,
         period: checkout.period,
         foundingDiscount: checkout.foundingDiscount !== null,
+        seats: checkout.seats,
       };
       return JSON.stringify(event);
     },
@@ -79,6 +94,11 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
     async readEvent(body: string, headers: Headers): Promise<EventReading> {
       if (headers.get(STAND_IN_SIGNATURE) !== secret) return { ok: false };
       return { ok: true, event: JSON.parse(body) as PaymentEvent };
+    },
+    async changeSeats(change: SeatChange): Promise<SeatsChanged> {
+      if (failSeatChanges) return { ok: false, reason: "stand_in_failed" };
+      seatChanges.push(change);
+      return { ok: true };
     },
   };
   return provider;
