@@ -1,6 +1,7 @@
 "use client"
 // Lane Request rows composed from official Arc properties, filters and controls.
-import { useEffect, useEffectEvent, useMemo, useState } from "react"
+import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react"
+import firstRunStyles from "@/components/first-run/first-run.module.css"
 import { DataTable } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
 import { Folder, Plus } from "lucide-react"
@@ -80,7 +81,9 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
   return { rows, view, showMore: Boolean(context && view && hasMore(view)), pending: older.pending !== null, error: older.error, loadMore: () => { if (view) void load(view) } }
 }
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer, firstRun }: {
+  /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
+  firstRun?: { node: ReactNode; replacesWelcome: boolean }
   requests: OverviewRequest[]
   isGuest: boolean
   /** A Viewer (#210): the whole workspace's list, with no New Request and no moves. */
@@ -126,7 +129,11 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
 
   // Plan item 2.1: the table shows this only while the whole workspace, with
   // composer inserts applied, has no Requests; filters never bring it back.
-  const welcome = <RequestsWelcome canInvite={canInvite} isGuest={isGuest} readOnly={readOnly} />
+  // #217: in an empty workspace the first Request guide is the welcome; otherwise a first run sits above the list.
+  const guideIsWelcome = Boolean(firstRun?.replacesWelcome && workspaceEmpty)
+  const welcome = firstRun?.replacesWelcome
+    ? <div data-requests-welcome className={firstRunStyles.welcomeSlot}>{firstRun.node}</div>
+    : <RequestsWelcome canInvite={canInvite} isGuest={isGuest} readOnly={readOnly} />
 
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
@@ -138,6 +145,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
         action={readOnly ? undefined : <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
+      {firstRun && !guideIsWelcome && <div className={firstRunStyles.slot}>{firstRun.node}</div>}
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>
         {context

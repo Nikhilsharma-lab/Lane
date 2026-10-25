@@ -808,6 +808,17 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Invitation and workspace-creation UI stays Clerk-owned; Lane does not recreate a post-create invite step.
 - Invitation acceptance handles signed-out, wrong-account, expired, revoked, accepted, and workspace-limit
   branches.
+- **First run (#195 item 6, #217, 2026-10-25, on the integration branch):** after the onboarding above, the
+  workspace's first person (its Clerk creator) gets a first-run guide on the Requests list (the empty workspace's
+  welcome) and on New Request: one step at a time it explains the problem framing, a prediction from the Metrics
+  library, Reviewers, the Free Requests left, and Release and Result due (Lane brings them back when the result is
+  due), then files a first real Request; a composer opened from the guide explains each part as it goes. An Admin
+  can invite teammates from it as Reviewers (Members) or, while `LANE_CUSTOM_ROLES` is on, Viewers, through Lane's
+  Members action (Clerk still sends and owns every invitation; this supersedes the "no post-create invite step" line
+  above for the first run only). People who join later get a short first run that shows their Inbox. Anyone can
+  skip it and find it again under "First-run guide" in the account menu. Progress (steps read, skipped, finished) is
+  kept per person per workspace (`first_run_progress`, migration 0050). No demo workspace or sample data is created.
+  A creator who had already filed a Request before this shipped starts with the guide finished.
 
 ### Requests and Intake
 

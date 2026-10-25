@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from "vitest"
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
 
 // Isolate external session/database boundaries; render the real workspace.
-const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[], search: "" }))
+const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[], search: "", firstRun: null as unknown }))
+// #217: the person's first run, as src/lib/first-run.ts reads it (its own tests use the database).
+vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => state.firstRun }))
+// The guide loads lazily in the app; a static render takes it directly.
+vi.mock("@/components/first-run/first-run-guide-loader", async () => ({ FirstRunGuideLoader: (await import("@/components/first-run/first-run-guide")).FirstRunGuide }))
 // Plan item 1.7: the status view and Project filter come from the URL in the browser, through the layout's list view state.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams(state.search), redirect: vi.fn() }))
 // Plan item 1.8: the workspace reads through src/lib/data (server-only). Vitest cannot resolve Next's
@@ -146,6 +150,41 @@ describe("Requests first-use landing", () => {
     const html = await render()
     expect(html.match(/data-row-property="concerns"/g)).toHaveLength(1)
     expect(html).toMatch(/data-request-id="request-concern"[\s\S]*data-row-property="concerns"[^>]*>[\s\S]*?1 concern</)
+  })
+
+  // #217: the workspace's first person sees the first Request guide where the welcome would be.
+  it("puts the first Request guide in an empty workspace's welcome, with its one way into Intake", async () => {
+    state.role = "admin"
+    state.rows = []
+    state.firstRun = { view: { guide: "first_request", step: "prediction", read: ["framing"], filed: false }, free: { planState: "free", free: { total: 4, used: 0, left: 4, usedElsewhere: null } } }
+    const html = await render()
+    state.firstRun = null
+    expect(html).toMatch(/data-requests-welcome[\s\S]*data-first-run="first_request"/)
+    expect(html).toContain('aria-label="Step 2 of 5: Predict the result"')
+    expect(html).not.toContain("No Requests yet")
+    expect(intakeLinksOf(html).filter(link => !isInert(link))).toHaveLength(1)
+    expect(html).toMatch(/data-first-run="first_request"[\s\S]*<a [^>]*href="\/intake"[^>]*>File your first Request/)
+  })
+
+  it("shows someone who joined later their short first run above the list", async () => {
+    state.role = "member"
+    state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
+    state.firstRun = { view: { guide: "joined" }, free: null }
+    const html = await render()
+    state.firstRun = null
+    expect(html).toMatch(/data-first-run="joined"[\s\S]*Existing problem/)
+    expect(html).toContain("Welcome to Studio")
+    expect(html).toContain('href="/inbox"')
+  })
+
+  it("renders nothing of a skipped first run but the way back to it", async () => {
+    state.role = "member"
+    state.rows = []
+    state.firstRun = { view: null, free: null }
+    const html = await render()
+    state.firstRun = null
+    expect(html).not.toContain("data-first-run")
+    expect(html).toContain("No Requests yet")
   })
 
   it("keeps existing work visible in the shared list", async () => {

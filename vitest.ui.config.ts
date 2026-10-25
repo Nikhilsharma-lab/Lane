@@ -75,6 +75,8 @@ export default defineConfig({
       "src/lib/member-role-rules.test.ts",
       "src/components/inbox/*.test.ts",
       "src/components/shell/inbox-bell.test.ts",
+      "src/lib/first-run-rules.test.ts",
+      "src/components/first-run/*.test.ts",
     ],
   },
   resolve: {
