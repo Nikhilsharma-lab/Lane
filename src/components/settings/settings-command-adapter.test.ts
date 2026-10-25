@@ -63,3 +63,20 @@ describe("Settings → Inbox delivery (#206)", () => {
     expect(member).not.toContain("Choosing how Inbox items reach you is not available yet");
   });
 });
+
+describe("Settings → Slack (#207)", () => {
+  const sections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].map(match => ({ id: match[1], hidden: match[2].includes("hidden") }));
+  it("is a Workspace section for Admins, showing the page's Slack panel", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", workspaceName: "Lane Studio", initialSection: "slack", slack: createElement("p", null, "Slack connection") }));
+    expect(html).toMatch(/<a[^>]*href="\/settings\/profile\?section=slack"[^>]*>(?:(?!<\/a>)[\s\S])*<span>Slack<\/span><\/a>/);
+    expect(sections(html).filter(section => !section.hidden).map(section => section.id)).toEqual(["slack"]);
+    expect(html).toMatch(/<section id="settings-slack"[^>]*>(?:(?!<\/section>)[\s\S])*Slack connection/);
+  });
+  it("is not offered to a Member or a Guest", () => {
+    for (const membership of ["member", "guest"]) {
+      const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership, workspaceName: "Lane Studio", initialSection: "slack" }));
+      expect(html).not.toContain("section=slack");
+      expect(sections(html).map(section => section.id)).not.toContain("slack");
+    }
+  });
+});

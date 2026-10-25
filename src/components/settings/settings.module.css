@@ -67,6 +67,9 @@
 .cardBody > h3 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-medium); line-height: var(--leading-display); }
 .cardBody > p { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .cardBody > .rows, .cardBody > .identity { width: 100%; }
+.dialogActions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-4); }
+/* A note further down a card (not the description under its heading). */
+.cardBody > .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .cardFooter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); min-height: calc(var(--spacing) * 14); padding: var(--space-3) var(--space-5); border-top: var(--border-width) solid var(--border); background: var(--background); color: var(--text-secondary); font-size: var(--text-sm); }
 .cardFooter > button { margin-left: auto; }
 .futureGroup { margin-top: var(--space-6); }

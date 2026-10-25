@@ -16,6 +16,15 @@ describe("Settings search availability", () => {
   });
 });
 
+describe("Settings → Slack (#207)", () => {
+  it("is an Admin-only Workspace section, found by search", () => {
+    expect(settingsNavigation("admin").find(entry => entry.id === "slack")).toMatchObject({ group: "Workspace", label: "Slack" });
+    for (const role of ["member", "guest"]) expect(settingsNavigation(role).map(entry => entry.id)).not.toContain("slack");
+    expect(searchSettings(settingsEntries("admin"), "slack")[0].def.id).toBe("slack");
+    expect(searchSettings(settingsEntries("member"), "slack").map(r => r.def.id)).not.toContain("slack");
+  });
+});
+
 describe("Settings → Metrics (#196)", () => {
   it("is a Workspace section for Members and Admins, and hidden from a guest", () => {
     for (const role of ["member", "admin"]) expect(settingsNavigation(role).find(entry => entry.id === "metrics")).toMatchObject({ group: "Workspace", label: "Metrics" });

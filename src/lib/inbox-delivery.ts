@@ -7,9 +7,10 @@ import { db, deliveryLog, deliveryPreferences, organizations, requestAgreements,
 import type { MemberAuth } from "./auth-guard";
 import { loadNeedsYou } from "./data/inbox";
 import { deliveryMessage } from "./delivery-message";
-import { appOrigin, emailDelivery } from "./feature-switches";
+import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
 import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
-import { idempotencyKeyOf, recordingMessenger, resendMessenger, type Messenger } from "./messenger";
+import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
+import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
 import type { Reviewer } from "./request-reviewer-rules";
 import { workspaceRoster } from "./workspace-roster";
@@ -24,9 +25,10 @@ import { workspaceRoster } from "./workspace-roster";
  *   `deliverAfterResponse` from the action, after its change is saved.
  * - Items caused by time (Record the release, Result due) go from the one daily job: `runDailyDelivery`.
  *
- * The person's choice for the workspace decides the channel: Email (the default, no row), Slack DM (#207; it
- * falls back to Email until Slack is connected) or Off. Off holds everything except Result due. Only Admins and
- * Members on the live Clerk roster get anything; Guests, Viewers and people who left get nothing here.
+ * The person’s choice for the workspace decides the channel: Email (the default, no row), Slack DM (#207; it
+ * goes by Email while Slack is not connected, or when Slack can’t reach the person) or Off. Off holds everything
+ * except Result due. Only Admins and Members on the live Clerk roster get anything; Guests, Viewers and people
+ * who left get nothing here.
  */
 
 export const ACTION_KINDS: readonly NeedsYouKind[] = ["review", "concern"];
@@ -38,6 +40,10 @@ export type DeliveryRun = {
   messenger: Messenger;
   /** The origin delivered links point at. */
   appUrl: string;
+  /** The Slack switch (#207). While it is off, nobody gets a Slack DM and nothing reads a Slack token. */
+  slack: SlackDelivery;
+  /** The Slack DM messenger for a connected workspace's bot token. */
+  slackMessenger: (token: string) => Messenger;
 };
 
 /** Totals only: no person, address or item ever leaves this module in a report. */
@@ -55,6 +61,8 @@ const runOf = (run: Partial<DeliveryRun> = {}): DeliveryRun => ({
   now: run.now ?? new Date(),
   messenger: run.messenger ?? switchedMessenger(),
   appUrl: run.appUrl ?? appOrigin(),
+  slack: run.slack ?? slackDelivery(),
+  slackMessenger: run.slackMessenger ?? ((token) => slackMessenger({ token })),
 });
 
 /** Admins and Members on the live roster, by id. Everyone else is never asked to act. */
@@ -67,7 +75,7 @@ async function recipientsOf(orgId: string): Promise<Map<string, Recipient>> {
   return recipients;
 }
 
-/** Each person's channel in this workspace; no row is Email. Slack DM is Email until Slack exists (#207). */
+/** Each person’s saved channel in this workspace; no row is Email. Slack DM falls back to Email in `sendItems`. */
 async function channelsOf(orgId: string, userIds: string[]): Promise<Map<string, DeliveryChannel>> {
   if (!userIds.length) return new Map();
   const rows = await db
@@ -83,8 +91,39 @@ async function workspaceNameOf(orgId: string): Promise<string> {
 }
 
 /**
- * Sends one person's items: each to its own message, each claimed in the log first so a concurrent or
- * repeated run skips it. A send that fails releases its claim, so a later run can try again.
+ * Sends one item on one channel: claimed in the log first, so a concurrent or repeated run skips it, then sent.
+ * A send that fails releases its claim, so a later run (or Email, when Slack can't reach the person) can send it.
+ */
+async function sendOne(
+  orgId: string,
+  recipient: Recipient,
+  item: NeedsYouItem,
+  channel: "email" | "slack",
+  messenger: Messenger,
+  workspaceName: string,
+  run: DeliveryRun,
+): Promise<SendResult | "already"> {
+  const [claimed] = await db
+    .insert(deliveryLog)
+    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: run.now })
+    .onConflictDoNothing()
+    .returning({ id: deliveryLog.id });
+  if (!claimed) return "already";
+  const copy = deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel });
+  const result = await messenger.send({
+    channel,
+    to: recipient.email,
+    subject: copy.subject,
+    text: copy.text,
+    idempotencyKey: idempotencyKeyOf(orgId, recipient.userId, item.key),
+  });
+  if (!result.ok) await db.delete(deliveryLog).where(eq(deliveryLog.id, claimed.id));
+  return result;
+}
+
+/**
+ * Sends one person's items, each in its own message. Slack DM goes through the workspace's Slack while it is
+ * connected (`slackDm`, null otherwise); without it, or when Slack can't reach this person, the item goes by Email.
  */
 async function sendItems(
   orgId: string,
@@ -92,6 +131,7 @@ async function sendItems(
   channel: DeliveryChannel,
   items: NeedsYouItem[],
   workspaceName: string,
+  slackDm: Messenger | null,
   run: DeliveryRun,
   report: DeliveryReport,
 ) {
@@ -100,31 +140,29 @@ async function sendItems(
       report.skipped++;
       continue;
     }
-    const [claimed] = await db
-      .insert(deliveryLog)
-      .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel: "email", outcome: run.messenger.outcome, sentAt: run.now })
-      .onConflictDoNothing()
-      .returning({ id: deliveryLog.id });
-    if (!claimed) {
-      report.skipped++;
-      continue;
+    let result: SendResult | "already" | null = null;
+    if (channel === "slack" && slackDm) {
+      result = await sendOne(orgId, recipient, item, "slack", slackDm, workspaceName, run);
+      if (result !== "already" && !result.ok && result.useEmail) {
+        console.error(`[inbox-delivery] Slack DM not possible, sending by email: ${result.reason}`);
+        result = null;
+      }
     }
-    const copy = deliveryMessage(item, { appUrl: run.appUrl, workspaceName });
-    const result = await run.messenger.send({
-      channel: "email",
-      to: recipient.email,
-      subject: copy.subject,
-      text: copy.text,
-      idempotencyKey: idempotencyKeyOf(orgId, recipient.userId, item.key),
-    });
-    if (result.ok) {
-      report.sent++;
-      continue;
+    result ??= await sendOne(orgId, recipient, item, "email", run.messenger, workspaceName, run);
+    if (result === "already") report.skipped++;
+    else if (result.ok) report.sent++;
+    else {
+      report.failed++;
+      console.error(`[inbox-delivery] send failed: ${result.reason}`);
     }
-    await db.delete(deliveryLog).where(eq(deliveryLog.id, claimed.id));
-    report.failed++;
-    console.error(`[inbox-delivery] send failed: ${result.reason}`);
   }
+}
+
+/** The workspace's Slack DM messenger while Slack is connected; null otherwise, or when nobody chose Slack DM. */
+async function slackDmFor(orgId: string, channels: Map<string, DeliveryChannel>, run: DeliveryRun): Promise<Messenger | null> {
+  if (![...channels.values()].includes("slack")) return null;
+  const token = await slackTokenFor(orgId, run.slack);
+  return token ? run.slackMessenger(token) : null;
 }
 
 /** Delivers the given people's items of these kinds in one workspace. */
@@ -140,10 +178,11 @@ async function deliverInWorkspace(
   const people = [...new Set(candidateIds)].flatMap((id) => recipients.get(id) ?? []);
   if (!people.length) return;
   const [channels, workspaceName] = await Promise.all([channelsOf(orgId, people.map((p) => p.userId)), workspaceNameOf(orgId)]);
+  const slackDm = await slackDmFor(orgId, channels, run);
   for (const person of people) {
     const auth: MemberAuth = { userId: person.userId, orgId, role: person.role };
     const items = (await loadNeedsYou(auth, run.now, only)).filter((item) => kinds.includes(item.kind));
-    await sendItems(orgId, person, channels.get(person.userId) ?? "email", items, workspaceName, run, report);
+    await sendItems(orgId, person, channels.get(person.userId) ?? "email", items, workspaceName, slackDm, run, report);
   }
 }
 
