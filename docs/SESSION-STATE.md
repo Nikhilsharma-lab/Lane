@@ -1,5 +1,79 @@
 # Shared Claude / Codex handoff
 
+## #174 Journey reconciliation correction — browser replay pending
+
+Actual-app run6 on `5749d4c` passed the four theme/size surfaces and the older
+Release/newer prompt case; the native hidden-document run5 receipt remains valid.
+LAN10 then correctly reported a skipped Undo with no server submission, but the
+Journey stayed Open while the saved row and property panel were Done. Saved
+pickup/Done left agreement revision at zero. The Timeline observed only revision;
+this omission also exists before #170. Its refresh effect now observes saved
+`request.status`, passed directly from the detail loader, through the same
+form-safe/newest-response coordinator. No polling, overlay inference or remount.
+
+Focused Journey/Undo 72 tests, full UI 663, full typecheck/lint/design pass.
+Run6 is the retained actual-app failing regression. Root controls the fresh
+guarded replay and exact Journey-read transport evidence; no rendered-green claim
+is made from these source checks. Production build passed after a sandboxed compile
+stalled and was stopped. Current proposed-baseline check passes; original cumulative
+comparison remains Requests +2,073 bytes (25 over), detail now +2,027 (3 more), all
+other routes unchanged. No further baseline refresh; the existing proposal still
+awaits approval by main merge. Independent delta review and browser replay remain
+pending. No database reset or hosted mutation by the product implementer.
+Evidence: `/private/tmp/lane-spec-174-evidence.md`.
+
+## #174 review fixes implemented — final review and browser acceptance pending
+
+Product source `e7f296118fcbd7ec68e7a0ce7a7d50d42a144018` includes the independent
+Spec review's skipped-Undo correction: a failed pending Release cannot leave
+Undoing indefinitely. No Undo action is submitted; its consumed operation receives
+terminal failure feedback and one saved-state refresh. A failed original Done
+keeps its own error. Additional actual-prompt regressions bind late Release
+completion and other callbacks to their initiating operation, so Escape or a newer
+prompt cannot redirect completion or end the newer Undo.
+
+Final focused 49 and full UI 663 tests, full typecheck/lint/design and production
+build pass. Application 1,925 passed/one skipped and bootstrap 52 are the earlier
+server-unchanged boundary. Browser helper `a1dd479` is merged; actual-app acceptance
+and final independent delta review remain pending. No production or deployment.
+
+**Separate #174 bundle proposal, pending Nikhil's approval by merging.** The review
+fixes measure Requests +2,073 bytes, 25 above the original 2,048-byte limit. Impact
+and Intake +2,042, Settings +2,040 and detail +2,024 remain within it. The initial
+#174 +2,018 measurement and withdrawal of #173's proposal remain historical below.
+This new generated refresh uses the same final build with unchanged tolerance;
+its passing check is not original-budget compliance or approval. Keep the original
+baseline for cumulative comparison through #176. Details:
+`docs/testing/mark-done-undo.md`, `/private/tmp/lane-spec-174-evidence.md` and
+`/private/tmp/lane-spec-174-final-review-bundle-bytes.json`.
+
+
+## #174 initial implementation — historical pre-review checkpoint
+
+Source `b8b79757e9ae2b1e877056e45fb4744f848da8ce` in `/private/tmp/lane-spec-174`
+uses the actual Arc toast ID/action state and one consumed operation for toast and
+palette Undo. Not yet retains the same operation/lifetime without displacing a
+newer palette operation; terminal failure or saved Release cannot rearm it. A Done
+skipped after an earlier failed write now ends Undo and replaces premature success
+feedback. Arc timing, gestures, pause behavior and bulk Undo remain unchanged.
+
+Bootstrap 52, guarded local application 1,925 passed/one skipped, final UI 657 and
+focused 43, full typecheck/lint/design and final production build passed. The app
+suite predates only the final client skipped-Done correction; full UI covers it.
+Actual-app browser acceptance and independent reviews are pending. No deployment
+or hosted service mutation was performed by the implementer.
+
+**#173's proposed bundle waiver is withdrawn.** Removing old DOM/count/timer
+choreography naturally brings the cumulative #167 build within the original
+2,048-byte budget: Impact/Intake +2,018, Settings +2,016, Requests +1,986, detail +1,930.
+The original baseline is restored unchanged; same-build check passes with 30 bytes
+maximum headroom. Historical #173 failures/proposal remain recorded, not pending
+approval. Continue comparing #175/#176 cumulatively against this original baseline.
+Evidence: `/private/tmp/lane-spec-174-evidence.md` and
+`/private/tmp/lane-spec-174-original-bundle-bytes.json`. Six of nine increments are
+integrated; #174 is not complete until its browser/review/merge boundary passes.
+
+
 ## #173 reviewed and integrated — six of nine complete; #174 next
 
 Ticket [#173](https://github.com/Nikhilsharma-lab/Lane/issues/173) is merged at
@@ -11,13 +85,13 @@ current acknowledgement, preserve usable data on error, and isolate workspace
 lifetimes. Project ordering, Label scope/permissions and action recovery remain.
 
 Verification: bootstrap 52, guarded local application 1,914 passed/one skipped,
-final UI 646, typecheck, lint, design and production build passed. The original
-cumulative bundle budget still fails: Requests +2,051 bytes (3 above 2,048), and
+final UI 646, typecheck, lint, design and production build passed. At the #173 checkpoint the original
+cumulative bundle budget failed: Requests +2,051 bytes (3 above 2,048), and
 Impact/Intake/Settings +2,120 (72 above). The generated baseline and written waiver
-are a **proposal**, with unchanged 2,048-byte tolerance and original measurements
+were a **proposal** (now withdrawn by #174 above), with unchanged 2,048-byte tolerance and original measurements
 retained through #176. Passing against that proposed baseline does not establish
-original-budget compliance. Nikhil's approval remains at main merge; this isolated
-integration merge is not waiver approval or release authorization.
+original-budget compliance. The isolated
+integration merge was not waiver approval or release authorization.
 
 Actual local-app run4 passed all six tests with zero retries: exact-team setup,
 normal Project/workspace Label/Project Label creation, real pre-dispatch failure
@@ -40,7 +114,9 @@ This is local-app Chromium proof against pinned staging services, not deployed
 staging or production acceptance. The separate Claude runtime was untouched.
 Tickets #168–#173 are integrated; continue with #174, then #175–#176. PR remains draft.
 
-## #173 implemented — review and actual-app acceptance pending
+## #173 implemented — historical pre-review checkpoint
+
+Superseded by the reviewed #173 and #174 budget receipts above.
 
 The Project and Label providers now share a small in-process catalogue owner.
 Only the latest read in the active subscription lifetime publishes data, permission
