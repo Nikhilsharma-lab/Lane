@@ -19,6 +19,7 @@ import ListLoading from "./loading"
 import DetailLoading from "./requests/[id]/loading"
 import IntakeLoading from "./intake/loading"
 import ImpactLoading from "./impact/loading"
+import InboxLoading from "./inbox/loading"
 import ProfileLoading from "./settings/profile/loading"
 import MembersLoading from "./settings/members/loading"
 import MetricsLoading from "./settings/metrics/loading"
@@ -49,6 +50,7 @@ const skeletons: [string, string, ComponentType, string, string][] = [
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
   ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
   ["impact/loading.tsx", "/impact", ImpactLoading, "impact", "Loading impact"],
+  ["inbox/loading.tsx", "/inbox", InboxLoading, "inbox", "Loading your Inbox"],
 ]
 
 const settingsSkeletons: [string, string, ComponentType, string][] = [

@@ -257,10 +257,11 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   `ENotificationFilterType` enum, `FILTER_TYPE_OPTIONS`, filter logic in `NotificationViewSet.list`.
   Trigger: team size / notification volume makes scanning the full list slow.
 
-- **Cursor pagination for notifications.** What: replace `LIMIT 30` with cursor-based pagination +
-  "load more." Why: 30 is more than enough for MVP volumes. Plane ref: `BasePaginator` mixin,
+- **Cursor pagination for notifications.** What: replace the Inbox page's `LIMIT 100` (`INBOX_LIMIT`, #204; the
+  bell popover's 30 is gone) with cursor-based pagination + "load more." Why: read items clear, so 100 unread is
+  more than enough for MVP volumes; Mark all read still clears every item. Plane ref: `BasePaginator` mixin,
   `ENotificationLoader.PAGINATION_LOADER`, `NotificationCardListRoot` "load more" UI.
-  Trigger: teams regularly hit the 30-notification cap.
+  Trigger: people regularly hit the 100-item cap.
 
 - **Notification panel form (inbox pane / dedicated route).** What: Lane uses a popover; Plane uses
   a dedicated `/notifications` route with a master-detail two-pane layout (notification list 3/12 +

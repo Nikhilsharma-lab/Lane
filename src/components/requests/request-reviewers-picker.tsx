@@ -19,7 +19,7 @@ export const REVIEWERS_SUBTEXT = "Add people who should look at this before work
 /** The optional question asked with a review, the same on Request detail and while creating. */
 export const REVIEW_QUESTION = {
   label: "Question (optional)",
-  description: "They see it on the Request and in their notification.",
+  description: "They see it on the Request and in their Inbox.",
   placeholder: "Can we build this with the current API?",
 } as const;
 

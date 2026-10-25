@@ -9,14 +9,15 @@ function source(path: string) {
 }
 
 describe("Review copy", () => {
-  it("keeps the retired design-review decision labels out of the list, detail and bell", () => {
+  it("keeps the retired design-review decision labels out of the list, detail and Inbox", () => {
     for (const path of [
       "src/components/requests/detail-properties.tsx",
       "src/components/requests/detail-properties-drawer.tsx",
       "src/components/requests/detail-strip.tsx",
       "src/components/requests/request-row.tsx",
       "src/components/requests/row-presentation.tsx",
-      "src/components/shell/notification-bell-view.tsx",
+      "src/components/inbox/inbox-view.tsx",
+      "src/components/shell/notification-copy.ts",
       "src/components/requests/pending-mutations-provider.tsx",
       "src/components/requests/detail-view.tsx",
       "src/components/requests/request-reviews.tsx",

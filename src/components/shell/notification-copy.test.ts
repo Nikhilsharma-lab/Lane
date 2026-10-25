@@ -69,7 +69,7 @@ describe("notificationRow", () => {
   it("names each read toggle by its Request, so the rows' toggles are told apart", () => {
     expect(notificationRow(base).toggle).toBe("Mark LAN-12 read")
     expect(notificationRow({ ...base, requestNumber: 7, readAt: "2026-10-18T09:00:00.000Z" }).toggle).toBe("Mark LAN-7 unread")
-    expect(notificationRow({ ...base, requestNumber: null }).toggle).toBe("Mark notification read")
+    expect(notificationRow({ ...base, requestNumber: null }).toggle).toBe("Mark this item read")
     expect(notificationRow({ ...base, type: "invite_accepted", requestNumber: null }).toggle).toBe("Mark Aditi Rao’s invite read")
   })
 })

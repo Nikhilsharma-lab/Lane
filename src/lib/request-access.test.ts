@@ -59,13 +59,13 @@ describe("seeing a Request", () => {
   it("lists, finds and notifies a guest about their own Requests only", async () => {
     const { loadRequestList, loadRequestDetail } = await import("./data/requests");
     const { loadWorkspaceSearch } = await import("./data/search");
-    const { loadNotifications } = await import("./data/notifications");
+    const { loadInbox } = await import("./data/inbox");
     const guest = authOf(GUEST);
     expect(ids((await loadRequestList(guest)).rows)).toEqual([guestRequest]);
     expect(await loadRequestDetail(guest, memberRequest)).toBeNull();
     expect(await loadRequestDetail(guest, guestRequest)).not.toBeNull();
     expect(ids((await loadWorkspaceSearch(guest, { query: "access fixture", requestsPage: 0, projectsPage: 0 })).requests.items)).toEqual([guestRequest]);
-    expect((await loadNotifications(guest)).map((n) => n.requestId)).toEqual([guestRequest]);
+    expect((await loadInbox(guest)).forYourInformation.map((n) => n.requestId)).toEqual([guestRequest]);
   });
   it("lists every Request in the workspace for a member and an admin, and none for another workspace", async () => {
     const { loadRequestList, loadRequestDetail } = await import("./data/requests");

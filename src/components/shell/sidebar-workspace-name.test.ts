@@ -22,8 +22,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams({ ...(clerk.status === null ? {} : { status: clerk.status }), ...(clerk.project ? { project: clerk.project } : {}) }),
   useRouter: () => ({ push: vi.fn() }),
 }));
-// Notifications have their own database boundary and are unrelated to the label.
-vi.mock("./notification-bell", () => ({ NotificationBell: () => null }));
+// The Inbox bell has its own database boundary and is unrelated to the label.
+vi.mock("./inbox-bell", () => ({ InboxBell: () => null }));
 // The palette is its own chunk with its own tests.
 vi.mock("./command-palette-lazy", () => ({ CommandPaletteHost: () => null }));
 vi.mock("./use-workspace-switcher", () => ({ useWorkspaceSwitcher: () => undefined }));
