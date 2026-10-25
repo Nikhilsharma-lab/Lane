@@ -29,6 +29,9 @@
 .row > div { min-width: 0; }
 .row strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .row .value { text-align: right; overflow-wrap: anywhere; }
+/* #210 Settings → Members: a list of people (ul/li), so the list resets and long names or addresses wrap. */
+ul.rows { margin: 0; padding: 0; list-style: none; }
+.person strong, .person p { overflow-wrap: anywhere; }
 .identity { display: flex; align-items: center; gap: var(--space-3); padding-block: var(--space-1); }
 .identityText { flex: 1; min-width: 0; }
 .identityText strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }

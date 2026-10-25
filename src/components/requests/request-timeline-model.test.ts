@@ -110,6 +110,14 @@ describe("Request timeline", () => {
     expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
   })
 
+  // #210: a Viewer reads the whole journey, including on Requests they filed as a Member, with nothing to do.
+  it("shows a Viewer the timeline without actions or reasons", () => {
+    const viewer: JourneyViewer = { id: "ana", role: "viewer", active: false }
+    const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, viewer, { readOnly: true }))
+    expect(steps.flatMap(s => s.actions)).toEqual([])
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
+  })
+
   it("tells a former member once why nothing is available", () => {
     const steps = timelineSteps(input({ status: "done" }, { id: "dev", role: "member", active: false }))
     expect(actionsOf(step(steps, "done"))).toEqual(["Record release: Your workspace membership is no longer active."])

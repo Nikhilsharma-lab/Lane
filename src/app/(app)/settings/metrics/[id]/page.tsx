@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
-import { ClerkMembersProfile, ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { MetricDefinitionFacts } from "@/components/metrics/metric-definition-list";
+import { canChangeThings } from "@/lib/role-rules";
+import { membersPanel } from "../../members/members-panel";
 import { DefinitionUsesList } from "@/components/metrics/definition-uses";
 import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-history";
 import { SettingsCard } from "@/components/settings/settings-card";
@@ -35,6 +38,8 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
   const isAdmin = workspace.role === "admin";
+  // #210: a Viewer reads the definition and changes nothing.
+  const canEdit = canChangeThings(workspace.role);
   // A merge needs another definition in the same unit that hasn't itself been merged away; archived ones count.
   // #203: a merged definition's Requests count under the one it was merged into, so they are listed there, not here.
   const [keptDefinition, everyDefinition, uses] = await Promise.all([
@@ -52,7 +57,8 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
       {merged && <p className={styles.note}>
         Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
       </p>}
-      {!merged && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
+      {!merged && !canEdit && <MetricDefinitionFacts definition={definition} canEdit={false} />}
+      {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
     </SettingsCard>
     {isAdmin && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
       description={archived ? "Restoring offers it for new predictions again." : "Archiving stops it being offered for new predictions. Requests that already use it keep it, and their results still add up."}
@@ -74,7 +80,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
-    members={<ClerkMembersProfile />} workspaceManagement={<ClerkWorkspaceProfile />}
+    members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} />;

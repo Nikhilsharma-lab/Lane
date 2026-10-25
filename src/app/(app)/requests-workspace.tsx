@@ -32,9 +32,10 @@ export async function RequestsWorkspace() {
     activeCapped={list.activeCapped}
     hasOlderFinished={list.hasOlderFinished}
     isGuest={member.role === "guest"}
+    readOnly={member.role === "viewer"}
     // The welcome is about the workspace, never about the current filter.
     canInvite={member.role === "admin"}
     context={{ orgId: member.orgId }}
-    viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin" }}
+    viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin", readOnly: member.role === "viewer" }}
   />
 }

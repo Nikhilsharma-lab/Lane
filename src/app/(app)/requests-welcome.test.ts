@@ -84,6 +84,25 @@ describe("Requests first-use landing", () => {
     }
   })
 
+  // #210: a Viewer reads the whole workspace's list and files nothing, so there is no way into Intake.
+  it("gives a Viewer the workspace's list with no New Request anywhere", async () => {
+    state.role = "viewer"
+    state.rows = []
+    const empty = await render()
+    expect(empty).toMatch(/<h1[^>]*>Requests<\/h1>/)
+    expect(empty).toContain("Requests your team files appear here, with their predictions and results.")
+    expect(intakeLinksOf(empty)).toEqual([])
+    expect(empty).not.toContain("to create a Request.")
+    expect(empty).not.toContain('href="/settings/members"')
+    expect(empty).not.toContain("Only Requests you submit appear here.")
+
+    state.rows = [{ id: "request-1", title: "Filed before becoming a Viewer", reframedProblem: null, status: "open", createdAt: new Date(), creatorName: "Alex", assigneeName: null, createdBy: "user_test" }]
+    const listed = await render()
+    expect(listed).toContain("Filed before becoming a Viewer")
+    expect(intakeLinksOf(listed)).toEqual([])
+    expect(listed).not.toContain('aria-label="New Request"')
+  })
+
   it("keeps the welcome for a filtered view of an empty workspace", async () => {
     state.role = "member"
     state.rows = []

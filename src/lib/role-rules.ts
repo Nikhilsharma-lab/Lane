@@ -9,6 +9,15 @@ import type { WorkspacePermission } from "./auth-guard"
  * - Viewer is free and read-only: they read what a Member reads, except Members management, and change nothing.
  */
 
+/** The Lane role for a Clerk role key; anything else (a role Lane doesn't know) is null, which means no access. */
+export function clerkWorkspacePermission(orgRole: string | null | undefined): WorkspacePermission | null {
+  if (orgRole === "org:admin") return "admin"
+  if (orgRole === "org:member") return "member"
+  if (orgRole === "org:guest") return "guest"
+  if (orgRole === "org:viewer") return "viewer"
+  return null
+}
+
 /** Admin or Member. */
 export function canChangeThings(role: WorkspacePermission): boolean {
   return role === "admin" || role === "member"

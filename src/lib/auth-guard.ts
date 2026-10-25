@@ -1,5 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { canChangeThings } from "./role-rules";
+import { canChangeThings, clerkWorkspacePermission } from "./role-rules";
+
+export { clerkWorkspacePermission };
 
 /**
  * The four Clerk roles (#210). Admin and Member are paid seats and can change things; Guest is free and
@@ -13,14 +15,6 @@ export type MemberAuth = {
   role: WorkspacePermission;
 };
 export type AdminAuth = MemberAuth & { role: "admin" };
-
-export function clerkWorkspacePermission(orgRole: string | null | undefined) {
-  if (orgRole === "org:admin") return "admin" as const;
-  if (orgRole === "org:member") return "member" as const;
-  if (orgRole === "org:guest") return "guest" as const;
-  if (orgRole === "org:viewer") return "viewer" as const;
-  return null;
-}
 
 async function activeClerkMembership(
   expectedOrgId: string

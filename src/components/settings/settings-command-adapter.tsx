@@ -13,6 +13,8 @@ import { Badge } from "@/components/arc/badge/badge";
 import { settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace, settingsSectionAt } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
+import type { WorkspacePermission } from "@/lib/auth-guard";
+import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
 
 function subscribe(listener: () => void) {
@@ -113,7 +115,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     profile: <>{account}<div id="role" tabIndex={-1}>{role}</div></>,
     preferences: <div id="theme" tabIndex={-1}>{appearance}</div>,
     "account-security": security,
-    workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{membership === "admin" ? "Admin" : membership === "guest" ? "Guest" : "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
+    workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{ROLE_NAMES[membership as WorkspacePermission] ?? "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
     members,
     metrics,
     "inbox-delivery": delivery,

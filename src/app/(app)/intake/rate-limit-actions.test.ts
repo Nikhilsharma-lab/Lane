@@ -6,7 +6,7 @@ vi.mock("@upstash/ratelimit", () => ({ Ratelimit: class {
   limit = boundary.limit;
 } }));
 vi.mock("@upstash/redis", () => ({ Redis: class {} }));
-vi.mock("@/lib/auth-guard", () => ({ requireActiveMember: async () => ({ userId: "session-user", orgId: "org-test", orgRole: "org:member" }) }));
+vi.mock("@/lib/auth-guard", () => ({ signedInAsViewer: async () => false, VIEWER_REFUSAL: "viewer", requireCanContribute: async () => ({ userId: "session-user", orgId: "org-test", orgRole: "org:member" }) }));
 vi.mock("@/lib/project-access", () => ({ canUseProject: async () => true }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: boundary.triage }));
 vi.mock("@/db", async () => ({ ...(await import("@/db/schema")), db: {} }));

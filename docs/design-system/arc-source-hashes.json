@@ -364,7 +364,7 @@
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx",
     "upstreamSha256": "ba91e8b75357ada3b74dff408f3519671e6c582d702396bb3f76fdd0e35a5916",
-    "localSha256": "b42b9c3a2566f5ae42c2360a1989b31769821c471dd1c86cfdacedd249ff7441"
+    "localSha256": "f90d28376cad665292be0fe94ab24c85d29373ecec70735b5fd03c4b212ae4ae"
   },
   {
     "id": "workspace-sidebar",

@@ -1,4 +1,5 @@
-import { ClerkMembersProfile, ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
+import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
@@ -19,7 +20,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const { section, slack } = await searchParams;
   return (
       <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
-        members={workspace.role !== "guest" ? <ClerkMembersProfile /> : undefined}
+        members={membersPanel(workspace)}
         workspaceManagement={workspace.role !== "guest" ? <ClerkWorkspaceProfile /> : undefined}
         account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
         security={<AccountSecurity />}

@@ -9,6 +9,7 @@ const PASSED_ON: Record<string, string> = {
   "app/(app)/settings/profile/profile-form.tsx": "ProfileRoleForm saves through callAction or useOptimisticAction",
   "app/(app)/settings/profile/delivery-form.tsx": "InboxDeliveryForm saves through callAction",
   "app/(app)/settings/profile/slack-form.tsx": "SlackConnectionCard connects and disconnects through callAction",
+  "components/settings/workspace-members.tsx": "WorkspaceMembersView sends each invite, role change and revoke through callAction",
   "components/requests/request-moves.ts": "createRequestMoves (request-moves-controller.ts) runs each action through the optimistic runner",
 }
 

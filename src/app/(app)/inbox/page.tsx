@@ -23,6 +23,6 @@ export default async function InboxPage() {
     initialItems={items}
     initialUnread={Math.max(unread, items.length)}
     isGuest={member.role === "guest"}
-    viewer={{ id: member.userId, name, isAdmin: member.role === "admin" }}
+    viewer={{ id: member.userId, name, isAdmin: member.role === "admin", readOnly: member.role === "viewer" }}
   />;
 }

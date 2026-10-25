@@ -21,6 +21,8 @@ export type TimelineInput = {
   /** The saved work status: where a Request closed without a result stopped. */
   workStatus: RequestStatus
   isGuest: boolean
+  /** A Viewer (#210): every step reads, and no step offers an action. */
+  readOnly?: boolean
   /** The agreed audience a release must reach. */
   audience: string
   requesterName: string
@@ -87,7 +89,7 @@ function stoppedAt(input: TimelineInput): JourneyStatus {
 }
 
 function stepActions(input: TimelineInput, status: JourneyStatus): TimelineAction[] {
-  if (input.isGuest) return []
+  if (input.isGuest || input.readOnly) return []
   const shown: TimelineAction[] = []
   for (const { action, quiet } of STEP_ACTIONS[status] ?? []) {
     let availability = input.actions[action]

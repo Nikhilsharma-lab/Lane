@@ -26,7 +26,8 @@ function focusKept() {
   return active instanceof HTMLElement && active !== document.body && active.isConnected && isShown(active) && !active.matches(":disabled")
 }
 
-export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false) {
+/** `readOnly` is a Viewer (#210): rows can be selected and copied, but the bar offers no move. */
+export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false, readOnly = false) {
   const refresh = useServerRefresh()
   const optimistic = useOptimisticAction()
   const optimisticBatch = useOptimisticBatch()
@@ -117,7 +118,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   }
 
   // The bulk bar offers a move only when every selected row allows the same one (plan item 2.4).
-  const moves = context ? selected.map(row => availableMove(row, { isGuest })?.move ?? null) : []
+  const moves = context ? selected.map(row => availableMove(row, { isGuest, readOnly })?.move ?? null) : []
   const availableAction: LifecycleMove | null = moves.length && moves.every(move => move !== null && move === moves[0]) ? moves[0] : null
   const action = current.pending && current.pending.kind !== "copy" ? current.pending.kind : availableAction
 
@@ -129,7 +130,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     running.current = operation
     // A Request that isn't ready to pick up stays selected with its reason; only the rest are sent.
     const notReady = availableAction === "pick-up" ? selected.flatMap(row => {
-      const reason = availableMove(row, { isGuest })?.blockedReason
+      const reason = availableMove(row, { isGuest, readOnly })?.blockedReason
       return reason ? [{ id: row.id, error: `${moveTarget(row).name}: ${pickupBlockedMessage(reason, row.canEdit ? null : row.creatorName || "the Requester")}` }] : []
     }) : []
     const ready = selected.filter(row => !notReady.some(item => item.id === row.id))

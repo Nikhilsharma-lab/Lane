@@ -23,6 +23,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/auth/clerk-members-profile", () => ({ ClerkMembersProfile: () => null, ClerkWorkspaceProfile: () => null }));
+vi.mock("@/components/settings/workspace-members", () => ({ WorkspaceMembers: () => null }));
 vi.mock("@/components/settings/account-profile", () => ({ AccountProfile: () => null, AccountSecurity: () => null }));
 vi.mock("../../profile/profile-form", () => ({ ProfileForm: () => null }));
 vi.mock("../../profile/theme-preference", () => ({ ThemePreference: () => null }));
@@ -69,6 +70,22 @@ describe("A Metric definition's page", () => {
     expect(text(html)).toContain("Unit");
     expect(text(html)).toContain("Count");
     expect(text(html)).toContain("Save changes");
+  });
+
+  // #210: a Viewer reads the definition, its uses and its history, and is offered nothing that changes it.
+  it("shows a Viewer the definition read-only, with its uses and history", async () => {
+    session.workspace = as("viewer");
+    const html = await open(trials);
+    expect(html).toMatch(/<h3[^>]*>Trials started<\/h3>/);
+    expect(html).not.toMatch(/<input[^>]*value="Trials started"/);
+    expect(text(html)).not.toContain("Save changes");
+    expect(text(html)).toContain("Count");
+    expect(text(html)).toContain("Trials started per week.");
+    expect(html).toContain('href="https://analytics.example.test/trials"');
+    expect(text(html)).toContain("Requests that used it");
+    expect(historyOf(html)).not.toBe("");
+    expect(text(html)).not.toContain("Archive metric");
+    expect(text(html)).not.toContain("Merge");
   });
 
   it("explains that a change in what's counted needs a new definition", async () => {
