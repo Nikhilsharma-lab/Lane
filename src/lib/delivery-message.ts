@@ -26,28 +26,40 @@ function ask(item: NeedsYouItem): string {
   }
 }
 
-function footer(item: NeedsYouItem, workspaceName: string): string {
+function footer(item: NeedsYouItem, workspaceName: string, channel: "email" | "slack"): string {
+  // Only people who chose Slack DM get one, so Off doesn't apply to it.
+  if (channel === "slack") return `You get one Slack message for each item that needs you in ${workspaceName}. To change that, choose Email or Off in Lane under Settings, Inbox delivery.`
   // Result due ignores Off, so it never offers Off as a way to stop it.
   if (item.kind === "result_due") return `Lane sends Result due by email even when Inbox delivery is Off, so a result is never missed. Workspace: ${workspaceName}.`
   return `You get one email for each item that needs you in ${workspaceName}. To stop them, choose Off in Lane under Settings, Inbox delivery.`
 }
 
-export function deliveryMessage(item: NeedsYouItem, { appUrl, workspaceName }: { appUrl: string; workspaceName: string }): DeliveryMessageCopy {
+/** Slack reads `&`, `<` and `>` as markup (links, mentions); people's words must stay words. */
+const slackSafe = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+
+/**
+ * The same words for a Slack DM (#207): there is no subject, so the DM opens with it, and what people wrote is
+ * escaped for Slack. Still one item and exactly one link, the Request.
+ */
+export function deliveryMessage(
+  item: NeedsYouItem,
+  { appUrl, workspaceName, channel = "email" }: { appUrl: string; workspaceName: string; channel?: "email" | "slack" },
+): DeliveryMessageCopy {
+  const safe = channel === "slack" ? slackSafe : (text: string) => text
   const code = requestCodeOrNull(item.requestNumber ?? undefined)
   const name = item.reframedProblem?.trim() || item.requestTitle?.trim() || "Untitled Request"
   const requestLine = code ? `${code} · ${name}` : name
   const link = `${appUrl}/requests/${item.requestId}`
   const detail = item.detail?.trim()
+  const subject = `${event(item)}: ${requestLine}`
   const lines = [
-    requestLine,
-    "",
-    `${event(item)}.`,
+    ...(channel === "slack" ? [safe(subject), ""] : [requestLine, "", `${event(item)}.`]),
     ask(item),
-    ...(detail ? ["", item.kind === "concern" ? `Concern: ${detail}` : `Question: ${detail}`] : []),
+    ...(detail ? ["", safe(item.kind === "concern" ? `Concern: ${detail}` : `Question: ${detail}`)] : []),
     "",
     `Open the Request: ${link}`,
     "",
-    footer(item, workspaceName),
+    safe(footer(item, workspaceName, channel)),
   ]
-  return { subject: `${event(item)}: ${requestLine}`, text: lines.join("\n"), link }
+  return { subject, text: lines.join("\n"), link }
 }

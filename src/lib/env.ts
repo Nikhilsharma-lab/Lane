@@ -79,6 +79,15 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       );
   }
 
+  // #207: Slack DM is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
+  if (env.LANE_SLACK_DELIVERY === "1") {
+    const unset = ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "LANE_SLACK_TOKEN_KEY"].filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_SLACK_DELIVERY is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without them Slack stays unavailable: no connect button, no Slack DM choice, nothing sent to Slack.`,
+      );
+  }
+
   return { ok: missing.length === 0, missing, warnings };
 }
 

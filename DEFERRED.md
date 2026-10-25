@@ -242,14 +242,19 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   email for For-your-information activity (comments, pickup, Done), which stays inside Lane by design.
   Trigger for that remainder: real pilot users repeatedly miss activity the Inbox should have made actionable.
 
-- ~~**Notification preferences.**~~ BUILT as one choice per person per workspace (#206): Email (default) or Off,
-  with Slack DM once Slack exists (#207). Per-type toggles stay deferred; trigger: people ask to keep one kind of
-  Needs-you email and stop another.
+- ~~**Notification preferences.**~~ BUILT as one choice per person per workspace (#206): Email (default),
+  Slack DM (while an Admin has Slack connected, #207) or Off. Per-type toggles stay deferred; trigger: people ask to
+  keep one kind of Needs-you email and stop another.
 
 - **Switching Inbox email on.** What: set `LANE_EMAIL_DELIVERY=1`, `RESEND_API_KEY`, `LANE_EMAIL_FROM` (a domain
   verified in Resend) and `CRON_SECRET`, and add `"crons": [{ "path": "/api/inbox/daily", "schedule": "0 7 * * *" }]`
   to `vercel.json` in the same change. Why: built behind the switch so nothing is sent before approval. Trigger:
   Nikhil approves the email service and migration 0041 is on the target database.
+
+- **Switching Slack DM on.** What: create the Lane Slack app as the #195 build plan describes ("The Slack app"), then
+  set `LANE_SLACK_DELIVERY=1`, `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `LANE_SLACK_TOKEN_KEY`. Why: built behind
+  the switch (#207) so nothing reaches Slack before approval; until then Settings → Slack says Slack isn't available
+  and nobody can choose Slack DM. Trigger: Nikhil approves the Slack app and migration 0042 is on the target database.
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,

@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail } from "lucide-react";
+import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail, MessageSquare } from "lucide-react";
 import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Result } from "@/components/arc/blocks/settings-command/settings-command";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
@@ -36,10 +36,12 @@ export type SettingsCommandAdapterProps = {
   metrics?: ReactNode;
   /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
   delivery?: ReactNode;
+  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
+  slack?: ReactNode;
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership), [membership]);
   const nav = useMemo(() => settingsNavigation(membership), [membership]);
@@ -47,7 +49,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
-  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "inbox-delivery": Mail, "coming-soon": Clock };
+  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "inbox-delivery": Mail, slack: MessageSquare, "coming-soon": Clock };
   const uid = useId();
   const reduce = !!useReducedMotion();
   const frame = useRef<HTMLDivElement>(null);
@@ -115,6 +117,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     members,
     metrics,
     "inbox-delivery": delivery,
+    slack,
     "coming-soon": <FutureSettings entries={entries.filter(entry => entry.soon)} />,
   };
 

@@ -28,7 +28,7 @@ is on only when its value is `"1"` (like `LANE_ALLOW_HOSTED_DB`). One module, `s
 | Switch / vars | Default | Effect when off |
 | --- | --- | --- |
 | `LANE_EMAIL_DELIVERY` + `RESEND_API_KEY`, `LANE_EMAIL_FROM` | off | The messenger is the recording stand-in. Nothing is sent, and the delivery log still records "would send". |
-| `LANE_SLACK_DELIVERY` + `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET`, `LANE_SLACK_TOKEN_KEY` (32-byte key that encrypts stored tokens) | off | No Slack connect button, no Slack DM choice, no sends. |
+| `LANE_SLACK_DELIVERY` + `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `LANE_SLACK_TOKEN_KEY` (32-byte key that encrypts stored tokens) | off | No Slack connect button, no Slack DM choice, no sends. |
 | `CRON_SECRET` | unset | The daily job route refuses every call. Its `vercel.json` cron entry is added only in the PR that switches email on. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_YEARLY`, `STRIPE_PRICE_MONTHLY`, `STRIPE_FOUNDING_COUPON` | unset | Checkout and the hosted billing pages show "not available yet". |
 | `LANE_BILLING_ENFORCED` | off | Free Requests and seats are counted and shown, but nothing is blocked and no seat confirmation is asked. |
@@ -41,6 +41,30 @@ As built in #206: the Email adapter calls Resend's `POST /emails` with `fetch` (
 `GET /api/inbox/daily`. Both are built under decision 3 and send nothing until Nikhil approves switching them on:
 `src/lib/feature-switches.ts` reads `LANE_EMAIL_DELIVERY`, `RESEND_API_KEY`, `LANE_EMAIL_FROM` and `CRON_SECRET`, and the
 `vercel.json` cron entry is left for the change that switches email on (`DEFERRED.md`, "Switching Inbox email on").
+
+As built in #207: Slack DM uses Slack's Web API with `fetch` (no SDK added) and is built under decision 3, so it sends
+nothing until Nikhil approves the Slack app below and switches it on. `SLACK_SIGNING_SECRET` was dropped from the
+switch: it only verifies requests Slack sends to Lane, and this Lane app receives none (no events, slash commands or
+buttons). Migration 0042 adds `slack_connections`; the route is `GET /api/slack/callback`; the Settings section is
+"Slack" (Admins only). People Slack can't find by their Lane email address, or any item while Slack refuses the
+workspace's token, go by Email instead.
+
+### The Slack app (for approval)
+
+**Status: proposed, waiting for Nikhil's approval. Nothing is created in Slack and the switch stays off until then.**
+
+- **Name:** Lane. One app, distributed to other Slack workspaces (Slack's "Manage distribution"), not listed in the
+  Slack Marketplace.
+- **Bot token scopes, and nothing else:** `chat:write` (send the DMs), `users:read` and `users:read.email` (find each
+  person by the email address Lane knows them by). No user token scopes.
+- **Redirect URL:** `<NEXT_PUBLIC_APP_URL>/api/slack/callback` for each environment (local, staging, production).
+- **App Home:** Messages tab on, "Allow users to send messages" off (Lane reads nothing people write to it).
+- **No** event subscriptions, interactivity, slash commands or incoming webhooks; Lane never reads Slack content.
+- **What it stores:** per workspace, the Slack team id and name, who connected it and when, and the bot token sealed with
+  AES-256-GCM under `LANE_SLACK_TOKEN_KEY`. Disconnecting deletes the row and revokes the token (`auth.revoke`).
+- **To switch on (after approval):** create the app at api.slack.com/apps with the above, then set `LANE_SLACK_DELIVERY=1`,
+  `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `LANE_SLACK_TOKEN_KEY` (`openssl rand -base64 32`), once migration 0042 is
+  on the target database (`DEFERRED.md`, "Switching Slack DM on").
 
 ## Per item
 

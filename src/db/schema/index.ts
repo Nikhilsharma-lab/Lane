@@ -13,3 +13,5 @@ export * from "./request-expected-impact-history";
 export * from "./metric-definitions";
 
 export * from "./inbox-delivery";
+
+export * from "./slack-connections";

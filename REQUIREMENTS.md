@@ -812,6 +812,15 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   is not `1` the messenger is a recording stand-in and the log records "would send"; while `CRON_SECRET` is unset
   the daily job refuses every call, and its `vercel.json` cron entry is added only in the change that switches
   email on. Items logged as "would send" before the switch are not sent again afterwards.
+- **Slack DM (#195 item 2, #207, 2026-10-25, on the integration branch):** an Admin connects Slack once per workspace
+  in Settings → Slack, through Slack's standard install flow, and can disconnect it; Members and Guests can't. The
+  bot token is stored encrypted (migration 0042, `slack_connections`). While Slack is connected, each Admin and
+  Member can choose Slack DM in Settings → Inbox delivery and gets one DM per Needs-you item, with one link to the
+  Request; Result due goes by Slack DM to people who chose it. When Slack is disconnected, or Slack can't find the
+  person by their Lane email address, those items go by Email; the saved Slack DM choice is kept, so it applies
+  again if Slack is reconnected. **Nothing reaches Slack until Nikhil approves the Slack app** (build plan, "The
+  Slack app") and sets `LANE_SLACK_DELIVERY`: until then Settings → Slack says Slack isn't available, there is no
+  connect button and nobody can choose Slack DM.
 
 ### Profile and theme
 

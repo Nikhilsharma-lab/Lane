@@ -13,15 +13,19 @@ const isChoice = (value: string): value is DeliveryChoice => (DELIVERY_CHOICES a
 const FAILED = "Couldn’t save your choice. Try again.";
 const SAVED: Record<DeliveryChoice, string> = {
   email: "Saved. Items that need you reach you by email.",
+  slack: "Saved. Items that need you reach you as Slack DMs.",
   off: "Saved. Only Result due reaches you by email.",
 };
 
 /**
- * #206 Settings → Inbox delivery: Email (the default) or Off for this workspace, saved as soon as it changes.
- * The result is confirmed in place, in a polite status line; a failure puts the saved choice back and says why.
- * Slack DM joins the choices once an Admin connects Slack (#207).
+ * #206 Settings → Inbox delivery: Email (the default), Slack DM (#207, only while an Admin has Slack connected)
+ * or Off for this workspace, saved as soon as it changes. The result is confirmed in place, in a polite status
+ * line; a failure puts the saved choice back and says why. Someone who chose Slack DM while Slack is not
+ * connected sees Email chosen, with a note saying so.
  */
-export function InboxDeliveryForm({ initialChoice, email, onSave }: { initialChoice: DeliveryChoice; email: string; onSave: SaveChoice }) {
+export function InboxDeliveryForm({ initialChoice, email, onSave, slackOffered = false, choseSlack = false }: {
+  initialChoice: DeliveryChoice; email: string; onSave: SaveChoice; slackOffered?: boolean; choseSlack?: boolean;
+}) {
   const [choice, setChoice] = useState<DeliveryChoice>(initialChoice);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +59,7 @@ export function InboxDeliveryForm({ initialChoice, email, onSave }: { initialCho
 
   const options = [
     { value: "email", label: "Email", description: `One email for each item that needs you, sent to ${email || "your sign-in address"}.` },
+    ...(slackOffered ? [{ value: "slack", label: "Slack DM", description: "One Slack message for each item that needs you, from Lane in your workspace’s Slack. If Slack can’t find you by this address, it comes by email." }] : []),
     { value: "off", label: "Off", description: "Nothing is emailed, except Result due, so a result is never missed." },
   ];
 
@@ -63,6 +68,7 @@ export function InboxDeliveryForm({ initialChoice, email, onSave }: { initialCho
       <h3>Needs-you items</h3>
       <p>A review asked of you, a Concern on your Request, Record the release and Result due. Each arrives once, on its own, with a link to the Request. For your information items stay in Lane.</p>
       <RadioGroup label="Deliver Needs-you items" value={choice} onValueChange={value => { void change(value); }} options={options} />
+      {choseSlack && !slackOffered && choice === "email" && <p className={styles.note}>You chose Slack DM, but Slack isn’t connected to this workspace now, so items reach you by email.</p>}
       {error && <Alert role="alert" tone="danger" title={error} />}
     </div>
     <div className={styles.cardFooter}>

@@ -99,6 +99,17 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env: completeEnv(), vercelEnv: "preview" }).warnings).toEqual([]);
   });
 
+  it("warns, by name only, when Slack DM is switched on without what it needs (#207)", () => {
+    const env = { ...completeEnv(), LANE_SLACK_DELIVERY: "1", SLACK_CLIENT_ID: SENTINEL };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["SLACK_CLIENT_SECRET", "LANE_SLACK_TOKEN_KEY"]) expect(warnings[0]).toContain(name);
+    expect(warnings[0]).not.toContain("SLACK_CLIENT_ID");
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+    const complete = { ...env, SLACK_CLIENT_SECRET: SENTINEL, LANE_SLACK_TOKEN_KEY: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
   it("reads VERCEL_ENV from the env when not given explicitly", () => {
     const env = completeEnv();
     env.VERCEL_ENV = "production";
