@@ -8,6 +8,8 @@ import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
 const state = vi.hoisted(() => ({ role: "admin", rows: [] as object[], search: "", firstRun: null as unknown }))
 // #217: the person's first run, as src/lib/first-run.ts reads it (its own tests use the database).
 vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => state.firstRun }))
+// The guide loads lazily in the app; a static render takes it directly.
+vi.mock("@/components/first-run/first-run-guide-loader", async () => ({ FirstRunGuideLoader: (await import("@/components/first-run/first-run-guide")).FirstRunGuide }))
 // Plan item 1.7: the status view and Project filter come from the URL in the browser, through the layout's list view state.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams(state.search), redirect: vi.fn() }))
 // Plan item 1.8: the workspace reads through src/lib/data (server-only). Vitest cannot resolve Next's

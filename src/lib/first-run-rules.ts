@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { FREE_REQUESTS, freeRequestsUsedReason, type FreeRequests, type PlanState } from "./free-request-rules";
 
 /**
@@ -61,10 +60,20 @@ export function freeRequestsNote(planState: PlanState, free: FreeRequests): stri
 }
 
 /** What the first run's one action accepts: a step read, skip, finish, or reopen from help. */
-export const firstRunChangeSchema = z.discriminatedUnion("change", [
-  z.object({ change: z.literal("step"), step: z.enum([...FIRST_REQUEST_STEPS, ...JOINED_STEPS]) }).strict(),
-  z.object({ change: z.literal("skip") }).strict(),
-  z.object({ change: z.literal("finish") }).strict(),
-  z.object({ change: z.literal("reopen") }).strict(),
-]);
-export type FirstRunChange = z.infer<typeof firstRunChangeSchema>;
+export type FirstRunChange = { change: "step"; step: FirstRunStep } | { change: "skip" | "finish" | "reopen" };
+
+const ALL_STEPS: readonly string[] = [...FIRST_REQUEST_STEPS, ...JOINED_STEPS];
+
+/**
+ * Reads the action's input; null for anything else, extra keys included. Written by hand rather than with zod so the
+ * guide, which shares this module, keeps zod out of the Requests list's first load.
+ */
+export function parseFirstRunChange(data: unknown): FirstRunChange | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const input = data as Record<string, unknown>;
+  const keys = Object.keys(input);
+  if (input.change === "step")
+    return keys.length === 2 && typeof input.step === "string" && ALL_STEPS.includes(input.step) ? { change: "step", step: input.step as FirstRunStep } : null;
+  if ((input.change === "skip" || input.change === "finish" || input.change === "reopen") && keys.length === 1) return { change: input.change };
+  return null;
+}

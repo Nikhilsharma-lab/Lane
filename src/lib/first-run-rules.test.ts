@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  firstRunGuideFor, firstRunView, freeRequestsNote, startingProgress, withStepRead, type FirstRunProgress,
+  firstRunGuideFor, firstRunView, freeRequestsNote, parseFirstRunChange, startingProgress, withStepRead, type FirstRunProgress,
 } from "./first-run-rules";
 
 const progress = (over: Partial<FirstRunProgress> = {}): FirstRunProgress => ({ guide: "first_request", steps: [], skippedAt: null, completedAt: null, ...over });
@@ -55,6 +55,20 @@ describe("what the first run shows", () => {
     expect(withStepRead("joined", [], "inbox")).toEqual(["inbox"]);
     expect(withStepRead("joined", [], "framing")).toBeNull();
     expect(withStepRead("first_request", [], "inbox")).toBeNull();
+  });
+});
+
+describe("what the first run's action accepts", () => {
+  it("takes a known step, skip, finish or reopen", () => {
+    expect(parseFirstRunChange({ change: "step", step: "prediction" })).toEqual({ change: "step", step: "prediction" });
+    expect(parseFirstRunChange({ change: "step", step: "inbox" })).toEqual({ change: "step", step: "inbox" });
+    for (const change of ["skip", "finish", "reopen"]) expect(parseFirstRunChange({ change })).toEqual({ change });
+  });
+
+  it("refuses anything else, extra keys included", () => {
+    for (const input of [null, "skip", [], {}, { change: "step" }, { change: "step", step: "demo" }, { change: "skip", step: "framing" },
+      { change: "finish", userId: "someone_else" }, { change: "step", step: "framing", orgId: "org_x" }, { change: "delete" }])
+      expect(parseFirstRunChange(input)).toBeNull();
   });
 });
 

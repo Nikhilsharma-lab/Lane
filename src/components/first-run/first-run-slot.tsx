@@ -5,7 +5,7 @@ import type { MemberAuth } from "@/lib/auth-guard";
 import { billingEnforced, customRoles } from "@/lib/feature-switches";
 import { loadFirstRun } from "@/lib/first-run";
 import { canChangeThings } from "@/lib/role-rules";
-import { FirstRunGuide } from "./first-run-guide";
+import { FirstRunGuideLoader } from "./first-run-guide-loader";
 import { FirstRunReopen } from "./first-run-help";
 
 export type FirstRunSlot = {
@@ -25,7 +25,7 @@ export async function firstRunSlot(member: MemberAuth, workspaceName: string, pl
     return null;
   });
   if (!run) return null;
-  // Help reopens the first run on the Requests list (FIRST_RUN_HELP_HREF), so only the list listens for it.
+  // Help reopens the first run on the Requests list (FIRST_RUN_HELP), so only the list listens for it.
   if (!run.view) return placement === "list" ? { node: <FirstRunReopen orgId={member.orgId} />, replacesWelcome: false } : null;
   // New Request explains filing only until the first Request is filed; the list carries the rest.
   if (placement === "intake" && (run.view.guide !== "first_request" || run.view.filed)) return null;
@@ -33,7 +33,7 @@ export async function firstRunSlot(member: MemberAuth, workspaceName: string, pl
     ? { roles: customRoles() ? ["member" as const, "viewer" as const] : ["member" as const], confirmPaidSeats: billingEnforced() }
     : null;
   return {
-    node: <FirstRunGuide orgId={member.orgId} view={run.view} workspaceName={workspaceName} free={run.free} invite={invite}
+    node: <FirstRunGuideLoader orgId={member.orgId} view={run.view} workspaceName={workspaceName} free={run.free} invite={invite}
       readsNeedsYou={canChangeThings(member.role)} placement={placement} />,
     replacesWelcome: run.view.guide === "first_request" && !run.view.filed,
   };
