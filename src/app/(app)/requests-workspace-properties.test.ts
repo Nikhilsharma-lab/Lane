@@ -12,6 +12,8 @@ vi.mock("@/db", async () => {
     return { rows: [] }
   }, { schema }) }
 })
+// #217: the first run has its own tests (first-run-actions.test.ts); this file reads only the list.
+vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => null }))
 vi.mock("@/lib/ensure-workspace", () => ({
   // Plan item 1.8: the page reads Clerk claims first, then runs its loaders in parallel.
   getMember: async () => ({ userId: "person_current", orgId: "org_visible", role: recorded.role }),

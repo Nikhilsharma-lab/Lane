@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getMember, getWorkspace } from "@/lib/ensure-workspace"
 import { loadRequestList } from "@/lib/data/requests"
+import { firstRunSlot } from "@/components/first-run/first-run-slot"
 import { RequestsOverview } from "./requests-overview"
 
 /**
@@ -18,8 +19,10 @@ export async function RequestsWorkspace() {
   // Project filter. The list loads every active Request (capped) plus the
   // latest Done, and the browser filters it. The loader keeps the workspace
   // and guest guards (src/lib/data/requests.ts).
-  const [workspace, list] = await Promise.all([
-    getWorkspace(),
+  // #217: the first run is read after getWorkspace, which records a workspace Lane hasn't seen before, and
+  // alongside the list.
+  const [[workspace, firstRun], list] = await Promise.all([
+    getWorkspace().then(async ws => [ws, ws && !ws.needsOnboarding ? await firstRunSlot(member, ws.workspaceName, "list") : null] as const),
     loadRequestList(member),
   ])
   if (!workspace) redirect("/login")
@@ -37,5 +40,6 @@ export async function RequestsWorkspace() {
     canInvite={member.role === "admin"}
     context={{ orgId: member.orgId }}
     viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin", readOnly: member.role === "viewer" }}
+    firstRun={firstRun ?? undefined}
   />
 }
