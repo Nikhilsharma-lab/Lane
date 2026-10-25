@@ -164,11 +164,11 @@ export function RequestReviews({
           <div className={styles.fields}>
             <Select
               label="Reviewer"
-              placeholder={people.length ? "Choose a person" : "Loading people…"}
+              placeholder={loaded ? (options.length ? "Choose a person" : "Nobody else to ask yet") : "Loading people…"}
               value={selected}
               onValueChange={setSelected}
               options={options}
-              disabled={busy || !people.length}
+              disabled={busy || !options.length}
             />
             <ReviewerInviteHint canInvite={view.canInvite} className={styles.muted} />
           </div>
