@@ -272,7 +272,8 @@ export async function verifyNativeNavigation(page: Page, fixture: NavigationFixt
   const open = page.getByRole("link", { name: "Open Request", exact: true }).filter({ visible: true });
   await nativeClicks(page, open, url => url.pathname === `/requests/${target.id}`, async () => {
     await expect(open).toBeVisible();
-    await expect(page.getByRole("listbox", { name: "Search matches", exact: true })).toBeAttached();
+    // The phone preview modal hides this retained list from accessibility.
+    await expect(page.locator('[role="listbox"][aria-label="Search matches"]')).toBeAttached();
   });
   await capture("native-search-preserved");
   await open.press("Enter");
