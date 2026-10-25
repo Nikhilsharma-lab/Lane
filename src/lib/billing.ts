@@ -2,6 +2,7 @@ import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { and, count, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { after } from "next/server";
 
 import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
 import { FOUNDING_DISCOUNT, foundingDiscountFor, foundingEndsAt, paidSeats, type BillingPeriod } from "./billing-plan-rules";
@@ -315,5 +316,19 @@ export async function followSeatChanges(
   } catch (error) {
     console.error("[billing] seats not followed:", error instanceof Error ? error.message : "unknown error");
     return { kind: "failed" };
+  }
+}
+
+/**
+ * From any page view: follows the workspace's seats after the response, if a check is due. This is how a seat
+ * changed in Clerk (an invitation accepted, someone removed) reaches the bill without Lane being told. Reads
+ * nothing while billing isn't enforced.
+ */
+export function followSeatChangesAfterResponse(ws: Workspace): void {
+  if (!billingEnforced()) return;
+  try {
+    after(async () => { await followSeatChanges(ws, { onlyIfDue: true }); });
+  } catch {
+    // `after` throws outside a request scope; there is nothing to follow after.
   }
 }

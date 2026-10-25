@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { WorkspacePermission } from "./auth-guard"
+import { ROLE_NAMES } from "./role-rules"
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
@@ -36,6 +37,20 @@ export const addsPaidSeat = (from: WorkspacePermission | null, to: WorkspacePerm
 export const PAID_SEAT_CONFIRMATION = "This adds a paid seat"
 export const PAID_SEAT_DETAIL = "Admins and Members are paid seats, at least 3. Once this workspace pays, an added seat is charged part-month from the day it’s added, and removing one or making them a Viewer lowers the next bill."
 export const CONFIRM_PAID_SEAT = "Confirm that this adds a paid seat."
+
+/** A change that adds a paid seat, waiting for the Admin's confirmation. */
+export type PaidSeatChange =
+  | { kind: "invite"; email: string; role: WorkspacePermission }
+  | { kind: "role"; name: string; role: WorkspacePermission }
+
+const withArticle = (role: WorkspacePermission) => `${role === "admin" ? "an" : "a"} ${ROLE_NAMES[role]}`
+
+/** The change in one sentence, and when its seat starts: an invitation's when they join, a role change's today. */
+export function paidSeatSummary(change: PaidSeatChange): string {
+  return change.kind === "invite"
+    ? `${change.email} is invited as ${withArticle(change.role)}. Their seat starts when they join.`
+    : `${change.name} becomes ${withArticle(change.role)}. Their seat starts today.`
+}
 
 const roleSchema = z.enum(WORKSPACE_ROLES, { error: "Choose Admin, Member, Guest or Viewer." })
 

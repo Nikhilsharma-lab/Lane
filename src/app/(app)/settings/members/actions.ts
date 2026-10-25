@@ -38,7 +38,7 @@ function clerkCode(error: unknown): string | null {
   return Array.isArray(errors) ? errors[0]?.code ?? null : null;
 }
 
-export async function inviteToWorkspace(data: { email: string; role: string }, context: { orgId: string }): Promise<Result> {
+export async function inviteToWorkspace(data: { email: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
   const parsed = inviteInputSchema.safeParse(data);
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   const auth = await requireOwnerOrAdmin(context.orgId);
@@ -63,7 +63,7 @@ export async function inviteToWorkspace(data: { email: string; role: string }, c
   return { success: true };
 }
 
-export async function changeMemberRole(data: { userId: string; role: string }, context: { orgId: string }): Promise<Result> {
+export async function changeMemberRole(data: { userId: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
   const parsed = roleChangeInputSchema.safeParse(data);
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   const auth = await requireOwnerOrAdmin(context.orgId);
