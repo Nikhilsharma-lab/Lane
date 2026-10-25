@@ -175,6 +175,10 @@ export async function verifyEarlyUndo(driver: UndoDriver, capture: Capture) {
 
 export async function verifyPause(driver: UndoDriver, kind: "hover" | "focus" | "touch" | "hidden", capture: Capture) {
   const { page, request } = driver;
+  if (kind === "hidden") {
+    await page.bringToFront();
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+  }
   await markDone(driver);
   const stack = toastRegion(page).locator("ol");
   const startedAt = Date.now();
