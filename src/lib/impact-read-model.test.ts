@@ -945,3 +945,66 @@ describe("Outcome report (#208): who sees it, and empty periods", () => {
     expect(buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 })!.emptyMessage).toBeNull();
   });
 });
+
+describe("Outcome report (#209): What we learned", () => {
+  const learnedCorrection = (text: string, revision: number): ClosureCorrection => ({ operationId: `op-l${revision}`, fingerprint: "fc", actorId: MEMBER, at: `2026-09-1${revision}T09:00:00.000Z`, field: "learned", correction: text, reason: "Clearer", revision });
+  const withLearned = (id: string, requestNumber: number, learned: string | undefined, corrections: ClosureCorrection[] = []) => {
+    const closed = closedRow(id, requestNumber, plan(), 46, []);
+    return { ...closed, outcomeClosure: { ...closed.outcomeClosure!, ...(learned ? { learned } : {}) }, closureCorrections: corrections };
+  };
+
+  it("shows each Request's What we learned line, or none when it wasn't given", () => {
+    const [first, second] = reportEntries([withLearned("a", 1, "Shorter forms convert"), withLearned("b", 2, undefined)], Q3);
+    expect(first.learned).toEqual({ text: "Shorter forms convert", corrected: false });
+    expect(second.learned).toBeNull();
+  });
+
+  it("shows the latest Correction marked corrected, and keeps it out of the other corrected values", () => {
+    const rows = [
+      withLearned("a", 1, "First wording", [learnedCorrection("Second wording", 2), learnedCorrection("Third wording", 3)]),
+      withLearned("b", 2, undefined, [learnedCorrection("Added by a Correction", 2)]),
+    ];
+    const [first, second] = reportEntries(rows, Q3);
+    expect(first.learned).toEqual({ text: "Third wording", corrected: true });
+    expect(first.corrected).toEqual([]);
+    expect(second.learned).toEqual({ text: "Added by a Correction", corrected: true });
+  });
+
+  it("shows What we learned on work closed without a result", () => {
+    const rolledBack = row({ id: "c", requestNumber: 3, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), exceptionClosure: { ...exceptionClosure("rolled_back", "Broke Safari"), learned: "Test on Safari first" } });
+    const [group] = buildOutcomeReport(MEMBER_VIEWER, [rolledBack], { now: NOW, period: Q3 })!.closedWithoutResult;
+    expect(group.requests[0].learned).toEqual({ text: "Test on Safari first", corrected: false });
+  });
+});
+
+describe("Outcome report (#209): Quarter notes", () => {
+  const note = (year: number, quarter: 1 | 2 | 3 | 4, text: string) => ({ year, quarter, text, editorName: "Ada Admin", editedAt: `${year}-0${quarter * 3}-15T10:00:00.000Z` });
+  const notes = [note(2026, 1, "Winter"), note(2026, 3, "Checkout rebuilt"), note(2025, 3, "Last year")];
+  const report = (period: ImpactPeriod, quarterNotes = notes) => buildOutcomeReport(MEMBER_VIEWER, [], { now: NOW, period, quarterNotes })!;
+
+  it("ends a quarter's report with that quarter's note, its last editor and edit time", () => {
+    expect(report(Q3).quarterNotes).toEqual([
+      { year: 2026, quarter: 3, label: "Q3 2026", note: { text: "Checkout rebuilt", editorName: "Ada Admin", editedAt: "2026-09-15T10:00:00.000Z" } },
+    ]);
+  });
+
+  it("gives a quarter with no note an empty place for one", () => {
+    expect(report({ kind: "quarter", year: 2026, quarter: 2 }).quarterNotes).toEqual([{ year: 2026, quarter: 2, label: "Q2 2026", note: null }]);
+  });
+
+  it("shows all four of a year's notes in order, empty ones included", () => {
+    expect(report(YEAR_2026).quarterNotes.map(slot => [slot.label, slot.note?.text ?? null])).toEqual([
+      ["Q1 2026", "Winter"], ["Q2 2026", null], ["Q3 2026", "Checkout rebuilt"], ["Q4 2026", null],
+    ]);
+  });
+
+  it("shows no Quarter note on a month", () => {
+    expect(report(AUGUST).quarterNotes).toEqual([]);
+  });
+
+  it("shows the note even when nothing was Released, and to every role except a guest", () => {
+    expect(report(Q3).emptyMessage).toBe("Nothing was Released in Q3 2026.");
+    expect(buildOutcomeReport(ADMIN_VIEWER, [], { now: NOW, period: Q3, quarterNotes: notes })).toEqual(report(Q3));
+    expect(buildOutcomeReport(GUEST_VIEWER, [], { now: NOW, period: Q3, quarterNotes: notes })).toBeNull();
+  });
+});
