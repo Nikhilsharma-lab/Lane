@@ -17,6 +17,7 @@ import { allow, journeyActionsFor, peopleNames, personName } from '@/lib/request
 import { agreedResult, correctableFields, guardrailHeld, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 import { utcDay } from '@/lib/utc-day';
+import { newRequestBlock } from '@/lib/billing';
 /** Each closure change and the journey action that allows it. */
 const JOURNEY_ACTION = { measured: 'close', exception: 'closeWithoutResult', correction: 'correctClosure' } as const;
 /** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
@@ -91,6 +92,9 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
         },
         apply: async (tx, { request: original, auth, roster, fingerprint }) => {
             allow(journeyActionsFor(original, auth, roster, await personName(tx, roster, requesterOf(original)), new Date()).followUp);
+            // #213: a follow-up is a new Request, so it counts and waits while an Admin needs to pay.
+            const block = await newRequestBlock({ orgId: auth.orgId }, tx);
+            if (block) insist(false, block);
             const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
             const [reviewersRow] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));
             // Reviewers carry over unanswered, leaving out the creator: approval never carries forward.
