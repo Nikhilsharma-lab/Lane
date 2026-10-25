@@ -777,6 +777,15 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Lane must recover routing/authorization failures without recreating invitation tokens or a parallel mailer.
 - Older local-invite copy-link/Resend behaviour is historical, not a current Clerk implementation requirement.
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.
+- **Inbox (#195 item 2, #204, 2026-10-25, on the integration branch):** "Inbox" replaces "Notifications" in all copy.
+  The bell's popover is replaced by the `/inbox` page: the list on the left and the existing Request preview beside it
+  (phones and touch open the Request's page instead). One read model (`src/lib/inbox-read-model.ts`) decides what it
+  holds. For-your-information items are the stored notifications for picked up, Done, comments, Looks good and invite
+  accepted; they clear when read (opening one reads it), and Mark all read clears everything. An item read during a
+  visit stays in place, read, until the next visit. Guests see only items about their own submissions. The bell stays
+  in the sidebar, leads to the Inbox and, until Needs-you items land (#205), counts the unread For-your-information
+  items. Comments notify the people on the Request as before, with no @mentions. Review asks, Concerns, resets and
+  the stored reminders are not For your information; #205 works out Needs-you items from Request state instead.
 
 ### Profile and theme
 
