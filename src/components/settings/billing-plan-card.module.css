@@ -1,0 +1,11 @@
+/* #214 Settings → Billing: the Lane plan's two billing periods side by side (yearly first), stacked on narrow
+   screens. All visual values come from the theme file (src/styles/theme.css). */
+.periods { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 52), 1fr)); gap: var(--space-4); width: 100%; margin: 0; padding: 0; list-style: none; }
+.period { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--background); }
+.name { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.price { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.price strong { color: var(--foreground); font-size: var(--text-lg); font-weight: var(--weight-medium); }
+.price s { color: var(--text-muted); }
+.billed { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.pay { margin-top: auto; align-self: flex-start; }
+.link { color: var(--link-ink); border-radius: var(--corner-sm); white-space: nowrap; }
