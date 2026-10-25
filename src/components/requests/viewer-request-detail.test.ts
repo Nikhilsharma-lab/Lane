@@ -41,5 +41,8 @@ describe("a Request page for a Viewer (#210)", () => {
     expect(viewer).not.toContain(`aria-label="Edit Request"`)
     expect(viewer).not.toContain(`aria-label="Delete Request"`)
     expect(viewer).not.toContain(`aria-label="Priority: `)
+    // With no comments and no box, the conversation says it's empty rather than showing a bare heading.
+    expect(viewer).toContain("No comments yet.")
+    expect(member).not.toContain("No comments yet.")
   })
 })
