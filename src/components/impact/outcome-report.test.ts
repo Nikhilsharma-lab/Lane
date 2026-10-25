@@ -157,6 +157,23 @@ describe("Outcome report: Projects and Requests", () => {
   })
 })
 
+describe("Outcome report: Same problem iterations (#218)", () => {
+  const grouped = ROWS.map(entry => ["a", "d"].includes(entry.id) ? { ...entry, sameProblemGroup: "group-checkout" } : entry)
+
+  it("notes a Request's iteration, linking to its group on the Request page", () => {
+    const markup = html(Q3, grouped)
+    // a was filed first, d second: d is the 2nd iteration, closed without a result.
+    expect(markup).toContain('href="/requests/a#iterations"')
+    expect(section(markup, "Checkout", 3)).toContain("1st iteration of this problem")
+    expect(section(markup, "Closed without a result")).toContain("2nd iteration of this problem")
+    expect(markup).toContain('href="/requests/d#iterations"')
+  })
+
+  it("adds no note to a Request in no group", () => {
+    expect(text(html(Q3))).not.toContain("iteration")
+  })
+})
+
 describe("Outcome report: closed without a result", () => {
   it("groups Released work closed without a result by reason, with each reason given", () => {
     const closed = section(html(Q3), "Closed without a result")
