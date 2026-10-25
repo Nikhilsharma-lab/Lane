@@ -870,6 +870,26 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   Slack app") and sets `LANE_SLACK_DELIVERY`: until then Settings → Slack says Slack isn't available, there is no
   connect button and nobody can choose Slack DM.
 
+### Free Requests (#195 item 5, #213, 2026-10-25, on the integration branch)
+
+- Each new workspace gets 4 Free Requests with the whole product, any number of people and no time limit. Every
+  Request created counts, deleted ones included; a follow-up Request counts; a Guest submission counts once a
+  Member takes it on, not when it is filed. The database keeps the count (migration 0046), so no path skips it.
+- The allowance belongs to the company email domain of the workspace's Clerk creator; for a personal email domain
+  (Gmail, Outlook, iCloud and the like) it belongs to that one address (read without `+tags`, and for Gmail without
+  dots). The first workspace Lane sees for a domain or address holds the 4; a later one gets none and is told the
+  Free Requests were already used by another workspace. It is decided once, when Lane first sees the workspace
+  (or, for workspaces Lane saw before 0046, when an Admin opens Billing or someone files while billing is enforced);
+  if Lane can't find the creator it stays undecided and the workspace keeps its 4.
+- Once they are used and there is no paid plan (or the plan lapsed), creating a new Request, a follow-up, or taking
+  on a Guest submission is refused with the reason and "An Admin needs to pay"; a Guest can still file. Nothing
+  else is blocked: everything filed keeps moving, releasing, closing and getting reminders, and nothing is deleted.
+  The refusal comes before the AI review and again, under the workspace lock, when saving.
+- Settings → Billing (Admins only) shows Free Requests left and why there are none. **All enforcement sits behind
+  `LANE_BILLING_ENFORCED`, off by default:** while it is not `1`, Free Requests are counted and shown but no
+  workspace is ever blocked, and Billing says Lane isn't charging yet. Payment (#214) is not built; switching
+  enforcement on waits for it and for Nikhil's approval.
+
 ### Profile and theme
 
 - Functional label changes do not change permissions.

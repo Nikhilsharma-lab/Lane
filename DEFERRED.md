@@ -256,6 +256,11 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   the switch (#207) so nothing reaches Slack before approval; until then Settings → Slack says Slack isn't available
   and nobody can choose Slack DM. Trigger: Nikhil approves the Slack app and migration 0042 is on the target database.
 
+- **Switching billing enforcement on.** What: set `LANE_BILLING_ENFORCED=1`. Why: Free Requests are counted and
+  shown (#213) but nothing is blocked, so pilot workspaces are never stopped before billing is approved. Trigger:
+  payment is built and approved (#214; Supabase Pro, Vercel Pro and the payment provider approved) and migration
+  0046 is on the target database. Until payment exists, switching it on would leave a workspace with no way to pay.
+
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,
   `ENotificationTab` enum, `UnreadNotificationEndpoint` (returns `total_unread` + `mention_unread`).
