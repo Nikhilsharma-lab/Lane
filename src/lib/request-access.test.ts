@@ -162,11 +162,14 @@ describe("a signed-out caller", () => {
 
 describe("the rules on a loaded row", () => {
   it("match the query rules", () => {
-    const own = { createdBy: GUEST }, other = { createdBy: MEMBER };
+    const own = { createdBy: GUEST, takenOnBy: null }, other = { createdBy: MEMBER, takenOnBy: null };
     expect([canSee({ userId: GUEST, role: "guest" }, own), canSee({ userId: GUEST, role: "guest" }, other)]).toEqual([true, false]);
     expect(canSee({ userId: MEMBER, role: "member" }, own)).toBe(true);
     expect([canChange({ userId: GUEST, role: "guest" }, own), canChange({ userId: MEMBER, role: "member" }, own), canChange({ userId: ADMIN, role: "admin" }, own)]).toEqual([true, false, true]);
-    expect([canSee({ userId: VIEWER, role: "viewer" }, other), canChange({ userId: VIEWER, role: "viewer" }, { createdBy: VIEWER })]).toEqual([true, false]);
+    expect([canSee({ userId: VIEWER, role: "viewer" }, other), canChange({ userId: VIEWER, role: "viewer" }, { createdBy: VIEWER, takenOnBy: null })]).toEqual([true, false]);
+    // #212: once a Member takes a Guest submission on, they change it in the Guest's place.
+    const takenOn = { createdBy: GUEST, takenOnBy: MEMBER };
+    expect([canChange({ userId: GUEST, role: "guest" }, takenOn), canChange({ userId: MEMBER, role: "member" }, takenOn), canSee({ userId: GUEST, role: "guest" }, takenOn)]).toEqual([false, true, true]);
   });
 });
 

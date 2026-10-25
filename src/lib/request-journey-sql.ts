@@ -40,8 +40,9 @@ export const journeyStatusColumn = sql<JourneyStatus>`case
 /** Closed without a result, as `journeyStatus` reads it: a no-result closure and no measured one. */
 export const closedWithoutResultCondition: SQL = and(isNull(requests.outcomeClosure), isNotNull(requests.exceptionClosure))!
 
-/** Each Request's current Requester as a column: the database twin of `requesterOf` (the release record's, else the creator). */
-export const requesterColumn = sql<string>`coalesce(${requests.releaseState}->>'ownerId', ${requests.createdBy})`
+/** Each Request's current Requester as a column: the database twin of `requesterOf` (the release record's, else the
+ * Member who took a Guest submission on, else the creator). */
+export const requesterColumn = sql<string>`coalesce(${requests.releaseState}->>'ownerId', ${requests.takenOnBy}, ${requests.createdBy})`
 
 /** Measuring Requests due within `DUE_SOON_DAYS`, due today or overdue, on `now`'s UTC date (the row tag's rule). */
 export function dueSoonOrOverdueCondition(now: Date): SQL {

@@ -157,7 +157,7 @@ function releasedOnce(facts: JourneyFacts) {
  * close, close without a result and corrections by the Requester only; handover by an admin from In progress
  * onwards when the Requester has lost access; a follow-up by any active member once the work was released.
  */
-export function journeyActions(facts: JourneyFacts & { createdBy: string }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
+export function journeyActions(facts: JourneyFacts & { createdBy: string; takenOnBy: string | null }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
   const everything = (reason: string): JourneyActions => ({
     release: refuse(reason), correctRelease: refuse(reason), voidRelease: refuse(reason),
     close: refuse(reason), closeWithoutResult: refuse(reason), correctClosure: refuse(reason),

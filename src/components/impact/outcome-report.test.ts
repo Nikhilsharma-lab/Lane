@@ -46,7 +46,7 @@ function exception(reasonCode: OutcomeException["reasonCode"], reason: string): 
 
 function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber">): ImpactRow {
   return {
-    orgId: ORG, title: `Request ${over.requestNumber}`, problem: `Problem ${over.requestNumber}`, createdBy: MEMBER_ID, assignedTo: null, projectId: null, projectName: null,
+    orgId: ORG, title: `Request ${over.requestNumber}`, problem: `Problem ${over.requestNumber}`, createdBy: MEMBER_ID, takenOnBy: null, assignedTo: null, projectId: null, projectName: null,
     status: "done", releaseState: released(AUG), outcomeClosure: null, exceptionClosure: null, closureCorrections: [],
     expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, definitions: [], ...over,
   }

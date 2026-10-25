@@ -57,6 +57,10 @@ export type RequestDetail = {
   status: RequestStatus
   assignedTo: string | null
   createdBy: string
+  /** The Member who took a Guest submission on (#212): its Requester. Null otherwise. */
+  takenOnBy: string | null
+  /** A Guest submission's state and people (#212); null for any other Request. Optional only for older fixtures. */
+  guestSubmission?: import("@/lib/guest-submission").GuestSubmissionView | null
   createdAt: Date
   creatorName: string | null
   assigneeName: string | null

@@ -60,6 +60,8 @@ export type InboxRequest = JourneyFacts & {
   title: string | null
   reframedProblem: string | null
   createdBy: string
+  /** The Member who took a Guest submission on (#212); the Requester unless it was handed over since. */
+  takenOnBy: string | null
   createdAt: Date
   /** When the work was last marked Done (null unless Done). */
   doneAt: Date | null

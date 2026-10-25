@@ -71,6 +71,17 @@ export const requestSchema = z.object({
 export type RequestInput = z.input<typeof requestSchema>;
 
 /**
+ * What a Guest files (#212): the same Request without a prediction. A Member who takes the Guest submission on
+ * writes it. Any Expected impact sent with it is dropped, never saved.
+ */
+const { expectedImpact: _prediction, ...guestShape } = requestSchema.shape;
+void _prediction;
+export const guestRequestSchema = z.object(guestShape);
+
+/** The schema a person's new Request is checked with: a Guest's has no prediction. */
+export const newRequestSchemaFor = (withoutPrediction: boolean) => withoutPrediction ? guestRequestSchema : requestSchema;
+
+/**
  * The user-editable problem framing submitted at save time. Nullable: null
  * means "problem-classified, nothing to edit". Solution and hybrid outcomes
  * parse through problemFramingSchema before save, so a forged action cannot

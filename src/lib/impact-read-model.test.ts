@@ -81,6 +81,7 @@ function measuredClosure(expected: ExpectedImpact, release: ReleaseFact, actual:
 function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" | "createdBy">): ImpactRow {
   return {
     orgId: ORG,
+    takenOnBy: null,
     title: `Request ${over.requestNumber}`,
     problem: `Problem ${over.requestNumber}`,
     assignedTo: null,

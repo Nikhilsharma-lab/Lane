@@ -31,6 +31,7 @@ async function loadNeedsYouRequests(auth: MemberAuth, only?: { requestId: string
       title: requests.title,
       reframedProblem: requests.reframedProblem,
       createdBy: requests.createdBy,
+      takenOnBy: requests.takenOnBy,
       createdAt: requests.createdAt,
       status: requests.status,
       releaseState: requests.releaseState,

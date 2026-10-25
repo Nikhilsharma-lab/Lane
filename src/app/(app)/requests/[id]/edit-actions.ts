@@ -66,6 +66,11 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             }
             const nextState = choice.success ? impactStateOfChoice(choice.data) : plan ? { kind: "measured" as const, plan } : { kind: "none" as const };
             const impactStorage = { ...impactColumnsOf(nextState), measurementDraft: choice.success || complete.success ? null : partial?.success ? partial.data : null };
+            // A changed agreed impact (a measured plan or the choice with its reason) is a new revision, kept with its editor and time.
+            const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
+            // #212: a Guest files without a prediction; the Member who takes it on writes it.
+            if (auth.role === "guest" && (impactChanged || impactStorage.measurementDraft !== null))
+                return { error: "A Member writes the prediction once they take this on." };
             // Changed wording needs a fresh review of this Request, which sets the
             // classification and the suggested change. Unchanged wording keeps the
             // stored judgement; its framing is the person's to reword, never to drop.
@@ -95,8 +100,6 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: sourceRequestType(changes), ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
-            // A changed agreed impact (a measured plan or the choice with its reason) is a new revision, kept with its editor and time.
-            const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
             if (impactChanged && nextState.kind === "measured")
                 await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, expectedImpact: nextState.plan, authorId: auth.userId });
             else if (impactChanged && nextState.kind === "operational")

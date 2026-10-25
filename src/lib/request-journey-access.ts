@@ -27,7 +27,7 @@ export function journeyViewer(auth: MemberAuth, roster: readonly WorkspacePerson
  * and the reads (to show) make, so they always agree. `requesterName` names the Requester in reasons.
  */
 export function journeyActionsFor(
-  request: JourneyFacts & { createdBy: string; releaseState: ReleaseState | null },
+  request: JourneyFacts & { createdBy: string; takenOnBy: string | null; releaseState: ReleaseState | null },
   auth: MemberAuth,
   roster: readonly WorkspacePerson[] | null,
   requesterName: string,

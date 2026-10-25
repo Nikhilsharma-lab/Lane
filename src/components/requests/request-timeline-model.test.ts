@@ -19,7 +19,7 @@ const GUEST: JourneyViewer = { id: "ana", role: "guest", active: false }
 
 type Facts = { status: RequestStatus; releaseState?: ReleaseState | null; outcomeClosure?: TimelineInput["closure"]; exceptionClosure?: TimelineInput["closure"] }
 function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput> = {}, requesterActive = true): TimelineInput {
-  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana" }
+  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null }
   const closure = facts.outcomeClosure ?? facts.exceptionClosure ?? null
   return {
     journey: journeyStatus(saved), workStatus: facts.status, isGuest: viewer.role === "guest", audience: "All shoppers",

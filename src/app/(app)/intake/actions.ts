@@ -20,7 +20,7 @@ import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
 import { requireCanContribute, signedInAsViewer, VIEWER_REFUSAL, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
-import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
+import { newRequestSchemaFor, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
 import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
@@ -154,7 +154,8 @@ export async function runTriage(
       return { success: false, error: { code: "network", message: "Could not check this Request. Your draft is kept." } };
     }
   }
-  const parsed = (existingRequestId ? requestEditSourceSchema : requestSchema).safeParse(formData);
+  // A Guest files without a prediction (#212); a Member who takes it on writes it.
+  const parsed = (existingRequestId ? requestEditSourceSchema : newRequestSchemaFor(auth.role === "guest")).safeParse(formData);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const field = sourceFieldOf(issue.path);
@@ -179,7 +180,8 @@ export async function runTriage(
     return { success: false, error: { code: "network", field: "projectId", message: "Lane could not check this Project. Try again." } };
   }
   // Every metric comes from this workspace's Metrics library, checked before any review is spent (#198).
-  let reviewed = parsed.data;
+  // A Guest's Request has no prediction to check (#212).
+  let reviewed: RequestInput & z.output<typeof requestEditSourceSchema> = { expectedImpact: null, ...parsed.data };
   if (reviewed.expectedImpact?.kind === "measurement") {
     try {
       const checked = await checkPredictionMetrics({ orgId: auth.orgId }, reviewed.expectedImpact, storedImpact);
@@ -271,9 +273,11 @@ export async function saveRequest(
   const auth = await requireCanContribute(context.orgId);
   if (!auth) return { success: false, error: await sessionFailure() };
 
+  const guest = auth.role === "guest";
   const verification = verifyTriageToken(data.token, {
     orgId: auth.orgId,
     userId: auth.userId,
+    withoutPrediction: guest,
   });
   if (!verification.valid) {
     if (verification.reason === "impact_required") {
@@ -338,6 +342,8 @@ export async function saveRequest(
         status: "open",
         assignedTo: null,
         createdBy: auth.userId,
+        // #212: a Guest's Request waits as a Guest submission until a Member takes it on.
+        guestSubmission: guest,
       })
       .onConflictDoNothing({ target: requests.id })
       .returning({ id: requests.id, requestNumber: requests.requestNumber, createdAt: requests.createdAt });

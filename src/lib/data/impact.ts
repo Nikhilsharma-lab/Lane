@@ -50,6 +50,7 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
       description: requests.description,
       reframedProblem: requests.reframedProblem,
       createdBy: requests.createdBy,
+      takenOnBy: requests.takenOnBy,
       assignedTo: requests.assignedTo,
       projectId: requests.projectId,
       projectName: projects.name,

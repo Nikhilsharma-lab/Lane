@@ -230,6 +230,13 @@ export async function runDailyDelivery(run?: Partial<DeliveryRun>): Promise<Deli
   return report;
 }
 
+/** The two emails a Guest gets about their submission (#212). */
+export type GuestEmailKind = "taken_on" | "closed";
+
+export function deliverGuestEmailAfterResponse(target: { orgId: string; requestId: string; kind: GuestEmailKind }) {
+  void target;
+}
+
 /**
  * Schedules a Request's action-caused delivery for after the action's response, so the person acting never
  * waits on email. Outside a request (a script, a test) there is no response to wait for, and nothing is sent.

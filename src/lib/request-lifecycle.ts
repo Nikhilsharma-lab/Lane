@@ -13,9 +13,9 @@ export type MoveViewer = { isGuest: boolean; readOnly?: boolean }
  * (`canChange`: an admin or its creator, a guest's own Request included). The row menu, the detail panel
  * and the ⌘K palette share it; lib/data/requests.ts computes the same for list rows as `canEdit`.
  */
-export function canEditRequest(request: { status: RequestStatus; createdBy: string | null }, viewer: { id: string; isAdmin?: boolean; readOnly?: boolean }): boolean {
+export function canEditRequest(request: { status: RequestStatus; createdBy: string | null; takenOnBy: string | null }, viewer: { id: string; isAdmin?: boolean; readOnly?: boolean }): boolean {
   const role = viewer.readOnly ? "viewer" : viewer.isAdmin ? "admin" : "member"
-  return request.status === "open" && canChange({ userId: viewer.id, role }, { createdBy: request.createdBy ?? "" })
+  return request.status === "open" && canChange({ userId: viewer.id, role }, { createdBy: request.createdBy ?? "", takenOnBy: request.takenOnBy })
 }
 
 /** What a surface knows about a Request to decide its move. `pickupBlockedReason`

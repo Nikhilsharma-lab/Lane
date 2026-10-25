@@ -154,7 +154,7 @@ export async function addComment(
   // the same answer as another workspace's or a malformed id.
   const rows = await db.execute<{ id: string; created_at: Date | string }>(sql`
     with r as (
-      select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}
+      select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}, ${requests.takenOnBy}
       from ${requests}
       where ${requests.id} = ${requestId}
         ${seeableSql(auth)}
@@ -163,7 +163,7 @@ export async function addComment(
       select r.id, ${auth.userId}, ${parsed.data.body} from r
       returning ${comments.id}, ${comments.createdAt}
     ), n as (
-      select ${notify([sql`r.created_by`, sql`r.assigned_to`], sql`r.org_id`, "comment_added", sql`r.id`, auth.userId)} as sent
+      select ${notify([sql`r.created_by`, sql`r.taken_on_by`, sql`r.assigned_to`], sql`r.org_id`, "comment_added", sql`r.id`, auth.userId)} as sent
       from r cross join c
     )
     -- Joining n runs it: a plain CTE is evaluated only when read.
@@ -256,7 +256,7 @@ export async function deleteRequest(
   if (!auth) return { error: await refusal("Not found") };
 
   const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
-    const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })
+    const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy, takenOnBy: requests.takenOnBy })
       .from(requests)
       .where(and(eq(requests.id, requestId), seeable(auth)))
       .for("update");
