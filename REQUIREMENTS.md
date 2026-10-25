@@ -907,7 +907,14 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   and the Stripe names are set (`.env.example`). Until then Billing shows the prices and says Lane isn't charging yet,
   or that paying by card isn't available yet. Before switching on: ask about 10 target teams what they'd pay, move to
   Supabase Pro and Vercel Pro, and approve Stripe as an external service (`DEFERRED.md`).
-- Seat changes after paying (#215) come next.
+- **Seats are counted, never by hand (#215, on the integration branch):** paid seats are the workspace's Admins and
+  Members in Clerk, at least 3; Guests and Viewers are free. Lane stores no membership, only the number the provider
+  bills. A paying workspace's seats follow Clerk: after every role change in Settings → Members, and from page views
+  at most every 10 minutes (so an accepted invitation or someone removed in Clerk reaches the bill). An added seat is
+  charged part-month from that day, straight away (for a yearly plan, the rest of the year); a removed seat, or a
+  Member made a Viewer, lowers the next bill and nothing is refunded now. While `LANE_BILLING_ENFORCED` is `1`, an
+  Admin confirms "This adds a paid seat" before inviting a Member or Admin or making a Guest or Viewer one, and the
+  server refuses it without that confirmation; with the switch off nothing is asked and no seats are followed.
 
 ### Billing settings and lapsed plans (#195 item 5, #216, 2026-10-25, on the integration branch)
 

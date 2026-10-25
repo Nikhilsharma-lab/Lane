@@ -68,6 +68,11 @@ describe("Settings → Members (#210)", () => {
     expect(failed).toContain(">Try again<")
   })
 
+  it("tells an Admin that adding a paid seat is confirmed first, only while billing is enforced (#215)", () => {
+    expect(render({ confirmPaidSeats: true })).toContain("You’ll confirm each paid seat before it’s added.")
+    expect(render()).not.toContain("You’ll confirm each paid seat")
+  })
+
   it("shows a role Lane doesn't know without guessing", () => {
     expect(render({ people: [{ userId: "u", name: "Pat", email: "pat@example.test", role: null }] })).toContain("Another role")
   })

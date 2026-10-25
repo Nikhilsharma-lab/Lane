@@ -10,9 +10,9 @@ const CONFIG = { on: true as const, secretKey: "sk_test_stand_in", webhookSecret
 const NOW = new Date("2026-10-25T12:00:00Z");
 
 function stripe(answers: { status: number; body: unknown }[] = [{ status: 200, body: { id: "cs_1", url: "https://checkout.stripe.test/c/cs_1" } }]) {
-  const calls: { url: string; method?: string; form: URLSearchParams; auth: string | null }[] = [];
+  const calls: { url: string; method: string; form: URLSearchParams; auth: string | null }[] = [];
   const fetch = (async (url: string, init: RequestInit) => {
-    calls.push({ url, method: init.method, form: new URLSearchParams(init.body ? String(init.body) : ""), auth: new Headers(init.headers).get("authorization") });
+    calls.push({ url, method: init.method ?? "GET", form: new URLSearchParams(String(init.body ?? "")), auth: new Headers(init.headers).get("authorization") });
     const answer = answers.shift() ?? { status: 200, body: {} };
     return new Response(JSON.stringify(answer.body), { status: answer.status });
   }) as unknown as typeof globalThis.fetch;
@@ -36,7 +36,7 @@ describe("Stripe checkout", () => {
       mode: "subscription", "line_items[0][price]": "price_yearly", "line_items[0][quantity]": "3",
       success_url: "https://lane.test/settings/profile?section=billing&checkout=done", cancel_url: "https://lane.test/settings/profile?section=billing&checkout=cancelled",
       client_reference_id: "org_1", expires_at: String(Date.parse("2026-10-25T13:00:00Z") / 1000),
-      "metadata[org_id]": "org_1", "metadata[period]": "yearly", "metadata[founding]": "1", "subscription_data[metadata][org_id]": "org_1",
+      "metadata[org_id]": "org_1", "metadata[period]": "yearly", "metadata[founding]": "1", "metadata[seats]": "3", "subscription_data[metadata][org_id]": "org_1",
       customer_email: "admin@acme.example", "discounts[0][coupon]": "coupon_founding",
     });
   });
@@ -90,6 +90,15 @@ describe("Stripe events", () => {
     expect(await provider.readEvent(completed, signed(completed, NOW, "whsec_other"), NOW)).toEqual({ ok: false });
     expect(await provider.readEvent(completed, signed(completed, new Date(NOW.getTime() - 10 * 60_000)), NOW)).toEqual({ ok: false });
     expect(await provider.readEvent(`${completed} `, signed(completed), NOW)).toEqual({ ok: false });
+  });
+
+  it("reads the seats a completed checkout was for (#215)", async () => {
+    const { provider } = stripe();
+    const body = JSON.stringify({
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_2", mode: "subscription", customer: "cus_1", subscription: "sub_1", metadata: { org_id: "org_1", period: "yearly", founding: "0", seats: "7" } } },
+    });
+    expect(await provider.readEvent(body, signed(body), NOW)).toMatchObject({ ok: true, event: { subscriptionId: "sub_1", seats: 7 } });
   });
 
   it("has no use for other events", async () => {
@@ -206,6 +215,36 @@ describe("Stripe invoices and the next bill (#216)", () => {
   it("gives a reason when Stripe can't be read", async () => {
     const { provider } = stripe([{ status: 503, body: {} }]);
     expect(await provider.readAccount({ customerId: "cus_1", subscriptionId: "sub_1" })).toEqual({ ok: false, reason: "stripe_503" });
+  });
+});
+
+describe("Stripe seat changes (#215)", () => {
+  const subscription = { status: 200, body: { id: "sub_1", items: { data: [{ id: "si_1", quantity: 4 }] } } };
+  const at = new Date("2026-11-10T09:00:00Z");
+
+  it("charges an added seat part-month straight away, on the subscription's one item", async () => {
+    const { calls, provider } = stripe([subscription, { status: 200, body: { id: "sub_1" } }]);
+    expect(await provider.changeSeats({ subscriptionId: "sub_1", seats: 5, charge: "part_month_now", at })).toEqual({ ok: true });
+    expect(calls.map((call) => [call.method, call.url])).toEqual([
+      ["GET", "https://api.stripe.com/v1/subscriptions/sub_1"],
+      ["POST", "https://api.stripe.com/v1/subscriptions/sub_1"],
+    ]);
+    expect(Object.fromEntries(calls[1].form)).toEqual({
+      "items[0][id]": "si_1", "items[0][quantity]": "5", proration_behavior: "always_invoice", proration_date: String(at.getTime() / 1000),
+    });
+  });
+
+  it("lowers the next bill for a removed seat, with nothing charged or refunded now", async () => {
+    const { calls, provider } = stripe([subscription, { status: 200, body: { id: "sub_1" } }]);
+    expect(await provider.changeSeats({ subscriptionId: "sub_1", seats: 3, charge: "next_bill", at })).toEqual({ ok: true });
+    expect(Object.fromEntries(calls[1].form)).toEqual({ "items[0][id]": "si_1", "items[0][quantity]": "3", proration_behavior: "none" });
+  });
+
+  it("gives a reason when Stripe can't find or change the subscription", async () => {
+    expect(await stripe([{ status: 404, body: { error: { code: "resource_missing" } } }]).provider.changeSeats({ subscriptionId: "sub_gone", seats: 4, charge: "next_bill", at }))
+      .toEqual({ ok: false, reason: "stripe_404" });
+    expect(await stripe([subscription, { status: 402, body: { error: { code: "card_declined" } } }]).provider.changeSeats({ subscriptionId: "sub_1", seats: 5, charge: "part_month_now", at }))
+      .toEqual({ ok: false, reason: "stripe_402" });
   });
 });
 

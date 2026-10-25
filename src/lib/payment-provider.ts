@@ -6,7 +6,7 @@
  * recording stand-in, which sends nothing anywhere.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { FOUNDING_DISCOUNT, PLAN_FLOWS, type BillingPeriod, type PortalFlow } from "./billing-plan-rules";
+import { FOUNDING_DISCOUNT, PAID_SEAT_MINIMUM, PLAN_FLOWS, type BillingPeriod, type PortalFlow } from "./billing-plan-rules";
 import { stripeBilling, type StripeBilling } from "./feature-switches";
 
 export type CheckoutRequest = {
@@ -46,6 +46,8 @@ export type PaymentEvent =
     subscriptionId: string;
     period: BillingPeriod;
     foundingDiscount: boolean;
+    /** The paid seats the checkout was for (#215), when the provider says. */
+    seats?: number;
   }
   | {
     kind: "subscription_changed";
@@ -78,6 +80,14 @@ export type Invoice = {
 export type BillingAccount = { nextBill: { amountCents: number; currency: string; on: Date } | null; invoices: Invoice[] };
 export type AccountReading = { ok: true; account: BillingAccount } | { ok: false; reason: string };
 
+/**
+ * #215: a paying workspace's paid seats changed. `seats` is the new number billed (at least 3). An added seat is
+ * charged part-month from `at`, straight away (`part_month_now`); a removed one only lowers the next bill
+ * (`next_bill`), with nothing charged or refunded now.
+ */
+export type SeatChange = { subscriptionId: string; seats: number; charge: "part_month_now" | "next_bill"; at: Date };
+export type SeatsChanged = { ok: true } | { ok: false; reason: string };
+
 export type PaymentProvider = {
   startCheckout(request: CheckoutRequest): Promise<CheckoutStarted>;
   readEvent(body: string, headers: Headers, now: Date): Promise<EventReading>;
@@ -85,6 +95,8 @@ export type PaymentProvider = {
   openPortal(request: PortalRequest): Promise<PortalOpened>;
   /** #216: the customer's latest invoices, newest first, and the next bill of its plan (none without one). */
   readAccount(request: { customerId: string; subscriptionId: string | null }): Promise<AccountReading>;
+  /** #215: bill a new number of paid seats. */
+  changeSeats(change: SeatChange): Promise<SeatsChanged>;
 };
 
 /** How many invoices Settings → Billing lists; older ones stay on the provider's pages. */
@@ -96,6 +108,8 @@ type SubscriptionChange = Extract<PaymentEvent, { kind: "subscription_changed" }
 
 export type RecordingPaymentProvider = PaymentProvider & {
   checkouts: CheckoutRequest[];
+  /** #215: every seat change asked for. */
+  seatChanges: SeatChange[];
   /** #216: every hosted billing page opened. */
   portals: PortalRequest[];
   /** #216: what `readAccount` answers; "unavailable" makes it fail. */
@@ -109,14 +123,16 @@ export type RecordingPaymentProvider = PaymentProvider & {
 /**
  * The stand-in: records every checkout and hosted billing page and answers with made-up pages. `complete` gives the
  * signed event body the provider would send once that checkout is paid, `changeSubscription` the one for a plan that
- * changed (#216), and `headers` the signature they would carry.
+ * changed (#216), and `headers` the signature they would carry. Seat changes are recorded in `seatChanges` (#215).
  */
-export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = {}): RecordingPaymentProvider {
+export function recordingPaymentProvider({ fail = false, failSeatChanges = false }: { fail?: boolean; failSeatChanges?: boolean } = {}): RecordingPaymentProvider {
   const checkouts: CheckoutRequest[] = [];
+  const seatChanges: SeatChange[] = [];
   const portals: PortalRequest[] = [];
   const secret = "stand-in-webhook-secret";
   const provider: RecordingPaymentProvider = {
     checkouts,
+    seatChanges,
     portals,
     account: { nextBill: null, invoices: [] },
     headers: () => new Headers({ [STAND_IN_SIGNATURE]: secret }),
@@ -144,6 +160,7 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
         subscriptionId: ids.subscriptionId ?? `stand_in_subscription_${name}`,
         period: checkout.period,
         foundingDiscount: checkout.foundingDiscount !== null,
+        seats: checkout.seats,
       };
       return JSON.stringify(event);
     },
@@ -158,6 +175,11 @@ export function recordingPaymentProvider({ fail = false }: { fail?: boolean } = 
       if (event.kind === "subscription_changed") return { ok: true, event: { ...event, at: new Date(event.at), endsAt: event.endsAt && new Date(event.endsAt) } };
       return { ok: true, event };
     },
+    async changeSeats(change: SeatChange): Promise<SeatsChanged> {
+      if (failSeatChanges) return { ok: false, reason: "stand_in_failed" };
+      seatChanges.push(change);
+      return { ok: true };
+    },
   };
   return provider;
 }
@@ -170,17 +192,21 @@ type Fetch = typeof fetch;
 
 /**
  * The Stripe adapter: Stripe Checkout (a hosted page) in subscription mode, with the yearly or monthly Price per
- * seat, and the founding coupon. Events are checked against the webhook signing secret. Failures come back as
- * reasons (never thrown) carrying no key, address or card detail.
+ * seat, and the founding coupon. Events are checked against the webhook signing secret. Seat changes (#215) set the
+ * subscription's quantity: an added seat prorated and invoiced at once, a removed one with no proration, so only the
+ * next bill is lower. Failures come back as reasons (never thrown) carrying no key, address or card detail.
  */
 export function stripePaymentProvider(config: Extract<StripeBilling, { on: true }>, { fetch: send = fetch }: { fetch?: Fetch } = {}): PaymentProvider {
   type Answer = { ok: true; answer: Record<string, unknown> } | { ok: false; status: number; code?: string };
   const post = (path: string, form: URLSearchParams) => call(path, form);
   async function call(path: string, form?: URLSearchParams): Promise<Answer> {
     try {
-      const response = await send(`${STRIPE_API}${path}`, form
-        ? { method: "POST", headers: { Authorization: `Bearer ${config.secretKey}`, "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString(), signal: AbortSignal.timeout(10_000) }
-        : { method: "GET", headers: { Authorization: `Bearer ${config.secretKey}` }, signal: AbortSignal.timeout(10_000) });
+      const response = await send(`${STRIPE_API}${path}`, {
+        method: form ? "POST" : "GET",
+        headers: { Authorization: `Bearer ${config.secretKey}`, ...(form && { "Content-Type": "application/x-www-form-urlencoded" }) },
+        body: form?.toString(),
+        signal: AbortSignal.timeout(10_000),
+      });
       const answer = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (response.ok) return { ok: true, answer };
       const code = (answer.error as { code?: string } | undefined)?.code;
@@ -213,6 +239,7 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
         "metadata[org_id]": request.orgId,
         "metadata[period]": request.period,
         "metadata[founding]": request.foundingDiscount ? "1" : "0",
+        "metadata[seats]": String(request.seats),
         "subscription_data[metadata][org_id]": request.orgId,
       });
       if ("id" in request.customer) form.set("customer", request.customer.id);
@@ -245,7 +272,28 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
       const orgId = metadata.org_id ?? (session.client_reference_id as string | undefined);
       const period = metadata.period;
       if (!orgId || !customerId || !subscriptionId || (period !== "yearly" && period !== "monthly")) return { ok: true, event: null };
-      return { ok: true, event: { kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1" } };
+      const seats = Number(metadata.seats);
+      return { ok: true, event: {
+        kind: "checkout_completed", orgId, checkoutId: String(session.id), customerId, subscriptionId, period, foundingDiscount: metadata.founding === "1",
+        ...(Number.isInteger(seats) && seats >= PAID_SEAT_MINIMUM && { seats }),
+      } };
+    },
+
+    async changeSeats({ subscriptionId, seats, charge, at }) {
+      const failed = (answer: { status: number }) => ({ ok: false as const, reason: answer.status ? `stripe_${answer.status}` : "stripe_unreachable" });
+      const path = `/subscriptions/${encodeURIComponent(subscriptionId)}`;
+      const found = await call(path);
+      if (!found.ok) return failed(found);
+      // Lane's subscriptions have one item: the seat price, with the seats as its quantity.
+      const item = (found.answer.items as { data?: { id?: string }[] } | undefined)?.data?.[0]?.id;
+      if (!item) return { ok: false, reason: "stripe_no_item" };
+      const form = new URLSearchParams({ "items[0][id]": item, "items[0][quantity]": String(seats) });
+      if (charge === "part_month_now") {
+        form.set("proration_behavior", "always_invoice");
+        form.set("proration_date", String(Math.floor(at.getTime() / 1000)));
+      } else form.set("proration_behavior", "none");
+      const changed = await post(path, form);
+      return changed.ok ? { ok: true } : failed(changed);
     },
 
     // The Customer Portal, deep-linked to one flow; what each flow offers (both prices, cancelling at the period's

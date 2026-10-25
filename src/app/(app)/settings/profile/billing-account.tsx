@@ -1,16 +1,15 @@
 import { BillingAccountCard, type BillingAccountCardProps } from "@/components/settings/billing-account-card";
-import { readBillingAccount } from "@/lib/billing";
-import { money, paidSeats } from "@/lib/billing-plan-rules";
+import { readBillingAccount, readSeats } from "@/lib/billing";
+import { money } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
 import { paymentProvider } from "@/lib/payment-provider";
 import { journeyDay } from "@/lib/request-journey";
-import { workspaceRoster } from "@/lib/workspace-roster";
 
-/** Admins and Members on the live Clerk roster (Guests and Viewers are free), or null when Clerk can't be read. */
+/** Admins and Members on the live Clerk roster (Guests and Viewers are free; #215 counts them), or null when Clerk can't be read. */
 async function seatsOf(orgId: string): Promise<BillingAccountCardProps["seats"]> {
   try {
-    const adminsAndMembers = (await workspaceRoster(orgId)).length;
-    return { adminsAndMembers, paid: paidSeats(adminsAndMembers) };
+    const { adminsAndMembers, paid } = await readSeats({ orgId });
+    return { adminsAndMembers, paid };
   } catch (error) {
     console.error("[billing] seats not counted:", error instanceof Error ? error.name : "unknown error");
     return null;

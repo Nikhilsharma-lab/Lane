@@ -15,7 +15,7 @@ const PAGE = { infinite: true, pageSize: 100, keepPreviousData: true } as const;
  * invitations from Clerk's invitations (Admins only), read in the browser like Clerk's own members page. Every
  * change goes through Lane's server actions, which ask Clerk; the lists reload afterwards. Lane stores none of it.
  */
-export function WorkspaceMembers({ orgId, selfId, canManage, roles }: { orgId: string; selfId: string; canManage: boolean; roles: WorkspacePermission[] }) {
+export function WorkspaceMembers({ orgId, selfId, canManage, roles, confirmPaidSeats = false }: { orgId: string; selfId: string; canManage: boolean; roles: WorkspacePermission[]; confirmPaidSeats?: boolean }) {
   const { isLoaded, memberships, invitations } = useOrganization({
     memberships: PAGE,
     invitations: canManage ? { ...PAGE, status: ["pending"] } : undefined,
@@ -39,8 +39,8 @@ export function WorkspaceMembers({ orgId, selfId, canManage, roles }: { orgId: s
   const after = <T extends { success?: true; error?: string }>(answer: T) => { if (answer.success) reload(); return answer; };
 
   return <WorkspaceMembersView people={people} invitations={pending} selfId={selfId} canManage={canManage} roles={roles}
-    state={failed ? "error" : loading ? "loading" : "ready"} onRetry={reload}
-    onInvite={async (email, role) => after(await inviteToWorkspace({ email, role }, { orgId }))}
-    onChangeRole={async (userId, role) => after(await changeMemberRole({ userId, role }, { orgId }))}
+    state={failed ? "error" : loading ? "loading" : "ready"} onRetry={reload} confirmPaidSeats={confirmPaidSeats}
+    onInvite={async (email, role, confirmedPaidSeat) => after(await inviteToWorkspace({ email, role, confirmedPaidSeat }, { orgId }))}
+    onChangeRole={async (userId, role, confirmedPaidSeat) => after(await changeMemberRole({ userId, role, confirmedPaidSeat }, { orgId }))}
     onRevoke={async invitationId => after(await revokeInvitation({ invitationId }, { orgId }))} />;
 }
