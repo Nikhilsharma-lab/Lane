@@ -110,6 +110,17 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
   });
 
+  it("warns, by name only, when billing is enforced without a way to pay (#214)", () => {
+    const env = { ...completeEnv(), LANE_BILLING_ENFORCED: "1", STRIPE_SECRET_KEY: SENTINEL };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_YEARLY", "STRIPE_PRICE_MONTHLY", "STRIPE_FOUNDING_COUPON"]) expect(warnings[0]).toContain(name);
+    expect(warnings[0]).not.toContain("STRIPE_SECRET_KEY");
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+    const complete = { ...env, STRIPE_WEBHOOK_SECRET: SENTINEL, STRIPE_PRICE_YEARLY: SENTINEL, STRIPE_PRICE_MONTHLY: SENTINEL, STRIPE_FOUNDING_COUPON: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
   it("reads VERCEL_ENV from the env when not given explicitly", () => {
     const env = completeEnv();
     env.VERCEL_ENV = "production";

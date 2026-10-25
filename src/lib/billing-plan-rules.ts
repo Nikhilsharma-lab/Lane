@@ -7,6 +7,10 @@
 
 export type BillingPeriod = "yearly" | "monthly";
 
+/** Why there is nothing to pay: billing isn't enforced yet, or there is no payment provider. */
+export const NOT_CHARGING = "Lane isn’t charging yet, so there’s nothing to pay.";
+export const PAYING_UNAVAILABLE = "Paying by card isn’t available yet.";
+
 /** Yearly first. */
 export const BILLING_PERIODS: readonly BillingPeriod[] = ["yearly", "monthly"];
 
