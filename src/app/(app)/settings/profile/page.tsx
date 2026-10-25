@@ -5,14 +5,15 @@ import { AccountProfile, AccountSecurity } from "@/components/settings/account-p
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
+import { inboxDeliveryPanel } from "./inbox-delivery";
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
 
-  // Plan item 1.9: the profile role arrived with the shell join, so this page
-  // makes no read of its own.
+  // Plan item 1.9: the profile role arrived with the shell join. The page's one
+  // read of its own is the Inbox delivery choice (#206; none for a Guest).
   const { section } = await searchParams;
   return (
       <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
@@ -22,6 +23,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference compact />}
+        delivery={await inboxDeliveryPanel(workspace)}
       />
   );
 }

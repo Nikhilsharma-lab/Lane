@@ -10,6 +10,7 @@ import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
 import { notifyReviewers } from '@/lib/request-reviewers';
+import { deliverAfterResponse } from '@/lib/inbox-delivery';
 import { releaseMeasurement } from '@/lib/request-release';
 import { journeyStatus, requesterOf } from '@/lib/request-journey';
 import { allow, journeyActionsFor, peopleNames, personName } from '@/lib/request-journey-access';
@@ -99,7 +100,11 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
             return { result: { revision: 1, followUpId: follow.id } };
         },
     });
-    if ('followUpId' in result) revalidatePath(`/requests/${result.followUpId}`);
+    if ('followUpId' in result) {
+        revalidatePath(`/requests/${result.followUpId}`);
+        // #206: Reviewers carried over are asked to review the follow-up; that ask leaves Lane after the response.
+        deliverAfterResponse({ orgId: context.orgId, requestId: result.followUpId });
+    }
     return result;
 }
 export async function readRequestOutcome(requestId: string, context: {

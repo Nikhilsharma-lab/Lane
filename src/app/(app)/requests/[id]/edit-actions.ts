@@ -16,6 +16,7 @@ import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { recordExpectedImpactRevision } from "@/lib/request-impact-history";
 import { checkPredictionMetrics } from "@/lib/metrics-library";
 import { isDeepStrictEqual } from "node:util";
+import { deliverAfterResponse } from "@/lib/inbox-delivery";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
     orgId: string;
@@ -105,6 +106,8 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
         // The shared editor closes and announces success before refreshing.
         // Refreshing this route inside the action can remount its editor before
         // the save acknowledgement reaches the client.
+        // #206: an edit that reset answers asks those Reviewers again; that ask leaves Lane after the response.
+        if ("success" in result) deliverAfterResponse({ orgId: auth.orgId, requestId });
         return result;
     }
     catch {

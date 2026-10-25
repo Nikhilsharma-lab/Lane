@@ -70,6 +70,15 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
     );
   }
 
+  // #206: Inbox email is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
+  if (env.LANE_EMAIL_DELIVERY === "1") {
+    const unset = ["RESEND_API_KEY", "LANE_EMAIL_FROM", "CRON_SECRET"].filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_EMAIL_DELIVERY is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Resend names nothing is sent; without CRON_SECRET the daily Inbox job refuses every call.`,
+      );
+  }
+
   return { ok: missing.length === 0, missing, warnings };
 }
 

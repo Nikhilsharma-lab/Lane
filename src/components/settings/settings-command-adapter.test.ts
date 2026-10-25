@@ -45,3 +45,21 @@ describe("Settings → Metrics (#196)", () => {
     expect(html).not.toContain("/settings/metrics");
   });
 });
+
+describe("Settings → Inbox delivery (#206)", () => {
+  const sections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].map(match => ({ id: match[1], hidden: match[2].includes("hidden") }));
+  it("is a Personal section for Members and Admins, showing the page's delivery panel", () => {
+    for (const membership of ["member", "admin"]) {
+      const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership, workspaceName: "Lane Studio", initialSection: "inbox-delivery", delivery: createElement("p", null, "Delivery choice") }));
+      expect(html).toMatch(/<a[^>]*href="\/settings\/profile\?section=inbox-delivery"[^>]*>(?:(?!<\/a>)[\s\S])*<span>Inbox delivery<\/span><\/a>/);
+      expect(sections(html).filter(section => !section.hidden).map(section => section.id)).toEqual(["inbox-delivery"]);
+      expect(html).toMatch(/<section id="settings-inbox-delivery"[^>]*>(?:(?!<\/section>)[\s\S])*Delivery choice/);
+    }
+  });
+  it("is not offered to a Guest, and is no longer listed as coming soon", () => {
+    const guest = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "guest", workspaceName: "Lane Studio" }));
+    expect(guest).not.toContain("section=inbox-delivery");
+    const member = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", initialSection: "coming-soon" }));
+    expect(member).not.toContain("Choosing how Inbox items reach you is not available yet");
+  });
+});

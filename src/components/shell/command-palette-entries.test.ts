@@ -11,7 +11,7 @@ describe("paletteEntries", () => {
       "new-request", "search",
       "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
       "project:p1", "project:p2", "project:none",
-      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
+      "settings:profile", "settings:preferences", "settings:inbox-delivery", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
       "inbox",
       "shortcuts",
     ])

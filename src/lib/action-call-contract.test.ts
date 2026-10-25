@@ -7,6 +7,7 @@ const ROOT = join(process.cwd(), "src")
 /** Callers that hand the action to a component which sends it through callAction or the optimistic runner. */
 const PASSED_ON: Record<string, string> = {
   "app/(app)/settings/profile/profile-form.tsx": "ProfileRoleForm saves through callAction or useOptimisticAction",
+  "app/(app)/settings/profile/delivery-form.tsx": "InboxDeliveryForm saves through callAction",
   "components/requests/request-moves.ts": "createRequestMoves (request-moves-controller.ts) runs each action through the optimistic runner",
 }
 
