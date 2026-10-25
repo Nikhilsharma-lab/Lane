@@ -694,6 +694,12 @@ Reporting requirements for the bounded design:
   match exactly. Percentages are never summed, and Verified results are counted as good or bad, never summed.
   Operational work and closed-without-result Requests are never in a total. A shared result is counted once.
   Built on the integration branch; not yet shipped.
+  **Metrics library match, approved 2026-10-25 (#195, #201):** "metric and unit match exactly" now means the same
+  resolved Metric definition (a merged one counts as the one it was merged into; an archived one still counts), with the
+  same audience (platform included) and window; the unit comes from the definition. Two definitions with the same name
+  never add up. Totals and the Impact page show each definition's current name, and workspace search finds Requests by
+  their definition names. Pass/fail checks and any metric the library can't place keep a line per saved name and unit,
+  never shared with a definition's. This closes the name-text risk recorded in #151. Integration branch only.
 - Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
   valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
 
