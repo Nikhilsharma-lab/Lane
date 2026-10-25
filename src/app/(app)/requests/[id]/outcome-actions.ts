@@ -10,7 +10,7 @@ import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { seeable } from '@/lib/request-access';
 import { notifyReviewers } from '@/lib/request-reviewers';
-import { deliverAfterResponse } from '@/lib/inbox-delivery';
+import { deliverAfterResponse, deliverGuestEmailAfterResponse } from '@/lib/inbox-delivery';
 import { releaseMeasurement } from '@/lib/request-release';
 import { journeyStatus, requesterOf } from '@/lib/request-journey';
 import { allow, journeyActionsFor, peopleNames, personName } from '@/lib/request-journey-access';
@@ -25,7 +25,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
     const parsed = outcomeChangeSchema.safeParse(input);
     if (!parsed.success) return { error: 'Check the result, evidence, dates and reason.' };
     const change = parsed.data;
-    return changeRequest(context, {
+    const result = await changeRequest(context, {
         fingerprint: { requestId: context.requestId, change },
         messages: { invalid: 'Invalid closure action.', forbidden: 'You cannot close Requests in this workspace.', failed: 'Could not save the outcome. Your input is preserved; try again.' },
         // A closure and each correction record their operation, which is how a retry replays.
@@ -69,6 +69,10 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
             return { set: { exceptionClosure: closure } };
         },
     });
+    // #212: a Guest submission's Guest hears once that it is Closed (the delivery module skips any other Request).
+    if ('success' in result && change.kind !== 'correction')
+        deliverGuestEmailAfterResponse({ orgId: context.orgId, requestId: context.requestId, kind: 'closed' });
+    return result;
 }
 /** New work after release links back without touching the original's measurement obligation. */
 export async function createFollowUpRequest(context: RequestChangeContext, input: unknown) {

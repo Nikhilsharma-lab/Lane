@@ -25,7 +25,8 @@ export async function takeOnGuestSubmission(context: RequestChangeContext) {
     apply: async (tx, { request, auth, roster }) => {
       insist(request.guestSubmission, "Only a Guest submission can be taken on.");
       if (request.takenOnBy) insist(false, `${await personName(tx, roster, request.takenOnBy)} already took this on.`);
-      insist(request.createdBy !== auth.userId, "You filed this one. Ask a teammate to take it on.");
+      // A Guest who has since become a Member can't take their own submission on: someone else answers for it.
+      insist(auth.userId !== request.createdBy, "You filed this one. Ask a teammate to take it on.");
       return { set: { takenOnBy: auth.userId, takenOnAt: new Date() } };
     },
   });

@@ -34,7 +34,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 let connection: ReturnType<typeof postgres>;
-let ownRequest: string, membersRequest: string, definitionId: string, otherDefinitionId: string, reviewerId: string;
+let ownRequest: string, membersRequest: string, guestSubmission: string, definitionId: string, otherDefinitionId: string, reviewerId: string;
 
 const ctx = { orgId: ORG };
 const change = (requestId: string) => ({ orgId: ORG, requestId, expectedRevision: 1, operationId: randomUUID() });
@@ -43,7 +43,7 @@ const asViewer = () => { session.userId = VIEWER; session.orgId = ORG; session.o
 /** Everything a refused change could have touched, read straight from the database. */
 async function workspaceState() {
   return {
-    requests: await connection`select id, status::text, priority::text, title, agreement_revision, assigned_to, updated_at, release_state, outcome_closure, exception_closure from requests where org_id = ${ORG} order by id`,
+    requests: await connection`select id, status::text, priority::text, title, agreement_revision, assigned_to, updated_at, release_state, outcome_closure, exception_closure, taken_on_by from requests where org_id = ${ORG} order by id`,
     comments: await connection`select count(*)::int as n from comments c join requests r on r.id = c.request_id where r.org_id = ${ORG}`,
     reviewers: await connection`select request_id, reviewers from request_agreements where org_id = ${ORG} order by request_id`,
     attachments: await connection`select count(*)::int as n from request_attachments where org_id = ${ORG}`,
@@ -73,6 +73,7 @@ beforeAll(async () => {
   for (const id of [VIEWER, MEMBER, ADMIN]) await connection`insert into profiles (id,full_name,email,role) values (${id},${id},${id + "@example.test"},'pm')`;
   [{ id: ownRequest }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision) values (${ORG},'Filed while a Member','Checkout fails on mobile',${VIEWER},1) returning id`;
   [{ id: membersRequest }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision) values (${ORG},'A Member''s Request','Search is slow',${MEMBER},1) returning id`;
+  [{ id: guestSubmission }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision,guest_submission) values (${ORG},'A Guest submission','Exports are hard to find',${MEMBER},1,true) returning id`;
   reviewerId = randomUUID();
   await connection`insert into request_agreements (org_id, request_id, reviewers) values (${ORG}, ${membersRequest}, ${connection.json([
     { id: reviewerId, nominee: { kind: "member", userId: VIEWER }, displayNameAtSelection: "Viewer", addedBy: MEMBER, note: "", decision: null },
@@ -118,6 +119,7 @@ describe("every change is refused for a Viewer", () => {
     ["record a Release", async () => (await import("./requests/[id]/release-actions")).changeRequestRelease(change(ownRequest), release)],
     ["close with a result", async () => (await import("./requests/[id]/outcome-actions")).changeRequestOutcome(change(ownRequest), measured)],
     ["close without a result", async () => (await import("./requests/[id]/outcome-actions")).changeRequestOutcome(change(ownRequest), { kind: "exception", reasonCode: "rolled_back", reason: "Reverted" })],
+    ["take on a Guest submission", async () => (await import("./requests/[id]/take-on-actions")).takeOnGuestSubmission(change(guestSubmission))],
     ["create a follow-up", async () => (await import("./requests/[id]/outcome-actions")).createFollowUpRequest(change(ownRequest), { reason: "The result was mixed" })],
     ["add a Metric definition", async () => (await import("./settings/metrics/actions")).addMetricDefinition({ name: "Refunds", unit: "count" }, ctx)],
     ["edit a Metric definition", async () => (await import("./settings/metrics/actions")).editMetricDefinition({ id: definitionId, name: "Signups (all)", unit: "count" }, ctx)],
