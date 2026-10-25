@@ -170,4 +170,13 @@ describe("what a Viewer still reads", () => {
   it("keeps a Viewer's own profile label theirs to change", async () => {
     expect(await (await import("./settings/profile/actions")).updateProfileRole({ role: "designer" }, ctx)).toEqual({ success: true });
   });
+
+  // #217: the first run is personal state too, so a Viewer reads, skips and reopens their own.
+  it("keeps a Viewer's own first run theirs to skip", async () => {
+    await connection`insert into first_run_progress (org_id, user_id, guide) values (${ORG}, ${VIEWER}, 'joined')`;
+    const { updateFirstRun } = await import("./first-run-actions");
+    expect(await updateFirstRun({ change: "step", step: "inbox" }, ctx)).toEqual({ success: true });
+    expect(await updateFirstRun({ change: "skip" }, ctx)).toEqual({ success: true });
+    expect(await connection`select steps, skipped_at is not null as skipped from first_run_progress where org_id = ${ORG} and user_id = ${VIEWER}`).toEqual([{ steps: ["inbox"], skipped: true }]);
+  });
 });
