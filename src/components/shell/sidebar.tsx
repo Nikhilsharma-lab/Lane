@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { requestListHref } from "@/lib/request-workspace";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
-import { NotificationBell } from "./notification-bell";
+import { InboxBell } from "./inbox-bell";
 import { SidebarView } from "./sidebar-view";
 import { CommandPaletteHost } from "./command-palette-lazy";
 import type { PaletteRole } from "./command-palette-entries";
@@ -70,7 +70,7 @@ export function Sidebar({
         router.push(requestListHref("all", result.project.id));
         return result.project;
       }}
-      notifications={<NotificationBell orgId={orgId} unreadCount={unreadCount} />}
+      notifications={<InboxBell orgId={orgId} unreadCount={unreadCount} current={pathname === "/inbox"} />}
       palette={<CommandPaletteHost orgId={orgId} role={role} viewer={viewer} projects={projects} pathname={pathname} />}
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}

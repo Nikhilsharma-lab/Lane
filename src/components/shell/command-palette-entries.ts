@@ -40,6 +40,8 @@ export type PaletteAction =
   | { kind: "view"; filter: RequestStatusFilter }
   | { kind: "project"; projectId: string }
   | { kind: "settings"; section: string; href: string }
+  /** A page of its own (#204: the Inbox). */
+  | { kind: "go"; href: string }
 
 export type PaletteEntry = {
   id: string
@@ -95,7 +97,7 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
     { id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "open", surface: "composer" } },
     { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "open", surface: "search" } },
     ...views, ...places, ...settings,
-    { id: "notifications", label: "Notifications", group: "Go to", keys: [], action: { kind: "open", surface: "notifications" } },
+    { id: "inbox", label: "Inbox", group: "Go to", keys: [], action: { kind: "go", href: "/inbox" } },
     { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "open", surface: "shortcuts" } },
   ]
 }

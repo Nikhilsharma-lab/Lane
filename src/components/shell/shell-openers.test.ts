@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { canOpenShellSurface, openShellSurface, registerShellOpener, SHELL_SURFACES, type ShellSurface } from "./shell-openers"
 
-// Issue #102: the palette opens search, the ? overlay, the bell and the composer through one API.
+// Issue #102: the palette opens search, the ? overlay and the composer through one API (#204: the bell is a link to the Inbox).
 const cleanups: (() => void)[] = []
 const register = (...args: Parameters<typeof registerShellOpener>) => { const off = registerShellOpener(...args); cleanups.push(off); return off }
 afterEach(() => { while (cleanups.length) cleanups.pop()!() })
 
 describe("shell openers", () => {
-  it("names the four surfaces", () => {
-    expect([...SHELL_SURFACES]).toEqual(["search", "shortcuts", "notifications", "composer"])
+  it("names the three surfaces", () => {
+    expect([...SHELL_SURFACES]).toEqual(["search", "shortcuts", "composer"])
   })
 
-  it.each<ShellSurface>(["search", "shortcuts", "notifications", "composer"])("opens %s through the opener its component registered", surface => {
+  it.each<ShellSurface>(["search", "shortcuts", "composer"])("opens %s through the opener its component registered", surface => {
     const open = vi.fn()
     register(surface, open)
     expect(canOpenShellSurface(surface)).toBe(true)
@@ -28,17 +28,17 @@ describe("shell openers", () => {
   })
 
   it("opens only the surface asked for", () => {
-    const search = vi.fn(), bell = vi.fn()
+    const search = vi.fn(), shortcuts = vi.fn()
     register("search", search)
-    register("notifications", bell)
-    openShellSurface("notifications")
-    expect(bell).toHaveBeenCalledTimes(1)
+    register("shortcuts", shortcuts)
+    openShellSurface("shortcuts")
+    expect(shortcuts).toHaveBeenCalledTimes(1)
     expect(search).not.toHaveBeenCalled()
   })
 
-  it("reports a surface that is not mounted, such as the bell on Settings, as unavailable", () => {
-    expect(canOpenShellSurface("notifications")).toBe(false)
-    expect(openShellSurface("notifications")).toBe(false)
+  it("reports a surface that is not mounted, such as search on Settings, as unavailable", () => {
+    expect(canOpenShellSurface("search")).toBe(false)
+    expect(openShellSurface("search")).toBe(false)
   })
 
   it("stops opening a surface once its component unmounts", () => {

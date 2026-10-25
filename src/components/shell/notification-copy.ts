@@ -70,7 +70,7 @@ export function notificationRow(item: NotificationCopyInput, time?: string): Not
   const secondary = notificationEvent(item.type, actor)
   const detail = item.detail?.trim() || null
   const name = [primary, secondary, detail, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
-  const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "notification"
+  const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "this item"
   const toggle = `Mark ${target} ${item.readAt ? "unread" : "read"}`
   return { primary, secondary, detail, name, toggle }
 }

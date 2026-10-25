@@ -49,6 +49,11 @@ export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
   await writeDueReminders(auth).catch((error) => {
     console.error("[notifications] reminder write failed", { kind: error instanceof Error ? error.name : "UnknownError" });
   });
+  return countInboxUnread(auth);
+}
+
+/** #204: the unread For-your-information items, the Inbox's count, with no reminder write. One statement. */
+export async function countInboxUnread(auth: MemberAuth): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(notifications)

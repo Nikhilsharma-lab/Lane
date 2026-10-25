@@ -12,9 +12,14 @@ describe("paletteEntries", () => {
       "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
-      "notifications",
+      "inbox",
       "shortcuts",
     ])
+  })
+
+  // #204: the bell's popover became the Inbox page, so the entry goes there.
+  it("goes to the Inbox page", () => {
+    expect(paletteEntries(base).find(entry => entry.id === "inbox")).toMatchObject({ label: "Inbox", group: "Go to", action: { kind: "go", href: "/inbox" } })
   })
 
   it("gives a guest My Requests and only the Settings sections a guest can open", () => {

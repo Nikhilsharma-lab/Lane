@@ -145,7 +145,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
   const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
-  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : null;
+  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : pathname === "/inbox" ? "Inbox" : null;
   // Plan item 2.0: the ancestors the topbar used to show. Each page's strip adds
   // its own name as the current crumb. Memoised, so typing in the list filter
   // does not re-render the strips (plan item 1.14).

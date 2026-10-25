@@ -140,6 +140,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
         showSettingsSection(section)
         requestAnimationFrame(() => document.getElementById(`settings-${section}`)?.focus({ preventScroll: true }))
       },
+      go: href => router.push(href),
       link: id => new URL(`/requests/${id}`, window.location.origin).href,
     }
     runPaletteAction(action, deps)
