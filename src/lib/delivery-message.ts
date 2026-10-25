@@ -63,3 +63,38 @@ export function deliveryMessage(
   ]
   return { subject, text: lines.join("\n"), link }
 }
+
+/** What a Guest's email is about (#212): the Member who took it on, or how it was Closed. */
+export type GuestEmail = { kind: "taken_on"; takerName: string | null } | { kind: "closed"; closure: "measured" | "without_result" }
+
+/**
+ * #212: one of the two emails a Guest gets about their submission. Plain text, one Request, exactly one link. The
+ * footer says why they get it, since a Guest has no delivery choice to change.
+ */
+export function guestMessage(
+  email: GuestEmail,
+  request: { requestId: string; requestNumber: number | null; title: string | null; reframedProblem: string | null },
+  { appUrl, workspaceName }: { appUrl: string; workspaceName: string },
+): DeliveryMessageCopy {
+  const code = requestCodeOrNull(request.requestNumber ?? undefined)
+  const name = request.reframedProblem?.trim() || request.title?.trim() || "Untitled Request"
+  const requestLine = code ? `${code} · ${name}` : name
+  const link = `${appUrl}/requests/${request.requestId}`
+  const taker = email.kind === "taken_on" ? email.takerName?.trim() || "A Member" : ""
+  const subject = email.kind === "taken_on" ? `${taker} took on your Request: ${requestLine}` : `Your Request is Closed: ${requestLine}`
+  const body = email.kind === "taken_on"
+    ? `${taker} took on your Request and is now its Requester. They write what it should change and follow it through. You can still read it and comment.`
+    : email.closure === "measured"
+      ? "Your Request is Closed with its result. See what changed."
+      : "Your Request is Closed without a result. See why it closed."
+  const lines = [
+    requestLine,
+    "",
+    body,
+    "",
+    `Open the Request: ${link}`,
+    "",
+    `As a Guest in ${workspaceName}, you get two emails about each Request you submit: when a Member takes it on, and when it is Closed.`,
+  ]
+  return { subject, text: lines.join("\n"), link }
+}

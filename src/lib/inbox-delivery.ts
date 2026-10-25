@@ -3,17 +3,17 @@ import "server-only";
 import { after } from "next/server";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
-import { db, deliveryLog, deliveryPreferences, organizations, requestAgreements, requests, type DeliveryChannel } from "@/db";
+import { db, deliveryLog, deliveryPreferences, organizations, profiles, requestAgreements, requests, type DeliveryChannel } from "@/db";
 import type { MemberAuth } from "./auth-guard";
 import { loadNeedsYou } from "./data/inbox";
-import { deliveryMessage } from "./delivery-message";
+import { deliveryMessage, guestMessage } from "./delivery-message";
 import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
 import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
 import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
 import type { Reviewer } from "./request-reviewer-rules";
-import { workspaceRoster } from "./workspace-roster";
+import { workspaceMember, workspaceRoster } from "./workspace-roster";
 
 /**
  * #206 (spec #195, item 2): the one delivery module. It sends a person's Needs-you items outside Lane through a
@@ -96,11 +96,11 @@ async function workspaceNameOf(orgId: string): Promise<string> {
  */
 async function sendOne(
   orgId: string,
-  recipient: Recipient,
-  item: NeedsYouItem,
+  recipient: Pick<Recipient, "userId" | "email">,
+  item: Pick<NeedsYouItem, "requestId" | "key">,
   channel: "email" | "slack",
   messenger: Messenger,
-  workspaceName: string,
+  copyOf: () => { subject: string; text: string },
   run: DeliveryRun,
 ): Promise<SendResult | "already"> {
   const [claimed] = await db
@@ -109,7 +109,7 @@ async function sendOne(
     .onConflictDoNothing()
     .returning({ id: deliveryLog.id });
   if (!claimed) return "already";
-  const copy = deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel });
+  const copy = copyOf();
   const result = await messenger.send({
     channel,
     to: recipient.email,
@@ -142,13 +142,13 @@ async function sendItems(
     }
     let result: SendResult | "already" | null = null;
     if (channel === "slack" && slackDm) {
-      result = await sendOne(orgId, recipient, item, "slack", slackDm, workspaceName, run);
+      result = await sendOne(orgId, recipient, item, "slack", slackDm, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), run);
       if (result !== "already" && !result.ok && result.useEmail) {
         console.error(`[inbox-delivery] Slack DM not possible, sending by email: ${result.reason}`);
         result = null;
       }
     }
-    result ??= await sendOne(orgId, recipient, item, "email", run.messenger, workspaceName, run);
+    result ??= await sendOne(orgId, recipient, item, "email", run.messenger, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), run);
     if (result === "already") report.skipped++;
     else if (result.ok) report.sent++;
     else {
@@ -228,6 +228,63 @@ export async function runDailyDelivery(run?: Partial<DeliveryRun>): Promise<Deli
     }
   }
   return report;
+}
+
+/**
+ * #212: the only two emails a Guest gets, about their own submission: when a Member takes it on, and when it is
+ * Closed. They go by Email whatever the Guest's delivery choice, once each (the delivery log's key per Request),
+ * and only while the Guest still belongs to the workspace as anything but a Viewer. Nothing else here ever
+ * reaches a Guest: Needs-you items go to Admins and Members only.
+ */
+export async function deliverGuestEmail(target: { orgId: string; requestId: string; kind: GuestEmailKind }, run?: Partial<DeliveryRun>): Promise<DeliveryReport> {
+  const settled = runOf(run);
+  const report: DeliveryReport = { sent: 0, skipped: 0, failed: 0 };
+  const [row] = await db
+    .select({
+      createdBy: requests.createdBy, guestSubmission: requests.guestSubmission, takenOnBy: requests.takenOnBy, takerName: profiles.fullName,
+      requestNumber: requests.requestNumber, title: requests.title, reframedProblem: requests.reframedProblem,
+      measured: sql<boolean>`${requests.outcomeClosure} is not null`, withoutResult: sql<boolean>`${requests.outcomeClosure} is null and ${requests.exceptionClosure} is not null`,
+    })
+    .from(requests)
+    .leftJoin(profiles, eq(profiles.id, requests.takenOnBy))
+    .where(and(eq(requests.id, target.requestId), eq(requests.orgId, target.orgId)));
+  if (!row?.guestSubmission || !row.takenOnBy) return report;
+  const closure = row.measured ? "measured" as const : row.withoutResult ? "without_result" as const : null;
+  if (target.kind === "closed" && !closure) return report;
+  const guest = await workspaceMember(target.orgId, row.createdBy);
+  if (!guest || guest.role === "org:viewer" || !guest.email) return report;
+  const workspaceName = await workspaceNameOf(target.orgId);
+  const copy = () => guestMessage(
+    target.kind === "taken_on" ? { kind: "taken_on", takerName: row.takerName } : { kind: "closed", closure: closure! },
+    { requestId: target.requestId, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem },
+    { appUrl: settled.appUrl, workspaceName },
+  );
+  const result = await sendOne(target.orgId, { userId: row.createdBy, email: guest.email }, { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` }, "email", settled.messenger, copy, settled);
+  if (result === "already") report.skipped++;
+  else if (result.ok) report.sent++;
+  else {
+    report.failed++;
+    console.error(`[inbox-delivery] Guest email failed: ${result.reason}`);
+  }
+  return report;
+}
+
+/** The two emails a Guest gets about their submission (#212). */
+export type GuestEmailKind = "taken_on" | "closed";
+
+/** Sends a Guest's email after the action's response, as `deliverAfterResponse` does for Needs-you items. */
+export function deliverGuestEmailAfterResponse(target: { orgId: string; requestId: string; kind: GuestEmailKind }) {
+  try {
+    after(async () => {
+      try {
+        await deliverGuestEmail(target);
+      } catch (error) {
+        console.error(`[inbox-delivery] Guest email after an action failed: ${error instanceof Error ? error.name : "error"}`);
+      }
+    });
+  } catch {
+    // `after` throws outside a request scope; there is nothing to deliver after.
+  }
 }
 
 /**

@@ -34,7 +34,7 @@ function closure(expected: ExpectedImpact, actual: number, guardrailActual?: num
 const exception: OutcomeException = { version: 1, kind: "exception", reasonCode: "rolled_back", reason: "Rolled back after a day", actorId: ME, ownerId: ME, closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-x", fingerprint: "fp", release: AUG, revision: 1 };
 function row(id: string, requestNumber: number, over: Partial<ImpactRow> = {}): ImpactRow {
   return {
-    id, orgId: ORG, requestNumber, title: `Request ${requestNumber}`, problem: `Problem ${requestNumber}`, createdBy: ME, assignedTo: null, projectId: null, projectName: null, status: "open",
+    id, orgId: ORG, requestNumber, title: `Request ${requestNumber}`, problem: `Problem ${requestNumber}`, createdBy: ME, takenOnBy: null, assignedTo: null, projectId: null, projectName: null, status: "open",
     releaseState: null, outcomeClosure: null, exceptionClosure: null, closureCorrections: [], expectedImpact: plan(), noMeasurableImpactReason: null,
     followUpOf: null, definitions: [TRIALS], ...over,
   };

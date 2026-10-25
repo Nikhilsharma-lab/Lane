@@ -52,6 +52,8 @@ export type ImpactRow = {
   /** The problem the Request states: its reframed problem, else its description. */
   problem: string;
   createdBy: string;
+  /** The Member who took a Guest submission on (#212): the Requester unless it was handed over since. */
+  takenOnBy: string | null;
   assignedTo: string | null;
   projectId: string | null;
   projectName: string | null;

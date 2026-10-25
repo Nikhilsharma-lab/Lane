@@ -28,6 +28,8 @@ export type OverviewRequest = {
   requestType?: RequestType | null
   /** Saved triage signal. Optional only for older illustrative fixtures. */
   priority?: RequestPriority
+  /** #212: a Guest submission waiting to be taken on, or taken on. Absent or null: not a Guest submission. */
+  guestSubmission?: import("./guest-submission").GuestSubmissionState | null
   /** The journey facts (#133): the release record and the closures. Absent means none saved. */
   releaseState?: ReleaseState | null
   outcomeClosure?: SavedClosure | null

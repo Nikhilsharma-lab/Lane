@@ -69,6 +69,7 @@ export default defineConfig({
       "src/components/requests/measurement-metric-picker.test.ts",
       "src/lib/prediction-metrics.test.ts",
       "src/lib/inbox-read-model.test.ts",
+      "src/lib/guest-submission.test.ts",
       "src/components/inbox/*.test.ts",
       "src/components/shell/inbox-bell.test.ts",
     ],

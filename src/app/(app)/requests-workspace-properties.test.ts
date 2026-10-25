@@ -49,7 +49,9 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     recorded.role = "guest"
     await RequestsWorkspace()
     const [list] = recorded.queries
-    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(4)
+    // Each half shows only what the guest created; its edit flag reads who answers for it now (#212).
+    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(2)
+    expect(list.sql.match(/coalesce\("requests"\."taken_on_by", "requests"\."created_by"\) = \$\d+/g)).toHaveLength(2)
     expect(list.params.filter(value => value === "person_current")).toHaveLength(4)
   })
 

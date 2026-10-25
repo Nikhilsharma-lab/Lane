@@ -41,3 +41,10 @@ export async function workspaceRoster(
   }
   return people;
 }
+/** One person's live membership of the workspace, any role, or null once they have left (#212). */
+export async function workspaceMember(orgId: string, userId: string): Promise<{ role: string; email: string } | null> {
+  const client = await clerkClient();
+  const page = await client.organizations.getOrganizationMembershipList({ organizationId: orgId, userId: [userId], limit: 1 });
+  const membership = page.data.find((m) => m.organization.id === orgId && m.publicUserData?.userId === userId);
+  return membership ? { role: membership.role, email: (membership.publicUserData?.identifier ?? "").toLowerCase() } : null;
+}

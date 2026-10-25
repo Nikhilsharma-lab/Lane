@@ -107,7 +107,7 @@ function request(over: Partial<InboxRequest> = {}): InboxRequest {
   return {
     id: "req_a", requestNumber: 12, title: "Checkout copy", reframedProblem: "Customers cannot find the delivery date",
     createdBy: REQUESTER.userId, createdAt: new Date("2026-10-20T09:00:00Z"), status: "open", releaseState: null,
-    outcomeClosure: null, exceptionClosure: null, doneAt: null, reviewers: [], reviewAskedAt: null, ...over,
+    outcomeClosure: null, exceptionClosure: null, doneAt: null, reviewers: [], reviewAskedAt: null, takenOnBy: null, ...over,
   }
 }
 const needsYou = (viewer: InboxViewer, requests: InboxRequest[], when = NOW) => buildInbox(viewer, { notifications: [], requests }, when).needsYou

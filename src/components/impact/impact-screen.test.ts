@@ -16,7 +16,7 @@ const GUEST: ImpactViewer = { userId: "user_guest", orgId: ORG, role: "guest" }
 function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" | "title" | "createdBy">): ImpactRow {
   return {
     orgId: ORG, problem: `Problem ${over.requestNumber}`, assignedTo: null, projectId: null, projectName: null, status: "open", releaseState: null, outcomeClosure: null,
-    exceptionClosure: null, closureCorrections: [], expectedImpact: null, noMeasurableImpactReason: null, followUpOf: null, definitions: [], ...over,
+    exceptionClosure: null, closureCorrections: [], expectedImpact: null, noMeasurableImpactReason: null, followUpOf: null, definitions: [], takenOnBy: null, ...over,
   }
 }
 

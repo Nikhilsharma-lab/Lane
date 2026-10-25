@@ -99,14 +99,14 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   }, arrival)
 
   // #103: the shell's current Request, with the same edit and pickup rules as the panel and the strip's button.
-  const { id, status, priority, createdBy, agreementBlocked, reviewState, pickupBlockedReason } = request
+  const { id, status, priority, createdBy, takenOnBy, agreementBlocked, reviewState, pickupBlockedReason } = request
   const source = arrival ? "page" : "peek"
   const current = useMemo<CurrentRequest>(() => ({
     id, code, name, status, priority, source,
-    canEdit: canEditRequest({ status, createdBy }, viewer),
+    canEdit: canEditRequest({ status, createdBy, takenOnBy }, viewer),
     agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
     pickupBlockedReason: pickupBlockedReason ?? null,
-  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, pickupBlockedReason])
+  }), [id, code, name, status, priority, source, viewer, createdBy, takenOnBy, agreementBlocked, reviewState, pickupBlockedReason])
   usePublishOpenRequest(current)
 
   const peek = !arrival

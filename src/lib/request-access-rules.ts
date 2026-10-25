@@ -9,9 +9,9 @@ export function canSee(viewer: Viewer, request: { createdBy: string }): boolean 
   return viewer.role !== "guest" || request.createdBy === viewer.userId
 }
 
-/** Its creator (a guest included) or an admin changes a Request. A Viewer changes none, not even one they filed
- * before becoming a Viewer (#210). */
-export function canChange(viewer: Viewer, request: { createdBy: string }): boolean {
+/** Its creator (a guest included) or an admin changes a Request; once a Member takes a Guest submission on, that
+ * Member does instead of the Guest (#212). A Viewer changes none, not even one they filed before becoming a Viewer (#210). */
+export function canChange(viewer: Viewer, request: { createdBy: string; takenOnBy: string | null }): boolean {
   if (viewer.role === "viewer") return false
-  return viewer.role === "admin" || request.createdBy === viewer.userId
+  return viewer.role === "admin" || (request.takenOnBy ?? request.createdBy) === viewer.userId
 }

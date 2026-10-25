@@ -55,6 +55,7 @@ import {
   DESCRIPTION_MAX,
   problemFramingSchema,
   requestSchema,
+  newRequestSchemaFor,
   TITLE_MAX,
   USEFUL_LINK_MAX,
   type RequestInput,
@@ -233,6 +234,7 @@ export default function RequestEditor({
   initialProjectId = null,
   editing,
   canAddReviewers = false,
+  withoutPrediction = false,
 }: {
   context: { orgId: string };
   draftOwnerId: string;
@@ -246,6 +248,8 @@ export default function RequestEditor({
   editing?: { request: RequestDetail; onSaved: () => void };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
   canAddReviewers?: boolean;
+  /** #212: a Guest's Request has no prediction (Expected impact); the Member who takes it on writes it. */
+  withoutPrediction?: boolean;
 }) {
   const router = useRouter();
   const optimistic = useOptimisticAction();
@@ -354,7 +358,8 @@ export default function RequestEditor({
     trigger,
     formState: { errors, isSubmitted },
   } = useForm<RequestInput, unknown, RequestInput>({
-    resolver: zodResolver(editing ? requestEditSourceSchema : requestSchema),
+    // A Guest's new Request is checked without a prediction (#212).
+    resolver: zodResolver((editing ? requestEditSourceSchema : newRequestSchemaFor(withoutPrediction)) as typeof requestSchema),
     defaultValues: initialValues,
   });
 
@@ -1150,7 +1155,8 @@ export default function RequestEditor({
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
             {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
-            {currentValues.expectedImpact && <>
+            {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on writes its prediction." : "A Member takes this on and writes its prediction. You’ll get an email when they do."}</p>}
+            {!withoutPrediction && currentValues.expectedImpact && <>
               <RadioGroup
                 label="Expected impact"
                 name="expected-impact-choice"

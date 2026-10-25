@@ -10,6 +10,7 @@ import {
   integer,
   check,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organizations, profiles } from "./users";
@@ -85,11 +86,18 @@ export const requests = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
     /** When the work was picked up; set and cleared by the stamp_picked_up_at trigger (0034). Unknown (null) for work picked up before it. */
     pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
+    /** Filed by a Guest, without a prediction (#212, migration 0045). Set when filed; never changes. */
+    guestSubmission: boolean("guest_submission").notNull().default(false),
+    /** The Member who took the Guest submission on and became its Requester; set once. Null while it waits. */
+    takenOnBy: text("taken_on_by").references(() => profiles.id),
+    takenOnAt: timestamp("taken_on_at", { withTimezone: true }),
   },
   (table) => ({
     requestNumberCheck: check("requests_request_number_check", sql`${table.requestNumber} > 0`),
     doneAtCheck: check("requests_done_at_check", sql`(${table.status} = 'done') = (${table.doneAt} IS NOT NULL)`),
     pickedUpAtCheck: check("requests_picked_up_at_check", sql`${table.status} <> 'open' OR ${table.pickedUpAt} IS NULL`),
+    takenOnCheck: check("requests_taken_on_check", sql`(${table.takenOnBy} IS NULL) = (${table.takenOnAt} IS NULL) AND (${table.takenOnBy} IS NULL OR (${table.guestSubmission} AND ${table.takenOnBy} <> ${table.createdBy}))`),
+    guestWaitingCheck: check("requests_guest_submission_waiting_check", sql`NOT ${table.guestSubmission} OR ${table.takenOnBy} IS NOT NULL OR ${table.status} = 'open'`),
     designReviewsCheck: check("requests_design_reviews_check", sql`jsonb_typeof(${table.designReviews}) = 'array'`),
     designReviewVersionCheck: check("requests_design_review_version_check", sql`${table.designReviewVersion} >= 0`),
     orgIdUnique: unique("requests_org_id_id_unique").on(table.orgId, table.id),
