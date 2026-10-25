@@ -56,3 +56,12 @@ describe("the founding discount places", () => {
     await expect(connection`update workspace_billing set billing_period = 'weekly' where org_id = ${ORGS[51]}`).rejects.toMatchObject({ code: "23514" });
   });
 });
+
+describe("billed seats (#215, migration 0048)", () => {
+  it("bills at least 3 seats, and knows none until the workspace pays", async () => {
+    const [row] = await connection`select billed_seats, seats_checked_at from workspace_billing where org_id = ${ORGS[51]}`;
+    expect(row).toEqual({ billed_seats: null, seats_checked_at: null });
+    await connection`update workspace_billing set billed_seats = 3, seats_checked_at = now() where org_id = ${ORGS[51]}`;
+    await expect(connection`update workspace_billing set billed_seats = 2 where org_id = ${ORGS[51]}`).rejects.toMatchObject({ code: "23514" });
+  });
+});
