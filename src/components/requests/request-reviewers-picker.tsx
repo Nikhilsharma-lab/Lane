@@ -126,7 +126,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
         isSelected={isSelected} isInert={(person) => full && !isSelected(person)} onChoose={toggle} multiselectable morph="plain"
         render={(person) => <span>{person.name}</span>}
         emptyText={needle ? "No Admin or Member matches" : "Nobody else to ask yet"} />}
-      {people && <ReviewerInviteHint canInvite={canInvite} className={labelStyles.caption} />}
+      {people && <ReviewerInviteHint canInvite={canInvite} linked={false} className={labelStyles.caption} />}
       {loading && <p role="status" className={labelStyles.caption}>Loading people…</p>}
       {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}

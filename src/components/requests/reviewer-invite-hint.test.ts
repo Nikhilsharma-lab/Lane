@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { ReviewerInviteHint } from "./reviewer-invite-hint"
 
-const hint = (canInvite: boolean) => renderToStaticMarkup(createElement(ReviewerInviteHint, { canInvite }))
+const hint = (canInvite: boolean, linked?: boolean) => renderToStaticMarkup(createElement(ReviewerInviteHint, { canInvite, linked }))
 const text = (html: string) => html.replace(/<[^>]+>/g, "")
 
 describe("ReviewerInviteHint (#211)", () => {
@@ -17,5 +17,12 @@ describe("ReviewerInviteHint (#211)", () => {
     const html = hint(true)
     expect(text(html)).toBe("Only Admins and Members can review. Not listed? Invite them as a Member.")
     expect(html).toContain('href="/settings/members"')
+  })
+
+  it("names the place in words where a link can't be reached by keyboard, as inside the creation picker", () => {
+    const html = hint(true, false)
+    expect(text(html)).toBe("Only Admins and Members can review. Not listed? Invite them as a Member in Settings, Members.")
+    expect(html).not.toContain("<a")
+    expect(text(hint(false, false))).toBe("Only Admins and Members can review. Not listed? Ask an admin to invite them.")
   })
 })
