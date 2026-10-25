@@ -274,6 +274,9 @@ describe("Merging Metric definitions", () => {
     expect((await active()).map(definition => definition.id)).not.toContain(merged);
     expect(await named("Trials started")).toEqual(keptBefore);
     expect(await named("Trial starts")).toMatchObject({ mergedIntoId: kept, archivedAt: null });
+    const picker = (await (await library()).predictionMetricChoices({ orgId }, null)).metrics.map(choice => choice.id);
+    expect(picker).toContain(kept);
+    expect(picker).not.toContain(merged);
 
     const away = await historyOf(merged);
     expect(away.map(entry => [entry.kind, entry.authorId])).toEqual([["created", MEMBER], ["merged_away", ADMIN]]);
