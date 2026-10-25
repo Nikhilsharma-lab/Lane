@@ -2,7 +2,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import type { ImpactPeriod } from "@/lib/impact-period"
-import { buildOutcomeReport, type ImpactRow, type ImpactViewer } from "@/lib/impact-read-model"
+import { buildOutcomeReport, type ImpactRow, type ImpactViewer, type QuarterNote } from "@/lib/impact-read-model"
 import type { ExpectedImpact } from "@/lib/request-impact"
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import type { ReleaseFact, ReleaseState } from "@/lib/request-release"
@@ -63,8 +63,8 @@ const ROWS: ImpactRow[] = [
   row({ id: "f", requestNumber: 6, status: "open", releaseState: null, followUpOf: "a" }),
 ]
 
-function html(period: ImpactPeriod, rows: ImpactRow[] = ROWS) {
-  return renderToStaticMarkup(createElement(OutcomeReportView, { report: buildOutcomeReport(MEMBER, rows, { now: NOW, period })! }))
+function html(period: ImpactPeriod, rows: ImpactRow[] = ROWS, extra: { quarterNotes?: QuarterNote[]; quarterNoteEditor?: { orgId: string } | null } = {}) {
+  return renderToStaticMarkup(createElement(OutcomeReportView, { report: buildOutcomeReport(MEMBER, rows, { now: NOW, period, quarterNotes: extra.quarterNotes })!, quarterNoteEditor: extra.quarterNoteEditor ?? null }))
 }
 
 const text = (markup: string) => markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")
@@ -178,5 +178,87 @@ describe("Outcome report: empty and long content", () => {
     const markup = html(Q3, [row({ id: "x", requestNumber: 9, title: long, problem: `${long}B`, outcomeClosure: closure(plan(), 46, "x") })])
     expect(text(section(markup, "No Project", 3))).toContain(`LAN-9 ${long}`)
     expect(text(markup)).toContain(`${long}B`)
+  })
+})
+
+describe("Outcome report: What we learned (#209)", () => {
+  const learnedFix: ClosureCorrection = { ...correction, operationId: "op-l", field: "learned", correction: "Fewer fields beat a shorter page", revision: 3 }
+  const rows = [
+    row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(plan(), 46, "e1", { learned: "Shoppers trust a shorter form" }) }),
+    row({ id: "b", requestNumber: 2, outcomeClosure: closure(ADOPTION, 130, "e2", { learned: "First wording" }), expectedImpact: ADOPTION, closureCorrections: [learnedFix] }),
+    row({ id: "d", requestNumber: 4, exceptionClosure: { ...exception("rolled_back", "Broke checkout on Safari"), learned: "Test on Safari before release" } }),
+  ]
+
+  it("shows each Request's What we learned line", () => {
+    expect(section(html(Q3, rows), "Checkout", 3)).toContain("What we learned Shoppers trust a shorter form")
+  })
+
+  it("shows a corrected line marked Corrected, in place of the original", () => {
+    const other = section(html(Q3, rows), "No Project", 3)
+    expect(other).toContain("What we learned Fewer fields beat a shorter page Corrected")
+    expect(other).not.toContain("First wording")
+  })
+
+  it("shows What we learned on work closed without a result", () => {
+    expect(section(html(Q3, rows), "Closed without a result")).toContain("What we learned Test on Safari before release")
+  })
+})
+
+describe("Outcome report: Quarter notes (#209)", () => {
+  const notes: QuarterNote[] = [
+    { year: 2026, quarter: 3, text: "We rebuilt checkout.\nNotes: https://example.test/q3.", editorName: "Ada Admin", editedAt: "2026-09-30T10:00:00.000Z" },
+    { year: 2026, quarter: 1, text: "Winter", editorName: "Bo Admin", editedAt: "2026-03-01T10:00:00.000Z" },
+  ]
+
+  it("ends a quarter's report with its note, links in it, and who last edited it and when", () => {
+    const markup = html(Q3, ROWS, { quarterNotes: notes })
+    const note = section(markup, "Quarter note, Q3 2026")
+    expect(note).toContain("We rebuilt checkout. Notes: https://example.test/q3")
+    expect(note).toContain("Last edited by Ada Admin on 30 Sep 2026")
+    expect(markup).toContain('href="https://example.test/q3"')
+    const headings = [...markup.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map(match => text(match[1]).trim())
+    expect(headings.at(-1)).toBe("Quarter note, Q3 2026")
+  })
+
+  it("never turns anything but a web address into a link", () => {
+    const markup = html(Q3, ROWS, { quarterNotes: [{ ...notes[0], text: "javascript:alert(1) <b>bold</b> mailto:a@example.test" }] })
+    expect(markup).not.toContain('href="javascript')
+    expect(markup).not.toContain('href="mailto')
+    expect(markup).not.toContain("<b>")
+  })
+
+  it("says when a quarter has no note yet, and still shows the note when nothing was Released", () => {
+    expect(section(html({ kind: "quarter", year: 2026, quarter: 2 }), "Quarter note, Q2 2026")).toContain("No Quarter note for Q2 2026.")
+    const empty = text(html({ kind: "quarter", year: 2026, quarter: 1 }, ROWS, { quarterNotes: notes }))
+    expect(empty).toContain("Nothing was Released in Q1 2026.")
+    expect(empty).toContain("Winter")
+  })
+
+  it("shows all four of a year's notes, and none on a month", () => {
+    const year = html({ kind: "year", year: 2026 }, ROWS, { quarterNotes: notes })
+    const quarters = section(year, "Quarter notes")
+    expect(quarters).toMatch(/Q1 2026 Winter .* Q2 2026 No Quarter note for Q2 2026\. Q3 2026 We rebuilt checkout.* Q4 2026 No Quarter note for Q4 2026\./)
+    expect(text(html(AUGUST, ROWS, { quarterNotes: notes }))).not.toContain("Quarter note")
+  })
+
+  it("gives only an Admin the controls to write or edit a note", () => {
+    expect(html(Q3, ROWS, { quarterNotes: notes })).not.toMatch(/Edit the Q3 2026 note|Write the/)
+    expect(text(html(Q3, ROWS, { quarterNotes: notes, quarterNoteEditor: { orgId: ORG } }))).toContain("Edit the Q3 2026 note")
+    expect(text(html({ kind: "quarter", year: 2026, quarter: 2 }, ROWS, { quarterNoteEditor: { orgId: ORG } }))).toContain("Write the Q2 2026 note")
+  })
+
+  it("offers no control for a quarter that hasn't begun", () => {
+    expect(text(html({ kind: "year", year: 2026 }, ROWS, { quarterNoteEditor: { orgId: ORG } }))).toContain("Write the Q4 2026 note")
+    expect(text(html({ kind: "quarter", year: 2027, quarter: 1 }, ROWS, { quarterNoteEditor: { orgId: ORG } }))).not.toContain("Write the")
+  })
+})
+
+describe("Outcome report: printing (#209)", () => {
+  it("offers print or save as PDF, and the printed page names the report, its period and as-of date", () => {
+    const markup = html(Q3)
+    expect(markup).toMatch(/<button[^>]*>.*Print or save as PDF.*<\/button>/)
+    const printed = text(markup)
+    expect(printed).toContain("Outcome report")
+    expect(printed).toContain("Q3 2026 · Up to date as of 23 Oct 2026")
   })
 })
