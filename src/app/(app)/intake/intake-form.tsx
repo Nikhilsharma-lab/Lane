@@ -1178,6 +1178,7 @@ export default function RequestEditor({
                   <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
                 )}
                 <PlanFields
+                  orgId={context.orgId}
                   value={currentValues.expectedImpact}
                   onChange={changeExpectedImpact}
                   requestType={currentValues.requestType ?? null}

@@ -47,6 +47,8 @@ export type RequestDetail = {
   usefulLink: string | null
   expectedImpact?: ExpectedImpact | null
   measurementDraft?: IncompleteMeasurement | null
+  /** The current name of each Metric definition the prediction names, by reference (#198); the plan keeps the name copied at prediction time. */
+  metricNames?: Record<string, string>
   /** The "No measurable impact" choice and its reason (#153); set only with no measured plan. */
   noMeasurableImpactReason?: string | null
   reframedProblem: string | null
@@ -139,7 +141,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
 
             </section>
-            {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
+            {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} metricNames={request.metricNames} />}
             {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
               <h2 id="no-measurable-impact-heading">No measurable impact</h2>
               <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>

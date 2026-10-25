@@ -56,6 +56,7 @@ function measurementMetricText(metric: SQLWrapper) {
   const presets = MEASUREMENT_METRIC_OPTIONS.filter(({ value }) => value !== "custom" && value !== "check");
   return sql`case ${metric} ->> 'key'
     when 'custom' then ${metric} ->> 'name'
+    when 'definition' then ${metric} ->> 'name'
     when 'check' then case ${metric} ->> 'check'
       when 'keyboard' then 'Keyboard navigation'
       when 'required' then 'Required-field validation'

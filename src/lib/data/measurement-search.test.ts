@@ -28,6 +28,11 @@ beforeAll(async () => {
     { kind: "metric", metric: "Legacy outcome", baseline: 1, target: 2, unit: "orders", source: "Legacy source", reviewAfterDays: 30 },
     { ...base, primary: { ...base.primary, unit: "count" } },
   ];
+  // #198: a v5 prediction names Metric definitions and keeps their names.
+  const definition = async (name: string, unit: string) => (await connection`insert into metric_definitions(org_id,name,unit,created_by) values(${ORG},${name},${unit},${OWNER}) returning id`)[0].id;
+  snapshots.push({ ...base, version: 5,
+    primary: { ...base.primary, key: "definition", definitionId: await definition("Trial starts", "count"), name: "Trial starts", unit: "count" },
+    guardrails: [{ key: "definition", definitionId: await definition("Refund requests", "count"), name: "Refund requests", unit: "count", current: 0, noBaseline: false, operator: "at_most", limit: 10 }] } as never);
   for (const snapshot of snapshots) {
     const [row] = await connection`insert into requests(org_id,title,description,created_by,expected_impact) values(${ORG},'Request','Plain description',${OWNER},${connection.json(snapshot)}) returning id`;
     ids.push(row.id);
@@ -44,7 +49,7 @@ async function search(query: string, guest = false) {
   return loadWorkspaceSearch({ userId: guest ? GUEST : OWNER, orgId: ORG, role: guest ? "guest" : "member" }, { query, requestsPage: 0, projectsPage: 0 });
 }
 describe("measurement search on saved Request data", () => {
-  it.each([["conversion rate", 0], ["completed orders", 1], ["support contact rate", 1], ["failed payments", 1], ['payments "card"', 1], ["keyboard navigation", 2], ["legacy outcome", 3], ["conversions", 4]])("finds %s within the active workspace", async (query, index) => {
+  it.each([["conversion rate", 0], ["completed orders", 1], ["support contact rate", 1], ["failed payments", 1], ['payments "card"', 1], ["keyboard navigation", 2], ["legacy outcome", 3], ["conversions", 4], ["trial starts", 5], ["refund requests", 5]])("finds %s within the active workspace", async (query, index) => {
     const result = await search(String(query));
     expect(result.requests.total).toBe(1);
     expect(result.requests.items.map(item => item.id)).toEqual([ids[Number(index)]]);

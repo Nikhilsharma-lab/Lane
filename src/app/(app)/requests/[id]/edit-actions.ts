@@ -14,6 +14,7 @@ import { verifyTriageToken } from "@/lib/triage-token";
 import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { recordExpectedImpactRevision } from "@/lib/request-impact-history";
+import { checkPredictionMetrics } from "@/lib/metrics-library";
 import { isDeepStrictEqual } from "node:util";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
@@ -54,7 +55,15 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const partial = changes.expectedImpact === null || choice.success ? null : incompleteMeasurementSchema.safeParse(changes.expectedImpact);
             if (!complete.success && !choice.success && partial && !partial.success)
                 return { error: partial.error.issues[0].message };
-            const nextState = choice.success ? impactStateOfChoice(choice.data) : complete.success ? { kind: "measured" as const, plan: complete.data } : { kind: "none" as const };
+            // Every metric comes from this workspace's Metrics library; one the Request already saved may stay (#198).
+            let plan = complete.success ? complete.data : null;
+            if (plan) {
+                const checked = await checkPredictionMetrics({ orgId: auth.orgId }, plan, stored.expectedImpact);
+                if ("error" in checked)
+                    return { error: checked.error };
+                plan = checked.impact as typeof plan;
+            }
+            const nextState = choice.success ? impactStateOfChoice(choice.data) : plan ? { kind: "measured" as const, plan } : { kind: "none" as const };
             const impactStorage = { ...impactColumnsOf(nextState), measurementDraft: choice.success || complete.success ? null : partial?.success ? partial.data : null };
             // Changed wording needs a fresh review of this Request, which sets the
             // classification and the suggested change. Unchanged wording keeps the

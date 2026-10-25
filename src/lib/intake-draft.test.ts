@@ -31,6 +31,7 @@ function memoryStorage() {
 }
 
 const NOW = Date.UTC(2026, 6, 20, 12);
+const DEFINITION_ID = "9b0d2c51-3c55-4b8e-9a51-8a3c0e0c2f10";
 const SCOPE = intakeDraftScope(
   "4b1448ae-913c-4d0d-a6f8-7a762be3e01f",
   "00c80f80-693d-49c1-a9dd-dff0cebd660b"
@@ -69,6 +70,15 @@ describe("Intake draft recovery", () => {
       previousProblem: "",
       review: null,
     });
+  });
+
+  it("restores the Metric definitions picked for the main metric and guardrails (#198)", () => {
+    const storage = memoryStorage();
+    const expectedImpact = { ...createEmptyMeasurementPlan(),
+      primary: { ...createEmptyMeasurementPlan().primary, key: "definition" as const, definitionId: DEFINITION_ID, name: "Signups", unit: "count" as const, current: 40 },
+      guardrails: [{ key: "definition" as const, definitionId: DEFINITION_ID, name: "Signups", unit: "count" as const, current: null, noBaseline: false as const, operator: "at_least" as const, limit: null }] };
+    writeIntakeDraft(storage, SCOPE, { source: { ...source("Signup drop", ""), expectedImpact }, review: null }, NOW);
+    expect(readIntakeDraft(storage, SCOPE, NOW)?.source.expectedImpact).toEqual(expectedImpact);
   });
 
   it("restores an incomplete impact-only draft without dropping it", () => {
@@ -277,11 +287,11 @@ describe("Intake draft recovery", () => {
         observedEvidence: character.repeat(CONTEXT_MAX),
         uncertainty: character.repeat(CONTEXT_MAX),
         usefulLink: linkPrefix + "a".repeat(USEFUL_LINK_MAX - linkPrefix.length),
-        // The largest plan: custom names at their limit and every guardrail.
-        expectedImpact: { kind: "measurement", version: 4,
-          primary: { key: "custom", name: character.repeat(120), unit: "count", current: 1, target: 2, noBaseline: false, check: "" },
+        // The largest plan: definition name copies at their limit and every guardrail (v5, #198).
+        expectedImpact: { kind: "measurement", version: 5,
+          primary: { key: "definition", definitionId: DEFINITION_ID, name: character.repeat(120), unit: "count", current: 1, target: 2, noBaseline: false, check: "" },
           measurement: { audience: "custom", audienceName: character.repeat(MEASUREMENT_SCOPE_NAME_MAX), platform: "custom", platformName: character.repeat(MEASUREMENT_SCOPE_NAME_MAX), windowDays: 30, exactDates: false, startDate: "", endDate: "" },
-          guardrails: Array.from({ length: MAX_MEASUREMENT_GUARDRAILS }, () => ({ key: "custom", name: character.repeat(120), unit: "count", current: 1, noBaseline: false, operator: "at_most", limit: 3 })) },
+          guardrails: Array.from({ length: MAX_MEASUREMENT_GUARDRAILS }, () => ({ key: "definition", definitionId: DEFINITION_ID, name: character.repeat(120), unit: "count", current: 1, noBaseline: false, operator: "at_most", limit: 3 })) },
       });
       const triage = { classification: "hybrid" as const, reframedProblem: character.repeat(DESCRIPTION_MAX), extractedSolution: character.repeat(DESCRIPTION_MAX) };
       const context = { orgId: "org_draft_size", userId: "user_draft_size" };

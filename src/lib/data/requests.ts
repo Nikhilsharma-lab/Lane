@@ -9,6 +9,7 @@ import type { MemberAuth } from "@/lib/auth-guard"
 import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
+import { currentMetricNames } from "@/lib/metrics-library"
 import { journeyStatus } from "@/lib/request-journey"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
@@ -259,6 +260,11 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   ])
 
   if (!request) return null
-  const reviewState = (await reviewStatesOf(auth.orgId, [request])).get(request.id) ?? null
-  return { request: { ...withoutReviewers(request), reviewState, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
+  const [states, metricNames] = await Promise.all([
+    reviewStatesOf(auth.orgId, [request]),
+    // The definitions' current names (#198); no statement unless the prediction names one.
+    currentMetricNames({ orgId: auth.orgId }, [request.expectedImpact]),
+  ])
+  const reviewState = states.get(request.id) ?? null
+  return { request: { ...withoutReviewers(request), reviewState, metricNames, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
 }
