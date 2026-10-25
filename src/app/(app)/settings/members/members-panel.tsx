@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ClerkMembersProfile } from "@/components/auth/clerk-members-profile";
-import { WorkspaceMembers } from "@/components/settings/workspace-members";
+import { WorkspaceMembersLoader } from "@/components/settings/workspace-members-loader";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 import { customRoles } from "@/lib/feature-switches";
 import { rolesOffered } from "@/lib/member-role-rules";
@@ -15,7 +15,7 @@ export function membersPanel(workspace: Pick<WorkspaceContext, "orgId" | "userId
   if (!canChangeThings(workspace.role)) return undefined;
   const admin = workspace.role === "admin";
   return <>
-    <WorkspaceMembers orgId={workspace.orgId} selfId={workspace.userId} canManage={admin} roles={rolesOffered(customRoles())} />
+    <WorkspaceMembersLoader orgId={workspace.orgId} selfId={workspace.userId} canManage={admin} roles={rolesOffered(customRoles())} />
     {admin && <ClerkMembersProfile />}
   </>;
 }

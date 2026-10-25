@@ -63,7 +63,8 @@ export function Sidebar({
       projectsLoading={projectState.loading}
       projectsError={projectState.error}
       onRetryProjects={() => projectState.reload()}
-      onCreateProject={async name => {
+      // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
+      onCreateProject={role === "viewer" ? undefined : async name => {
         const result = await callAction(() => createProject({ name }, { orgId }));
         if (!result.success) throw new Error(result.error.message);
         projectState.addProject(result.project);
