@@ -28,6 +28,7 @@ import { createReviewersSchema, type Reviewer } from "@/lib/request-reviewer-rul
 import { workspaceRoster } from "@/lib/workspace-roster";
 import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
+import { deliverAfterResponse } from "@/lib/inbox-delivery";
 import { checkPredictionMetrics } from "@/lib/metrics-library";
 
 export type IntakeFailureCode =
@@ -354,6 +355,8 @@ export async function saveRequest(
 
     if (created) {
       revalidateSavedRequest(created.id);
+      // #206: the Reviewers asked on a new Request hear about it after the response.
+      if (review.reviewers.length) deliverAfterResponse({ orgId: auth.orgId, requestId: created.id });
       return { success: true, requestId: created.id, created: savedListRow(created, payload, reframedProblem) };
     }
 

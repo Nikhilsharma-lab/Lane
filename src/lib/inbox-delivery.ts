@@ -161,6 +161,8 @@ export async function deliverRequestNeedsYou(target: { orgId: string; requestId:
     .where(and(eq(requests.id, target.requestId), eq(requests.orgId, target.orgId)));
   if (!row) return report;
   const reviewers = ((row.reviewers ?? []) as Reviewer[]).flatMap((r) => (r.nominee.kind === "member" ? [r.nominee.userId] : []));
+  // Both action-caused kinds need a Reviewer: without one there is nothing to send and no roster to read.
+  if (!reviewers.length) return report;
   await deliverInWorkspace(target.orgId, [row.requester, ...reviewers], ACTION_KINDS, settled, report, { requestId: target.requestId });
   return report;
 }

@@ -26,6 +26,7 @@ import {
   type RequestTx,
   type StoredRequest,
 } from "@/lib/request-change-store";
+import { deliverAfterResponse } from "@/lib/inbox-delivery";
 
 type ReviewersRow = typeof requestAgreements.$inferSelect;
 
@@ -80,6 +81,13 @@ function changeReviewers(
   });
 }
 
+/** #206: once a change is saved, the Needs-you items it caused leave Lane after the response. */
+async function delivering<T extends object>(context: RequestChangeContext, change: Promise<T>): Promise<T> {
+  const result = await change;
+  if ("success" in result) deliverAfterResponse({ orgId: context.orgId, requestId: context.requestId });
+  return result;
+}
+
 async function saveReviewers(
   tx: RequestTx,
   request: StoredRequest,
@@ -106,7 +114,7 @@ async function saveReviewers(
 export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose people to review." };
-  return changeReviewers(
+  return delivering(context, changeReviewers(
     context,
     parsed.data,
     "reviewers_added",
@@ -122,7 +130,7 @@ export async function addReviewers(context: RequestChangeContext, input: unknown
       await saveReviewers(tx, request, reviewersRow, reviewers);
       await notifyReviewers(tx, request, auth.userId, asked);
     },
-  );
+  ));
 }
 
 /** The requester or an admin takes someone off an Open Request. */
@@ -156,7 +164,7 @@ export async function answerReview(context: RequestChangeContext, input: unknown
   if (!parsed.success) return { error: "Invalid review answer." };
   if (parsed.data.kind === "concern" && !parsed.data.reason)
     return { error: "Say what concerns you." };
-  return changeReviewers(
+  const answered = changeReviewers(
     context,
     parsed.data,
     "reviewed",
@@ -197,6 +205,8 @@ export async function answerReview(context: RequestChangeContext, input: unknown
       ]);
     },
   );
+  // A Concern needs the Requester; Looks good is For your information and stays inside Lane.
+  return parsed.data.kind === "concern" ? delivering(context, answered) : answered;
 }
 
 export async function readReviews(
