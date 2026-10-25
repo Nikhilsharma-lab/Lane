@@ -50,7 +50,7 @@ export const metricDefinitionHistory = pgTable("metric_definition_history", {
   /** Null only for a creation. */
   before: jsonb("before").$type<Record<string, unknown>>(),
   after: jsonb("after").$type<Record<string, unknown>>().notNull(),
-  /** Null only for a starter metric's creation. */
+  /** Null only for a creation Lane made: a starter metric, or a metric moved in from saved Requests (0038). */
   authorId: text("author_id").references(() => profiles.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -58,4 +58,28 @@ export const metricDefinitionHistory = pgTable("metric_definition_history", {
   foreignKey({ columns: [t.orgId, t.definitionId], foreignColumns: [metricDefinitions.orgId, metricDefinitions.id] }).onDelete("cascade"),
   index("metric_definition_history_definition_idx").on(t.orgId, t.definitionId, t.revision),
   index("metric_definition_history_author_idx").on(t.authorId),
+]);
+
+/**
+ * What each metric saved on an older Request stands for (migration 0038): a built-in key, or a typed name, with its
+ * unit, mapped to a definition. Saved Requests are never rewritten; the library resolves them through this mapping.
+ * `typedName` and `unit` are stored as public.metric_alias_name() / metric_alias_unit() compare them. Rows are never edited.
+ */
+export const metricDefinitionAliases = pgTable("metric_definition_aliases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  definitionId: uuid("definition_id").notNull(),
+  builtinKey: text("builtin_key").$type<StarterMetricKey>(),
+  typedName: text("typed_name"),
+  unit: text("unit").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  foreignKey({ columns: [t.orgId, t.definitionId], foreignColumns: [metricDefinitions.orgId, metricDefinitions.id] }).onDelete("cascade"),
+  uniqueIndex("metric_definition_aliases_builtin_unique").on(t.orgId, t.builtinKey, t.unit).where(sql`${t.builtinKey} is not null`),
+  uniqueIndex("metric_definition_aliases_typed_unique").on(t.orgId, t.typedName, t.unit).where(sql`${t.typedName} is not null`),
+  index("metric_definition_aliases_definition_idx").on(t.orgId, t.definitionId),
+  check("metric_definition_aliases_source_check", sql`(${t.builtinKey} is null) <> (${t.typedName} is null)`),
+  check("metric_definition_aliases_builtin_check", sql`${t.builtinKey} is null or ${t.builtinKey} in ('conversion', 'adoption', 'error', 'support', 'csat', 'duration', 'events')`),
+  check("metric_definition_aliases_typed_check", sql`${t.typedName} is null or (${t.typedName} <> '' and ${t.typedName} = public.metric_alias_name(${t.typedName}))`),
+  check("metric_definition_aliases_unit_check", sql`${t.unit} <> '' and ${t.unit} = public.metric_alias_unit(${t.unit})`),
 ]);

@@ -2,8 +2,9 @@ import "server-only";
 
 import { and, asc, eq, isNull, max, ne, sql } from "drizzle-orm";
 
-import { db, metricDefinitionHistory, metricDefinitions, profiles, type MetricDefinitionHistoryKind } from "@/db";
+import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, type MetricDefinitionHistoryKind } from "@/db";
 import { STARTER_METRIC_KEYS, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
+import { savedMetricsOf, type SavedMetric } from "@/lib/saved-metrics";
 
 /**
  * The Metrics library (#195 item 1, #196). The only module that reads or writes Metric definitions and
@@ -33,7 +34,7 @@ export type MetricDefinitionHistoryEntry = {
   kind: MetricDefinitionHistoryKind;
   before: Record<string, unknown> | null;
   after: Record<string, unknown>;
-  /** Null only for a starter metric's creation. */
+  /** Null only for a creation Lane made: a starter metric, or a metric moved in from saved Requests (0038). */
   authorId: string | null;
   /** The author's profile name; null for a starter metric's creation (or a profile without a name). */
   authorName: string | null;
@@ -102,19 +103,68 @@ async function fillStarterMetrics(orgId: string, missing: StarterMetricKey[]) {
  * `includeArchived` asks for every definition. Fills the starter metrics the first time it is read.
  */
 export async function listMetricDefinitions(workspace: MetricsWorkspace, options: { includeArchived?: boolean } = {}): Promise<MetricDefinition[]> {
-  let rows = await allDefinitions(workspace.orgId);
-  const present = new Set(rows.map((row) => row.starterKey).filter(Boolean));
-  const missing = STARTER_METRIC_KEYS.filter((key) => !present.has(key));
-  if (missing.length) {
-    await fillStarterMetrics(workspace.orgId, missing);
-    rows = await allDefinitions(workspace.orgId);
-  }
+  const rows = await workspaceDefinitions(workspace.orgId);
   return rows
     .filter((row) => options.includeArchived || (!row.archivedAt && !row.mergedIntoId))
-    .map((row): MetricDefinition => ({
-      id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archivedAt: row.archivedAt,
-      mergedIntoId: row.mergedIntoId, createdBy: row.createdBy, createdAt: row.createdAt, updatedAt: row.updatedAt,
-    }));
+    .map(definitionOf);
+}
+
+/** Every definition of the workspace, merged and archived ones included, after filling any missing starter metrics. */
+async function workspaceDefinitions(orgId: string) {
+  const rows = await allDefinitions(orgId);
+  const present = new Set(rows.map((row) => row.starterKey).filter(Boolean));
+  const missing = STARTER_METRIC_KEYS.filter((key) => !present.has(key));
+  if (!missing.length) return rows;
+  await fillStarterMetrics(orgId, missing);
+  return allDefinitions(orgId);
+}
+
+function definitionOf(row: Awaited<ReturnType<typeof allDefinitions>>[number]): MetricDefinition {
+  return {
+    id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archivedAt: row.archivedAt,
+    mergedIntoId: row.mergedIntoId, createdBy: row.createdBy, createdAt: row.createdAt, updatedAt: row.updatedAt,
+  };
+}
+
+export type ResolvedSavedMetric = SavedMetric & {
+  /** The definition the saved metric counts under now (after any merge), or null if the library has none for it. */
+  definition: MetricDefinition | null;
+};
+
+/**
+ * Resolves the metrics saved on Requests to the workspace's current definitions, without rewriting anything (#200).
+ * `impacts` are saved Expected impacts of any version: a Request's current one, its measurement draft, an older
+ * Expected impact revision, or a closed result's `expected`. Returns, in the same order, each one's metrics
+ * (`savedMetricsOf`) with their definition. A built-in or typed metric resolves through the mapping migration 0038
+ * recorded; a built-in metric in its starter unit always resolves to the starter metric. A merged definition
+ * resolves to the one it was merged into; an archived one still resolves. A typed metric the migration never saw
+ * (only in a browser draft) resolves to null.
+ */
+export async function resolveSavedMetrics(workspace: MetricsWorkspace, impacts: readonly unknown[]): Promise<ResolvedSavedMetric[][]> {
+  const found = impacts.map(savedMetricsOf);
+  const refs = found.flat().map((metric) => metric.ref);
+  if (!refs.length) return found.map(() => []);
+  const lookups = refs.map((ref, index) => ({ i: index, builtin_key: ref.kind === "builtin" ? ref.key : null, typed_name: ref.kind === "typed" ? ref.name : null, unit: ref.unit }));
+  const [rows, aliases] = await Promise.all([
+    workspaceDefinitions(workspace.orgId),
+    db.execute<{ i: number; definition_id: string }>(sql`
+      select r.i, a.definition_id from jsonb_to_recordset(${JSON.stringify(lookups)}::jsonb) as r(i int, builtin_key text, typed_name text, unit text)
+      join ${metricDefinitionAliases} a on a.org_id = ${workspace.orgId} and a.unit = public.metric_alias_unit(r.unit)
+       and (a.builtin_key = r.builtin_key or a.typed_name = public.metric_alias_name(r.typed_name))`),
+  ]);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const mapped = new Map(aliases.map((alias) => [Number(alias.i), alias.definition_id]));
+  const current = (id: string | undefined) => {
+    let row = id ? byId.get(id) : undefined;
+    for (let hops = 0; row?.mergedIntoId && hops < byId.size; hops++) row = byId.get(row.mergedIntoId);
+    return row ? definitionOf(row) : null;
+  };
+  let index = 0;
+  return found.map((metrics) => metrics.map((metric) => {
+    const ref = metric.ref;
+    const starter = ref.kind === "builtin" && ref.unit === STARTER_METRICS[ref.key].unit ? rows.find((row) => row.starterKey === ref.key)?.id : undefined;
+    return { ...metric, definition: current(mapped.get(index++) ?? starter) };
+  }));
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -124,11 +174,7 @@ export async function readMetricDefinition(workspace: MetricsWorkspace, definiti
   if (!UUID.test(definitionId)) return null;
   const [row] = await db.select(definitionColumns).from(metricDefinitions)
     .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, definitionId)));
-  if (!row) return null;
-  return {
-    id: row.id, name: row.name, unit: row.unit, link: row.link, howCounted: row.howCounted, archivedAt: row.archivedAt,
-    mergedIntoId: row.mergedIntoId, createdBy: row.createdBy, createdAt: row.createdAt, updatedAt: row.updatedAt,
-  };
+  return row ? definitionOf(row) : null;
 }
 
 /** A definition's history, oldest first, with each author's profile name. Empty for an id that isn't one of this workspace's definitions. */
