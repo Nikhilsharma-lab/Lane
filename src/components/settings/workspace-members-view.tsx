@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge } from "@/components/arc/badge/badge";
@@ -10,9 +11,14 @@ import { Select } from "@/components/arc/select/select";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { callAction } from "@/lib/action-call";
 import type { WorkspacePermission } from "@/lib/auth-guard";
-import { ROLE_DESCRIPTIONS, type PendingInvitation, type WorkspaceMember } from "@/lib/member-role-rules";
+import {
+  addsPaidSeat, ROLE_DESCRIPTIONS, type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
+} from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
+
+/** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
+const PaidSeatDialog = dynamic(() => import("./paid-seat-dialog").then(module => module.PaidSeatDialog));
 
 type Answer = { success?: true; error?: string };
 type Card = "invite" | "people" | "invitations";
@@ -27,8 +33,10 @@ export type WorkspaceMembersViewProps = {
   /** The roles an Admin can give now: Admin and Member, plus Guest and Viewer once Clerk Enhanced B2B is approved. */
   roles: WorkspacePermission[];
   state: "loading" | "ready" | "error";
-  onInvite: (email: string, role: WorkspacePermission) => Promise<Answer>;
-  onChangeRole: (userId: string, role: WorkspacePermission) => Promise<Answer>;
+  /** #215: while billing is enforced, adding a paid seat (Admin or Member) is confirmed first. */
+  confirmPaidSeats?: boolean;
+  onInvite: (email: string, role: WorkspacePermission, confirmedPaidSeat?: boolean) => Promise<Answer>;
+  onChangeRole: (userId: string, role: WorkspacePermission, confirmedPaidSeat?: boolean) => Promise<Answer>;
   onRevoke: (invitationId: string) => Promise<Answer>;
   onRetry: () => void;
 };
@@ -52,12 +60,25 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
  * the people and their roles. An Admin also invites people as a role, changes anyone else's role and revokes
  * pending invitations. Clerk holds every membership and invitation. Each change is confirmed in its own card, in a
  * polite status line, or an alert when it fails.
+ *
+ * #215: while billing is enforced (`confirmPaidSeats`), inviting a Member or Admin, or making a Guest or Viewer one,
+ * first asks the Admin to confirm "This adds a paid seat". Cancelling changes nothing; focus goes back to the
+ * control that asked.
  */
-export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, onInvite, onChangeRole, onRevoke, onRetry }: WorkspaceMembersViewProps) {
+export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, onInvite, onChangeRole, onRevoke, onRetry }: WorkspaceMembersViewProps) {
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<WorkspacePermission>("member");
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<{ card: Card; status: string; error: string | null } | null>(null);
+  const [seat, setSeat] = useState<{ change: PaidSeatChange; add: () => void; returnTo: string } | null>(null);
+  const [seatOpen, setSeatOpen] = useState(false);
+
+  /** Runs `add` now, or once the Admin confirms the paid seat it adds. `returnTo` is the control focus goes back to. */
+  function withSeat(from: WorkspacePermission | null, change: PaidSeatChange, returnTo: string, add: (confirmed: boolean) => void) {
+    if (!confirmPaidSeats || !addsPaidSeat(from, change.role)) { add(false); return; }
+    setSeat({ change, add: () => add(true), returnTo });
+    setSeatOpen(true);
+  }
 
   async function run(card: Card, key: string, change: () => Promise<Answer>, success: string) {
     setBusy(key);
@@ -72,7 +93,16 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     event.preventDefault();
     const address = email.trim();
     if (!address) { setResult({ card: "invite", status: "", error: "Enter an email address." }); return; }
-    if (await run("invite", "invite", () => onInvite(address, inviteRole), `Invitation sent to ${address} as ${withArticle(inviteRole)}.`)) setEmail("");
+    const role = inviteRole;
+    withSeat(null, { kind: "invite", email: address, role }, "invite", confirmed => {
+      void run("invite", "invite", () => onInvite(address, role, confirmed || undefined), `Invitation sent to ${address} as ${withArticle(role)}.`).then(sent => { if (sent) setEmail(""); });
+    });
+  }
+
+  function changeRole(person: WorkspaceMember, next: WorkspacePermission) {
+    withSeat(person.role, { kind: "role", name: person.name, role: next }, person.userId, confirmed => {
+      void run("people", person.userId, () => onChangeRole(person.userId, next, confirmed || undefined), `${person.name} is now ${withArticle(next)}.`);
+    });
   }
 
   const feedback = (card: Card) => <>
@@ -85,7 +115,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     {canManage && <form className={styles.card} onSubmit={event => { void invite(event); }} noValidate aria-labelledby="invite-heading">
       <div className={styles.cardBody}>
         <h3 id="invite-heading">Invite someone</h3>
-        <p>Clerk emails them an invitation to this workspace. Admins and Members are paid seats. Guests and Viewers are free.</p>
+        <p>Clerk emails them an invitation to this workspace. Admins and Members are paid seats. Guests and Viewers are free.{confirmPaidSeats && " You’ll confirm each paid seat before it’s added."}</p>
         <Input label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} disabled={busy === "invite"} />
         <RadioGroup label="Role" name="invite-role" value={inviteRole} onValueChange={value => setInviteRole(value as WorkspacePermission)} options={roleOptions} />
         {roles.length < 4 && <p className={styles.note}>Guest and Viewer aren’t available in this workspace yet.</p>}
@@ -93,7 +123,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       </div>
       <div className={styles.cardFooter}>
         <span>PM, Designer and Developer are profile labels. They don’t change what anyone can do.</span>
-        <Button type="submit" loading={busy === "invite"}>Send invitation</Button>
+        <Button type="submit" loading={busy === "invite"} data-seat-return="invite">Send invitation</Button>
       </div>
     </form>}
 
@@ -113,8 +143,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
               <div><strong>{person.name}{self && " (you)"}</strong><p>{person.email}</p></div>
               {canManage && !self && person.role
                 ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
-                    onValueChange={next => { if (next !== person.role) void run("people", person.userId, () => onChangeRole(person.userId, next as WorkspacePermission), `${person.name} is now ${withArticle(next as WorkspacePermission)}.`); }}
-                    trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}>{roleName(person.role)}</Button>} />
+                    onValueChange={next => { if (next !== person.role) changeRole(person, next as WorkspacePermission); }}
+                    trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
                 : <Badge>{roleName(person.role)}</Badge>}
             </li>;
           })}
@@ -139,5 +169,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
         {feedback("invitations")}
       </div>
     </section>}
+
+    {seat && <PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo={seat.returnTo}
+      onConfirm={() => { setSeatOpen(false); seat.add(); }} />}
   </>;
 }

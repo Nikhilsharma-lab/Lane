@@ -261,7 +261,7 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   also turns on paying (#214): checkout is offered only while it is on. Trigger, all of: about 10 target teams have
   been asked what they'd pay (and the $30/$36 prices confirmed or changed in `src/lib/billing-plan-rules.ts`); Lane
   is on Supabase Pro and Vercel Pro (`AGENTS.md`: no payment on Hobby); Nikhil approves Stripe as an external
-  service; migrations 0046 and 0047 are on the target database; and the five Stripe names in `.env.example` are set
+  service; migrations 0046, 0047 and 0048 are on the target database; and the five Stripe names in `.env.example` are set
   (the webhook endpoint, the two per-seat prices matching Lane's, and the 40%-for-24-months founding coupon).
   Without the Stripe names, switching it on would leave a workspace with no way to pay (the server warns by name).
 
