@@ -1,0 +1,12 @@
+/* A Metric definition's history (#197). All visual values come from the theme file (src/styles/theme.css). */
+.history { display: grid; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.entry { display: grid; gap: var(--space-1); min-width: 0; padding-block: var(--space-3); font-size: var(--text-sm); line-height: var(--leading-body); }
+.entry:first-child { padding-top: 0; }
+.entry:last-child { padding-bottom: 0; }
+.entry + .entry { border-top: var(--border-width) solid var(--border-subtle); }
+.heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-4); margin: 0; font-weight: var(--weight-medium); }
+.heading > span { min-width: 0; overflow-wrap: anywhere; }
+.time { color: var(--text-secondary); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.changes { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
+.changes li { min-width: 0; overflow-wrap: anywhere; }
+.value { color: var(--foreground); }

@@ -22,6 +22,7 @@ import ImpactLoading from "./impact/loading"
 import ProfileLoading from "./settings/profile/loading"
 import MembersLoading from "./settings/members/loading"
 import MetricsLoading from "./settings/metrics/loading"
+import MetricDefinitionLoading from "./settings/metrics/[id]/loading"
 import AppError from "./error"
 import RootError from "../error"
 import NotFound from "../not-found"
@@ -54,6 +55,7 @@ const settingsSkeletons: [string, string, ComponentType, string][] = [
   ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading Profile settings"],
   ["settings/members/loading.tsx", "/settings/members", MembersLoading, "Loading Members"],
   ["settings/metrics/loading.tsx", "/settings/metrics", MetricsLoading, "Loading Metrics"],
+  ["settings/metrics/[id]/loading.tsx", "/settings/metrics/x", MetricDefinitionLoading, "Loading metric"],
 ]
 
 describe("(app) loading frames", () => {

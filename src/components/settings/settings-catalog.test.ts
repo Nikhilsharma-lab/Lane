@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settingsEntries, settingsHref, settingsNavigation, searchSettings, showsSettingsInPlace } from "./settings-catalog";
+import { settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
 describe("Settings search availability", () => {
   it("does not reveal member or administrative destinations to a guest", () => {
     for (const query of ["invite", "billing", "api", "workspace security"]) expect(searchSettings(settingsEntries("guest"), query)).toEqual([]);
@@ -36,5 +36,14 @@ describe("Settings → Metrics (#196)", () => {
     expect(showsSettingsInPlace("/settings/profile?section=members", "/settings/metrics")).toBe(true);
     expect(showsSettingsInPlace("/settings/profile?section=members", "/settings/members")).toBe(true);
     expect(showsSettingsInPlace("/settings/profile?section=members", "/")).toBe(false);
+  });
+  it("goes back to the list from one definition's page (#197)", () => {
+    expect(showsSettingsInPlace("/settings/metrics", "/settings/metrics/3f0c2a4e-1111-4222-8333-944445555666")).toBe(false);
+  });
+  it("names the section a page shows, one definition's page included (#197)", () => {
+    expect(settingsSectionAt("/settings/metrics")).toBe("metrics");
+    expect(settingsSectionAt("/settings/metrics/3f0c2a4e-1111-4222-8333-944445555666")).toBe("metrics");
+    expect(settingsSectionAt("/settings/metricsx")).toBeNull();
+    expect(settingsSectionAt("/settings/profile")).toBeNull();
   });
 });
