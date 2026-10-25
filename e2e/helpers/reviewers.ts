@@ -7,6 +7,7 @@ import {
 import postgres from "postgres";
 import { createTestUser, signInTestUser } from "./test-user";
 import { provisionAndSignIn } from "./auth";
+import { finishFirstRuns } from "./cleanup";
 import { assertOwnedOrganization, assertOwnedUser } from "./fixtures";
 import { assertE2ETarget } from "./safety";
 import {
@@ -50,6 +51,8 @@ export async function createReviewTeam(browser: Browser, ownerPage: Page) {
       });
       await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Review ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})`;
     }
+    // #217: these journeys aren't about the first run; the teammates have already seen theirs.
+    await finishFirstRuns(sql, orgId, users.slice(1).map((user) => user.id), "joined");
   } finally {
     await sql.end();
   }
