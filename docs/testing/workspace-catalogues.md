@@ -16,9 +16,14 @@ Each provider keys its state-owning child by workspace. A switch exposes the new
 
 Actual-app browser checks cover Project and Label pre-dispatch create failures, explicit UI retry, confirmed creation, shared catalogue visibility, scope, keyboard operation and desktop/mobile in both themes. The current admin/member picker does not expose catalogue reload failure: visible duplicate Projects resolve successfully, inaccessible conflicts require another permission context, and Labels are layout seeded. Reload/error/Retry ordering is therefore established through the actual adapter tests, not a fabricated browser response, private-state injection or new UI. See the session handoff for run results and target boundaries.
 
-## Proposed bundle waiver for #167 at #173
+## Historical bundle proposal at #173, withdrawn at #174
 
-**PROPOSED, pending Nikhil's approval by merging the PR.** This is a reviewable
+**WITHDRAWN at #174.** Its final production build passes the original cumulative
+2,048-byte budget, maximum +2,018 bytes. The original baseline has been restored;
+no #167 waiver is pending or claimed approved. The measurements below preserve
+the historical #173 proposal and failure evidence.
+
+At #173 this was a reviewable
 baseline refresh, not an approved release waiver. The launch plan §2.2 permits a
 PR baseline update with a written waiver; the leftover build plan L2 records
 approval by merging. The generated baseline retains the 2,048-byte tolerance.

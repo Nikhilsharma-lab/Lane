@@ -1,5 +1,31 @@
 # Shared Claude / Codex handoff
 
+## #174 implemented — review and actual-app acceptance pending
+
+Source `b8b79757e9ae2b1e877056e45fb4744f848da8ce` in `/private/tmp/lane-spec-174`
+uses the actual Arc toast ID/action state and one consumed operation for toast and
+palette Undo. Not yet retains the same operation/lifetime without displacing a
+newer palette operation; terminal failure or saved Release cannot rearm it. A Done
+skipped after an earlier failed write now ends Undo and replaces premature success
+feedback. Arc timing, gestures, pause behavior and bulk Undo remain unchanged.
+
+Bootstrap 52, guarded local application 1,925 passed/one skipped, final UI 657 and
+focused 43, full typecheck/lint/design and final production build passed. The app
+suite predates only the final client skipped-Done correction; full UI covers it.
+Actual-app browser acceptance and independent reviews are pending. No deployment
+or hosted service mutation was performed by the implementer.
+
+**#173's proposed bundle waiver is withdrawn.** Removing old DOM/count/timer
+choreography naturally brings the cumulative #167 build within the original
+2,048-byte budget: Impact/Intake +2,018, Settings +2,016, Requests +1,986, detail +1,930.
+The original baseline is restored unchanged; same-build check passes with 30 bytes
+maximum headroom. Historical #173 failures/proposal remain recorded, not pending
+approval. Continue comparing #175/#176 cumulatively against this original baseline.
+Evidence: `/private/tmp/lane-spec-174-evidence.md` and
+`/private/tmp/lane-spec-174-original-bundle-bytes.json`. Six of nine increments are
+integrated; #174 is not complete until its browser/review/merge boundary passes.
+
+
 ## #173 reviewed and integrated — six of nine complete; #174 next
 
 Ticket [#173](https://github.com/Nikhilsharma-lab/Lane/issues/173) is merged at
@@ -11,13 +37,13 @@ current acknowledgement, preserve usable data on error, and isolate workspace
 lifetimes. Project ordering, Label scope/permissions and action recovery remain.
 
 Verification: bootstrap 52, guarded local application 1,914 passed/one skipped,
-final UI 646, typecheck, lint, design and production build passed. The original
-cumulative bundle budget still fails: Requests +2,051 bytes (3 above 2,048), and
+final UI 646, typecheck, lint, design and production build passed. At the #173 checkpoint the original
+cumulative bundle budget failed: Requests +2,051 bytes (3 above 2,048), and
 Impact/Intake/Settings +2,120 (72 above). The generated baseline and written waiver
-are a **proposal**, with unchanged 2,048-byte tolerance and original measurements
+were a **proposal** (now withdrawn by #174 above), with unchanged 2,048-byte tolerance and original measurements
 retained through #176. Passing against that proposed baseline does not establish
-original-budget compliance. Nikhil's approval remains at main merge; this isolated
-integration merge is not waiver approval or release authorization.
+original-budget compliance. The isolated
+integration merge was not waiver approval or release authorization.
 
 Actual local-app run4 passed all six tests with zero retries: exact-team setup,
 normal Project/workspace Label/Project Label creation, real pre-dispatch failure
@@ -40,7 +66,9 @@ This is local-app Chromium proof against pinned staging services, not deployed
 staging or production acceptance. The separate Claude runtime was untouched.
 Tickets #168–#173 are integrated; continue with #174, then #175–#176. PR remains draft.
 
-## #173 implemented — review and actual-app acceptance pending
+## #173 implemented — historical pre-review checkpoint
+
+Superseded by the reviewed #173 and #174 budget receipts above.
 
 The Project and Label providers now share a small in-process catalogue owner.
 Only the latest read in the active subscription lifetime publishes data, permission
