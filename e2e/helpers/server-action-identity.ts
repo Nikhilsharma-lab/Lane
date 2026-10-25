@@ -29,7 +29,7 @@ export async function compiledUndoAction(kind: "pick-up" | "done" | "undo" | "re
     const [filename, exportedName] = exports[kind];
     const matches = Object.entries(manifest.node ?? {}).filter(([, item]) => item.filename === filename && item.exportedName === exportedName);
     expect(matches, `Unique compiled ${exportedName} identity in this running checkout`).toHaveLength(1);
-    const id = matches[0][0]; expect(id).toMatch(/^[a-f0-9]{42}$/); // Next16 adds a metadata byte to the 40-character digest.
+    const id = matches[0][0]; expect(id).toMatch(/^[a-f0-9]+$/); // Exact manifest identity, without assuming a version-specific digest length.
     return { id, filename, exportedName, manifestSha256: createHash("sha256").update(source).digest("hex") };
   };
   return resolveExport(kind);
