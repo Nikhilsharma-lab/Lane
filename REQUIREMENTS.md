@@ -907,8 +907,27 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   and the Stripe names are set (`.env.example`). Until then Billing shows the prices and says Lane isn't charging yet,
   or that paying by card isn't available yet. Before switching on: ask about 10 target teams what they'd pay, move to
   Supabase Pro and Vercel Pro, and approve Stripe as an external service (`DEFERRED.md`).
-- Seat changes after paying (#215) and the plan's details, changing period or card, cancelling and lapsed plans
-  (#216) come next.
+- Seat changes after paying (#215) come next.
+
+### Billing settings and lapsed plans (#195 item 5, #216, 2026-10-25, on the integration branch)
+
+- Settings → Billing (Admins only; nobody else has the section) shows the plan, the paid seats (Admins and Members
+  on the live roster, at least 3), the next bill, the Free Requests left and the latest 12 invoices, each opening on
+  the payment provider's own page. Seats, next bill and invoices load after the page, so the provider never holds it up;
+  if the provider can't be read, Billing says so and still shows the seats.
+- An Admin changes the billing period, updates the card or cancels on the provider's hosted pages (Stripe's customer
+  portal) and comes back to Billing. These are offered whenever there is a payment provider, even while billing
+  enforcement is off, so a workspace that pays can always change or stop paying. A cancelled plan keeps paying until
+  the end of its period; Billing shows the day it ends and offers to keep it.
+- The provider tells Lane when the plan changes (signed subscription events at `POST /api/billing/webhook`). Unpaid or
+  paused: the plan lapses and the Admin pays what's due by updating the card (no second checkout, which would bill
+  twice). Cancelled for good: the plan lapses and paying again is a new checkout. A change older than the last one
+  recorded, or for a plan the workspace no longer pays with, changes nothing. A payment still being retried keeps the
+  plan paying.
+- **A lapsed plan never holds the record hostage:** everything filed keeps working (picking up, comments, Done,
+  releasing, closing) and Result due reminders still go out; nothing is deleted. Only creating new Requests waits for
+  payment: new Requests, follow-ups and taking on a Guest submission (a Guest can still file). As with Free Requests,
+  this is enforced only while `LANE_BILLING_ENFORCED` is `1`.
 
 ### Profile and theme
 

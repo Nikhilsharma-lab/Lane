@@ -56,6 +56,13 @@ reaches Stripe until Nikhil approves it: without all five Stripe names there is 
 only while `LANE_BILLING_ENFORCED` is also on. Migration 0047 adds the provider ids, billing period and the founding
 discount's place to `workspace_billing`; the route is `POST /api/billing/webhook` (`checkout.session.completed` only).
 
+As built in #216: the same webhook also reads Stripe's `customer.subscription.*` events (paying, lapsed, ended, a
+cancellation's end day); migration 0048 adds `plan_ends_at` and `subscription_changed_at`. Changing the period, the
+card or cancelling opens Stripe's customer portal (Billing Portal sessions, deep-linked per flow); invoices and the
+next bill are read from Stripe (`GET /v1/invoices`, `POST /v1/invoices/create_preview`) after the Settings page,
+in a Suspense boundary, with no new route. The portal is offered whenever the Stripe names are set, even with
+enforcement off; nothing reaches Stripe until then.
+
 ### The Slack app (for approval)
 
 **Status: proposed, waiting for Nikhil's approval. Nothing is created in Slack and the switch stays off until then.**
