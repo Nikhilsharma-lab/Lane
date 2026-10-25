@@ -18,7 +18,7 @@ function viewerOf(auth: MemberAuth): ImpactViewer {
   return { userId: auth.userId, orgId: auth.orgId, role: auth.role }
 }
 
-/** The impact dashboard for the signed-in viewer. Screens render this and compute nothing themselves. */
+/** The Impact page for the signed-in viewer: My work and the Outcome report (#208). Screens render this and compute nothing themselves. */
 export async function loadImpactDashboard(auth: MemberAuth, options: ImpactOptions = {}): Promise<ImpactDashboard> {
   const rows = await loadImpactRows(auth)
   return buildImpactDashboard(viewerOf(auth), rows, options)
@@ -31,6 +31,8 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
       orgId: requests.orgId,
       requestNumber: requests.requestNumber,
       title: requests.title,
+      description: requests.description,
+      reframedProblem: requests.reframedProblem,
       createdBy: requests.createdBy,
       assignedTo: requests.assignedTo,
       projectId: requests.projectId,
@@ -51,7 +53,12 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
   // #201: totals and names follow the Metric definitions each Request's metrics resolve to now, through the Metrics
   // library. A closed result is judged against its frozen expectation; anything else against its Expected impact.
   const resolved = await resolveSavedMetrics({ orgId: auth.orgId }, rows.map(row => row.outcomeClosure?.expected ?? row.expectedImpact))
-  return rows.map((row, index) => ({ ...row, projectName: row.projectName ?? null, definitions: definitionsOf(resolved[index]) }))
+  return rows.map(({ description, reframedProblem, ...row }, index) => ({
+    ...row,
+    problem: reframedProblem ?? description,
+    projectName: row.projectName ?? null,
+    definitions: definitionsOf(resolved[index]),
+  }))
 }
 
 function definitionsOf(metrics: ResolvedSavedMetric[]): ImpactDefinition[] {

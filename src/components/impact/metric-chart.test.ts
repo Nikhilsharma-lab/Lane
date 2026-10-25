@@ -3,8 +3,7 @@ import { join } from "node:path"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
-import type { OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
-import { WholeOrgTab } from "./whole-org-tab"
+import type { ResultLine, ResultView } from "@/lib/impact-read-model"
 import { MetricChart } from "./metric-chart"
 import { metricChart } from "@/lib/impact-chart-view"
 
@@ -66,21 +65,6 @@ describe("metric chart: reduced motion (#158)", () => {
 
   it("removes the bar animation under prefers-reduced-motion", () => {
     expect(reduced).toMatch(/\.bar\s*\{[^}]*animation:\s*none/)
-  })
-})
-
-describe("metric chart: whole org wiring (#158)", () => {
-  it("renders one chart per metric line on the Whole org tab, not one combined chart", () => {
-    const view = {
-      period: null, emptyMessage: null, operational: [], closedWithoutResult: [], timeline: [], unreleased: [], projectStacks: [],
-      lines: [
-        line("Conversion rate", [result({ requestNumber: 1 })]),
-        line("Signups", [result({ requestNumber: 2, metric: "Signups", unit: "count", changeUnit: "count", baseline: 10, actual: 20, predictedTarget: 25 })]),
-      ],
-    } as OrgView
-    const markup = renderToStaticMarkup(createElement(WholeOrgTab, { view, period: null, year: 2026 }))
-    // Count only the charts: the period selector also draws an SVG icon.
-    expect(markup.match(/<svg viewBox="0 0 100 100"/g)).toHaveLength(2)
   })
 })
 

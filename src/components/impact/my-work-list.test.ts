@@ -40,7 +40,7 @@ function measured(actual: number): OutcomeClosure {
 
 function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" | "createdBy">): ImpactRow {
   return {
-    orgId: ORG, title: `Request ${over.requestNumber}`, assignedTo: null, projectId: null, projectName: null, status: "open",
+    orgId: ORG, title: `Request ${over.requestNumber}`, problem: `Problem ${over.requestNumber}`, assignedTo: null, projectId: null, projectName: null, status: "open",
     releaseState: null, outcomeClosure: null, exceptionClosure: null, closureCorrections: [], expectedImpact: plan(),
     noMeasurableImpactReason: null, followUpOf: null, definitions: [], ...over,
   }

@@ -716,6 +716,16 @@ Reporting requirements for the bounded design:
   never add up. Totals and the Impact page show each definition's current name, and workspace search finds Requests by
   their definition names. Pass/fail checks and any metric the library can't place keep a line per saved name and unit,
   never shared with a definition's. This closes the name-text risk recorded in #151. Integration branch only.
+  **Outcome report, approved 2026-10-25 (#195, #208):** the Impact page has two tabs, My work (unchanged) and Outcome
+  report; By project and Whole org are merged into the report. The report covers one month, quarter or year (the
+  current quarter until another is picked), lists only work Released in it by UTC release date, and shows an "up to
+  date as of" date, At a glance counts (shipped, measured, still due, closed without a result), totals for quarters
+  and years only (never months), a section per current Project then "No Project" with each Request's problem,
+  prediction, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
+  Closed without a result by reason. Totals use values as recorded at closing; Corrections are shown, not summed.
+  Released operational work is listed with its reason. Work never Released (including work closed without a result
+  before release) is in no period. Everyone except Guests sees it; nobody is named, grouped or ranked. Integration
+  branch only.
 - Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
   valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
 

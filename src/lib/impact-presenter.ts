@@ -80,15 +80,3 @@ export function entryKindOf(entry: Pick<RequestEntry, "result" | "stillDue" | "c
   if (entry.predicted) return { kind: "predicted", predicted: entry.predicted };
   return { kind: "none" };
 }
-
-/** The one-line note an entry carries in a list. */
-export function noteOf(entry: RequestEntry): string | null {
-  const kind = entryKindOf(entry);
-  switch (kind.kind) {
-    case "result": return `Actual ${actualText(kind.result)}`;
-    case "still_due": return `Still due ${kind.due.dueLabel}`;
-    case "closed_without_result": return `Closed without a result: ${kind.reason}`;
-    case "operational": return `Operational work: ${kind.reason}`;
-    default: return null;
-  }
-}
