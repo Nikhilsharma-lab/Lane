@@ -712,7 +712,8 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
   const atAGlance = {
     shipped: released.length,
     measured: released.filter(({ row }) => row.outcomeClosure).length,
-    stillDue: released.filter(({ row }) => journeyStatus(row).status === "measuring").length,
+    // Operational work is never measured, so it is never still due, even once Released.
+    stillDue: projects.flatMap(section => section.requests).filter(entry => entry.outcome.kind === "still_due").length,
     closedWithoutResult: released.filter(({ row }) => row.exceptionClosure).length,
   };
   const results = released.flatMap(({ row }) => row.outcomeClosure ? [measuredResult(row, row.outcomeClosure)] : []);

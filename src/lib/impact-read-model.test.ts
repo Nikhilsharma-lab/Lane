@@ -751,6 +751,11 @@ describe("Outcome report (#208): up to date and at a glance", () => {
     expect(report.asOf).toBe("2026-10-23");
     expect(report.atAGlance).toEqual({ shipped: 4, measured: 2, stillDue: 1, closedWithoutResult: 1 });
   });
+
+  it("counts Released operational work as shipped but never as still due, since it is never measured", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: null, noMeasurableImpactReason: "Design token rename" })];
+    expect(buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 })!.atAGlance).toEqual({ shipped: 1, measured: 0, stillDue: 0, closedWithoutResult: 0 });
+  });
 });
 
 describe("Outcome report (#208): totals", () => {
