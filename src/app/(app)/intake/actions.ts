@@ -18,7 +18,7 @@ import {
 } from "@/lib/ai/triage";
 import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
-import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { requireCanContribute, signedInAsViewer, VIEWER_REFUSAL, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { requestSchema, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
@@ -98,7 +98,9 @@ const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
   provider: { code: "provider", message: REVIEW_UNAVAILABLE },
 };
 
-function sessionFailure(): IntakeFailure {
+/** Why the guard said no: a Viewer can't file (#210); anyone else's session has ended. */
+async function sessionFailure(): Promise<IntakeFailure> {
+  if (await signedInAsViewer()) return { code: "validation", message: VIEWER_REFUSAL };
   return {
     code: "session_expired",
     message: "Your session ended. Sign in again to continue this Request.",
@@ -135,8 +137,8 @@ export async function runTriage(
   context: { orgId: string },
   existingRequestId?: string
 ): Promise<TriageResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await requireCanContribute(context.orgId);
+  if (!auth) return { success: false, error: await sessionFailure() };
 
   // The Request's saved prediction when editing: the definitions it already names may stay (#198).
   let storedImpact: unknown = null;
@@ -266,8 +268,8 @@ export async function saveRequest(
   context: { orgId: string },
   reviewerInput?: unknown
 ): Promise<SaveResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await requireCanContribute(context.orgId);
+  if (!auth) return { success: false, error: await sessionFailure() };
 
   const verification = verifyTriageToken(data.token, {
     orgId: auth.orgId,

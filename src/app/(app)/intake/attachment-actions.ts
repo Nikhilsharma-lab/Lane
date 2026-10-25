@@ -6,7 +6,7 @@ import { and, count, eq, gt, isNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, requestAttachments, requests } from "@/db";
-import { requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { requireCanContribute, signedInAsViewer, VIEWER_REFUSAL, type MemberAuth } from "@/lib/auth-guard";
 import {
   MAX_ATTACHMENT_FILES,
   MAX_ATTACHMENTS_TOTAL_BYTES,
@@ -54,7 +54,9 @@ export type DiscardAttachmentResponse =
   | { success: true; alreadyUploaded?: boolean }
   | { success: false; error: AttachmentActionFailure };
 
-function sessionFailure(): AttachmentActionFailure {
+/** Why the guard said no: a Viewer adds no files (#210); anyone else's session has ended. */
+async function sessionFailure(): Promise<AttachmentActionFailure> {
+  if (await signedInAsViewer()) return { code: "request_unavailable", message: VIEWER_REFUSAL };
   return {
     code: "session_expired",
     message: "Your session ended. Sign in again to finish adding this file.",
@@ -149,8 +151,8 @@ export async function prepareAttachmentUpload(
   },
   context: { orgId: string }
 ): Promise<PrepareAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await requireCanContribute(context.orgId);
+  if (!auth) return { success: false, error: await sessionFailure() };
 
   const parsed = prepareUploadSchema.safeParse(input);
   if (!parsed.success) {
@@ -305,8 +307,8 @@ export async function finalizeAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<FinalizeAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await requireCanContribute(context.orgId);
+  if (!auth) return { success: false, error: await sessionFailure() };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {
@@ -382,8 +384,8 @@ export async function discardAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<DiscardAttachmentResponse> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { success: false, error: sessionFailure() };
+  const auth = await requireCanContribute(context.orgId);
+  if (!auth) return { success: false, error: await sessionFailure() };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refusal, requireMemberOrAbove, requireOwnerOrAdmin } from "@/lib/auth-guard";
+import { refusal, requireCanChange, requireOwnerOrAdmin } from "@/lib/auth-guard";
 import { metricDefinitionFieldErrors, metricDefinitionInputSchema, type MetricDefinitionField } from "@/lib/metric-definition-rules";
 import {
   addMetricDefinition as addToLibrary, archiveMetricDefinition as archiveInLibrary, editMetricDefinition as editInLibrary,
@@ -31,7 +31,7 @@ const refused = (result: MetricsLibraryRefusal) => result.field ? { error: resul
 export async function addMetricDefinition(data: DefinitionData, context: { orgId: string }): Promise<MetricActionResult<{ id: string }>> {
   const parsed = metricDefinitionInputSchema.safeParse(data);
   if (!parsed.success) return { error: CHECK_FIELDS, fields: metricDefinitionFieldErrors(parsed.error) };
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal(LIBRARY_REFUSAL) };
 
   const result = await addToLibrary({ orgId: auth.orgId }, auth.userId, parsed.data);
@@ -43,7 +43,7 @@ export async function addMetricDefinition(data: DefinitionData, context: { orgId
 export async function editMetricDefinition(data: DefinitionData & { id: string }, context: { orgId: string }): Promise<MetricActionResult> {
   const parsed = metricDefinitionInputSchema.safeParse(data);
   if (!parsed.success) return { error: CHECK_FIELDS, fields: metricDefinitionFieldErrors(parsed.error) };
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal(LIBRARY_REFUSAL) };
 
   const id = String(data.id);
@@ -59,7 +59,7 @@ const ADMIN_ONLY = "Only Admins can archive or restore metrics.";
 async function adminFor(orgId: string, adminOnly = ADMIN_ONLY) {
   const admin = await requireOwnerOrAdmin(orgId);
   if (admin) return { admin };
-  return { error: (await requireMemberOrAbove(orgId)) ? adminOnly : await refusal(LIBRARY_REFUSAL) };
+  return { error: (await requireCanChange(orgId)) ? adminOnly : await refusal(LIBRARY_REFUSAL) };
 }
 
 export async function archiveMetricDefinition(data: { id: string }, context: { orgId: string }): Promise<MetricActionResult> {

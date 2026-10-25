@@ -22,6 +22,24 @@ describe("paletteEntries", () => {
     expect(paletteEntries(base).find(entry => entry.id === "inbox")).toMatchObject({ label: "Inbox", group: "Go to", action: { kind: "go", href: "/inbox" } })
   })
 
+  // #210: a Viewer reads everything and changes nothing, so the palette offers no filing and no Members.
+  it("gives a Viewer every place to read, no New Request, and no Members or Inbox delivery", () => {
+    expect(ids({ ...base, role: "viewer" })).toEqual([
+      "search",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
+      "project:p1", "project:p2", "project:none",
+      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:metrics", "settings:coming-soon",
+      "inbox",
+      "shortcuts",
+    ])
+    expect(paletteEntries({ ...base, role: "viewer" }).find(entry => entry.id === "view:all")?.label).toBe("All Requests")
+  })
+
+  it("gives a Viewer no move, no Undo and no priority, even on a Request they filed", () => {
+    const request: PaletteRequest = { id: "r1", code: "LAN-1", status: "open", priority: "none", canEdit: true }
+    expect(ids({ ...base, role: "viewer", request, undo: { requestId: "r1" } }).filter(id => !/^(view|project|settings):|^(search|inbox|shortcuts)$/.test(id))).toEqual(["copy-link", "copy-code"])
+  })
+
   it("gives a guest My Requests and only the Settings sections a guest can open", () => {
     const entries = paletteEntries({ ...base, role: "guest" })
     expect(entries.find(entry => entry.id === "view:all")?.label).toBe("My Requests")

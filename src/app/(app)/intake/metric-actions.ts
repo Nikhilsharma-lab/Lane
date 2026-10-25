@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refusal, requireActiveMember, requireMemberOrAbove } from "@/lib/auth-guard";
+import { refusal, requireActiveMember, requireCanChange } from "@/lib/auth-guard";
 import { inlineMetricInputSchema, metricDefinitionFieldErrors, type MetricChoice } from "@/lib/metric-definition-rules";
 import { addOrOfferMetricDefinition, predictionMetricChoices } from "@/lib/metrics-library";
+import { canChangeThings, readsWholeWorkspace } from "@/lib/role-rules";
 
 export type PredictionMetricsResult =
   | {
@@ -23,8 +24,11 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { error: await refusal("You can't use the Metrics library in this workspace.") };
   try {
-    const member = auth.role !== "guest";
-    return { ...await predictionMetricChoices({ orgId: auth.orgId }, input?.impact ?? null), canOpenLibrary: member, canAddMetrics: member };
+    return {
+      ...await predictionMetricChoices({ orgId: auth.orgId }, input?.impact ?? null),
+      canOpenLibrary: readsWholeWorkspace(auth.role),
+      canAddMetrics: canChangeThings(auth.role),
+    };
   } catch (error) {
     console.error("[intake] Metrics library read failed:", error);
     return { error: "The Metrics library could not be loaded. Try again." };
@@ -44,7 +48,7 @@ export type InlineMetricResult =
 export async function addPredictionMetric(data: { name: string; unit: string }, context: { orgId: string }): Promise<InlineMetricResult> {
   const parsed = inlineMetricInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Check the highlighted fields.", fields: metricDefinitionFieldErrors(parsed.error) };
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal("Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.") };
   try {
     const result = await addOrOfferMetricDefinition({ orgId: auth.orgId }, auth.userId, parsed.data);

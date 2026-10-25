@@ -4,6 +4,13 @@ describe("Settings search availability", () => {
   it("does not reveal member or administrative destinations to a guest", () => {
     for (const query of ["invite", "billing", "api", "workspace security"]) expect(searchSettings(settingsEntries("guest"), query)).toEqual([]);
   });
+  it("gives a Viewer the Metrics library and workspace details, but no Members or Inbox delivery (#210)", () => {
+    const nav = settingsNavigation("viewer").map(entry => entry.id);
+    expect(nav).toEqual(expect.arrayContaining(["profile", "workspace", "metrics"]));
+    expect(nav).not.toContain("members");
+    expect(nav).not.toContain("inbox-delivery");
+    expect(searchSettings(settingsEntries("viewer"), "invite")).toEqual([]);
+  });
   it("resolves synonyms to the working theme control", () => {
     expect(searchSettings(settingsEntries("member"), "dark mode")[0].def.target).toBe("theme");
   });

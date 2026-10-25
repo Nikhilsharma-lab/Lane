@@ -14,6 +14,7 @@ import {
   type WorkspacePerson,
 } from "./workspace-roster";
 import { insist, type RequestTx } from "./request-change-store";
+import { canChangeThings } from "./role-rules";
 
 export type ReviewNotification = {
   userId: string;
@@ -222,7 +223,7 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
           ...view,
           role: role ? PROFILE_ROLE_LABELS[role] : null,
           invitation: null,
-          canAnswer: open && auth.role !== "guest" && userId === auth.userId,
+          canAnswer: open && canChangeThings(auth.role) && userId === auth.userId,
         };
       }
       const state = standing.invitation(r) ?? "unavailable";
@@ -230,7 +231,7 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
       try {
         canAnswer =
           open &&
-          auth.role !== "guest" &&
+          canChangeThings(auth.role) &&
           state === "accepted" &&
           (await resolveInvitedMember(auth.orgId, r.nominee, auth.userId));
       } catch {
