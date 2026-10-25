@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { MetricChoice } from "@/lib/metric-definition-rules";
-import { MetricOptionList, metricPickerOptions } from "./measurement-metric-picker";
+import { activeMetricNamed, InlineMetricForm, inlineAddName, MetricOptionList, metricPickerOptions } from "./measurement-metric-picker";
 
 // #198: the prediction form's metric picker offers the Metrics library.
 const choice = (over: Partial<MetricChoice>): MetricChoice => ({ id: "id", name: "Name", unit: "count", link: null, howCounted: null, archived: false, ...over });
@@ -56,5 +56,66 @@ describe("the options", () => {
     expect(html).toMatch(/role="group" aria-label="Metrics library"/);
     expect(html).toMatch(/role="group" aria-label="Pass\/fail check"[\s\S]*role="option"[\s\S]*Pass\/fail check/);
     expect(render()).not.toContain("Pass/fail check");
+  });
+
+  it("offers to add what's typed as its own choice after the library (#199)", () => {
+    const html = render({ addName: "Checkout completions" });
+    expect(html).toMatch(/role="group" aria-label="Metrics library"[\s\S]*role="group" aria-label="Add to the Metrics library"[\s\S]*role="option"[^>]*>[\s\S]*Add “Checkout completions”/);
+    expect(render()).not.toContain("Add to the Metrics library");
+  });
+});
+
+// #199: a metric that isn't in the library is added from the picker.
+describe("what inline add offers to add", () => {
+  it("is the typed name, tidied, when no active definition has it", () => {
+    expect(inlineAddName(library, "  Checkout   completions ")).toBe("Checkout completions");
+    expect(inlineAddName(library, "Signup")).toBe("Signup");
+  });
+
+  it("is nothing while nothing is typed, or when an active definition has exactly that name", () => {
+    expect(inlineAddName(library, "   ")).toBeNull();
+    expect(inlineAddName(library, "signups")).toBeNull();
+    expect(inlineAddName(library, " CUSTOMER   satisfaction")).toBeNull();
+  });
+
+  it("is the name when only an archived definition has it", () => {
+    expect(inlineAddName(library, "Old signups")).toBe("Old signups");
+  });
+
+  it("finds the active definition that already has a name, so it is offered instead", () => {
+    expect(activeMetricNamed(library, "signups ")).toBe(SIGNUPS);
+    expect(activeMetricNamed(library, "Old signups")).toBeNull();
+  });
+});
+
+describe("the inline add form", () => {
+  const render = (props: Partial<Parameters<typeof InlineMetricForm>[0]> = {}) => renderToStaticMarkup(createElement(InlineMetricForm, {
+    id: "metric", values: { name: "Checkout completions", unit: "" }, fields: {}, error: null, offer: null, pending: false,
+    onChange: () => {}, onSubmit: () => {}, onBack: () => {}, onUseOffer: () => {}, onRename: () => {}, ...props,
+  }));
+
+  it("asks for a name and a unit only", () => {
+    const html = render();
+    expect(html).toMatch(/<label[^>]*>Name<\/label>|>Name</);
+    expect(html).toContain('value="Checkout completions"');
+    expect(html).toMatch(/<legend>Unit<\/legend>/);
+    expect(text(html)).toContain("Percentage Count Seconds Minutes");
+    expect(html.match(/<input/g)).toHaveLength(5);
+    expect(html).not.toMatch(/<label[^>]*>(Where it lives|How it)|type="url"|<textarea/);
+    expect(text(html)).toMatch(/Add and use[\s\S]*Back/);
+  });
+
+  it("shows each problem beside its field", () => {
+    const html = render({ fields: { name: "Give the metric a name.", unit: "Choose a unit." } });
+    expect(text(html)).toContain("Give the metric a name.");
+    expect(html).toMatch(/role="alert"[^>]*>Choose a unit\./);
+  });
+
+  it("offers the existing definition in place of a duplicate", () => {
+    const html = render({ offer: SIGNUPS, values: { name: "signups", unit: "percent" } });
+    expect(html).toMatch(/role="alert"/);
+    expect(text(html)).toContain("“Signups” is already in the Metrics library, counted as Count. Use that one instead.");
+    expect(text(html)).toMatch(/Use “Signups”[\s\S]*Change the name/);
+    expect(text(html)).not.toContain("Add and use");
   });
 });

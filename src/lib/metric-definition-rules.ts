@@ -41,6 +41,10 @@ export const metricDefinitionInputSchema = z.object({
   howCounted: optionalText(METRIC_HOW_COUNTED_MAX, `Keep how it's counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`),
 });
 export type MetricDefinitionInput = z.output<typeof metricDefinitionInputSchema>;
+
+/** What adding a metric from the prediction form asks for (#199): the name and the unit, nothing else. */
+export const inlineMetricInputSchema = metricDefinitionInputSchema.pick({ name: true, unit: true })
+  .transform(({ name, unit }) => ({ name: name.replace(/\s+/g, " "), unit }));
 export type MetricDefinitionField = keyof MetricDefinitionInput;
 
 /** The first problem with each field, for showing beside it. */

@@ -220,6 +220,10 @@ line) with an append-only history, owned by one module (`src/lib/metrics-library
 (migration 0037), the seven starter metrics filled on a workspace's first read, and Settings → Metrics (`/settings/metrics`,
 Members and Admins; Guests are refused) listing active definitions, showing "Add where this lives" when there is no link.
 Predictions still save names in the Request JSON until the picker work in #195 lands.
+Inline add (#199) supersedes the 2026-10-20 inline "Create metric" with no name or unit form: when the picker finds no
+metric with the typed name, Members and Admins add one from the picker with a name and a unit only. It is added to the
+library with a history entry and selected on the main metric or guardrail. An active definition with that name is offered
+instead. Guests can't add.
 
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where

@@ -61,5 +61,10 @@
 .metricStatus:empty { display: none; }
 .metricError { display: grid; gap: var(--space-2); justify-items: start; }
 .libraryLink { justify-self: start; color: var(--link-ink); font-size: var(--text-sm); border-radius: var(--corner-sm); }
+/* Adding a metric from the picker (#199): name, unit, then the actions; long names wrap. */
+.inlineAdd { display: grid; gap: var(--space-3); padding: var(--space-3); min-width: 0; overflow-wrap: anywhere; }
+.inlineUnit, .inlineOffer { display: grid; gap: var(--space-2); min-width: 0; }
+.inlineActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.inlineActions > * { max-width: 100%; }
 .headerLink { flex: none; color: var(--link-ink); font-size: var(--text-xs); border-radius: var(--corner-sm); }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
