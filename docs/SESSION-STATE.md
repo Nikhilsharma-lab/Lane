@@ -21,7 +21,13 @@ The unchanged cumulative client budget currently fails: Requests is +2,051 bytes
 (3 above 2,048); Impact, Intake and both Settings routes are +2,120 bytes
 (72 above). Request detail is +1,977 bytes and passes. Exact Node 24 measurements
 and all earlier failed checks are in `/private/tmp/lane-spec-173-evidence.md`.
-No baseline increase or budget waiver has been applied.
+A separate generated baseline refresh and written **proposed** waiver now retain
+those original measurements for review, pending Nikhil's approval by merging.
+The check passes against the proposed baseline, whose tolerance remains 2,048.
+It does not pass the original cumulative budget. The original baseline is retained
+for full-PR comparison through #176; this is not an approved release waiver.
+See the exact proposal in `docs/testing/workspace-catalogues.md` and the page-quality
+ledger. Product source remains `fbe0185`; this refresh does not rebuild or alter it.
 
 Browser helper commit `4961451` covers real pre-dispatch creation failure, explicit
 UI retry and three minimum catalogue entries, scope and keyboard checks on four
