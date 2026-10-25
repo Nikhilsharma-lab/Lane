@@ -8,7 +8,8 @@ import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { callAction } from "@/lib/action-call";
 import type { WorkspaceFreeRequests } from "@/lib/billing";
-import { FIRST_REQUEST_STEPS, FIRST_RUN_HELP_LABEL, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
+import { FIRST_REQUEST_STEPS, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
+import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
 import { FirstRunGuideView } from "./first-run-guide-view";
 import type { FirstRunInviteRole } from "./first-run-invite-form";
 import { clearHelpHash, consumeFocusRequest, useFirstRunHelp } from "./first-run-help";
@@ -68,7 +69,7 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
     const failed = await save({ change });
     setBusy(false);
     if (failed) { setError(failed); return; }
-    announce(`${change === "skip" ? "First-run guide skipped" : "First-run guide finished"}. Find it again under ${FIRST_RUN_HELP_LABEL} in your account menu.`);
+    announce(`${change === "skip" ? "First-run guide skipped" : "First-run guide finished"}. Find it again under ${FIRST_RUN_HELP.label} in your account menu.`);
     document.getElementById("lane-main")?.focus({ preventScroll: true });
   };
 

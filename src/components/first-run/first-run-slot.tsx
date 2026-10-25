@@ -25,7 +25,8 @@ export async function firstRunSlot(member: MemberAuth, workspaceName: string, pl
     return null;
   });
   if (!run) return null;
-  if (!run.view) return { node: <FirstRunReopen orgId={member.orgId} />, replacesWelcome: false };
+  // Help reopens the first run on the Requests list (FIRST_RUN_HELP_HREF), so only the list listens for it.
+  if (!run.view) return placement === "list" ? { node: <FirstRunReopen orgId={member.orgId} />, replacesWelcome: false } : null;
   if (placement === "intake" && run.view.guide !== "first_request") return null;
   const invite = member.role === "admin"
     ? { roles: customRoles() ? ["member" as const, "viewer" as const] : ["member" as const], confirmPaidSeats: billingEnforced() }

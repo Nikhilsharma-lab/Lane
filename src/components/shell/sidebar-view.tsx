@@ -13,6 +13,7 @@ import { changesListInPlace, requestListContextFromHref, requestListHref } from 
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
+import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
@@ -177,7 +178,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="" onClickCapture={event => { if (isPlainClick(event) && event.target instanceof Element && event.target.closest("a[href]")) dismissPeek(); }}>
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
-        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "admin" || role === "member" ? "/settings/members" : undefined} canCompose={role !== "viewer"} onSignOut={onSignOut}
+        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "admin" || role === "member" ? "/settings/members" : undefined} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}

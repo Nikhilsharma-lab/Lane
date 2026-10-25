@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
 import { Inbox } from "lucide-react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import buttonStyles from "@/components/arc/button/button.module.css";
 import { NewRequestLink } from "./new-request-link";
 import styles from "./intake-launcher.module.css";
 
-export function IntakeLauncher() {
+/** `guide` (#217) is the first-run guide, which explains the steps the launcher's Create Request opens. */
+export function IntakeLauncher({ guide }: { guide?: ReactNode }) {
   return (
     <div className={styles.launcher}>
       <EmptyState
@@ -20,6 +22,7 @@ export function IntakeLauncher() {
           </NewRequestLink>
         }
       />
+      {guide && <div className={styles.guide}>{guide}</div>}
     </div>
   );
 }

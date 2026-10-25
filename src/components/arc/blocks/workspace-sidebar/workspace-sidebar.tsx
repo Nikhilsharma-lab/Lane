@@ -8,7 +8,7 @@ import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStor
 import { createPortal } from "react-dom";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { AnimatePresence, LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTransform, type TargetAndTransition, type Transition } from "motion/react";
-import { Check, ChevronRight, Folder, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
+import { Check, ChevronRight, CircleHelp, Folder, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
 import { Button } from "../../button/button";
 import { UserMenu, type UserMenuWorkspaces } from "../../user-menu/user-menu";
 import { ProjectContextMenu } from "@/components/shell/project-context-menu";
@@ -38,6 +38,8 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
+  /** Lane #217: a help link in the account menu (the first-run guide). */
+  help?: { label: string; href: string };
   /** Lane #210: false hides the New Request control for someone who can't file (a Viewer). */
   canCompose?: boolean;
   onSignOut?: () => void | Promise<unknown>;
@@ -350,7 +352,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -526,6 +528,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
             items={[
               { label: "Settings", icon: <Settings />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },
               ...(membersHref ? [{ label: "Invite and manage members", icon: <UsersRound />, href: membersHref, current: activeId === membersHref, onSelect: () => select(membersHref, "Invite and manage members") }] : []),
+              ...(help ? [{ label: help.label, icon: <CircleHelp />, href: help.href, onSelect: () => select(help.href, help.label) }] : []),
             ]}
             workspaces={workspaces} signOutLabel="Log out"
             onSignOut={onSignOut ? async () => { await onSignOut(); if (phone) closeDrawer(); } : undefined} />

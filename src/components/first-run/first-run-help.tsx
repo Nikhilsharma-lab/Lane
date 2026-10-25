@@ -4,13 +4,14 @@ import { useEffect, useEffectEvent } from "react";
 import { updateFirstRun } from "@/app/(app)/first-run-actions";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { callAction } from "@/lib/action-call";
+import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
 
 /**
  * #217: help finds the first run again. "First-run guide" in the account menu links to `/#first-run`; the
  * Requests list hears the hash on arrival or when it changes. A guide on screen takes focus; a skipped or finished
  * one is reopened, and the page's revalidated render brings it back, focused.
  */
-export const FIRST_RUN_HASH = "#first-run";
+const FIRST_RUN_HASH = FIRST_RUN_HELP.hash;
 
 let focusRequested = false;
 /** Whether a reopened guide should take focus when it mounts (asked once). */

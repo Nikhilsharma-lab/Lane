@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { IntakeLauncher } from "@/components/requests/intake-launcher";
 import { PageStrip } from "@/components/shell/page-strip";
+import { firstRunSlot } from "@/components/first-run/first-run-slot";
 
 export default async function IntakePage() {
   const result = await getWorkspace();
@@ -11,6 +12,9 @@ export default async function IntakePage() {
   if (result.needsOnboarding) redirect("/onboarding");
   // #210: a Viewer reads everything and files nothing.
   if (result.role === "viewer") redirect("/");
+  // #217: the first Request guide also explains the steps here, beside the launcher, which files the Request.
+  const member = await getMember();
+  const firstRun = member ? await firstRunSlot(member, result.workspaceName, "intake") : null;
 
   // Every page owns one 44px strip (plan item 2.0). The strip is the page's h1 and
   // names it "New Request" (decision 8.10); the composer opens over it as a
@@ -18,7 +22,7 @@ export default async function IntakePage() {
   return (
     <>
       <PageStrip title="New Request" heading />
-      <IntakeLauncher />
+      <IntakeLauncher guide={firstRun?.node} />
     </>
   );
 }

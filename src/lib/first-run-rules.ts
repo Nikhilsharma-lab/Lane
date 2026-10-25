@@ -68,7 +68,3 @@ export const firstRunChangeSchema = z.discriminatedUnion("change", [
   z.object({ change: z.literal("reopen") }).strict(),
 ]);
 export type FirstRunChange = z.infer<typeof firstRunChangeSchema>;
-
-/** Where help reopens the first run: the Requests list, which shows it. */
-export const FIRST_RUN_HELP_HREF = "/#first-run";
-export const FIRST_RUN_HELP_LABEL = "First-run guide";
