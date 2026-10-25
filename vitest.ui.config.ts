@@ -71,6 +71,7 @@ export default defineConfig({
       "src/lib/inbox-read-model.test.ts",
       "src/lib/guest-submission.test.ts",
       "src/lib/free-request-rules.test.ts",
+      "src/lib/billing-plan-rules.test.ts",
       "src/components/inbox/*.test.ts",
       "src/components/shell/inbox-bell.test.ts",
     ],
