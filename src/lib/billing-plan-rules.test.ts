@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { BILLING_PERIODS, foundingDiscountFor, foundingEndsAt, paidSeats, seatPrice } from "./billing-plan-rules";
+import { BILLING_PERIODS, foundingDiscountFor, foundingEndsAt, money, paidSeats, seatPrice } from "./billing-plan-rules";
+
+describe("amounts on bills and invoices (#216)", () => {
+  it("reads the provider's cents as money", () => {
+    expect(money(5400, "usd")).toBe("$54.00");
+    expect(money(32400, "USD")).toBe("$324.00");
+    expect(money(1080, "eur")).toBe("€10.80");
+  });
+});
 
 /** #214 (spec #195, item 5): one plan, yearly first, and the founding discount's 40% for two years. */
 describe("the Lane plan's prices", () => {

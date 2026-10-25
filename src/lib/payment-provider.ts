@@ -6,7 +6,7 @@
  * recording stand-in, which sends nothing anywhere.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { FOUNDING_DISCOUNT, type BillingPeriod } from "./billing-plan-rules";
+import { FOUNDING_DISCOUNT, PLAN_FLOWS, type BillingPeriod, type PortalFlow } from "./billing-plan-rules";
 import { stripeBilling, type StripeBilling } from "./feature-switches";
 
 export type CheckoutRequest = {
@@ -60,9 +60,7 @@ export type PaymentEvent =
 export type EventReading = { ok: true; event: PaymentEvent | null } | { ok: false };
 
 /** #216: the provider's hosted billing pages an Admin can open from Settings → Billing. */
-export type PortalFlow = "change_period" | "update_card" | "cancel";
-/** The flows that act on the plan itself, so need the workspace's subscription. */
-export const PLAN_FLOWS: readonly PortalFlow[] = ["change_period", "cancel"];
+export { PLAN_FLOWS, PORTAL_FLOWS, type PortalFlow } from "./billing-plan-rules";
 
 export type PortalRequest = { customerId: string; subscriptionId: string | null; flow: PortalFlow; returnUrl: string };
 export type PortalOpened = { ok: true; url: string } | { ok: false; reason: string };
@@ -255,14 +253,17 @@ export function stripePaymentProvider(config: Extract<StripeBilling, { on: true 
     async openPortal(request) {
       if (!request.subscriptionId && PLAN_FLOWS.includes(request.flow)) return { ok: false, reason: "no_subscription" };
       const form = new URLSearchParams({ customer: request.customerId, return_url: request.returnUrl });
-      if (request.flow === "update_card") form.set("flow_data[type]", "payment_method_update");
-      else {
-        const type = request.flow === "cancel" ? "subscription_cancel" : "subscription_update";
-        form.set("flow_data[type]", type);
-        form.set(`flow_data[${type}][subscription]`, request.subscriptionId!);
+      // Keeping a cancelled plan has no deep link: the portal's own page offers "Renew" for it.
+      if (request.flow !== "renew") {
+        if (request.flow === "update_card") form.set("flow_data[type]", "payment_method_update");
+        else {
+          const type = request.flow === "cancel" ? "subscription_cancel" : "subscription_update";
+          form.set("flow_data[type]", type);
+          form.set(`flow_data[${type}][subscription]`, request.subscriptionId!);
+        }
+        form.set("flow_data[after_completion][type]", "redirect");
+        form.set("flow_data[after_completion][redirect][return_url]", request.returnUrl);
       }
-      form.set("flow_data[after_completion][type]", "redirect");
-      form.set("flow_data[after_completion][redirect][return_url]", request.returnUrl);
       const made = await post("/billing_portal/sessions", form);
       if (!made.ok) return { ok: false, reason: made.status ? `stripe_${made.status}` : "stripe_unreachable" };
       const { url } = made.answer as { url?: string };

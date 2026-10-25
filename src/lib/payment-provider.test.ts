@@ -161,6 +161,12 @@ describe("Stripe's hosted billing pages (#216)", () => {
     expect(Object.fromEntries(calls[1].form)).toMatchObject({ "flow_data[type]": "subscription_cancel", "flow_data[subscription_cancel][subscription]": "sub_1" });
   });
 
+  it("opens the portal's own page to keep a cancelled plan (Stripe offers renewing there)", async () => {
+    const { calls, provider } = stripe([portal]);
+    await provider.openPortal({ customerId: "cus_1", subscriptionId: "sub_1", flow: "renew", returnUrl: RETURN });
+    expect(Object.fromEntries(calls[0].form)).toEqual({ customer: "cus_1", return_url: RETURN });
+  });
+
   it("can't change or cancel a plan there is none of, and gives a reason when Stripe refuses", async () => {
     const { calls, provider } = stripe([{ status: 500, body: {} }]);
     expect(await provider.openPortal({ customerId: "cus_1", subscriptionId: null, flow: "cancel", returnUrl: RETURN })).toEqual({ ok: false, reason: "no_subscription" });

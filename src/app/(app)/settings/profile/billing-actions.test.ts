@@ -110,12 +110,12 @@ describe("the provider's hosted billing pages (#216)", () => {
       on conflict (org_id) do update set plan_state = excluded.plan_state, provider_customer_id = excluded.provider_customer_id, provider_subscription_id = excluded.provider_subscription_id`;
   afterEach(() => set({ plan: "free", customer: null, subscription: null }));
 
-  it("opens the page to change the billing period, update the card or cancel, for an Admin of a paying workspace", async () => {
+  it("opens the page to change the billing period, update the card, cancel or keep a cancelled plan, for an Admin of a paying workspace", async () => {
     await set({ plan: "paying", customer: "cus_pages", subscription: "sub_pages" });
     const { openBillingPage } = await actions();
-    for (const flow of ["change_period", "update_card", "cancel"] as const)
+    for (const flow of ["change_period", "update_card", "cancel", "renew"] as const)
       expect(await openBillingPage({ flow }, { orgId: ORG })).toEqual({ ok: true, url: expect.stringMatching(`^https://payments.stand-in.test/portal/${flow}/`) });
-    expect(payments.provider!.portals).toEqual(["change_period", "update_card", "cancel"].map((flow) => ({ customerId: "cus_pages", subscriptionId: "sub_pages", flow, returnUrl: RETURN })));
+    expect(payments.provider!.portals).toEqual(["change_period", "update_card", "cancel", "renew"].map((flow) => ({ customerId: "cus_pages", subscriptionId: "sub_pages", flow, returnUrl: RETURN })));
   });
 
   it("opens them even while Lane isn't charging, so an Admin who pays stays in control", async () => {
@@ -131,6 +131,7 @@ describe("the provider's hosted billing pages (#216)", () => {
     expect(await openBillingPage({ flow: "update_card" }, { orgId: ORG })).toMatchObject({ ok: true });
     expect(await openBillingPage({ flow: "change_period" }, { orgId: ORG })).toEqual({ error: "This workspace has no plan to change. Pay for Lane to start one." });
     expect(await openBillingPage({ flow: "cancel" }, { orgId: ORG })).toEqual({ error: "This workspace has no plan to change. Pay for Lane to start one." });
+    expect(await openBillingPage({ flow: "renew" }, { orgId: ORG })).toEqual({ error: "This workspace has no plan to change. Pay for Lane to start one." });
   });
 
   it("has nothing to open for a workspace that never paid, or while paying isn't set up", async () => {

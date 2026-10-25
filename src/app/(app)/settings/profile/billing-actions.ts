@@ -7,7 +7,7 @@ import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
 import { openBillingPage as openProviderPage, startCheckout } from "@/lib/billing";
 import { BILLING_PAGES_UNAVAILABLE, NOT_CHARGING, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
 import { appOrigin, billingEnforced } from "@/lib/feature-switches";
-import { paymentProvider, type PortalFlow } from "@/lib/payment-provider";
+import { PORTAL_FLOWS, paymentProvider, type PortalFlow } from "@/lib/payment-provider";
 import { workspaceRoster } from "@/lib/workspace-roster";
 
 /**
@@ -39,11 +39,11 @@ export async function startPlanCheckout(data: { period: "yearly" | "monthly" }, 
   return started.ok ? { ok: true as const, url: started.url } : { error: started.error };
 }
 
-const pageSchema = z.object({ flow: z.enum(["change_period", "update_card", "cancel"]) });
+const pageSchema = z.object({ flow: z.enum(PORTAL_FLOWS) });
 
 /**
  * #216 Settings → Billing (Admins only): open one of the payment provider's hosted billing pages, to change the
- * billing period, update the card or cancel. Offered whenever there is a payment provider, even while billing isn't
+ * billing period, update the card, cancel, or keep a cancelled plan. Offered whenever there is a payment provider, even while billing isn't
  * enforced, so a workspace that pays can always change or stop paying.
  */
 export async function openBillingPage(data: { flow: PortalFlow }, context: { orgId: string }) {
