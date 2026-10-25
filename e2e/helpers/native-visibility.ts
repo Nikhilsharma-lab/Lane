@@ -47,12 +47,16 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
 
 /** No property overrides, fake events or clock installation: this tab genuinely becomes hidden. */
 export async function pauseInNativeBackground(page: Page, durationMs: number) {
-  await page.evaluate(() => {
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+  const initialState = await page.evaluate(() => {
     const events: { state: string; trusted: boolean; time: number }[] = [];
     const target = window as typeof window & { laneUndoVisibility?: typeof events };
     target.laneUndoVisibility = events;
     document.addEventListener("visibilitychange", event => events.push({ state: document.visibilityState, trusted: event.isTrusted, time: performance.now() }));
+    return document.visibilityState;
   });
+  expect(initialState).toBe("visible");
   const other = await page.context().newPage();
   try {
     await other.goto("about:blank");
@@ -67,6 +71,6 @@ export async function pauseInNativeBackground(page: Page, durationMs: number) {
     await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
     const events = await page.evaluate(() => (window as typeof window & { laneUndoVisibility?: { state: string; trusted: boolean; time: number }[] }).laneUndoVisibility);
     expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ state: "hidden", trusted: true }), expect.objectContaining({ state: "visible", trusted: true })]));
-    return { technique: "native Chromium tabs; connectOverCDP noDefaults", elapsedMs, events };
+    return { technique: "native Chromium tabs; connectOverCDP noDefaults", initialState, elapsedMs, events };
   } finally { await other.close(); await page.bringToFront(); }
 }
