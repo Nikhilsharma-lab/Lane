@@ -7,7 +7,7 @@ import { after } from "next/server";
 import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
 import { FOUNDING_DISCOUNT, foundingDiscountFor, foundingEndsAt, paidSeats, type BillingPeriod } from "./billing-plan-rules";
 import { billingEnforced } from "./feature-switches";
-import { paymentProvider, type CheckoutRequest, type PaymentEvent, type PaymentProvider } from "./payment-provider";
+import { PLAN_FLOWS, paymentProvider, type BillingAccount, type CheckoutRequest, type PaymentEvent, type PaymentProvider, type PortalFlow } from "./payment-provider";
 import { allowanceKeyOf, creationBlock, freeRequestsOf, type FreeRequests, type FreeRequestsState, type PlanState } from "./free-request-rules";
 import type { RequestTx } from "./request-change-store";
 import { workspaceRoster } from "./workspace-roster";
@@ -101,6 +101,12 @@ export type WorkspacePlan = {
   period: BillingPeriod | null;
   /** `offered`: a checkout now gets the founding discount. `endsAt`: when this workspace's founding discount ends. */
   founding: { offered: boolean; endsAt: Date | null };
+  /** #216: the day a cancelled plan stops (it pays until then), or null while it renews. */
+  endsAt: Date | null;
+  /** #216: the provider knows the workspace (its card and invoices can be opened). */
+  customer: boolean;
+  /** #216: the workspace has a plan with the provider (its period can be changed, or it can be cancelled). */
+  subscription: boolean;
 };
 
 /** The one lock every founding place is given under; migration 0047's trigger takes it too. */
@@ -118,12 +124,22 @@ async function foundingPlacesTaken(exec: Exec, orgId: string): Promise<number> {
 /** What Settings → Billing shows about the plan: its state, how it is billed, and the founding discount. */
 export async function readPlan(ws: Workspace, now = new Date()): Promise<WorkspacePlan> {
   const [row] = await db
-    .select({ planState: workspaceBilling.planState, period: workspaceBilling.billingPeriod, foundingStartsAt: workspaceBilling.foundingStartsAt, reservedUntil: workspaceBilling.foundingReservedUntil })
+    .select({
+      planState: workspaceBilling.planState, period: workspaceBilling.billingPeriod, foundingStartsAt: workspaceBilling.foundingStartsAt,
+      endsAt: workspaceBilling.planEndsAt, customerId: workspaceBilling.providerCustomerId, subscriptionId: workspaceBilling.providerSubscriptionId,
+    })
     .from(workspaceBilling)
     .where(eq(workspaceBilling.orgId, ws.orgId));
   const startsAt = row?.foundingStartsAt ?? null;
   const offered = startsAt ? foundingDiscountFor(startsAt, now) !== null : (await foundingPlacesTaken(db, ws.orgId)) < FOUNDING_DISCOUNT.workspaces;
-  return { planState: row?.planState ?? "free", period: row?.period ?? null, founding: { offered, endsAt: startsAt && foundingEndsAt(startsAt) } };
+  return {
+    planState: row?.planState ?? "free",
+    period: row?.period ?? null,
+    founding: { offered, endsAt: startsAt && foundingEndsAt(startsAt) },
+    endsAt: row?.endsAt ?? null,
+    customer: Boolean(row?.customerId),
+    subscription: Boolean(row?.subscriptionId),
+  };
 }
 
 /** How long a checkout page takes payment, and how long its founding place is kept after (the provider's event can come late). */
@@ -132,6 +148,7 @@ const FOUNDING_PLACE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export const ALREADY_PAYING = "This workspace already pays for Lane.";
 export const CHECKOUT_FAILED = "Couldn’t open the checkout page. Try again.";
+export const WAITING_FOR_PAYMENT = "This workspace’s plan is waiting for payment. Update the card to pay what’s due.";
 
 /**
  * Starts paying: a checkout on the payment provider's hosted page for the workspace's paid seats, in the period the
@@ -149,11 +166,13 @@ export async function startCheckout(
   const decided = await db.transaction(async (tx) => {
     await tx.insert(workspaceBilling).values({ orgId: ws.orgId }).onConflictDoNothing();
     const [row] = await tx
-      .select({ planState: workspaceBilling.planState, customerId: workspaceBilling.providerCustomerId, foundingStartsAt: workspaceBilling.foundingStartsAt })
+      .select({ planState: workspaceBilling.planState, customerId: workspaceBilling.providerCustomerId, subscriptionId: workspaceBilling.providerSubscriptionId, foundingStartsAt: workspaceBilling.foundingStartsAt })
       .from(workspaceBilling)
       .where(eq(workspaceBilling.orgId, ws.orgId))
       .for("update");
-    if (row.planState === "paying") return null;
+    if (row.planState === "paying") return ALREADY_PAYING;
+    // #216: a lapsed plan that hasn't ended is paid on the provider's card page; a second plan would bill twice.
+    if (row.subscriptionId) return WAITING_FOR_PAYMENT;
     let discount: CheckoutRequest["foundingDiscount"] = null;
     if (row.foundingStartsAt) discount = foundingDiscountFor(row.foundingStartsAt, now);
     else {
@@ -165,7 +184,7 @@ export async function startCheckout(
     }
     return { discount, customerId: row.customerId, reserved: !row.foundingStartsAt && discount !== null };
   });
-  if (!decided) return { ok: false, error: ALREADY_PAYING };
+  if (typeof decided === "string") return { ok: false, error: decided };
 
   const billing = `${input.origin}/settings/profile?section=billing`;
   const started = await provider.startCheckout({
@@ -184,12 +203,59 @@ export async function startCheckout(
   return { ok: false, error: CHECKOUT_FAILED };
 }
 
+export const NOTHING_PAID_YET = "This workspace hasn’t paid for Lane yet, so there’s no card or plan to change.";
+export const NO_PLAN_TO_CHANGE = "This workspace has no plan to change. Pay for Lane to start one.";
+export const BILLING_PAGE_FAILED = "Couldn’t open the billing page. Try again.";
+
+async function providerIds(ws: Workspace) {
+  const [row] = await db
+    .select({ customerId: workspaceBilling.providerCustomerId, subscriptionId: workspaceBilling.providerSubscriptionId })
+    .from(workspaceBilling)
+    .where(eq(workspaceBilling.orgId, ws.orgId));
+  return { customerId: row?.customerId ?? null, subscriptionId: row?.subscriptionId ?? null };
+}
+
+/**
+ * #216: one of the payment provider's hosted billing pages for the workspace (change the billing period, update the
+ * card, cancel), coming back to Settings → Billing. What changes there reaches Lane as the provider's events. The
+ * card can be updated for any workspace the provider knows; the plan can be changed or cancelled only while there is
+ * one. The caller guards the role.
+ */
+export async function openBillingPage(
+  ws: Workspace,
+  input: { flow: PortalFlow; origin: string },
+  provider: PaymentProvider,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const { customerId, subscriptionId } = await providerIds(ws);
+  if (!customerId) return { ok: false, error: NOTHING_PAID_YET };
+  if (!subscriptionId && PLAN_FLOWS.includes(input.flow)) return { ok: false, error: NO_PLAN_TO_CHANGE };
+  const opened = await provider.openPortal({ customerId, subscriptionId, flow: input.flow, returnUrl: `${input.origin}/settings/profile?section=billing` });
+  if (opened.ok) return { ok: true, url: opened.url };
+  console.error("[billing] billing page not opened:", opened.reason);
+  return { ok: false, error: BILLING_PAGE_FAILED };
+}
+
+/**
+ * #216: what Settings → Billing shows from the payment provider: the next bill of the workspace's plan and its
+ * latest invoices. A workspace the provider doesn't know has neither, and nothing is asked. Null when the provider
+ * can't be read.
+ */
+export async function readBillingAccount(ws: Workspace, provider: PaymentProvider): Promise<BillingAccount | null> {
+  const { customerId, subscriptionId } = await providerIds(ws);
+  if (!customerId) return { nextBill: null, invoices: [] };
+  const reading = await provider.readAccount({ customerId, subscriptionId });
+  if (reading.ok) return reading.account;
+  console.error("[billing] billing account not read:", reading.reason);
+  return null;
+}
+
 /**
  * Records what the payment provider reported. A completed checkout makes the workspace paying, with its customer,
  * subscription and billing period; a checkout with the founding discount starts the workspace's two years (once).
  * The same event again changes nothing. An event for a workspace Lane doesn't know is ignored.
  */
 export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
+  if (event.kind === "subscription_changed") return recordSubscriptionChange(event);
   await db.transaction(async (tx) => {
     const [workspace] = await tx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, event.orgId));
     if (!workspace) {
@@ -212,6 +278,8 @@ export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
         providerSubscriptionId: event.subscriptionId,
         ...(event.seats !== undefined && { billedSeats: event.seats }),
         payingSince: sql`coalesce(${workspaceBilling.payingSince}, now())`,
+        // A new subscription: changes recorded for an earlier one say nothing about it (#216).
+        ...(row.subscriptionId === event.subscriptionId ? {} : { subscriptionChangedAt: null, planEndsAt: null }),
       })
       .where(eq(workspaceBilling.orgId, event.orgId));
     if (event.foundingDiscount && !row.foundingStartsAt) {
@@ -227,6 +295,36 @@ export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
     }
     // The checkout is over: a founding place is now kept by the start above, or not at all.
     await tx.update(workspaceBilling).set({ foundingReservedUntil: null }).where(eq(workspaceBilling.orgId, event.orgId));
+  });
+}
+
+/**
+ * #216: a change to the plan the workspace pays with. Paying keeps (or makes) it paying, with its billing period and
+ * the day a cancelled plan ends; unpaid or paused lapses it, and it can be paid again on the provider's page; ended
+ * lapses it and the subscription is no longer the workspace's, so paying again is a new checkout. A change older
+ * than the last one recorded, or for a subscription the workspace doesn't pay with, changes nothing. Lapsing
+ * deletes nothing: only creating new Requests waits (`newRequestBlock`).
+ */
+async function recordSubscriptionChange(event: Extract<PaymentEvent, { kind: "subscription_changed" }>): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ orgId: workspaceBilling.orgId, changedAt: workspaceBilling.subscriptionChangedAt })
+      .from(workspaceBilling)
+      .where(eq(workspaceBilling.providerSubscriptionId, event.subscriptionId))
+      .for("update");
+    if (!row) return;
+    if (row.changedAt && row.changedAt > event.at) return;
+    const ended = event.state === "ended";
+    await tx
+      .update(workspaceBilling)
+      .set({
+        planState: event.state === "paying" ? "paying" : "lapsed",
+        ...(event.period ? { billingPeriod: event.period } : {}),
+        planEndsAt: event.state === "paying" ? event.endsAt : null,
+        subscriptionChangedAt: event.at,
+        ...(ended ? { providerSubscriptionId: null } : {}),
+      })
+      .where(eq(workspaceBilling.orgId, row.orgId));
   });
 }
 

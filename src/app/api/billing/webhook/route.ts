@@ -2,7 +2,8 @@ import { recordPaymentEvent } from "@/lib/billing";
 import { paymentProvider } from "@/lib/payment-provider";
 
 /**
- * #214 (spec #195 build plan, item 5): the payment provider tells Lane here that a workspace paid. Only an event
+ * #214 (spec #195 build plan, item 5): the payment provider tells Lane here that a workspace paid, and (#216) when
+ * its plan changes: a new billing period, a cancellation, a lapse or its end. Only an event
  * signed with the provider's webhook secret counts, and recording it twice changes nothing, so the provider's
  * retries are safe. With no payment provider set up (no Stripe keys) every call is refused.
  */

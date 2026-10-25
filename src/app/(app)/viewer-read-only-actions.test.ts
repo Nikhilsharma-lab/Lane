@@ -132,6 +132,7 @@ describe("every change is refused for a Viewer", () => {
     ["connect Slack", async () => (await import("./settings/profile/slack-actions")).startSlackConnect({}, ctx)],
     ["disconnect Slack", async () => (await import("./settings/profile/slack-actions")).disconnectSlack({}, ctx)],
     ["pay for Lane", async () => (await import("./settings/profile/billing-actions")).startPlanCheckout({ period: "yearly" }, ctx)],
+    ["open a billing page", async () => (await import("./settings/profile/billing-actions")).openBillingPage({ flow: "cancel" }, ctx)],
     ["invite someone", async () => (await import("./settings/members/actions")).inviteToWorkspace({ email: "new@example.test", role: "member" }, ctx)],
     ["change someone's role", async () => (await import("./settings/members/actions")).changeMemberRole({ userId: MEMBER, role: "viewer" }, ctx)],
     ["revoke an invitation", async () => (await import("./settings/members/actions")).revokeInvitation({ invitationId: "inv_x" }, ctx)],

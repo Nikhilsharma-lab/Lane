@@ -264,6 +264,12 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   service; migrations 0046, 0047 and 0048 are on the target database; and the five Stripe names in `.env.example` are set
   (the webhook endpoint, the two per-seat prices matching Lane's, and the 40%-for-24-months founding coupon).
   Without the Stripe names, switching it on would leave a workspace with no way to pay (the server warns by name).
+  Also in Stripe (#216), migration 0049 on the target database first: send the webhook endpoint
+  `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`,
+  `customer.subscription.paused` and `customer.subscription.resumed`; set up the customer portal so customers can
+  update payment methods, see invoice history, switch between the yearly and monthly prices (same product), and
+  cancel at the end of the billing period; and under subscription retries, cancel the subscription when all retries
+  fail (an unpaid plan stays lapsed until the card is updated otherwise).
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,

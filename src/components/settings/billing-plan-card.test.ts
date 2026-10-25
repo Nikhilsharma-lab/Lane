@@ -73,3 +73,48 @@ describe("the Lane plan card", () => {
     expect(html).toContain("Pay yearly");
   });
 });
+
+describe("changing the plan on the provider's pages (#216)", () => {
+  const paying = { planState: "paying" as const, period: "yearly" as const, pages: { card: true, plan: true } };
+
+  it("lets an Admin of a paying workspace change the billing period, update the card or cancel", () => {
+    const html = render(paying);
+    expect(text(html)).toMatch(/Change billing period .*Update card .*Cancel plan/);
+    expect(text(html)).toContain("Changes and cancelling happen on the payment provider’s secure pages, then you come back here.");
+    expect(text(html)).not.toContain("Keep the plan");
+  });
+
+  it("says when a cancelled plan ends, that nothing is deleted, and offers to keep it", () => {
+    const html = text(render({ ...paying, endsOn: "25 Oct 2027" }));
+    expect(html).toContain("This plan is cancelled and ends on 25 Oct 2027. After that, only creating new Requests waits for payment; nothing is deleted.");
+    expect(html).toMatch(/Keep the plan .*Update card/);
+    expect(html).not.toContain("Cancel plan");
+    expect(html).not.toContain("Change billing period");
+  });
+
+  it("asks a lapsed workspace whose payment didn't go through to update the card, not to pay twice", () => {
+    const html = text(render({ planState: "lapsed", period: "monthly", pages: { card: true, plan: true } }));
+    expect(html).toContain("This workspace’s plan has lapsed because a payment didn’t go through. Update the card to pay what’s due and create new Requests again; everything already filed keeps working.");
+    expect(html).toContain("Update card");
+    expect(html).not.toContain("Pay monthly");
+    expect(html).not.toContain("Cancel plan");
+    // Its own plan and price, not a founding price it isn't paying.
+    const offered = text(render({ planState: "lapsed", period: "monthly", pages: { card: true, plan: true }, founding: { offered: true, endsOn: null } }));
+    expect(offered).toContain("This workspace’s plan is billed monthly.");
+    expect(offered).toMatch(/Price \$36 per seat per month/);
+    expect(offered).not.toContain("The first 50 workspaces to pay");
+  });
+
+  it("lets a workspace whose plan ended pay again, and still update its card", () => {
+    const html = text(render({ planState: "lapsed", period: "yearly", pages: { card: true, plan: false } }));
+    expect(html).toMatch(/Pay yearly.*Update card/);
+    expect(html).not.toContain("Change billing period");
+  });
+
+  it("offers no billing pages before a workspace pays, or while the provider isn't set up", () => {
+    expect(text(render())).not.toContain("Update card");
+    const unavailable = text(render({ ...paying, pages: "unavailable" }));
+    expect(unavailable).not.toContain("Update card");
+    expect(unavailable).toContain("The payment provider’s billing pages aren’t available yet.");
+  });
+});

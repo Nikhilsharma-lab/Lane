@@ -10,6 +10,26 @@ export type BillingPeriod = "yearly" | "monthly";
 /** Why there is nothing to pay: billing isn't enforced yet, or there is no payment provider. */
 export const NOT_CHARGING = "Lane isn’t charging yet, so there’s nothing to pay.";
 export const PAYING_UNAVAILABLE = "Paying by card isn’t available yet.";
+/** #216: without a payment provider there are no hosted billing pages, invoices or next bill to show. */
+export const BILLING_PAGES_UNAVAILABLE = "The payment provider’s billing pages aren’t available yet.";
+
+/**
+ * #216: the payment provider's hosted billing pages: change the billing period, update the card, cancel, or keep a
+ * cancelled plan (renew).
+ */
+export const PORTAL_FLOWS = ["change_period", "update_card", "cancel", "renew"] as const;
+export type PortalFlow = (typeof PORTAL_FLOWS)[number];
+/** The flows that act on the plan itself, so need the workspace's subscription. */
+export const PLAN_FLOWS: readonly PortalFlow[] = ["change_period", "cancel", "renew"];
+
+/** #216: an amount in the provider's smallest unit (cents), as people read it: "$90.00". */
+export function money(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
 
 /** Yearly first. */
 export const BILLING_PERIODS: readonly BillingPeriod[] = ["yearly", "monthly"];

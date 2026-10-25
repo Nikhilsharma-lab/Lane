@@ -4,10 +4,10 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, profiles } from "@/db";
 import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
-import { startCheckout } from "@/lib/billing";
-import { NOT_CHARGING, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
+import { openBillingPage as openProviderPage, startCheckout } from "@/lib/billing";
+import { BILLING_PAGES_UNAVAILABLE, NOT_CHARGING, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
 import { appOrigin, billingEnforced } from "@/lib/feature-switches";
-import { paymentProvider } from "@/lib/payment-provider";
+import { PORTAL_FLOWS, paymentProvider, type PortalFlow } from "@/lib/payment-provider";
 import { workspaceRoster } from "@/lib/workspace-roster";
 
 /**
@@ -37,4 +37,22 @@ export async function startPlanCheckout(data: { period: "yearly" | "monthly" }, 
   const [profile] = await db.select({ email: profiles.email }).from(profiles).where(eq(profiles.id, auth.userId));
   const started = await startCheckout({ orgId: auth.orgId }, { period: parsed.data.period, seats, email: profile?.email ?? null, origin: appOrigin() }, provider);
   return started.ok ? { ok: true as const, url: started.url } : { error: started.error };
+}
+
+const pageSchema = z.object({ flow: z.enum(PORTAL_FLOWS) });
+
+/**
+ * #216 Settings → Billing (Admins only): open one of the payment provider's hosted billing pages, to change the
+ * billing period, update the card, cancel, or keep a cancelled plan. Offered whenever there is a payment provider, even while billing isn't
+ * enforced, so a workspace that pays can always change or stop paying.
+ */
+export async function openBillingPage(data: { flow: PortalFlow }, context: { orgId: string }) {
+  const parsed = pageSchema.safeParse(data);
+  if (!parsed.success) return { error: "Choose what to change." };
+  const auth = await requireOwnerOrAdmin(context.orgId);
+  if (!auth) return { error: await refusal("Only Admins can change billing in this workspace.") };
+  const provider = paymentProvider();
+  if (!provider) return { error: BILLING_PAGES_UNAVAILABLE };
+  const opened = await openProviderPage({ orgId: auth.orgId }, { flow: parsed.data.flow, origin: appOrigin() }, provider);
+  return opened.ok ? { ok: true as const, url: opened.url } : { error: opened.error };
 }
