@@ -224,6 +224,12 @@ Inline add (#199) supersedes the 2026-10-20 inline "Create metric" with no name 
 metric with the typed name, Members and Admins add one from the picker with a name and a unit only. It is added to the
 library with a history entry and selected on the main metric or guardrail. An active definition with that name is offered
 instead. Guests can't add.
+Merging (#202): on a definition's page an Admin merges it with another definition in the same unit and chooses which one
+is kept; different units are refused, and Members and Guests are refused on the server and see no merge controls. The kept
+definition is unchanged; the other is marked "merged into" it, leaves the picker and the main list, and links to the kept
+one. Both histories record the merge. Requests are not rewritten: their metrics resolve through the link, so Impact totals
+combine at once. There is no unmerge, and a merged-away definition can't be merged again. An archived definition can be
+merged away or kept.
 
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where

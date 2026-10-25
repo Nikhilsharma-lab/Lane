@@ -25,6 +25,30 @@ function shown(field: typeof FIELDS[number][0], value: unknown): string | null {
   return field === "unit" && (METRIC_UNITS as readonly string[]).includes(value) ? metricUnitName(value as MetricUnit) : value;
 }
 
+type MergeRecord = { keptName: string; mergedName: string };
+/** The names a merge recorded (#202); older or unexpected entries fall back to the generic wording. */
+function mergeOf(entry: MetricHistoryItem): MergeRecord | null {
+  const merge = entry.after.merge as Partial<MergeRecord> | undefined;
+  return typeof merge?.keptName === "string" && typeof merge.mergedName === "string" ? { keptName: merge.keptName, mergedName: merge.mergedName } : null;
+}
+
+/** The entry's heading: what happened. A merge names the other metric. */
+function headline(entry: MetricHistoryItem): string {
+  const merge = mergeOf(entry);
+  if (merge && entry.kind === "merged_away") return `Merged into ${merge.keptName}`;
+  if (merge && entry.kind === "merged_into") return `${merge.mergedName} merged into this one`;
+  return KIND[entry.kind];
+}
+
+/** What a merge means for Requests, in one line. */
+function mergeNote(entry: MetricHistoryItem): string | null {
+  const merge = mergeOf(entry);
+  if (!merge) return null;
+  if (entry.kind === "merged_away") return `Requests that used it count under ${merge.keptName}.`;
+  if (entry.kind === "merged_into") return `Requests that used ${merge.mergedName} count under this one.`;
+  return null;
+}
+
 /** What a change did to each field, in plain words. A creation lists what it was added with. */
 function changes(entry: MetricHistoryItem): string[][] {
   return FIELDS.flatMap(([field, label]) => {
@@ -44,12 +68,13 @@ export function MetricDefinitionHistory({ entries }: { entries: MetricHistoryIte
   return <ol className={styles.history} aria-label="Changes to this metric">
     {newestFirst.map(entry => <li key={entry.revision} className={styles.entry}>
       <p className={styles.heading}>
-        <span>{KIND[entry.kind]} by {entry.authorName ?? "Lane"}</span>
+        <span>{headline(entry)} by {entry.authorName ?? "Lane"}</span>
         <LocalTime iso={entry.createdAt} className={styles.time} />
       </p>
       {(entry.kind === "created" || entry.kind === "edited") && <ul className={styles.changes}>
         {changes(entry).map(parts => <li key={parts[0]}>{parts.map((part, index) => index % 2 ? <span key={index} className={styles.value}>{part}</span> : part)}</li>)}
       </ul>}
+      {mergeNote(entry) && <p className={styles.note}>{mergeNote(entry)}</p>}
     </li>)}
   </ol>;
 }

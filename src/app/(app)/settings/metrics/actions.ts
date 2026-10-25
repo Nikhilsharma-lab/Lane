@@ -5,12 +5,12 @@ import { refusal, requireMemberOrAbove, requireOwnerOrAdmin } from "@/lib/auth-g
 import { metricDefinitionFieldErrors, metricDefinitionInputSchema, type MetricDefinitionField } from "@/lib/metric-definition-rules";
 import {
   addMetricDefinition as addToLibrary, archiveMetricDefinition as archiveInLibrary, editMetricDefinition as editInLibrary,
-  restoreMetricDefinition as restoreInLibrary, type MetricsLibraryRefusal,
+  mergeMetricDefinitions as mergeInLibrary, restoreMetricDefinition as restoreInLibrary, type MetricsLibraryRefusal,
 } from "@/lib/metrics-library";
 
 /**
  * Settings → Metrics (#197): keeping the workspace's Metrics library accurate. Members and Admins add
- * and edit definitions; only Admins archive and restore them; Guests are refused everything. The
+ * and edit definitions; only Admins archive, restore and merge them (#202); Guests are refused everything. The
  * workspace comes from the page; who is acting, and their role, only from the session.
  */
 
@@ -55,11 +55,11 @@ export async function editMetricDefinition(data: DefinitionData & { id: string }
 
 const ADMIN_ONLY = "Only Admins can archive or restore metrics.";
 
-/** Archive and restore are for Admins: a Member is told so, a Guest gets the library refusal. */
-async function adminFor(orgId: string) {
+/** Archive, restore and merge are for Admins: a Member is told so, a Guest gets the library refusal. */
+async function adminFor(orgId: string, adminOnly = ADMIN_ONLY) {
   const admin = await requireOwnerOrAdmin(orgId);
   if (admin) return { admin };
-  return { error: (await requireMemberOrAbove(orgId)) ? ADMIN_ONLY : await refusal(LIBRARY_REFUSAL) };
+  return { error: (await requireMemberOrAbove(orgId)) ? adminOnly : await refusal(LIBRARY_REFUSAL) };
 }
 
 export async function archiveMetricDefinition(data: { id: string }, context: { orgId: string }): Promise<MetricActionResult> {
@@ -79,5 +79,20 @@ export async function restoreMetricDefinition(data: { id: string }, context: { o
   const result = await restoreInLibrary({ orgId: admin.orgId }, admin.userId, id);
   if ("error" in result) return refused(result);
   if (result.changed) revalidate(id);
+  return { ok: true };
+}
+
+/**
+ * Merges `mergedId` into `keptId` (#202): same unit only, Admins only, and it can't be undone. The kept definition
+ * is unchanged; Requests that used the other one count under it from now on.
+ */
+export async function mergeMetricDefinitions(data: { keptId: string; mergedId: string }, context: { orgId: string }): Promise<MetricActionResult> {
+  const { admin, error } = await adminFor(context.orgId, "Only Admins can merge metrics.");
+  if (!admin) return { error: error! };
+  const keptId = String(data?.keptId), mergedId = String(data?.mergedId);
+  const result = await mergeInLibrary({ orgId: admin.orgId }, admin.userId, { keptId, mergedId });
+  if ("error" in result) return refused(result);
+  revalidate(keptId);
+  revalidatePath(`/settings/metrics/${mergedId}`);
   return { ok: true };
 }

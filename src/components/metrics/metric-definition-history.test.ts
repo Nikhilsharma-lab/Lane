@@ -28,6 +28,14 @@ describe("Metric definition history", () => {
     expect(text(html)).not.toContain("Name");
   });
 
+  it("says which metric a merge kept and which it merged away, on each side (#202)", () => {
+    const merge = { keptId: "k", keptName: "Trials started", mergedId: "m", mergedName: "Trial starts" };
+    const away = text(render([entry(2, "merged_away", snapshot, { ...snapshot, mergedIntoId: "k", merge })]));
+    expect(away).toMatch(/^Merged into Trials started by Pat Lee Oct 22 Requests that used it count under Trials started\.$/);
+    const into = text(render([entry(2, "merged_into", { ...snapshot, name: "Trials started" }, { ...snapshot, name: "Trials started", merge })]));
+    expect(into).toMatch(/^Trial starts merged into this one by Pat Lee Oct 22 Requests that used Trial starts count under this one\.$/);
+  });
+
   it("credits Lane with a starter metric", () => {
     expect(text(render([entry(1, "created", null, snapshot, null)]))).toMatch(/^Added by Lane /);
   });

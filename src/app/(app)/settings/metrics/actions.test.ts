@@ -262,6 +262,123 @@ describe("Archiving and restoring a Metric definition", () => {
   });
 });
 
+describe("Merging Metric definitions", () => {
+  it("lets an Admin merge a duplicate into the one they keep: the kept one is unchanged, the other leaves the active library, and both histories record it", async () => {
+    const kept = await add({ ...trialStarts, name: "Trials started" });
+    const merged = await add();
+    const keptBefore = await named("Trials started");
+    actAs("admin");
+    expect(await (await actions()).mergeMetricDefinitions({ keptId: kept, mergedId: merged }, context())).toEqual({ ok: true });
+
+    expect((await active()).map(definition => definition.id)).toContain(kept);
+    expect((await active()).map(definition => definition.id)).not.toContain(merged);
+    expect(await named("Trials started")).toEqual(keptBefore);
+    expect(await named("Trial starts")).toMatchObject({ mergedIntoId: kept, archivedAt: null });
+    const picker = (await (await library()).predictionMetricChoices({ orgId }, null)).metrics.map(choice => choice.id);
+    expect(picker).toContain(kept);
+    expect(picker).not.toContain(merged);
+
+    const away = await historyOf(merged);
+    expect(away.map(entry => [entry.kind, entry.authorId])).toEqual([["created", MEMBER], ["merged_away", ADMIN]]);
+    expect(away[1]).toMatchObject({ before: { name: "Trial starts", mergedIntoId: null }, after: { name: "Trial starts", mergedIntoId: kept, merge: { keptId: kept, keptName: "Trials started", mergedId: merged, mergedName: "Trial starts" } } });
+    const into = await historyOf(kept);
+    expect(into.map(entry => [entry.kind, entry.authorId])).toEqual([["created", MEMBER], ["merged_into", ADMIN]]);
+    expect(into[1]).toMatchObject({ before: { name: "Trials started", mergedIntoId: null }, after: { name: "Trials started", mergedIntoId: null, merge: { keptId: kept, keptName: "Trials started", mergedId: merged, mergedName: "Trial starts" } } });
+  });
+
+  it("lets the Admin choose which one is kept", async () => {
+    const first = await add({ ...trialStarts, name: "Trials started" });
+    const second = await add();
+    actAs("admin");
+    expect(await (await actions()).mergeMetricDefinitions({ keptId: second, mergedId: first }, context())).toEqual({ ok: true });
+    expect((await active()).map(definition => definition.name)).toContain("Trial starts");
+    expect((await active()).map(definition => definition.name)).not.toContain("Trials started");
+    expect(await named("Trials started")).toMatchObject({ mergedIntoId: second });
+  });
+
+  it("refuses to merge definitions with different units, and saves nothing", async () => {
+    const kept = await add();
+    const other = await add({ name: "Trial start rate", unit: "percent" });
+    actAs("admin");
+    expect(await (await actions()).mergeMetricDefinitions({ keptId: kept, mergedId: other }, context())).toEqual({
+      error: "“Trial start rate” is counted in percentage and “Trial starts” in count. Only metrics with the same unit can be merged.",
+    });
+    expect((await active()).map(definition => definition.id)).toEqual(expect.arrayContaining([kept, other]));
+    expect(await historyOf(kept)).toHaveLength(1);
+    expect(await historyOf(other)).toHaveLength(1);
+  });
+
+  it.each(["member", "guest"] as const)("refuses a merge from a %s, even when asked directly", async (role) => {
+    const kept = await add({ ...trialStarts, name: "Trials started" });
+    const merged = await add();
+    actAs(role);
+    expect(await (await actions()).mergeMetricDefinitions({ keptId: kept, mergedId: merged }, context())).toEqual({
+      error: role === "member" ? "Only Admins can merge metrics." : "You can't change the Metrics library in this workspace.",
+    });
+    expect(await named("Trial starts")).toMatchObject({ mergedIntoId: null });
+    expect(await historyOf(merged)).toHaveLength(1);
+  });
+
+  it("can't be undone: a merged-away definition can't be merged again, kept, or merged into itself", async () => {
+    const kept = await add({ ...trialStarts, name: "Trials started" });
+    const merged = await add();
+    const third = await add({ name: "Trials begun", unit: "count" });
+    actAs("admin");
+    const { mergeMetricDefinitions } = await actions();
+    await mergeMetricDefinitions({ keptId: kept, mergedId: merged }, context());
+    const already = { error: "“Trial starts” was already merged into another metric. Merges can't be undone." };
+    expect(await mergeMetricDefinitions({ keptId: merged, mergedId: kept }, context())).toEqual(already);
+    expect(await mergeMetricDefinitions({ keptId: third, mergedId: merged }, context())).toEqual(already);
+    expect(await mergeMetricDefinitions({ keptId: third, mergedId: third }, context())).toEqual({ error: "Choose two different metrics to merge." });
+    expect(await named("Trial starts")).toMatchObject({ mergedIntoId: kept });
+    expect(await historyOf(merged)).toHaveLength(2);
+    expect(await historyOf(third)).toHaveLength(1);
+  });
+
+  it("follows a later merge: what was merged into a definition counts under wherever that one goes", async () => {
+    const a = await add({ name: "Signups", unit: "count" });
+    const b = await add({ name: "Sign-ups", unit: "count" });
+    const c = await add({ name: "New accounts", unit: "count" });
+    actAs("admin");
+    const { mergeMetricDefinitions } = await actions();
+    expect(await mergeMetricDefinitions({ keptId: b, mergedId: a }, context())).toEqual({ ok: true });
+    expect(await mergeMetricDefinitions({ keptId: c, mergedId: b }, context())).toEqual({ ok: true });
+    const resolved = await (await library()).resolveSavedMetrics({ orgId }, [{
+      kind: "measurement", version: 5, guardrails: [],
+      measurement: { audience: "all", platform: "all", windowDays: 30, exactDates: false, startDate: "", endDate: "" },
+      primary: { key: "definition", definitionId: a, name: "Signups", unit: "count", current: 1, target: 2, noBaseline: false, check: "" },
+    }]);
+    expect(resolved[0][0].definition?.id).toBe(c);
+  });
+
+  it("merges an archived duplicate away", async () => {
+    const kept = await add({ ...trialStarts, name: "Trials started" });
+    const archived = await add();
+    actAs("admin");
+    const { archiveMetricDefinition, mergeMetricDefinitions } = await actions();
+    await archiveMetricDefinition({ id: archived }, context());
+    expect(await mergeMetricDefinitions({ keptId: kept, mergedId: archived }, context())).toEqual({ ok: true });
+    expect((await all()).find(definition => definition.id === archived)).toMatchObject({ mergedIntoId: kept });
+  });
+
+  it("refuses a definition from another workspace, and one that doesn't exist", async () => {
+    const theirs = await add();
+    const mine = orgId;
+    orgId = `${PREFIX}${++workspaces}`;
+    await connection`insert into organizations (id,name,slug) values (${orgId},'Other metrics',${orgId.replaceAll("_", "-")})`;
+    actAs("admin");
+    const ours = await add();
+    const { mergeMetricDefinitions } = await actions();
+    const notHere = { error: "That metric isn't in this workspace." };
+    expect(await mergeMetricDefinitions({ keptId: ours, mergedId: theirs }, context())).toEqual(notHere);
+    expect(await mergeMetricDefinitions({ keptId: theirs, mergedId: ours }, context())).toEqual(notHere);
+    expect(await mergeMetricDefinitions({ keptId: ours, mergedId: "not-an-id" }, context())).toEqual(notHere);
+    expect(await historyOf(ours)).toHaveLength(1);
+    orgId = mine;
+    expect(await named("Trial starts")).toMatchObject({ id: theirs, mergedIntoId: null });
+  });
+});
+
 describe("Metric definition history", () => {
   it("can't be edited or removed, even directly in the database", async () => {
     const id = await add();
@@ -272,6 +389,6 @@ describe("Metric definition history", () => {
   });
 
   it("offers no action that edits or removes history", async () => {
-    expect(Object.keys(await actions()).sort()).toEqual(["addMetricDefinition", "archiveMetricDefinition", "editMetricDefinition", "restoreMetricDefinition"]);
+    expect(Object.keys(await actions()).sort()).toEqual(["addMetricDefinition", "archiveMetricDefinition", "editMetricDefinition", "mergeMetricDefinitions", "restoreMetricDefinition"]);
   });
 });

@@ -1,13 +1,14 @@
 import postgres from "postgres";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { mergeMetricDefinitions } from "@/lib/metrics-library";
 import { loadImpactDashboard } from "./impact";
 
 // #201: the Impact page totals results by the Metric definition each Request's metric resolves to now, through the
 // Metrics library: a renamed definition shows its current name, an archived one still adds up, a merged one adds up
 // with the one it was merged into, and two definitions with the same name never add up.
 // Closed Requests can never be deleted, so each test has its own workspace and the rows stay until the next reset.
-const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b"];
+const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b", "org_impact_definitions_c"];
 const USER = "user_impact_definitions";
 const NOW = new Date("2026-10-23T12:00:00.000Z");
 let ORG = ORGS[0];
@@ -85,5 +86,16 @@ describe("Impact totals by Metric definition", () => {
       { metric: "Signups", unit: "count", titles: ["Signups before archive"], summed: { count: 1, change: 10 } },
       { metric: "Trials started", unit: "count", titles: ["Duplicate", "Kept"], summed: { count: 2, change: 70 } },
     ]);
+  });
+
+  it("combines a duplicate's results with the kept definition's as soon as an Admin merges them (#202)", async () => {
+    ORG = ORGS[2];
+    const kept = await definition("Trials started");
+    const duplicate = await definition("Trial starts");
+    await closed("Kept", v5(kept, "Trials started", "count"), 130);
+    await closed("Duplicate", v5(duplicate, "Trial starts", "count"), 140);
+    expect((await lines()).map(line => line.titles)).toEqual([["Duplicate"], ["Kept"]]);
+    expect(await mergeMetricDefinitions({ orgId: ORG }, USER, { keptId: kept, mergedId: duplicate })).toEqual({ changed: true });
+    expect(await lines()).toEqual([{ metric: "Trials started", unit: "count", titles: ["Duplicate", "Kept"], summed: { count: 2, change: 70 } }]);
   });
 });
