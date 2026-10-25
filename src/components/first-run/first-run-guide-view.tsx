@@ -94,7 +94,7 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
     </div>
   </section>;
 
-  if (view.filed && !showSteps) return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request" data-first-run-filed="">
+  if (view.filed && !showSteps) return <section key="filed" className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request" data-first-run-filed="">
     <div className={styles.body}>
       <h2 id="first-run-heading" tabIndex={-1}>Your first Request is filed</h2>
       {free && <p className={styles.free}>{freeRequestsNote(free.planState, free.free)}</p>}
@@ -112,7 +112,7 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
   const next = FIRST_REQUEST_STEPS[index + 1];
   const position = `Step ${index + 1} of ${FIRST_REQUEST_STEPS.length}`;
   // Read again after the first Request is filed, the steps explain filing any Request, and closing them finishes the guide.
-  return <section className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request">
+  return <section key="steps" className={styles.guide} aria-labelledby="first-run-heading" data-first-run="first_request">
     <div className={styles.body}>
       <h2 id="first-run-heading" tabIndex={-1}>{view.filed ? "How a Request goes" : "File your first Request"}</h2>
       <div className={styles.position}>

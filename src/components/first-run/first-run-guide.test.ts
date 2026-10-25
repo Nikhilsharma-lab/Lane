@@ -97,6 +97,12 @@ describe("the first Request guide (#217)", () => {
     expect(html).not.toContain(">Skip the guide<")
   })
 
+  it("says in place when skipping or finishing didn't save, and keeps the guide", () => {
+    const html = render({ error: "Your first run isn't ready yet. Reload the page and try again." })
+    expect(html).toMatch(/role="alert"[\s\S]*Reload the page and try again\./)
+    expect(html).toContain(">Skip the guide<")
+  })
+
   it("keeps a long workspace name whole", () => {
     const html = render({ view: { guide: "joined" }, workspaceName: "A workspace with a very long name that keeps going well past the width of a phone" })
     expect(html).toContain("A workspace with a very long name")

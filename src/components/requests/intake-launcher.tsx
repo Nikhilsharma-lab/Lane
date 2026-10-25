@@ -17,7 +17,7 @@ export function IntakeLauncher({ guide }: { guide?: ReactNode }) {
         icon={<Inbox data-icon-size="2xl" strokeWidth={1.5} />}
         action={
           // The composer returns focus here when it opened by itself (new-request-provider.tsx).
-          <NewRequestLink data-intake-launcher="" className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>
+          <NewRequestLink data-intake-launcher="" guided={Boolean(guide)} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>
             Create Request
           </NewRequestLink>
         }
