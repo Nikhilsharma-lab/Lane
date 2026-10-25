@@ -94,7 +94,7 @@ describe("Inbox page: Needs you", () => {
   it("marks a Needs-you item whose Request is open beside the list", () => {
     const html = render({ needsYou: [ask()], selectedId: ask().key })
     expect(html.match(/aria-current="true"/g)).toHaveLength(1)
-    expect(html).toContain(`data-inbox-item="${ask().key}" aria-current="true"`)
+    expect(html).toMatch(new RegExp(`data-inbox-item="${ask().key}"[^>]*aria-current="true"`))
   })
 
   it("says when nothing needs the person, and is all caught up only when nothing is unread either", () => {

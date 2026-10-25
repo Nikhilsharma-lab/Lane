@@ -95,7 +95,7 @@ function NeedsYouRow({ item, active, selected, onSelect }: {
   const live = useInBrowser();
   const copy = needsYouRow(item, live ? localLabel(item.since) : undefined);
   const prefetch = useIntentPrefetch(requestDetailHref(item.requestId, "all"));
-  return <li className={styles.row} data-inbox-item={item.key} aria-current={selected || undefined}>
+  return <li className={styles.row} data-inbox-item={item.key} data-needs-you="" aria-current={selected || undefined}>
     <span className={styles.lead} aria-hidden="true" />
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} onFocus={() => prefetch.schedule()} onBlur={() => prefetch.cancel()}>
