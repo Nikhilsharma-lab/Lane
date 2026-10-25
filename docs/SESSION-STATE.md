@@ -1,5 +1,45 @@
 # Shared Claude / Codex handoff
 
+## #173 reviewed and integrated — six of nine complete; #174 next
+
+Ticket [#173](https://github.com/Nikhilsharma-lab/Lane/issues/173) is merged at
+`fe9ccbf` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+The merge tree exactly matches reviewed implementation `fb9b554`. Standards and
+Spec reviews have zero remaining findings in this increment. Both real catalogue
+adapters now reject stale reads and callbacks, retain confirmed additions until
+current acknowledgement, preserve usable data on error, and isolate workspace
+lifetimes. Project ordering, Label scope/permissions and action recovery remain.
+
+Verification: bootstrap 52, guarded local application 1,914 passed/one skipped,
+final UI 646, typecheck, lint, design and production build passed. The original
+cumulative bundle budget still fails: Requests +2,051 bytes (3 above 2,048), and
+Impact/Intake/Settings +2,120 (72 above). The generated baseline and written waiver
+are a **proposal**, with unchanged 2,048-byte tolerance and original measurements
+retained through #176. Passing against that proposed baseline does not establish
+original-budget compliance. Nikhil's approval remains at main merge; this isolated
+integration merge is not waiver approval or release authorization.
+
+Actual local-app run4 passed all six tests with zero retries: exact-team setup,
+normal Project/workspace Label/Project Label creation, real pre-dispatch failure
+and explicit UI retry, and scope/keyboard/draft checks at 1440/390 in both themes.
+Catalogue reload/error/Retry remains actual-production-adapter evidence: the
+retained admin/member UI has no permitted trigger. Standard fresh-user browser
+provisioning remains unrun under Clerk quota. Receipts are
+`/private/tmp/lane-spec-173-evidence.md` and `lane-spec-173-browser-evidence.md`.
+
+Settled mobile inspection found existing Label-picker clipping and weak checked
+mark contrast. Baseline run7 at accepted `9bb6171` reproduces the same 198/274px
+inner geometry and 76px keyboard-focus scroll, plus white/near-white checked
+strokes in light mode. These predate #173; they are tracked in `DEFERRED.md` as a
+pre-launch follow-up. Functional acceptance is not a visual-all-clear claim.
+
+The exact staging fixtures now retain 26 Requests, three Projects and two custom
+Labels; no pending creation remains. No Request saves/AI calls, direct hosted DB
+writes, Clerk account/tenancy changes, schema, dependencies or deployment occurred.
+This is local-app Chromium proof against pinned staging services, not deployed
+staging or production acceptance. The separate Claude runtime was untouched.
+Tickets #168–#173 are integrated; continue with #174, then #175–#176. PR remains draft.
+
 ## #173 implemented — review and actual-app acceptance pending
 
 The Project and Label providers now share a small in-process catalogue owner.

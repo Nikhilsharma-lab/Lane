@@ -47,6 +47,15 @@ not authorize implementing these unrelated deferrals.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 
+- **Mobile Label picker overflow and checked-mark contrast.** Before launch, repair keyboard-focus
+  horizontal scrolling that clips label names at 390px (Available labels inner width 198px,
+  content 274px, `scrollLeft` 76px), and white/near-white checked strokes in light mode.
+  Reproduced on #173 `fb9b554` and accepted baseline `9bb6171`; the picker/CSS/Arc checkbox
+  are unchanged by catalogue reconciliation. Deferred from #173 to keep that increment scoped;
+  verify keyboard, full names and checked-state contrast in both themes after repair.
+  Source: `/private/tmp/lane-spec-173-browser-evidence.md`, settled runs5–7 and
+  `/private/tmp/lane-spec-173-acceptance/run7-baseline/` (2026-10-25). Functional #173 checks
+  pass; this is not visual approval.
 - ~~**Rate limiter is in-memory** (`Map`, leaks, resets on deploy). Swap to Upstash.~~ RESOLVED: swapped to
   Upstash Redis sliding window — 10 req/60s per user, fail-open on Redis error or missing KV env
   (`Ratelimit.slidingWindow(10, "60 s")` + prefix `lane:ratelimit:ai`, `src/lib/rate-limit.ts:22-23`;
