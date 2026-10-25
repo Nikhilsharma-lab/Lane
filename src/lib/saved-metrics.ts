@@ -3,11 +3,13 @@ import { measurementMetricLabel, type MeasurementMetricKey, type MeasurementUnit
 
 /**
  * The metrics a saved Expected impact names (#200), in any version Lane has saved: measurement plans v2–v4
- * (built-in key or typed "custom" name, with a unit) and the older free-text Metric / Verified result kinds.
+ * (built-in key or typed "custom" name, with a unit), v5 (#198: a Metric definition reference with copies of its name
+ * and unit) and the older free-text Metric / Verified result kinds.
  * Client-safe and pure. The Metrics library resolves these to definitions (`resolveSavedMetrics`).
  * Mirrors pg_temp.saved_metrics() in migration 0038, which made the definitions they resolve to.
  */
 export type SavedMetricRef =
+  | { kind: "definition"; id: string; unit: string }
   | { kind: "builtin"; key: StarterMetricKey; unit: string }
   | { kind: "typed"; name: string; unit: string };
 
@@ -29,6 +31,10 @@ function planMetric(metric: unknown, position: number): SavedMetric | null {
   if (!isObject(metric) || !text(metric.unit).trim()) return null;
   const role = position === 0 ? "primary" : "guardrail";
   const unit = text(metric.unit);
+  if (metric.key === "definition") {
+    if (!text(metric.definitionId)) return null;
+    return { role, position, savedName: text(metric.name).trim(), ref: { kind: "definition", id: text(metric.definitionId), unit } };
+  }
   if (isStarterKey(metric.key)) {
     const savedName = measurementMetricLabel({ key: metric.key, name: text(metric.name), unit: unit as MeasurementUnit });
     return { role, position, savedName, ref: { kind: "builtin", key: metric.key, unit } };

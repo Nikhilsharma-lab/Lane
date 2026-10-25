@@ -20,6 +20,9 @@ export function metricUnitName(unit: MetricUnit): string {
 export const STARTER_METRIC_KEYS = ["conversion", "adoption", "error", "support", "csat", "duration", "events"] as const;
 export type StarterMetricKey = typeof STARTER_METRIC_KEYS[number];
 
+/** A Metric definition as the prediction picker offers it (#198). `archived` ones are offered only where a Request already uses them. */
+export type MetricChoice = { id: string; name: string; unit: MetricUnit; link: string | null; howCounted: string | null; archived: boolean };
+
 export const METRIC_NAME_MAX = 120;
 export const METRIC_LINK_MAX = 2048;
 export const METRIC_HOW_COUNTED_MAX = 500;

@@ -1,5 +1,6 @@
 import type { PlanImpactDraft } from "./request-impact"
-import { createEmptyMeasurementPlan, createMeasurementPrimary, createMeasurementGuardrail, MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel, measurementUnitOptions, type MeasurementPlanDraft, type MeasurementPrimaryDraft, type MeasurementGuardrailDraft } from "./request-measurement"
+import type { MetricChoice } from "./metric-definition-rules"
+import { createEmptyMeasurementPlan, createMeasurementPrimary, createMeasurementGuardrail, CURRENT_MEASUREMENT_VERSION, MEASUREMENT_METRIC_OPTIONS, measurementMetricLabel, measurementUnitOptions, pickDefinition, type MeasurementPlanDraft, type MeasurementPrimaryDraft, type MeasurementGuardrailDraft } from "./request-measurement"
 
 export type EditorPrimary = Omit<MeasurementPrimaryDraft, "unit"> & { unit: string }
 export type EditorGuardrail = Omit<MeasurementGuardrailDraft, "unit"> & { unit: string }
@@ -69,4 +70,30 @@ export function measurementEditorChanges(next: EditorPlan, original: PlanImpactD
     ? { kind: "verification", result: next.verificationResult ?? "", ...common, ...extra }
     : { kind: "metric", metric: metricName(next.primary, previous.primary, original.kind === "metric" ? original.metric : undefined),
       unit: unit(next.primary, previous.primary, original.kind === "metric" ? original.unit : undefined), baseline: next.primary.current, target: next.primary.target, ...common, ...extra }
+}
+
+/**
+ * An older (v2–v4) plan moved onto v5 the first time it is edited (#198). `resolved` is, by position (0 the
+ * main metric, then guardrails), the definition the Metrics library resolved each saved metric to. A metric
+ * with none, or whose definition is in another unit, is cleared so the person picks it again; `unresolved`
+ * names those. The Pass/fail check and the numbers of resolved metrics are kept. A v5 plan is returned as is.
+ */
+export function upgradePlanMetrics<P extends EditorPlan>(plan: P, resolved: readonly (MetricChoice | null | undefined)[]): { plan: P; unresolved: string[] } {
+  if (plan.version >= CURRENT_MEASUREMENT_VERSION) return { plan, unresolved: [] }
+  const unresolved: string[] = []
+  function upgrade<M extends EditorMetric>(metric: M, position: number, empty: M): M {
+    if (metric.key === "check" || metric.key === "" || metric.key === "definition") return { ...metric, definitionId: null }
+    const definition = resolved[position]
+    if (definition && definition.unit === metric.unit) return pickDefinition(metric, definition) as M
+    unresolved.push(editorMetricLabel(metric))
+    return empty
+  }
+  return {
+    plan: {
+      ...plan, version: CURRENT_MEASUREMENT_VERSION,
+      primary: upgrade(plan.primary, 0, { ...createMeasurementPrimary(), noBaseline: plan.primary.noBaseline }),
+      guardrails: plan.guardrails.map((guardrail, index) => upgrade(guardrail, index + 1, { ...createMeasurementGuardrail(), operator: guardrail.operator })),
+    },
+    unresolved,
+  }
 }
