@@ -27,3 +27,21 @@ describe("Settings search shortcut", () => {
     expect(button).toContain("<kbd>/</kbd>");
   });
 });
+
+describe("Settings → Metrics (#196)", () => {
+  const sections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].map(match => ({ id: match[1], hidden: match[2].includes("hidden") }));
+  it("links the Metrics section to its own page", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio" }));
+    expect(html).toMatch(/<a[^>]*href="\/settings\/metrics"[^>]*>(?:(?!<\/a>)[\s\S])*<span>Metrics<\/span><\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/settings\/profile\?section=members"/);
+  });
+  it("shows the Metrics panel on the Metrics page", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", page: "metrics", initialSection: "metrics", metrics: createElement("p", null, "The library") }));
+    expect(sections(html).filter(section => !section.hidden).map(section => section.id)).toEqual(["metrics"]);
+    expect(html).toMatch(/<section id="settings-metrics"[^>]*>(?:(?!<\/section>)[\s\S])*The library/);
+  });
+  it("leaves Metrics out for a guest", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "guest", workspaceName: "Lane Studio" }));
+    expect(html).not.toContain("/settings/metrics");
+  });
+});

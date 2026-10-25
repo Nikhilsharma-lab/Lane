@@ -9,3 +9,5 @@ export * from "./labels";
 
 export * from "./request-agreements";
 export * from "./request-expected-impact-history";
+
+export * from "./metric-definitions";

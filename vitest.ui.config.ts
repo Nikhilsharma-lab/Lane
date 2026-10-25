@@ -8,6 +8,7 @@ export default defineConfig({
     testTimeout: 20_000,
     include: [
       "src/components/settings/*.test.ts",
+      "src/components/metrics/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
       "src/test/theme-parity-contrast.test.ts",
       "src/test/theme-parity-clerk-colours.test.ts",

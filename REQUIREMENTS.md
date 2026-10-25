@@ -214,6 +214,13 @@ Existing at_most and at_least retain inclusive meanings. No automatic monitoring
 
 2026-10-20 follow-up, explicitly approved by Nikhil: comparison menus put selection left and green symbols right, without brackets. The threshold field sits directly beside the comparison. Every numeric editor value offers Percentage (%), Count, Minutes and Seconds in the field. Custom metric creation uses search plus an inline Create metric action, with no separate name or unit form. New/edited numeric plans use version 4; v2/v3 saved validation remains unchanged. Switching seconds/minutes converts numbers; incompatible unit changes clear numbers. Selecting the same metric preserves its values. Custom names remain within the existing Request JSON; no catalogue table or route is added.
 
+**Metrics library supersession — 2026-10-25 (#195, approved by Nikhil):** the "no catalogue table or route" line above is
+superseded. Each workspace has a Metrics library of Metric definitions (name, unit, optional link, optional how-it's-counted
+line) with an append-only history, owned by one module (`src/lib/metrics-library.ts`). Built so far (#196): the two tables
+(migration 0037), the seven starter metrics filled on a workspace's first read, and Settings → Metrics (`/settings/metrics`,
+Members and Admins; Guests are refused) listing active definitions, showing "Add where this lives" when there is no link.
+Predictions still save names in the Request JSON until the picker work in #195 lands.
+
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where
 they will check the result. Source/method is no longer required at creation; previously saved

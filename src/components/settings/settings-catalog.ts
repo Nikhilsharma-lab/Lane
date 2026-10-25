@@ -1,7 +1,8 @@
 /* Search ranking adapted from licensed Arc Pro Settings Command, for Lane only. */
 import type { SettingDefinition, Result } from "@/components/arc/blocks/settings-command/settings-command";
 
-export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean };
+/** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
+export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; href?: string };
 export const settingsCatalog: SettingsEntry[] = [
   { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
@@ -19,6 +20,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
   { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership.", membersOnly: true },
   { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", membersOnly: true, keywords: ["invite", "teammates"] },
+  { id: "metrics", section: "metrics", group: "Workspace", label: "Metrics", description: "What your workspace measures, and how each metric is counted.", membersOnly: true, href: "/settings/metrics", keywords: ["metrics library", "metric definitions", "units", "conversion rate", "adoption", "customer satisfaction"] },
   { id: "security", section: "security", group: "Workspace", label: "Security", description: "Additional workspace access policies.", soon: true, adminOnly: true },
   { id: "applications", section: "applications", group: "Workspace", label: "Applications", description: "Review applications connected to your workspace.", soon: true, adminOnly: true },
   { id: "billing", section: "billing", group: "Billing", label: "Billing", description: "Plans and invoices are not available yet. Future billing will be managed by workspace admins.", soon: true, membersOnly: true },
@@ -76,6 +78,21 @@ export function settingsEntries(role: string): SettingsEntry[] {
 export function settingsNavigation(role: string): SettingsEntry[] {
   return [...availableSettings(role).filter(entry => !entry.soon && entry.id === entry.section),
     { id: "coming-soon", section: "coming-soon", group: "More", label: "Coming soon", description: "Planned settings, together in one place. These options aren’t available yet." }];
+}
+
+/** Where a Settings section opens from outside Settings: its own page, or Profile's page with the section. */
+export function settingsHref(id: string): string {
+  return settingsCatalog.find(entry => entry.id === id)?.href ?? `/settings/profile?section=${id}`;
+}
+
+/**
+ * Whether a section at `href` can show in place on the Settings page at `pathname`. Every Settings page
+ * carries the Profile-page sections; a section with its own page shows in place only on that page.
+ */
+export function showsSettingsInPlace(href: string, pathname: string): boolean {
+  if (!pathname.startsWith("/settings/")) return false;
+  const path = href.split("?")[0];
+  return path === "/settings/profile" || path === pathname;
 }
 
 /** The event the Settings frame follows, besides popstate, to show the section in the URL. */

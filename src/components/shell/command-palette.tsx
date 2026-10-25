@@ -8,7 +8,7 @@ import { useListAnnouncer } from "@/components/requests/list-announcer"
 import { useCurrentRequest, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { useUndoableMarkDone } from "@/components/requests/mark-done-undo"
 import { useRequestMoves } from "@/components/requests/request-moves"
-import { showSettingsSection } from "@/components/settings/settings-catalog"
+import { showSettingsSection, showsSettingsInPlace } from "@/components/settings/settings-catalog"
 import { isShown } from "@/lib/keyboard-guards"
 import { changesListInPlace, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
@@ -135,7 +135,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
       view: filter => goToList({ status: filter }),
       project: projectId => goToList({ project: projectId }),
       settings: (section, href) => {
-        if (!window.location.pathname.startsWith("/settings/")) { router.push(href); return }
+        if (!showsSettingsInPlace(href, window.location.pathname)) { router.push(href); return }
         // Already on Settings: the section changes in place, as from the frame's own sidebar.
         showSettingsSection(section)
         requestAnimationFrame(() => document.getElementById(`settings-${section}`)?.focus({ preventScroll: true }))
