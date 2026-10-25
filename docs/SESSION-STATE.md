@@ -1,5 +1,40 @@
 # Shared Claude / Codex handoff
 
+## #172 reviewed and integrated — five of nine complete; #173 next
+
+Ticket [#172](https://github.com/Nikhilsharma-lab/Lane/issues/172) is merged at
+`4cf06a3` on `codex/spec-167-integration` in `/private/tmp/lane-spec-167`.
+Its tree exactly matches reviewed implementation `ad6cb30`; final Standards and
+Spec reviews have no remaining findings. Sidebar, search and palette share
+Requests context, pagination, routing and arrival-focus ownership. Newer choices
+survive late list arrival; Back restores the Request row; late Project creation
+retains saved data without stealing newer focus. Existing native gestures,
+history and pending-action URL holds remain. Contract: `docs/testing/request-navigation.md`.
+
+Local verification: bootstrap 52; application 1,870 passed/one skipped; final UI
+606; typecheck, lint, design 42 plus Arc/brand, production build and bundle checks
+passed. The largest bundle growth is 1.9 KB within the unchanged 2 KB budget.
+Later helper-only corrections passed typecheck/lint without changing product code.
+Receipts: `/private/tmp/lane-spec-172-evidence.md` and
+`/private/tmp/lane-spec-172-browser-evidence.md`.
+
+Browser acceptance covers 1440/390 in light/dark across retained runs: keyboard
+sidebar/palette reselection, preserved controls, row/J/K/detail/search focus,
+Back/Forward, real native modified clicks, newer Project selection and delayed
+server-search supersession. Final run9 passed all four tests (setup, both mobile
+themes and actual priority-save URL hold) with zero retries. Earlier runs establish
+desktop and successful/failed Project-create focus behavior. The complete matrix
+and original failed runs remain recorded; none of those failed runs is relabelled
+as green. The priority check saved one normal app change on a retained fixture.
+
+This is local-app Chromium proof against the exact reverified staging team,
+not deployed staging, production or every-OS acceptance. All 26 Requests and two
+Projects are retained for later checks. No new Clerk accounts, ownership adoption,
+direct database writes, schema, dependencies, product routes or deployment.
+The standard fresh-provisioning suite's Clerk quota limitation remains separate.
+Tickets #168–#172 are now integrated; continue with #173, then #174–#176.
+The full #167 PR remains a draft until all nine increments and final review pass.
+
 ## #172 late list arrival correction — browser remainder pending
 
 Actual keyboard search of a Project followed by immediate sidebar No Project
