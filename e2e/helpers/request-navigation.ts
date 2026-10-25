@@ -143,6 +143,8 @@ async function expectKeptControls(page: Page, fixture: NavigationFixture) {
   await expect(page.getByRole("combobox", { name: "Group by", exact: true })).toContainText("No grouping");
   await expect(page.getByRole("combobox", { name: "Order by", exact: true })).toContainText("Title A–Z");
   await page.keyboard.press("Escape");
+  // The exiting popup still owns shortcuts until its actual close completes.
+  await expect(page.getByRole("dialog", { name: "Display Requests", exact: true })).toBeHidden();
 }
 
 /** Requires at least 26 actual saved Requests; no private state or pagination injection. */
