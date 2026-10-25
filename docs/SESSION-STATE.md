@@ -1,5 +1,37 @@
 # Shared Claude / Codex handoff
 
+## #175 implemented — independent review and browser acceptance pending
+
+Isolated branch `codex/spec-167-175` starts from accepted integration `355e09e`.
+Single and bulk lifecycle coordination now lives in `createRequestMoves` with real
+single/batch adapters. Selection retains its IDs/bar/focus. One advisory pickup
+confirmation precedes one batch action; partial results retain successful moves
+and failed/unready reasons. Bulk Undo has its own consumed operation, targets only
+successful Done IDs, preserves partial reversals and never replaces single Undo.
+
+Each invocation captures #172 navigation before confirmation. Selection also keeps
+its operation/scope identity. Before submission, abandonment sends no patch/write;
+after submission, shared settlement/session recovery/refresh always completes while
+stale view presentation and focus are suppressed. Existing own toasts finish in
+place; dismissed stale toasts do not reappear. Detail's former split confirmation
+now goes through the shared move, preserving pending-label timing and its immediate
+recoverable-action lock. The obsolete public confirmation bypass is removed.
+
+Verification: non-resetting bootstrap 52; guarded application 1,951 passed/one
+skipped on `lane_test_lane_spec_175_edbe4e377edcdd471d98`; final focused 95 and UI684;
+full TypeScript, ESLint, design and production build pass. Main application testing
+predates the final client-only detail confirmation binding; focused/UI/static cover
+it. No server/data changes or repeat reset. Browser helper merge, actual retained
+fixture acceptance and independent Standards/Spec review remain separate gates.
+
+**Proposed #175 bundle refresh, pending main-merge approval:** original cumulative
+Requests +2,216 bytes (168 over 2,048), detail +2,804 (756 over); Impact/Intake+2,040,
+Settings+2,038 remain within. The inherited proposal passes (+143 Requests/+780
+detail) but is not original compliance. No tolerance increase or byte-golf; retain
+the original #167 comparison through #176. Details: `docs/testing/request-moves.md`
+and `/private/tmp/lane-spec-175-evidence.md`. No hosted writes by the implementer,
+integration edit, main merge, push or deployment.
+
 ## #174 reviewed and integrated — seven of nine complete; #175 next
 
 Ticket [#174](https://github.com/Nikhilsharma-lab/Lane/issues/174) is merged at

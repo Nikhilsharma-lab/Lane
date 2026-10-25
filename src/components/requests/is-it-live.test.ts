@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 import { toastStack } from "@/test/toast-stack"
+import { requestNavigation } from "@/test/request-navigation"
 import { createIsItLive, IS_IT_LIVE_COPY, type IsItLiveView } from "./is-it-live"
 import { createMarkDoneUndoStore } from "./mark-done-undo"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
-import { runOptimistic, type ActionResult } from "./use-optimistic-action"
+import { runOptimistic, runOptimisticBatch, type ActionResult } from "./use-optimistic-action"
 
 // #135: "Is it live?" after a successful single-Request Mark Done. These run the real Request moves, the
 // real Undo pointer and the prompt's logic; only the external server actions are controlled.
@@ -16,7 +17,7 @@ function app() {
   const results: Partial<Record<keyof RequestMoveActions, ActionResult>> = {}
   const calls: (keyof RequestMoveActions)[] = []
   const action = (name: keyof RequestMoveActions) => async () => { calls.push(name); return results[name] ?? { success: true } }
-  const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority") }
+  const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority"), pickUpRequests: async () => ({ moved: [] }), markDoneMany: async () => ({ moved: [] }) }
   const pending = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
   const optimisticDeps = {
     overlay: pending.view(pending.getSnapshot()), refresh: vi.fn(),
@@ -28,8 +29,8 @@ function app() {
   const undoStore = createMarkDoneUndoStore()
   undoStore.bind(stack.state)
   const moves = createRequestMoves({
-    orgId: "org1", announce: vi.fn(), toast, update, optimistic: options => runOptimistic(optimisticDeps, options), confirmPickup: async () => true, copyText: async () => true,
-    actions, undoStore, isItLive: prompt.ask, refresh: optimisticDeps.refresh,
+    orgId: "org1", announce: vi.fn(), toast, update, optimistic: options => runOptimistic(optimisticDeps, options), optimisticBatch: options => runOptimisticBatch(optimisticDeps, options), confirmPickup: async () => true, copyText: async () => true,
+    actions, undoStore, isItLive: prompt.ask, refresh: optimisticDeps.refresh, continuation: requestNavigation().continuation,
   })
   const flush = () => new Promise(resolve => setTimeout(resolve, 0))
   return {

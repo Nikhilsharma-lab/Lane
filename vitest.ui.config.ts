@@ -67,6 +67,7 @@ export default defineConfig({
       "src/lib/workspace-catalogue.test.ts",
       "src/components/requests/request-timeline-model.test.ts",
       "src/components/requests/journey-refresh.test.ts",
+      "src/components/requests/request-moves-controller.test.ts",
       "src/components/requests/is-it-live.test.ts",
     ],
   },

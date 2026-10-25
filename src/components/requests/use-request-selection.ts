@@ -1,13 +1,11 @@
 "use client"
 
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
-import { markDoneMany, pickUpRequests, undoMarkDone } from "@/app/(app)/requests/[id]/actions"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { availableMove, pickupBlockedMessage, type LifecycleMove } from "@/lib/request-lifecycle"
-import { usePickupConfirmation } from "./pickup-confirmation"
-import { moveTarget } from "./request-moves"
-import { useOptimisticAction, useOptimisticBatch, useServerRefresh } from "./use-optimistic-action"
+import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { moveTarget, useRequestMoves } from "./request-moves"
+import { useRequestNavigation } from "./request-navigation"
+import { useServerRefresh } from "./use-optimistic-action"
 import { useListAnnouncer } from "./list-announcer"
 import { requestCount } from "./request-row-label"
 import { isShown, restoreRequestFocus } from "./list-focus"
@@ -28,12 +26,10 @@ function focusKept() {
 
 export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false) {
   const refresh = useServerRefresh()
-  const optimistic = useOptimisticAction()
-  const optimisticBatch = useOptimisticBatch()
-  const confirmPickup = usePickupConfirmation()
-  const { toast, update: updateToast } = useToastStack()
   // Plan item 2.4: selection changes speak in the list's one region; the bar shows "n selected".
   const announce = useListAnnouncer()
+  const moves = useRequestMoves({ orgId: context?.orgId ?? "", announce })
+  const { continuation } = useRequestNavigation()
   const [state, setState] = useState(() => emptySelection(scope))
   // Changing a filter/page/workspace starts a fresh selection, including when returning to an old view.
   if (state.scope !== scope) setState(emptySelection(scope))
@@ -43,7 +39,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   const activeScope = useRef<string | null>(scope)
   const running = useRef<symbol | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
-  const restoreAfterCommit = useRef(false)
+  const restoreAfterCommit = useRef<(() => boolean) | null>(null)
   // Memoised rows keep the checkbox handler from the render that last changed
   // them, so toggle reads the latest selection here instead of from its closure.
   const latest = useRef({ selected, busy })
@@ -68,11 +64,13 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   useLayoutEffect(() => {
     activeScope.current = scope
     running.current = null
-    return () => { activeScope.current = null; running.current = null; restoreAfterCommit.current = false }
+    return () => { activeScope.current = null; running.current = null; restoreAfterCommit.current = null }
   }, [scope])
   useLayoutEffect(() => {
     if (busy || !restoreAfterCommit.current) return
-    restoreAfterCommit.current = false
+    const current = restoreAfterCommit.current
+    restoreAfterCommit.current = null
+    if (!current()) return
     // Restore only focus that was lost (the bar it was on has gone). Focus on a row the
     // person moved to, or anywhere else they put it, stays (Esc after X and J).
     if (focusKept()) return
@@ -86,7 +84,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
 
   function clear() {
     if (busy) return
-    restoreAfterCommit.current = true
+    restoreAfterCommit.current = continuation()
     setState({ ...emptySelection(scope), message: "Selection cleared" })
     announce("Selection cleared.", { key: "selection" })
   }
@@ -117,87 +115,40 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   }
 
   // The bulk bar offers a move only when every selected row allows the same one (plan item 2.4).
-  const moves = context ? selected.map(row => availableMove(row, { isGuest })?.move ?? null) : []
-  const availableAction: LifecycleMove | null = moves.length && moves.every(move => move !== null && move === moves[0]) ? moves[0] : null
+  const offered = context ? selected.map(row => availableMove(row, { isGuest })?.move ?? null) : []
+  const availableAction: LifecycleMove | null = offered.length && offered.every(move => move !== null && move === offered[0]) ? offered[0] : null
   const action = current.pending && current.pending.kind !== "copy" ? current.pending.kind : availableAction
 
-  // One statement moves every selected row (plan item 1.6), and the overlay
-  // moves them on screen in the same tick (plan item 1.5).
+  // Moves owns lifecycle coordination; selection owns only its current bar, IDs and focus.
   async function update() {
     if (!availableAction || !context || running.current) return
     const operation = Symbol()
     running.current = operation
-    // A Request that isn't ready to pick up stays selected with its reason; only the rest are sent.
-    const notReady = availableAction === "pick-up" ? selected.flatMap(row => {
-      const reason = availableMove(row, { isGuest })?.blockedReason
-      return reason ? [{ id: row.id, error: `${moveTarget(row).name}: ${pickupBlockedMessage(reason, row.canEdit ? null : row.creatorName || "the Requester")}` }] : []
-    }) : []
-    const ready = selected.filter(row => !notReady.some(item => item.id === row.id))
-    if (!ready.length) {
-      running.current = null
-      restoreAfterCommit.current = true
-      setState({ scope, ids: notReady.map(item => item.id), pending: null, failedCount: notReady.length, notReadyOnly: true, error: notReady.map(item => item.error).join(" "), message: "" })
-      return
-    }
-    // #77: one "Pick up anyway?" for every Request being picked up with an open concern or an unanswered review.
-    if (availableAction === "pick-up") {
-      const confirmed = await confirmPickup(ready.map(moveTarget))
-      // A view change while the confirmation was open already let go of this operation.
-      if (running.current !== operation) return
-      if (!confirmed) { running.current = null; return }
-    }
-    const ids = ready.map(row => row.id)
-    setState(previous => ({ ...previous, pending: { kind: availableAction, count: ids.length }, error: "", failedCount: 0, message: "" }))
-    announce(`Working on ${ids.length} selected ${ids.length === 1 ? "Request" : "Requests"}.`, { key: "selection" })
-    const outcome = await optimisticBatch({
-      ids,
-      patch: availableAction === "pick-up" ? { kind: "pick-up", status: "in_progress" } : { kind: "done", status: "done" },
-      run: () => (availableAction === "pick-up" ? pickUpRequests : markDoneMany)(ids, context),
-    })
-    // A navigation during a pending response must not touch the new view.
-    if (activeScope.current !== scope || running.current !== operation) return
-    running.current = null
-    restoreAfterCommit.current = true
-    const serverFailed = outcome.status === "success" ? outcome.failed.map(item => item.id) : ids
-    const failed = [...serverFailed, ...notReady.map(item => item.id)]
-    const reasons = new Set([...(outcome.status === "success" ? outcome.failed.map(item => item.error) : outcome.thrown ? [] : [outcome.error]), ...notReady.map(item => item.error)])
-    const succeeded = outcome.status === "success" ? outcome.moved : []
-    const pickedUp = availableAction === "pick-up" && succeeded.length ? `${requestCount(succeeded.length)} picked up.` : ""
-    setState({ scope, ids: failed, pending: null, failedCount: failed.length, notReadyOnly: !serverFailed.length && notReady.length > 0,
-      error: [...reasons].join(" "),
-      // Done confirms through the toast, which also carries the way back.
-      message: pickedUp,
-    })
-    // Done confirms through its toast and a failure through the bar's alert; a pick up speaks here.
-    if (pickedUp && !failed.length) announce(pickedUp, { key: "selection" })
-    if (availableAction === "done" && succeeded.length) confirmDone(succeeded, context)
-  }
-
-  function confirmDone(ids: string[], scopeContext: { orgId: string }) {
-    const noun = ids.length === 1 ? "Request" : "Requests"
-    toast({ type: "success", title: `${ids.length} ${noun} marked Done`, duration: 10_000,
-      action: { label: "Undo", onClick: toastId => void undoDone(toastId, ids, noun, scopeContext) } })
-  }
-
-  // Every row moves back in the same tick; each Undo is its own guarded action.
-  async function undoDone(toastId: string, ids: string[], noun: string, scopeContext: { orgId: string }) {
-    updateToast(toastId, { type: "loading", title: "Undoing", description: `Moving ${ids.length} ${noun} back to In progress.`, action: undefined })
-    const outcomes = await Promise.all(ids.map(id => optimistic({
-      id,
-      patch: { kind: "undo", status: "in_progress" },
-      run: () => undoMarkDone(id, scopeContext),
-      waitForPending: true,
-      // One summary toast and one re-sync for the whole batch, below.
-      onError: () => {},
-      refreshOnError: false,
-    })))
-    const failed = outcomes.filter(outcome => outcome.status !== "success").length
-    // Successful undos revalidated the list in their own responses; a failed
-    // one did not, so re-sync the rows it left behind.
-    if (failed) refresh()
-    // The result reuses the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
-    if (failed) toast({ id: toastId, type: "error", title: `${failed} of ${ids.length} could not be undone`, description: "Those stay Done. Refresh to see their current state." })
-    else toast({ id: toastId, type: "success", title: `${ids.length} ${noun} back to In progress`, description: undefined })
+    const navigationCurrent = continuation()
+    const current = () => activeScope.current === scope && running.current === operation
+    try {
+      const outcome = await moves.moveMany(selected.map(row => ({
+        ...moveTarget(row), status: row.status, agreementBlocked: row.agreementBlocked,
+        pickupBlockedReason: row.pickupBlockedReason, requester: row.canEdit ? null : row.creatorName || "the Requester",
+      })), availableAction, { isGuest, current,
+        onStart: count => {
+          setState(previous => ({ ...previous, pending: { kind: availableAction, count }, error: "", failedCount: 0, message: "" }))
+          announce(`Working on ${count} selected ${count === 1 ? "Request" : "Requests"}.`, { key: "selection" })
+        },
+      })
+      if (!current() || outcome.status === "cancelled" || outcome.status === "busy") return
+      // A same-scope navigation (such as opening Search) still releases pending UI,
+      // but never restores old selection focus or publishes the old result there.
+      if (outcome.detached || !navigationCurrent()) { setState(previous => ({ ...previous, pending: null })); return }
+      restoreAfterCommit.current = navigationCurrent
+      const failed = outcome.failed.map(item => item.id)
+      const succeeded = outcome.status === "success" ? outcome.moved : []
+      const pickedUp = availableAction === "pick-up" && succeeded.length ? `${requestCount(succeeded.length)} picked up.` : ""
+      setState({ scope, ids: failed, pending: null, failedCount: failed.length, notReadyOnly: outcome.notReadyOnly,
+        error: [...new Set(outcome.failed.map(item => item.error).filter(Boolean))].join(" "), message: pickedUp,
+      })
+      if (pickedUp && !failed.length) announce(pickedUp, { key: "selection" })
+    } finally { if (current()) running.current = null }
   }
 
   async function copyLinks() {
