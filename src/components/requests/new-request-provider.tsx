@@ -88,6 +88,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const [hasOpened, setHasOpened] = useState(false);
   const [generation, setGeneration] = useState(0);
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
+  // #217: a composer opened from the first-run guide explains each step, for that draft.
+  const [guided, setGuided] = useState(false);
   const [returnContext, setReturnContext] = useState<RequestListContext>({ status: "all", project: "all" });
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
   const [IntakeForm, setIntakeForm] = useState<IntakeFormComponent | null>(() => loadedForm);
@@ -105,7 +107,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const onList = useRef(pathname === "/");
   useEffect(() => { onList.current = pathname === "/"; }, [pathname]);
 
-  const openComposer = useCallback((element?: HTMLElement | typeof LAUNCHER) => {
+  const openComposer = useCallback((element?: HTMLElement | typeof LAUNCHER, options?: { guided?: boolean }) => {
     // C pressed with nothing focused names no trigger, and close falls back below.
     trigger.current = element ?? focusable(document.activeElement);
     createdId.current = null;
@@ -114,7 +116,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     if (!hasOpened || completed.current) {
       setInitialProjectId(projectId);
       setReturnContext({ status: statusFilter, project: projectFilter });
-    }
+      setGuided(Boolean(options?.guided));
+    } else if (options?.guided) setGuided(true);
     if (completed.current) {
       setGeneration((value) => value + 1);
       completed.current = false;
@@ -232,7 +235,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {

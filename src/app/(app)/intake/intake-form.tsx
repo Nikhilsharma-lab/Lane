@@ -203,6 +203,11 @@ const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, 
 };
 
 
+/** #217: one line of the first-run guide, beside the part of the composer it explains. */
+function FirstRunHint({ children }: { children: React.ReactNode }) {
+  return <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground" data-first-run-hint="">{children}</p>;
+}
+
 function IntakeNotice({
   error = false,
   attention = false,
@@ -235,7 +240,10 @@ export default function RequestEditor({
   editing,
   canAddReviewers = false,
   withoutPrediction = false,
+  guided = false,
 }: {
+  /** #217: opened from the first-run guide, so each step says what it is for as the person goes. */
+  guided?: boolean;
   context: { orgId: string };
   draftOwnerId: string;
   active?: boolean;
@@ -1102,6 +1110,7 @@ export default function RequestEditor({
                 error={errors.description?.message}
                 {...register("description")}
               />
+              {guided && <FirstRunHint>Describe the problem people have, not the fix. Lane checks the framing when you review.</FirstRunHint>}
             </div>
 
             <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
@@ -1155,8 +1164,10 @@ export default function RequestEditor({
             {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
             {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
+            {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
             {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on writes its prediction." : "A Member takes this on and writes its prediction. You’ll get an email when they do."}</p>}
             {!withoutPrediction && currentValues.expectedImpact && <>
+              {guided && <FirstRunHint>Predict the result: pick the metric from the Metrics library, where it is now and where you expect it to go.</FirstRunHint>}
               <RadioGroup
                 label="Expected impact"
                 name="expected-impact-choice"
@@ -1255,6 +1266,9 @@ export default function RequestEditor({
                 {aiAttribution[triage.classification]}
               </p>
             )}
+            {guided && <FirstRunHint>{triage.classification === "problem"
+              ? "Lane’s framing check read this as a problem, so it keeps your wording."
+              : "This is Lane’s framing check: confirm the problem, or change it, before you create the Request."}</FirstRunHint>}
             {restoredDraft && (
               <IntakeNotice attention>
                 Your review was restored. Text and links are still here.

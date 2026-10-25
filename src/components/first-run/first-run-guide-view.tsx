@@ -125,7 +125,7 @@ export function FirstRunGuideView({ view, step, workspaceName, free, inviteForm,
       <span className={styles.spacer} />
       {previous && <Button variant="ghost" size="sm" onClick={() => onStep(previous)}>Back</Button>}
       {next && <Button variant="secondary" size="sm" onClick={() => onStep(next)}>Next step</Button>}
-      {placement === "list" && <NewRequestLink onClick={onFile} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`}>File your first Request</NewRequestLink>}
+      {placement === "list" && <NewRequestLink guided onClick={onFile} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`}>File your first Request</NewRequestLink>}
     </div>
   </section>;
 }
