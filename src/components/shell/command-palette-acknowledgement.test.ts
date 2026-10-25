@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import type { ToastOptions, ToastStackApi } from "@/components/arc/toast-stack/toast-stack"
+import { toastStack } from "@/test/toast-stack"
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { createMarkDoneUndoStore } from "@/components/requests/mark-done-undo"
 import { createPendingMutationsStore } from "@/components/requests/pending-mutations-provider"
@@ -15,7 +15,7 @@ import { runPaletteAction, type PaletteActionDeps } from "./command-palette-acti
 
 // Spec #101: each mutation from the palette is acknowledged as from its button. These run the palette's entries
 // through the real Request moves, pickup confirmation, copy and pending overlay; only the server actions, the
-// toast stack, the polite region and the clipboard are stand-ins.
+// polite region and clipboard are controlled; the Arc toast store is real.
 
 type Call = { name: keyof RequestMoveActions; args: unknown[]; resolve: (result: ActionResult) => void; reject: (error: unknown) => void }
 
@@ -26,19 +26,8 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
     agreementBlocked: false, reviewState: null, pickupBlockedReason: null, ...request,
   }
 
-  // The toast stack: one queue, where a toast with a known id updates in place.
-  const toasts: (ToastOptions & { id: string })[] = []
-  let seq = 0
-  const update: ToastStackApi["update"] = (id, patch) => {
-    const index = toasts.findIndex(item => item.id === id)
-    if (index !== -1) toasts[index] = { ...toasts[index], ...patch }
-  }
-  const toast: ToastStackApi["toast"] = ({ id, ...options }) => {
-    if (id && toasts.some(item => item.id === id)) { update(id, options); return id }
-    const record = { ...options, id: id ?? `toast-${++seq}` }
-    toasts.unshift(record)
-    return record.id
-  }
+  const stack = toastStack()
+  const { toast, update } = stack
 
   const said: string[] = []
   const announce = vi.fn((text: string) => { said.push(text) })
@@ -55,7 +44,8 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
     settled: (...args: Parameters<ReturnType<typeof pending.view>["settled"]>) => pending.view(pending.getSnapshot()).settled(...args),
   }
   const failures: string[] = []
-  const optimisticDeps = { overlay, refresh: () => {}, session: { current: async () => {}, renew: async () => {} }, notifyError: (message: string) => { failures.push(message) } }
+  const refresh = vi.fn()
+  const optimisticDeps = { overlay, refresh, session: { current: async () => {}, renew: async () => {} }, notifyError: (message: string) => { failures.push(message) } }
 
   let asked: PickupConfirmation | null = null
   const confirmation = createPickupConfirmation(shown => { asked = shown })
@@ -66,10 +56,13 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   }, value, copied)
 
   const undoStore = createMarkDoneUndoStore()
-  const moves = createRequestMoves({
+  undoStore.bind(stack.state)
+  const isItLive = vi.fn()
+  const bindMoves = () => createRequestMoves({
     orgId: "org1", announce, toast, update, optimistic: options => runOptimistic(optimisticDeps, options),
-    confirmPickup: confirmation.confirm, copyText, actions, undoStore,
+    confirmPickup: confirmation.confirm, copyText, actions, undoStore, isItLive,
   })
+  let moves = bindMoves()
 
   const deps = (): PaletteActionDeps => ({
     request: current, viewer: { id: "u1", name: "Test Member" }, undo: undoStore.get(), moves,
@@ -90,9 +83,11 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const sent = async (index: number) => { await vi.waitFor(() => expect(calls.length).toBeGreaterThan(index)); return calls[index] }
 
   return {
-    run, setPriority, flush, sent, calls, toasts, said, failures, clipboard, undoStore, confirmation,
+    run, setPriority, flush, sent, calls, get toasts() { return stack.toasts }, said, failures, clipboard, undoStore, confirmation,
     asked: () => asked, failClipboard: () => { clipboardFails = true },
     shown: () => pending.view(pending.getSnapshot()).applyOne(row),
+    isItLive, recreateMoves: () => { moves = bindMoves() },
+    refresh, receiveRow: (saved: Partial<OverviewRequest>) => { Object.assign(row, saved) },
   }
 }
 
@@ -171,6 +166,66 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     undo.resolve({ success: true })
     await vi.waitFor(() => expect(a.toasts[0]).toMatchObject({ type: "success", title: "Back to In progress" }))
     expect(a.toasts).toHaveLength(1)
+  })
+
+  it("both retained entrypoints send one Undo after pending Done, even when the controller is recreated", async () => {
+    const a = app({ status: "in_progress" })
+    a.run("mark-done")
+    const done = await a.sent(0)
+    const toast = a.toasts[0]
+    const retainedPalette = a.undoStore.get()!.undo
+    a.recreateMoves()
+    a.run("undo-mark-done")
+    toast.action!.onClick(toast.id)
+    retainedPalette()
+    await a.flush()
+    expect(a.calls).toHaveLength(1)
+    expect(a.toasts[0]).toMatchObject({ id: toast.id, title: "Undoing", action: undefined })
+    done.resolve({ success: true })
+    const undo = await a.sent(1)
+    expect(undo.name).toBe("undoMarkDone")
+    expect(a.isItLive).not.toHaveBeenCalled()
+    // The successful Done action's revalidation supplies the saved row while Undo is pending.
+    a.receiveRow({ status: "done" })
+    undo.resolve({ error: "Release already recorded." })
+    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Could not undo"))
+    retainedPalette()
+    toast.action!.onClick(toast.id)
+    await a.flush()
+    expect(a.calls).toHaveLength(2)
+    expect(a.undoStore.get()).toBeNull()
+    expect(a.shown().status).toBe("done")
+    expect(a.refresh).toHaveBeenCalledOnce()
+  })
+
+  it("early Undo never submits when the pending Done fails and never opens the Release prompt", async () => {
+    const a = app({ status: "in_progress" })
+    a.run("mark-done")
+    const done = await a.sent(0)
+    a.run("undo-mark-done")
+    done.resolve({ error: "This Request changed." })
+    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Could not update this Request"))
+    await a.flush()
+    expect(a.calls).toHaveLength(1)
+    expect(a.isItLive).not.toHaveBeenCalled()
+    expect(a.undoStore.get()).toBeNull()
+    expect(a.shown().status).toBe("in_progress")
+  })
+
+  it("a Done skipped after an earlier failed change cannot remain undoable", async () => {
+    const a = app({ status: "in_progress" })
+    a.setPriority("high")
+    const earlier = await a.sent(0)
+    a.run("mark-done")
+    const retained = a.undoStore.get()!.undo
+    earlier.resolve({ error: "This Request changed." })
+    await a.flush()
+    expect(a.undoStore.get()).toBeNull()
+    expect(a.toasts[0]).toMatchObject({ title: "Could not update this Request", description: "An earlier change failed. Check this Request and try again.", action: undefined })
+    retained()
+    await a.flush()
+    expect(a.calls).toHaveLength(1)
+    expect(a.isItLive).not.toHaveBeenCalled()
   })
 
   it.each(REQUEST_PRIORITIES.filter(priority => priority !== "none"))("setting priority %s shows and says it at once, and reverts if it fails", async priority => {

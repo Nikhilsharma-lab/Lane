@@ -36,6 +36,12 @@ export interface ToastStackApi {
   dismiss: (id?: string) => void;
 }
 
+/** Lane #174: read-only identity/action observation; commands and Arc's timers remain unchanged. */
+export interface ToastStackState {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => readonly Readonly<Omit<ToastOptions, "id" | "action"> & { id: string; action?: Readonly<ToastAction> }>[];
+}
+
 export interface ToastStackProviderProps {
   children: ReactNode;
   /** Base lifetime in milliseconds. Warnings and errors stay 1.6 times longer. */
@@ -184,6 +190,11 @@ export function useToastStack(): ToastStackApi & { count: number } {
   const store = useStore();
   const count = useSyncExternalStore(store.subscribe, () => store.getSnapshot().length, () => 0);
   return { toast: store.toast, update: store.update, dismiss: store.dismiss, count };
+}
+
+/** Lane adaptation: observe every store commit, including equal-count action updates. */
+export function useToastStackState(): ToastStackState {
+  return useStore();
 }
 
 /** Outgoing copies are hidden from assistive tech while they fade, so the live region reads only the current text. */
