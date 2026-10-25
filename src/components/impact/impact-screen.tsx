@@ -7,7 +7,7 @@ import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-m
 import { impactHref } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
 import { OutcomeReportView } from "./outcome-report"
-import type { QuarterNoteEditor } from "./quarter-notes"
+import type { QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./impact-screen.module.css"
 
 // The Impact screen (#159, #208): My work and the Outcome report for a non-guest, My work alone for a guest. It
@@ -41,7 +41,7 @@ export type ImpactScreenProps = {
   /** The tab open first. The page opens the Outcome report when the address names a period and no teammate. */
   initialTab?: TabId;
   /** Set for an Admin only (#209): where Quarter note edits go. The server refuses anyone else. */
-  quarterNoteEditor?: QuarterNoteEditor;
+  quarterNoteEditor?: QuarterNoteEditorTarget;
 };
 
 export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange, initialTab = "my-work", quarterNoteEditor = null }: ImpactScreenProps) {

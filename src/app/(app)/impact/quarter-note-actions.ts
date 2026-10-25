@@ -2,11 +2,20 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { db, profiles, quarterNotes } from "@/db";
 import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
 import { quarterStarted } from "@/lib/impact-period";
-import { quarterNoteInputSchema } from "@/lib/quarter-note-rules";
+import { QUARTER_NOTE_MAX_LENGTH } from "@/lib/quarter-note-rules";
 import { FORMER_MEMBER } from "@/lib/request-journey";
+
+/** One save of a quarter's note. Blank text clears it. `expectedEditedAt` is the edit time the Admin started from (null: no note yet). */
+const quarterNoteInputSchema = z.object({
+  year: z.number().int().min(2000).max(2999),
+  quarter: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  text: z.string().trim().max(QUARTER_NOTE_MAX_LENGTH),
+  expectedEditedAt: z.iso.datetime().nullable(),
+}).strict();
 
 type SavedNote = { text: string; editorName: string; editedAt: string };
 type Result = { success: true; note: SavedNote | null } | { error: string };

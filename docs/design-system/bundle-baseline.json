@@ -4,7 +4,7 @@
   "toleranceBytes": 2048,
   "routes": {
     "/": {
-      "gzipBytes": 505253,
+      "gzipBytes": 505268,
       "uncompressedBytes": 1705131,
       "chunks": 33
     },
@@ -19,17 +19,17 @@
       "chunks": 23
     },
     "/impact": {
-      "gzipBytes": 457032,
-      "uncompressedBytes": 1556991,
+      "gzipBytes": 459451,
+      "uncompressedBytes": 1560902,
       "chunks": 31
     },
     "/inbox": {
-      "gzipBytes": 448885,
+      "gzipBytes": 448888,
       "uncompressedBytes": 1522733,
       "chunks": 30
     },
     "/intake": {
-      "gzipBytes": 438974,
+      "gzipBytes": 438979,
       "uncompressedBytes": 1493839,
       "chunks": 29
     },
@@ -39,7 +39,7 @@
       "chunks": 23
     },
     "/onboarding": {
-      "gzipBytes": 317292,
+      "gzipBytes": 317293,
       "uncompressedBytes": 1033657,
       "chunks": 23
     },
@@ -49,8 +49,8 @@
       "chunks": 20
     },
     "/requests/[id]": {
-      "gzipBytes": 503590,
-      "uncompressedBytes": 1695721,
+      "gzipBytes": 503937,
+      "uncompressedBytes": 1696810,
       "chunks": 34
     },
     "/reset-password": {
@@ -59,22 +59,22 @@
       "chunks": 23
     },
     "/settings/members": {
-      "gzipBytes": 472815,
+      "gzipBytes": 472818,
       "uncompressedBytes": 1598229,
       "chunks": 31
     },
     "/settings/metrics": {
-      "gzipBytes": 479114,
+      "gzipBytes": 479116,
       "uncompressedBytes": 1621227,
       "chunks": 32
     },
     "/settings/metrics/[id]": {
-      "gzipBytes": 479519,
+      "gzipBytes": 479521,
       "uncompressedBytes": 1622474,
       "chunks": 32
     },
     "/settings/profile": {
-      "gzipBytes": 472815,
+      "gzipBytes": 472818,
       "uncompressedBytes": 1598229,
       "chunks": 31
     },

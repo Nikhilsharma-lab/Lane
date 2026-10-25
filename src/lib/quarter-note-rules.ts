@@ -1,19 +1,9 @@
-import { z } from "zod";
-
 /**
- * The Quarter note's rules (#209), client-safe: what an Admin may save, and how its plain text shows links. The
- * database refuses the same limits (migration 0043).
+ * The Quarter note's rules (#209), client-safe and dependency-free (the report ships it): how long a note may be, and
+ * how its plain text shows links. The action checks the rest (quarter-note-actions.ts); the database refuses the same
+ * limits (migration 0043).
  */
 export const QUARTER_NOTE_MAX_LENGTH = 4000;
-
-/** One save of a quarter's note. Blank text clears it. `expectedEditedAt` is the edit time the Admin started from (null: no note yet). */
-export const quarterNoteInputSchema = z.object({
-  year: z.number().int().min(2000).max(2999),
-  quarter: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-  text: z.string().trim().max(QUARTER_NOTE_MAX_LENGTH),
-  expectedEditedAt: z.iso.datetime().nullable(),
-}).strict();
-export type QuarterNoteInput = z.infer<typeof quarterNoteInputSchema>;
 
 export type NoteSegment = { kind: "text"; text: string } | { kind: "link"; href: string };
 

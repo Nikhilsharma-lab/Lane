@@ -18,7 +18,7 @@ import { requestDetailHref } from "@/lib/request-workspace"
 import { parsePeriodKey, periodChoices, periodKey, periodLabel, periodOfKind, type PeriodKind } from "./impact-period"
 import { MetricChart } from "./metric-chart"
 import { printInLight } from "./print-in-light"
-import { QuarterNotes, type QuarterNoteEditor } from "./quarter-notes"
+import { QuarterNotes, type QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./outcome-report.module.css"
 
 // The Outcome report tab (#208): what was Released in a month, quarter or year, and what it did. It words what the
@@ -195,7 +195,7 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
  * the server refuses anyone else's Quarter note edits anyway. Printing or saving as PDF keeps the report, its period
  * and the as-of date, and leaves out the controls (outcome-report.module.css).
  */
-export function OutcomeReportView({ report, onPeriodChange, quarterNoteEditor = null }: { report: OutcomeReport; onPeriodChange?: (period: ImpactPeriod) => void; quarterNoteEditor?: QuarterNoteEditor }) {
+export function OutcomeReportView({ report, onPeriodChange, quarterNoteEditor = null }: { report: OutcomeReport; onPeriodChange?: (period: ImpactPeriod) => void; quarterNoteEditor?: QuarterNoteEditorTarget }) {
   const now = new Date(`${report.asOf}T00:00:00.000Z`)
   // Paper is light: a dark theme prints as light while the print dialog is open.
   useEffect(() => printInLight(window), [])
