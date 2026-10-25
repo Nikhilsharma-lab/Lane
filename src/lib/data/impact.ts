@@ -5,7 +5,8 @@ import { and, eq, inArray } from "drizzle-orm"
 
 import { db, profiles, projects, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDashboard, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
+import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type Teammate } from "@/lib/impact-read-model"
+import { resolveSavedMetrics, type ResolvedSavedMetric } from "@/lib/metrics-library"
 import { FORMER_MEMBER } from "@/lib/request-journey"
 
 // Loads the Requests the viewer may see (every Request in the workspace, or only the guest's own) and hands
@@ -47,7 +48,14 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
     .leftJoin(projects, and(eq(requests.projectId, projects.id), eq(projects.orgId, auth.orgId)))
     .where(seeable(auth))
 
-  return rows.map(row => ({ ...row, projectName: row.projectName ?? null }))
+  // #201: totals and names follow the Metric definitions each Request's metrics resolve to now, through the Metrics
+  // library. A closed result is judged against its frozen expectation; anything else against its Expected impact.
+  const resolved = await resolveSavedMetrics({ orgId: auth.orgId }, rows.map(row => row.outcomeClosure?.expected ?? row.expectedImpact))
+  return rows.map((row, index) => ({ ...row, projectName: row.projectName ?? null, definitions: definitionsOf(resolved[index]) }))
+}
+
+function definitionsOf(metrics: ResolvedSavedMetric[]): ImpactDefinition[] {
+  return metrics.flatMap(({ position, definition }) => definition ? [{ position, id: definition.id, name: definition.name, unit: definition.unit }] : [])
 }
 
 /** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */

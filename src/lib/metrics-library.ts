@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull, max, ne, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, max, ne, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, requestExpectedImpactRevisions, requests, type MetricDefinitionHistoryKind } from "@/db";
 import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
@@ -223,6 +223,48 @@ export async function currentMetricNames(workspace: MetricsWorkspace, impacts: r
     select distinct on (c.id) c.id, d.name from chain c join ${metricDefinitions} d on d.org_id = ${workspace.orgId} and d.id = c.at
     order by c.id, c.hops desc`);
   return Object.fromEntries(rows.map((row) => [row.id, row.name]));
+}
+
+/**
+ * A search condition (#201): true when a saved Expected impact (`impact`, a jsonb column or expression) names a metric
+ * whose definition's current name contains `query` (case-insensitive, taken literally). The metric resolves as
+ * `resolveSavedMetrics` resolves it, in SQL: a v5 reference by id, an older built-in key or typed name and unit through
+ * the mapping 0038 recorded, a built-in key in its starter unit to the starter metric; a merged definition counts under
+ * the one it was merged into, and archived definitions match. Pass/fail checks are never definitions. No statement of
+ * its own: the caller embeds it in its query.
+ */
+export function savedMetricNameMatches(workspace: MetricsWorkspace, query: string, impact: SQLWrapper): SQL {
+  const org = workspace.orgId;
+  const starterUnit = sql`case s.key ${sql.join(STARTER_METRIC_KEYS.map((key) => sql`when ${key} then ${STARTER_METRICS[key].unit}`), sql` `)} end`;
+  const array = (value: SQL) => sql`case when jsonb_typeof(${value}) = 'array' then ${value} else '[]'::jsonb end`;
+  return sql`exists (
+    with recursive matched(id) as (
+      select d.id from ${metricDefinitions} d
+      where d.org_id = ${org} and d.merged_into_id is null and strpos(lower(d.name), lower(${query})) > 0
+      union
+      select d.id from ${metricDefinitions} d join matched m on d.merged_into_id = m.id where d.org_id = ${org}
+    ), saved(key, name, unit, definition_id) as (
+      select e ->> 'key', e ->> 'name', e ->> 'unit', e ->> 'definitionId'
+      from jsonb_array_elements(case when ${impact} ->> 'kind' = 'measurement'
+        then jsonb_build_array(${impact} -> 'primary') || ${array(sql`${impact} -> 'guardrails'`)} else '[]'::jsonb end) e
+      union all
+      select 'custom', e ->> 'metric', e ->> 'unit', null
+      from jsonb_array_elements(case when ${impact} ->> 'kind' in ('metric', 'verification')
+        then (case when ${impact} ->> 'kind' = 'metric' then jsonb_build_array(${impact}) else '[]'::jsonb end)
+          || (case when jsonb_typeof(${impact} -> 'guardrail') = 'object' then jsonb_build_array(${impact} -> 'guardrail') else '[]'::jsonb end)
+          || ${array(sql`${impact} -> 'additionalGuardrails'`)}
+        else '[]'::jsonb end) e
+    )
+    select 1 from saved s join ${metricDefinitions} d on d.org_id = ${org} and d.id in (select id from matched)
+    where coalesce(btrim(s.unit), '') <> '' and (
+      (s.key = 'definition' and s.definition_id = d.id::text)
+      or exists (select 1 from ${metricDefinitionAliases} a where a.org_id = ${org} and a.definition_id = d.id
+        and a.unit = public.metric_alias_unit(s.unit)
+        and (a.builtin_key = s.key or (s.key = 'custom' and a.typed_name = public.metric_alias_name(s.name))))
+      or (d.starter_key = s.key and s.unit = ${starterUnit} and not exists (select 1 from ${metricDefinitionAliases} a
+        where a.org_id = ${org} and a.builtin_key = s.key and a.unit = public.metric_alias_unit(s.unit)))
+    )
+  )`;
 }
 
 /** A prediction the library refuses to save, with the sentence to show; or the prediction to save. */

@@ -6,8 +6,11 @@
  * in the database query (src/lib/data/impact.ts), so a guest never receives another person's Request.
  *
  * Rules, all enforced here:
- * - A total is only ever a sum of results whose metric, unit, audience and window match exactly (one line per
- *   exact match). Only count units are summed. Percentages and time units are never summed.
+ * - A total is only ever a sum of results that share a Metric definition, audience (platform included) and window
+ *   (#201): one line per match, named with the definition's current name and counted in its unit. Two definitions
+ *   with the same name never share a line; a merged definition counts as the one it was merged into, and an archived
+ *   one still counts. A metric the Metrics library can't place, and every Pass/fail check (never a definition), keeps
+ *   a line per saved name and unit, never shared with a definition's. Percentages are never summed.
  * - Verified (pass/fail) results are tallied as good or bad, never summed.
  * - A result shared by several Requests (the same observation) is counted once; every Request is listed.
  * - Operational work and Requests closed without a result are never in a line or total.
@@ -15,7 +18,8 @@
  * - Nothing per person: no totals, averages, scores or rankings for anyone.
  */
 import { agreedResult, guardrailHeld, type ClosureCorrection, type OutcomeClosure, type OutcomeException } from "./request-outcome";
-import { measurementAudienceLabel, measurementPlatformLabel } from "./request-measurement";
+import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
+import type { MetricUnit } from "./metric-definition-rules";
 import { impactStateOf, type ExpectedImpact } from "./request-impact";
 import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
@@ -45,7 +49,17 @@ export type ImpactRow = {
   expectedImpact: ExpectedImpact | null;
   noMeasurableImpactReason: string | null;
   followUpOf: string | null;
+  /**
+   * The Metric definitions this Request's metrics count under now (after any merge), by saved position: 0 the main
+   * metric, then guardrails from 1. They resolve the prediction a result is judged against: the closed result's
+   * `expected` once Closed, otherwise the Expected impact. A metric with no entry has no definition (a Pass/fail check,
+   * or one the library can't place). The loader fills this through the Metrics library (`resolveSavedMetrics`).
+   */
+  definitions: ImpactDefinition[];
 };
+
+/** A Metric definition one of a Request's metrics resolves to, at its saved position. */
+export type ImpactDefinition = { position: number; id: string; name: string; unit: MetricUnit };
 
 export type BaselineState = "known" | "unknown" | "new_capability" | "not_applicable";
 /** Where a known baseline came from: the value recorded before release, or (a release from before #151 decision 3) the planning baseline. */
@@ -55,6 +69,9 @@ export type RequestRef = { requestId: string; requestNumber: number; title: stri
 
 /** A predicted result: what was agreed before release. */
 export type Prediction = {
+  /** The Metric definition the main metric counts under, or null (a Pass/fail check, or a metric the library can't place). */
+  definitionId: string | null;
+  /** The definition's current name, else the name the Request saved. */
   metric: string;
   form: "numeric" | "pass_fail";
   unit: string;
@@ -69,13 +86,14 @@ export type Prediction = {
 };
 
 export type CorrectionView = { field: string; correction: string; reason: string; at: string };
-export type GuardrailView = { metric: string; operator: string; limit: number; unit: string; actual: number; held: boolean };
+export type GuardrailView = { definitionId: string | null; metric: string; operator: string; limit: number; unit: string; actual: number; held: boolean };
 
 /** One measured result for one Request. `requests` lists every Request that shares it (one, unless shared). */
 export type ResultView = {
   requestId: string;
   requestNumber: number;
   title: string;
+  definitionId: string | null;
   metric: string;
   form: "numeric" | "pass_fail";
   unit: string;
@@ -103,8 +121,12 @@ export type ResultView = {
   requests: RequestRef[];
 };
 
-/** Results that match exactly on metric, unit, audience and window. `summed` is set only for count units. */
+/**
+ * Results that share a Metric definition, audience and window (without a definition: the same saved name and unit).
+ * `summed` is set only for numeric lines that are not percentages.
+ */
 export type ResultLine = {
+  definitionId: string | null;
   metric: string;
   form: "numeric" | "pass_fail";
   unit: string;
@@ -181,9 +203,16 @@ export type ImpactDashboard = {
 
 const NO_PROJECT = "No Project";
 
-/** The predicted scope of an agreed expectation. Its window reads like the closure's window, so the two can be compared. */
-function predictionOf(impact: ExpectedImpact): Prediction {
-  const agreed = agreedResult(impact);
+const definitionAt = (definitions: ImpactDefinition[], position: number) => definitions.find(definition => definition.position === position) ?? null;
+
+/**
+ * The predicted scope of an agreed expectation. Its window reads like the closure's window, so the two can be compared.
+ * A main metric with a Metric definition takes the definition's current name and unit; a Pass/fail check never has one.
+ */
+function predictionOf(impact: ExpectedImpact, definitions: ImpactDefinition[]): Prediction {
+  const saved = agreedResult(impact);
+  const definition = saved.form === "numeric" ? definitionAt(definitions, 0) : null;
+  const agreed = definition ? { ...saved, label: definition.name, unit: measurementUnitLabel(definition.unit) } : saved;
   const baselineState: BaselineState = agreed.form === "pass_fail"
     ? "not_applicable"
     : impact.kind === "measurement"
@@ -194,6 +223,7 @@ function predictionOf(impact: ExpectedImpact): Prediction {
   const measurement = impact.kind === "measurement" ? impact.measurement : null;
   const window = windowOf(impact);
   return {
+    definitionId: definition?.id ?? null,
     metric: agreed.label,
     form: agreed.form,
     unit: agreed.unit,
@@ -229,8 +259,34 @@ function windowOfRelease(release: ReleaseFact): string {
   return `${daysBetween(release.startDate, release.dueDate)} days after release`;
 }
 
+/**
+ * The saved position (see `ImpactRow.definitions`) of each guardrail `agreedResult` lists, in its order: a measurement
+ * plan's guardrails count from 1 and skip any without a limit; older kinds number `guardrail` 1, then
+ * `additionalGuardrails` from 2 (as `savedMetricsOf` does).
+ */
+function guardrailPositions(impact: ExpectedImpact): number[] {
+  if (impact.kind === "measurement") return impact.guardrails.flatMap((guardrail, index) => guardrail.limit === null ? [] : [index + 1]);
+  return [impact.guardrail ? [1] : [], (impact.additionalGuardrails ?? []).flatMap((guardrail, index) => guardrail ? [index + 2] : [])].flat();
+}
+
+function guardrailViews(row: ImpactRow, closure: OutcomeClosure): GuardrailView[] {
+  const positions = guardrailPositions(closure.expected);
+  return closure.guardrails.map((guardrail, index) => {
+    const definition = definitionAt(row.definitions, positions[index] ?? -1);
+    return {
+      definitionId: definition?.id ?? null,
+      metric: definition?.name ?? guardrail.metric,
+      operator: guardrail.operator,
+      limit: guardrail.limit,
+      unit: definition ? measurementUnitLabel(definition.unit) : guardrail.unit,
+      actual: guardrail.actual,
+      held: guardrailHeld(guardrail),
+    };
+  });
+}
+
 function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
-  const prediction = predictionOf(closure.expected);
+  const prediction = predictionOf(closure.expected, row.definitions);
   const passed = closure.primary.kind === "pass_fail" ? closure.primary.passed : null;
   const actual = closure.primary.kind === "numeric" ? closure.primary.actual : null;
   // Change is measured from the value recorded before release (#151 decision 3). A release recorded before that has none,
@@ -244,6 +300,7 @@ function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
     requestId: row.id,
     requestNumber: row.requestNumber,
     title: row.title,
+    definitionId: prediction.definitionId,
     metric: prediction.metric,
     form: prediction.form,
     unit: prediction.unit,
@@ -264,7 +321,7 @@ function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
     observedFrom: closure.observedFrom,
     observedTo: closure.observedTo,
     evidence: closure.evidence,
-    guardrails: closure.guardrails.map(guardrail => ({ metric: guardrail.metric, operator: guardrail.operator, limit: guardrail.limit, unit: guardrail.unit, actual: guardrail.actual, held: guardrailHeld(guardrail) })),
+    guardrails: guardrailViews(row, closure),
     corrections: correctionsOf(row),
     requests: [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }],
   };
@@ -283,7 +340,7 @@ function dueItemOf(row: ImpactRow, now: Date): DueItem | null {
   const release = row.releaseState?.release;
   if (!release || row.outcomeClosure || row.exceptionClosure || journeyStatus(row).status !== "measuring") return null;
   const state = impactStateOf(row);
-  const predicted = state.kind === "measured" ? predictionOf(state.plan) : null;
+  const predicted = state.kind === "measured" ? predictionOf(state.plan, row.definitions) : null;
   if (!predicted) return null;
   return {
     requestId: row.id,
@@ -310,7 +367,7 @@ function entryOf(row: ImpactRow, now: Date, visible: ImpactRow[]): RequestEntry 
     projectName: row.projectName,
     journey: journeyStatus(row).label,
     operationalReason: state.kind === "operational" ? state.reason : null,
-    predicted: source ? predictionOf(source) : null,
+    predicted: source ? predictionOf(source, row.definitions) : null,
     result: measured,
     stillDue: dueItemOf(row, now),
     closedWithoutResult: row.exceptionClosure ? { reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason } : null,
@@ -329,12 +386,21 @@ function inPeriod(date: string | null, period: ImpactPeriod | null): boolean {
   return month >= (period.quarter - 1) * 3 + 1 && month <= period.quarter * 3;
 }
 
-/** The same observation attributed to several Requests: one result, counted once. */
-function sharedKey(result: ResultView): string {
-  return JSON.stringify([result.metric, result.form, result.unit, result.audience, result.platform, result.window, result.actual, result.verdict, result.observedFrom, result.observedTo, result.evidence.trim().toLowerCase(), result.guardrails.map(guardrail => guardrail.actual)]);
+/**
+ * The totals rule (#201): one line per Metric definition, audience, platform and window. A result without a definition
+ * (a Pass/fail check, or a metric the library can't place) lines up only with others of the same saved name, form and
+ * unit, and never with a definition's results, even one with the same name.
+ */
+function lineKey(result: ResultView): unknown[] {
+  const metric = result.definitionId === null ? ["saved", result.metric, result.form, result.unit] : ["definition", result.definitionId];
+  return [...metric, result.audience, result.platform, result.window];
 }
 
-/** Exact matches only: one line per metric, unit, audience, platform and window. */
+/** The same observation attributed to several Requests: one result, counted once. */
+function sharedKey(result: ResultView): string {
+  return JSON.stringify([...lineKey(result), result.actual, result.verdict, result.observedFrom, result.observedTo, result.evidence.trim().toLowerCase(), result.guardrails.map(guardrail => guardrail.actual)]);
+}
+
 /** Percentages are labelled as percentage points and are never summed or averaged (spec US24). */
 function isPercentage(unit: string): boolean {
   return ["%", "percent", "percentage", "percentage points", "percentage point"].includes(unit.trim().toLowerCase());
@@ -350,17 +416,18 @@ function linesOf(results: ResultView[]): ResultLine[] {
 
   const byLine = new Map<string, ResultView[]>();
   for (const result of distinct) {
-    const key = JSON.stringify([result.metric, result.form, result.unit, result.audience, result.platform, result.window]);
+    const key = JSON.stringify(lineKey(result));
     byLine.set(key, [...(byLine.get(key) ?? []), result]);
   }
 
   return [...byLine.values()].map(group => {
     const first = group[0];
-    // Only an exact-match line of a non-percentage unit is summed, and only when every result on it has a known change:
+    // Only a line of a non-percentage unit is summed, and only when every result on it has a known change:
     // an unknown baseline or a new capability (no change) keeps the count but never a partial total (spec US37).
     const summable = first.form === "numeric" && !isPercentage(first.unit);
     const changes = group.flatMap(result => result.change === null ? [] : [result.change]);
     return {
+      definitionId: first.definitionId,
       metric: first.metric,
       form: first.form,
       unit: first.unit,

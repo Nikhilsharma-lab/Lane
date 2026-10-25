@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildImpactDashboard, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactRow, type ImpactViewer } from "./impact-read-model";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -93,6 +93,7 @@ function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" |
     expectedImpact: plan(),
     noMeasurableImpactReason: null,
     followUpOf: null,
+    definitions: [],
     ...over,
   };
 }
@@ -331,7 +332,7 @@ describe("impact read model: corrections, shared results and projects", () => {
 });
 
 describe("impact read model: totals rule", () => {
-  it("sums counts only when metric, unit, audience and window match exactly, and never sums percentages", () => {
+  it("without a definition, sums counts only when saved name, unit, audience and window match exactly, and never sums percentages", () => {
     const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
     const newAudience = plan({ key: "adoption", unit: "count", current: 100, target: 150, audience: "new" });
     const rows = [
@@ -393,6 +394,135 @@ describe("impact read model: unknown changes and other units (#151 review)", () 
     const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
     expect(line.unit).toBe("seconds");
     expect(line.summed).toEqual({ count: 2, change: -15 });
+  });
+});
+
+/** A Metric definition as the Metrics library resolves it for a Request's metric at `position` (0 the main metric). */
+const ADOPTERS = { id: "def-adopters", name: "Adopters", unit: "count" as const };
+const definedAs = (definition: { id: string; name: string; unit: ImpactDefinition["unit"] }, position = 0): ImpactDefinition => ({ position, ...definition });
+
+/** A Request closed with a measured result `actual` on `expected`, its main metric resolved to `definition`. */
+function closedRow(id: string, requestNumber: number, expected: ExpectedImpact, actual: number, definitions: ImpactDefinition[], over: Partial<ImpactRow> = {}): ImpactRow {
+  return row({ id, requestNumber, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: expected, outcomeClosure: measuredClosure(expected, RELEASE_AUG, actual, { evidence: `evidence ${id}` }), definitions, ...over });
+}
+
+describe("impact read model: totals by Metric definition (#201)", () => {
+  it("adds up results with the same definition, audience and window, whatever name each Request saved", () => {
+    const builtIn = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const measured = builtIn as Extract<ExpectedImpact, { kind: "measurement" }>;
+    const typed: ExpectedImpact = { ...measured, primary: { ...measured.primary, key: "custom", name: "Users adopting" } };
+    const rows = [
+      closedRow("a", 1, builtIn, 130, [definedAs(ADOPTERS)]),
+      closedRow("b", 2, typed, 120, [definedAs(ADOPTERS)]),
+    ];
+    const lines = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ definitionId: "def-adopters", metric: "Adopters", unit: "count", summed: { count: 2, change: 50 } });
+  });
+
+  it("keeps the same definition with a different audience or window on separate lines", () => {
+    const all = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const newUsers = plan({ key: "adoption", unit: "count", current: 100, target: 150, audience: "new" });
+    const longer = plan({ key: "adoption", unit: "count", current: 100, target: 150, windowDays: 90 });
+    const rows = [
+      closedRow("a", 1, all, 130, [definedAs(ADOPTERS)]),
+      closedRow("b", 2, newUsers, 120, [definedAs(ADOPTERS)]),
+      closedRow("c", 3, longer, 110, [definedAs(ADOPTERS)], { releaseState: releaseState(MEMBER, releaseFact("2026-08-10", "2026-11-08")), outcomeClosure: measuredClosure(longer, releaseFact("2026-08-10", "2026-11-08"), 110, { evidence: "evidence c" }) }),
+    ];
+    const lines = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(lines.map(line => [line.definitionId, line.audience, line.window, line.summed])).toEqual([
+      ["def-adopters", "All users", "30 days after release", { count: 1, change: 30 }],
+      ["def-adopters", "New users", "30 days after release", { count: 1, change: 20 }],
+      ["def-adopters", "All users", "90 days after release", { count: 1, change: 10 }],
+    ]);
+  });
+
+  it("never adds up two definitions with the same name", () => {
+    const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const rows = [
+      closedRow("a", 1, adoption, 130, [definedAs({ id: "def-signups-web", name: "Signups", unit: "count" })]),
+      closedRow("b", 2, adoption, 120, [definedAs({ id: "def-signups-app", name: "Signups", unit: "count" })]),
+    ];
+    const lines = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(lines.map(line => [line.definitionId, line.metric, line.summed])).toEqual([
+      ["def-signups-web", "Signups", { count: 1, change: 30 }],
+      ["def-signups-app", "Signups", { count: 1, change: 20 }],
+    ]);
+  });
+
+  it("never adds a metric the library can't place to a definition's line, even with the same name", () => {
+    const typed: ExpectedImpact = { kind: "metric", metric: "Adopters", unit: "count", baseline: 100, target: 150, source: "Analytics", reviewAfterDays: 30 } as ExpectedImpact;
+    const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const rows = [
+      closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)]),
+      closedRow("b", 2, typed, 120, []),
+    ];
+    const lines = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(lines.map(line => [line.definitionId, line.metric, line.count])).toEqual([["def-adopters", "Adopters", 1], [null, "Adopters", 1]]);
+  });
+
+  it("still adds up a result whose definition was archived, or merged into the one it now counts under", () => {
+    // The library resolves an archived definition to itself and a merged-away one to the definition it was merged into.
+    const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const rows = [
+      closedRow("a", 1, adoption, 130, [definedAs({ id: "def-archived", name: "Weekly adopters", unit: "count" })]),
+      closedRow("b", 2, adoption, 125, [definedAs({ id: "def-archived", name: "Weekly adopters", unit: "count" })]),
+    ];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line).toMatchObject({ definitionId: "def-archived", metric: "Weekly adopters", summed: { count: 2, change: 55 } });
+  });
+
+  it("never sums a percentage definition, and labels its change in percentage points", () => {
+    const conversion = { id: "def-conversion", name: "Checkout conversion", unit: "percent" as const };
+    const rows = [
+      closedRow("a", 1, plan(), 46, [definedAs(conversion)]),
+      closedRow("b", 2, plan(), 44, [definedAs(conversion)]),
+    ];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line).toMatchObject({ definitionId: "def-conversion", unit: "%", changeUnit: "percentage points", count: 2, summed: null, verdicts: null });
+  });
+
+  it("counts in the definition's unit, not the unit text the Request saved", () => {
+    const legacy: ExpectedImpact = { kind: "metric", metric: "Signups", unit: "users", baseline: 100, target: 150, source: "Analytics", reviewAfterDays: 30 } as ExpectedImpact;
+    const rows = [closedRow("a", 1, legacy, 130, [definedAs({ id: "def-signups", name: "Signups (users)", unit: "count" })])];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line).toMatchObject({ metric: "Signups (users)", unit: "count", changeUnit: "count", summed: { count: 1, change: 30 } });
+  });
+
+  it("tallies Pass/fail checks good or bad beside definitions, never summed", () => {
+    const check = plan({ key: "check", unit: "count", current: null, target: null });
+    const rows = [
+      closedRow("a", 1, check, 0, [], { outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: true, evidence: "p1" }) }),
+      closedRow("b", 2, check, 0, [], { outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "p2" }) }),
+    ];
+    const [line] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines;
+    expect(line).toMatchObject({ definitionId: null, form: "pass_fail", verdicts: { good: 1, bad: 1 }, summed: null });
+  });
+
+  it("shows a renamed definition under its current name, on lines, Requests, predictions and the still-due timeline", () => {
+    const trials = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+    const renamed = definedAs({ id: "def-trials", name: "Trials started", unit: "count" });
+    const rows = [
+      closedRow("a", 1, trials, 130, [renamed], { projectId: "p1", projectName: "Growth" }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT), expectedImpact: trials, definitions: [renamed], projectId: "p1", projectName: "Growth" }),
+      row({ id: "c", requestNumber: 3, createdBy: MEMBER, status: "open", expectedImpact: trials, definitions: [renamed], projectId: "p1", projectName: "Growth" }),
+    ];
+    const dashboard = buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW });
+    expect(dashboard.wholeOrg!.lines.map(line => line.metric)).toEqual(["Trials started"]);
+    expect(dashboard.myWork.requests.map(entry => entry.predicted?.metric)).toEqual(["Trials started", "Trials started", "Trials started"]);
+    expect(dashboard.myWork.requests[0].result?.metric).toBe("Trials started");
+    expect(dashboard.wholeOrg!.timeline.map(item => item.metric)).toEqual(["Trials started"]);
+    expect(dashboard.byProject[0].predictions.map(prediction => [prediction.predicted.definitionId, prediction.predicted.metric])).toEqual([["def-trials", "Trials started"]]);
+  });
+
+  it("shows each guardrail under its definition's current name", () => {
+    const guarded: ExpectedImpact = { ...plan(), guardrails: [
+      { key: "support", definitionId: null, name: "", unit: "percent", current: 2, noBaseline: false, operator: "at_most", limit: 5 },
+    ] } as ExpectedImpact;
+    const closure = { ...measuredClosure(guarded, RELEASE_AUG, 46), guardrails: [{ metric: "Support contact rate", operator: "at_most" as const, limit: 5, unit: "%", actual: 3 }] };
+    const rows = [closedRow("a", 1, guarded, 46, [definedAs({ id: "def-tickets", name: "Help tickets per user", unit: "percent" }, 1)], { outcomeClosure: closure })];
+    const [result] = buildImpactDashboard(ADMIN_VIEWER, rows, { now: NOW }).wholeOrg!.lines[0].results;
+    expect(result.guardrails).toEqual([{ definitionId: "def-tickets", metric: "Help tickets per user", operator: "at_most", limit: 5, unit: "%", actual: 3, held: true }]);
   });
 });
 
