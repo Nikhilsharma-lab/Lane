@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { db, notifications, profiles, requestAgreements, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
-import { buildInbox, FOR_YOUR_INFORMATION_KINDS, getsNeedsYou, REVIEW_ASK_KINDS, type Inbox, type InboxRequest } from "@/lib/inbox-read-model";
+import { buildInbox, FOR_YOUR_INFORMATION_KINDS, getsNeedsYou, REVIEW_ASK_KINDS, type Inbox, type InboxRequest, type NeedsYouItem } from "@/lib/inbox-read-model";
 import { seeable } from "@/lib/request-access";
 import { journeyStatusCondition, requesterColumn } from "@/lib/request-journey-sql";
 import type { Reviewer } from "@/lib/request-reviewer-rules";
@@ -21,7 +21,7 @@ const toDate = (value: string | Date | null) => (value === null ? null : new Dat
  * Reviewer, with the Reviewers and when the latest review ask (or reset) reached them. The read model decides
  * the rest at `now`. A Guest or anyone else who is never asked to act gets no read at all.
  */
-async function loadNeedsYouRequests(auth: MemberAuth): Promise<InboxRequest[]> {
+async function loadNeedsYouRequests(auth: MemberAuth, only?: { requestId: string }): Promise<InboxRequest[]> {
   if (!getsNeedsYou(auth)) return [];
   const asReviewer = JSON.stringify([{ nominee: { kind: "member", userId: auth.userId } }]);
   const rows = await db
@@ -51,6 +51,7 @@ async function loadNeedsYouRequests(auth: MemberAuth): Promise<InboxRequest[]> {
         seeable(auth),
         or(journeyStatusCondition("open"), journeyStatusCondition("done"), journeyStatusCondition("measuring")),
         or(eq(requesterColumn, auth.userId), sql`${requestAgreements.reviewers} @> ${asReviewer}::jsonb`),
+        only && eq(requests.id, only.requestId),
       ),
     );
 
@@ -90,6 +91,15 @@ async function loadForYourInformation(auth: MemberAuth) {
 export async function loadInbox(auth: MemberAuth, now: Date = new Date()): Promise<Inbox> {
   const [requestRows, notificationRows] = await Promise.all([loadNeedsYouRequests(auth), loadForYourInformation(auth)]);
   return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: notificationRows, requests: requestRows }, { now });
+}
+
+/**
+ * #206: the person's Needs-you items at `now`, for delivery outside Lane: the same statement and rules as the
+ * Inbox, optionally narrowed to one Request (an action that just changed it).
+ */
+export async function loadNeedsYou(auth: MemberAuth, now: Date, only?: { requestId: string }): Promise<NeedsYouItem[]> {
+  const requestRows = await loadNeedsYouRequests(auth, only);
+  return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: [], requests: requestRows }, { now }).needsYou;
 }
 
 /** #205: what the bell counts, the person's Needs-you items at `now`. One statement; nothing is written. */
