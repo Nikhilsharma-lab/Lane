@@ -11,7 +11,7 @@ import { organizations } from "./users";
  * `planState` is set from the payment provider (#214): paying once a checkout completes. Migration 0047 adds what the
  * provider reports (customer, subscription, billing period, first payment) and the founding discount's place:
  * `foundingReservedUntil` while a checkout with it is open, `foundingStartsAt` (set once) once paid with it. The
- * database refuses a 51st place. Migration 0048 (#216) adds what the provider says about the plan since:
+ * database refuses a 51st place. Migration 0049 (#216) adds what the provider says about the plan since:
  * `planEndsAt` while a cancelled plan runs to the end of its period (only a paying plan ends), and
  * `subscriptionChangedAt`, the provider's time of the last change recorded, so a late older change is ignored.
  */

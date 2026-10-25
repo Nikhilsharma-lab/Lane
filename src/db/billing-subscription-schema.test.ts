@@ -1,5 +1,5 @@
 /**
- * #216, migration 0048: what the database holds about a plan the payment provider changed. Only a paying plan can
+ * #216, migration 0049: what the database holds about a plan the payment provider changed. Only a paying plan can
  * have a day it ends (a cancellation that runs to the end of its period); a lapsed or free one has none.
  */
 import postgres from "postgres";

@@ -264,7 +264,7 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   service; migrations 0046 and 0047 are on the target database; and the five Stripe names in `.env.example` are set
   (the webhook endpoint, the two per-seat prices matching Lane's, and the 40%-for-24-months founding coupon).
   Without the Stripe names, switching it on would leave a workspace with no way to pay (the server warns by name).
-  Also in Stripe (#216), migration 0048 on the target database first: send the webhook endpoint
+  Also in Stripe (#216), migration 0049 on the target database first: send the webhook endpoint
   `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`,
   `customer.subscription.paused` and `customer.subscription.resumed`; set up the customer portal so customers can
   update payment methods, see invoice history, switch between the yearly and monthly prices (same product), and
