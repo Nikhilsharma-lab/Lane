@@ -18,9 +18,10 @@ Actual-app browser checks cover Project and Label pre-dispatch create failures, 
 
 ## Historical bundle proposal at #173, withdrawn at #174
 
-**WITHDRAWN at #174.** Its final production build passes the original cumulative
+**WITHDRAWN at initial #174.** That production build passed the original cumulative
 2,048-byte budget, maximum +2,018 bytes. The original baseline has been restored;
-no #167 waiver is pending or claimed approved. The measurements below preserve
+no #173 waiver remains pending or claimed approved. Later #174 review corrections
+have their own measured proposal in `mark-done-undo.md`. The measurements below preserve
 the historical #173 proposal and failure evidence.
 
 At #173 this was a reviewable

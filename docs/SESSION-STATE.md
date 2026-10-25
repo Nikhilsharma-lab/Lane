@@ -1,6 +1,32 @@
 # Shared Claude / Codex handoff
 
-## #174 implemented — review and actual-app acceptance pending
+## #174 review fixes implemented — final review and browser acceptance pending
+
+Product source `e7f296118fcbd7ec68e7a0ce7a7d50d42a144018` includes the independent
+Spec review's skipped-Undo correction: a failed pending Release cannot leave
+Undoing indefinitely. No Undo action is submitted; its consumed operation receives
+terminal failure feedback and one saved-state refresh. A failed original Done
+keeps its own error. Additional actual-prompt regressions bind late Release
+completion and other callbacks to their initiating operation, so Escape or a newer
+prompt cannot redirect completion or end the newer Undo.
+
+Final focused 49 and full UI 663 tests, full typecheck/lint/design and production
+build pass. Application 1,925 passed/one skipped and bootstrap 52 are the earlier
+server-unchanged boundary. Browser helper `a1dd479` is merged; actual-app acceptance
+and final independent delta review remain pending. No production or deployment.
+
+**Separate #174 bundle proposal, pending Nikhil's approval by merging.** The review
+fixes measure Requests +2,073 bytes, 25 above the original 2,048-byte limit. Impact
+and Intake +2,042, Settings +2,040 and detail +2,024 remain within it. The initial
+#174 +2,018 measurement and withdrawal of #173's proposal remain historical below.
+This new generated refresh uses the same final build with unchanged tolerance;
+its passing check is not original-budget compliance or approval. Keep the original
+baseline for cumulative comparison through #176. Details:
+`docs/testing/mark-done-undo.md`, `/private/tmp/lane-spec-174-evidence.md` and
+`/private/tmp/lane-spec-174-final-review-bundle-bytes.json`.
+
+
+## #174 initial implementation — historical pre-review checkpoint
 
 Source `b8b79757e9ae2b1e877056e45fb4744f848da8ce` in `/private/tmp/lane-spec-174`
 uses the actual Arc toast ID/action state and one consumed operation for toast and
