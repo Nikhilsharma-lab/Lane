@@ -30,6 +30,8 @@ import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";
 import { deliverAfterResponse } from "@/lib/inbox-delivery";
 import { checkPredictionMetrics } from "@/lib/metrics-library";
+import { newRequestBlock } from "@/lib/billing";
+import { billingEnforced } from "@/lib/feature-switches";
 
 export type IntakeFailureCode =
   | "validation"
@@ -40,7 +42,9 @@ export type IntakeFailureCode =
   | "provider"
   | "malformed"
   | "review_expired"
-  | "save_failed";
+  | "save_failed"
+  /** #213: the Free Requests are used (or the plan lapsed) and an Admin needs to pay. */
+  | "billing_blocked";
 
 export type IntakeFailure = {
   code: IntakeFailureCode;
@@ -139,6 +143,18 @@ export async function runTriage(
 ): Promise<TriageResponse> {
   const auth = await requireCanContribute(context.orgId);
   if (!auth) return { success: false, error: await sessionFailure() };
+
+  // #213: a workspace that needs to pay hears so before writing anything more or spending a review. A Guest's
+  // submission isn't a new Request until a Member takes it on, so a Guest can still file.
+  if (existingRequestId === undefined && auth.role !== "guest") {
+    try {
+      const block = await newRequestBlock({ orgId: auth.orgId });
+      if (block) return { success: false, error: { code: "billing_blocked", message: block } };
+    } catch (error) {
+      console.error("[intake] Free Requests check failed:", error);
+      return { success: false, error: { code: "network", message: "Lane could not check this workspace’s Free Requests. Try again." } };
+    }
+  }
 
   // The Request's saved prediction when editing: the definitions it already names may stay (#198).
   let storedImpact: unknown = null;
@@ -350,17 +366,28 @@ export async function saveRequest(
       .returning({ id: requests.id, requestNumber: requests.requestNumber, createdAt: requests.createdAt });
     // Reviewers and their notifications are written with the Request or not at all.
     // A retried save finds the Request already there and adds nobody twice.
-    const [created] = review.reviewers.length
-      ? await db.transaction(async (tx) => {
-        const rows = await insertRequest(tx);
-        if (rows[0]) {
-          const request = { id: rows[0].id, orgId: auth.orgId };
-          await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: request.id, reviewers: review.reviewers });
-          await notifyReviewers(tx, request, auth.userId, review.asked);
-        }
-        return rows;
-      })
-      : await insertRequest(db);
+    // While billing is enforced the Free Requests check shares the transaction; otherwise nothing is checked and a
+    // Request with no Reviewers is one insert.
+    const checked = !guest && billingEnforced();
+    const outcome = !checked && !review.reviewers.length ? { rows: await insertRequest(db), block: null } : await db.transaction(async (tx): Promise<{ rows: Awaited<ReturnType<typeof insertRequest>>; block: string | null }> => {
+      // #213: the check that counts, under the workspace lock that numbers new Requests. A retried save of a
+      // Request already created goes on to find it below.
+      const block = checked ? await newRequestBlock({ orgId: auth.orgId }, tx) : null;
+      if (block) {
+        const [already] = await tx.select({ id: requests.id }).from(requests)
+          .where(and(eq(requests.id, payload.requestId), eq(requests.orgId, auth.orgId), eq(requests.createdBy, auth.userId)));
+        return { rows: [], block: already ? null : block };
+      }
+      const rows = await insertRequest(tx);
+      if (rows[0] && review.reviewers.length) {
+        const request = { id: rows[0].id, orgId: auth.orgId };
+        await tx.insert(requestAgreements).values({ orgId: auth.orgId, requestId: request.id, reviewers: review.reviewers });
+        await notifyReviewers(tx, request, auth.userId, review.asked);
+      }
+      return { rows, block: null };
+    });
+    if (outcome.block) return { success: false, error: { code: "billing_blocked", message: outcome.block } };
+    const [created] = outcome.rows;
 
     if (created) {
       revalidateSavedRequest(created.id);

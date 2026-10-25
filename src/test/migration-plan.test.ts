@@ -26,8 +26,8 @@ describe("migrationPlan", () => {
     ]);
   });
   it("includes a new migration without editing the reset", () => {
-    const plan = names(migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036_m36.sql", "0037_m37.sql", "0038_saved_metrics_into_library.sql", "0039_m39.sql", "0040_retire_reminder_types.sql", "0041_m41.sql", "0042_m42.sql", "0043_m43.sql", "0044_retire_invitation_reviewers.sql", "0045_next_change.sql"])));
-    expect(plan.at(-1)).toBe("db/migrations/0045_next_change.sql");
+    const plan = names(migrationPlan(withTargets([...folder, "0035_expected_impact_history.sql", "0036_m36.sql", "0037_m37.sql", "0038_saved_metrics_into_library.sql", "0039_m39.sql", "0040_retire_reminder_types.sql", "0041_m41.sql", "0042_m42.sql", "0043_m43.sql", "0044_retire_invitation_reviewers.sql", "0045_m45.sql", "0046_free_requests.sql", "0047_next_change.sql"])));
+    expect(plan.at(-1)).toBe("db/migrations/0047_next_change.sql");
     expect(plan[0]).toBe("db/migrations/0013_m13.sql");
   });
   it("stops at a gap, a repeated number or a misnamed file", () => {

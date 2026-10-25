@@ -71,6 +71,12 @@ describe("AI gate failures in the composer (plan item 2.3)", () => {
       .toEqual({ tone: "danger", title: "Your session ended", body: "Sign in again to continue. Your draft is kept.", signIn: true });
   });
 
+  it("says an Admin needs to pay once the Free Requests are used (#213), and keeps the draft", () => {
+    const message = "This workspace has used its 4 Free Requests. An Admin needs to pay for Lane before anyone here can create a new Request or take on a Guest submission. Everything already filed keeps working.";
+    expect(gateFailureNotice({ code: "billing_blocked", message }))
+      .toEqual({ tone: "warning", title: "An Admin needs to pay", body: `${message} Your draft is kept.`, signIn: false });
+  });
+
   it("keeps a field's own sentence when the unavailable part is the Project check", () => {
     expect(gateFailureNotice({ code: "network", field: "projectId", message: "Lane could not check this Project. Try again." }).body).toBe("Lane could not check this Project. Try again.");
   });

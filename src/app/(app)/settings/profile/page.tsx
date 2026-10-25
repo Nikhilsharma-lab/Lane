@@ -8,6 +8,7 @@ import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { inboxDeliveryPanel } from "./inbox-delivery";
 import { slackPanel } from "./slack-panel";
+import { billingPanel } from "./billing-panel";
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string }> }) {
   const workspace = await getWorkspace();
@@ -28,6 +29,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         appearance={<ThemePreference compact />}
         delivery={await inboxDeliveryPanel(workspace)}
         slack={await slackPanel(workspace, slack)}
+        billing={await billingPanel(workspace)}
       />
   );
 }

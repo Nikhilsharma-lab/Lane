@@ -3,6 +3,7 @@ import { changeRequest, fingerprintOf, insist } from "@/lib/request-change-store
 import type { RequestChangeContext } from "@/lib/request-reviewer-rules";
 import { personName } from "@/lib/request-journey-access";
 import { deliverGuestEmailAfterResponse } from "@/lib/inbox-delivery";
+import { newRequestBlock } from "@/lib/billing";
 
 /**
  * #212: a Member (or Admin) takes on a Guest submission and becomes its Requester, who then writes the prediction.
@@ -27,6 +28,9 @@ export async function takeOnGuestSubmission(context: RequestChangeContext) {
       if (request.takenOnBy) insist(false, `${await personName(tx, roster, request.takenOnBy)} already took this on.`);
       // A Guest who has since become a Member can't take their own submission on: someone else answers for it.
       insist(auth.userId !== request.createdBy, "You filed this one. Ask a teammate to take it on.");
+      // #213: taking it on counts as a new Request, so it waits while an Admin needs to pay.
+      const block = await newRequestBlock({ orgId: auth.orgId }, tx);
+      if (block) insist(false, block);
       return { set: { takenOnBy: auth.userId, takenOnAt: new Date() } };
     },
   });

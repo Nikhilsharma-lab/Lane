@@ -51,10 +51,13 @@ describe("paletteEntries", () => {
     expect(paletteEntries(base).find(entry => entry.id === "settings:members")?.action).toEqual({ kind: "settings", section: "members", href: "/settings/profile?section=members" })
   })
 
-  it("gives an admin the same places as a member, plus Settings → Slack (#207)", () => {
-    expect(ids({ ...base, role: "admin" }).filter(id => id !== "settings:slack")).toEqual(ids(base))
-    expect(ids({ ...base, role: "admin" })).toContain("settings:slack")
-    expect(ids(base)).not.toContain("settings:slack")
+  it("gives an admin the same places as a member, plus Settings → Slack (#207) and Billing (#213)", () => {
+    const adminOnly = ["settings:slack", "settings:billing"]
+    expect(ids({ ...base, role: "admin" }).filter(id => !adminOnly.includes(id))).toEqual(ids(base))
+    for (const id of adminOnly) {
+      expect(ids({ ...base, role: "admin" })).toContain(id)
+      expect(ids(base)).not.toContain(id)
+    }
     expect(paletteEntries(base).find(entry => entry.id === "view:all")?.label).toBe("All Requests")
   })
 

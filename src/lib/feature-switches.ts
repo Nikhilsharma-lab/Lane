@@ -66,3 +66,12 @@ export function appOrigin(env: Env = process.env): string {
 export function customRoles(env: Env = process.env): boolean {
   return env.LANE_CUSTOM_ROLES === "1"
 }
+
+/**
+ * #213 `LANE_BILLING_ENFORCED`. All billing enforcement sits behind this one switch, off by default: Free Requests
+ * (and later seats) are counted and shown, but nothing is blocked. On, a workspace whose Free Requests are used
+ * without a paid plan (or whose plan lapsed) can't create a new Request or take on a Guest submission.
+ */
+export function billingEnforced(env: Env = process.env): boolean {
+  return env.LANE_BILLING_ENFORCED === "1"
+}
