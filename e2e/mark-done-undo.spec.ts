@@ -6,7 +6,7 @@ import { createRequestThroughIntake, type ReviewTeam } from "./helpers/reviewers
 import { assertE2ETarget } from "./helpers/safety";
 import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
 import { assertLocalUndoTarget } from "./helpers/server-action-identity";
-import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifyPendingReleaseSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
+import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifySavedStatusSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
 
 // This standard suite provisions one owned account and seven normal-UI Requests.
 // Quota-bound acceptance uses the same helpers with separately verified retained identities.
@@ -75,12 +75,14 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
       await verifyEnding(driver, surface.ending, record);
     } finally { await context.close(); }
   }
-  for (const [index, verify] of [[4, verifyPendingReleaseSkippedUndo], [5, verifyUndoFailure]] as const) {
+  for (const index of [4, 5]) {
     const context = await browser.newContext(); const view = await context.newPage();
     try {
       await signInTestUser(view, user, orgId);
-      const driver = await undoDriver(view, orgId, fixtures[index], recorder); await driver.pickUp();
-      await verify(driver, capture(testInfo, view, `terminal-${index}`));
+      const driver = await undoDriver(view, orgId, fixtures[index], recorder);
+      const record = capture(testInfo, view, `terminal-${index}`);
+      if (index === 4) await verifySavedStatusSkippedUndo(driver, orgId, record);
+      else { await driver.pickUp(); await verifyUndoFailure(driver, record); }
     } finally { await context.close(); }
   }
 });

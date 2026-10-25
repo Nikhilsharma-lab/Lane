@@ -1,6 +1,7 @@
 import { expect, type APIResponse, type Page, type Request, type Route } from "@playwright/test";
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
-import { isItLivePrompt, isItLiveRelease } from "./journey";
+import { isItLivePrompt, isItLiveRelease, journeyStep } from "./journey";
+import { observeJourneyReads } from "./journey-read-observer";
 import { pauseInNativeBackground } from "./native-visibility";
 import { compiledUndoAction, flightResultShape } from "./server-action-identity";
 
@@ -312,6 +313,31 @@ export async function verifyPendingReleaseSkippedUndo(driver: UndoDriver, captur
   await expectPaletteUndo(page, false);
   await expect(page.getByRole("region", { name: "Journey", exact: true }).getByRole("button", { name: "Record release", exact: true })).toBeVisible();
   await capture("failed-earlier-release-skips-undo-with-terminal-feedback");
+}
+
+/** Real saved-status regression: no reload, unchanged agreement revision, passive read evidence. */
+export async function verifySavedStatusSkippedUndo(driver: UndoDriver, orgId: string, capture: Capture) {
+  const { page } = driver;
+  await expect(journeyStep(page, "Open", "current step")).toBeVisible();
+  const observer = await observeJourneyReads(page, orgId, driver.request.id);
+  const phases: { name: string; at: string; readCount: number }[] = [];
+  const phase = (name: string) => phases.push({ name, at: new Date().toISOString(), readCount: observer.count() });
+  try {
+    phase("before-pickup");
+    await driver.pickUp();
+    await expect(journeyStep(page, "In progress", "current step")).toBeVisible();
+    phase("saved-pickup-visible");
+    expect(observer.count()).toBeGreaterThan(0);
+    const beforeDone = observer.count();
+    await verifyPendingReleaseSkippedUndo(driver, capture);
+    await expect(journeyStep(page, "Done", "current step")).toBeVisible();
+    phase("saved-done-visible-after-skipped-undo");
+    expect(observer.count()).toBeGreaterThan(beforeDone);
+    // No extra read is required for the unchanged-status refresh after skipped Undo.
+  } finally {
+    observer.stop();
+    await capture("saved-status-journey-read-receipt", { ...observer.snapshot(), phases });
+  }
 }
 
 export async function verifyLatestPair(first: UndoDriver, orgId: string, secondRequest: UndoRequest, recorder: UndoRecorder, capture: Capture) {
