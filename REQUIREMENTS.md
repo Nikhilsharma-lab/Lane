@@ -126,7 +126,16 @@ actions, or collaboration rights.
 
 - **Admin:** Clerk organization administration and membership control.
 - **Member:** participates in the shared Request workflow.
-- **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members.
+- **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members. A Guest
+  files without a prediction (#195 item 4, #212, on the integration branch): the Request waits, Open, as a
+  **Guest submission**, tagged "Waiting to be taken on" on the Requests list for everyone who can see it. An
+  Admin or Member takes it on from Request detail and becomes its **Requester** (once; it never moves except by
+  the usual handover after pickup), and the editor opens asking them for the prediction. Nobody can pick it up
+  until it has been taken on and its prediction (a measured result or No measurable impact) is written. The Guest
+  stays its author, keeps seeing and commenting on it, and can edit their own words only while it waits; they
+  never write the prediction. The Guest gets exactly two emails about it, when it is taken on and when it is
+  Closed, by Email whatever their delivery choice and only while they are still in the workspace and not a
+  Viewer. Comments on it reach the Member who took it on.
 - **Viewer** (#195 item 4, #210, on the integration branch): free and read-only. Sees everything a Member
   sees (Requests, Impact with the Outcome report, the Metrics library) except Members management, and changes
   nothing: no filing, commenting, reviewing, picking up, Releases, links, labels, Projects, closing or editing
@@ -1049,7 +1058,7 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
 
 - Final interaction labels and compact field presentation; how a material change after pickup is told
   apart from an ordinary correction.
-- Guest-created Request sponsorship. Requester handover is decided (§5, 2026-10-22); neither may weaken guest isolation.
+- Guest-created Request sponsorship is decided as Guest submissions taken on by a Member (#212, §Workspace permission tiers). Requester handover is decided (§5, 2026-10-22); neither weakens guest isolation.
 - Detailed partial-rollout representation, measurement-source handling and append-only correction authority.
 - Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.
