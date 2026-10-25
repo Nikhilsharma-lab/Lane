@@ -5,8 +5,8 @@ import { parsePeriodKey } from "@/components/impact/impact-period";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadImpactDashboard, loadTeammates, loadTeammateWork } from "@/lib/data/impact";
 
-// The Dashboard (#159, spec #151): one read-only screen. Identity and workspace come from the Clerk session through
-// getMember; the period and the teammate come from the URL and are checked against the viewer's own list before use.
+// The Impact page (#159, spec #151; Outcome report #208): one read-only screen. Identity and workspace come from the
+// Clerk session through getMember; the period and the teammate come from the URL and are checked before use.
 export default async function ImpactPage({ searchParams }: { searchParams: Promise<{ period?: string; person?: string }> }) {
   const member = await getMember();
   if (!member) redirect("/login");
@@ -25,6 +25,7 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
       period={period}
       teammates={teammates}
       person={chosen && entries ? { id: chosen.id, name: chosen.name, entries } : null}
+      initialTab={period && !chosen ? "outcome-report" : "my-work"}
     />
   </>;
 }

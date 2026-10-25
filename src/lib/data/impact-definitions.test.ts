@@ -8,7 +8,7 @@ import { loadImpactDashboard } from "./impact";
 // Metrics library: a renamed definition shows its current name, an archived one still adds up, a merged one adds up
 // with the one it was merged into, and two definitions with the same name never add up.
 // Closed Requests can never be deleted, so each test has its own workspace and the rows stay until the next reset.
-const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b", "org_impact_definitions_c"];
+const ORGS = ["org_impact_definitions_a", "org_impact_definitions_b", "org_impact_definitions_c", "org_impact_definitions_d"];
 const USER = "user_impact_definitions";
 const NOW = new Date("2026-10-23T12:00:00.000Z");
 let ORG = ORGS[0];
@@ -28,7 +28,7 @@ const release = { exposureDate: "2026-08-10", audience: "All users", evidence: "
 
 let closures = 0;
 /** A Request closed with `actual` measured against `plan` (its frozen expectation). */
-async function closed(title: string, plan: unknown, actual: number) {
+async function closed(title: string, plan: unknown, actual: number, extra: { projectId?: string; reframedProblem?: string } = {}) {
   closures++;
   const closure = {
     version: 1, kind: "measured", actorId: USER, ownerId: USER, closedAt: "2026-09-10T09:00:00.000Z",
@@ -36,15 +36,15 @@ async function closed(title: string, plan: unknown, actual: number) {
     expected: plan, release, primary: { kind: "numeric", actual, unit: "count" }, guardrails: [],
     evidence: `Export ${title}`, observedFrom: "2026-08-10", observedTo: "2026-09-09", revision: 1,
   };
-  await connection`insert into requests (org_id,title,description,status,created_by,expected_impact,outcome_closure)
-    values (${ORG},${title},'Fixture','done',${USER},${connection.json(plan as never)},${connection.json(closure as never)})`;
+  await connection`insert into requests (org_id,title,description,reframed_problem,project_id,status,created_by,expected_impact,outcome_closure)
+    values (${ORG},${title},'Fixture',${extra.reframedProblem ?? null},${extra.projectId ?? null},'done',${USER},${connection.json(plan as never)},${connection.json(closure as never)})`;
 }
 const definition = async (name: string, unit = "count") =>
   (await connection`insert into metric_definitions (org_id,name,unit,created_by) values (${ORG},${name},${unit},${USER}) returning id`)[0].id as string;
 
 async function lines() {
-  const dashboard = await loadImpactDashboard(auth(), { now: NOW });
-  return dashboard.wholeOrg!.lines.map(line => ({ metric: line.metric, unit: line.unit, titles: line.results.map(result => result.title).sort(), summed: line.summed }))
+  const dashboard = await loadImpactDashboard(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } });
+  return dashboard.outcomeReport!.totals!.map(line => ({ metric: line.metric, unit: line.unit, titles: line.results.map(result => result.title).sort(), summed: line.summed }))
     .sort((a, b) => a.metric.localeCompare(b.metric) || a.titles[0].localeCompare(b.titles[0]));
 }
 
@@ -97,5 +97,21 @@ describe("Impact totals by Metric definition", () => {
     expect((await lines()).map(line => line.titles)).toEqual([["Duplicate"], ["Kept"]]);
     expect(await mergeMetricDefinitions({ orgId: ORG }, USER, { keptId: kept, mergedId: duplicate })).toEqual({ changed: true });
     expect(await lines()).toEqual([{ metric: "Trials started", unit: "count", titles: ["Duplicate", "Kept"], summed: { count: 2, change: 70 } }]);
+  });
+});
+
+describe("Outcome report through the Impact loader (#208)", () => {
+  it("shows each Released Request's problem under its current Project, and gives a guest nothing", async () => {
+    ORG = ORGS[3];
+    const [project] = await connection`insert into projects (org_id,name,created_by) values (${ORG},'Checkout',${USER}) returning id`;
+    await closed("No reframe", v4("events", "count"), 120);
+    await closed("Reframed", v4("events", "count"), 130, { projectId: project.id, reframedProblem: "Shoppers cannot find the coupon field" });
+    const report = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "month", year: 2026, month: 8 } })).outcomeReport!;
+    expect(report.projects.map(section => [section.name, section.requests.map(entry => [entry.title, entry.problem])])).toEqual([
+      ["Checkout", [["Reframed", "Shoppers cannot find the coupon field"]]],
+      ["No Project", [["No reframe", "Fixture"]]],
+    ]);
+    expect(report.totals).toBeNull();
+    expect((await loadImpactDashboard({ ...auth(), role: "guest" }, { now: NOW })).outcomeReport).toBeNull();
   });
 });

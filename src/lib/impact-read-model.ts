@@ -1,6 +1,7 @@
 /**
- * The impact read model: one pure function that turns a workspace's Request rows into the three dashboard
- * views (My work, By project, Whole org) for one viewer (#154, spec #151).
+ * The impact read model: pure functions that turn a workspace's Request rows into the Impact page for one viewer:
+ * My work (#155) and the Outcome report for a month, quarter or year (#208, which merged the earlier By project and
+ * Whole org views), plus a Metric definition's uses (#203). Spec #151, #195.
  *
  * Screens render what this returns and compute no totals of their own. Visibility is applied here as well as
  * in the database query (src/lib/data/impact.ts), so a guest never receives another person's Request.
@@ -17,19 +18,19 @@
  * - A Request with no release date is never in a period; the period is the release date (UTC).
  * - Nothing per person: no totals, averages, scores or rankings for anyone.
  */
-import { agreedResult, guardrailHeld, type ClosureCorrection, type OutcomeClosure, type OutcomeException } from "./request-outcome";
+import { agreedResult, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, guardrailHeld, type ClosureCorrection, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "./request-outcome";
 import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
 import type { MetricUnit } from "./metric-definition-rules";
 import type { GuardrailOperator } from "./guardrail-comparison";
 import { impactStateOf, type ExpectedImpact } from "./request-impact";
-import { entryKindOf, NOTHING_MEASURED } from "./impact-presenter";
 import { journeyStatus, requesterOf, type JourneyLabel } from "./request-journey";
 import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-facts";
 import type { ReleaseFact, ReleaseState } from "./request-release";
-import { DAY_MS } from "./utc-day";
+import { DAY_MS, utcDay } from "./utc-day";
+import { inPeriod, periodLabel, quarterOf, type ImpactPeriod, type Month } from "./impact-period";
 
 export type ImpactViewer = { userId: string; orgId: string; role: "admin" | "member" | "guest" };
-export type ImpactPeriod = { kind: "year"; year: number } | { kind: "quarter"; year: number; quarter: 1 | 2 | 3 | 4 };
+export type { ImpactPeriod, Month };
 export type ImpactOptions = { now?: Date; period?: ImpactPeriod | null };
 
 /** One Request, as the read model needs it. Load it from the database with src/lib/data/impact.ts. */
@@ -38,6 +39,8 @@ export type ImpactRow = {
   orgId: string;
   requestNumber: number;
   title: string;
+  /** The problem the Request states: its reframed problem, else its description. */
+  problem: string;
   createdBy: string;
   assignedTo: string | null;
   projectId: string | null;
@@ -175,34 +178,13 @@ export type RequestEntry = {
 
 export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both" };
 
-export type ProjectView = {
-  projectId: string | null;
-  name: string;
-  measured: ResultLine[];
-  predictions: { requestId: string; requestNumber: number; title: string; predicted: Prediction }[];
-  stillDueCount: number;
-  requests: RequestEntry[];
-  emptyMessage: string | null;
-};
-
-export type OrgView = {
-  period: ImpactPeriod | null;
-  lines: ResultLine[];
-  emptyMessage: string | null;
-  operational: { requestId: string; requestNumber: number; title: string; projectName: string | null; reason: string }[];
-  closedWithoutResult: { requestId: string; requestNumber: number; title: string; projectName: string | null; reasonCode: string; reason: string }[];
-  timeline: DueItem[];
-  unreleased: RequestRef[];
-  projectStacks: { projectId: string | null; name: string; counts: Partial<Record<JourneyLabel, number>> }[];
-};
-
+/** The Impact page (#208): My work for everyone, and the Outcome report for everyone except a guest (null for a guest). */
 export type ImpactDashboard = {
   myWork: { requests: MyWorkEntry[] };
-  byProject: ProjectView[];
-  wholeOrg: OrgView | null;
+  outcomeReport: OutcomeReport | null;
 };
 
-const NO_PROJECT = "No Project";
+export const NO_PROJECT = "No Project";
 
 const definitionAt = (definitions: ImpactDefinition[], position: number) => definitions.find(definition => definition.position === position) ?? null;
 
@@ -375,16 +357,12 @@ function entryOf(row: ImpactRow, now: Date, visible: ImpactRow[]): RequestEntry 
     corrections: correctionsOf(row),
     releaseDate: releaseDateOf(row),
     followUpOf: row.followUpOf,
-    followUps: byRequestNumber(visible.filter(other => other.followUpOf === row.id).map(({ id, requestNumber, title }) => ({ requestId: id, requestNumber, title }))),
+    followUps: followUpsOf(row, visible),
   };
 }
 
-function inPeriod(date: string | null, period: ImpactPeriod | null): boolean {
-  if (period === null) return true;
-  if (date === null || Number(date.slice(0, 4)) !== period.year) return false;
-  if (period.kind === "year") return true;
-  const month = Number(date.slice(5, 7));
-  return month >= (period.quarter - 1) * 3 + 1 && month <= period.quarter * 3;
+function followUpsOf(row: ImpactRow, visible: ImpactRow[]): RequestRef[] {
+  return byRequestNumber(visible.filter(other => other.followUpOf === row.id).map(({ id, requestNumber, title }) => ({ requestId: id, requestNumber, title })));
 }
 
 /**
@@ -586,71 +564,166 @@ export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], def
   return { definitionId, main: byProjectGroups(main), guardrails: byProjectGroups(guardrails) };
 }
 
+/**
+ * The Impact page for one viewer (#208): My work (unchanged since #155) and the Outcome report for the chosen period.
+ * The period only shapes the report; My work lists every Request the viewer requested or picked up.
+ */
 export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
   const now = options.now ?? new Date();
-  const period = options.period ?? null;
-  const visible = visibleTo(viewer, rows);
+  const myWork = entriesForPerson(visibleTo(viewer, rows), viewer.userId, now);
+  return { myWork: { requests: myWork }, outcomeReport: buildOutcomeReport(viewer, rows, { ...options, now }) };
+}
 
-  const myWork = entriesForPerson(visible, viewer.userId, now);
+/** A guardrail as the report shows it: its limit, and what was measured once the result is recorded (null until then). */
+export type ReportGuardrail = Omit<GuardrailView, "actual" | "held"> & { actual: number | null; held: boolean | null };
 
-  const projectKey = (row: ImpactRow) => row.projectId ?? "";
-  const projectGroups = new Map<string, ImpactRow[]>();
-  for (const row of visible) projectGroups.set(projectKey(row), [...(projectGroups.get(projectKey(row)) ?? []), row]);
-  const projectName = (rowsInProject: ImpactRow[]) => rowsInProject[0].projectName ?? NO_PROJECT;
+/** What a Released Request did: its measured result, the date its result is due, or operational work (never measured). */
+export type ReportOutcome =
+  | { kind: "measured"; result: ResultView }
+  | { kind: "still_due"; dueDate: string; dueLabel: string }
+  | { kind: "operational"; reason: string };
 
-  const byProject: ProjectView[] = [...projectGroups.values()].map(rowsInProject => {
-    const entries = byRequestNumber(rowsInProject.map(row => entryOf(row, now, visible)));
-    const measured = linesOf(entries.flatMap(entry => entry.result && inPeriod(entry.releaseDate, period) ? [entry.result] : []));
-    // Predictions with nothing measured yet: open or released-and-waiting work, not closed and not operational.
-    const predictions = entries.flatMap(entry => {
-      const kind = entryKindOf(entry);
-      return kind.kind === "predicted" ? [{ requestId: entry.requestId, requestNumber: entry.requestNumber, title: entry.title, predicted: kind.predicted }] : [];
-    });
+/** One Request Released in the report's period, in its current Project's section. */
+export type OutcomeReportEntry = RequestRef & {
+  problem: string;
+  journey: JourneyLabel;
+  releaseDate: string;
+  predicted: Prediction | null;
+  outcome: ReportOutcome;
+  guardrails: ReportGuardrail[];
+  corrected: CorrectedValue[];
+  /** The Follow-up Requests linked to this one that the viewer may see. */
+  followUps: RequestRef[];
+};
+
+/**
+ * A closed record's value as its latest Correction states it, shown marked "corrected". The record itself never changes
+ * (its numbers stay as recorded at closing); the Request page shows the original beside every Correction.
+ */
+export type CorrectedValue = { field: ClosureCorrection["field"]; label: string; value: string; at: string };
+
+/** A Request Released in the period and then closed without a result. */
+export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[] };
+
+/** Closed without a result, one group per reason that has any, in the closing form's order. */
+export type ReportClosedGroup = { reasonCode: ExceptionReason; label: string; requests: ReportClosedItem[] };
+
+/** A current Project's section of the report, or "No Project" (last). */
+export type OutcomeReportSection = { projectId: string | null; name: string; requests: OutcomeReportEntry[] };
+
+/** The Outcome report (#208): what was Released in one month, quarter or year, and what it did. Nothing by person. */
+export type OutcomeReport = {
+  period: ImpactPeriod;
+  /** The UTC date the report is up to date as of: it is live, read when the page is opened. */
+  asOf: string;
+  /** Requests Released in the period: all of them, those with a measured result, those still due, and those closed without one. */
+  atAGlance: { shipped: number; measured: number; stillDue: number; closedWithoutResult: number };
+  /** One line per Metric definition match (#151 rules, #201). Quarters and years only: null for a month, so small samples don't mislead. */
+  totals: ResultLine[] | null;
+  projects: OutcomeReportSection[];
+  closedWithoutResult: ReportClosedGroup[];
+  /** Set only when nothing was Released in the period. */
+  emptyMessage: string | null;
+};
+
+/** A Request's guardrails: as measured once its result is recorded, else the limits it agreed, under each definition's current name. */
+function reportGuardrails(row: ImpactRow, source: ExpectedImpact | null): ReportGuardrail[] {
+  if (row.outcomeClosure) return guardrailViews(row, row.outcomeClosure);
+  if (!source) return [];
+  const positions = guardrailPositions(source);
+  return agreedResult(source).guardrails.map((guardrail, index) => {
+    const definition = definitionAt(row.definitions, positions[index] ?? -1);
     return {
-      projectId: rowsInProject[0].projectId,
-      name: projectName(rowsInProject),
-      measured,
-      predictions,
-      stillDueCount: entries.filter(entry => entry.stillDue).length,
-      requests: entries,
-      // Spec #151 (US35): a Project with nothing measured says so in the same words, whatever the period.
-      emptyMessage: measured.length === 0 ? NOTHING_MEASURED : null,
+      definitionId: definition?.id ?? null,
+      metric: definition?.name ?? guardrail.metric,
+      operator: guardrail.operator,
+      limit: guardrail.limit,
+      unit: definition ? measurementUnitLabel(definition.unit) : guardrail.unit,
+      actual: null,
+      held: null,
     };
-  }).sort((a, b) => (a.projectId === null) !== (b.projectId === null) ? (a.projectId === null ? 1 : -1) : a.name.localeCompare(b.name));
+  });
+}
 
-  if (viewer.role === "guest") return { myWork: { requests: myWork }, byProject, wholeOrg: null };
-
-  const entries = visible.map(row => ({ row, entry: entryOf(row, now, visible) }));
-  const measuredResults = entries.flatMap(({ entry }) => entry.result && inPeriod(entry.releaseDate, period) ? [entry.result] : []);
-  const lines = linesOf(measuredResults);
-  const timeline = entries.flatMap(({ entry }) => entry.stillDue ? [entry.stillDue] : []).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.requestNumber - b.requestNumber);
-
-  const projectStacks = [...projectGroups.entries()].map(([key, rowsInProject]) => {
-    const counts: Partial<Record<JourneyLabel, number>> = {};
-    for (const row of rowsInProject) {
-      const label = journeyStatus(row).label;
-      counts[label] = (counts[label] ?? 0) + 1;
-    }
-    return { projectId: key === "" ? null : key, name: projectName(rowsInProject), counts };
-  }).sort((a, b) => (a.projectId === null) !== (b.projectId === null) ? (a.projectId === null ? 1 : -1) : a.name.localeCompare(b.name));
-
+function reportEntryOf(row: ImpactRow, releaseDate: string, now: Date, visible: ImpactRow[]): OutcomeReportEntry {
+  const state = impactStateOf(row);
+  const source = row.outcomeClosure?.expected ?? (state.kind === "measured" ? state.plan : null);
+  const release = row.releaseState?.release ?? null;
+  const outcome: ReportOutcome = row.outcomeClosure
+    ? { kind: "measured", result: measuredResult(row, row.outcomeClosure) }
+    : state.kind === "operational"
+      ? { kind: "operational", reason: state.reason }
+      : { kind: "still_due", dueDate: release!.dueDate, dueLabel: releaseMeasurement(release, now)!.label };
   return {
-    myWork: { requests: myWork },
-    byProject,
-    wholeOrg: {
-      period,
-      lines,
-      emptyMessage: lines.length === 0 ? NOTHING_MEASURED : null,
-      operational: byRequestNumber(entries.flatMap(({ row }) => {
-        const state = impactStateOf(row);
-        return state.kind === "operational" ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reason: state.reason }] : [];
-      })),
-      closedWithoutResult: byRequestNumber(entries.flatMap(({ row }) => row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title, projectName: row.projectName, reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason }] : [])),
-      timeline,
-      // Spec #151 (US32, decisions): a Request with no release date is never in a period, whether Done or still open.
-      // Operational work and closed-without-result Requests already sit in their own excluded sections.
-      unreleased: byRequestNumber(entries.flatMap(({ row, entry }) => entry.releaseDate === null && impactStateOf(row).kind !== "operational" && !row.exceptionClosure ? [{ requestId: row.id, requestNumber: row.requestNumber, title: row.title }] : [])),
-      projectStacks,
-    },
+    requestId: row.id,
+    requestNumber: row.requestNumber,
+    title: row.title,
+    problem: row.problem,
+    journey: journeyStatus(row).label,
+    releaseDate,
+    predicted: source ? predictionOf(source, row.definitions) : null,
+    outcome,
+    guardrails: reportGuardrails(row, source),
+    corrected: correctedValues(row),
+    followUps: followUpsOf(row, visible),
+  };
+}
+
+/** The latest Correction of each corrected field, in the Correction form's field order. */
+function correctedValues(row: ImpactRow): CorrectedValue[] {
+  return CORRECTION_FIELD_OPTIONS.flatMap(({ value: field, label }) => {
+    const latest = row.closureCorrections.filter(correction => correction.field === field).sort((a, b) => a.revision - b.revision).at(-1);
+    return latest ? [{ field, label, value: latest.correction, at: latest.at }] : [];
+  });
+}
+
+function closedGroups(released: { row: ImpactRow; releaseDate: string }[]): ReportClosedGroup[] {
+  return EXCEPTION_REASON_OPTIONS.flatMap(({ value: reasonCode, label }) => {
+    const requests = byRequestNumber(released.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
+      requestId: row.id,
+      requestNumber: row.requestNumber,
+      title: row.title,
+      problem: row.problem,
+      projectName: row.projectName,
+      releaseDate,
+      reason: row.exceptionClosure.reason,
+      corrected: correctedValues(row),
+    }] : []));
+    return requests.length > 0 ? [{ reasonCode, label, requests }] : [];
+  });
+}
+
+/**
+ * The Outcome report for a viewer and a period (#208, spec stories 88–103), grouped by release date (UTC). Null for a
+ * guest, who receives nothing. With no period chosen it reports the current quarter.
+ */
+export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): OutcomeReport | null {
+  if (viewer.role === "guest") return null;
+  const now = options.now ?? new Date();
+  const period = options.period ?? quarterOf(now);
+  const visible = visibleTo(viewer, rows);
+  const released = visible.flatMap(row => {
+    const releaseDate = releaseDateOf(row);
+    return releaseDate !== null && inPeriod(releaseDate, period) ? [{ row, releaseDate }] : [];
+  });
+  // Closed without a result has its own list, by reason; every other Released Request sits in its current Project.
+  const projects = byProjectGroups(released.flatMap(({ row, releaseDate }) => row.exceptionClosure ? [] : [{ row, use: reportEntryOf(row, releaseDate, now, visible) }]))
+    .map(({ projectId, name, uses }) => ({ projectId, name, requests: uses }));
+  const atAGlance = {
+    shipped: released.length,
+    measured: released.filter(({ row }) => row.outcomeClosure).length,
+    stillDue: released.filter(({ row }) => journeyStatus(row).status === "measuring").length,
+    closedWithoutResult: released.filter(({ row }) => row.exceptionClosure).length,
+  };
+  const results = released.flatMap(({ row }) => row.outcomeClosure ? [measuredResult(row, row.outcomeClosure)] : []);
+  const totals = period.kind === "month" ? null : linesOf(results);
+  return {
+    period,
+    asOf: utcDay(now),
+    atAGlance,
+    totals,
+    projects,
+    closedWithoutResult: closedGroups(released),
+    emptyMessage: released.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
   };
 }
