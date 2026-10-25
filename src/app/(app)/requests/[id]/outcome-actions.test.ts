@@ -276,3 +276,31 @@ it('an owner whose closure locks first keeps it; the concurrent admin transfer i
     if ('success' in closed) expect(row).toMatchObject({ exception_closure: { actorId: 'outcome_owner', ownerId: 'outcome_owner' }, release_state: { ownerId: 'outcome_owner' } });
     else expect(row).toMatchObject({ exception_closure: null, release_state: { ownerId: 'outcome_next' } });
 });
+it('#209: records an optional one-line What we learned with either closure, and changes it only by a Correction', async () => {
+    const api = await import('./outcome-actions');
+    await at('2026-10-28T00:00:00Z');
+    const id = await fixture();
+    for (const learned of ['two\nlines', 'x'.repeat(281)])
+        expect(await api.changeRequestOutcome(context(id, 1), { ...measured, learned })).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 1), { ...measured, learned: '  Shoppers trust the shorter form  ' })).toEqual({ success: true, revision: 2 });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ closure: { kind: 'measured', learned: 'Shoppers trust the shorter form' } });
+    // Left blank, nothing is stored.
+    const blank = await fixture();
+    expect(await api.changeRequestOutcome(context(blank, 1), { ...measured, learned: '   ' })).toHaveProperty('success', true);
+    const [blankRow] = await connection `select outcome_closure ? 'learned' as has_learned from requests where id=${blank}`;
+    expect(blankRow.has_learned).toBe(false);
+    const rolledBack = await fixture();
+    expect(await api.changeRequestOutcome(context(rolledBack, 1), { kind: 'exception', reasonCode: 'rolled_back', reason: '', learned: 'Test on Safari first' })).toHaveProperty('success', true);
+    expect(await api.readRequestOutcome(rolledBack, { orgId })).toMatchObject({ closure: { kind: 'exception', learned: 'Test on Safari first' } });
+    // Only the Requester corrects it, one line at a time, and the original stays.
+    const fix = { kind: 'correction', field: 'learned', correction: 'Shoppers trust a form with fewer fields', reason: 'Clearer wording' };
+    session.userId = 'outcome_pm';
+    expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ error: 'Only the Requester, outcome_owner, can add a correction.' });
+    session.userId = 'outcome_owner';
+    expect(await api.changeRequestOutcome(context(id, 2), { ...fix, correction: 'two\nlines' })).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ success: true, revision: 3 });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ closure: { learned: 'Shoppers trust the shorter form' }, corrections: [{ field: 'learned', correction: fix.correction, actorId: 'outcome_owner' }] });
+    // A Correction can add the line to a closure saved without one, and closures without a result take it too.
+    expect(await api.changeRequestOutcome(context(blank, 2), { ...fix, correction: 'Added later' })).toHaveProperty('success', true);
+    expect(await api.changeRequestOutcome(context(rolledBack, 2), { ...fix, correction: 'Test on every browser first' })).toHaveProperty('success', true);
+});

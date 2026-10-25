@@ -59,12 +59,13 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                     expected, release,
                     primary: change.primary.kind === 'numeric' ? { kind: 'numeric', actual: change.primary.actual, unit: agreed.unit } : change.primary,
                     guardrails: agreed.guardrails.map((g, i) => ({ ...g, actual: change.guardrails[i] })),
-                    evidence: change.evidence, observedFrom: change.observedFrom, observedTo: change.observedTo, revision,
+                    evidence: change.evidence, observedFrom: change.observedFrom, observedTo: change.observedTo,
+                    ...(change.learned ? { learned: change.learned } : {}), revision,
                 };
                 return { set: { outcomeClosure: closure } };
             }
             insist(change.reasonCode !== 'other' || change.reason, 'Say why this is closing without a result.');
-            const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId: requesterId, closedAt, operationId: context.operationId, fingerprint, release, revision };
+            const closure: OutcomeException = { version: 1, kind: 'exception', reasonCode: change.reasonCode, reason: change.reason, actorId: auth.userId, ownerId: requesterId, closedAt, operationId: context.operationId, fingerprint, release, ...(change.learned ? { learned: change.learned } : {}), revision };
             return { set: { exceptionClosure: closure } };
         },
     });
