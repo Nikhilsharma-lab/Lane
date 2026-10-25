@@ -52,7 +52,7 @@ function historyLine(event: Pick<ReleaseEvent, "input">) {
  * when and who; the current step says what's next and who does it, with its actions, or why one isn't
  * available. Reviews sit in Open; the countdown only in Measuring. Guests see it without actions.
  */
-export function RequestTimeline({ request, orgId, isAdmin, isGuest, readOnly = false }: { request: RequestDetail; orgId: string; isAdmin: boolean; isGuest: boolean; readOnly?: boolean }) {
+export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: { request: RequestDetail; orgId: string; isGuest: boolean; readOnly?: boolean }) {
   const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
@@ -128,7 +128,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest, readOnly = f
 
   function details(step: TimelineStep) {
     if (step.state !== "finished" && step.state !== "current") return null
-    if (step.status === "open") return <RequestReviews requestId={requestId} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} revision={revision} />
+    if (step.status === "open") return <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} />
     if (step.status === "measuring") {
       const fact = release.release ?? closure?.release
       if (!fact) return null

@@ -147,11 +147,6 @@ describe("Inbox read model: a review waiting on you", () => {
   it("dates an ask with no record of when it was made from the Request's creation", () => {
     expect(needsYou(REVIEWER, [{ ...asked, reviewAskedAt: null }])[0].since).toEqual(new Date("2026-10-20T09:00:00Z"))
   })
-
-  it("leaves out an invitation that hasn't become a member yet", () => {
-    const invited = request({ reviewers: [reviewer({ nominee: { kind: "invitation", invitationId: "inv_1", email: "ravi@example.test" } })] })
-    expect(kinds(REVIEWER, [invited])).toEqual([])
-  })
 })
 
 describe("Inbox read model: an open Concern on your Request", () => {

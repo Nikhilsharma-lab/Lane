@@ -10,15 +10,11 @@ import {
   removeReviewerSchema,
   answerReviewSchema,
   reviewerKey,
+  reviewerPickRefusal,
   type RequestChangeContext,
   type Reviewer,
 } from "@/lib/request-reviewer-rules";
-import {
-  workspaceRoster,
-  pendingInvitations,
-  resolveInvitedMember,
-  type WorkspacePerson,
-} from "@/lib/workspace-roster";
+import { workspaceRoster, type WorkspacePerson } from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
   changeRequest,
@@ -111,10 +107,11 @@ async function saveReviewers(
       .values({ orgId: request.orgId, requestId: request.id, reviewers });
 }
 
-/** Any non-guest member asks people to look at an Open Request. Only admins invite by email. */
+/** An Admin or Member asks other Admins or Members to look at an Open Request. */
 export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
-  if (!parsed.success) return { error: "Choose people to review." };
+  if (!parsed.success)
+    return { error: reviewerPickRefusal((input as { nominees?: unknown } | null)?.nominees) };
   return delivering(context, changeReviewers(
     context,
     parsed.data,
@@ -173,19 +170,6 @@ export async function answerReview(context: RequestChangeContext, input: unknown
       const reviewers = structuredClone(reviewersRow?.reviewers ?? []);
       const reviewer = reviewers.find((r) => r.id === parsed.data.reviewerId);
       insist(reviewer, "This review was removed. Reload to see the latest.");
-      if (reviewer.nominee.kind === "invitation") {
-        insist(
-          await resolveInvitedMember(auth.orgId, reviewer.nominee, auth.userId),
-          "Only the invited person can answer, once they have joined and verified their email.",
-        );
-        insist(
-          !reviewers.some(
-            (r) => r.nominee.kind === "member" && r.nominee.userId === auth.userId,
-          ),
-          "You are already a reviewer on this Request.",
-        );
-        reviewer.nominee = { kind: "member", userId: auth.userId };
-      }
       insist(
         reviewer.nominee.userId === auth.userId,
         "Only the named reviewer can answer.",
@@ -241,6 +225,7 @@ export async function readReviews(
       revision: request.agreementRevision,
       open,
       canAdd: open && canChangeThings(auth.role),
+      /** An Admin can invite someone to the workspace; nobody becomes a Reviewer by invitation. */
       canInvite: open && auth.role === "admin",
       canRemove: open && canChange(auth, request),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
@@ -261,17 +246,16 @@ export async function readReviews(
   }
 }
 
-/** Members to choose from, plus pending invitations for admins. */
+/**
+ * The people a Reviewer can be chosen from: the workspace's Admins and
+ * Members only (#211). `canInvite` tells the picker whether to point an Admin
+ * to Members settings or tell anyone else to ask an Admin.
+ */
 export async function loadReviewerPeople(context: { orgId: string }) {
   const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal("Workspace unavailable.") };
   try {
-    return {
-      people: [
-        ...(await workspaceRoster(auth.orgId)),
-        ...(auth.role === "admin" ? await pendingInvitations(auth.orgId) : []),
-      ],
-    };
+    return { people: await workspaceRoster(auth.orgId), canInvite: auth.role === "admin" };
   } catch {
     return { error: "Could not load people. Try again." };
   }

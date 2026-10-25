@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), prefet
 // "server-only" marker, and the page now derives identity from claims (getMember) before it queries.
 vi.mock("server-only", () => ({}))
 // Every reviewer below is still in the workspace, so each answer counts.
-vi.mock("@/lib/workspace-roster", () => ({ workspaceRoster: async () => [{ nominee: { kind: "member", userId: "user-priya" } }, { nominee: { kind: "member", userId: "user-sam" } }], pendingInvitations: async () => [] }))
+vi.mock("@/lib/workspace-roster", () => ({ workspaceRoster: async () => [{ nominee: { kind: "member", userId: "user-priya" } }, { nominee: { kind: "member", userId: "user-sam" } }] }))
 vi.mock("@/lib/ensure-workspace", () => ({
   getMember: async () => ({ userId: "user_test", orgId: "org_test", role: state.role }),
   getWorkspace: async () => ({ needsOnboarding: false, role: state.role, profileRole: "pm", orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),

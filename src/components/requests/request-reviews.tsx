@@ -2,7 +2,6 @@
 import { changeAttempt, type ChangeAttempt } from "./change-attempt";
 import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useOptimisticAction } from "./use-optimistic-action";
 import { Button } from "@/components/arc/button/button";
 import { Textarea } from "@/components/arc/textarea/textarea";
@@ -11,7 +10,8 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-reviewer-rules";
 import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
-import { INVITATION_PENDING, REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
+import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
+import { ReviewerInviteHint } from "./reviewer-invite-hint";
 import styles from "./request-timeline.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
@@ -28,7 +28,6 @@ function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
   if (reviewer.decision?.kind === "looks_good") return "Looks good";
   if (reviewer.decision?.kind === "concern") return "Raised a concern";
   if (!open) return "No answer before pickup";
-  if (reviewer.invitation === "pending") return "Invitation pending";
   return "Waiting";
 }
 
@@ -41,13 +40,11 @@ function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
 export function RequestReviews({
   requestId,
   orgId,
-  isAdmin,
   isGuest,
   revision,
 }: {
   requestId: string;
   orgId: string;
-  isAdmin: boolean;
   isGuest: boolean;
   revision?: number;
 }) {
@@ -141,7 +138,7 @@ export function RequestReviews({
     .filter((p) => !view.unavailable.includes(keyOf(p.nominee)))
     .map((p) => ({
       value: keyOf(p.nominee),
-      label: p.name + (p.nominee.kind === "invitation" ? INVITATION_PENDING : ""),
+      label: p.name,
     }));
 
   return (
@@ -173,6 +170,7 @@ export function RequestReviews({
               options={options}
               disabled={busy || !people.length}
             />
+            <ReviewerInviteHint canInvite={view.canInvite} className={styles.muted} />
           </div>
           {peopleError && <div className={styles.controls}>
             <p role="alert">{peopleError}</p>
@@ -191,9 +189,6 @@ export function RequestReviews({
           <div className={styles.controls}>
             <Button type="submit" disabled={busy || !selected}>{busy ? "Adding…" : "Add"}</Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
-            {view.canInvite
-              ? <Link href="/settings/members" className={styles.muted}>Invite someone</Link>
-              : isAdmin ? null : <span className={styles.muted}>Missing someone? Ask an admin to invite them.</span>}
           </div>
         </form>
       )}

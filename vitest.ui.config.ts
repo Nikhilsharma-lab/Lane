@@ -48,6 +48,7 @@ export default defineConfig({
       "src/components/requests/request-sequence.test.ts",
       "src/components/requests/local-time.test.ts",
       "src/components/requests/review-copy-contract.test.ts",
+      "src/components/requests/reviewer-invite-hint.test.ts",
       "src/components/shell/notification-read-state.test.ts",
       "src/components/shell/notification-keys.test.ts",
       "src/components/shell/notification-copy.test.ts",
