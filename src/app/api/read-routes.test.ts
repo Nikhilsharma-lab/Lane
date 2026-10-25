@@ -159,16 +159,18 @@ describe("GET /api/notifications/unread", () => {
     expect((await get(unread, "/api/notifications/unread", { org: ORG })).status).toBe(403);
   });
 
-  it("counts only the unread For-your-information items visible in this workspace", async () => {
+  it("counts the bell's Needs-you items, and apart from them the unread For-your-information items visible in this workspace", async () => {
     const response = await get(unread, "/api/notifications/unread", { org: ORG });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    const { count } = await response.json();
+    const { count, unread: fyi } = await response.json();
+    expect(count).toEqual(expect.any(Number));
     // At least the pickup and the invite (other files may leave rows for this shared member).
-    expect(count).toBeGreaterThanOrEqual(2);
+    expect(fyi).toBeGreaterThanOrEqual(2);
     actAs(GUEST, "org:guest");
-    // The pickup on their own Request; not the read comment, and not the workspace-wide invite guests never see.
-    expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 1 });
+    // No Needs-you items for a Guest. The pickup on their own Request; not the read comment, and not the
+    // workspace-wide invite guests never see.
+    expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 0, unread: 1 });
   });
 });
 

@@ -22,7 +22,7 @@ export function Sidebar({
   role,
   orgId,
   userId,
-  unreadCount,
+  needsYouCount,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
@@ -33,7 +33,7 @@ export function Sidebar({
   /** The signed-in user: a Pick up from the palette on Request detail names them as Assignee (#106). */
   userId: string;
   /** The (app) layout's unread count, streamed to the bell (plan item 1.8). */
-  unreadCount?: Promise<number>;
+  needsYouCount?: Promise<number>;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -70,7 +70,7 @@ export function Sidebar({
         router.push(requestListHref("all", result.project.id));
         return result.project;
       }}
-      notifications={<InboxBell orgId={orgId} unreadCount={unreadCount} current={pathname === "/inbox"} />}
+      notifications={<InboxBell orgId={orgId} needsYouCount={needsYouCount} current={pathname === "/inbox"} />}
       palette={<CommandPaletteHost orgId={orgId} role={role} viewer={viewer} projects={projects} pathname={pathname} />}
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}

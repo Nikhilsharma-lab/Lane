@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
 import { loadLabels } from "@/lib/data/labels";
-import { loadUnreadCount } from "@/lib/data/notifications";
+import { countNeedsYou } from "@/lib/data/inbox";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
@@ -29,10 +29,11 @@ export default async function AppLayout({
   const member = await getMember();
   if (!member) return (await auth()).redirectToSignIn();
 
-  // The unread count is not awaited here. It streams to the Suspense-wrapped
+  // The bell's count (#205: Needs-you items, worked out from Request state;
+  // nothing is written) is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
-  const unreadCount = loadUnreadCount(member).catch(() => 0);
+  const needsYouCount = countNeedsYou(member).catch(() => 0);
   const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
@@ -58,7 +59,7 @@ export default async function AppLayout({
             role={result.role}
             orgId={result.orgId}
             userId={result.userId}
-            unreadCount={unreadCount}
+            needsYouCount={needsYouCount}
           >
             {children}
           </Sidebar>

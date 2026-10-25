@@ -25,7 +25,8 @@ import { REQUEST_PRIORITIES } from "@/lib/request-constants";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
 import { loadProjects } from "./projects";
-import { loadUnreadCount } from "./notifications";
+import { countNeedsYou } from "./inbox";
+import { countInboxUnread } from "./notifications";
 import { DONE_PAGE_SIZE, loadOlderFinishedRequests, loadRequestDetail, loadRequestList } from "./requests";
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview";
 
@@ -161,25 +162,33 @@ describe("loadProjects", () => {
   });
 });
 
-describe("loadUnreadCount", () => {
-  // #136: one read for reminders owed (the bell writes them, no scheduled job), then the count.
-  // An insert is added only on a load where a reminder is actually due.
-  it("counts unread notifications in the workspace in two statements when no reminder is due", async () => {
-    const { result, statements } = await queryCounter.measure(() => loadUnreadCount(admin));
-    expect(statements).toBeLessThanOrEqual(2);
+describe("the Inbox's counts", () => {
+  // #205: the bell counts Needs-you items from one read of Request state; nothing is written on a load.
+  it("counts the bell's Needs-you items in one statement", async () => {
+    const { result, statements } = await queryCounter.measure(() => countNeedsYou(admin));
+    expect(statements).toBeLessThanOrEqual(1);
+    expect(result).toBeGreaterThanOrEqual(0);
+  });
+
+  it("gives a guest no Needs-you items and runs no read for them", async () => {
+    const { result, statements } = await queryCounter.measure(() => countNeedsYou(guest));
+    expect(statements).toBe(0);
+    expect(result).toBe(0);
+  });
+
+  it("counts unread For-your-information items in one statement, hiding workspace-wide and other members' events from a guest", async () => {
+    const { result, statements } = await queryCounter.measure(() => countInboxUnread(admin));
+    expect(statements).toBeLessThanOrEqual(1);
     expect(result).toBe(2);
+    expect(await countInboxUnread(guest)).toBe(1);
   });
 
-  it("hides workspace-wide and other members' events from a guest", async () => {
-    expect(await loadUnreadCount(guest)).toBe(1);
-  });
-
-  it("serves the same scoped unread count through the current GET endpoint", async () => {
+  it("serves both scoped counts through the current GET endpoint", async () => {
     for (const auth of [admin, guest]) {
       Object.assign(session, { userId: auth.userId, orgId: auth.orgId, orgRole: `org:${auth.role}` });
       const response = await unreadCount(new Request(`http://lane.test/api/notifications/unread?${new URLSearchParams({ org: ORG })}`));
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ count: auth.role === "guest" ? 1 : 2 });
+      expect(await response.json()).toEqual({ count: await countNeedsYou(auth), unread: auth.role === "guest" ? 1 : 2 });
     }
   });
 });

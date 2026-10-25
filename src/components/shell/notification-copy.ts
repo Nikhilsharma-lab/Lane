@@ -52,11 +52,6 @@ export function notificationEvent(type: string, actor: string): string | null {
     case "review_reset": return `${actor} changed it. Please review again`
     // Design reviews retired on 2026-10-18; existing rows keep a neutral past tense.
     case "review_responded": return `${actor} responded to your review`
-    // Reminders (#127) come from Lane, not a person, so they never name one. Overdue stays neutral.
-    case "release_reminder": return "Still Done. Record the release once it is live"
-    case "result_due_soon": return "Result due soon"
-    case "result_due": return "Result due today. You can close it now"
-    case "result_overdue": return "Result overdue. Close it when you have the numbers"
     case "invite_accepted": return null
     default: return `${actor} updated it`
   }

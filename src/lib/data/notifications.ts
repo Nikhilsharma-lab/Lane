@@ -6,7 +6,6 @@ import { and, count, eq, exists, inArray, isNull, or } from "drizzle-orm";
 import { db, notifications, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { FOR_YOUR_INFORMATION_KINDS } from "@/lib/inbox-read-model";
-import { writeDueReminders } from "./bell-reminders";
 
 /**
  * Shared by notification reads and mutations so a historical delivery never
@@ -37,22 +36,9 @@ export function notificationVisibility(auth: MemberAuth) {
 }
 
 /**
- * Plan item 1.8: the unread count the (app) layout hands to the bell as a
- * promise, so it streams in behind the first paint instead of being fetched
- * from the client after hydration. #136: first writes any bell reminders the
- * member is owed today, so both the layout stream and GET /api/notifications/unread
- * count them. A failed reminder write is logged and never blocks the count.
- * #204: the count is the Inbox's unread For-your-information items, so the badge and the page agree
- * (#205 makes it count Needs-you items instead).
+ * #204: the unread For-your-information items, which the Inbox page shows beside its heading. One statement.
+ * The bell counts Needs-you items instead (`countNeedsYou` in ./inbox, #205).
  */
-export async function loadUnreadCount(auth: MemberAuth): Promise<number> {
-  await writeDueReminders(auth).catch((error) => {
-    console.error("[notifications] reminder write failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-  });
-  return countInboxUnread(auth);
-}
-
-/** #204: the unread For-your-information items, the Inbox's count, with no reminder write. One statement. */
 export async function countInboxUnread(auth: MemberAuth): Promise<number> {
   const [row] = await db
     .select({ value: count() })

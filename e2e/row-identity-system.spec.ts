@@ -131,8 +131,8 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
 
-      // Plan item 2.7 (decision D7) and #204: the Inbox page's rows carry data-inbox-item; the bell
-      // link reads "Inbox, N unread" while the seeded notification is unread.
+      // Plan item 2.7 (decision D7), #204 and #205: the Inbox page's rows carry data-inbox-item; the seeded
+      // notification is For your information (the bell link counts only Needs-you items, "Inbox, N need you").
       const notifications = page.getByRole("link", {
         name: /^Inbox/,
       });
@@ -141,7 +141,7 @@ test("rows and identities keep one contract on every surface", async ({
       }
       await notifications.click();
       await expect(page).toHaveURL(/\/inbox$/);
-      const notificationRow = page.locator("[data-inbox-item]").first();
+      const notificationRow = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
       const readAction = notificationRow.getByRole("button", {

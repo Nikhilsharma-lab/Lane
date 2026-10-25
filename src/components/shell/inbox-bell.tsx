@@ -5,22 +5,22 @@ import { Suspense, use, useCallback, useEffect, useEffectEvent, useRef, useState
 import { Bell } from "lucide-react";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import shellStyles from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css";
-import { inboxUnread } from "./inbox-count";
+import { inboxNeedsYou } from "./inbox-count";
 import styles from "./inbox-bell.module.css";
 
-/** The bell's name: the place, and how many unread items wait there. */
-export function inboxBellLabel(unread: number) {
-  return unread > 0 ? `Inbox, ${unread} unread` : "Inbox";
+/** The bell's name: the place, and how many Needs-you items wait there (#205: only those are counted). */
+export function inboxBellLabel(needsYou: number) {
+  return needsYou > 0 ? `Inbox, ${needsYou} need${needsYou === 1 ? "s" : ""} you` : "Inbox";
 }
 
 /**
  * #204: the bell stays in the sidebar and leads to the Inbox page; the popover it opened is gone.
- * Plan item 1.8: the (app) layout streams the unread count as a promise, and the bell suspends on it inside
+ * Plan item 1.8: the (app) layout streams the Needs-you count as a promise, and the bell suspends on it inside
  * its own boundary, so the shell paints at once with a plain bell.
  */
-export function InboxBell({ orgId, unreadCount, current }: { orgId: string; unreadCount?: Promise<number>; current: boolean }) {
+export function InboxBell({ orgId, needsYouCount, current }: { orgId: string; needsYouCount?: Promise<number>; current: boolean }) {
   return <Suspense fallback={<InboxBellLink unread={0} current={current} />}>
-    <LoadedInboxBell orgId={orgId} unreadCount={unreadCount} current={current} />
+    <LoadedInboxBell orgId={orgId} needsYouCount={needsYouCount} current={current} />
   </Suspense>;
 }
 
@@ -34,16 +34,16 @@ function InboxBellLink({ unread, current }: { unread: number; current: boolean }
 }
 
 /**
- * The count comes from the layout's promise, then from GET /api/notifications/unread on a window focus, a
+ * The count (Needs-you items) comes from the layout's promise, then from GET /api/notifications/unread on a window focus, a
  * tab becoming visible, and when the Inbox page closes. While the Inbox page is open, its own
  * count (with its pending marks) is the one shown.
  */
-function LoadedInboxBell({ orgId, unreadCount, current }: { orgId: string; unreadCount?: Promise<number>; current: boolean }) {
+function LoadedInboxBell({ orgId, needsYouCount, current }: { orgId: string; needsYouCount?: Promise<number>; current: boolean }) {
   // Only the first promise is read: a later server render hands over a new one and the bell must not suspend again.
-  const [initialCount] = useState(unreadCount);
+  const [initialCount] = useState(needsYouCount);
   const serverUnread = initialCount ? use(initialCount) : 0;
   const [count, setCount] = useState(serverUnread);
-  const published = useSyncExternalStore(inboxUnread.subscribe, inboxUnread.get, () => null);
+  const published = useSyncExternalStore(inboxNeedsYou.subscribe, inboxNeedsYou.get, () => null);
   const request = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
@@ -61,7 +61,7 @@ function LoadedInboxBell({ orgId, unreadCount, current }: { orgId: string; unrea
 
   useEffect(() => () => request.current?.abort(), []);
   // Leaving the Inbox page (it stops publishing) reads the count again.
-  useEffect(() => inboxUnread.subscribe(() => { if (inboxUnread.get() === null) void refresh(); }), [refresh]);
+  useEffect(() => inboxNeedsYou.subscribe(() => { if (inboxNeedsYou.get() === null) void refresh(); }), [refresh]);
 
   const onFocus = useEffectEvent(() => { if (published === null) void refresh(); });
   useEffect(() => {

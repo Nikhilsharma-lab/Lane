@@ -35,16 +35,6 @@ describe("notificationRow", () => {
     expect(notificationEvent("something_else", "Aditi Rao")).toBe("Aditi Rao updated it")
   })
 
-  it("words a reminder as Lane's, never naming a person or falling back to Someone", () => {
-    const reminder = (type: string) => notificationRow({ ...base, type, actorName: null }, "Jan 1, 8:00 AM")
-    expect(reminder("release_reminder").secondary).toBe("Still Done. Record the release once it is live")
-    expect(reminder("result_due_soon").secondary).toBe("Result due soon")
-    expect(reminder("result_due").secondary).toBe("Result due today. You can close it now")
-    expect(reminder("result_overdue").secondary).toBe("Result overdue. Close it when you have the numbers")
-    expect(reminder("result_due").name).toBe("LAN-12 · Customers cannot find the delivery date before checkout, Result due today. You can close it now, Jan 1, 8:00 AM, unread")
-    expect(reminder("result_overdue").name).not.toMatch(/Someone/)
-  })
-
   it("carries the review question or concern reason as its own line and in the accessible name", () => {
     const asked = notificationRow({ ...base, type: "review_requested", detail: "Can we build this with the current API?" }, "Jan 1, 8:00 AM")
     expect(asked.detail).toBe("Can we build this with the current API?")
