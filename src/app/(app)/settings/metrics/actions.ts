@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refusal, requireMemberOrAbove } from "@/lib/auth-guard";
+import { refusal, requireMemberOrAbove, requireOwnerOrAdmin } from "@/lib/auth-guard";
 import { metricDefinitionFieldErrors, metricDefinitionInputSchema, type MetricDefinitionField } from "@/lib/metric-definition-rules";
-import { addMetricDefinition as addToLibrary, editMetricDefinition as editInLibrary, type MetricsLibraryRefusal } from "@/lib/metrics-library";
+import {
+  addMetricDefinition as addToLibrary, archiveMetricDefinition as archiveInLibrary, editMetricDefinition as editInLibrary,
+  restoreMetricDefinition as restoreInLibrary, type MetricsLibraryRefusal,
+} from "@/lib/metrics-library";
 
 /**
  * Settings → Metrics (#197): keeping the workspace's Metrics library accurate. Members and Admins add
@@ -45,6 +48,35 @@ export async function editMetricDefinition(data: DefinitionData & { id: string }
 
   const id = String(data.id);
   const result = await editInLibrary({ orgId: auth.orgId }, auth.userId, id, parsed.data);
+  if ("error" in result) return refused(result);
+  if (result.changed) revalidate(id);
+  return { ok: true };
+}
+
+const ADMIN_ONLY = "Only Admins can archive or restore metrics.";
+
+/** Archive and restore are for Admins: a Member is told so, a Guest gets the library refusal. */
+async function adminFor(orgId: string) {
+  const admin = await requireOwnerOrAdmin(orgId);
+  if (admin) return { admin };
+  return { error: (await requireMemberOrAbove(orgId)) ? ADMIN_ONLY : await refusal(LIBRARY_REFUSAL) };
+}
+
+export async function archiveMetricDefinition(data: { id: string }, context: { orgId: string }): Promise<MetricActionResult> {
+  const { admin, error } = await adminFor(context.orgId);
+  if (!admin) return { error: error! };
+  const id = String(data?.id);
+  const result = await archiveInLibrary({ orgId: admin.orgId }, admin.userId, id);
+  if ("error" in result) return refused(result);
+  if (result.changed) revalidate(id);
+  return { ok: true };
+}
+
+export async function restoreMetricDefinition(data: { id: string }, context: { orgId: string }): Promise<MetricActionResult> {
+  const { admin, error } = await adminFor(context.orgId);
+  if (!admin) return { error: error! };
+  const id = String(data?.id);
+  const result = await restoreInLibrary({ orgId: admin.orgId }, admin.userId, id);
   if ("error" in result) return refused(result);
   if (result.changed) revalidate(id);
   return { ok: true };

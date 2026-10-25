@@ -230,3 +230,40 @@ export async function editMetricDefinition(workspace: MetricsWorkspace, authorId
   });
 }
 
+/**
+ * Archives a definition: it stops being offered for new predictions, and stays on every Request that
+ * already uses it (and still adds up there). Archiving an archived definition changes nothing.
+ */
+export async function archiveMetricDefinition(workspace: MetricsWorkspace, authorId: string, id: string): Promise<{ changed: boolean } | MetricsLibraryRefusal> {
+  return change(null, async (tx) => {
+    const current = await lockedDefinition(tx, workspace.orgId, id);
+    if (current.mergedIntoId) throw new Refused(MERGED);
+    if (current.archivedAt) return { changed: false };
+    const [archived] = await tx.update(metricDefinitions).set({ archivedAt: sql`now()` })
+      .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, id))).returning(definitionColumns);
+    await recordHistory(tx, { orgId: workspace.orgId, definitionId: id, kind: "archived", before: snapshotOf(current), after: snapshotOf(archived), authorId });
+    return { changed: true };
+  });
+}
+
+/** Restores an archived definition, unless an active definition has taken its name since. */
+export async function restoreMetricDefinition(workspace: MetricsWorkspace, authorId: string, id: string): Promise<{ changed: boolean } | MetricsLibraryRefusal> {
+  return change(null, async (tx) => {
+    const current = await lockedDefinition(tx, workspace.orgId, id);
+    if (current.mergedIntoId) throw new Refused(MERGED);
+    if (!current.archivedAt) return { changed: false };
+    const clash = (name: string) => new Refused(`An active metric is already called “${name}”. Rename this one or that one first.`);
+    const taken = await activeNamed(tx, workspace.orgId, current.name, id);
+    if (taken) throw clash(taken.name);
+    try {
+      const [restored] = await tx.update(metricDefinitions).set({ archivedAt: null })
+        .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, id))).returning(definitionColumns);
+      await recordHistory(tx, { orgId: workspace.orgId, definitionId: id, kind: "restored", before: snapshotOf(current), after: snapshotOf(restored), authorId });
+    } catch (error) {
+      if (isActiveNameClash(error)) throw clash(current.name);
+      throw error;
+    }
+    return { changed: true };
+  });
+}
+

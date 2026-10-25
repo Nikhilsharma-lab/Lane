@@ -162,3 +162,116 @@ describe("Editing a Metric definition", () => {
     expect(await historyOf(id)).toHaveLength(1);
   });
 });
+
+describe("Archiving and restoring a Metric definition", () => {
+  it("lets an Admin archive one: it leaves the active library, stays in the full one, and history keeps the change", async () => {
+    const id = await add();
+    actAs("admin");
+    expect(await (await actions()).archiveMetricDefinition({ id }, context())).toEqual({ ok: true });
+    expect((await active()).map(definition => definition.id)).not.toContain(id);
+    const archived = await named("Trial starts");
+    expect(archived.archivedAt).toBeInstanceOf(Date);
+    const [, entry] = await historyOf(id);
+    expect(entry).toMatchObject({ revision: 2, kind: "archived", authorId: ADMIN, before: { name: "Trial starts", archivedAt: null }, after: { name: "Trial starts", archivedAt: archived.archivedAt!.toISOString() } });
+  });
+
+  it("lets an Admin restore an archived one, recorded in history", async () => {
+    const id = await add();
+    actAs("admin");
+    const { archiveMetricDefinition, restoreMetricDefinition } = await actions();
+    await archiveMetricDefinition({ id }, context());
+    expect(await restoreMetricDefinition({ id }, context())).toEqual({ ok: true });
+    expect((await active()).find(definition => definition.id === id)).toMatchObject({ archivedAt: null });
+    expect((await historyOf(id)).map(entry => [entry.kind, entry.authorId])).toEqual([["created", MEMBER], ["archived", ADMIN], ["restored", ADMIN]]);
+    expect((await historyOf(id))[2]).toMatchObject({ before: { archivedAt: expect.any(String) }, after: { archivedAt: null } });
+  });
+
+  it.each(["member", "guest"] as const)("refuses archive and restore from a %s, even when asked directly", async (role) => {
+    const id = await add();
+    const other = await add({ name: "Signups", unit: "count" });
+    actAs("admin");
+    const { archiveMetricDefinition, restoreMetricDefinition } = await actions();
+    await archiveMetricDefinition({ id: other }, context());
+    actAs(role);
+    const message = role === "member" ? "Only Admins can archive or restore metrics." : "You can't change the Metrics library in this workspace.";
+    expect(await archiveMetricDefinition({ id }, context())).toEqual({ error: message });
+    expect(await restoreMetricDefinition({ id: other }, context())).toEqual({ error: message });
+    expect((await named("Trial starts")).archivedAt).toBeNull();
+    expect((await named("Signups")).archivedAt).toBeInstanceOf(Date);
+    expect(await historyOf(id)).toHaveLength(1);
+    expect(await historyOf(other)).toHaveLength(2);
+  });
+
+  it("lets a new definition reuse an archived one's name", async () => {
+    const archived = await add();
+    actAs("admin");
+    await (await actions()).archiveMetricDefinition({ id: archived }, context());
+    actAs("member");
+    const reused = await add({ ...trialStarts, name: "trial starts" });
+    expect(reused).not.toBe(archived);
+    expect((await active()).filter(definition => definition.name.toLowerCase() === "trial starts").map(definition => definition.id)).toEqual([reused]);
+  });
+
+  it("won't restore one whose name an active definition now has, and says what to do", async () => {
+    const archived = await add();
+    actAs("admin");
+    const { archiveMetricDefinition, restoreMetricDefinition } = await actions();
+    await archiveMetricDefinition({ id: archived }, context());
+    await add({ ...trialStarts, name: "Trial Starts" });
+    expect(await restoreMetricDefinition({ id: archived }, context())).toEqual({ error: "An active metric is already called “Trial Starts”. Rename this one or that one first." });
+    expect((await all()).find(definition => definition.id === archived)?.archivedAt).toBeInstanceOf(Date);
+  });
+
+  it("keeps an archived definition editable, and records nothing for archiving or restoring twice", async () => {
+    const id = await add();
+    actAs("admin");
+    const { archiveMetricDefinition, editMetricDefinition, restoreMetricDefinition } = await actions();
+    await archiveMetricDefinition({ id }, context());
+    expect(await archiveMetricDefinition({ id }, context())).toEqual({ ok: true });
+    actAs("member");
+    expect(await editMetricDefinition({ ...trialStarts, id, howCounted: "Trials started per day." }, context())).toEqual({ ok: true });
+    actAs("admin");
+    await restoreMetricDefinition({ id }, context());
+    expect(await restoreMetricDefinition({ id }, context())).toEqual({ ok: true });
+    expect((await historyOf(id)).map(entry => entry.kind)).toEqual(["created", "archived", "edited", "restored"]);
+  });
+
+  it("leaves a merged-away definition alone", async () => {
+    const id = await add();
+    const kept = await add({ name: "Signups", unit: "count" });
+    // Merging arrives with #202; set it up directly here.
+    await connection`update metric_definitions set merged_into_id = ${kept} where id = ${id}`;
+    actAs("admin");
+    const { archiveMetricDefinition, editMetricDefinition, restoreMetricDefinition } = await actions();
+    const merged = { error: "This metric was merged into another one, so it can't be changed." };
+    expect(await editMetricDefinition({ ...trialStarts, id, name: "Renamed" }, context())).toEqual(merged);
+    expect(await archiveMetricDefinition({ id }, context())).toEqual(merged);
+    expect(await restoreMetricDefinition({ id }, context())).toEqual(merged);
+    expect(await historyOf(id)).toHaveLength(1);
+  });
+
+  it("refuses a definition from another workspace", async () => {
+    const id = await add();
+    const mine = orgId;
+    orgId = `${PREFIX}${++workspaces}`;
+    await connection`insert into organizations (id,name,slug) values (${orgId},'Other metrics',${orgId.replaceAll("_", "-")})`;
+    actAs("admin");
+    expect(await (await actions()).archiveMetricDefinition({ id }, context())).toEqual({ error: "That metric isn't in this workspace." });
+    orgId = mine;
+    expect((await named("Trial starts")).archivedAt).toBeNull();
+  });
+});
+
+describe("Metric definition history", () => {
+  it("can't be edited or removed, even directly in the database", async () => {
+    const id = await add();
+    await (await actions()).editMetricDefinition({ ...trialStarts, id, name: "Trials started" }, context());
+    await expect(connection`update metric_definition_history set after = '{}'::jsonb where definition_id = ${id}`).rejects.toThrow("immutable");
+    await expect(connection`delete from metric_definition_history where definition_id = ${id}`).rejects.toThrow("kept");
+    expect((await historyOf(id)).map(entry => entry.after.name)).toEqual(["Trial starts", "Trials started"]);
+  });
+
+  it("offers no action that edits or removes history", async () => {
+    expect(Object.keys(await actions()).sort()).toEqual(["addMetricDefinition", "archiveMetricDefinition", "editMetricDefinition", "restoreMetricDefinition"]);
+  });
+});
