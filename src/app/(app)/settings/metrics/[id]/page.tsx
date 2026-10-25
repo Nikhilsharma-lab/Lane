@@ -13,7 +13,7 @@ import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
-import { InboxDelivery } from "../../profile/inbox-delivery";
+import { inboxDeliveryPanel } from "../../profile/inbox-delivery";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
 
@@ -76,5 +76,5 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     members={<ClerkMembersProfile />} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
-    delivery={<InboxDelivery workspace={workspace} />} />;
+    delivery={await inboxDeliveryPanel(workspace)} />;
 }
