@@ -372,13 +372,15 @@ export async function readMetricDefinitionHistory(workspace: MetricsWorkspace, d
 
 type LibraryTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Snapshot = ReturnType<typeof snapshotOf>;
+/** What both sides of a merge record beside their snapshot (#202): which was kept and which merged away, by name at the time. */
+export type MetricMergeRecord = { keptId: string; keptName: string; mergedId: string; mergedName: string };
 
 /**
  * Keeps one change in a definition's history: the next revision for that definition, in the caller's
  * transaction, so the change and its record are saved together or not at all.
  */
 async function recordHistory(tx: LibraryTx, entry: {
-  orgId: string; definitionId: string; kind: MetricDefinitionHistoryKind; before: Snapshot | null; after: Snapshot; authorId: string;
+  orgId: string; definitionId: string; kind: MetricDefinitionHistoryKind; before: Snapshot | null; after: Snapshot & { merge?: MetricMergeRecord }; authorId: string;
 }) {
   const [latest] = await tx.select({ revision: max(metricDefinitionHistory.revision) }).from(metricDefinitionHistory)
     .where(and(eq(metricDefinitionHistory.orgId, entry.orgId), eq(metricDefinitionHistory.definitionId, entry.definitionId)));
@@ -511,6 +513,35 @@ export async function archiveMetricDefinition(workspace: MetricsWorkspace, autho
       .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, id))).returning(definitionColumns);
     await recordHistory(tx, { orgId: workspace.orgId, definitionId: id, kind: "archived", before: snapshotOf(current), after: snapshotOf(archived), authorId });
     return { changed: true };
+  });
+}
+
+/**
+ * Merges one definition into another with the same unit (#202), for cleaning up duplicates. The kept definition is
+ * unchanged; the merged one is marked "merged into" it, so it leaves the picker and the main list, and every Request
+ * that used it counts under the kept one from now on (resolving a saved metric follows the link; no Request is
+ * rewritten). Both histories record the merge. There is no unmerge: a merged-away definition can't be merged again
+ * or kept. An archived definition can be merged away, or kept.
+ */
+export async function mergeMetricDefinitions(workspace: MetricsWorkspace, authorId: string, ids: { keptId: string; mergedId: string }): Promise<{ changed: true } | MetricsLibraryRefusal> {
+  return change(null, async (tx) => {
+    if (!UUID.test(ids.keptId) || !UUID.test(ids.mergedId)) throw new Refused(NOT_HERE);
+    if (ids.keptId.toLowerCase() === ids.mergedId.toLowerCase()) throw new Refused("Choose two different metrics to merge.");
+    // Lock both in a fixed order, so two merges of the same pair at once can't deadlock.
+    const locked = new Map<string, DefinitionRow>();
+    for (const id of [ids.keptId, ids.mergedId].sort()) locked.set(id, await lockedDefinition(tx, workspace.orgId, id));
+    const kept = locked.get(ids.keptId)!, merged = locked.get(ids.mergedId)!;
+    for (const row of [merged, kept]) if (row.mergedIntoId) throw new Refused(`“${row.name}” was already merged into another metric. Merges can't be undone.`);
+    if (kept.unit !== merged.unit) {
+      const unit = (row: DefinitionRow) => metricUnitName(row.unit).toLowerCase();
+      throw new Refused(`“${merged.name}” is counted in ${unit(merged)} and “${kept.name}” in ${unit(kept)}. Only metrics with the same unit can be merged.`);
+    }
+    const merge: MetricMergeRecord = { keptId: kept.id, keptName: kept.name, mergedId: merged.id, mergedName: merged.name };
+    const [away] = await tx.update(metricDefinitions).set({ mergedIntoId: kept.id })
+      .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, merged.id))).returning(definitionColumns);
+    await recordHistory(tx, { orgId: workspace.orgId, definitionId: merged.id, kind: "merged_away", before: snapshotOf(merged), after: { ...snapshotOf(away), merge }, authorId });
+    await recordHistory(tx, { orgId: workspace.orgId, definitionId: kept.id, kind: "merged_into", before: snapshotOf(kept), after: { ...snapshotOf(kept), merge }, authorId });
+    return { changed: true as const };
   });
 }
 
