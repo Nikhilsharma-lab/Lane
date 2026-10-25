@@ -8,7 +8,7 @@ import type { Announce } from "./list-announcer"
 import { usePickupConfirmation } from "./pickup-confirmation"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
 import { useCopy } from "./use-copy"
-import { useOptimisticAction } from "./use-optimistic-action"
+import { useOptimisticAction, useServerRefresh } from "./use-optimistic-action"
 
 export { moveTarget, type MoveOptions, type MoveOutcome, type MoveTarget } from "./request-moves-controller"
 
@@ -28,12 +28,13 @@ export function useRequestMoves({ orgId, announce, afterMove }: {
 }) {
   const { toast, update } = useToastStack()
   const optimistic = useOptimisticAction()
+  const refresh = useServerRefresh()
   // Moves in flight, kept across renders so a second Enter on the same move is refused.
   const [busy] = useState(() => new Set<string>())
   const confirmPickup = usePickupConfirmation()
   const copyText = useCopy()
   // #135: a successful Mark Done asks "Is it live?".
   const isItLive = useIsItLive()
-  return useMemo(() => createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy, isItLive }),
-    [afterMove, announce, busy, confirmPickup, copyText, isItLive, optimistic, orgId, toast, update])
+  return useMemo(() => createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, refresh, confirmPickup, copyText, actions, busy, isItLive }),
+    [afterMove, announce, busy, confirmPickup, copyText, isItLive, optimistic, orgId, refresh, toast, update])
 }

@@ -29,10 +29,15 @@ function app() {
   undoStore.bind(stack.state)
   const moves = createRequestMoves({
     orgId: "org1", announce: vi.fn(), toast, update, optimistic: options => runOptimistic(optimisticDeps, options), confirmPickup: async () => true, copyText: async () => true,
-    actions, undoStore, isItLive: prompt.ask,
+    actions, undoStore, isItLive: prompt.ask, refresh: optimisticDeps.refresh,
   })
   const flush = () => new Promise(resolve => setTimeout(resolve, 0))
-  return { moves, prompt, view: () => view, stack, get toasts() { return stack.toasts }, calls, results, undoStore, flush }
+  return {
+    moves, prompt, view: () => view, stack, get toasts() { return stack.toasts }, calls, results, undoStore, flush,
+    // The no-patch pending boundary used by useJourneyChange for a Release save.
+    release: (run: () => Promise<ActionResult>) => runOptimistic(optimisticDeps, { id: "r1", run, refreshOnError: false, onError: vi.fn() }),
+    refresh: optimisticDeps.refresh,
+  }
 }
 
 const request = { id: "r1", name: "LAN-12" }
@@ -155,11 +160,70 @@ describe("Is it live? after Mark Done (#135)", () => {
     expect(a.calls).toEqual(["markDone", "undoMarkDone"])
   })
 
+  it("Undo skipped behind a failed Release ends its loading feedback without submitting or reoffering Undo", async () => {
+    const a = app()
+    await a.moves.move(request, "done")
+    a.prompt.record()
+    let failRelease: (result: ActionResult) => void = () => {}
+    const release = a.release(() => new Promise(resolve => { failRelease = resolve }))
+    await a.flush()
+    // Escape closes the Release dialog and restores Done while the save is still pending.
+    a.prompt.notYet()
+    const retained = a.undoStore.get()!.undo
+    retained()
+    expect(a.toasts[0].title).toBe("Undoing")
+    failRelease({ error: "Could not save release." })
+    await release
+    await a.flush()
+    expect(a.toasts[0]).toMatchObject({ title: "Could not undo", description: "An earlier change failed. Check this Request and try again.", action: undefined })
+    expect(a.undoStore.get()).toBeNull()
+    retained()
+    a.prompt.notYet()
+    await a.flush()
+    expect(a.calls).toEqual(["markDone"])
+    expect(a.refresh).toHaveBeenCalledOnce()
+  })
+
   it("a second Mark Done while the prompt is open asks about the newer Request; the first keeps its Undo", async () => {
     const a = app()
     await a.moves.move(request, "done")
     await a.moves.move({ id: "r2", name: "LAN-13" }, "done")
     expect(a.view()).toEqual({ step: "ask", request: { id: "r2", name: "LAN-13" } })
     expect(a.toasts.some(item => item.title === "Marked Done" && item.description === "LAN-12 is now Done.")).toBe(true)
+  })
+
+  it.each([false, true])("a retained Release completion ends its own Undo after Escape, with a newer prompt: %s", async newerPrompt => {
+    const a = app()
+    await a.moves.move(request, "done")
+    a.prompt.record()
+    const savedEarlierRelease = a.prompt.saved
+    a.prompt.notYet()
+    const newer = { id: "r2", name: "LAN-13" }
+    if (newerPrompt) await a.moves.move(newer, "done")
+    savedEarlierRelease()
+    expect(a.undoStore.get()?.requestId ?? null).toBe(newerPrompt ? "r2" : null)
+    expect(a.view()).toEqual(newerPrompt ? { step: "ask", request: newer } : null)
+    expect(a.toasts.find(toast => toast.description === "LAN-12 is now Measuring.")).toMatchObject({ title: "Release recorded", action: undefined })
+  })
+
+  it.each(["record", "notYet"] as const)("a retained %s callback cannot change a newer prompt", async action => {
+    const a = app()
+    await a.moves.move(request, "done")
+    const older = a.prompt[action]
+    const newer = { id: "r2", name: "LAN-13" }
+    await a.moves.move(newer, "done")
+    older()
+    expect(a.view()).toEqual({ step: "ask", request: newer })
+    expect(a.undoStore.get()?.requestId).toBe("r2")
+  })
+
+  it("the prompt keeps its operation identity when the question becomes a Release form", async () => {
+    const a = app()
+    await a.moves.move(request, "done")
+    const saved = a.prompt.saved
+    a.prompt.record()
+    saved()
+    expect(a.view()).toBeNull()
+    expect(a.undoStore.get()).toBeNull()
   })
 })

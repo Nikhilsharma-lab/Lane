@@ -30,6 +30,7 @@ export type MoveOptions = {
 export type MoveOutcome = OptimisticOutcome<unknown> | { status: "busy" } | { status: "cancelled" }
 
 type Scope = { orgId: string }
+const EARLIER_CHANGE_FAILED = "An earlier change failed. Check this Request and try again."
 
 /** The server actions the moves call (src/app/(app)/requests/[id]/actions.ts). */
 export type RequestMoveActions = {
@@ -46,6 +47,8 @@ export type RequestMovesDeps = {
   toast: ToastStackApi["toast"]
   update: ToastStackApi["update"]
   optimistic: <R>(options: OptimisticOptions<R>) => Promise<OptimisticOutcome<R>>
+  /** Reconciles a skipped Undo when the earlier journey save did not refresh its closed form. */
+  refresh: () => void
   confirmPickup: ConfirmPickup
   copyText: (value: string, copied: string) => Promise<boolean>
   actions: RequestMoveActions
@@ -67,10 +70,10 @@ export type RequestMovesDeps = {
  * focus on the moved row) and after an Undo succeeds. useRequestMoves is the
  * React binding; this takes every boundary as a dependency.
  */
-export function createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, confirmPickup, copyText, actions, busy = new Set(), undoStore, isItLive }: RequestMovesDeps) {
+export function createRequestMoves({ orgId, announce, afterMove, toast, update, optimistic, refresh, confirmPickup, copyText, actions, busy = new Set(), undoStore, isItLive }: RequestMovesDeps) {
   // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
   // Undo is sent only after the Done move it reverses has succeeded.
-  const undo = async (toastId: string, requestId: string, name: string) => {
+  const undo = async (toastId: string, requestId: string, name: string, ended: () => boolean) => {
     update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In progress.`, action: undefined })
     const outcome = await optimistic({
       id: requestId,
@@ -79,6 +82,11 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       waitForPending: true,
       onError: description => { toast({ id: toastId, type: "error", title: "Could not undo", description }) },
     })
+    // A failed Done already replaced this toast. A later failed Release may only have had inline feedback.
+    if (outcome.status === "skipped" && !ended()) {
+      toast({ id: toastId, type: "error", title: "Could not undo", description: EARLIER_CHANGE_FAILED, action: undefined })
+      refresh()
+    }
     if (outcome.status !== "success") return
     toast({ id: toastId, type: "success", title: "Back to In progress", description: `${name} is In progress again.` })
     afterMove?.(requestId, name)
@@ -91,7 +99,9 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     busy.add(key)
     const { name } = request
     // Done leaves the working views, so its confirmation carries the way back; the palette's Undo runs the same one (#103).
-    const done = kind === "done" ? showMarkedDone(toast, request, undo, undoStore) : null
+    const done: ReturnType<typeof showMarkedDone> | null = kind === "done"
+      ? showMarkedDone(toast, request, (id, requestId, name) => undo(id, requestId, name, () => done?.ended ?? true), undoStore)
+      : null
     const toastId = done?.toastId
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
     if (kind === "pick-up") announce("Picked up. The Request is now In progress.", { key: "row-change" })
@@ -109,7 +119,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       // A preceding failed write can skip Done before submission without invoking onError.
       if (result.status === "skipped" && done) {
         done.end()
-        toast({ id: done.toastId, type: "error", title: FAILURE_TITLE, description: "An earlier change failed. Check this Request and try again.", action: undefined })
+        toast({ id: done.toastId, type: "error", title: FAILURE_TITLE, description: EARLIER_CHANGE_FAILED, action: undefined })
       }
       // The failure toast speaks for itself; the region drops the claim it made.
       if (result.status === "error" && kind === "pick-up") announce("", { key: "row-change" })

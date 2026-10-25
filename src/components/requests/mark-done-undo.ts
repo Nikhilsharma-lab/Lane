@@ -68,6 +68,7 @@ export function showMarkedDone(toast: ToastStackApi["toast"], request: { id: str
   return {
     toastId,
     get consumed() { return consumed },
+    get ended() { return ended },
     restore: () => { if (!consumed && !ended) show(toastId) },
     end: () => { ended = true; store.clear(runUndo) },
   }

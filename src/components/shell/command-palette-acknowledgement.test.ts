@@ -60,7 +60,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const isItLive = vi.fn()
   const bindMoves = () => createRequestMoves({
     orgId: "org1", announce, toast, update, optimistic: options => runOptimistic(optimisticDeps, options),
-    confirmPickup: confirmation.confirm, copyText, actions, undoStore, isItLive,
+    confirmPickup: confirmation.confirm, copyText, actions, undoStore, isItLive, refresh,
   })
   let moves = bindMoves()
 
@@ -86,7 +86,10 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
     run, setPriority, flush, sent, calls, get toasts() { return stack.toasts }, said, failures, clipboard, undoStore, confirmation,
     asked: () => asked, failClipboard: () => { clipboardFails = true },
     shown: () => pending.view(pending.getSnapshot()).applyOne(row),
-    isItLive, recreateMoves: () => { moves = bindMoves() },
+    isItLive, recreateMoves: () => {
+      current.status = pending.view(pending.getSnapshot()).applyOne(row).status
+      moves = bindMoves()
+    },
     refresh, receiveRow: (saved: Partial<OverviewRequest>) => { Object.assign(row, saved) },
   }
 }
@@ -213,9 +216,10 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
   })
 
   it("a Done skipped after an earlier failed change cannot remain undoable", async () => {
-    const a = app({ status: "in_progress" })
-    a.setPriority("high")
+    const a = app()
+    a.run("pick-up")
     const earlier = await a.sent(0)
+    a.recreateMoves()
     a.run("mark-done")
     const retained = a.undoStore.get()!.undo
     earlier.resolve({ error: "This Request changed." })
