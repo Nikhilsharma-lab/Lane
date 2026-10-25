@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
 import { callAction } from "@/lib/action-call";
 import styles from "./settings.module.css";
 
@@ -79,7 +79,17 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
   const action = connection.kind === "disconnected"
     ? <Button onClick={() => { void connect(); }} loading={busy}>Connect Slack</Button>
     : connection.kind === "connected"
-      ? <Button variant="secondary" onClick={() => { setError(null); setConfirming(true); }}>Disconnect Slack</Button>
+      // The trigger inside the Dialog, so closing it returns focus here.
+      ? <Dialog open={confirming} onOpenChange={open => { if (!busy) { setError(null); setConfirming(open); } }}>
+        <DialogTrigger asChild><Button variant="secondary">Disconnect Slack</Button></DialogTrigger>
+        <DialogContent title="Disconnect Slack?" description="People who chose Slack DM get email instead. They can choose Slack DM again once Slack is connected.">
+          {error && <Alert role="alert" tone="danger" title={error} />}
+          <div className={styles.dialogActions}>
+            <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
+            <Button variant="danger" onClick={() => { void disconnect(); }} loading={busy}>Disconnect Slack</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       : null;
 
   return <div className={styles.card}>
@@ -104,14 +114,5 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
       </div>
       {action}
     </div>
-    <Dialog open={confirming} onOpenChange={open => { if (!busy) setConfirming(open); }}>
-      {confirming && <DialogContent title="Disconnect Slack?" description="People who chose Slack DM get email instead. They can choose Slack DM again once Slack is connected.">
-        {error && <Alert role="alert" tone="danger" title={error} />}
-        <div className={styles.dialogActions}>
-          <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
-          <Button variant="danger" onClick={() => { void disconnect(); }} loading={busy}>Disconnect Slack</Button>
-        </div>
-      </DialogContent>}
-    </Dialog>
   </div>;
 }
