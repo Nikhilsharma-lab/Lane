@@ -53,6 +53,7 @@ async function workspaceState() {
     delivery: await connection`select count(*)::int as n from delivery_preferences where org_id = ${ORG}`,
     quarterNotes: await connection`select count(*)::int as n from quarter_notes where org_id = ${ORG}`,
     slack: await connection`select count(*)::int as n from slack_connections where org_id = ${ORG}`,
+    billing: await connection`select plan_state, founding_reserved_until from workspace_billing where org_id = ${ORG}`,
   };
 }
 
@@ -130,6 +131,7 @@ describe("every change is refused for a Viewer", () => {
     ["choose Inbox delivery", async () => (await import("./settings/profile/delivery-actions")).updateDeliveryPreference({ channel: "off" }, ctx)],
     ["connect Slack", async () => (await import("./settings/profile/slack-actions")).startSlackConnect({}, ctx)],
     ["disconnect Slack", async () => (await import("./settings/profile/slack-actions")).disconnectSlack({}, ctx)],
+    ["pay for Lane", async () => (await import("./settings/profile/billing-actions")).startPlanCheckout({ period: "yearly" }, ctx)],
     ["invite someone", async () => (await import("./settings/members/actions")).inviteToWorkspace({ email: "new@example.test", role: "member" }, ctx)],
     ["change someone's role", async () => (await import("./settings/members/actions")).changeMemberRole({ userId: MEMBER, role: "viewer" }, ctx)],
     ["revoke an invitation", async () => (await import("./settings/members/actions")).revokeInvitation({ invitationId: "inv_x" }, ctx)],

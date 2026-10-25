@@ -75,3 +75,21 @@ export function customRoles(env: Env = process.env): boolean {
 export function billingEnforced(env: Env = process.env): boolean {
   return env.LANE_BILLING_ENFORCED === "1"
 }
+
+export type StripeBilling =
+  | { on: true; secretKey: string; webhookSecret: string; priceYearly: string; priceMonthly: string; foundingCoupon: string }
+  | { on: false; reason: "missing_credentials" }
+
+/** The Stripe names #214 pays through. Every one is needed; with any missing there is no payment provider. */
+export const STRIPE_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_YEARLY", "STRIPE_PRICE_MONTHLY", "STRIPE_FOUNDING_COUPON"] as const
+
+/**
+ * #214 `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_YEARLY`, `STRIPE_PRICE_MONTHLY`, `STRIPE_FOUNDING_COUPON`.
+ * Without all five there is no payment provider: Settings → Billing says paying isn't available yet, and the billing
+ * webhook refuses every call. Checkout is also offered only while billing is enforced (`billingEnforced`).
+ */
+export function stripeBilling(env: Env = process.env): StripeBilling {
+  const [secretKey, webhookSecret, priceYearly, priceMonthly, foundingCoupon] = STRIPE_NAMES.map((name) => env[name]?.trim())
+  if (!secretKey || !webhookSecret || !priceYearly || !priceMonthly || !foundingCoupon) return { on: false, reason: "missing_credentials" }
+  return { on: true, secretKey, webhookSecret, priceYearly, priceMonthly, foundingCoupon }
+}

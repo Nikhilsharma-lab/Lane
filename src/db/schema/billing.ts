@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organizations } from "./users";
 
 /**
@@ -8,7 +8,10 @@ import { organizations } from "./users";
  * `workspace_billing`: one row per workspace. `freeRequestsUsed` is kept by database triggers on `requests` (every
  * Request created, deleted ones included; a Guest submission once taken on) and never goes down. `allowanceKey` /
  * `holdsAllowance` are decided once: the workspace either holds its creator's allowance or another workspace does.
- * `planState` is free until payment arrives (#214).
+ * `planState` is set from the payment provider (#214): paying once a checkout completes. Migration 0047 adds what the
+ * provider reports (customer, subscription, billing period, first payment) and the founding discount's place:
+ * `foundingReservedUntil` while a checkout with it is open, `foundingStartsAt` (set once) once paid with it. The
+ * database refuses a 51st place.
  */
 export const workspaceBilling = pgTable(
   "workspace_billing",
@@ -18,6 +21,12 @@ export const workspaceBilling = pgTable(
     freeRequestsUsed: integer("free_requests_used").notNull().default(0),
     allowanceKey: text("allowance_key"),
     holdsAllowance: boolean("holds_allowance"),
+    billingPeriod: text("billing_period", { enum: ["yearly", "monthly"] }),
+    providerCustomerId: text("provider_customer_id"),
+    providerSubscriptionId: text("provider_subscription_id"),
+    payingSince: timestamp("paying_since", { withTimezone: true }),
+    foundingStartsAt: timestamp("founding_starts_at", { withTimezone: true }),
+    foundingReservedUntil: timestamp("founding_reserved_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -25,6 +34,8 @@ export const workspaceBilling = pgTable(
     check("workspace_billing_plan_state_check", sql`${t.planState} in ('free', 'paying', 'lapsed')`),
     check("workspace_billing_free_requests_used_check", sql`${t.freeRequestsUsed} >= 0`),
     check("workspace_billing_allowance_check", sql`(${t.allowanceKey} is null) = (${t.holdsAllowance} is null)`),
+    check("workspace_billing_billing_period_check", sql`${t.billingPeriod} in ('yearly', 'monthly')`),
+    uniqueIndex("workspace_billing_provider_subscription_idx").on(t.providerSubscriptionId).where(sql`${t.providerSubscriptionId} is not null`),
   ],
 );
 

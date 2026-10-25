@@ -10,15 +10,16 @@ import { inboxDeliveryPanel } from "./inbox-delivery";
 import { slackPanel } from "./slack-panel";
 import { billingPanel } from "./billing-panel";
 
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string }> }) {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
 
   // Plan item 1.9: the profile role arrived with the shell join. The page's one
   // reads of its own are the Inbox delivery choice (#206; none for a Guest) and,
-  // for an Admin, the Slack connection (#207; `?slack=` is how Slack's install flow ended).
-  const { section, slack } = await searchParams;
+  // for an Admin, the Slack connection (#207; `?slack=` is how Slack’s install flow ended) and Billing
+  // (#213/#214; `?checkout=` is how the payment provider’s checkout page ended).
+  const { section, slack, checkout } = await searchParams;
   return (
       <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
         members={membersPanel(workspace)}
@@ -29,7 +30,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         appearance={<ThemePreference compact />}
         delivery={await inboxDeliveryPanel(workspace)}
         slack={await slackPanel(workspace, slack)}
-        billing={await billingPanel(workspace)}
+        billing={await billingPanel(workspace, checkout)}
       />
   );
 }

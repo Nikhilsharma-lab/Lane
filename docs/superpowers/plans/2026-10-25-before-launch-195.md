@@ -49,6 +49,13 @@ buttons). Migration 0042 adds `slack_connections`; the route is `GET /api/slack/
 "Slack" (Admins only). People Slack can't find by their Lane email address, or any item while Slack refuses the
 workspace's token, go by Email instead.
 
+As built in #214: the payment provider is Stripe (no reason found otherwise), behind a provider interface with a
+recording stand-in for tests (`src/lib/payment-provider.ts`). The Stripe adapter calls Stripe's API with `fetch` (no SDK
+added): Checkout Sessions in subscription mode (the hosted page), and the webhook signature checked by hand. Nothing
+reaches Stripe until Nikhil approves it: without all five Stripe names there is no provider, and checkout is offered
+only while `LANE_BILLING_ENFORCED` is also on. Migration 0047 adds the provider ids, billing period and the founding
+discount's place to `workspace_billing`; the route is `POST /api/billing/webhook` (`checkout.session.completed` only).
+
 ### The Slack app (for approval)
 
 **Status: proposed, waiting for Nikhil's approval. Nothing is created in Slack and the switch stays off until then.**

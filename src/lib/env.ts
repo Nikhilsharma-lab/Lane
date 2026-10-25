@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STRIPE_NAMES } from "./feature-switches";
 
 /**
  * Server env check (plan 6.1, I4/I5).
@@ -85,6 +86,15 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
     if (unset.length)
       warnings.push(
         `LANE_SLACK_DELIVERY is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without them Slack stays unavailable: no connect button, no Slack DM choice, nothing sent to Slack.`,
+      );
+  }
+
+  // #214: billing enforced with no payment provider leaves a workspace whose Free Requests are used no way to pay.
+  if (env.LANE_BILLING_ENFORCED === "1") {
+    const unset = STRIPE_NAMES.filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_BILLING_ENFORCED is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without them nobody can pay, so a workspace whose Free Requests are used can't create Requests.`,
       );
   }
 

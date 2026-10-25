@@ -9,7 +9,7 @@ import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_DATABASE_PATH } from "@/test/test-database";
 
-const ORGS = ["org_fr_block", "org_fr_race", "org_fr_deleted", "org_fr_guests", "org_fr_follow", "org_fr_off"] as const;
+const ORGS = ["org_fr_block", "org_fr_race", "org_fr_deleted", "org_fr_guests", "org_fr_follow", "org_fr_off", "org_fr_paid"] as const;
 type Org = (typeof ORGS)[number];
 const [MEMBER, OTHER, GUEST, ADMIN] = ["fr_member", "fr_other", "fr_guest", "fr_admin"];
 const ROLES: Record<string, string> = { [MEMBER]: "org:member", [OTHER]: "org:member", [GUEST]: "org:guest", [ADMIN]: "org:admin" };
@@ -127,6 +127,20 @@ describe("the 5th Request", () => {
     form.set("body", "Still working on it");
     expect(await actions.addComment(id, form, { orgId: "org_fr_block" })).toMatchObject({ success: true });
     expect(await actions.markDone(id, { orgId: "org_fr_block" })).toMatchObject({ success: true });
+  });
+
+  it("lets a workspace that pays (#214) create Requests beyond its Free Requests", async () => {
+    await fileMany("org_fr_paid", 4);
+    expect(await review("org_fr_paid")).toEqual(blocked("This workspace has used its 4 Free Requests\\."));
+    const { recordPaymentEvent, startCheckout } = await import("@/lib/billing");
+    const { recordingPaymentProvider } = await import("@/lib/payment-provider");
+    const provider = recordingPaymentProvider();
+    await startCheckout({ orgId: "org_fr_paid" }, { period: "yearly", seats: 3, email: null, origin: "https://lane.test" }, provider);
+    const paid = await provider.readEvent(provider.complete(), provider.headers(), new Date());
+    if (!paid.ok || !paid.event) throw Error("The stand-in should report the payment");
+    await recordPaymentEvent(paid.event);
+    await fileMany("org_fr_paid", 2);
+    expect(await requestCount("org_fr_paid")).toBe(6);
   });
 });
 

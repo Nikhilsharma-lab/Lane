@@ -1,10 +1,12 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 
 import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
+import { FOUNDING_DISCOUNT, foundingDiscountFor, foundingEndsAt, type BillingPeriod } from "./billing-plan-rules";
 import { billingEnforced } from "./feature-switches";
+import type { CheckoutRequest, PaymentEvent, PaymentProvider } from "./payment-provider";
 import { allowanceKeyOf, creationBlock, freeRequestsOf, type FreeRequests, type FreeRequestsState, type PlanState } from "./free-request-rules";
 import type { RequestTx } from "./request-change-store";
 
@@ -14,7 +16,8 @@ import type { RequestTx } from "./request-change-store";
  * (migration 0046): every Request created counts, deleted ones too, and a Guest submission once it is taken on.
  * Access is the caller's job: pages and actions guard the role, then pass only `{ orgId }`.
  *
- * There is no payment provider yet (#214); `planState` stays `free` until one sets it.
+ * #214 adds paying: checkout on the payment provider's hosted page (`src/lib/payment-provider.ts`), the plan state
+ * the provider's events set, and the founding discount for the first 50 paying workspaces, for two years.
  */
 
 type Workspace = { orgId: string };
@@ -85,6 +88,140 @@ export async function decideFreeRequests(ws: Workspace, known?: { createdBy: str
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");
   }
+}
+
+export type WorkspacePlan = {
+  planState: PlanState;
+  /** How the workspace pays, once it has paid. */
+  period: BillingPeriod | null;
+  /** `offered`: a checkout now gets the founding discount. `endsAt`: when this workspace's founding discount ends. */
+  founding: { offered: boolean; endsAt: Date | null };
+};
+
+/** The one lock every founding place is given under; migration 0047's trigger takes it too. */
+const lockFoundingPlaces = (tx: RequestTx) => tx.execute(sql`select pg_advisory_xact_lock(hashtext('lane_founding_places'))`);
+
+/** Founding places held by other workspaces: paid with the discount, or in a checkout that is still open. */
+async function foundingPlacesTaken(exec: Exec, orgId: string): Promise<number> {
+  const [row] = await exec
+    .select({ taken: count() })
+    .from(workspaceBilling)
+    .where(and(ne(workspaceBilling.orgId, orgId), or(isNotNull(workspaceBilling.foundingStartsAt), gt(workspaceBilling.foundingReservedUntil, sql`now()`))));
+  return row?.taken ?? 0;
+}
+
+/** What Settings → Billing shows about the plan: its state, how it is billed, and the founding discount. */
+export async function readPlan(ws: Workspace, now = new Date()): Promise<WorkspacePlan> {
+  const [row] = await db
+    .select({ planState: workspaceBilling.planState, period: workspaceBilling.billingPeriod, foundingStartsAt: workspaceBilling.foundingStartsAt, reservedUntil: workspaceBilling.foundingReservedUntil })
+    .from(workspaceBilling)
+    .where(eq(workspaceBilling.orgId, ws.orgId));
+  const startsAt = row?.foundingStartsAt ?? null;
+  const offered = startsAt ? foundingDiscountFor(startsAt, now) !== null : (await foundingPlacesTaken(db, ws.orgId)) < FOUNDING_DISCOUNT.workspaces;
+  return { planState: row?.planState ?? "free", period: row?.period ?? null, founding: { offered, endsAt: startsAt && foundingEndsAt(startsAt) } };
+}
+
+/** How long a checkout page takes payment, and how long its founding place is kept after (the provider's event can come late). */
+const CHECKOUT_OPEN_MS = 60 * 60 * 1000;
+const FOUNDING_PLACE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+
+export const ALREADY_PAYING = "This workspace already pays for Lane.";
+export const CHECKOUT_FAILED = "Couldn’t open the checkout page. Try again.";
+
+/**
+ * Starts paying: a checkout on the payment provider's hosted page for the workspace's paid seats, in the period the
+ * Admin chose. A founding place is kept for it if one is free (or the workspace already holds one), and the
+ * checkout gets the discount; otherwise the list price. Nothing is paid until the provider reports it
+ * (`recordPaymentEvent`). The caller guards the role and counts the seats.
+ */
+export async function startCheckout(
+  ws: Workspace,
+  input: { period: BillingPeriod; seats: number; email: string | null; origin: string },
+  provider: PaymentProvider,
+  now = new Date(),
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const expiresAt = new Date(now.getTime() + CHECKOUT_OPEN_MS);
+  const decided = await db.transaction(async (tx) => {
+    await tx.insert(workspaceBilling).values({ orgId: ws.orgId }).onConflictDoNothing();
+    const [row] = await tx
+      .select({ planState: workspaceBilling.planState, customerId: workspaceBilling.providerCustomerId, foundingStartsAt: workspaceBilling.foundingStartsAt })
+      .from(workspaceBilling)
+      .where(eq(workspaceBilling.orgId, ws.orgId))
+      .for("update");
+    if (row.planState === "paying") return null;
+    let discount: CheckoutRequest["foundingDiscount"] = null;
+    if (row.foundingStartsAt) discount = foundingDiscountFor(row.foundingStartsAt, now);
+    else {
+      await lockFoundingPlaces(tx);
+      if ((await foundingPlacesTaken(tx, ws.orgId)) < FOUNDING_DISCOUNT.workspaces) {
+        await tx.update(workspaceBilling).set({ foundingReservedUntil: new Date(expiresAt.getTime() + FOUNDING_PLACE_GRACE_MS) }).where(eq(workspaceBilling.orgId, ws.orgId));
+        discount = foundingDiscountFor(null, now);
+      }
+    }
+    return { discount, customerId: row.customerId, reserved: !row.foundingStartsAt && discount !== null };
+  });
+  if (!decided) return { ok: false, error: ALREADY_PAYING };
+
+  const billing = `${input.origin}/settings/profile?section=billing`;
+  const started = await provider.startCheckout({
+    orgId: ws.orgId,
+    period: input.period,
+    seats: input.seats,
+    foundingDiscount: decided.discount,
+    customer: decided.customerId ? { id: decided.customerId } : { email: input.email },
+    successUrl: `${billing}&checkout=done`,
+    cancelUrl: `${billing}&checkout=cancelled`,
+    expiresAt,
+  });
+  if (started.ok) return { ok: true, url: started.url };
+  console.error("[billing] checkout not started:", started.reason);
+  if (decided.reserved) await db.update(workspaceBilling).set({ foundingReservedUntil: null }).where(and(eq(workspaceBilling.orgId, ws.orgId), isNull(workspaceBilling.foundingStartsAt)));
+  return { ok: false, error: CHECKOUT_FAILED };
+}
+
+/**
+ * Records what the payment provider reported. A completed checkout makes the workspace paying, with its customer,
+ * subscription and billing period; a checkout with the founding discount starts the workspace's two years (once).
+ * The same event again changes nothing. An event for a workspace Lane doesn't know is ignored.
+ */
+export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [workspace] = await tx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, event.orgId));
+    if (!workspace) {
+      console.error("[billing] payment event for an unknown workspace ignored");
+      return;
+    }
+    await tx.insert(workspaceBilling).values({ orgId: event.orgId }).onConflictDoNothing();
+    const [row] = await tx
+      .select({ planState: workspaceBilling.planState, subscriptionId: workspaceBilling.providerSubscriptionId, foundingStartsAt: workspaceBilling.foundingStartsAt })
+      .from(workspaceBilling)
+      .where(eq(workspaceBilling.orgId, event.orgId))
+      .for("update");
+    if (row.planState === "paying" && row.subscriptionId === event.subscriptionId) return;
+    await tx
+      .update(workspaceBilling)
+      .set({
+        planState: "paying",
+        billingPeriod: event.period,
+        providerCustomerId: event.customerId,
+        providerSubscriptionId: event.subscriptionId,
+        payingSince: sql`coalesce(${workspaceBilling.payingSince}, now())`,
+      })
+      .where(eq(workspaceBilling.orgId, event.orgId));
+    if (event.foundingDiscount && !row.foundingStartsAt) {
+      try {
+        // Its own savepoint: the payment is recorded even if the place was somehow lost (refused past the 50th).
+        await tx.transaction(async (place) => {
+          await lockFoundingPlaces(place);
+          await place.update(workspaceBilling).set({ foundingStartsAt: sql`now()` }).where(eq(workspaceBilling.orgId, event.orgId));
+        });
+      } catch (error) {
+        console.error("[billing] founding discount paid for without a place:", error instanceof Error ? error.message : "unknown error");
+      }
+    }
+    // The checkout is over: a founding place is now kept by the start above, or not at all.
+    await tx.update(workspaceBilling).set({ foundingReservedUntil: null }).where(eq(workspaceBilling.orgId, event.orgId));
+  });
 }
 
 /**
