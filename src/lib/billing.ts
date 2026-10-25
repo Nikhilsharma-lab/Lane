@@ -96,6 +96,12 @@ export type WorkspacePlan = {
   period: BillingPeriod | null;
   /** `offered`: a checkout now gets the founding discount. `endsAt`: when this workspace's founding discount ends. */
   founding: { offered: boolean; endsAt: Date | null };
+  /** #216: the day a cancelled plan stops (it pays until then), or null while it renews. */
+  endsAt: Date | null;
+  /** #216: the provider knows the workspace (its card and invoices can be opened). */
+  customer: boolean;
+  /** #216: the workspace has a plan with the provider (its period can be changed, or it can be cancelled). */
+  subscription: boolean;
 };
 
 /** The one lock every founding place is given under; migration 0047's trigger takes it too. */
@@ -113,12 +119,22 @@ async function foundingPlacesTaken(exec: Exec, orgId: string): Promise<number> {
 /** What Settings → Billing shows about the plan: its state, how it is billed, and the founding discount. */
 export async function readPlan(ws: Workspace, now = new Date()): Promise<WorkspacePlan> {
   const [row] = await db
-    .select({ planState: workspaceBilling.planState, period: workspaceBilling.billingPeriod, foundingStartsAt: workspaceBilling.foundingStartsAt, reservedUntil: workspaceBilling.foundingReservedUntil })
+    .select({
+      planState: workspaceBilling.planState, period: workspaceBilling.billingPeriod, foundingStartsAt: workspaceBilling.foundingStartsAt,
+      endsAt: workspaceBilling.planEndsAt, customerId: workspaceBilling.providerCustomerId, subscriptionId: workspaceBilling.providerSubscriptionId,
+    })
     .from(workspaceBilling)
     .where(eq(workspaceBilling.orgId, ws.orgId));
   const startsAt = row?.foundingStartsAt ?? null;
   const offered = startsAt ? foundingDiscountFor(startsAt, now) !== null : (await foundingPlacesTaken(db, ws.orgId)) < FOUNDING_DISCOUNT.workspaces;
-  return { planState: row?.planState ?? "free", period: row?.period ?? null, founding: { offered, endsAt: startsAt && foundingEndsAt(startsAt) } };
+  return {
+    planState: row?.planState ?? "free",
+    period: row?.period ?? null,
+    founding: { offered, endsAt: startsAt && foundingEndsAt(startsAt) },
+    endsAt: row?.endsAt ?? null,
+    customer: Boolean(row?.customerId),
+    subscription: Boolean(row?.subscriptionId),
+  };
 }
 
 /** How long a checkout page takes payment, and how long its founding place is kept after (the provider's event can come late). */
@@ -185,6 +201,7 @@ export async function startCheckout(
  * The same event again changes nothing. An event for a workspace Lane doesn't know is ignored.
  */
 export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
+  if (event.kind === "subscription_changed") return recordSubscriptionChange(event);
   await db.transaction(async (tx) => {
     const [workspace] = await tx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, event.orgId));
     if (!workspace) {
@@ -206,6 +223,8 @@ export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
         providerCustomerId: event.customerId,
         providerSubscriptionId: event.subscriptionId,
         payingSince: sql`coalesce(${workspaceBilling.payingSince}, now())`,
+        // A new subscription: changes recorded for an earlier one say nothing about it (#216).
+        ...(row.subscriptionId === event.subscriptionId ? {} : { subscriptionChangedAt: null, planEndsAt: null }),
       })
       .where(eq(workspaceBilling.orgId, event.orgId));
     if (event.foundingDiscount && !row.foundingStartsAt) {
@@ -221,6 +240,36 @@ export async function recordPaymentEvent(event: PaymentEvent): Promise<void> {
     }
     // The checkout is over: a founding place is now kept by the start above, or not at all.
     await tx.update(workspaceBilling).set({ foundingReservedUntil: null }).where(eq(workspaceBilling.orgId, event.orgId));
+  });
+}
+
+/**
+ * #216: a change to the plan the workspace pays with. Paying keeps (or makes) it paying, with its billing period and
+ * the day a cancelled plan ends; unpaid or paused lapses it, and it can be paid again on the provider's page; ended
+ * lapses it and the subscription is no longer the workspace's, so paying again is a new checkout. A change older
+ * than the last one recorded, or for a subscription the workspace doesn't pay with, changes nothing. Lapsing
+ * deletes nothing: only creating new Requests waits (`newRequestBlock`).
+ */
+async function recordSubscriptionChange(event: Extract<PaymentEvent, { kind: "subscription_changed" }>): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ orgId: workspaceBilling.orgId, changedAt: workspaceBilling.subscriptionChangedAt })
+      .from(workspaceBilling)
+      .where(eq(workspaceBilling.providerSubscriptionId, event.subscriptionId))
+      .for("update");
+    if (!row) return;
+    if (row.changedAt && row.changedAt > event.at) return;
+    const ended = event.state === "ended";
+    await tx
+      .update(workspaceBilling)
+      .set({
+        planState: event.state === "paying" ? "paying" : "lapsed",
+        ...(event.period ? { billingPeriod: event.period } : {}),
+        planEndsAt: event.state === "paying" ? event.endsAt : null,
+        subscriptionChangedAt: event.at,
+        ...(ended ? { providerSubscriptionId: null } : {}),
+      })
+      .where(eq(workspaceBilling.orgId, row.orgId));
   });
 }
 

@@ -11,7 +11,9 @@ import { organizations } from "./users";
  * `planState` is set from the payment provider (#214): paying once a checkout completes. Migration 0047 adds what the
  * provider reports (customer, subscription, billing period, first payment) and the founding discount's place:
  * `foundingReservedUntil` while a checkout with it is open, `foundingStartsAt` (set once) once paid with it. The
- * database refuses a 51st place.
+ * database refuses a 51st place. Migration 0048 (#216) adds what the provider says about the plan since:
+ * `planEndsAt` while a cancelled plan runs to the end of its period (only a paying plan ends), and
+ * `subscriptionChangedAt`, the provider's time of the last change recorded, so a late older change is ignored.
  */
 export const workspaceBilling = pgTable(
   "workspace_billing",
@@ -27,6 +29,8 @@ export const workspaceBilling = pgTable(
     payingSince: timestamp("paying_since", { withTimezone: true }),
     foundingStartsAt: timestamp("founding_starts_at", { withTimezone: true }),
     foundingReservedUntil: timestamp("founding_reserved_until", { withTimezone: true }),
+    subscriptionChangedAt: timestamp("subscription_changed_at", { withTimezone: true }),
+    planEndsAt: timestamp("plan_ends_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -35,6 +39,7 @@ export const workspaceBilling = pgTable(
     check("workspace_billing_free_requests_used_check", sql`${t.freeRequestsUsed} >= 0`),
     check("workspace_billing_allowance_check", sql`(${t.allowanceKey} is null) = (${t.holdsAllowance} is null)`),
     check("workspace_billing_billing_period_check", sql`${t.billingPeriod} in ('yearly', 'monthly')`),
+    check("workspace_billing_plan_ends_check", sql`${t.planEndsAt} is null or ${t.planState} = 'paying'`),
     uniqueIndex("workspace_billing_provider_subscription_idx").on(t.providerSubscriptionId).where(sql`${t.providerSubscriptionId} is not null`),
   ],
 );

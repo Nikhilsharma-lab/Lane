@@ -28,6 +28,16 @@ afterAll(async () => {
 
 const post = async (body: string, headers: Headers) => (await import("./route")).POST(new Request("https://lane.test/api/billing/webhook", { method: "POST", body, headers }));
 const plan = async () => (await import("@/lib/billing")).readPlan({ orgId: ORG });
+const later = (minutes: number) => new Date(Date.now() + minutes * 60_000);
+type Provider = NonNullable<typeof payments.provider>;
+/** A fresh paying plan (a new subscription each time), as a completed checkout makes it. */
+async function paying(provider: Provider): Promise<string> {
+  await connection`update workspace_billing set plan_state = 'free', provider_subscription_id = null, subscription_changed_at = null, plan_ends_at = null where org_id = ${ORG}`;
+  await provider.startCheckout({ orgId: ORG, period: "yearly", seats: 3, foundingDiscount: null, customer: { email: null }, successUrl: "s", cancelUrl: "c", expiresAt: new Date() });
+  const subscriptionId = `stand_in_subscription_${crypto.randomUUID()}`;
+  await post(provider.complete(undefined, { subscriptionId }), provider.headers());
+  return subscriptionId;
+}
 
 describe("the billing webhook", () => {
   it("makes a workspace paying when the provider reports its checkout paid", async () => {
@@ -44,6 +54,35 @@ describe("the billing webhook", () => {
     await provider.startCheckout({ orgId: ORG, period: "yearly", seats: 3, foundingDiscount: null, customer: { email: null }, successUrl: "s", cancelUrl: "c", expiresAt: new Date() });
     expect((await post(provider.complete(), new Headers())).status).toBe(400);
     expect((await plan()).planState).toBe("lapsed");
+  });
+
+  it("keeps the plan paying until the day a cancelled plan ends, then lapses it (#216)", async () => {
+    const provider = payments.provider!;
+    const subscriptionId = await paying(provider);
+    const endsAt = new Date("2027-10-25T00:00:00Z");
+    expect((await post(provider.changeSubscription(subscriptionId, { state: "paying", period: "yearly", endsAt, at: later(1) }), provider.headers())).status).toBe(200);
+    expect(await plan()).toMatchObject({ planState: "paying", endsAt, subscription: true });
+    await post(provider.changeSubscription(subscriptionId, { state: "ended", at: later(2) }), provider.headers());
+    expect(await plan()).toMatchObject({ planState: "lapsed", endsAt: null, subscription: false, customer: true });
+  });
+
+  it("lapses an unpaid plan and makes it paying again once it is paid, in its new period (#216)", async () => {
+    const provider = payments.provider!;
+    const subscriptionId = await paying(provider);
+    await post(provider.changeSubscription(subscriptionId, { state: "lapsed", at: later(1) }), provider.headers());
+    expect(await plan()).toMatchObject({ planState: "lapsed", subscription: true });
+    await post(provider.changeSubscription(subscriptionId, { state: "paying", period: "monthly", at: later(2) }), provider.headers());
+    expect(await plan()).toMatchObject({ planState: "paying", period: "monthly" });
+  });
+
+  it("ignores a change older than one already recorded, and one for a plan the workspace no longer pays with (#216)", async () => {
+    const provider = payments.provider!;
+    const subscriptionId = await paying(provider);
+    await post(provider.changeSubscription(subscriptionId, { state: "paying", period: "monthly", at: later(5) }), provider.headers());
+    await post(provider.changeSubscription(subscriptionId, { state: "lapsed", at: later(3) }), provider.headers());
+    expect(await plan()).toMatchObject({ planState: "paying", period: "monthly" });
+    await post(provider.changeSubscription("stand_in_subscription_an_old_plan", { state: "ended", at: later(9) }), provider.headers());
+    expect(await plan()).toMatchObject({ planState: "paying" });
   });
 
   it("refuses every call while no payment provider is set up", async () => {
