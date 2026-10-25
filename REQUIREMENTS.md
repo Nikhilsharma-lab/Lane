@@ -726,6 +726,16 @@ Reporting requirements for the bounded design:
   Released operational work is listed with its reason. Work never Released (including work closed without a result
   before release) is in no period. Everyone except Guests sees it; nobody is named, grouped or ranked. Integration
   branch only.
+  **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
+  measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
+  stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the
+  Request page keeps the original beside the Correction, and the report shows the latest wording marked "corrected".
+  A Quarter note is plain text (web addresses become links, up to 4,000 characters), one per workspace per quarter
+  (`quarter_notes`), written or edited by Admins only (the server refuses everyone else) at any time once the quarter
+  has begun; saving it empty removes it, and an edit over someone else's newer one is refused. It shows its last
+  editor and edit time at the end of a quarter's report; a year shows all four quarters, a month none. Print and save
+  as PDF print the report alone, light on paper, with its title, period and as-of date; there is no public link and no
+  export file. Integration branch only.
 - Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
   valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
 
