@@ -31,6 +31,7 @@ The work is finished but has not reached its audience yet.
 **Release**:
 The recorded moment the work reached its agreed audience. A release starts Measuring.
 _Avoid_: Launch, ship, deploy
+_Exception (2026-10-26)_: "Shipped" is allowed only in the Outcome report ("What we shipped", the At a glance count).
 
 **Measuring**:
 The work is live, and Lane is waiting for the measurement due date so the Requester can record the result.
