@@ -1,6 +1,6 @@
 import "server-only";
 
-import { after } from "next/server";
+import { afterResponse } from "./after-response";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, deliveryLog, deliveryPreferences, organizations, profiles, requestAgreements, requests, type DeliveryChannel } from "@/db";
@@ -98,18 +98,19 @@ async function workspaceNameOf(orgId: string): Promise<string> {
  * Sends one item on one channel: claimed in the log first, so a concurrent or repeated run skips it, then sent.
  * A send that fails releases its claim, so a later run (or Email, when Slack can't reach the person) can send it.
  */
-async function sendOne(
-  orgId: string,
-  recipient: Pick<Recipient, "userId" | "email">,
-  item: Pick<NeedsYouItem, "requestId" | "key">,
-  channel: "email" | "slack",
-  messenger: Messenger,
-  copyOf: () => { subject: string; text: string },
-  run: DeliveryRun,
-): Promise<SendResult | "already"> {
+async function sendOne({ orgId, recipient, item, channel, messenger, copyOf, now }: {
+  orgId: string;
+  recipient: Pick<Recipient, "userId" | "email">;
+  item: Pick<NeedsYouItem, "requestId" | "key">;
+  channel: "email" | "slack";
+  messenger: Messenger;
+  /** The message, written only once the send is claimed. */
+  copyOf: () => { subject: string; text: string };
+  now: Date;
+}): Promise<SendResult | "already"> {
   const [claimed] = await db
     .insert(deliveryLog)
-    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: run.now })
+    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: now })
     .onConflictDoNothing()
     .returning({ id: deliveryLog.id });
   if (!claimed) return "already";
@@ -146,13 +147,13 @@ async function sendItems(
     }
     let result: SendResult | "already" | null = null;
     if (channel === "slack" && slackDm) {
-      result = await sendOne(orgId, recipient, item, "slack", slackDm, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), run);
+      result = await sendOne({ orgId, recipient, item, channel: "slack", messenger: slackDm, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), now: run.now });
       if (result !== "already" && !result.ok && result.useEmail) {
         console.error(`[inbox-delivery] Slack DM not possible, sending by email: ${result.reason}`);
         result = null;
       }
     }
-    result ??= await sendOne(orgId, recipient, item, "email", run.messenger, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), run);
+    result ??= await sendOne({ orgId, recipient, item, channel: "email", messenger: run.messenger, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), now: run.now });
     if (result === "already") report.skipped++;
     else if (result.ok) report.sent++;
     else {
@@ -265,7 +266,10 @@ export async function deliverGuestEmail(target: { orgId: string; requestId: stri
     { requestId: target.requestId, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem },
     { appUrl: settled.appUrl, workspaceName },
   );
-  const result = await sendOne(target.orgId, { userId: row.createdBy, email: guest.email }, { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` }, "email", settled.messenger, copy, settled);
+  const result = await sendOne({
+    orgId: target.orgId, recipient: { userId: row.createdBy, email: guest.email }, item: { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` },
+    channel: "email", messenger: settled.messenger, copyOf: copy, now: settled.now,
+  });
   if (result === "already") report.skipped++;
   else if (result.ok) report.sent++;
   else {
@@ -280,17 +284,7 @@ export type GuestEmailKind = "taken_on" | "closed";
 
 /** Sends a Guest's email after the action's response, as `deliverAfterResponse` does for Needs-you items. */
 export function deliverGuestEmailAfterResponse(target: { orgId: string; requestId: string; kind: GuestEmailKind }) {
-  try {
-    after(async () => {
-      try {
-        await deliverGuestEmail(target);
-      } catch (error) {
-        console.error(`[inbox-delivery] Guest email after an action failed: ${error instanceof Error ? error.name : "error"}`);
-      }
-    });
-  } catch {
-    // `after` throws outside a request scope; there is nothing to deliver after.
-  }
+  afterResponse("inbox-delivery", () => deliverGuestEmail(target));
 }
 
 /**
@@ -298,15 +292,5 @@ export function deliverGuestEmailAfterResponse(target: { orgId: string; requestI
  * waits on email. Outside a request (a script, a test) there is no response to wait for, and nothing is sent.
  */
 export function deliverAfterResponse(target: { orgId: string; requestId: string }) {
-  try {
-    after(async () => {
-      try {
-        await deliverRequestNeedsYou(target);
-      } catch (error) {
-        console.error(`[inbox-delivery] delivery after an action failed: ${error instanceof Error ? error.name : "error"}`);
-      }
-    });
-  } catch {
-    // `after` throws outside a request scope; there is nothing to deliver after.
-  }
+  afterResponse("inbox-delivery", () => deliverRequestNeedsYou(target));
 }

@@ -2,13 +2,13 @@ import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { and, count, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
-import { after } from "next/server";
 
 import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
 import { FOUNDING_DISCOUNT, foundingDiscountFor, foundingEndsAt, paidSeats, type BillingPeriod } from "./billing-plan-rules";
 import { billingEnforced } from "./feature-switches";
 import { PLAN_FLOWS, paymentProvider, type BillingAccount, type CheckoutRequest, type PaymentEvent, type PaymentProvider, type PortalFlow } from "./payment-provider";
 import { allowanceKeyOf, creationBlock, freeRequestsOf, type FreeRequests, type FreeRequestsState, type PlanState } from "./free-request-rules";
+import { afterResponse } from "./after-response";
 import type { RequestTx } from "./request-change-store";
 import { workspaceRoster } from "./workspace-roster";
 
@@ -438,9 +438,5 @@ export async function followSeatChanges(
  */
 export function followSeatChangesAfterResponse(ws: Workspace): void {
   if (!billingEnforced()) return;
-  try {
-    after(async () => { await followSeatChanges(ws, { onlyIfDue: true }); });
-  } catch {
-    // `after` throws outside a request scope; there is nothing to follow after.
-  }
+  afterResponse("billing", () => followSeatChanges(ws, { onlyIfDue: true }));
 }
