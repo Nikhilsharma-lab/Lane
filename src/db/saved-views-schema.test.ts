@@ -57,11 +57,10 @@ describe("saved views", () => {
   });
 
   it("records when a view was last changed", async () => {
-    const [{ id }] = await save(ORG, PERSON, "Measuring");
-    const [before] = await sql`select updated_at from saved_views where id = ${id}`;
+    const [{ id }] = await sql`insert into saved_views(org_id, owner_id, name, updated_at) values (${ORG}, ${PERSON}, 'Measuring', '2026-01-01T00:00:00Z') returning id`;
     await sql`update saved_views set name = 'Measuring now' where id = ${id}`;
     const [after] = await sql`select updated_at from saved_views where id = ${id}`;
-    expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
+    expect(after.updated_at.getTime()).toBeGreaterThan(new Date("2026-01-01T00:00:00Z").getTime());
   });
 
   it("goes with its workspace and with its person", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openSavedView, parseSavedViewName, readSavedViewFilters, savedViewFilters, savedViewHref, savedViewChanged, viewInNavigation } from "./saved-view-rules";
+import { openSavedView, parseSavedViewName, savedViewChoices, readSavedViewFilters, savedViewFilters, savedViewHref, savedViewChanged, viewInNavigation } from "./saved-view-rules";
 
 const WEBSITE = "11111111-1111-4111-8111-111111111111";
 
@@ -46,6 +46,22 @@ describe("a saved view's name", () => {
     expect(parseSavedViewName("x".repeat(61))).toEqual({ error: "Keep the name to 60 characters or fewer." });
     expect(parseSavedViewName("x".repeat(60))).toEqual({ name: "x".repeat(60) });
     expect(parseSavedViewName(42)).toEqual({ error: "Give the view a name." });
+  });
+});
+
+describe("what the list offers for saved views", () => {
+  const open = { id: "v1", name: "Open work", filters: { status: "open" as const, project: "all" } };
+
+  it("offers to save the list as a view when none is open", () => {
+    expect(savedViewChoices(null, { status: "done", project: "none" })).toEqual(["save"]);
+  });
+
+  it("offers to save as new, rename or delete the open view", () => {
+    expect(savedViewChoices(open, { status: "open", project: "all" })).toEqual(["save_as_new", "rename", "delete"]);
+  });
+
+  it("offers to save changed filters into the open view first", () => {
+    expect(savedViewChoices(open, { status: "closed", project: "all" })).toEqual(["update", "save_as_new", "rename", "delete"]);
   });
 });
 

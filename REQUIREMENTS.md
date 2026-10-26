@@ -841,6 +841,15 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - The board provides empty, loading, populated, filtered, and failure states.
 - Request detail provides Open, In Progress, Done, loading, forbidden, and not-found states.
 - Comments expose empty, posting, posted, and failed states without duplicate feedback.
+- **Saved views (#195 item 8, #219, 2026-10-25, on the integration branch):** anyone in the workspace, Viewers and
+  Guests included, saves the Requests list's current filters (status view and Project today; later list filters join
+  them) under a name from the list's page strip ("Save view"). Their views are listed under "Your views" in the
+  sidebar; opening one applies its filters through the normal list, so it never shows more than the person may see
+  (a Guest's view still shows only their own Requests, and a saved Project must be one they can see). While a view
+  is open the list is titled with its name and offers "Save changes to view" once its filters change, "Save as new
+  view", "Rename view" and "Delete view". Views are personal (migration 0052, `saved_views`: owner, workspace, name,
+  filters): only the owner sees or changes them, names are unique per person ignoring case, and nothing is shared
+  or published. Search text, ordering, grouping and columns are not saved.
 
 ### Membership and notifications
 

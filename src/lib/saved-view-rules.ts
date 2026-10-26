@@ -41,6 +41,14 @@ export const savedViewHref = (filters: SavedViewFilters) => requestListHref(filt
 export const savedViewChanged = (saved: SavedViewFilters, current: RequestListContext) =>
   saved.status !== current.status || saved.project !== current.project;
 
+export type SavedViewChoice = "save" | "update" | "save_as_new" | "rename" | "delete";
+
+/** What the list offers: save the list as a view, or, with a view open, save changed filters into it, save as new, rename or delete. */
+export function savedViewChoices(open: SavedView | null, current: RequestListContext): SavedViewChoice[] {
+  if (!open) return ["save"];
+  return [...(savedViewChanged(open.filters, current) ? ["update" as const] : []), "save_as_new", "rename", "delete"];
+}
+
 /** The view the person opened, while it is still saved. */
 export function openSavedView<T extends SavedView>(views: readonly T[], openId: string | undefined): T | null {
   return (openId && views.find(view => view.id === openId)) || null;
