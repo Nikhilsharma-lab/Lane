@@ -21,7 +21,7 @@ import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
-import { SavedViewMenuLoader } from "@/components/requests/saved-view-menu-loader"
+import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -124,7 +124,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   const projectUnavailable = project !== "all" && project !== "none" && (!UUID_RE.test(project)
     || !sharedProjects.projects.some(item => item.id === project))
   // #219: anyone may keep views, Viewers and Guests included; an empty workspace has nothing to filter yet.
-  const viewTools = context && !workspaceEmpty ? <SavedViewMenuLoader views={savedViews} orgId={context.orgId} /> : undefined
+  const viewTools = context && !workspaceEmpty ? <SavedViewMenu views={savedViews} orgId={context.orgId} /> : undefined
   if (projectUnavailable) return <ProjectUnavailable tools={viewTools} />
 
   const openView = openSavedView(savedViews, listContext?.savedView)

@@ -13,7 +13,7 @@ import { CommandPaletteHost } from "./command-palette-lazy";
 import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
-import type { SavedView } from "@/lib/saved-view-rules";
+import type { SavedView } from "@/lib/saved-view-nav";
 
 export function Sidebar({
   children,

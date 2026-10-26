@@ -14,7 +14,7 @@ import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
-import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-rules";
+import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-nav";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";

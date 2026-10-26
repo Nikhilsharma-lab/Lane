@@ -1,12 +1,11 @@
-import { isRequestStatusFilter, requestListHref, type RequestListContext } from "./request-workspace";
+import { isRequestStatusFilter, type RequestListContext } from "./request-workspace";
+import type { SavedView, SavedViewFilters } from "./saved-view-nav";
 
 /**
- * #219: saved views, client-safe rules. A saved view is a person's own name for a set of Requests list filters
- * (status view and Project today; later list filters join `SavedViewFilters`). Opening one applies the filters
- * through the normal list, so it never shows more than the person may see.
+ * #219: saved views, client-safe rules. Opening a view applies its filters through the normal list, so it never
+ * shows more than the person may see. The navigation's part lives in saved-view-nav.ts.
  */
-export type SavedViewFilters = RequestListContext;
-export type SavedView = { id: string; name: string; filters: SavedViewFilters };
+export { openSavedView, savedViewHref, viewInNavigation, type SavedView, type SavedViewFilters } from "./saved-view-nav";
 
 export const SAVED_VIEW_NAME_MAX = 60;
 
@@ -34,9 +33,6 @@ export function parseSavedViewName(input: unknown): { name: string } | { error: 
   return { name };
 }
 
-/** The Requests list link that opens a view. */
-export const savedViewHref = (filters: SavedViewFilters) => requestListHref(filters.status, filters.project);
-
 /** Whether the list now shows other filters than the view saved. */
 export const savedViewChanged = (saved: SavedViewFilters, current: RequestListContext) =>
   saved.status !== current.status || saved.project !== current.project;
@@ -47,15 +43,4 @@ export type SavedViewChoice = "save" | "update" | "save_as_new" | "rename" | "de
 export function savedViewChoices(open: SavedView | null, current: RequestListContext): SavedViewChoice[] {
   if (!open) return ["save"];
   return [...(savedViewChanged(open.filters, current) ? ["update" as const] : []), "save_as_new", "rename", "delete"];
-}
-
-/** The view the person opened, while it is still saved. */
-export function openSavedView<T extends SavedView>(views: readonly T[], openId: string | undefined): T | null {
-  return (openId && views.find(view => view.id === openId)) || null;
-}
-
-/** The view the navigation highlights: the open one, on the list and on Request pages. */
-export function viewInNavigation(views: readonly SavedView[], openId: string | undefined, pathname: string): string | null {
-  if (pathname !== "/" && !pathname.startsWith("/requests/")) return null;
-  return openSavedView(views, openId)?.id ?? null;
 }
