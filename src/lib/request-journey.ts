@@ -10,7 +10,9 @@
  * This file is pure and client-safe. Its database twin, the list filter conditions, lives in
  * `request-journey-sql.ts` and is proven against the same mapping.
  */
+import type { WorkspacePermission } from "./auth-guard"
 import type { RequestStatus } from "./request-lifecycle"
+import { canChangeThings } from "./role-rules"
 import type { ReleaseFact, ReleaseState } from "./request-release"
 import { dueWords, releaseMeasurement, requesterOf } from "./request-release-facts"
 
@@ -105,7 +107,7 @@ export function dueSignal(facts: JourneyFacts, now: Date): DueSignal {
 /** Who is looking. Take `role` and `active` from the live workspace roster, never from the client. */
 export type JourneyViewer = {
   id: string
-  role: "admin" | "member" | "guest" | "viewer"
+  role: WorkspacePermission
   /** An active member of the workspace right now. False when access ended (or the roster can't be read). */
   active: boolean
 }
@@ -157,14 +159,19 @@ function releasedOnce(facts: JourneyFacts) {
  * close, close without a result and corrections by the Requester only; handover by an admin from In progress
  * onwards when the Requester has lost access; a follow-up by any active member once the work was released.
  */
+/** Why a role that can't change things (role-rules.ts) has no journey action. */
+const READ_ONLY_REASONS: Partial<Record<WorkspacePermission, string>> = {
+  guest: "Guests can follow this Request but can’t change it.",
+  viewer: "Viewers can read this Request but can’t change it.",
+}
+
 export function journeyActions(facts: JourneyFacts & { createdBy: string; takenOnBy: string | null }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
   const everything = (reason: string): JourneyActions => ({
     release: refuse(reason), correctRelease: refuse(reason), voidRelease: refuse(reason),
     close: refuse(reason), closeWithoutResult: refuse(reason), correctClosure: refuse(reason),
     handover: refuse(reason), followUp: refuse(reason),
   })
-  if (viewer.role === "guest") return everything("Guests can follow this Request but can’t change it.")
-  if (viewer.role === "viewer") return everything("Viewers can read this Request but can’t change it.")
+  if (!canChangeThings(viewer.role)) return everything(READ_ONLY_REASONS[viewer.role] ?? "You can’t change this Request.")
   if (!viewer.active) return everything("Your workspace membership is no longer active.")
 
   const { status } = journeyStatus(facts)

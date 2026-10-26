@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, deliveryLog, deliveryPreferences, organizations, profiles, requestAgreements, requests, type DeliveryChannel } from "@/db";
-import type { MemberAuth } from "./auth-guard";
+import type { MemberAuth, WorkspacePermission } from "./auth-guard";
 import { loadNeedsYou } from "./data/inbox";
 import { deliveryMessage, guestMessage } from "./delivery-message";
 import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
@@ -12,6 +12,7 @@ import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
 import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
+import { canChangeThings, canContribute, clerkWorkspacePermission } from "./role-rules";
 import type { Reviewer } from "./request-reviewer-rules";
 import { workspaceMember, workspaceRoster } from "./workspace-roster";
 
@@ -49,7 +50,8 @@ export type DeliveryRun = {
 /** Totals only: no person, address or item ever leaves this module in a report. */
 export type DeliveryReport = { sent: number; skipped: number; failed: number };
 
-type Recipient = { userId: string; email: string; role: "admin" | "member" };
+/** An Admin or Member: only they are asked to act. */
+type Recipient = { userId: string; email: string; role: WorkspacePermission };
 
 /** The messenger the switches choose for this run. A new stand-in each run, so nothing piles up in memory. */
 export function switchedMessenger(): Messenger {
@@ -69,9 +71,11 @@ const runOf = (run: Partial<DeliveryRun> = {}): DeliveryRun => ({
 async function recipientsOf(orgId: string): Promise<Map<string, Recipient>> {
   const people = await workspaceRoster(orgId);
   const recipients = new Map<string, Recipient>();
-  for (const person of people)
-    if (person.nominee.kind === "member" && (person.role === "org:admin" || person.role === "org:member"))
-      recipients.set(person.nominee.userId, { userId: person.nominee.userId, email: person.email, role: person.role === "org:admin" ? "admin" : "member" });
+  for (const person of people) {
+    const role = clerkWorkspacePermission(person.role);
+    if (person.nominee.kind === "member" && role && canChangeThings(role))
+      recipients.set(person.nominee.userId, { userId: person.nominee.userId, email: person.email, role });
+  }
   return recipients;
 }
 
@@ -252,7 +256,9 @@ export async function deliverGuestEmail(target: { orgId: string; requestId: stri
   const closure = row.measured ? "measured" as const : row.withoutResult ? "without_result" as const : null;
   if (target.kind === "closed" && !closure) return report;
   const guest = await workspaceMember(target.orgId, row.createdBy);
-  if (!guest || guest.role === "org:viewer" || !guest.email) return report;
+  // A Guest made a Viewer since (or given a role Lane doesn't know) gets no Guest email.
+  const guestRole = guest && clerkWorkspacePermission(guest.role);
+  if (!guest || !guestRole || !canContribute(guestRole) || !guest.email) return report;
   const workspaceName = await workspaceNameOf(target.orgId);
   const copy = () => guestMessage(
     target.kind === "taken_on" ? { kind: "taken_on", takerName: row.takerName } : { kind: "closed", closure: closure! },
