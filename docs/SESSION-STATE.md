@@ -1,5 +1,28 @@
 # Shared Claude / Codex handoff
 
+## #167 compatibility refresh — reviewed #175 helper and pinned main
+
+The isolated compatibility branch now preserves reviewed #175 `3244d6c1` through
+merge `f5718de9` and main `f638003c` through merge `6cbbe712`, starting at reviewed
+compatibility candidate `a54dbf1f` (Standards 0 / Spec 0). The only conflict was this
+handoff; both sections are retained below. The #175 helper matches its source
+exactly, and all five incoming database URL files match pinned main exactly.
+No schema, UI, provider, database or runtime operation accompanied this refresh.
+
+Fresh Node 24 checks pass: full TypeScript, full ESLint, and design checks (42 tests,
+theme contract, Arc source and brand assets). The new pure database URL tests remain
+pending the required final guarded application suite: existing no-database configs
+do not include them, and no config/global-setup bypass was introduced. Prior app,
+UI and browser results below remain scoped to their recorded sources. Combined
+browser acceptance, final broad checks/reviews and #175 acceptance remain pending;
+integration `355e09e` is untouched. No hidden Undo, reset or Done replay is authorized.
+
+The fresh-main bundle comparison below is against old pinned main `3e6de934`, not
+current `f638003c`. Its immutable receipt and the original baseline are retained;
+fresh `f638003c` comparison is still required before claiming current-main budget
+compliance. The separate proposal is not main-merge approval. Refresh receipt:
+`/private/tmp/lane-spec-167-reconcile-refresh.md`.
+
 ## #167 / main #195 compatibility — isolated review candidate
 
 Prepared on `codex/spec-167-main-reconcile`, from through-#175 `f7ad5a9` and pinned
