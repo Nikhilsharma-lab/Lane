@@ -122,7 +122,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     const deps: PaletteActionDeps = {
       request: current, viewer, undo, moves,
       open: surface => { openShellSurface(surface, { returnFocus: returnTo }) },
-      view: filter => navigation.selectList({ status: filter }),
+      view: filter => navigation.filterList({ status: filter }),
       project: projectId => navigation.selectList({ project: projectId }),
       settings: (section, href) => {
         if (!showsSettingsInPlace(href, window.location.pathname)) { navigation.open(href); return }

@@ -26,6 +26,25 @@ a change to Viewer invalidates selection scope. Arc sidebar composition preserve
 main's controls and #172's async focus ownership; the provenance hash describes the
 actual combined file, with its original upstream source retained.
 
+The compatibility review found two consumer gaps. Inbox's loaded and suspended
+bells, Request/mobile/Members links, preview replacement/close and full-page opening
+now use the shared navigation lifetime. Close invalidates before scheduling guarded
+row focus; the committed preview observer is idempotent, so it does not cancel that
+focus or a full-page arrival. Status-only palette edits explicitly retain the saved
+view, including its title and Save changes control. Project/search/list departures
+still clear it; opening another saved view swaps it.
+
+Retained tests exercise actual palette and Inbox callbacks with real providers and
+navigation. The isolated zero-database renderer first reproduced seven stale Inbox
+prompts and the lost saved-view title on unchanged production consumers, then
+verified their corrections, retained Undo, close focus, a newer intent superseding
+close focus, full-page arrival and native Ctrl-click. It uses actual React/Arc,
+InboxScreen/Bell, CommandPalette, RequestPeek wrapper, moves, overlay and ToastStack;
+router/actions and remotely loaded preview content are controlled boundaries.
+This proves component wiring, not persistence or signed-in application acceptance.
+Exact red/green receipts and screenshots are in
+`/private/tmp/lane-spec-167-navigation-diagnostic/`; no database/provider calls ran.
+
 All incoming direct PostgreSQL tests now use the exact checkout guard, including
 three tests that previously checked only the hostname. The non-resetting bootstrap
 passed 52 tests before either application reset. Canonical migrations 0013–0053 and

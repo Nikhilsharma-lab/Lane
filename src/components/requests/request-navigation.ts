@@ -70,6 +70,10 @@ export function createRequestNavigation(state: NavigationState) {
   }
   return {
     invalidate, prepareDetail, selectList,
+    /** Editing filters keeps the named view so its changed filters can be saved. Explicit list navigation clears it. */
+    filterList(next: Partial<RequestListContext>, browser: NavigationBrowser) {
+      selectList({ ...next, savedView: state.getView().savedView }, browser)
+    },
     /** Local preview replacement/close is navigation too; an unchanged render is not. */
     previewChanged(id: string | null) {
       if (previewId === id) return
@@ -141,6 +145,7 @@ export function bindRequestNavigation(controller: RequestNavigation, browser: Na
     onHistoryReturn: controller.onHistoryReturn,
     prepareDetail: controller.prepareDetail, arrive: controller.arrive,
     selectList: (next: ListSelection) => controller.selectList(next, browser),
+    filterList: (next: Partial<RequestListContext>) => controller.filterList(next, browser),
     open: (href: string) => controller.open(href, browser),
     replaceDetail: (id: string, intent: DetailIntent) => controller.replaceDetail(id, intent, browser),
     followLink(event: LinkActivation, href: string, listIntent?: Partial<RequestListContext>) {
