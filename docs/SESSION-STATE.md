@@ -10,8 +10,10 @@ availability and exact checkout guards for incoming database tests. Main migrati
 0013–0053 and its new pre-migration fixtures are preserved.
 
 Bootstrap52, application2787 (one skipped), UI965, focused64, full tsc/lint/design
-and production build pass. Combined-tree browser verification and independent
-review remain pending. Later #175 toast-exit fix is not yet included. This is not
+and production build pass. Initial compatibility review: Standards0, Spec2P2. Both consumer findings are
+corrected in97a7c17; the isolated actual-component regressions and UI968 pass.
+Reviewed #175 toast-exit fix6e1f197 is now merged; final combined checks and
+delta reviews remain pending. Signed-in combined-tree acceptance remains separate. This is not
 #175 acceptance or #176 implementation. Full boundary: `testing/main-compatibility.md`.
 
 Main's 17-route baseline is retained unchanged. Original existing routes are within
@@ -20,6 +22,29 @@ budget, but three new main routes correctly fail its old inventory. Detail grows
 baseline (430 over). A separate proposal awaits the final #175 fix/build; no bundle
 pass or approval claimed. Immutable original receipt is preserved for #176.
 
+## #175 Oct26 browser correction — restore a toast during its exit
+
+Actual-component real-timer evidence reproduced Not yet restoring the same Done
+operation during the toast exit: its reused timer was exhausted and its retained
+element stayed inert. The correction observes the existing queue sequence when
+resetting/restarting the timer, and reapplies current hidden/inert state on presence.
+ID/action ownership, duration, pause behavior, motion and public APIs are unchanged.
+Official Arc source was read; only the installed local source hash is updated.
+
+The existing Mark Done browser helper now requires a trusted Not yet activation
+while the original toast is connected and inert, then reacquires the unique visible,
+non-inert, focusable Undo before the ordinary one-shot action. A missed exit interval
+fails this regression; it cannot silently pass as fully expired restoration. The
+fresh-account suite is authored, not run under current account quota. External
+zero-DB actual-component before/during/after expiry and phone reduced-motion exit
+cases pass; UI688, full tsc/lint/design and production build pass. Retained-workspace
+acceptance remains paused for this clean source and independent reviews.
+
+Exact evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-toast-diagnostic/fixed-four-cases-receipt.json`.
+Original bundle still fails: Requests +2354, detail +2855, Impact/Intake +2091,
+Settings +2089 bytes; each is +24 from the history fix. Existing proposed baseline
+passes unchanged. No new budget approval or original compliance is claimed.
 
 ## #175 Oct26 browser correction — idempotent history restoration
 

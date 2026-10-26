@@ -442,3 +442,8 @@ The workspace-sidebar local hash now records the combined file: main's Viewer co
 restriction and first-run help alongside #172's asynchronous Project focus ownership.
 Both adaptations and the original upstream hash remain. The compatibility edit adds
 no component API, visual value, timer or motion behavior.
+### 2026-10-26 Same-ID toast restoration during exit (#175)
+
+Official Arc toast-stack docs/MCP and current registry source were re-read before this correction (registry TSX SHA-256 `ba422f5d6e330c49b9f2a110af7cf91e46e20697490ef7f103909e982adde49a`; installed upstream provenance is retained). An actual-component browser reproduction showed that Not yet restoring a Done toast during its exit reused the exhausted remaining timer because the new queue entry restarted its version at zero. Its retained element also kept the exit's imperative inert attribute. The timer reset/restart now observes the existing queue sequence, and a present item reapplies its current hidden/inert state. Toast ID/action ownership, version updates, lifetimes, hover/focus/visibility pauses, exit animations, reduced motion and the public API are unchanged. No speculative animation-completion rewrite is included: a controlled timer-only probe kept the toast visible but inert, isolating the two required changes.
+
+The existing Mark Done browser suite now exercises Not yet during the actual observed inert exit, then checks a unique visible/focusable Undo and executes the existing one-shot Undo case. The quota-bound actual-component diagnostic uses real timers and actual Arc/theme source: before expiry, during exit, fully expired and reduced-motion phone restoration passed. This is renderer evidence, separate from the remaining retained-workspace #175 lifecycle acceptance.
