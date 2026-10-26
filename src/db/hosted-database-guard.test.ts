@@ -47,6 +47,9 @@ describe("assertSafeDatabaseUrl", () => {
 
   it("runs before Lane opens a database connection", () => {
     const source = readFileSync(join(process.cwd(), "src/db/index.ts"), "utf8");
-    expect(source).toContain("assertSafeDatabaseUrl(process.env.DATABASE_URL)");
+    expect(source).toContain("const databaseUrl = cleanDatabaseUrl(process.env.DATABASE_URL);");
+    const guard = source.indexOf("assertSafeDatabaseUrl(databaseUrl)");
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(source.indexOf("postgres(databaseUrl"));
   });
 });

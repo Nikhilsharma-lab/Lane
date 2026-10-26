@@ -1,9 +1,11 @@
 import type { Config } from "drizzle-kit";
 import * as dotenv from "dotenv";
+import { cleanDatabaseUrl } from "./src/db/database-url";
 import { databaseTlsOptions } from "./src/db/tls-options";
 
 dotenv.config({ path: ".env.local" });
-const databaseUrl = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : undefined;
+const rawDatabaseUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+const databaseUrl = rawDatabaseUrl ? new URL(rawDatabaseUrl) : undefined;
 
 export default {
   schema: "./src/db/schema/index.ts",
