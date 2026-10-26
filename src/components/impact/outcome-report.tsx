@@ -185,7 +185,7 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
   return <section className={styles.block} aria-labelledby="report-closed-heading">
     <h2 id="report-closed-heading" className={styles.heading}>Closed without a result</h2>
     {groups.length === 0 ? <p className={styles.note}>None this period.</p> : <>
-      <p className={styles.note}>Released, then closed without a measured result. Not in any total.</p>
+      <p className={styles.note}>Closed without a measured result: Released in this period, or closed in it before any release. Not in any total.</p>
       {groups.map(group => <section key={group.reasonCode} className={styles.project} aria-labelledby={`report-closed-${group.reasonCode}`}>
         <h3 id={`report-closed-${group.reasonCode}`} className={styles.projectHeading}>{group.label} <span className={styles.count}>{group.requests.length}</span></h3>
         <ul className={styles.entries}>{group.requests.map(item => <li key={item.requestId} className={styles.entry}>
@@ -194,7 +194,9 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
           <p className={styles.problem}>{item.problem}</p>
           <dl className={styles.facts}>
             <Fact label="Project">{item.projectName ?? "No Project"}</Fact>
-            <Fact label="Released"><time dateTime={item.releaseDate}>{journeyDate(item.releaseDate)}</time></Fact>
+            {item.releaseDate
+              ? <Fact label="Released"><time dateTime={item.releaseDate}>{journeyDate(item.releaseDate)}</time></Fact>
+              : <Fact label="Closed before any release"><time dateTime={item.closedOn}>{journeyDate(item.closedOn)}</time></Fact>}
             {item.reason && <Fact label="Reason">{item.reason}</Fact>}
           </dl>
           {item.corrected.map(value => <Corrected key={value.field} value={value} />)}

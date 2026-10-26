@@ -17,7 +17,8 @@
  * - A result corrected after closing counts at its latest corrected value (`correctedFrom` keeps the value recorded at
  *   closing); a text-only Correction from before corrected values were recorded leaves the closing value counted.
  * - Operational work and Requests closed without a result are never in a line or total.
- * - A Request with no release date is never in a period; the period is the release date (UTC).
+ * - A Request is in the period of its release date (UTC). One never Released is in no period, except one closed without a
+ *   result before any Release: it is listed (never as shipped or in a total) in the period it was closed (UTC).
  * - Nothing per person: no totals, averages, scores or rankings for anyone.
  */
 import { agreedResult, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, guardrailHeld, type ClosureCorrection, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "./request-outcome";
@@ -645,8 +646,11 @@ export type LearnedLine = { text: string; corrected: boolean };
  */
 export type CorrectedValue = { field: ClosureCorrection["field"]; label: string; value: string; at: string };
 
-/** A Request Released in the period and then closed without a result. */
-export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null; iteration: IterationNote | null };
+/**
+ * A Request closed without a result: Released in the period, or (`releaseDate` null) closed in the period before any
+ * Release. `closedOn` is the UTC day it was closed.
+ */
+export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string | null; closedOn: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null; iteration: IterationNote | null };
 
 /** One quarter's place for its Quarter note at the end of the report (#209): the note, or null when none is written. */
 export type QuarterNoteSlot = { year: number; quarter: Quarter; label: string; note: Omit<QuarterNote, "year" | "quarter"> | null };
@@ -662,13 +666,16 @@ export type OutcomeReport = {
   period: ImpactPeriod;
   /** The UTC date the report is up to date as of: it is live, read when the page is opened. */
   asOf: string;
-  /** Requests Released in the period: all of them, those with a measured result, those still due, and those closed without one. */
+  /**
+   * Requests Released in the period: all of them, those with a measured result and those still due; and those closed
+   * without a result, Released in the period or closed in it before any Release.
+   */
   atAGlance: { shipped: number; measured: number; stillDue: number; closedWithoutResult: number };
   /** One line per Metric definition match (#151 rules, #201). Quarters and years only: null for a month, so small samples don't mislead. */
   totals: ResultLine[] | null;
   projects: OutcomeReportSection[];
   closedWithoutResult: ReportClosedGroup[];
-  /** Set only when nothing was Released in the period. */
+  /** Set only when nothing was Released in the period, nor closed in it before any Release. */
   emptyMessage: string | null;
   /** The Quarter notes the report ends with: the quarter's own, all four of a year's (empty ones included), none for a month. */
   quarterNotes: QuarterNoteSlot[];
@@ -745,15 +752,16 @@ function correctedValues(row: ImpactRow): CorrectedValue[] {
   });
 }
 
-function closedGroups(released: { row: ImpactRow; releaseDate: string }[], notes: Map<string, IterationNote>): ReportClosedGroup[] {
+function closedGroups(closed: { row: ImpactRow; releaseDate: string | null }[], notes: Map<string, IterationNote>): ReportClosedGroup[] {
   return EXCEPTION_REASON_OPTIONS.flatMap(({ value: reasonCode, label }) => {
-    const requests = byRequestNumber(released.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
+    const requests = byRequestNumber(closed.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
       requestId: row.id,
       requestNumber: row.requestNumber,
       title: row.title,
       problem: row.problem,
       projectName: row.projectName,
       releaseDate,
+      closedOn: utcDay(new Date(row.exceptionClosure.closedAt)),
       reason: row.exceptionClosure.reason,
       corrected: correctedValues(row),
       learned: learnedOf(row),
@@ -776,6 +784,9 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     const releaseDate = releaseDateOf(row);
     return releaseDate !== null && inPeriod(releaseDate, period) ? [{ row, releaseDate }] : [];
   });
+  // Closed without a result before any Release: never shipped, so it belongs to the period it was closed in.
+  const closedUnreleased = visible.flatMap(row => row.exceptionClosure && releaseDateOf(row) === null && inPeriod(utcDay(new Date(row.exceptionClosure.closedAt)), period) ? [{ row, releaseDate: null }] : []);
+  const closed = [...released.filter(({ row }) => row.exceptionClosure), ...closedUnreleased];
   // Closed without a result has its own list, by reason; every other Released Request sits in its current Project.
   const notes = iterationNotes(visible);
   const projects = byProjectGroups(released.flatMap(({ row, releaseDate }) => row.exceptionClosure ? [] : [{ row, use: reportEntryOf(row, releaseDate, now, visible, notes) }]))
@@ -785,7 +796,7 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     measured: released.filter(({ row }) => row.outcomeClosure).length,
     // Operational work is never measured, so it is never still due, even once Released.
     stillDue: projects.flatMap(section => section.requests).filter(entry => entry.outcome.kind === "still_due").length,
-    closedWithoutResult: released.filter(({ row }) => row.exceptionClosure).length,
+    closedWithoutResult: closed.length,
   };
   const results = released.flatMap(({ row }) => row.outcomeClosure ? [measuredResult(row, row.outcomeClosure)] : []);
   const totals = period.kind === "month" ? null : linesOf(results);
@@ -795,8 +806,8 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     atAGlance,
     totals,
     projects,
-    closedWithoutResult: closedGroups(released, notes),
-    emptyMessage: released.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
+    closedWithoutResult: closedGroups(closed, notes),
+    emptyMessage: released.length === 0 && closed.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
     quarterNotes: quarterNoteSlots(period, options.quarterNotes ?? []),
   };
 }

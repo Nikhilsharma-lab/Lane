@@ -192,6 +192,13 @@ describe("Outcome report: closed without a result", () => {
     expect(closed).toMatch(/Rolled back 1 LAN-4 Request 4 .*Broke checkout on Safari.* Can’t be measured 1 LAN-5 Request 5 .*No event data/)
     expect(closed).toContain("Not in any total")
   })
+
+  it("lists work closed before any Release by the day it was closed", () => {
+    const dropped = row({ id: "g", requestNumber: 7, status: "in_progress", releaseState: null, exceptionClosure: { ...exception("other", "Superseded"), release: null } })
+    const closed = section(html(Q3, [...ROWS, dropped]), "Closed without a result")
+    expect(closed).toMatch(/LAN-7 Request 7 .*Closed before any release 10 Sep 2026/)
+    expect(section(html(Q3, [...ROWS, dropped]), "At a glance")).toContain("Shipped 5 Measured 2 Still due 1 Closed without a result 3")
+  })
 })
 
 describe("Outcome report: empty and long content", () => {
