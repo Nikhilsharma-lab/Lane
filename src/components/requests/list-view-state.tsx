@@ -19,7 +19,11 @@ export type ListViewState = RequestListContext & {
   pagination: PaginationState
   /** Plan item 2.3: a Request the list should bring into view and focus once, then clear. */
   reveal?: string
+  /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
+  savedView?: string
 }
+/** The list context plus the open saved view (#219). */
+export type OpenListContext = RequestListContext & { savedView?: string }
 export type SetListView = Dispatch<SetStateAction<ListViewState>>
 
 const initialView: ListViewState = {
@@ -36,7 +40,7 @@ const initialView: ListViewState = {
 // (status view and Project) has its own context for the same reason.
 const ListViewStateContext = createContext<ListViewState | null>(null)
 const ListViewSetterContext = createContext<SetListView | null>(null)
-const ListContextContext = createContext<RequestListContext | null>(null)
+const ListContextContext = createContext<OpenListContext | null>(null)
 const ListViewSnapshotContext = createContext<(() => ListViewState) | null>(null)
 ListViewStateContext.displayName = "RequestListViewState"
 ListViewSnapshotContext.displayName = "RequestListViewSnapshot"
@@ -93,7 +97,7 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
     ...parseRequestListContext(searchParams),
     columnVisibility: { ...initialView.columnVisibility, ...initialColumnVisibility },
   }))
-  const listContext = useMemo<RequestListContext>(() => ({ status: state.status, project: state.project }), [state.status, state.project])
+  const listContext = useMemo<OpenListContext>(() => ({ status: state.status, project: state.project, savedView: state.savedView }), [state.status, state.project, state.savedView])
   const latest = useRef(state)
   useLayoutEffect(() => { latest.current = state }, [state])
   const snapshot = useCallback(() => latest.current, [])
@@ -207,8 +211,8 @@ export function useSetDetailSession(): SetDetailSession {
   return required(useContext(DetailSessionSetterContext), "useSetDetailSession")
 }
 
-/** The status view and Project filter. Re-renders only when either changes. */
-export function useRequestListContext(): RequestListContext {
+/** The status view, Project filter and open saved view. Re-renders only when one of them changes. */
+export function useRequestListContext(): OpenListContext {
   return required(useContext(ListContextContext), "useRequestListContext")
 }
 
@@ -217,6 +221,13 @@ export function withListContext(view: ListViewState, next: Partial<RequestListCo
   const status = next.status ?? view.status, project = next.project ?? view.project
   if (status === view.status && project === view.project) return view
   return { ...view, status, project, pagination: { ...view.pagination, pageIndex: 0 } }
+}
+
+/** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. */
+export function withSavedView(view: ListViewState, saved: { id: string; filters: RequestListContext } | null): ListViewState {
+  if (!saved) return view.savedView === undefined ? view : { ...view, savedView: undefined }
+  const moved = withListContext(view, saved.filters)
+  return { ...moved, savedView: saved.id, pagination: { ...moved.pagination, pageIndex: 0 } }
 }
 
 /**

@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { ChartColumn, Rows3 } from "lucide-react";
+import { Bookmark, ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
-import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext } from "@/components/requests/list-view-state";
+import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext, withSavedView } from "@/components/requests/list-view-state";
 import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
+import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-rules";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
@@ -42,8 +43,13 @@ export interface SidebarViewProps {
   /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
   onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
   workspaceSwitcher?: UserMenuWorkspaces;
+  /** #219: the person's own saved views, read by the (app) layout. */
+  savedViews?: SavedView[];
 }
 
+const noViews: SavedView[] = [];
+/** Saved view rows share the navigation with Projects, so their ids carry a prefix. */
+const VIEW_ID = "view:";
 const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
 const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -51,7 +57,7 @@ const isPlainClick = (event: MouseEvent) => event.button === 0 && !event.metaKey
 const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -70,7 +76,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const setDetailSession = useSetDetailSession();
   const router = useRouter();
   const listContext = useRequestListContext();
-  const { status: filter, project: projectFilter } = listContext;
+  const { status: filter, project: projectFilter, savedView: openViewId } = listContext;
   // Already on "/", a plain click on a Requests list link (All Requests, a
   // Project, No Project) changes the view in place with no request; the URL
   // follows through history.replaceState. onNavigate has already set the
@@ -111,7 +117,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   function navigateFromSearch(href: string) {
     closeSearch(false);
     const target = requestListContextFromHref(href);
-    if (target) setListView(current => withListContext(current, target));
+    if (target) setListView(current => withSavedView(withListContext(current, target), null));
     // Plan item 2.8: a Request opened from search lands as one opened from the list, with its title focused.
     else if (href.startsWith("/requests/")) setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
   }
@@ -143,9 +149,12 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
   useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
-  const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
+  // #219: an open saved view is the list's place in the navigation, and its name the list's crumb.
+  const viewActive = viewInNavigation(savedViews, openViewId, pathname);
+  const openView = openSavedView(savedViews, openViewId);
+  const active = viewActive ? VIEW_ID + viewActive : isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
-  const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
+  const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : openView?.name ?? project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
   const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : pathname === "/inbox" ? "Inbox" : null;
   // Plan item 2.0: the ancestors the topbar used to show. Each page's strip adds
   // its own name as the current crumb. Memoised, so typing in the list filter
@@ -163,6 +172,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       // #159: the impact Dashboard, for every role (a guest sees only their own Requests on it).
       { id: "/impact", name: "Impact", href: "/impact", icon: <ChartColumn strokeWidth={1.75} /> },
     ] },
+    ...(savedViews.length ? [{ id: "views", name: "Your views", items: savedViews.map(view => ({ id: VIEW_ID + view.id, name: view.name, href: savedViewHref(view.filters), icon: <Bookmark strokeWidth={1.75} /> })) }] : []),
   ];
   // Settings has its own Arc navigation and search. Preserve all workspace state
   // above this boundary so returning to Requests restores the same view.
@@ -187,9 +197,11 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
         onNavigate={({ id }) => {
           dismissPeek();
           closeSearch(false);
-          if (id === "requests" || id === "none" || projects.some(item => item.id === id)) {
-            // A new Project moves to the first page; choosing the current one also returns there.
-            setListView(current => { const next = withListContext(current, { project: id === "requests" ? "all" : id }); return next !== current || !current.pagination.pageIndex ? next : { ...current, pagination: { ...current.pagination, pageIndex: 0 } }; });
+          const view = id.startsWith(VIEW_ID) ? savedViews.find(item => VIEW_ID + item.id === id) : undefined;
+          if (view) setListView(current => withSavedView(current, view));
+          else if (id === "requests" || id === "none" || projects.some(item => item.id === id)) {
+            // A new Project moves to the first page; choosing the current one also returns there. Either closes an open saved view.
+            setListView(current => { const next = withSavedView(withListContext(current, { project: id === "requests" ? "all" : id }), null); return next !== current || !current.pagination.pageIndex ? next : { ...current, pagination: { ...current.pagination, pageIndex: 0 } }; });
           }
         }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
