@@ -45,6 +45,26 @@ The first four Requests every workspace gets before it pays, with no time limit.
 it back.
 _Avoid_: Trial, free plan, credits
 
+## A Request
+
+**Title**:
+The name a Request goes by everywhere, in the words its author typed. The Problem to solve shows under it on the
+Request page, never in its place.
+_Avoid_: Problem to solve (as the Request's name), summary
+
+**Problem to solve**:
+The problem Lane's AI draws out of a Request whose author described a solution, confirmed by the author. Changing
+only the Title never redraws it.
+_Avoid_: Reframed problem, problem statement
+
+**Goal**:
+What a Request aims for, set before it is picked up: the end value of a metric (such as "80%, from 62%"), or a
+Pass/fail check. A Request with nothing to measure says No measurable impact instead, with a reason. A result reads
+plainly against its goal ("4 points above the goal"), never as a pass or a miss. For a Guest submission, the Member
+who takes it on sets the goal.
+_Avoid_: Prediction, Expected impact, target, forecast
+_Note (2026-10-26)_: decided in #235; the app still says "prediction" and "Expected impact" until the rename is built.
+
 ## Request status
 
 A Request has one status line that is shown everywhere:
@@ -143,7 +163,7 @@ _Avoid_: Notification, update
 ## Reporting
 
 **Outcome report**:
-The shared page showing everything Released in a month, quarter or year, with each Request's prediction and
+The shared page showing everything Released in a month, quarter or year, with each Request's goal and
 its result once known, grouped by Project. It is built from Request records, kept up to date as results
 arrive, and never shows people.
 _Avoid_: What we shipped, dashboard, impact summary, scorecard
@@ -159,7 +179,7 @@ _Avoid_: Summary, commentary
 ## Metrics
 
 **Metrics library**:
-The workspace's shared list of Metric definitions. Every metric on a prediction or guardrail is picked from it.
+The workspace's shared list of Metric definitions. Every metric on a goal or guardrail is picked from it.
 It never holds numbers.
 _Avoid_: Metric catalogue, KPI list
 
@@ -170,7 +190,7 @@ what is counted makes a new Metric definition, not an edit.
 _Avoid_: Custom metric, KPI
 
 **Pass/fail check**:
-A yes-or-no outcome on a prediction, such as "keyboard users can finish checkout". It is not a Metric
+A yes-or-no goal, such as "keyboard users can finish checkout". It is not a Metric
 definition and never adds up.
 _Avoid_: Metric, test
 
@@ -178,6 +198,9 @@ _Avoid_: Metric, test
 
 **Agreement**:
 The named PM/Designer/Developer gate that Reviewers replaced on 2026-10-21. Say Reviewer or Review answer.
+
+**Prediction** / **Expected impact**:
+What a Request aims for, renamed Goal on 2026-10-26 because "goal" is the standard analytics word. Say Goal.
 
 **Design review** / **Ask for review**:
 Lane's former in-app design feedback rounds, retired on 2026-10-18. Saved rounds keep only their Design link.
