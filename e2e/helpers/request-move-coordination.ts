@@ -10,7 +10,7 @@ export type MoveCapture = (name: string, receipt?: unknown) => Promise<void>;
 const row = (page: Page, request: NavigationRequest) => page.locator(`#request-row-${request.id}`);
 const bar = (page: Page) => page.locator("[data-request-selection-bar]");
 const confirmation = (page: Page) => page.getByRole("dialog", { name: "Pick up anyway?", exact: true });
-const bulkToast = (page: Page) => toastRegion(page).locator("li").filter({ hasText: /^2 Requests marked Done/ });
+const bulkToast = (page: Page) => toastRegion(page).locator("li").filter({ has: page.getByText("2 Requests marked Done", { exact: true }) });
 async function chooseMoveProject(page: Page, name: string) {
   // Keep the pointer out of the hover opener during these keyboard flows. A
   // genuine open peek correctly owns Escape before Request selection does.
