@@ -7,7 +7,12 @@ const ROOT = join(process.cwd(), "src")
 /** Callers that hand the action to a component which sends it through callAction or the optimistic runner. */
 const PASSED_ON: Record<string, string> = {
   "app/(app)/settings/profile/profile-form.tsx": "ProfileRoleForm saves through callAction or useOptimisticAction",
+  "app/(app)/settings/profile/delivery-form.tsx": "InboxDeliveryForm saves through callAction",
+  "app/(app)/settings/profile/slack-form.tsx": "SlackConnectionCard connects and disconnects through callAction",
+  "app/(app)/settings/profile/billing-form.tsx": "BillingPlanCard starts checkout through callAction",
+  "components/settings/workspace-members.tsx": "WorkspaceMembersView sends each invite, role change and revoke through callAction",
   "components/requests/request-moves.ts": "createRequestMoves (request-moves-controller.ts) runs each action through the optimistic runner",
+  "components/requests/request-timeline-forms.tsx": "Each journey form saves through useJourneyChange (use-journey-change.ts), which runs it through the optimistic runner",
 }
 
 /** Whether `specifier`, imported from `file`, names a server action module ("use server"). An unresolved one counts as one. */

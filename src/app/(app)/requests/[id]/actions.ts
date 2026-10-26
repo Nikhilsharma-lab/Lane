@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
-import { requireActiveMember, requireMemberOrAbove, refusal } from "@/lib/auth-guard";
+import { requireActiveMember, requireCanChange, requireCanContribute, refusal } from "@/lib/auth-guard";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { removeObjects, signDownload } from "@/lib/attachment-storage";
 
@@ -71,7 +71,7 @@ export async function undoMarkDone(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
 
   // One CTE: the conditional UPDATE and the DELETE of the Done notification
@@ -142,7 +142,7 @@ export async function addComment(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
+  const auth = await requireCanContribute(context.orgId);
   if (!auth) return { error: await refusal("Not found") };
 
   const parsed = commentSchema.safeParse({ body: formData.get("body") });
@@ -154,7 +154,7 @@ export async function addComment(
   // the same answer as another workspace's or a malformed id.
   const rows = await db.execute<{ id: string; created_at: Date | string }>(sql`
     with r as (
-      select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}
+      select ${requests.id}, ${requests.orgId}, ${requests.createdBy}, ${requests.assignedTo}, ${requests.takenOnBy}
       from ${requests}
       where ${requests.id} = ${requestId}
         ${seeableSql(auth)}
@@ -163,7 +163,7 @@ export async function addComment(
       select r.id, ${auth.userId}, ${parsed.data.body} from r
       returning ${comments.id}, ${comments.createdAt}
     ), n as (
-      select ${notify([sql`r.created_by`, sql`r.assigned_to`], sql`r.org_id`, "comment_added", sql`r.id`, auth.userId)} as sent
+      select ${notify([sql`r.created_by`, sql`r.taken_on_by`, sql`r.assigned_to`], sql`r.org_id`, "comment_added", sql`r.id`, auth.userId)} as sent
       from r cross join c
     )
     -- Joining n runs it: a plain CTE is evaluated only when read.
@@ -228,7 +228,7 @@ export async function setRequestPriority(
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const parsed = requestPrioritySchema.safeParse(priority);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const auth = await requireActiveMember(context.orgId);
+  const auth = await requireCanContribute(context.orgId);
   if (!auth) return { error: await refusal(CANNOT_CHANGE_REQUESTS) };
 
   const [updated] = await db
@@ -252,11 +252,11 @@ export async function deleteRequest(
   context: { orgId: string }
 ): Promise<{ success: true } | { error: string }> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
-  const auth = await requireActiveMember(context.orgId);
+  const auth = await requireCanContribute(context.orgId);
   if (!auth) return { error: await refusal("Not found") };
 
   const result = await db.transaction(async (tx): Promise<{ error: string } | { files: string[] }> => {
-    const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy })
+    const [request] = await tx.select({ status: requests.status, createdBy: requests.createdBy, takenOnBy: requests.takenOnBy })
       .from(requests)
       .where(and(eq(requests.id, requestId), seeable(auth)))
       .for("update");

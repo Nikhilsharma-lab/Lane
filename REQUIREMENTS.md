@@ -126,13 +126,33 @@ actions, or collaboration rights.
 
 - **Admin:** Clerk organization administration and membership control.
 - **Member:** participates in the shared Request workflow.
-- **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members.
+- **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members. A Guest
+  files without a prediction (#195 item 4, #212, on the integration branch): the Request waits, Open, as a
+  **Guest submission**, tagged "Waiting to be taken on" on the Requests list for everyone who can see it. An
+  Admin or Member takes it on from Request detail and becomes its **Requester** (once; it never moves except by
+  the usual handover after pickup), and the editor opens asking them for the prediction. Nobody can pick it up
+  until it has been taken on and its prediction (a measured result or No measurable impact) is written. The Guest
+  stays its author, keeps seeing and commenting on it, and can edit their own words only while it waits; they
+  never write the prediction. The Guest gets exactly two emails about it, when it is taken on and when it is
+  Closed, by Email whatever their delivery choice and only while they are still in the workspace and not a
+  Viewer. Comments on it reach the Member who took it on.
+- **Viewer** (#195 item 4, #210, on the integration branch): free and read-only. Sees everything a Member
+  sees (Requests, Impact with the Outcome report, the Metrics library) except Members management, and changes
+  nothing: no filing, commenting, reviewing, picking up, Releases, links, labels, Projects, closing or editing
+  definitions. Controls they can't use are hidden and every change is refused on the server, even on a Request
+  they filed before becoming a Viewer. Viewers get no Needs-you items and no emails; they keep their own profile
+  label and read state.
+
+Admins and Members are paid seats; Guests and Viewers are free. In Settings → Members an Admin invites people
+as, and changes anyone else's role to, Admin, Member, Guest or Viewer; Lane asks Clerk and stores nothing, and
+removing someone stays in Clerk. Guest and Viewer are offered (and accepted by the server) only while
+`LANE_CUSTOM_ROLES` is on, which waits for Clerk Enhanced B2B in production.
 
 Clerk is the sole authority for users, sessions, organizations, memberships, roles, and invitations. Identity,
 active organization, and organization role are always derived from the Clerk session; client-supplied user
 identifiers are never trusted. Lane does not duplicate Clerk membership or invitation state in Postgres.
-Every read and write is constrained to the active Clerk organization. Guest remains conditional on a Clerk
-plan that exposes a production `org:guest` custom role.
+Every read and write is constrained to the active Clerk organization. Guest and Viewer remain conditional on a
+Clerk plan that exposes production `org:guest` and `org:viewer` custom roles (Enhanced B2B).
 
 ### Responsibility versus permission
 
@@ -213,6 +233,29 @@ remain. Historical values are preserved; new measurement snapshots use version 3
 Existing at_most and at_least retain inclusive meanings. No automatic monitoring is added.
 
 2026-10-20 follow-up, explicitly approved by Nikhil: comparison menus put selection left and green symbols right, without brackets. The threshold field sits directly beside the comparison. Every numeric editor value offers Percentage (%), Count, Minutes and Seconds in the field. Custom metric creation uses search plus an inline Create metric action, with no separate name or unit form. New/edited numeric plans use version 4; v2/v3 saved validation remains unchanged. Switching seconds/minutes converts numbers; incompatible unit changes clear numbers. Selecting the same metric preserves its values. Custom names remain within the existing Request JSON; no catalogue table or route is added.
+
+**Metrics library supersession — 2026-10-25 (#195, approved by Nikhil):** the "no catalogue table or route" line above is
+superseded. Each workspace has a Metrics library of Metric definitions (name, unit, optional link, optional how-it's-counted
+line) with an append-only history, owned by one module (`src/lib/metrics-library.ts`). Built so far (#196): the two tables
+(migration 0037), the seven starter metrics filled on a workspace's first read, and Settings → Metrics (`/settings/metrics`,
+Members and Admins; Guests are refused) listing active definitions, showing "Add where this lives" when there is no link.
+Predictions still save names in the Request JSON until the picker work in #195 lands.
+Inline add (#199) supersedes the 2026-10-20 inline "Create metric" with no name or unit form: when the picker finds no
+metric with the typed name, Members and Admins add one from the picker with a name and a unit only. It is added to the
+library with a history entry and selected on the main metric or guardrail. An active definition with that name is offered
+instead. Guests can't add.
+Each definition's page (#203) lists every Request that used it, from the Impact read model (`buildDefinitionUses`), so
+visibility and result rules match the Impact page: main-metric uses and guardrail uses apart, each grouped by Project, with
+predicted beside actual (a guardrail's limit beside what was measured). A result still waiting shows as still due, with
+its due date once released, never as zero; a Request closed without a result shows its reason. A definition merged into
+this one brings its Requests; a merged-away definition's page points to the one they now count under. Nothing is grouped,
+totalled or ranked by person.
+Merging (#202): on a definition's page an Admin merges it with another definition in the same unit and chooses which one
+is kept; different units are refused, and Members and Guests are refused on the server and see no merge controls. The kept
+definition is unchanged; the other is marked "merged into" it, leaves the picker and the main list, and links to the kept
+one. Both histories record the merge. Requests are not rewritten: their metrics resolve through the link, so Impact totals
+combine at once. There is no unmerge, and a merged-away definition can't be merged again. An archived definition can be
+merged away or kept.
 
 
 2026-10-12 Intake simplification, explicitly approved by Nikhil: do not ask the requester where
@@ -315,8 +358,16 @@ Supersedes the named PM/Designer/Developer agreement gate. Workspace membership 
   work starts. Optional." Any number up to 20, including none.
 - Before pickup, the requester and any member may add reviewers, with an optional short question (for
   example a designer asking a developer whether it can be built). Only the requester or an admin removes one.
-- Reviewers are active members or admins, or (admin only) a pending email invitation. Guests, the person
-  adding, and the requester cannot be reviewers. Each row shows the person's profile role as information only.
+- Reviewers are Admins and Members only: the paid seats (#195 item 4, #211, on the integration branch).
+  Guests, Viewers, email addresses, pending invitations, the person adding, and the requester cannot be
+  reviewers; the server refuses them. The picker lists only Admins and Members and says "Only Admins and
+  Members can review. Not listed? Ask an admin to invite them." (an Admin gets a link to invite them as a
+  Member instead). Each row shows the person's profile role as information only. A reviewer who stops being
+  an Admin or Member stays listed, greyed out, like one who left.
+
+**Reviewer supersession — 2026-10-25 (#195, approved by Nikhil):** email-address (pending-invitation)
+reviewers, which an admin could add before, are retired. Migration 0044 removes the ones saved so far
+(test data) and the database accepts member reviewers only.
 - A reviewer answers **Looks good** or **Raise a concern** with a reason. A concern clears only when that
   reviewer changes their answer or the Request is edited.
 - Editing what the Request says (content, Expected impact, type, Project, labels) resets every answer and
@@ -559,6 +610,19 @@ Track amendments and follow-ups at Request level, not as personal blame or quali
 and preventable rework are not equivalent. No automatic classification, rankings or analytics dashboard is
 authorized by recording this history. Exact relationship storage and UI remain implementation-plan decisions.
 
+**Same problem links (#195 item 7, #218, 2026-10-25, on the integration branch):** Admins and Members link two
+Requests as Same problem, at any status including Closed; the link lives in its own table (migration 0051), so
+neither Request's record changes. A Request is in one group at most: linking to any Request in a group joins the
+whole group, and linking two grouped Requests combines the groups. Removing a link takes only that Request out; a
+group left with one Request ends. Each Request's history records who linked it (and with which Request) or took it
+out, and when. Deleting an Open Request removes its membership. The Request page shows "Iterations of this
+problem" after the journey: the group oldest first by filing time, each with its status, prediction and result
+(or its reason when Closed without a result), the Request being read highlighted with its number ("3rd
+iteration"). The number is worked out from creation order when read, never stored. Follow-ups keep their link and
+their own list in the journey, can't be removed, and are not iterations unless also linked as Same problem. The
+Outcome report shows each grouped Request's iteration note, linking to the group. Request list rows are unchanged.
+Guests see no links; Viewers see all and change none.
+
 ---
 
 ## 6. Request information architecture
@@ -687,6 +751,40 @@ Reporting requirements for the bounded design:
   match exactly. Percentages are never summed, and Verified results are counted as good or bad, never summed.
   Operational work and closed-without-result Requests are never in a total. A shared result is counted once.
   Built on the integration branch; not yet shipped.
+  **Metrics library match, approved 2026-10-25 (#195, #201):** "metric and unit match exactly" now means the same
+  resolved Metric definition (a merged one counts as the one it was merged into; an archived one still counts), with the
+  same audience (platform included) and window; the unit comes from the definition. Two definitions with the same name
+  never add up. Totals and the Impact page show each definition's current name, and workspace search finds Requests by
+  their definition names. Pass/fail checks and any metric the library can't place keep a line per saved name and unit,
+  never shared with a definition's. This closes the name-text risk recorded in #151. Integration branch only.
+  **Outcome report, approved 2026-10-25 (#195, #208):** the Impact page has two tabs, My work (unchanged) and Outcome
+  report; By project and Whole org are merged into the report. The report covers one month, quarter or year (the
+  current quarter until another is picked), lists only work Released in it by UTC release date, and shows an "up to
+  date as of" date, At a glance counts (shipped, measured, still due, closed without a result), totals for quarters
+  and years only (never months), a section per current Project then "No Project" with each Request's problem,
+  prediction, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
+  Closed without a result by reason. Released operational work is listed with its reason. Work never Released is in
+  no period, except work closed without a result before release (below). Everyone except Guests sees it; nobody is
+  named, grouped or ranked. Integration branch only.
+  **Corrections count in totals, decided 2026-10-26 (review of #195; supersedes "Totals use values as recorded at
+  closing; Corrections are shown, not summed"):** when a result is corrected after closing, quarter/year totals and
+  the Outcome report use the corrected value, marked "corrected"; the original stays visible on the Request. A
+  Correction of the actual result therefore records a structured value beside its text (a number for a numeric metric,
+  passed or not for a Pass/fail check; migration 0053). Older text-only Corrections keep counting the closing value.
+  Corrections stay protected and append-only.
+  **Closed without a result before any Release, decided 2026-10-26:** it appears in the Outcome report under "Closed
+  without a result" (and its At a glance count) in the period it was closed (UTC). It is never counted as shipped or
+  in any total.
+  **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
+  measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
+  stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the
+  Request page keeps the original beside the Correction, and the report shows the latest wording marked "corrected".
+  A Quarter note is plain text (web addresses become links, up to 4,000 characters), one per workspace per quarter
+  (`quarter_notes`), written or edited by Admins only (the server refuses everyone else) at any time once the quarter
+  has begun; saving it empty removes it, and an edit over someone else's newer one is refused. It shows its last
+  editor and edit time at the end of a quarter's report; a year shows all four quarters, a month none. Print and save
+  as PDF print the report alone, light on paper, with its title, period and as-of date; there is no public link and no
+  export file. Integration branch only.
 - Support team learning from positive, neutral and negative outcomes; beating easy forecasts is not a
   valid standalone effectiveness score. Existing privacy/access boundaries apply to summaries too.
 
@@ -731,6 +829,17 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Invitation and workspace-creation UI stays Clerk-owned; Lane does not recreate a post-create invite step.
 - Invitation acceptance handles signed-out, wrong-account, expired, revoked, accepted, and workspace-limit
   branches.
+- **First run (#195 item 6, #217, 2026-10-25, on the integration branch):** after the onboarding above, the
+  workspace's first person (its Clerk creator) gets a first-run guide on the Requests list (the empty workspace's
+  welcome) and on New Request: one step at a time it explains the problem framing, a prediction from the Metrics
+  library, Reviewers, the Free Requests left, and Release and Result due (Lane brings them back when the result is
+  due), then files a first real Request; a composer opened from the guide explains each part as it goes. An Admin
+  can invite teammates from it as Reviewers (Members) or, while `LANE_CUSTOM_ROLES` is on, Viewers, through Lane's
+  Members action (Clerk still sends and owns every invitation; this supersedes the "no post-create invite step" line
+  above for the first run only). People who join later get a short first run that shows their Inbox. Anyone can
+  skip it and find it again under "First-run guide" in the account menu. Progress (steps read, skipped, finished) is
+  kept per person per workspace (`first_run_progress`, migration 0050). No demo workspace or sample data is created.
+  A creator who had already filed a Request before this shipped starts with the guide finished.
 
 ### Requests and Intake
 
@@ -740,6 +849,15 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - The board provides empty, loading, populated, filtered, and failure states.
 - Request detail provides Open, In Progress, Done, loading, forbidden, and not-found states.
 - Comments expose empty, posting, posted, and failed states without duplicate feedback.
+- **Saved views (#195 item 8, #219, 2026-10-25, on the integration branch):** anyone in the workspace, Viewers and
+  Guests included, saves the Requests list's current filters (status view and Project today; later list filters join
+  them) under a name from the list's page strip ("Save view"). Their views are listed under "Your views" in the
+  sidebar; opening one applies its filters through the normal list, so it never shows more than the person may see
+  (a Guest's view still shows only their own Requests, and a saved Project must be one they can see). While a view
+  is open the list is titled with its name and offers "Save changes to view" once its filters change, "Save as new
+  view", "Rename view" and "Delete view". Views are personal (migration 0052, `saved_views`: owner, workspace, name,
+  filters): only the owner sees or changes them, names are unique per person ignoring case, and nothing is shared
+  or published. Search text, ordering, grouping and columns are not saved.
 
 ### Membership and notifications
 
@@ -748,6 +866,119 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Lane must recover routing/authorization failures without recreating invitation tokens or a parallel mailer.
 - Older local-invite copy-link/Resend behaviour is historical, not a current Clerk implementation requirement.
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.
+- **Inbox (#195 item 2, #204, 2026-10-25, on the integration branch):** "Inbox" replaces "Notifications" in all copy.
+  The bell's popover is replaced by the `/inbox` page: the list on the left and the existing Request preview beside it
+  (phones and touch open the Request's page instead). One read model (`src/lib/inbox-read-model.ts`) decides what it
+  holds. For-your-information items are the stored notifications for picked up, Done, comments, Looks good and invite
+  accepted; they clear when read (opening one reads it), and Mark all read clears everything. An item read during a
+  visit stays in place, read, until the next visit. Guests see only items about their own submissions. The bell stays
+  in the sidebar and leads to the Inbox. Comments notify the people on the Request as before, with no @mentions.
+  Review asks, Concerns and resets are not For your information.
+- **Needs you (#195 item 2, #205, 2026-10-25, on the integration branch):** the Inbox lists what needs the person
+  above For your information, and the bell counts only these ("Inbox, 2 need you"). They are worked out from Request
+  state at read time and never stored, so each clears itself and none repeats:
+  - a review waiting on you, while the Request is Open and you haven't answered (an edit that resets answers asks again);
+  - an open Concern on your Request, while it is Open; it clears when you edit (which resets the answer), the
+    Reviewer changes their answer, or the work is picked up;
+  - one "Record the release" exactly 3 days after Done (3 days after the latest void if a Release was voided),
+    until the Release is recorded or the Request is closed;
+  - one Result due from the measurement due date (UTC), until the Request is Closed.
+  "Your Request" means you are its current Requester, so a handover moves these items to the new Requester and out
+  of the former one's Inbox. Record the release now goes to the Requester, not whoever picked the work up. Only
+  Admins and Members get Needs-you items; Guests and Viewers get none. The repeated
+  reminders (#127: due soon, weekly overdue, weekly release reminder) are retired with the stored reminder types,
+  and the reminder writer that ran when the bell was checked is removed: checking the bell writes nothing
+  (migration 0040 deletes the stored reminder rows and refuses those types).
+- **Inbox delivery (#195 item 2, #206, 2026-10-25, on the integration branch):** Needs-you items reach people outside
+  Lane, one plain-text email per item with one link to the Request, never bundled, each at most once (the delivery
+  log, migration 0041, holds each person's item once). A review asked (on a Request, at Intake, carried to a
+  follow-up, or asked again by an edit that resets answers) and a Concern raised are sent right after the action; an
+  item that has already cleared is never sent. Record the release and Result due are sent by the one daily job
+  (`GET /api/inbox/daily`); running it twice sends nothing twice. Each Admin and Member chooses per workspace in
+  Settings → Inbox delivery: Email (the default) or Off; Slack DM is offered once Slack is connected (#207). Off holds
+  everything except Result due. For-your-information items are never emailed; Guests and Viewers get no Needs-you
+  email. The email service is Resend. **Nothing is sent until Nikhil switches it on:** while `LANE_EMAIL_DELIVERY`
+  is not `1` the messenger is a recording stand-in and the log records "would send"; while `CRON_SECRET` is unset
+  the daily job refuses every call, and its `vercel.json` cron entry is added only in the change that switches
+  email on. Items logged as "would send" before the switch are not sent again afterwards.
+- **Slack DM (#195 item 2, #207, 2026-10-25, on the integration branch):** an Admin connects Slack once per workspace
+  in Settings → Slack, through Slack's standard install flow, and can disconnect it; Members and Guests can't. The
+  bot token is stored encrypted (migration 0042, `slack_connections`). While Slack is connected, each Admin and
+  Member can choose Slack DM in Settings → Inbox delivery and gets one DM per Needs-you item, with one link to the
+  Request; Result due goes by Slack DM to people who chose it. When Slack is disconnected, or Slack can't find the
+  person by their Lane email address, those items go by Email; the saved Slack DM choice is kept, so it applies
+  again if Slack is reconnected. **Nothing reaches Slack until Nikhil approves the Slack app** (build plan, "The
+  Slack app") and sets `LANE_SLACK_DELIVERY`: until then Settings → Slack says Slack isn't available, there is no
+  connect button and nobody can choose Slack DM.
+
+### Free Requests (#195 item 5, #213, 2026-10-25, on the integration branch)
+
+- Each new workspace gets 4 Free Requests with the whole product, any number of people and no time limit. Every
+  Request created counts, deleted ones included; a follow-up Request counts; a Guest submission counts once a
+  Member takes it on, not when it is filed. The database keeps the count (migration 0046), so no path skips it.
+- The allowance belongs to the company email domain of the workspace's Clerk creator; for a personal email domain
+  (Gmail, Outlook, iCloud and the like) it belongs to that one address (read without `+tags`, and for Gmail without
+  dots). **Shared, decided 2026-10-26 (review of #195; supersedes "a later one gets none"):** every workspace with
+  the same company domain shares its 4, so a second one gets whatever is left (the first used 1: the second gets 3);
+  once all 4 are used, the second is told they were already used by another workspace. A personal address's 4 are
+  likewise shared only by that person's workspaces. Filing the last one locks the shared allowance, so two workspaces
+  can't both take it. A workspace's allowance is decided once, when Lane first sees the workspace
+  (or, for workspaces Lane saw before 0046, when an Admin opens Billing or someone files while billing is enforced);
+  if Lane can't find the creator it stays undecided and the workspace keeps its 4.
+- Once they are used and there is no paid plan (or the plan lapsed), creating a new Request, a follow-up, or taking
+  on a Guest submission is refused with the reason and "An Admin needs to pay"; a Guest can still file. Nothing
+  else is blocked: everything filed keeps moving, releasing, closing and getting reminders, and nothing is deleted.
+  The refusal comes before the AI review and again, under the workspace lock, when saving.
+- Settings → Billing (Admins only) shows Free Requests left and why there are none. **All enforcement sits behind
+  `LANE_BILLING_ENFORCED`, off by default:** while it is not `1`, Free Requests are counted and shown but no
+  workspace is ever blocked, and Billing says Lane isn't charging yet. Switching enforcement on waits for Nikhil's
+  approval (below).
+
+### Paying for Lane (#195 item 5, #214, 2026-10-25, on the integration branch)
+
+- One plan with all of Lane, priced per paid seat (Admins and Members, at least 3; Guests and Viewers are free).
+  Settings → Billing shows yearly first, $30 per seat per month billed yearly, with monthly beside it at $36, and
+  Enterprise as "Talk to us" (an email to Lane's support address). These prices are a starting point, checked again
+  at launch.
+- An Admin pays by card on the payment provider's hosted checkout page (Stripe Checkout) and comes back to Billing.
+  The provider tells Lane by a signed event (`POST /api/billing/webhook`); only then is the workspace paying, and a
+  paying workspace creates Requests beyond its Free Requests. Nobody but an Admin can start a checkout.
+- **Founding discount:** the first 50 workspaces to pay get 40% off for two years from their first payment, shown
+  against the list price. A workspace holds one of the 50 places while its checkout is open (up to 3 days after the
+  page closes, so a late event from the provider still finds it) and for good once it pays with it; the database
+  refuses a 51st. A founding workspace that pays again later gets only what is left of its two years.
+- **Nothing can be paid until billing is switched on:** checkout is offered only while `LANE_BILLING_ENFORCED` is `1`
+  and the Stripe names are set (`.env.example`). Until then Billing shows the prices and says Lane isn't charging yet,
+  or that paying by card isn't available yet. Before switching on: ask about 10 target teams what they'd pay, move to
+  Supabase Pro and Vercel Pro, and approve Stripe as an external service (`DEFERRED.md`).
+- **Seats are counted, never by hand (#215, on the integration branch):** paid seats are the workspace's Admins and
+  Members in Clerk, at least 3; Guests and Viewers are free. Lane stores no membership, only the number the provider
+  bills. A paying workspace's seats follow Clerk: after every role change in Settings → Members, and from page views
+  at most every 10 minutes (so an accepted invitation or someone removed in Clerk reaches the bill). An added seat is
+  charged part-month from that day, straight away (for a yearly plan, the rest of the year); a removed seat, or a
+  Member made a Viewer, lowers the next bill and nothing is refunded now. While `LANE_BILLING_ENFORCED` is `1`, an
+  Admin confirms "This adds a paid seat" before inviting a Member or Admin or making a Guest or Viewer one, and the
+  server refuses it without that confirmation; with the switch off nothing is asked and no seats are followed.
+
+### Billing settings and lapsed plans (#195 item 5, #216, 2026-10-25, on the integration branch)
+
+- Settings → Billing (Admins only; nobody else has the section) shows the plan, the paid seats (Admins and Members
+  on the live roster, at least 3), the next bill, the Free Requests left and the latest 12 invoices, each opening on
+  the payment provider's own page. Seats, next bill and invoices load after the page, so the provider never holds it up;
+  if the provider can't be read, Billing says so and still shows the seats.
+- An Admin changes the billing period, updates the card or cancels on the provider's hosted pages (Stripe's customer
+  portal) and comes back to Billing. These are offered whenever there is a payment provider, even while billing
+  enforcement is off, so a workspace that pays can always change or stop paying. A cancelled plan keeps paying until
+  the end of its period; Billing shows the day it ends and offers to keep it.
+- The provider tells Lane when the plan changes (signed subscription events at `POST /api/billing/webhook`). Unpaid or
+  paused: the plan lapses and the Admin pays what's due by updating the card (no second checkout, which would bill
+  twice). Cancelled for good: the plan lapses and paying again is a new checkout. A change older than the last one
+  recorded, or for a plan the workspace no longer pays with, changes nothing. A payment still being retried keeps the
+  plan paying.
+- **A lapsed plan never holds the record hostage:** everything filed keeps working (picking up, comments, Done,
+  releasing, closing) and Result due reminders still go out; nothing is deleted. Only creating new Requests waits for
+  payment: new Requests, follow-ups and taking on a Guest submission (a Guest can still file). As with Free Requests,
+  this is enforced only while `LANE_BILLING_ENFORCED` is `1`.
 
 ### Profile and theme
 
@@ -945,7 +1176,7 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
 
 - Final interaction labels and compact field presentation; how a material change after pickup is told
   apart from an ordinary correction.
-- Guest-created Request sponsorship. Requester handover is decided (§5, 2026-10-22); neither may weaken guest isolation.
+- Guest-created Request sponsorship is decided as Guest submissions taken on by a Member (#212, §Workspace permission tiers). Requester handover is decided (§5, 2026-10-22); neither weakens guest isolation.
 - Detailed partial-rollout representation, measurement-source handling and append-only correction authority.
 - Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.

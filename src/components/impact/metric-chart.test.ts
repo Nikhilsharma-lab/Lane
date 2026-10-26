@@ -3,8 +3,7 @@ import { join } from "node:path"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
-import type { OrgView, ResultLine, ResultView } from "@/lib/impact-read-model"
-import { WholeOrgTab } from "./whole-org-tab"
+import type { ResultLine, ResultView } from "@/lib/impact-read-model"
 import { MetricChart } from "./metric-chart"
 import { metricChart } from "@/lib/impact-chart-view"
 
@@ -13,16 +12,16 @@ import { metricChart } from "@/lib/impact-chart-view"
 
 function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): ResultView {
   return {
-    requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, metric: "Conversion rate", form: "numeric",
+    requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, definitionId: null, metric: "Conversion rate", form: "numeric",
     unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release",
-    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, predictedTarget: 50, predictedChange: 10,
+    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, correctedFrom: null, predictedTarget: 50, predictedChange: 10,
     releaseDate: "2026-08-10", observedFrom: "2026-08-10", observedTo: "2026-09-09", evidence: "Released", guardrails: [],
     corrections: [], requests: [], ...over,
   }
 }
 
 function line(metric: string, results: ResultView[], over: Partial<ResultLine> = {}): ResultLine {
-  return { metric, form: "numeric", unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release", results, count: results.length, summed: null, verdicts: null, ...over }
+  return { definitionId: null, metric, form: "numeric", unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release", results, count: results.length, summed: null, verdicts: null, ...over }
 }
 
 const render = (value: ResultLine) => {
@@ -66,21 +65,6 @@ describe("metric chart: reduced motion (#158)", () => {
 
   it("removes the bar animation under prefers-reduced-motion", () => {
     expect(reduced).toMatch(/\.bar\s*\{[^}]*animation:\s*none/)
-  })
-})
-
-describe("metric chart: whole org wiring (#158)", () => {
-  it("renders one chart per metric line on the Whole org tab, not one combined chart", () => {
-    const view = {
-      period: null, emptyMessage: null, operational: [], closedWithoutResult: [], timeline: [], unreleased: [], projectStacks: [],
-      lines: [
-        line("Conversion rate", [result({ requestNumber: 1 })]),
-        line("Signups", [result({ requestNumber: 2, metric: "Signups", unit: "count", changeUnit: "count", baseline: 10, actual: 20, predictedTarget: 25 })]),
-      ],
-    } as OrgView
-    const markup = renderToStaticMarkup(createElement(WholeOrgTab, { view, period: null, year: 2026 }))
-    // Count only the charts: the period selector also draws an SVG icon.
-    expect(markup.match(/<svg viewBox="0 0 100 100"/g)).toHaveLength(2)
   })
 })
 

@@ -28,6 +28,8 @@ export type OverviewRequest = {
   requestType?: RequestType | null
   /** Saved triage signal. Optional only for older illustrative fixtures. */
   priority?: RequestPriority
+  /** #212: a Guest submission waiting to be taken on, or taken on. Absent or null: not a Guest submission. */
+  guestSubmission?: import("./guest-submission").GuestSubmissionState | null
   /** The journey facts (#133): the release record and the closures. Absent means none saved. */
   releaseState?: ReleaseState | null
   outcomeClosure?: SavedClosure | null
@@ -115,10 +117,11 @@ export function matchesListFilters(row: OverviewRequest, filters: ListFilters, n
   return filtersHiding(row, filters, now).length === 0
 }
 
-/** Whether a row belongs in a status view: its journey status, or "due" for a row with a due tag. */
+/** Whether a row belongs in a status view: its journey status, "due" for a row with a due tag, or "waiting" for a Guest submission waiting to be taken on. */
 export function matchesStatusView(row: OverviewRequest, view: RequestStatusFilter, now: Date): boolean {
   if (view === "all") return true
   if (view === "due") return rowDue(row, now).kind !== "none"
+  if (view === "waiting") return row.guestSubmission === "waiting"
   return rowJourney(row).status === view
 }
 

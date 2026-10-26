@@ -1,0 +1,57 @@
+/* The Outcome report tab (#208). Every value comes from the theme file; no design literals here (pnpm design:check). */
+.report { display: grid; gap: var(--space-8); min-width: 0; }
+.toolbar { display: grid; gap: var(--space-3); min-width: 0; }
+.picker { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3) var(--space-4); min-width: 0; }
+.asOf { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.periodName { color: var(--foreground); font-weight: var(--weight-medium); }
+.block { display: grid; gap: var(--space-3); min-width: 0; }
+.heading { margin: 0; color: var(--foreground); font-size: var(--text-lg); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 36), 1fr)); gap: var(--space-3); margin: 0; }
+.glanceItem { display: grid; gap: var(--space-1); min-width: 0; padding: var(--space-3) var(--space-4); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-md); background: var(--card); color: var(--card-foreground); }
+.glanceItem dt { color: var(--text-secondary); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.glanceItem dd { margin: 0; color: var(--foreground); font-size: var(--text-2xl); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.lines { display: grid; gap: var(--space-4); min-width: 0; }
+.line { display: grid; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-md); background: var(--card); color: var(--card-foreground); }
+.lineTitle { margin: 0; font-size: var(--text-base); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.total { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lineRequests, .plain, .entries { display: grid; gap: var(--space-1); min-width: 0; margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); line-height: var(--leading-body); }
+.lineRequests li, .plain li { min-width: 0; color: var(--foreground); overflow-wrap: anywhere; }
+.entries { gap: 0; }
+.project { display: grid; gap: var(--space-2); min-width: 0; margin-block-start: var(--space-3); }
+.projectHeading { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0; color: var(--foreground); font-size: var(--text-base); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.count { color: var(--text-secondary); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; }
+.entry { display: grid; gap: var(--space-2); min-width: 0; padding-block: var(--space-3); border-block-start: var(--border-width) solid var(--border-subtle); }
+.article { display: grid; gap: var(--space-2); min-width: 0; }
+.entryHead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; margin: 0; font-size: var(--text-sm); font-weight: var(--weight-normal); line-height: var(--leading-body); }
+.request { min-width: 0; color: var(--foreground); text-decoration: none; overflow-wrap: anywhere; border-radius: var(--corner-sm); }
+.request:hover .title { text-decoration: underline; }
+.code { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.title { font-weight: var(--weight-medium); }
+.problem { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 40), 1fr)); gap: var(--space-2) var(--space-6); margin: 0; }
+.fact { display: grid; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
+.fact dt { color: var(--text-secondary); font-size: var(--text-xs); }
+.fact dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.group { display: grid; gap: var(--space-1); min-width: 0; }
+.subheading { margin: 0; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium); }
+/* #209: the toolbar row, What we learned and the Quarter notes. */
+.toolbarRow { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-3) var(--space-4); min-width: 0; }
+.print { display: flex; flex: none; }
+.printTitle { display: none; }
+.quarterNote { display: grid; gap: var(--space-2); min-width: 0; }
+.block > .quarterNote { margin-block-start: var(--space-3); }
+.noteBody { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-line; overflow-wrap: anywhere; }
+.noteLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
+.noteForm { display: grid; gap: var(--space-3); min-width: 0; }
+.noteControls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Print and save as PDF (#209): the report alone, with its title, period and as-of date; no controls. */
+@media print {
+  .report { gap: var(--space-6); }
+  .printTitle { display: block; margin: 0; color: var(--foreground); font-size: var(--text-xl); font-weight: var(--weight-medium); }
+  .picker, .print, .noteControls, .noteForm { display: none; }
+  .asOf { color: var(--foreground); }
+  .glanceItem, .line, .entry, .quarterNote { break-inside: avoid; }
+  .heading, .projectHeading, .lineTitle { break-after: avoid; }
+}

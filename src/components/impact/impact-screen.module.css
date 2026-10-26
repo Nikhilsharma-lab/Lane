@@ -18,3 +18,8 @@
 .person:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline); outline-offset: var(--focus-outline-offset); }
 .personList { display: grid; gap: var(--space-3); margin-top: var(--space-6); min-width: 0; }
 .loading { display: grid; min-width: 0; padding: var(--space-6); }
+/* Print and save as PDF (#209): the open tab's panel alone. */
+@media print {
+  .screen { padding: 0; }
+  .tablist { display: none; }
+}

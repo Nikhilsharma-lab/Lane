@@ -32,10 +32,12 @@ function useStableIdentities(rows: OverviewRequest[]) {
  * same actions as the detail page, plus the time-boxed undo of a Done move;
  * nothing here grants a guest more than today. Every move goes through the
  * pending-mutation overlay, so the row changes in the next frame (plan item 1.5). */
-export function RequestRowActions({ requests, context, isGuest, children }: {
+export function RequestRowActions({ requests, context, isGuest, readOnly = false, children }: {
   requests: OverviewRequest[]
   context: { orgId: string }
   isGuest: boolean
+  /** A Viewer (#210): the row menu only copies. */
+  readOnly?: boolean
   children: ReactNode
 }) {
   const overlay = usePendingMutations()
@@ -106,6 +108,12 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
       const identity = identities[request.id] ?? { code: "", priority: request.priority ?? "none" }
       // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move,
       // and a pickup that isn't ready shows why instead of failing on the server.
+      const copyItem: ContextMenuItem = { id: "copy", label: "Copy", separatorBefore: !readOnly, icon: <Copy />, children: [
+        ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
+        { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
+        { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
+      ] }
+      if (readOnly) return [copyItem]
       const next = availableMove(request, { isGuest })
       const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the Requester") : undefined
       return [
@@ -113,14 +121,10 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={rowJourney(request).status} />, children: statusItems(request, next, reason) },
         ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
-        { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
-          ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
-          { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
-          { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
-        ] },
+        copyItem,
       ]
     }
-  }, [copy, identities, isGuest, move, setPriority])
+  }, [copy, identities, isGuest, move, readOnly, setPriority])
 
   const presentation = useMemo(() => ({ identities, menuItems }), [identities, menuItems])
 

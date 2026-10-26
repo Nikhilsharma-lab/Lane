@@ -1,6 +1,7 @@
 import { REQUEST_PRIORITY_LABELS, REQUEST_TYPE_LABELS, type RequestPriority } from "@/lib/request-constants"
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { concernMarker } from "@/lib/request-reviewer-rules"
+import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
 
 /**
  * Plan item 2.4: the accessible name of a Request row, the list's one tab stop,
@@ -18,6 +19,8 @@ export function requestRowLabel(request: OverviewRequest, identity?: { code: str
   const facts = [
     rowJourney(request).label,
     ...(due.kind === "none" ? [] : [due.label]),
+    // #212: "Waiting to be taken on", as the row's tag shows.
+    ...(request.guestSubmission === "waiting" ? [WAITING_TO_BE_TAKEN_ON] : []),
     priority === "none" ? REQUEST_PRIORITY_LABELS.none : `${REQUEST_PRIORITY_LABELS[priority]} priority`,
     request.projectName ?? (request.projectId ? "Unavailable Project" : "No Project"),
     ...(labelNames ?? (request.requestType ? [REQUEST_TYPE_LABELS[request.requestType]] : [])),

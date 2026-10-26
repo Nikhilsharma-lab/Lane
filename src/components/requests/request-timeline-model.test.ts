@@ -19,7 +19,7 @@ const GUEST: JourneyViewer = { id: "ana", role: "guest", active: false }
 
 type Facts = { status: RequestStatus; releaseState?: ReleaseState | null; outcomeClosure?: TimelineInput["closure"]; exceptionClosure?: TimelineInput["closure"] }
 function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput> = {}, requesterActive = true): TimelineInput {
-  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana" }
+  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null }
   const closure = facts.outcomeClosure ?? facts.exceptionClosure ?? null
   return {
     journey: journeyStatus(saved), workStatus: facts.status, isGuest: viewer.role === "guest", audience: "All shoppers",
@@ -106,6 +106,14 @@ describe("Request timeline", () => {
 
   it("shows guests the timeline without actions or reasons", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, GUEST))
+    expect(steps.flatMap(s => s.actions)).toEqual([])
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
+  })
+
+  // #210: a Viewer reads the whole journey, including on Requests they filed as a Member, with nothing to do.
+  it("shows a Viewer the timeline without actions or reasons", () => {
+    const viewer: JourneyViewer = { id: "ana", role: "viewer", active: false }
+    const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, viewer, { readOnly: true }))
     expect(steps.flatMap(s => s.actions)).toEqual([])
     expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
   })

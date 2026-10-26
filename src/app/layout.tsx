@@ -97,7 +97,7 @@ export default function RootLayout({
             <ToastStackProvider>
               {children}
               {/* Plan item 2.4 (decision 8.22): toasts swap text and icons without a blur. The region is
-                  "Messages (Alt+T)", as the ? overlay names it, apart from the sidebar's Notifications inbox. */}
+                  "Messages (Alt+T)", as the ? overlay names it, apart from the sidebar's Inbox. */}
               <ToastStack morph="plain" label="Messages" />
             </ToastStackProvider>
           </ThemeProvider>

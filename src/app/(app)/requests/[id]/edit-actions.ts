@@ -6,7 +6,7 @@ import { sourceRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, requests } from "@/db";
-import { requireActiveMember, refusal } from "@/lib/auth-guard";
+import { requireCanContribute, refusal } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { requestEditSchema, requestEditSnapshot } from "@/lib/request-edit";
 import { expectedImpactSchema, impactColumnsOf, impactStateOf, impactStateOfChoice, incompleteMeasurementSchema, noMeasurableImpactSchema } from "@/lib/request-impact";
@@ -14,7 +14,9 @@ import { verifyTriageToken } from "@/lib/triage-token";
 import { framingShape, savedFraming, storedShape } from "@/lib/request-framing";
 import { nameReviewResetActor } from "@/lib/request-reviewers";
 import { recordExpectedImpactRevision } from "@/lib/request-impact-history";
+import { checkPredictionMetrics } from "@/lib/metrics-library";
 import { isDeepStrictEqual } from "node:util";
+import { deliverAfterResponse } from "@/lib/inbox-delivery";
 const editSchema = z.object({ snapshot: z.string().max(100000), changes: requestEditSchema, token: z.string().max(100000).optional() });
 export async function saveRequestEdits(requestId: string, input: unknown, context: {
     orgId: string;
@@ -25,7 +27,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
 }> {
     if (!z.uuid().safeParse(requestId).success)
         return { error: "Request unavailable." };
-    const auth = await requireActiveMember(context.orgId);
+    const auth = await requireCanContribute(context.orgId);
     if (!auth)
         return { error: await refusal("Request unavailable.") };
     const parsed = editSchema.safeParse(input);
@@ -54,8 +56,21 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const partial = changes.expectedImpact === null || choice.success ? null : incompleteMeasurementSchema.safeParse(changes.expectedImpact);
             if (!complete.success && !choice.success && partial && !partial.success)
                 return { error: partial.error.issues[0].message };
-            const nextState = choice.success ? impactStateOfChoice(choice.data) : complete.success ? { kind: "measured" as const, plan: complete.data } : { kind: "none" as const };
+            // Every metric comes from this workspace's Metrics library; one the Request already saved may stay (#198).
+            let plan = complete.success ? complete.data : null;
+            if (plan) {
+                const checked = await checkPredictionMetrics(auth, plan, stored.expectedImpact);
+                if ("error" in checked)
+                    return { error: checked.error };
+                plan = checked.impact as typeof plan;
+            }
+            const nextState = choice.success ? impactStateOfChoice(choice.data) : plan ? { kind: "measured" as const, plan } : { kind: "none" as const };
             const impactStorage = { ...impactColumnsOf(nextState), measurementDraft: choice.success || complete.success ? null : partial?.success ? partial.data : null };
+            // A changed agreed impact (a measured plan or the choice with its reason) is a new revision, kept with its editor and time.
+            const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
+            // #212: a Guest files without a prediction; the Member who takes it on writes it.
+            if (auth.role === "guest" && (impactChanged || impactStorage.measurementDraft !== null))
+                return { error: "A Member writes the prediction once they take this on." };
             // Changed wording needs a fresh review of this Request, which sets the
             // classification and the suggested change. Unchanged wording keeps the
             // stored judgement; its framing is the person's to reword, never to drop.
@@ -85,8 +100,6 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             // Content edits reset reviews; the notification names this editor.
             await nameReviewResetActor(tx, auth.userId);
             await tx.update(requests).set({ ...changes, requestType: sourceRequestType(changes), ...preservedContext, ...impactStorage, classification, ...saved.framing }).where(and(eq(requests.id, requestId), changeable(auth), eq(requests.status, "open")));
-            // A changed agreed impact (a measured plan or the choice with its reason) is a new revision, kept with its editor and time.
-            const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
             if (impactChanged && nextState.kind === "measured")
                 await recordExpectedImpactRevision(tx, { orgId: auth.orgId, requestId, expectedImpact: nextState.plan, authorId: auth.userId });
             else if (impactChanged && nextState.kind === "operational")
@@ -96,6 +109,8 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
         // The shared editor closes and announces success before refreshing.
         // Refreshing this route inside the action can remount its editor before
         // the save acknowledgement reaches the client.
+        // #206: an edit that reset answers asks those Reviewers again; that ask leaves Lane after the response.
+        if ("success" in result) deliverAfterResponse({ orgId: auth.orgId, requestId });
         return result;
     }
     catch {

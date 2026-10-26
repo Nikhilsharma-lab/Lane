@@ -12,6 +12,10 @@ vi.mock("@/db", async () => {
     return { rows: [] }
   }, { schema }) }
 })
+// #217: the first run has its own tests (first-run-actions.test.ts); this file reads only the list.
+vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => null }))
+// #219: saved views have their own tests (saved-view-actions.test.ts); the layout reads them once per render.
+vi.mock("@/lib/data/saved-views", () => ({ loadSavedViews: async () => [] }))
 vi.mock("@/lib/ensure-workspace", () => ({
   // Plan item 1.8: the page reads Clerk claims first, then runs its loaders in parallel.
   getMember: async () => ({ userId: "person_current", orgId: "org_visible", role: recorded.role }),
@@ -49,7 +53,9 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     recorded.role = "guest"
     await RequestsWorkspace()
     const [list] = recorded.queries
-    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(4)
+    // Each half shows only what the guest created; its edit flag reads who answers for it now (#212).
+    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(2)
+    expect(list.sql.match(/coalesce\("requests"\."taken_on_by", "requests"\."created_by"\) = \$\d+/g)).toHaveLength(2)
     expect(list.params.filter(value => value === "person_current")).toHaveLength(4)
   })
 

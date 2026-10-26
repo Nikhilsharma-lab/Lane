@@ -16,6 +16,7 @@ const users = vi.hoisted(() => [
   "agreement_dev",
   "agreement_other",
   "agreement_guest",
+  "agreement_viewer",
 ]);
 /** Clerk roster roles; a user missing from it has left the workspace. */
 const roster = vi.hoisted(() => new Map<string, string>());
@@ -80,7 +81,7 @@ const connection = postgres(process.env.DATABASE_URL!, {
   prepare: false,
 });
 const orgId = "org_agreement";
-const [owner, designer, developer, other, guest] = users;
+const [owner, designer, developer, other, guest, viewer] = users;
 const member = (userId: string) => ({ kind: "member", userId });
 const invite = {
   kind: "invitation",
@@ -119,7 +120,7 @@ async function add(id: string, nominees: unknown[], userId = owner, orgRole = "o
 }
 async function answer(id: string, userId: string, kind: "looks_good" | "concern", reason = "") {
   const api = await import("./reviewer-actions");
-  const reviewer = (await reviewersOf(id)).find((r) => r.nominee.userId === userId || (r.nominee.kind === "invitation" && userId === other));
+  const reviewer = (await reviewersOf(id)).find((r) => r.nominee.userId === userId);
   as(userId);
   const result = await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: reviewer?.id ?? randomUUID(), kind, reason });
   as(owner);
@@ -128,11 +129,11 @@ async function answer(id: string, userId: string, kind: "looks_good" | "concern"
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${orgId},'Agreement test','agreement-test')`;
   for (const [i, id] of users.entries())
-    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "designer", "pm"][i]})`;
+    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "designer", "pm", "pm"][i]})`;
 });
 beforeEach(() => {
   roster.clear();
-  for (const id of users) roster.set(id, id === guest ? "org:guest" : "org:member");
+  for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
 });
 afterEach(() => {
   as(owner);
@@ -160,18 +161,65 @@ it("a member adds reviewers; everyone sees them with their profile role and no a
   });
 });
 
-it("guests, the person adding and the requester can't be added; only admins add an invitation", async () => {
+it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses and pending invitations are refused", async () => {
   const id = await freshRequest();
-  expect(await add(id, [member(guest)], designer)).toEqual({ error: "A selected person is no longer available." });
+  const PAID_SEATS_ONLY = { error: "Only Admins and Members can be Reviewers." };
+  for (const orgRole of ["org:member", "org:admin"]) {
+    expect(await add(id, [member(guest)], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [member(viewer)], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [invite], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [{ kind: "email", email: "someone@example.test" }], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, ["someone@example.test"], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [member(developer), invite], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+  }
+  roster.delete(developer);
+  expect(await add(id, [member(developer)], other)).toEqual(PAID_SEATS_ONLY);
+  expect(await reviewersOf(id)).toEqual([]);
+  roster.set(developer, "org:admin");
+  expect(await add(id, [member(developer)], other)).toMatchObject({ success: true });
+  expect(await add(id, [member(designer)], other, "org:admin")).toMatchObject({ success: true });
+  expect((await reviewersOf(id)).map((r) => r.nominee)).toEqual([member(developer), member(designer)]);
+});
+
+it("the picker offers only Admins and Members, never Guests, Viewers or pending invitations", async () => {
+  const api = await import("./reviewer-actions");
+  roster.set(other, "org:admin");
+  for (const orgRole of ["org:member", "org:admin"]) {
+    as(designer, orgRole);
+    const loaded = await api.loadReviewerPeople({ orgId });
+    expect(loaded).toEqual({
+      people: [owner, designer, developer, other].map((userId) => expect.objectContaining({ nominee: member(userId), name: userId })),
+      canInvite: orgRole === "org:admin",
+    });
+  }
+  as(guest, "org:guest");
+  expect(await api.loadReviewerPeople({ orgId })).toHaveProperty("error");
+});
+
+it("the person adding and the requester can't be added, nor anyone twice; Guests and Viewers can't add", async () => {
+  const id = await freshRequest();
   expect(await add(id, [member(designer)], designer)).toEqual({ error: "You can’t add yourself as a reviewer." });
   expect(await add(id, [member(owner)], designer)).toEqual({ error: "The Requester can’t review their own Request." });
-  expect(await add(id, [invite], designer)).toEqual({ error: "Only an admin can invite someone by email." });
   expect(await add(id, [member(developer)], guest, "org:guest")).toHaveProperty("error");
+  expect(await add(id, [member(developer)], viewer, "org:viewer")).toHaveProperty("error");
   expect(await reviewersOf(id)).toEqual([]);
   expect(await add(id, [member(developer)], designer)).toMatchObject({ success: true });
   expect(await add(id, [member(developer)], other)).toEqual({ error: "agreement_dev is already a reviewer." });
-  expect(await add(id, [invite], other, "org:admin")).toMatchObject({ success: true });
-  expect((await reviewersOf(id)).map((r) => r.nominee)).toEqual([member(developer), invite]);
+  expect((await reviewersOf(id)).map((r) => r.nominee)).toEqual([member(developer)]);
+});
+
+it("a Reviewer who becomes a Guest or Viewer can no longer answer", async () => {
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  const api = await import("./reviewer-actions");
+  const [first, second] = await reviewersOf(id);
+  roster.set(designer, "org:guest");
+  as(designer, "org:guest");
+  expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: first.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
+  roster.set(developer, "org:viewer");
+  as(developer, "org:viewer");
+  expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: second.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
+  expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
 });
 
 it("a Request holds at most twenty reviewers", async () => {
@@ -202,18 +250,6 @@ it("only the named reviewer answers; a concern needs a reason; they can change t
   expect((await reviewersOf(id)).map((r) => r.decision?.kind)).toEqual(["concern", "looks_good"]);
   as(designer);
   expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ canAnswer: true }, { canAnswer: false }] });
-});
-
-it("an invited person answers once they have accepted and verified their email", async () => {
-  const id = await freshRequest();
-  await add(id, [invite], other, "org:admin");
-  expect(await answer(id, other, "looks_good")).toHaveProperty("error");
-  invitationState.status = "accepted";
-  invitationState.verified = false;
-  expect(await answer(id, other, "looks_good")).toHaveProperty("error");
-  invitationState.verified = true;
-  expect(await answer(id, other, "looks_good")).toMatchObject({ success: true });
-  expect((await reviewersOf(id))[0]).toMatchObject({ nominee: member(other), decision: { kind: "looks_good", actorId: other } });
 });
 
 it("the requester or an admin removes a reviewer; nobody else can", async () => {

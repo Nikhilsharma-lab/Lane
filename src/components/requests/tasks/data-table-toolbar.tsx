@@ -9,7 +9,7 @@ import { Select } from "@/components/arc/select/select"
 import { Button } from "@/components/arc/button/button"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
-import { CalendarClock, ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
+import { CalendarClock, Hourglass, ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
@@ -20,7 +20,7 @@ import type { RequestColumn } from "./columns"
 import { statuses } from "./statuses"
 import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
-import { StatusPills, statusViews } from "./status-pills"
+import { StatusPills, statusViewsFor } from "./status-pills"
 import { matchCountText } from "../request-row-label"
 
 export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
@@ -54,6 +54,8 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
     { id: "status", label: "Status", options: [
       ...statuses.map(item => ({ value: item.value, label: item.label, hint: statusHint(item.value), icon: <item.icon aria-hidden="true" /> })),
       { value: "due", label: REQUEST_STATUS_FILTER_LABELS.due, hint: statusHint("due"), icon: <CalendarClock aria-hidden="true" /> },
+      // Review of #195: Guest submissions waiting to be taken on, so none are forgotten (a saved view keeps it).
+      { value: "waiting", label: REQUEST_STATUS_FILTER_LABELS.waiting, hint: statusHint("waiting"), icon: <Hourglass aria-hidden="true" /> },
     ] },
     { id: "project", label: "Project", options: [{ value: "none", label: noProjectLabel, icon: <ProjectMarker projectId={null} /> }, ...projects.map(([value, label]) => ({ value, label, icon: <ProjectMarker projectId={value} />, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === value).length : undefined }))] },
     { id: "requestType", label: "Labels", options: requestTypeOptions },
@@ -69,7 +71,7 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   if (!controls) return <div className={styles.toolbarStack}><div data-slot="requests-toolbar" className={styles.toolbar} /></div>
   return <div className={styles.toolbarStack}>
     <div data-slot="requests-toolbar" className={styles.toolbar}>
-      {preview ? <div className={styles.status}><StatusPills filter={filter} onStatusChange={onStatusChange} /></div> : <SegmentedControl className={styles.status} label="Request status" options={statusViews} value={filter} onValueChange={next => {
+      {preview ? <div className={styles.status}><StatusPills filter={filter} onStatusChange={onStatusChange} /></div> : <SegmentedControl className={styles.status} label="Request status" options={statusViewsFor(filter)} value={filter} onValueChange={next => {
         if (isRequestStatusFilter(next) && next !== filter) onStatusChange(next)
       }} />}
       <div className={styles.actions}>

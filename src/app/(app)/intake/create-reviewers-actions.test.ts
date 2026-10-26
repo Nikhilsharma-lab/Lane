@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vite
 import { createTriageToken } from "@/lib/triage-token";
 
 const session = vi.hoisted(() => ({ userId: "create_owner", orgId: "org_create_reviewers", orgRole: "org:member" }));
-const users = vi.hoisted(() => ["create_owner", "create_design", "create_dev", "create_guest"]);
+const users = vi.hoisted(() => ["create_owner", "create_design", "create_dev", "create_guest", "create_viewer"]);
 /** Clerk roster roles; a user missing from it has left the workspace. */
 const roster = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -34,7 +34,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 const connection = postgres(process.env.DATABASE_URL!, { max: 2, prepare: false });
 const orgId = "org_create_reviewers";
-const [owner, designer, developer, guest] = users;
+const [owner, designer, developer, guest, viewer] = users;
 const member = (userId: string) => ({ kind: "member", userId });
 const invite = { kind: "invitation", invitationId: "inv_create", email: "invited@example.test" };
 const impact = { kind: "metric" as const, metric: "Signup completion", baseline: null, target: 70, unit: "%", source: "Signup funnel", reviewAfterDays: 30 };
@@ -65,12 +65,12 @@ const notificationsFor = (id: string) =>
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${orgId},'Create reviewers test','create-reviewers-test')`;
   for (const [i, id] of users.entries())
-    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "pm"][i]})`;
+    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "pm", "pm"][i]})`;
 });
 beforeEach(() => {
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "create-reviewers-test-secret".repeat(3));
   roster.clear();
-  for (const id of users) roster.set(id, id === guest ? "org:guest" : "org:member");
+  for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
 });
 afterEach(() => {
   session.userId = owner;
@@ -118,9 +118,7 @@ it("an invalid reviewer is rejected and the Request is not created", async () =>
   const many = Array.from({ length: 21 }, (_, i) => `create_many_${i}`);
   for (const userId of many) roster.set(userId, "org:member");
   const cases: [unknown, string][] = [
-    [[member(guest)], "A selected person is no longer available."],
     [[member(owner)], "You can’t add yourself as a reviewer."],
-    [[invite], "Only an admin can invite someone by email."],
     [many.map(member), "A Request can have at most 20 reviewers."],
     [[member(designer), member(designer)], "create_design is already a reviewer."],
     [[{ kind: "member" }], "Choose people to review."],
@@ -140,11 +138,17 @@ it("a guest can create a Request but can't add reviewers", async () => {
   expect(await create([], guest, "org:guest")).toMatchObject({ result: { success: true } });
 });
 
-it("an admin can ask an invited person while creating; nobody is notified until they join", async () => {
-  const { result, requestId } = await create([invite, member(designer)], owner, "org:admin");
+it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses and invitations are refused and nothing is created", async () => {
+  roster.set(developer, "org:admin");
+  for (const orgRole of ["org:member", "org:admin"])
+    for (const reviewers of [[member(guest)], [member(viewer)], [invite], [{ kind: "email", email: "someone@example.test" }], ["someone@example.test"], [member(designer), invite]]) {
+      const { result, requestId } = await create(reviewers, owner, orgRole);
+      expect(result).toEqual({ success: false, error: { code: "validation", field: "reviewers", message: "Only Admins and Members can be Reviewers." } });
+      expect(await requestExists(requestId)).toBe(false);
+    }
+  const { result, requestId } = await create([member(developer), member(designer)], owner, "org:admin");
   expect(result).toMatchObject({ success: true });
-  expect((await reviewersOf(requestId)).map((r) => r.nominee)).toEqual([invite, member(designer)]);
-  expect(await notificationsFor(requestId)).toEqual([{ user_id: designer, type: "review_requested", actor_id: owner, detail: null }]);
+  expect((await reviewersOf(requestId)).map((r) => r.nominee)).toEqual([member(developer), member(designer)]);
 });
 
 it("a retried create does not add the reviewers or notify them twice", async () => {

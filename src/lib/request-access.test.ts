@@ -21,10 +21,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 const ORG = "org_request_access", OTHER = "org_request_access_other";
-const GUEST = "user_access_guest", MEMBER = "user_access_member", ADMIN = "user_access_admin", OUTSIDER = "user_access_outsider";
-const ROLES = { [GUEST]: "guest", [MEMBER]: "member", [ADMIN]: "admin", [OUTSIDER]: "member" } as const;
+const GUEST = "user_access_guest", MEMBER = "user_access_member", ADMIN = "user_access_admin", OUTSIDER = "user_access_outsider", VIEWER = "user_access_viewer";
+const ROLES = { [GUEST]: "guest", [MEMBER]: "member", [ADMIN]: "admin", [OUTSIDER]: "member", [VIEWER]: "viewer" } as const;
 let sql: ReturnType<typeof postgres>;
-let guestRequest: string, memberRequest: string, memberFile: string;
+let guestRequest: string, memberRequest: string, viewerRequest: string, memberFile: string;
 
 const as = (userId: keyof typeof ROLES) => Object.assign(session, { userId, orgId: userId === OUTSIDER ? OTHER : ORG, orgRole: `org:${ROLES[userId]}` });
 const authOf = (userId: keyof typeof ROLES): MemberAuth => ({ userId, orgId: userId === OUTSIDER ? OTHER : ORG, role: ROLES[userId] });
@@ -40,10 +40,11 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await sql`delete from requests where org_id = ${ORG}`;
-  guestRequest = randomUUID(); memberRequest = randomUUID(); memberFile = randomUUID();
+  guestRequest = randomUUID(); memberRequest = randomUUID(); viewerRequest = randomUUID(); memberFile = randomUUID();
   await sql`insert into requests(id,org_id,title,description,created_by) values
     (${guestRequest},${ORG},'Guest Request','Searchable access fixture',${GUEST}),
-    (${memberRequest},${ORG},'Member Request','Searchable access fixture',${MEMBER})`;
+    (${memberRequest},${ORG},'Member Request','Searchable access fixture',${MEMBER}),
+    (${viewerRequest},${ORG},'Filed before becoming a Viewer','Searchable access fixture',${VIEWER})`;
   await sql`insert into request_attachments(id,org_id,request_id,uploaded_by,storage_path,file_name,mime_type,size_bytes,uploaded_at)
     values (${memberFile},${ORG},${memberRequest},${MEMBER},${`${ORG}/${memberRequest}/${memberFile}/notes.pdf`},'notes.pdf','application/pdf',10,now())`;
   // A notification delivered to the guest about a Request they can't see grants nothing.
@@ -59,19 +60,29 @@ describe("seeing a Request", () => {
   it("lists, finds and notifies a guest about their own Requests only", async () => {
     const { loadRequestList, loadRequestDetail } = await import("./data/requests");
     const { loadWorkspaceSearch } = await import("./data/search");
-    const { loadNotifications } = await import("./data/notifications");
+    const { loadInbox } = await import("./data/inbox");
     const guest = authOf(GUEST);
     expect(ids((await loadRequestList(guest)).rows)).toEqual([guestRequest]);
     expect(await loadRequestDetail(guest, memberRequest)).toBeNull();
     expect(await loadRequestDetail(guest, guestRequest)).not.toBeNull();
     expect(ids((await loadWorkspaceSearch(guest, { query: "access fixture", requestsPage: 0, projectsPage: 0 })).requests.items)).toEqual([guestRequest]);
-    expect((await loadNotifications(guest)).map((n) => n.requestId)).toEqual([guestRequest]);
+    expect((await loadInbox(guest)).forYourInformation.map((n) => n.requestId)).toEqual([guestRequest]);
   });
   it("lists every Request in the workspace for a member and an admin, and none for another workspace", async () => {
     const { loadRequestList, loadRequestDetail } = await import("./data/requests");
-    for (const user of [MEMBER, ADMIN] as const) expect(ids((await loadRequestList(authOf(user))).rows)).toEqual([guestRequest, memberRequest].sort());
+    for (const user of [MEMBER, ADMIN] as const) expect(ids((await loadRequestList(authOf(user))).rows)).toEqual([guestRequest, memberRequest, viewerRequest].sort());
     expect((await loadRequestList(authOf(OUTSIDER))).rows).toEqual([]);
     expect(await loadRequestDetail(authOf(OUTSIDER), memberRequest)).toBeNull();
+  });
+  it("lists, finds and downloads everything in the workspace for a Viewer (#210)", async () => {
+    const { loadRequestList, loadRequestDetail } = await import("./data/requests");
+    const { loadWorkspaceSearch } = await import("./data/search");
+    const viewer = authOf(VIEWER);
+    expect(ids((await loadRequestList(viewer)).rows)).toEqual([guestRequest, memberRequest, viewerRequest].sort());
+    expect(await loadRequestDetail(viewer, guestRequest)).not.toBeNull();
+    expect(ids((await loadWorkspaceSearch(viewer, { query: "access fixture", requestsPage: 0, projectsPage: 0 })).requests.items)).toEqual([guestRequest, memberRequest, viewerRequest].sort());
+    as(VIEWER);
+    expect(await (await actions()).getAttachmentDownloadUrl(memberFile, { orgId: ORG })).toEqual({ success: true, url: "https://files.test/signed" });
   });
   it("lets a guest comment on and download from their own Requests only, reading anything else as missing", async () => {
     const api = await actions();
@@ -123,7 +134,9 @@ describe("changing a Request", () => {
     const editable = async (user: keyof typeof ROLES) => (await loadRequestList(authOf(user))).rows.filter((row) => row.canEdit).map((row) => row.id).sort();
     expect(await editable(GUEST)).toEqual([guestRequest]);
     expect(await editable(MEMBER)).toEqual([memberRequest]);
-    expect(await editable(ADMIN)).toEqual([guestRequest, memberRequest].sort());
+    expect(await editable(ADMIN)).toEqual([guestRequest, memberRequest, viewerRequest].sort());
+    // A Member made a Viewer keeps their Requests on the list, but can no longer edit them.
+    expect(await editable(VIEWER)).toEqual([]);
   });
   it("keeps pickup and Mark Done for members and admins", async () => {
     const api = await actions();
@@ -149,10 +162,14 @@ describe("a signed-out caller", () => {
 
 describe("the rules on a loaded row", () => {
   it("match the query rules", () => {
-    const own = { createdBy: GUEST }, other = { createdBy: MEMBER };
+    const own = { createdBy: GUEST, takenOnBy: null }, other = { createdBy: MEMBER, takenOnBy: null };
     expect([canSee({ userId: GUEST, role: "guest" }, own), canSee({ userId: GUEST, role: "guest" }, other)]).toEqual([true, false]);
     expect(canSee({ userId: MEMBER, role: "member" }, own)).toBe(true);
     expect([canChange({ userId: GUEST, role: "guest" }, own), canChange({ userId: MEMBER, role: "member" }, own), canChange({ userId: ADMIN, role: "admin" }, own)]).toEqual([true, false, true]);
+    expect([canSee({ userId: VIEWER, role: "viewer" }, other), canChange({ userId: VIEWER, role: "viewer" }, { createdBy: VIEWER, takenOnBy: null })]).toEqual([true, false]);
+    // #212: once a Member takes a Guest submission on, they change it in the Guest's place.
+    const takenOn = { createdBy: GUEST, takenOnBy: MEMBER };
+    expect([canChange({ userId: GUEST, role: "guest" }, takenOn), canChange({ userId: MEMBER, role: "member" }, takenOn), canSee({ userId: GUEST, role: "guest" }, takenOn)]).toEqual([false, true, true]);
   });
 });
 

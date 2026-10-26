@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
 import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
+import { callAction } from "@/lib/action-call"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
@@ -28,7 +29,7 @@ const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished
 /** Both journey reads, or the error to show; never throws. */
 async function readViews(requestId: string, orgId: string): Promise<Views | { error: string }> {
   try {
-    const [release, outcome] = await Promise.all([readRequestRelease(requestId, { orgId }), readRequestOutcome(requestId, { orgId })])
+    const [release, outcome] = await Promise.all([callAction(() => readRequestRelease(requestId, { orgId })), callAction(() => readRequestOutcome(requestId, { orgId }))])
     if ("error" in release) return { error: release.error || LOAD_FAILED }
     if ("error" in outcome) return { error: outcome.error || LOAD_FAILED }
     return { release, outcome }
@@ -52,7 +53,7 @@ function historyLine(event: Pick<ReleaseEvent, "input">) {
  * when and who; the current step says what's next and who does it, with its actions, or why one isn't
  * available. Reviews sit in Open; the countdown only in Measuring. Guests see it without actions.
  */
-export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request: RequestDetail; orgId: string; isAdmin: boolean; isGuest: boolean }) {
+export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: { request: RequestDetail; orgId: string; isGuest: boolean; readOnly?: boolean }) {
   const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
@@ -103,7 +104,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
   const names = { ...release.names, ...outcome.names }
   const name = (id: string) => names[id] ?? FORMER_MEMBER
   const steps = timelineSteps({
-    journey: release.journey, workStatus: release.workStatus, isGuest, audience: release.audience,
+    journey: release.journey, workStatus: release.workStatus, isGuest, readOnly, audience: release.audience,
     requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
     assigneeName: request.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
     closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),
@@ -120,7 +121,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
       case "voidRelease": return <VoidReleaseForm {...form} />
       case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
       case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
-      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} />
+      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
       case "followUp": return <FollowUpForm {...form} onCreated={id => router.push(`/requests/${id}`)} />
       case "handover": return <HandoverForm {...form} people={release.people} />
     }
@@ -128,7 +129,7 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
 
   function details(step: TimelineStep) {
     if (step.state !== "finished" && step.state !== "current") return null
-    if (step.status === "open") return <RequestReviews requestId={requestId} orgId={orgId} isAdmin={isAdmin} isGuest={isGuest} revision={revision} />
+    if (step.status === "open") return <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} />
     if (step.status === "measuring") {
       const fact = release.release ?? closure?.release
       if (!fact) return null
@@ -151,8 +152,10 @@ export function RequestTimeline({ request, orgId, isAdmin, isGuest }: { request:
         <p className={styles.muted}>Observed {journeyDate(closure.observedFrom)} to {journeyDate(closure.observedTo)} (UTC).</p>
       </>}
       {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
+      {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
+      {closure.learned && <p>What we learned: {closure.learned}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
-        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.correction}</p>
+        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
         <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>
       </li>)}</ol></div>}
     </div>

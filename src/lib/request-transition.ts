@@ -3,9 +3,10 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, requests } from "@/db";
 import { notify } from "@/lib/notify";
-import { requireMemberOrAbove, refusal } from "@/lib/auth-guard";
+import { requireCanChange, refusal } from "@/lib/auth-guard";
 import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle";
 import { measurementReadiness } from "@/lib/request-measurement";
+import { guestPickupRefusal, guestSubmissionOf } from "@/lib/guest-submission";
 import { workspaceRoster } from "@/lib/workspace-roster";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -45,7 +46,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
   const unique = [...new Set((Array.isArray(requestIds) ? requestIds : []).filter((id): id is string => typeof id === "string"))];
   const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
   const invalid = unique.filter((id) => !valid.includes(id)).map((id) => ({ id, error: "Not found" }));
-  const auth = await requireMemberOrAbove(context.orgId);
+  const auth = await requireCanChange(context.orgId);
   if (!auth) {
     const error = await refusal(CANNOT_CHANGE_REQUESTS);
     return { error, moved: [], failed: unique.map((id) => ({ id, error })) };
@@ -64,7 +65,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
     // Locked in id order so concurrent bulk moves cannot deadlock; a concurrent
     // reviewer or plan change waits for this one or lands before it.
     const rows = await tx
-      .select({ id: requests.id, status: requests.status, exceptionClosure: requests.exceptionClosure, outcomeClosure: requests.outcomeClosure, expectedImpact: requests.expectedImpact, requestType: requests.requestType })
+      .select({ id: requests.id, status: requests.status, exceptionClosure: requests.exceptionClosure, outcomeClosure: requests.outcomeClosure, expectedImpact: requests.expectedImpact, requestType: requests.requestType, noMeasurableImpactReason: requests.noMeasurableImpactReason, guestSubmission: requests.guestSubmission, takenOnBy: requests.takenOnBy })
       .from(requests)
       .where(and(eq(requests.orgId, auth.orgId), inArray(requests.id, valid)))
       .orderBy(asc(requests.id))
@@ -76,7 +77,8 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
       const error = !row ? "Not found"
         : moveRefusal({ ...row, pickupBlockedReason: null }, move)
           ?? (isMember ? null : MEMBERSHIP_UNVERIFIED)
-          ?? (move === "pick-up" ? measurementReadiness(row.expectedImpact, row.requestType) : null);
+          // #212: a Guest submission is taken on, and its prediction written, before anyone picks it up.
+          ?? (move === "pick-up" ? guestPickupRefusal({ ...row, guestSubmission: guestSubmissionOf(row) }) ?? measurementReadiness(row.expectedImpact, row.requestType) : null);
       if (error) failed.push({ id, error });
       else eligible.push(id);
     }

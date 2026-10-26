@@ -47,6 +47,8 @@ export type RequestDetail = {
   usefulLink: string | null
   expectedImpact?: ExpectedImpact | null
   measurementDraft?: IncompleteMeasurement | null
+  /** The current name of each Metric definition the prediction names, by reference (#198); the plan keeps the name copied at prediction time. */
+  metricNames?: Record<string, string>
   /** The "No measurable impact" choice and its reason (#153); set only with no measured plan. */
   noMeasurableImpactReason?: string | null
   reframedProblem: string | null
@@ -55,6 +57,10 @@ export type RequestDetail = {
   status: RequestStatus
   assignedTo: string | null
   createdBy: string
+  /** The Member who took a Guest submission on (#212): its Requester. Null otherwise. */
+  takenOnBy: string | null
+  /** A Guest submission's state and people (#212); null for any other Request. Optional only for older fixtures. */
+  guestSubmission?: import("@/lib/guest-submission").GuestSubmissionView | null
   createdAt: Date
   creatorName: string | null
   assigneeName: string | null
@@ -100,11 +106,13 @@ export function RequestUnavailable({ returnHref }: { returnHref: string }) {
  * times are phrased here so the client islands never disagree with the
  * server about "3h ago".
  */
-export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, peekStrip }: {
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, guestSubmission, peekStrip }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
   /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
   viewer: DetailViewer; orgId: string; returnHref?: string;
   lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode; requestPanels?: ReactNode;
+  /** #212: the Guest submission notice, after the problem. */
+  guestSubmission?: ReactNode;
   /** Plan item 2.12: the list's peek. Its strip replaces the page's, the title is the panel's h2 (the list keeps the page's h1), and arrival moves no focus. */
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
@@ -113,7 +121,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
   const timed: ConversationComment[] = comments.map(comment => ({ ...comment, timeLabel: relativeTime(comment.createdAt) }))
   const Title = peekStrip ? "h2" : "h1"
-  const action = isGuest ? undefined : lifecycleActions
+  const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
   return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)} arrival={!peekStrip}>
     <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
       {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}
@@ -139,7 +147,8 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
 
             </section>
-            {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} />}
+            {guestSubmission}
+            {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} metricNames={request.metricNames} />}
             {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
               <h2 id="no-measurable-impact-heading">No measurable impact</h2>
               <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>

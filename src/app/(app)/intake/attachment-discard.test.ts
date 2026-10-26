@@ -20,7 +20,9 @@ const state = vi.hoisted(() => ({
   removed: [] as string[], deletedRows: 0,
 }));
 vi.mock("@/lib/auth-guard", () => ({
-  requireActiveMember: async () => state.authorized
+  signedInAsViewer: async () => false,
+  VIEWER_REFUSAL: "viewer",
+  requireCanContribute: async () => state.authorized
     ? { userId: "user-test", orgId: "org-test", role: "member" } : null,
 }));
 vi.mock("@/lib/supabase/admin", () => ({

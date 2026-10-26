@@ -28,6 +28,8 @@ export type PaletteActionDeps = {
   view: (filter: RequestStatusFilter) => void
   project: (projectId: string) => void
   settings: (section: string, href: string) => void
+  /** A page of its own, such as the Inbox. */
+  go: (href: string) => void
   /** The canonical link the row menu copies. */
   link: (requestId: string) => string
 }
@@ -53,11 +55,12 @@ export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priorit
     case "view": deps.view(action.filter); return
     case "project": deps.project(action.projectId); return
     case "settings": deps.settings(action.section, action.href); return
+    case "go": deps.go(action.href); return
     case "open": deps.open(action.surface); return
   }
 }
 
-/** Search, the bell and the ? overlay are not mounted on Settings, so their entries are left out there. */
+/** Search and the ? overlay are not mounted on Settings, so their entries are left out there. */
 export function openableEntries<T extends PaletteEntry>(entries: T[], canOpen: (surface: ShellSurface) => boolean): T[] {
   return entries.filter(entry => entry.action.kind !== "open" || canOpen(entry.action.surface))
 }

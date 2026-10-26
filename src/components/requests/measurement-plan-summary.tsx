@@ -10,8 +10,11 @@ const checkCriteria = {
   "": "",
 };
 
-export function MeasurementPlanSummary({ plan, id }: { plan: MeasurementPlan; id?: string }) {
+/** `metricNames`: each Metric definition's current name by reference (#198). Without one, the name copied at prediction time shows. */
+export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: MeasurementPlan; id?: string; metricNames?: Record<string, string> }) {
   const { primary, measurement, guardrails } = plan;
+  const metricName = (metric: MeasurementPlan["primary"] | MeasurementPlan["guardrails"][number]) =>
+    (metric.key === "definition" && metric.definitionId && metricNames?.[metric.definitionId]) || measurementMetricLabel(metric);
   const unit = measurementUnitLabel(primary.unit);
   const unitSeparator = primary.unit === "percent" ? "" : " ";
   const currentIsText = primary.noBaseline || primary.current === null;
@@ -28,7 +31,7 @@ export function MeasurementPlanSummary({ plan, id }: { plan: MeasurementPlan; id
         <dd className={styles.description}>{checkCriteria[primary.check]}</dd>
       </div>
     </dl> : <div className={styles.metricGroup}>
-      <h3 className={styles.metric}>{measurementMetricLabel(primary)}</h3>
+      <h3 className={styles.metric}>{metricName(primary)}</h3>
       <dl className={styles.values}>
         <div className={styles.field}>
           <dt className={styles.label}>Current</dt>
@@ -58,7 +61,7 @@ export function MeasurementPlanSummary({ plan, id }: { plan: MeasurementPlan; id
         {guardrails.map((guardrail, index) => {
           const guardrailUnit = `${guardrail.unit === "percent" ? "" : " "}${measurementUnitLabel(guardrail.unit)}`;
           return <li key={index} className={styles.metricGroup}>
-            <h4 className={styles.metric}>{measurementMetricLabel(guardrail)}</h4>
+            <h4 className={styles.metric}>{metricName(guardrail)}</h4>
             <dl className={styles.values}>
               <div className={styles.field}>
                 <dt className={styles.label}>{GUARDRAIL_COMPARISONS.find(option => option.value === guardrail.operator)?.label}</dt>

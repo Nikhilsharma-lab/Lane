@@ -1,6 +1,6 @@
 /**
  * The journey module's database half: the SQL condition for each journey status and for "Due soon or overdue",
- * plus the Requester and "Closed without a result" reads, so list filters, search and bell reminders run in the database. These are the only status conditions in Lane; never write another.
+ * plus the Requester and "Closed without a result" reads, so list filters, search and the Inbox's reads run in the database. These are the only status conditions in Lane; never write another.
  * `request-journey-sql.test.ts` proves each one selects exactly the Requests `journeyStatus` / `dueSignal`
  * put there. Server-only (it pulls in the Drizzle schema); the pure mapping is `request-journey.ts`.
  *
@@ -40,8 +40,9 @@ export const journeyStatusColumn = sql<JourneyStatus>`case
 /** Closed without a result, as `journeyStatus` reads it: a no-result closure and no measured one. */
 export const closedWithoutResultCondition: SQL = and(isNull(requests.outcomeClosure), isNotNull(requests.exceptionClosure))!
 
-/** Each Request's current Requester as a column: the database twin of `requesterOf` (the release record's, else the creator). */
-export const requesterColumn = sql<string>`coalesce(${requests.releaseState}->>'ownerId', ${requests.createdBy})`
+/** Each Request's current Requester as a column: the database twin of `requesterOf` (the release record's, else the
+ * Member who took a Guest submission on, else the creator). */
+export const requesterColumn = sql<string>`coalesce(${requests.releaseState}->>'ownerId', ${requests.takenOnBy}, ${requests.createdBy})`
 
 /** Measuring Requests due within `DUE_SOON_DAYS`, due today or overdue, on `now`'s UTC date (the row tag's rule). */
 export function dueSoonOrOverdueCondition(now: Date): SQL {

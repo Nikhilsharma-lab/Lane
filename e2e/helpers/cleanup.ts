@@ -15,12 +15,28 @@ function database() {
   });
 }
 
+/**
+ * #217: marks these people's first runs in the workspace as finished, so journeys that don't test the first run
+ * see the page as an existing team does. Skipped where migration 0050 isn't applied yet (staging before it).
+ */
+export async function finishFirstRuns(sql: postgres.Sql | postgres.TransactionSql, orgId: string, userIds: string[], guide: "first_request" | "joined") {
+  const [{ ready }] = await sql`SELECT to_regclass('public.first_run_progress') IS NOT NULL AS ready`;
+  if (!ready) return;
+  for (const userId of userIds) await sql`
+    INSERT INTO first_run_progress (org_id, user_id, guide, completed_at)
+    VALUES (${orgId}, ${userId}, ${guide}, now())
+    ON CONFLICT (org_id, user_id) DO UPDATE SET completed_at = now(), skipped_at = NULL
+  `;
+}
+
 export async function provisionTestWorkspace(options: {
   userId: string;
   email: string;
   name: string;
   workspaceName: string;
   role?: FunctionalRole;
+  /** #217: leave the creator's first run to start fresh, as a new workspace's does. Finished by default. */
+  freshFirstRun?: boolean;
 }): Promise<string> {
   const organizationId = await createClerkTestOrganization(options.userId, options.workspaceName);
   const client = await assertOwnedOrganization(organizationId);
@@ -57,6 +73,7 @@ export async function provisionTestWorkspace(options: {
           owner_id = EXCLUDED.owner_id,
           updated_at = now()
       `;
+      if (!options.freshFirstRun) await finishFirstRuns(tx, organization.id, [options.userId], "first_request");
     });
     return organization.id;
   } catch (error) {

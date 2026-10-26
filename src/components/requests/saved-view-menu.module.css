@@ -1,0 +1,10 @@
+/* #219: the saved view control in the Requests list's page strip, and its dialog. */
+.control { display: inline-flex; min-width: 0; align-items: center; gap: var(--space-2); }
+.error { margin: 0; overflow: hidden; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); text-overflow: ellipsis; white-space: nowrap; }
+.form { display: grid; gap: var(--space-4); }
+.form .error { white-space: normal; }
+/* Phones keep the page's name readable: the control folds to its icon (its name stays for screen readers). */
+@media (max-width: 640px) {
+  .label { display: none; }
+}
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }

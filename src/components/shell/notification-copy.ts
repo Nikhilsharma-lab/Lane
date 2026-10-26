@@ -52,11 +52,6 @@ export function notificationEvent(type: string, actor: string): string | null {
     case "review_reset": return `${actor} changed it. Please review again`
     // Design reviews retired on 2026-10-18; existing rows keep a neutral past tense.
     case "review_responded": return `${actor} responded to your review`
-    // Reminders (#127) come from Lane, not a person, so they never name one. Overdue stays neutral.
-    case "release_reminder": return "Still Done. Record the release once it is live"
-    case "result_due_soon": return "Result due soon"
-    case "result_due": return "Result due today. You can close it now"
-    case "result_overdue": return "Result overdue. Close it when you have the numbers"
     case "invite_accepted": return null
     default: return `${actor} updated it`
   }
@@ -70,7 +65,7 @@ export function notificationRow(item: NotificationCopyInput, time?: string): Not
   const secondary = notificationEvent(item.type, actor)
   const detail = item.detail?.trim() || null
   const name = [primary, secondary, detail, time, item.readAt ? null : "unread"].filter(Boolean).join(", ")
-  const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "notification"
+  const target = item.type === "invite_accepted" ? `${actor}’s invite` : requestCode(item.requestNumber) ?? "this item"
   const toggle = `Mark ${target} ${item.readAt ? "unread" : "read"}`
   return { primary, secondary, detail, name, toggle }
 }

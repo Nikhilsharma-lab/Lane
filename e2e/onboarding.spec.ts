@@ -86,6 +86,14 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
     expect(await page.evaluate(() => performance.getEntriesByType("navigation").length)).toBe(1);
     expect(await getProfileFullName(user.id)).toBe("Lane E2E");
 
+    // #217: the workspace's creator lands on the first-run guide, in the welcome's place. Skipped, the
+    // welcome is back (first-run.spec.ts follows the guide).
+    const guide = page.locator("[data-requests-welcome] [data-first-run='first_request']");
+    await expect(guide).toBeVisible();
+    await guide.getByRole("button", { name: "Skip the guide", exact: true }).click();
+    await expect(guide).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "No Requests yet" })).toBeVisible();
+
     // No scrollbar on the empty page at either width (plan item 2.1).
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);

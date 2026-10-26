@@ -9,12 +9,35 @@ describe("paletteEntries", () => {
   it("lists a member's entries in order with nothing typed", () => {
     expect(ids(base)).toEqual([
       "new-request", "search",
-      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
       "project:p1", "project:p2", "project:none",
-      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:members", "settings:coming-soon",
-      "notifications",
+      "settings:profile", "settings:preferences", "settings:inbox-delivery", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
+      "inbox",
       "shortcuts",
     ])
+  })
+
+  // #204: the bell's popover became the Inbox page, so the entry goes there.
+  it("goes to the Inbox page", () => {
+    expect(paletteEntries(base).find(entry => entry.id === "inbox")).toMatchObject({ label: "Inbox", group: "Go to", action: { kind: "go", href: "/inbox" } })
+  })
+
+  // #210: a Viewer reads everything and changes nothing, so the palette offers no filing and no Members.
+  it("gives a Viewer every place to read, no New Request, and no Members or Inbox delivery", () => {
+    expect(ids({ ...base, role: "viewer" })).toEqual([
+      "search",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
+      "project:p1", "project:p2", "project:none",
+      "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:metrics", "settings:coming-soon",
+      "inbox",
+      "shortcuts",
+    ])
+    expect(paletteEntries({ ...base, role: "viewer" }).find(entry => entry.id === "view:all")?.label).toBe("All Requests")
+  })
+
+  it("gives a Viewer no move, no Undo and no priority, even on a Request they filed", () => {
+    const request: PaletteRequest = { id: "r1", code: "LAN-1", status: "open", priority: "none", canEdit: true }
+    expect(ids({ ...base, role: "viewer", request, undo: { requestId: "r1" } }).filter(id => !/^(view|project|settings):|^(search|inbox|shortcuts)$/.test(id))).toEqual(["copy-link", "copy-code"])
   })
 
   it("gives a guest My Requests and only the Settings sections a guest can open", () => {
@@ -23,8 +46,18 @@ describe("paletteEntries", () => {
     expect(entries.filter(entry => entry.detail === "Settings").map(entry => entry.label)).toEqual(["Profile", "Preferences", "Security & access", "Coming soon"])
   })
 
-  it("gives an admin the same places as a member", () => {
-    expect(ids({ ...base, role: "admin" })).toEqual(ids(base))
+  it("opens the Metrics page at its own address", () => {
+    expect(paletteEntries(base).find(entry => entry.id === "settings:metrics")?.action).toEqual({ kind: "settings", section: "metrics", href: "/settings/metrics" })
+    expect(paletteEntries(base).find(entry => entry.id === "settings:members")?.action).toEqual({ kind: "settings", section: "members", href: "/settings/profile?section=members" })
+  })
+
+  it("gives an admin the same places as a member, plus Settings → Slack (#207) and Billing (#213)", () => {
+    const adminOnly = ["settings:slack", "settings:billing"]
+    expect(ids({ ...base, role: "admin" }).filter(id => !adminOnly.includes(id))).toEqual(ids(base))
+    for (const id of adminOnly) {
+      expect(ids({ ...base, role: "admin" })).toContain(id)
+      expect(ids(base)).not.toContain(id)
+    }
     expect(paletteEntries(base).find(entry => entry.id === "view:all")?.label).toBe("All Requests")
   })
 

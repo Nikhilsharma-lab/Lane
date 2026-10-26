@@ -197,14 +197,31 @@ it('appends attributable corrections beside the immutable closure, with lost-res
     expect(await api.changeRequestOutcome(ctx, { ...fix, correction: 'Different' })).toEqual({ error: 'This retry key was used for another change.' });
     expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ error: 'Request changed. Reload before trying again.' });
     expect(await api.changeRequestOutcome(context(id, 3), { ...fix, field: 'reason' })).toEqual({ error: 'Choose a part of this closure to correct.' });
-    expect(await api.changeRequestOutcome(context(id, 3), { ...fix, field: 'actual', correction: 'Actual was 61%', reason: 'Rounding' })).toEqual({ success: true, revision: 4 });
+    expect(await api.changeRequestOutcome(context(id, 3), { ...fix, field: 'actual', correction: 'Actual was 61%', reason: 'Rounding', value: { kind: 'numeric', actual: 61 } })).toEqual({ success: true, revision: 4 });
     const view = await api.readRequestOutcome(id, { orgId });
-    expect(view).toMatchObject({ closure: { evidence: measured.evidence, primary: { actual: 62 } }, corrections: [{ field: 'evidence', actorId: 'outcome_owner', reason: fix.reason }, { field: 'actual', correction: 'Actual was 61%' }] });
+    expect(view).toMatchObject({ closure: { evidence: measured.evidence, primary: { actual: 62 } }, corrections: [{ field: 'evidence', actorId: 'outcome_owner', reason: fix.reason }, { field: 'actual', correction: 'Actual was 61%', value: { kind: 'numeric', actual: 61 } }] });
     const exceptional = await fixture();
     await api.changeRequestOutcome(context(exceptional, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Too few sessions' });
-    expect(await api.changeRequestOutcome(context(exceptional, 2), { ...fix, field: 'actual', correction: 'Invented 61%' })).toEqual({ error: 'Choose a part of this closure to correct.' });
+    expect(await api.changeRequestOutcome(context(exceptional, 2), { ...fix, field: 'actual', correction: 'Invented 61%', value: { kind: 'numeric', actual: 61 } })).toEqual({ error: 'Choose a part of this closure to correct.' });
     expect(await api.changeRequestOutcome(context(exceptional, 2), { ...fix, field: 'reason', correction: 'Holiday traffic, not too few sessions' })).toHaveProperty('success', true);
     expect(await api.readRequestOutcome(exceptional, { orgId })).toMatchObject({ closure: { reason: 'Too few sessions' }, corrections: [{ field: 'reason' }] });
+});
+it('records the corrected value of an actual result, a number or a pass/fail answer matching the closure, beside its text', async () => {
+    const api = await import('./outcome-actions');
+    await at('2026-10-28T00:00:00Z');
+    const id = await fixture();
+    await api.changeRequestOutcome(context(id, 1), measured);
+    const fix = { kind: 'correction', field: 'actual', correction: 'The export double-counted retries', reason: 'Wrong export' };
+    // An actual result's Correction must say what the result was; nothing else carries a value.
+    for (const invalid of [fix, { ...fix, value: { kind: 'numeric', actual: Number.NaN } }, { ...fix, field: 'evidence', value: { kind: 'numeric', actual: 61 } }])
+        expect(await api.changeRequestOutcome(context(id, 2), invalid)).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 2), { ...fix, value: { kind: 'pass_fail', passed: true } })).toEqual({ error: 'Record the corrected actual value.' });
+    expect(await api.changeRequestOutcome(context(id, 2), { ...fix, value: { kind: 'numeric', actual: 58 } })).toEqual({ success: true, revision: 3 });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ closure: { primary: { actual: 62 } }, corrections: [{ field: 'actual', correction: fix.correction, value: { kind: 'numeric', actual: 58 } }] });
+    const check = await fixture({ impact: { ...conversion, primary: { key: 'check', name: '', unit: '', current: null, target: null, noBaseline: false, check: 'keyboard' }, guardrails: [] } });
+    await api.changeRequestOutcome(context(check, 1), { ...measured, primary: { kind: 'pass_fail', passed: false }, guardrails: [] });
+    expect(await api.changeRequestOutcome(context(check, 2), { ...fix, value: { kind: 'numeric', actual: 1 } })).toEqual({ error: 'Record whether the check passed.' });
+    expect(await api.changeRequestOutcome(context(check, 2), { ...fix, value: { kind: 'pass_fail', passed: true } })).toEqual({ success: true, revision: 3 });
 });
 it('creates linked follow-ups after release with copied context and unanswered reviewers, leaving the original obligation intact', async () => {
     const api = await import('./outcome-actions');
@@ -275,4 +292,32 @@ it('an owner whose closure locks first keeps it; the concurrent admin transfer i
     const [row] = await connection `select exception_closure,release_state from requests where id=${id}`;
     if ('success' in closed) expect(row).toMatchObject({ exception_closure: { actorId: 'outcome_owner', ownerId: 'outcome_owner' }, release_state: { ownerId: 'outcome_owner' } });
     else expect(row).toMatchObject({ exception_closure: null, release_state: { ownerId: 'outcome_next' } });
+});
+it('#209: records an optional one-line What we learned with either closure, and changes it only by a Correction', async () => {
+    const api = await import('./outcome-actions');
+    await at('2026-10-28T00:00:00Z');
+    const id = await fixture();
+    for (const learned of ['two\nlines', 'x'.repeat(281)])
+        expect(await api.changeRequestOutcome(context(id, 1), { ...measured, learned })).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 1), { ...measured, learned: '  Shoppers trust the shorter form  ' })).toEqual({ success: true, revision: 2 });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ closure: { kind: 'measured', learned: 'Shoppers trust the shorter form' } });
+    // Left blank, nothing is stored.
+    const blank = await fixture();
+    expect(await api.changeRequestOutcome(context(blank, 1), { ...measured, learned: '   ' })).toHaveProperty('success', true);
+    const [blankRow] = await connection `select outcome_closure ? 'learned' as has_learned from requests where id=${blank}`;
+    expect(blankRow.has_learned).toBe(false);
+    const rolledBack = await fixture();
+    expect(await api.changeRequestOutcome(context(rolledBack, 1), { kind: 'exception', reasonCode: 'rolled_back', reason: '', learned: 'Test on Safari first' })).toHaveProperty('success', true);
+    expect(await api.readRequestOutcome(rolledBack, { orgId })).toMatchObject({ closure: { kind: 'exception', learned: 'Test on Safari first' } });
+    // Only the Requester corrects it, one line at a time, and the original stays.
+    const fix = { kind: 'correction', field: 'learned', correction: 'Shoppers trust a form with fewer fields', reason: 'Clearer wording' };
+    session.userId = 'outcome_pm';
+    expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ error: 'Only the Requester, outcome_owner, can add a correction.' });
+    session.userId = 'outcome_owner';
+    expect(await api.changeRequestOutcome(context(id, 2), { ...fix, correction: 'two\nlines' })).toHaveProperty('error');
+    expect(await api.changeRequestOutcome(context(id, 2), fix)).toEqual({ success: true, revision: 3 });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ closure: { learned: 'Shoppers trust the shorter form' }, corrections: [{ field: 'learned', correction: fix.correction, actorId: 'outcome_owner' }] });
+    // A Correction can add the line to a closure saved without one, and closures without a result take it too.
+    expect(await api.changeRequestOutcome(context(blank, 2), { ...fix, correction: 'Added later' })).toHaveProperty('success', true);
+    expect(await api.changeRequestOutcome(context(rolledBack, 2), { ...fix, correction: 'Test on every browser first' })).toHaveProperty('success', true);
 });
