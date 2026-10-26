@@ -1,4 +1,4 @@
-import { FREE_REQUESTS, freeRequestsUsedReason, type FreeRequests, type PlanState } from "./free-request-rules";
+import { FREE_REQUESTS, freeRequestsSharedNote, freeRequestsUsedReason, type FreeRequests, type PlanState } from "./free-request-rules";
 
 /**
  * #217 (spec #195, item 6): the first run, safe in the browser. The workspace's first person (its Clerk creator)
@@ -55,7 +55,7 @@ export function withStepRead(guide: FirstRunGuide, steps: string[], step: string
 /** The Free Requests in one line, as the first run shows them. */
 export function freeRequestsNote(planState: PlanState, free: FreeRequests): string {
   if (planState === "paying") return "This workspace pays for Lane, so creating Requests has no limit.";
-  if (free.usedElsewhere) return freeRequestsUsedReason(free);
+  if (free.usedElsewhere) return freeRequestsSharedNote(free) ?? freeRequestsUsedReason(free);
   return `${free.left} of ${FREE_REQUESTS} Free Requests left.`;
 }
 

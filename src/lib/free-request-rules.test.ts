@@ -3,9 +3,11 @@
  * (or taking on a Guest submission) is blocked with "an Admin needs to pay", but only while billing is enforced.
  */
 import { describe, expect, it } from "vitest";
-import { allowanceKeyOf, creationBlock, freeRequestsOf, type FreeRequestsState } from "./free-request-rules";
+import { allowanceKeyOf, creationBlock, freeRequestsOf, freeRequestsSharedNote, type FreeRequestsState } from "./free-request-rules";
 
-const held = { kind: "company_domain" as const, domain: "acme.com", held: true };
+const held = { kind: "company_domain" as const, domain: "acme.com", usedElsewhere: 0 };
+/** The same allowance, with `used` of its 4 used by other workspaces (decision 2026-10-26: shared per company domain). */
+const shared = (used: number, kind: "company_domain" | "personal_email" = "company_domain") => ({ kind, domain: kind === "company_domain" ? "acme.com" : "gmail.com", usedElsewhere: used });
 const state = (change: Partial<FreeRequestsState> = {}): FreeRequestsState => ({ planState: "free", used: 0, allowance: held, ...change });
 const PAY = "An Admin needs to pay for Lane before anyone here can create a new Request or take on a Guest submission. Everything already filed keeps working.";
 
@@ -16,9 +18,18 @@ describe("Free Requests left", () => {
     expect(freeRequestsOf(state({ used: 9 }))).toMatchObject({ total: 4, used: 9, left: 0 });
   });
 
-  it("gives none to a second workspace from the same company domain, and says where they went", () => {
-    const second = state({ allowance: { kind: "company_domain", domain: "acme.com", held: false } });
-    expect(freeRequestsOf(second)).toEqual({ total: 0, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain: "acme.com" } });
+  it("gives a second workspace from the same company domain whatever is left of the 4, and says where the rest went", () => {
+    expect(freeRequestsOf(state({ allowance: shared(1) }))).toEqual({ total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain: "acme.com", used: 1 } });
+    expect(freeRequestsOf(state({ used: 2, allowance: shared(1) }))).toMatchObject({ used: 2, left: 1 });
+    expect(freeRequestsOf(state({ allowance: shared(4) }))).toMatchObject({ left: 0 });
+    expect(freeRequestsOf(state({ used: 3, allowance: shared(9) }))).toMatchObject({ left: 0 });
+  });
+
+  it("says where Free Requests went only when another workspace used some", () => {
+    expect(freeRequestsOf(state({ allowance: shared(0) })).usedElsewhere).toBeNull();
+    expect(freeRequestsSharedNote(freeRequestsOf(state({ allowance: shared(0) })))).toBeNull();
+    expect(freeRequestsSharedNote(freeRequestsOf(state({ allowance: shared(1) })))).toBe("3 of 4 Free Requests left. They are shared with another workspace from acme.com, which used 1.");
+    expect(freeRequestsSharedNote(freeRequestsOf(state({ allowance: shared(4) })))).toBeNull();
   });
 
   it("gives 4 while the allowance isn't decided yet, so nobody is blocked on Lane's own uncertainty", () => {
@@ -32,11 +43,19 @@ describe("the block on new Requests", () => {
     expect(creationBlock(state({ used: 4 }), { enforced: true })).toBe(`This workspace has used its 4 Free Requests. ${PAY}`);
   });
 
-  it("tells a second workspace from the same domain that the Free Requests were already used", () => {
-    expect(creationBlock(state({ allowance: { kind: "company_domain", domain: "acme.com", held: false } }), { enforced: true }))
+  it("lets a second workspace from the same domain file what is left, then says the Free Requests were already used", () => {
+    expect(creationBlock(state({ allowance: shared(3) }), { enforced: true })).toBeNull();
+    expect(creationBlock(state({ allowance: shared(4) }), { enforced: true }))
       .toBe(`The Free Requests for acme.com were already used by another workspace. ${PAY}`);
-    expect(creationBlock(state({ allowance: { kind: "personal_email", domain: "gmail.com", held: false } }), { enforced: true }))
+    expect(creationBlock(state({ allowance: shared(4, "personal_email") }), { enforced: true }))
       .toBe(`The person who created this workspace already used their Free Requests in another workspace. ${PAY}`);
+  });
+
+  it("says the 4 were used between them when both workspaces used some", () => {
+    expect(creationBlock(state({ used: 1, allowance: shared(3) }), { enforced: true }))
+      .toBe(`This workspace and another from acme.com have used the 4 Free Requests for acme.com. ${PAY}`);
+    expect(creationBlock(state({ used: 2, allowance: shared(2, "personal_email") }), { enforced: true }))
+      .toBe(`This workspace and another created by the same person have used their 4 Free Requests. ${PAY}`);
   });
 
   it("never blocks a paying workspace, and blocks a lapsed one", () => {
@@ -47,7 +66,7 @@ describe("the block on new Requests", () => {
   it("blocks nothing while billing isn't enforced", () => {
     expect(creationBlock(state({ used: 40 }), { enforced: false })).toBeNull();
     expect(creationBlock(state({ planState: "lapsed" }), { enforced: false })).toBeNull();
-    expect(creationBlock(state({ allowance: { kind: "company_domain", domain: "acme.com", held: false } }), { enforced: false })).toBeNull();
+    expect(creationBlock(state({ allowance: shared(4) }), { enforced: false })).toBeNull();
   });
 });
 

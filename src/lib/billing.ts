@@ -28,20 +28,28 @@ import { workspaceRoster } from "./workspace-roster";
 type Workspace = { orgId: string };
 type Exec = typeof db | RequestTx;
 
+/**
+ * The workspace's count, and the allowance it shares with what every other workspace sharing it has counted
+ * (decision 2026-10-26: a company domain's 4 Free Requests, or one person's, are shared by all its workspaces).
+ */
 async function stateOf(exec: Exec, orgId: string): Promise<FreeRequestsState> {
   const [row] = await exec
-    .select({ planState: workspaceBilling.planState, used: workspaceBilling.freeRequestsUsed, key: workspaceBilling.allowanceKey, held: workspaceBilling.holdsAllowance })
+    .select({ planState: workspaceBilling.planState, used: workspaceBilling.freeRequestsUsed, key: workspaceBilling.allowanceKey })
     .from(workspaceBilling)
     .where(eq(workspaceBilling.orgId, orgId));
   if (!row) return { planState: "free", used: 0, allowance: null };
-  const allowance = row.key === null || row.held === null ? null : allowanceOfKey(row.key, row.held);
-  return { planState: row.planState, used: row.used, allowance };
+  if (row.key === null) return { planState: row.planState, used: row.used, allowance: null };
+  const [elsewhere] = await exec
+    .select({ used: sql<number>`coalesce(sum(${workspaceBilling.freeRequestsUsed}), 0)::int` })
+    .from(workspaceBilling)
+    .where(and(eq(workspaceBilling.allowanceKey, row.key), ne(workspaceBilling.orgId, orgId)));
+  return { planState: row.planState, used: row.used, allowance: allowanceOfKey(row.key, elsewhere?.used ?? 0) };
 }
 
 /** The kind and domain a stored allowance key names (a personal one is a whole address). */
-function allowanceOfKey(key: string, held: boolean): FreeRequestsState["allowance"] {
+function allowanceOfKey(key: string, usedElsewhere: number): FreeRequestsState["allowance"] {
   const at = key.indexOf("@");
-  return at < 0 ? { kind: "company_domain", domain: key, held } : { kind: "personal_email", domain: key.slice(at + 1), held };
+  return at < 0 ? { kind: "company_domain", domain: key, usedElsewhere } : { kind: "personal_email", domain: key.slice(at + 1), usedElsewhere };
 }
 
 export type WorkspaceFreeRequests = { planState: PlanState; free: FreeRequests };
@@ -58,9 +66,10 @@ export async function freeRequestsDecided(ws: Workspace): Promise<boolean> {
 }
 
 /**
- * Claims the Free Requests of the allowance `creatorEmail` names for this workspace: the first workspace to claim
- * a company domain (or a personal address) holds it, and any later one is told they were already used. Decided
- * once; an address that names no allowance (or none at all) leaves it undecided.
+ * Claims the Free Requests of the allowance `creatorEmail` names for this workspace: every workspace that claims a
+ * company domain (or a personal address) shares its 4, so a later one gets whatever is left. The first to claim it
+ * holds it (`holds_allowance`, kept as a record). Decided once; an address that names no allowance (or none at all)
+ * leaves it undecided.
  */
 export async function claimFreeRequests(ws: Workspace, creatorEmail: string | null): Promise<void> {
   const allowance = creatorEmail ? allowanceKeyOf(creatorEmail) : null;
@@ -331,13 +340,18 @@ async function recordSubscriptionChange(event: Extract<PaymentEvent, { kind: "su
 /**
  * Why a new Request (or taking on a Guest submission) is refused right now, or null to go ahead. Nothing is
  * refused while billing isn't enforced, and then this reads nothing. Inside a transaction it first locks the
- * workspace's row, the same lock that numbers new Requests, so two people can't both file the last Free Request.
- * Outside one (the early check before the AI review) it also decides an undecided allowance.
+ * workspace's row, the same lock that numbers new Requests, then the allowance it shares, so two people (in one
+ * workspace or two sharing the allowance) can't both file the last Free Request. Outside one (the early check before
+ * the AI review) it also decides an undecided allowance.
  */
 export async function newRequestBlock(ws: Workspace, tx?: RequestTx): Promise<string | null> {
   if (!billingEnforced()) return null;
-  if (tx) await tx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, ws.orgId)).for("update");
-  else await decideFreeRequests(ws);
+  if (tx) {
+    await tx.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, ws.orgId)).for("update");
+    await tx.select({ key: freeRequestAllowances.allowanceKey }).from(freeRequestAllowances)
+      .innerJoin(workspaceBilling, eq(workspaceBilling.allowanceKey, freeRequestAllowances.allowanceKey))
+      .where(eq(workspaceBilling.orgId, ws.orgId)).for("update", { of: freeRequestAllowances });
+  } else await decideFreeRequests(ws);
   return creationBlock(await stateOf(tx ?? db, ws.orgId), { enforced: true });
 }
 

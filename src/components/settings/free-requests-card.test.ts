@@ -17,7 +17,7 @@ describe("Free Requests card", () => {
   it("shows how many Free Requests are left, and what counts", () => {
     const html = text(render());
     expect(html).toContain("Free Requests left 3 of 4");
-    expect(html).toContain("Every workspace gets 4 Free Requests with all of Lane, for any number of people and no time limit. Each Request created counts, including deleted ones. A Guest submission counts once it’s taken on.");
+    expect(html).toContain("Every workspace gets 4 Free Requests with all of Lane, for any number of people and no time limit, shared with any other workspace from the same company email domain. Each Request created counts, including deleted ones. A Guest submission counts once it’s taken on.");
   });
 
   it("says nothing is blocked while Lane isn't charging", () => {
@@ -34,14 +34,20 @@ describe("Free Requests card", () => {
   });
 
   it("tells a second workspace from the same company domain that the Free Requests were already used", () => {
-    const html = text(render({ free: { total: 0, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain: "acme.com" } } }));
+    const html = text(render({ free: { total: 4, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain: "acme.com", used: 4 } } }));
     expect(html).toContain("Free Requests left 0 of 4");
     expect(html).toContain("The Free Requests for acme.com were already used by another workspace.");
   });
 
+  it("tells a second workspace from the same company domain what is left of the shared 4", () => {
+    const html = text(render({ free: { total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain: "acme.com", used: 1 } } }));
+    expect(html).toContain("Free Requests left 3 of 4");
+    expect(html).toContain("They are shared with another workspace from acme.com, which used 1.");
+  });
+
   it("keeps a long company domain whole", () => {
     const domain = `${"design-systems-".repeat(12)}example.com`;
-    expect(render({ free: { total: 0, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain } } })).toContain(domain);
+    expect(render({ free: { total: 4, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain, used: 4 } } })).toContain(domain);
   });
 
   it("shows no count for a paying workspace", () => {

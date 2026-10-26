@@ -918,8 +918,11 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   Member takes it on, not when it is filed. The database keeps the count (migration 0046), so no path skips it.
 - The allowance belongs to the company email domain of the workspace's Clerk creator; for a personal email domain
   (Gmail, Outlook, iCloud and the like) it belongs to that one address (read without `+tags`, and for Gmail without
-  dots). The first workspace Lane sees for a domain or address holds the 4; a later one gets none and is told the
-  Free Requests were already used by another workspace. It is decided once, when Lane first sees the workspace
+  dots). **Shared, decided 2026-10-26 (review of #195; supersedes "a later one gets none"):** every workspace with
+  the same company domain shares its 4, so a second one gets whatever is left (the first used 1: the second gets 3);
+  once all 4 are used, the second is told they were already used by another workspace. A personal address's 4 are
+  likewise shared only by that person's workspaces. Filing the last one locks the shared allowance, so two workspaces
+  can't both take it. A workspace's allowance is decided once, when Lane first sees the workspace
   (or, for workspaces Lane saw before 0046, when an Admin opens Billing or someone files while billing is enforced);
   if Lane can't find the creator it stays undecided and the workspace keeps its 4.
 - Once they are used and there is no paid plan (or the plan lapsed), creating a new Request, a follow-up, or taking
