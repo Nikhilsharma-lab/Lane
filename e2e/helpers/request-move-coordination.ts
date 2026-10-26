@@ -143,8 +143,10 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   await palettePointer(page, true); await expect(doneToast(page, fixture.c).getByRole("button", { name: "Undo", exact: true })).toBeVisible(); await pauseStack(page);
   await second.goto(`/requests/${fixture.a.id}`);
   await second.getByRole("region", { name: "Journey", exact: true }).getByRole("button", { name: "Record release", exact: true }).press("Enter");
-  const form = second.getByRole("dialog", { name: "Record release", exact: true });
+  const form = second.getByRole("region", { name: "Journey", exact: true }).locator("form").filter({ has: second.getByLabel("Release evidence", { exact: true }) });
   await expect(form.getByLabel("Release evidence", { exact: true })).toBeVisible();
+  const exposure = form.getByLabel("Actual exposure date (UTC)", { exact: true });
+  const today = await exposure.getAttribute("max"); expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/); await exposure.fill(today!);
   const current = form.getByLabel(/^Value before release/); if (await current.count()) await current.fill("62");
   await form.getByLabel("Release evidence", { exact: true }).fill("175 retained fixture: real Release before partial bulk Undo");
   await form.getByRole("checkbox", { name: "The agreed audience received this work", exact: true }).check();
@@ -181,7 +183,6 @@ async function verifyPendingPreview(page: Page, orgId: string, fixture: MoveFixt
     await expect(preview).not.toHaveAttribute("data-request-id", fixture.b.id);
     const nextId = await preview.getAttribute("data-request-id"); expect(nextId).toBeTruthy();
     await expect(page.locator(`#request-row-${nextId}`)).toBeFocused();
-    await expect(preview.locator("[data-detail-title]").getByRole("heading", { level: 2 })).toBeVisible();
   } else {
     await page.keyboard.press("Escape"); await expect(preview).toBeHidden();
     await expect(row(page, fixture.b)).toBeFocused();
@@ -191,7 +192,11 @@ async function verifyPendingPreview(page: Page, orgId: string, fixture: MoveFixt
   await done.finish();
   await expect(page).toHaveURL(originalUrl); await expect(isItLivePrompt(page)).toBeHidden();
   await expect.poll(() => focused!.evaluate(node => node.isConnected && node === document.activeElement)).toBe(true);
-  if (nextPreview) await expect(preview).toHaveAttribute("data-request-id", nextPreview); else await expect(preview).toBeHidden();
+  if (nextPreview) {
+    await expect(preview).toHaveAttribute("data-request-id", nextPreview);
+    // The held server action can serialize this new preview's read; wait for its content only after delivery.
+    await expect(preview.locator("[data-detail-title]").getByRole("heading", { level: 2 })).toBeVisible();
+  } else await expect(preview).toBeHidden();
   await expect(doneToast(page, fixture.b).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   await pauseStack(page);
   await capture(`saved-preview-${change}-no-stale-prompt-or-focus`, { requestId: fixture.b.id, previewAfter: nextPreview, unchangedPath: new URL(originalUrl).pathname, calls: done.count() });
