@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
 import { loadLabels } from "@/lib/data/labels";
+import { loadSavedViews } from "@/lib/data/saved-views";
 import { countNeedsYou } from "@/lib/data/inbox";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
@@ -36,7 +37,8 @@ export default async function AppLayout({
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
   const needsYouCount = countNeedsYou(member).catch(() => 0);
-  const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
+  // #219: the person's own saved views for the navigation. A failed read leaves the group out; it never breaks the shell.
+  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member), loadSavedViews(member).catch(() => [])]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
   // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
@@ -51,6 +53,7 @@ export default async function AppLayout({
       orgId={result.orgId}
       userId={result.userId}
       needsYouCount={needsYouCount}
+      savedViews={savedViews}
     >
       {children}
     </Sidebar>

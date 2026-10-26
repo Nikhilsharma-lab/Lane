@@ -13,6 +13,7 @@ import { CommandPaletteHost } from "./command-palette-lazy";
 import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
+import type { SavedView } from "@/lib/saved-view-nav";
 
 export function Sidebar({
   children,
@@ -23,6 +24,7 @@ export function Sidebar({
   orgId,
   userId,
   needsYouCount,
+  savedViews,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
@@ -34,6 +36,8 @@ export function Sidebar({
   userId: string;
   /** The (app) layout's unread count, streamed to the bell (plan item 1.8). */
   needsYouCount?: Promise<number>;
+  /** #219: the person's own saved views, for the navigation. */
+  savedViews?: SavedView[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,6 +80,7 @@ export function Sidebar({
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}
       workspaceSwitcher={workspaceSwitcher}
+      savedViews={savedViews}
     >
       {children}
     </SidebarView>

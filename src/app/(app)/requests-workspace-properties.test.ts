@@ -14,6 +14,8 @@ vi.mock("@/db", async () => {
 })
 // #217: the first run has its own tests (first-run-actions.test.ts); this file reads only the list.
 vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => null }))
+// #219: saved views have their own tests (saved-view-actions.test.ts); the layout reads them once per render.
+vi.mock("@/lib/data/saved-views", () => ({ loadSavedViews: async () => [] }))
 vi.mock("@/lib/ensure-workspace", () => ({
   // Plan item 1.8: the page reads Clerk claims first, then runs its loaders in parallel.
   getMember: async () => ({ userId: "person_current", orgId: "org_visible", role: recorded.role }),

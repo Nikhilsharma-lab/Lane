@@ -21,6 +21,8 @@ import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
+import { SavedViewMenu } from "@/components/requests/saved-view-menu"
+import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -81,7 +83,11 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
   return { rows, view, showMore: Boolean(context && view && hasMore(view)), pending: older.pending !== null, error: older.error, loadMore: () => { if (view) void load(view) } }
 }
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer, firstRun }: {
+const noViews: SavedView[] = []
+
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer, firstRun, savedViews = noViews }: {
+  /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
+  savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
   firstRun?: { node: ReactNode; replacesWelcome: boolean }
   requests: OverviewRequest[]
@@ -117,9 +123,13 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   // falls back to all Requests.
   const projectUnavailable = project !== "all" && project !== "none" && (!UUID_RE.test(project)
     || !sharedProjects.projects.some(item => item.id === project))
-  if (projectUnavailable) return <ProjectUnavailable />
+  // #219: anyone may keep views, Viewers and Guests included; an empty workspace has nothing to filter yet.
+  const viewTools = context && !workspaceEmpty ? <SavedViewMenu views={savedViews} orgId={context.orgId} /> : undefined
+  if (projectUnavailable) return <ProjectUnavailable tools={viewTools} />
 
-  const heading = projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
+  const openView = openSavedView(savedViews, listContext?.savedView)
+  const heading = openView?.name ?? projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
+  const viewNote = openView && savedViewChanged(openView.filters, { status, project }) ? "Filters changed since you saved this view." : undefined
   const showOlder = older.showMore
   const footer = (activeCapped || showOlder || older.error) ? <div className={`${styles.limitNote} flex flex-wrap items-center gap-3 pt-4`}>
     {activeCapped && <p className="m-0">Showing the latest 200 Requests.</p>}
@@ -138,7 +148,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
       <PageStrip title={heading} heading
-        note={isGuest ? "Only Requests you submit appear here." : undefined}
+        note={viewNote ?? (isGuest ? "Only Requests you submit appear here." : undefined)}
+        tools={viewTools}
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
@@ -158,10 +169,10 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
 
 /** A Project filter that names no Project in this workspace. Clearing it stays on this page with no request.
  * The strip names the state as the page h1; the body says what happened, as the error frames do. */
-export function ProjectUnavailable() {
+export function ProjectUnavailable({ tools }: { tools?: ReactNode }) {
   const setView = useSetRequestListView()
   return <div data-slot="requests-workspace" className={styles.overview}>
-    <PageStrip title="Project unavailable" heading />
+    <PageStrip title="Project unavailable" heading tools={tools} />
     <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
   </div>
 }

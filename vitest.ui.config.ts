@@ -79,6 +79,7 @@ export default defineConfig({
       "src/components/shell/inbox-bell.test.ts",
       "src/lib/first-run-rules.test.ts",
       "src/components/first-run/*.test.ts",
+      "src/lib/saved-view-rules.test.ts",
     ],
   },
   resolve: {
