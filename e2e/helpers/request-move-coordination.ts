@@ -19,7 +19,7 @@ async function sidebar(page: Page, name: string) {
 export async function selectMoveRows(page: Page, requests: NavigationRequest[]) {
   for (const request of requests) {
     await expect(row(page, request)).toBeVisible();
-    await row(page, request).focus(); await row(page, request).press("Space");
+    await row(page, request).focus(); await row(page, request).press("x");
     await expect(row(page, request)).toHaveAttribute("aria-selected", "true");
   }
   await expect(bar(page)).toContainText(`${requests.length} selected`);
@@ -164,8 +164,48 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   const singleUndo = await beginCoordinatedChange(page, orgId, "undo", [fixture.c.id], recorder, () => runPaletteCommand(page, "Undo Mark Done", undefined, "Control+k")); await singleUndo.finish(); await palettePointer(page, false);
 }
 
-/** A held real saved response crosses native navigation away and back. No stale focus, prompt or summary may revive. */
+/** Real preview-only navigation must invalidate presentation without losing the saved operation's explicit Undo. */
+async function verifyPendingPreview(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture, change: "replace" | "close") {
+  await sidebar(page, "All Requests");
+  const preview = page.getByRole("region", { name: "Request preview", exact: true });
+  await row(page, fixture.b).focus(); await row(page, fixture.b).press("Space");
+  await expect(preview).toHaveAttribute("data-request-id", fixture.b.id);
+  const button = preview.getByRole("button", { name: "Mark Done", exact: true }); await expect(button).toBeVisible();
+  const originalUrl = page.url();
+  const done = await beginCoordinatedChange(page, orgId, "done", [fixture.b.id], recorder, () => button.press("Enter"), true);
+  await done.received();
+  if (change === "replace") {
+    // J/K operates the actual list/preview keys. A group header may take one step.
+    await row(page, fixture.b).focus();
+    for (let step = 0; step < 3 && await preview.getAttribute("data-request-id") === fixture.b.id; step++) await page.keyboard.press("k");
+    await expect(preview).not.toHaveAttribute("data-request-id", fixture.b.id);
+    const nextId = await preview.getAttribute("data-request-id"); expect(nextId).toBeTruthy();
+    await expect(page.locator(`#request-row-${nextId}`)).toBeFocused();
+    await expect(preview.locator("[data-detail-title]").getByRole("heading", { level: 2 })).toBeVisible();
+  } else {
+    await page.keyboard.press("Escape"); await expect(preview).toBeHidden();
+    await expect(row(page, fixture.b)).toBeFocused();
+  }
+  const focused = await page.locator(":focus").elementHandle(); expect(focused).not.toBeNull();
+  const nextPreview = change === "replace" ? await preview.getAttribute("data-request-id") : null;
+  await done.finish();
+  await expect(page).toHaveURL(originalUrl); await expect(isItLivePrompt(page)).toBeHidden();
+  await expect.poll(() => focused!.evaluate(node => node.isConnected && node === document.activeElement)).toBe(true);
+  if (nextPreview) await expect(preview).toHaveAttribute("data-request-id", nextPreview); else await expect(preview).toBeHidden();
+  await expect(doneToast(page, fixture.b).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  await pauseStack(page);
+  await capture(`saved-preview-${change}-no-stale-prompt-or-focus`, { requestId: fixture.b.id, previewAfter: nextPreview, unchangedPath: new URL(originalUrl).pathname, calls: done.count() });
+  const undo = await beginCoordinatedChange(page, orgId, "undo", [fixture.b.id], recorder, () => doneToast(page, fixture.b).getByRole("button", { name: "Undo", exact: true }).press("Enter")); await undo.finish();
+  await expect(row(page, fixture.b)).toHaveAccessibleName(/In progress/);
+  if (await preview.isVisible()) { await preview.getByRole("button", { name: "Close preview", exact: true }).press("Enter"); await expect(preview).toBeHidden(); }
+  await capture(`saved-preview-${change}-explicit-undo-retained`);
+}
+
+/** Preview-only changes and native route changes each keep settlement without reviving old presentation. */
 export async function verifyPendingMoveNavigation(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await verifyPendingPreview(page, orgId, fixture, recorder, capture, "replace");
+  await verifyPendingPreview(page, orgId, fixture, recorder, capture, "close");
   await sidebar(page, "All Requests"); await detail(page, fixture.b);
   const single = await beginCoordinatedChange(page, orgId, "done", [fixture.b.id], recorder, () => page.getByRole("button", { name: "Mark Done", exact: true }).press("Enter"), true);
   await single.received(); await page.goBack(); await expect(page).toHaveURL(url => url.pathname === "/"); await page.goForward(); await expect(page).toHaveURL(url => url.pathname === `/requests/${fixture.b.id}`);
