@@ -610,6 +610,19 @@ Track amendments and follow-ups at Request level, not as personal blame or quali
 and preventable rework are not equivalent. No automatic classification, rankings or analytics dashboard is
 authorized by recording this history. Exact relationship storage and UI remain implementation-plan decisions.
 
+**Same problem links (#195 item 7, #218, 2026-10-25, on the integration branch):** Admins and Members link two
+Requests as Same problem, at any status including Closed; the link lives in its own table (migration 0051), so
+neither Request's record changes. A Request is in one group at most: linking to any Request in a group joins the
+whole group, and linking two grouped Requests combines the groups. Removing a link takes only that Request out; a
+group left with one Request ends. Each Request's history records who linked it (and with which Request) or took it
+out, and when. Deleting an Open Request removes its membership. The Request page shows "Iterations of this
+problem" after the journey: the group oldest first by filing time, each with its status, prediction and result
+(or its reason when Closed without a result), the Request being read highlighted with its number ("3rd
+iteration"). The number is worked out from creation order when read, never stored. Follow-ups keep their link and
+their own list in the journey, can't be removed, and are not iterations unless also linked as Same problem. The
+Outcome report shows each grouped Request's iteration note, linking to the group. Request list rows are unchanged.
+Guests see no links; Viewers see all and change none.
+
 ---
 
 ## 6. Request information architecture
