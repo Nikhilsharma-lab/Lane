@@ -14,7 +14,9 @@ type Found = { kind: "idle" } | { kind: "searching" } | { kind: "found"; results
  * "Link a Request" (#218), loaded only when opened. Finds Requests by code or title through the workspace search
  * (GET /api/search, the same visibility rules), at any status, and links the one chosen as Same problem.
  */
-export default function SameProblemLinkDialog({ open, onOpenChange, orgId, requestId, linkedIds, onLink }: {
+export default function SameProblemLinkDialog({ open, onOpenChange, orgId, requestId, linkedIds, onLink, returnFocus }: {
+  /** Where focus goes when the dialog closes: back to "Link a Request". */
+  returnFocus: () => void
   open: boolean
   onOpenChange: (open: boolean) => void
   orgId: string
@@ -61,7 +63,7 @@ export default function SameProblemLinkDialog({ open, onOpenChange, orgId, reque
   const shown: Found = query.trim() ? found : { kind: "idle" }
   const candidates = shown.kind === "found" ? linkCandidates(shown.results, { requestId, linkedIds }) : []
   return <Dialog open={open} onOpenChange={change}>
-    <DialogContent title="Link a Request as Same problem" description="Find another attempt at this problem by its code or title. Linking joins its group, at any status; neither Request changes.">
+    <DialogContent onCloseAutoFocus={event => { event.preventDefault(); returnFocus() }} title="Link a Request as Same problem" description="Find another attempt at this problem by its code or title. Linking joins its group, at any status; neither Request changes.">
       <div className={styles.body}>
         <SearchField label="Find a Request" value={query} onValueChange={setQuery} placeholder="LAN-12 or a title" autoFocus />
         {shown.kind === "idle" && <p className={styles.muted}>Type a code or part of a title.</p>}

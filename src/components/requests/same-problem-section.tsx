@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { callAction } from "@/lib/action-call"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
+import { ITERATIONS_SECTION_ID } from "@/lib/same-problem-rules"
 import type { LinkCandidate } from "./same-problem-link-model"
 import type { SameProblemState } from "./same-problem-view"
 import styles from "./same-problem.module.css"
 
 /** What shows while the list's code or its read is on the way. */
 function Loading() {
-  return <section id="iterations" aria-labelledby="iterations-heading" className={styles.section}>
+  return <section id={ITERATIONS_SECTION_ID} aria-labelledby="iterations-heading" className={styles.section}>
     <div className={styles.header}><h2 id="iterations-heading" className={styles.heading}>Iterations of this problem</h2></div>
     <p role="status" className={styles.muted}>Loading Iterations…</p>
   </section>
@@ -49,6 +50,7 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
   const [actionError, setActionError] = useState("")
   const [announcement, setAnnouncement] = useState("")
   const heading = useRef<HTMLHeadingElement>(null)
+  const linkButton = useRef<HTMLButtonElement>(null)
   const generation = useRef(0)
 
   const show = useCallback((next: SameProblemState | null) => {
@@ -68,6 +70,16 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
     readView(requestId, orgId).then(next => { if (active && current === generation.current) show(next) })
     return () => { active = false }
   }, [requestId, orgId, show])
+
+  // The Outcome report's iteration note links to #iterations, which renders after the page: bring it into view once read.
+  const arrived = useRef(false)
+  useEffect(() => {
+    if (state.kind !== "ready" || arrived.current) return
+    arrived.current = true
+    if (window.location.hash !== `#${ITERATIONS_SECTION_ID}`) return
+    const frame = window.requestAnimationFrame(() => document.getElementById(ITERATIONS_SECTION_ID)?.scrollIntoView({ block: "start" }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [state])
 
   async function link(candidate: LinkCandidate): Promise<string | null> {
     try {
@@ -103,7 +115,7 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
   const linkedIds = state.kind === "ready" ? state.iterations?.iterations.map(entry => entry.requestId) ?? [] : []
   return <>
     <SameProblemView requestNumber={requestNumber} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
-      onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} />
-    {linkMounted && <SameProblemLinkDialog open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} />}
+      onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} linkButtonRef={linkButton} />
+    {linkMounted && <SameProblemLinkDialog open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} returnFocus={() => linkButton.current?.focus()} />}
   </>
 }
