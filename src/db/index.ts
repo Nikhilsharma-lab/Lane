@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { cleanDatabaseUrl } from "./database-url";
 import { assertSafeDatabaseUrl } from "./hosted-database-guard";
 import { databaseTlsOptions } from "./tls-options";
 import { queryCounter } from "./query-counter";
@@ -14,19 +15,20 @@ const globalForDb = global as unknown as {
 
 function getDb(): DbClient {
   if (!globalForDb._db) {
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = cleanDatabaseUrl(process.env.DATABASE_URL);
+    if (!databaseUrl) {
       throw new Error(
         "[db] DATABASE_URL is not set. Add it to .env.local (local) or Vercel env vars (production)."
       );
     }
 
-    const url = new URL(process.env.DATABASE_URL);
-    assertSafeDatabaseUrl(process.env.DATABASE_URL);
+    const url = new URL(databaseUrl);
+    assertSafeDatabaseUrl(databaseUrl);
 
     // Supabase's transaction pooler (port 6543) needs prepare: false. A function
     // instance next to the database reconnects in milliseconds, so the pool stays
     // small and idle sockets close after 20 s rather than risking a dead one.
-    globalForDb._sql = postgres(process.env.DATABASE_URL, {
+    globalForDb._sql = postgres(databaseUrl, {
       prepare: false,
       max: 8,
       idle_timeout: 20,
